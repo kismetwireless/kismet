@@ -511,6 +511,11 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         dissect_data = 1;
     }
 
+#if 0
+    // There is no actual handling of phy packets and nothing uses this config option,
+    // scheduled for removal unless something new is found that makes phy packets actually
+    // useful
+
     // Do we process phy and control frames?  They seem to be the glitchiest
     // on many cards including the ath9k which is otherwise excellent
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_process_phy", 0)) {
@@ -525,6 +530,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 MSGFLAG_INFO);
         process_ctl_phy = false;
     }
+#endif
 
     signal_from_beacon = Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_signal_from_beacon", true);
     if (signal_from_beacon) {
@@ -1491,6 +1497,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         // If we WERE going to process them, it would go here, and we'd start looking for 
         // source and dest where we could find them
         commoninfo->type = packet_basic_phy;
+
+        if (d11phy->filter_survey_only)
+            in_pack->filtered = true;
+
     } else if (dot11info->type == packet_data) {
         commoninfo->type = packet_basic_data;
 
