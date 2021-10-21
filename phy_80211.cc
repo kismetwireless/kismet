@@ -1022,9 +1022,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
 
-    // Don't process errors, blocked, or dupes; TODO - handle duplicates
-    // where we combine attributes about them
+    // Don't process errors, blocked, or dupes;  Filter them in survey mode
+    //
+    // TODO - handle duplicates where we combine attributes about them
     if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
+
+        if (d11phy->filter_survey_only)
+            in_pack->filtered = true;
+
         return 0;
     }
 
@@ -1034,6 +1039,22 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     if (dot11info == nullptr)
         return 0;
 
+    // Don't handle corrupt packets, and filter them if we're in survey only
+    if (dot11info->corrupt) {
+        if (d11phy->filter_survey_only)
+            in_pack->filtered = true;
+
+        return 0;
+    }
+
+    // Do nothing if it's not a beacon in survey mode
+    if (d11phy->filter_survey_only &&
+            (dot11info->type != packet_management ||
+            dot11info->subtype != packet_sub_beacon)) {
+        in_pack->filtered = true;
+        return 0;
+    }
+
     auto commoninfo = in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
 
     if (commoninfo == nullptr) {
@@ -1041,7 +1062,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     }
 
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
-
 
     if (pack_l1info != nullptr && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold && 
             pack_l1info->signal_dbm < 0 && 
@@ -1066,14 +1086,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             in_pack->error || dot11info->type == packet_unknown ||
             dot11info->subtype == packet_sub_unknown) {
         in_pack->error = 1;
-        return 0;
-    }
-
-    // Do nothing if it's data and we're in survey mode
-    if (d11phy->filter_survey_only &&
-            (dot11info->type != packet_management ||
-            dot11info->subtype != packet_sub_beacon)) {
-        in_pack->filtered = true;
         return 0;
     }
 
@@ -1497,10 +1509,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         // If we WERE going to process them, it would go here, and we'd start looking for 
         // source and dest where we could find them
         commoninfo->type = packet_basic_phy;
-
-        if (d11phy->filter_survey_only)
-            in_pack->filtered = true;
-
     } else if (dot11info->type == packet_data) {
         commoninfo->type = packet_basic_data;
 

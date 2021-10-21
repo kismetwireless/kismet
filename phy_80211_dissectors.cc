@@ -485,7 +485,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
         common->dest = packinfo->dest_mac;
         common->network = packinfo->bssid_mac;
         common->transmitter = packinfo->transmit_mac;
-        common->type = packet_basic_data;
 
         // Nothing more to do if we get a phy
         in_pack->insert(pack_comp_80211, packinfo);
