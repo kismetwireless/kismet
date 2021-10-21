@@ -51,6 +51,10 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
     pack_comp_checksum = packetchain->register_packet_component("CHECKSUM");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+
+    log_duplicate_packets =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("ppi_log_duplicate_packets", true);
+
 }
 
 bool kis_ppi_logfile::open_log(std::string in_path) {
@@ -168,6 +172,11 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     if (ppilog->stream_paused)
         return 1;
 
+    if (in_pack->filtered)
+        return 1;
+
+    if (in_pack->duplicate && ppilog->log_duplicate_packets == false)
+        return 1;
 
     // Grab the mangled frame if we have it, then try to grab up the list of
     // data types and die if we can't get anything

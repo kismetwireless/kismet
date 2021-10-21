@@ -38,6 +38,8 @@ protected:
     future_chainbuf buffer;
     FILE *pcapng_file;
     std::thread stream_t;
+
+    bool log_duplicate_packets;
 };
 
 class pcapng_logfile_builder : public kis_logfile_builder {

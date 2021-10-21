@@ -912,6 +912,9 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
     if (in_pack->duplicate && !log_duplicate_packets)
         return 0;
 
+    if (in_pack->filtered)
+        return 0;
+
     if (packet_mac_filter->filter_packet(in_pack)) {
         return 0;
     }

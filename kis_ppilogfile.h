@@ -92,6 +92,8 @@ protected:
     kis_mutex packet_mutex;
 
     std::atomic<bool> log_open;
+
+    bool log_duplicate_packets;
 };
 
 class ppi_logfile_builder : public kis_logfile_builder {
