@@ -712,6 +712,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         _MSG_INFO("Not keeping EAPOL packets in memory, EAP replay WIDS and handshake downloads will not "
                 "be available.");
 
+    filter_survey_only =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_only_survey", false);
+
     // access-point view
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
         ap_view = 
@@ -1013,7 +1016,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
 
-    // Don't process errors, blocked, or dupes
+    // Don't process errors, blocked, or dupes; TODO - handle duplicates
+    // where we combine attributes about them
     if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
         return 0;
     }
@@ -1056,6 +1060,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             in_pack->error || dot11info->type == packet_unknown ||
             dot11info->subtype == packet_sub_unknown) {
         in_pack->error = 1;
+        return 0;
+    }
+
+    // Do nothing if it's data and we're in survey mode
+    if (d11phy->filter_survey_only &&
+            (dot11info->type != packet_management ||
+            dot11info->subtype != packet_sub_beacon)) {
+        in_pack->filtered = true;
         return 0;
     }
 
