@@ -759,10 +759,6 @@ void kis_datasource::cancel_all_commands(std::string in_error) {
     command_ack_map.clear();
 }
 
-bool kis_datasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    return dispatch_rx_packet(c->command(), c->seqno(), c->content());
-}
-
 bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Handle all the default options first; ping, pong, message, etc are all

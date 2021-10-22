@@ -558,6 +558,9 @@ protected:
     // Do we process control and phy frames?
     bool process_ctl_phy;
 
+    // Do we track non-AP devices?
+    bool filter_survey_only;
+
     // IE fingerprinting lists
     std::vector<ie_tag_tuple> beacon_ie_fingerprint_list;
     std::vector<ie_tag_tuple> probe_ie_fingerprint_list;

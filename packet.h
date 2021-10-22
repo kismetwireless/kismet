@@ -58,6 +58,11 @@ class packet_component {
 public:
     packet_component() { };
     virtual ~packet_component() { }
+
+    // Is this component unique?  Unique components are preserved when aliasing duplicate
+    // packets.  For instance, datasource, location, and l1 radio info should be considered
+    // unique.
+    virtual bool unique() { return false; }
 };
 
 // Overall packet container that holds packet information
@@ -520,6 +525,8 @@ public:
     kis_layer1_packinfo() {
         reset();
     }
+
+    virtual bool unique() override { return true; }
 
     void reset() {
         signal_type = kis_l1_signal_type_none;

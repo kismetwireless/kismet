@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include "configfile.h"
 #include "kis_pcapnglogfile.h"
 #include "messagebus.h"
 
@@ -26,6 +27,9 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     buffer{4096, 1024} {
     pcapng = nullptr;
     pcapng_file = nullptr;
+
+    log_duplicate_packets =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_duplicate_packets", true);
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {
@@ -45,7 +49,16 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
         return false;
     }
 
-    pcapng = new pcapng_stream_packetchain(buffer, nullptr, nullptr, 16384);
+    pcapng = new pcapng_stream_packetchain(buffer, 
+            [this](std::shared_ptr<kis_packet> in_pack) -> bool {
+                if (in_pack->filtered)
+                    return false;
+
+                if (in_pack->duplicate && !log_duplicate_packets)
+                    return false;
+
+                return true;
+            }, nullptr, 16384);
 
     _MSG_INFO("Opened pcapng log file '{}'", in_path);
 

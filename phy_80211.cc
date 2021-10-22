@@ -511,6 +511,11 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         dissect_data = 1;
     }
 
+#if 0
+    // There is no actual handling of phy packets and nothing uses this config option,
+    // scheduled for removal unless something new is found that makes phy packets actually
+    // useful
+
     // Do we process phy and control frames?  They seem to be the glitchiest
     // on many cards including the ath9k which is otherwise excellent
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_process_phy", 0)) {
@@ -525,6 +530,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 MSGFLAG_INFO);
         process_ctl_phy = false;
     }
+#endif
 
     signal_from_beacon = Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_signal_from_beacon", true);
     if (signal_from_beacon) {
@@ -711,6 +717,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     else
         _MSG_INFO("Not keeping EAPOL packets in memory, EAP replay WIDS and handshake downloads will not "
                 "be available.");
+
+    filter_survey_only =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_only_survey", false);
 
     // access-point view
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
@@ -1013,8 +1022,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
 
-    // Don't process errors, blocked, or dupes
+    // Don't process errors, blocked, or dupes;  Filter them in survey mode
+    //
+    // TODO - handle duplicates where we combine attributes about them
     if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
+
+        if (d11phy->filter_survey_only)
+            in_pack->filtered = true;
+
         return 0;
     }
 
@@ -1024,6 +1039,22 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     if (dot11info == nullptr)
         return 0;
 
+    // Don't handle corrupt packets, and filter them if we're in survey only
+    if (dot11info->corrupt) {
+        if (d11phy->filter_survey_only)
+            in_pack->filtered = true;
+
+        return 0;
+    }
+
+    // Do nothing if it's not a beacon in survey mode
+    if (d11phy->filter_survey_only &&
+            (dot11info->type != packet_management ||
+            dot11info->subtype != packet_sub_beacon)) {
+        in_pack->filtered = true;
+        return 0;
+    }
+
     auto commoninfo = in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
 
     if (commoninfo == nullptr) {
@@ -1031,7 +1062,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     }
 
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
-
 
     if (pack_l1info != nullptr && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold && 
             pack_l1info->signal_dbm < 0 && 
