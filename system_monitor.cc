@@ -408,11 +408,11 @@ int Systemmonitor::timetracker_event(int eventid) {
         std::string synth_name = "system-thermal-0";
         double temp;
 
-        fscanf(tempf, "%lf", &temp);
+        if (fscanf(tempf, "%lf", &temp) == 1) {
+            temp = temp / 1000;
+            status->get_sensors_fans()->insert(synth_name, std::make_shared<tracker_element_double>(0, temp));
+        }
 
-        temp = temp / 1000;
-
-        status->get_sensors_fans()->insert(synth_name, std::make_shared<tracker_element_double>(0, temp));
 
         fclose(tempf);
     }
