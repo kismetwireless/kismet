@@ -199,6 +199,9 @@ public:
 
     // Tags applied to the packet
     robin_hood::unordered_map<std::string, bool> tag_map;
+
+    // Packet lock
+    kis_mutex mutex;
 };
 
 

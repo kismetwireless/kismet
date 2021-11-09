@@ -53,8 +53,6 @@ packet_chain::packet_chain() {
 
     unique_packet_no = 1;
 
-    memset(dedupe_list, 0, sizeof(packno_map_t) * 1024);
-
     dedupe_list_pos = 0;
 
     Globalreg::enable_pool_type<kis_tracked_packet>();
@@ -180,12 +178,16 @@ packet_chain::packet_chain() {
 	pack_comp_decap = register_packet_component("DECAP");
 
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
-    // after any phy demangling and DLT demangling
+    // after any phy demangling and DLT demangling; lock the packet for the rest of the 
+    // packet chain
     register_handler([this](std::shared_ptr<kis_packet> in_pack) -> int {
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
         if (chunk == nullptr)
             return 1;
+
+        // Lock every packet at the beginning of the dupe check
+        in_pack->mutex.lock();
 
         kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
 
@@ -195,6 +197,20 @@ packet_chain::packet_chain() {
             if (dedupe_list[i].hash == in_pack->hash) {
                 in_pack->duplicate = true;
                 in_pack->packet_no = dedupe_list[i].packno;
+
+                // We have to wait until everything is done being changed in the packet
+                // before we can copy the duplicate decoded state over, grab the lock that
+                // is released at the end of the chain
+                auto lg = kis_lock_guard<kis_mutex>(dedupe_list[i].original_pkt->mutex);
+                for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
+                    auto cp = dedupe_list[i].original_pkt->content_vec[c];
+                    if (cp != nullptr) {
+                        if (cp->unique())
+                            continue;
+
+                        in_pack->content_vec[c] = cp;
+                    }
+                }
             }
         }
 
@@ -204,10 +220,18 @@ packet_chain::packet_chain() {
             in_pack->packet_no = unique_packet_no++;
             dedupe_list[listpos].hash = in_pack->hash;
             dedupe_list[listpos].packno = unique_packet_no++;
+            dedupe_list[listpos].original_pkt = in_pack;
         }
 
         return 1;
     }, CHAINPOS_LLCDISSECT, 10000);
+
+    // Unlock at the end of logging
+    register_handler([](std::shared_ptr<kis_packet> in_pack) -> int {
+        in_pack->mutex.unlock();
+        return 1;
+    }, CHAINPOS_LOGGING, 1000000);
+
 }
 
 packet_chain::~packet_chain() {

@@ -239,8 +239,14 @@ protected:
 
     // A simple array of hash to packet ID for the past 1024 unique packets
     typedef struct packno_map {
+        packno_map() {
+            hash = 0;
+            packno = 0;
+        }
+
         uint32_t hash;
         uint64_t packno;
+        std::shared_ptr<kis_packet> original_pkt;
     } packno_map_t;
 
     packno_map_t dedupe_list[1024];
