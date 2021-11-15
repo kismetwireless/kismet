@@ -419,7 +419,7 @@ int kis_net_beast_httpd::start_httpd() {
         return -1;
     }
 
-    _MSG_INFO("(DEBUG) Beast server listening on {}:{}", endpoint.address(), endpoint.port());
+    _MSG_INFO("HTTP server listening on {}:{}", endpoint.address(), endpoint.port());
 
     running = true;
 

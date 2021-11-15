@@ -218,8 +218,10 @@ int kis_rtlamr_phy::PacketHandler(CHAINCALL_PARMS) {
     try {
         ss >> device_json;
 
-        if (rtlamr->json_to_rtl(device_json, in_pack)) 
-            in_pack->fetch_or_add<packet_metablob>(rtlamr->pack_comp_meta, "RTLAMR", json->json_string);
+        if (rtlamr->json_to_rtl(device_json, in_pack)) {
+            auto adata = in_pack->fetch_or_add<packet_metablob>(rtlamr->pack_comp_meta);
+            adata->set_data("RTLAMR", json->json_string);
+        }
     } catch (std::exception& e) {
         fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
         return 0;

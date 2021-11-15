@@ -197,6 +197,7 @@ packet_chain::packet_chain() {
             if (dedupe_list[i].hash == in_pack->hash) {
                 in_pack->duplicate = true;
                 in_pack->packet_no = dedupe_list[i].packno;
+                in_pack->original = dedupe_list[i].original_pkt;
 
                 // We have to wait until everything is done being changed in the packet
                 // before we can copy the duplicate decoded state over, grab the lock that

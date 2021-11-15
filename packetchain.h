@@ -41,7 +41,6 @@
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 #include "objectpool.h"
-#include "packet.h"
 #include "robin_hood.h"
 #include "timetracker.h"
 #include "trackedelement.h"

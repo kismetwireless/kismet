@@ -57,6 +57,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     pack_comp_report = packetchain->register_packet_component("PACKETREPORT");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
+    pack_comp_l1_agg = packetchain->register_packet_component("RADIODATA_AGG");
     pack_comp_gps = packetchain->register_packet_component("GPS");
     pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
 	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
