@@ -30,6 +30,7 @@
 #include "alertracker.h"
 #include "configfile.h"
 #include "globalregistry.h"
+#include "kis_datasource.h"
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
@@ -176,6 +177,9 @@ packet_chain::packet_chain() {
 
 	pack_comp_linkframe = register_packet_component("LINKFRAME");
 	pack_comp_decap = register_packet_component("DECAP");
+    pack_comp_l1 = register_packet_component("RADIODATA");
+    pack_comp_l1_agg = register_packet_component("RADIODATA_AGG");
+	pack_comp_datasource = register_packet_component("KISDATASRC");
 
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
     // after any phy demangling and DLT demangling; lock the packet for the rest of the 
@@ -212,6 +216,15 @@ packet_chain::packet_chain() {
                         in_pack->content_vec[c] = cp;
                     }
                 }
+
+                // Merge the signal levels
+                if (in_pack->has(pack_comp_l1) && in_pack->has(pack_comp_datasource)) {
+                    auto l1 = in_pack->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
+                    auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
+                    auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+                    radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
+                }
+
             }
         }
 
@@ -374,7 +387,6 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, kismet::shared_lock, "packet_queue_processor");
             std::shared_lock<kis_shared_mutex> lk(packetchain_mutex);
 
             // These can only be perturbed inside a sync, which can only occur when

@@ -415,9 +415,6 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
 
-    auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
-    radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = radioheader;
-
     std::shared_ptr<kis_packet_checksum> fcschunk;
 
     // If we're slicing the FCS into its own record and we have the space

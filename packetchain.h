@@ -253,7 +253,7 @@ protected:
     // Current position in the dedupe list
     std::atomic<unsigned int> dedupe_list_pos;
 
-	int pack_comp_linkframe, pack_comp_decap;
+	int pack_comp_linkframe, pack_comp_decap, pack_comp_l1_agg, pack_comp_l1, pack_comp_datasource;
     
 };
 

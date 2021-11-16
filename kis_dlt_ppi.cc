@@ -267,8 +267,6 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     if (radioheader != NULL) {
         in_pack->insert(pack_comp_radiodata, radioheader);
-        auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
-        radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = radioheader;
     }
 
     in_pack->insert(pack_comp_decap, decapchunk);
