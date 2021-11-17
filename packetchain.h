@@ -41,7 +41,6 @@
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 #include "objectpool.h"
-#include "packet.h"
 #include "robin_hood.h"
 #include "timetracker.h"
 #include "trackedelement.h"
@@ -239,8 +238,14 @@ protected:
 
     // A simple array of hash to packet ID for the past 1024 unique packets
     typedef struct packno_map {
+        packno_map() {
+            hash = 0;
+            packno = 0;
+        }
+
         uint32_t hash;
         uint64_t packno;
+        std::shared_ptr<kis_packet> original_pkt;
     } packno_map_t;
 
     packno_map_t dedupe_list[1024];
@@ -248,7 +253,7 @@ protected:
     // Current position in the dedupe list
     std::atomic<unsigned int> dedupe_list_pos;
 
-	int pack_comp_linkframe, pack_comp_decap;
+	int pack_comp_linkframe, pack_comp_decap, pack_comp_l1_agg, pack_comp_l1, pack_comp_datasource;
     
 };
 

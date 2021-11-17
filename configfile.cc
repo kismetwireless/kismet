@@ -306,6 +306,10 @@ int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
     return r;
 }
 
+header_value_config config_file::fetch_opt_complex(const std::string& in_key) {
+    return header_value_config(fetch_opt(in_key));
+}
+
 std::string config_file::fetch_opt_path(const std::string& in_key, const std::string& in_dfl) {
     auto p = fetch_opt_dfl(in_key, in_dfl);
     return expand_log_path(p, "", "", 0, 1);
@@ -568,6 +572,7 @@ void header_value_config::parse_line(const std::string& in_confline) {
         header = in_confline;
     } else {
         header = in_confline.substr(0, cpos);
+        raw = in_confline.substr(cpos + 1, in_confline.length() - (cpos + 1));
         std::vector<opt_pair> opt_vec;
         string_to_opts(in_confline.substr(cpos + 1, in_confline.size() - cpos), ",", &opt_vec);
 

@@ -484,7 +484,6 @@ public:
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the new source
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
     virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
             uint32_t seqno, const nonstd::string_view& content) override;
 

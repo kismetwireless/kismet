@@ -265,8 +265,10 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     auto len = kismin((linkchunk->length() - ph_len - applyfcs), (uint32_t) MAX_PACKET_LEN);
     decapchunk->set_data(linkchunk->substr(ph_len, len));
 
-    if (radioheader != NULL)
+    if (radioheader != NULL) {
         in_pack->insert(pack_comp_radiodata, radioheader);
+    }
+
     in_pack->insert(pack_comp_decap, decapchunk);
 
     std::shared_ptr<kis_packet_checksum> fcschunk;

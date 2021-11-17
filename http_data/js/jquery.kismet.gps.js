@@ -25,6 +25,8 @@
 
     var gpsicon = null;
 
+    var gpstext = null;
+
     var gpsclick = null;
 
     // Last time from the server
@@ -205,6 +207,18 @@
     }
 
     var gps_refresh = function(data) {
+        if (kismet.getStorage('kismet.ui.gps.icon') === 'False') {
+            gpsicon.hide();
+        } else {
+            gpsicon.show();
+        }
+
+        if (kismet.getStorage('kismet.ui.gps.text') === 'False') {
+            gpstext.hide();
+        } else {
+            gpstext.show();
+        }
+
         data = kismet.sanitizeObject(data);
 
         last_gps = data;
@@ -240,12 +254,20 @@
             gpsicon.removeClass('kg-icon-3d');
             gpsicon.removeClass('kg-icon-2d');
             element.tooltipster('content', 'GPS connection lost...');
+
+            gpstext.addClass('gpstext_lost');
+            gpstext.html("<b>No GPS</b>");
+
             return;
         } else if (last_gps['kismet.common.location.fix'] == 2) {
             gpsicon.removeClass('kg-icon-3d');
             gpsicon.addClass('kg-icon-2d');
             element.tooltipster('content', 'GPS fix' +  last_gps['kismet.common.location.geopoint'][1] + ' x ' +
                 last_gps['kismet.common.location.geopoint'][0]);
+
+            gpstext.removeClass('gpstext_lost');
+            gpstext.html(kismet.censorLocation(last_gps['kismet.common.location.geopoint'][1]) + " x " + 
+                kismet.censorLocation(last_gps['kismet.common.location.geopoint'][0]));
         } else if (last_gps['kismet.common.location.fix'] == 3) {
             gpsicon.removeClass('kg-icon-2d');
             gpsicon.addClass('kg-icon-3d');
@@ -253,6 +275,10 @@
                 last_gps['kismet.common.location.geopoint'][1] + ' x ' +
                 last_gps['kismet.common.location.geopoint'][0] + ' ' +
                 kismet_ui.renderDistance(last_gps['kismet.common.location.alt'] / 1000, 0));
+
+            gpstext.removeClass('gpstext_lost');
+            gpstext.html(kismet.censorLocation(last_gps['kismet.common.location.geopoint'][1]) + " x " + 
+                kismet.censorLocation(last_gps['kismet.common.location.geopoint'][0]));
         }
     }
 
@@ -273,6 +299,13 @@
             });
         }
 
+        gpstext = $('span.gpstext', this);
+        if (gpstext.length == 0) {
+            gpstext = $('<span>', {
+                "class": "gpstext",
+            }).html("Unknown");
+        }
+
         gpsclick = $('a.gpsbutton', this);
 
         if (gpsclick.length != 0) {
@@ -285,7 +318,17 @@
         })
         .on('click', open_dialog);
 
+        if (kismet.getStorage('kismet.ui.gps.icon') === 'False') {
+            gpsicon.hide();
+        }
+
+        if (kismet.getStorage('kismet.ui.gps.text') === 'False') {
+            gpstext.hide();
+        }
+
+        gpsclick.append(gpstext);
         gpsclick.append(gpsicon);
+
         element.append(gpsclick);
 
         element.tooltipster({

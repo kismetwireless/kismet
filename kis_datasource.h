@@ -547,7 +547,6 @@ protected:
 
 
     // Central packet dispatch override to add the datasource commands
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
     virtual bool dispatch_rx_packet(const nonstd::string_view& command,
             uint32_t seqno, const nonstd::string_view& content) override;
 
@@ -764,7 +763,8 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
 
     // Packet components we inject
-    int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_no_gps,
+    int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_l1_agg,
+        pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
 };
@@ -879,6 +879,8 @@ public:
     }
 
     virtual ~packetchain_comp_datasource() { }
+
+    virtual bool unique() override { return true; }
 
     void reset() {
         ref_source = nullptr;

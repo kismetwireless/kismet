@@ -49,7 +49,13 @@ kis_packet::kis_packet() {
     data = nonstd::string_view(raw_data);
 }
 
-kis_packet::~kis_packet() { }
+kis_packet::~kis_packet() {
+    try {
+        mutex.unlock();
+    } catch (...) {
+        ;
+    }
+}
    
 void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_component> data) {
 	if (index >= MAX_PACKET_COMPONENTS) 

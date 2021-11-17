@@ -30,6 +30,7 @@
 #include "alertracker.h"
 #include "configfile.h"
 #include "globalregistry.h"
+#include "kis_datasource.h"
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
@@ -52,8 +53,6 @@ packet_chain::packet_chain() {
     pack_no_mutex.set_name("packetchain packetno");
 
     unique_packet_no = 1;
-
-    memset(dedupe_list, 0, sizeof(packno_map_t) * 1024);
 
     dedupe_list_pos = 0;
 
@@ -178,14 +177,21 @@ packet_chain::packet_chain() {
 
 	pack_comp_linkframe = register_packet_component("LINKFRAME");
 	pack_comp_decap = register_packet_component("DECAP");
+    pack_comp_l1 = register_packet_component("RADIODATA");
+    pack_comp_l1_agg = register_packet_component("RADIODATA_AGG");
+	pack_comp_datasource = register_packet_component("KISDATASRC");
 
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
-    // after any phy demangling and DLT demangling
+    // after any phy demangling and DLT demangling; lock the packet for the rest of the 
+    // packet chain
     register_handler([this](std::shared_ptr<kis_packet> in_pack) -> int {
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
         if (chunk == nullptr)
             return 1;
+
+        // Lock every packet at the beginning of the dupe check
+        in_pack->mutex.lock();
 
         kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
 
@@ -195,6 +201,30 @@ packet_chain::packet_chain() {
             if (dedupe_list[i].hash == in_pack->hash) {
                 in_pack->duplicate = true;
                 in_pack->packet_no = dedupe_list[i].packno;
+                in_pack->original = dedupe_list[i].original_pkt;
+
+                // We have to wait until everything is done being changed in the packet
+                // before we can copy the duplicate decoded state over, grab the lock that
+                // is released at the end of the chain
+                auto lg = kis_lock_guard<kis_mutex>(dedupe_list[i].original_pkt->mutex);
+                for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
+                    auto cp = dedupe_list[i].original_pkt->content_vec[c];
+                    if (cp != nullptr) {
+                        if (cp->unique())
+                            continue;
+
+                        in_pack->content_vec[c] = cp;
+                    }
+                }
+
+                // Merge the signal levels
+                if (in_pack->has(pack_comp_l1) && in_pack->has(pack_comp_datasource)) {
+                    auto l1 = in_pack->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
+                    auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
+                    auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+                    radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
+                }
+
             }
         }
 
@@ -204,10 +234,18 @@ packet_chain::packet_chain() {
             in_pack->packet_no = unique_packet_no++;
             dedupe_list[listpos].hash = in_pack->hash;
             dedupe_list[listpos].packno = unique_packet_no++;
+            dedupe_list[listpos].original_pkt = in_pack;
         }
 
         return 1;
     }, CHAINPOS_LLCDISSECT, 10000);
+
+    // Unlock at the end of logging
+    register_handler([](std::shared_ptr<kis_packet> in_pack) -> int {
+        in_pack->mutex.unlock();
+        return 1;
+    }, CHAINPOS_LOGGING, 1000000);
+
 }
 
 packet_chain::~packet_chain() {
@@ -349,7 +387,6 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, kismet::shared_lock, "packet_queue_processor");
             std::shared_lock<kis_shared_mutex> lk(packetchain_mutex);
 
             // These can only be perturbed inside a sync, which can only occur when

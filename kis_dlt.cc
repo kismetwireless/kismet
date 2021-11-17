@@ -47,6 +47,8 @@ kis_dlt_handler::kis_dlt_handler() :
 		packetchain->register_packet_component("KISDATASRC");
 	pack_comp_radiodata = 
 		packetchain->register_packet_component("RADIODATA");
+    pack_comp_l1_agg = 
+        packetchain->register_packet_component("RADIODATA_AGG");
 	pack_comp_gps =
 		packetchain->register_packet_component("GPS");
 	pack_comp_checksum =

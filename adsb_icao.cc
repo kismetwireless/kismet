@@ -189,10 +189,6 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
 
         if (matched > 0)
             matched -= 1;
-    }
-
-    {
-        kis_lock_guard<kis_mutex> lk(mutex, "adsb icao file lookup");
 
         gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
     
@@ -208,8 +204,7 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
 
             if (fields.size() != 6) {
                 _MSG_ERROR("Invalid ICAO entry: '{}'", buf);
-                gzclose(zmfile);
-                zmfile = nullptr;
+                icao_map[icao] = unknown_icao;
                 return unknown_icao;
             }
 
@@ -218,8 +213,7 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
             if (f_icao == icao) {
                 if (fields[5].length() == 0) {
                     _MSG_ERROR("Invalid ICAO entry: '{}'", buf);
-                    gzclose(zmfile);
-                    zmfile = nullptr;
+                    icao_map[icao] = unknown_icao;
                     return unknown_icao;
                 }
 

@@ -68,6 +68,8 @@
 #include "dot11_parsers/dot11_ie_221_wfa.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
 
+#include "crc32.h"
+
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
 const int CH20GI400 = 1;
@@ -307,30 +309,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     }
 
     if (in_pack->duplicate) {
-        in_pack->filtered = 1;
         return 0;
     }
-
-#if 0
-    // Compare the checksum and see if we've recently seen this exact packet
-    uint32_t chunk_csum = adler32_checksum(chunk->data(), chunk->length());
-
-    for (unsigned int c = 0; c < recent_packet_checksums_sz; c++) {
-        if (recent_packet_checksums[c] == 0)
-            break;
-
-        if (recent_packet_checksums[c] == chunk_csum) {
-            in_pack->filtered = 1;
-            in_pack->duplicate = 1;
-            return 0;
-        }
-    }
-
-    if (recent_packet_checksums_sz > 0) 
-        recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
-            chunk_csum;
-
-#endif
 
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
 
@@ -504,7 +484,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
         common->dest = packinfo->dest_mac;
         common->network = packinfo->bssid_mac;
         common->transmitter = packinfo->transmit_mac;
-        common->type = packet_basic_data;
 
         // Nothing more to do if we get a phy
         in_pack->insert(pack_comp_80211, packinfo);
@@ -826,9 +805,9 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             if (fc->subtype == packet_sub_beacon)
                 packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
 
-            packinfo->ietag_csum = 
-                adler32_checksum((const char *) (chunk->data() + packinfo->header_offset),
-                                chunk->length() - packinfo->header_offset);
+            packinfo->ietag_csum =
+                crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                        chunk->length() - packinfo->header_offset);
 
         } else if (fc->subtype == packet_sub_deauthentication) {
             if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||

@@ -37,6 +37,7 @@
 #include "globalregistry.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
+#include "packetchain.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
@@ -58,6 +59,11 @@ class packet_component {
 public:
     packet_component() { };
     virtual ~packet_component() { }
+
+    // Is this component unique?  Unique components are preserved when aliasing duplicate
+    // packets.  For instance, datasource, location, and l1 radio info should be considered
+    // unique.
+    virtual bool unique() { return false; }
 };
 
 // Overall packet container that holds packet information
@@ -109,6 +115,7 @@ public:
         crc_ok = p.crc_ok;
         filtered = p.filtered;
         duplicate = p.duplicate;
+        original = p.original;
         hash = p.hash;
         process_complete_events = std::move(p.process_complete_events);
         raw_data = std::move(p.raw_data);
@@ -124,6 +131,8 @@ public:
         crc_ok = 0;
         filtered = 0;
         duplicate = 0;
+
+        original.reset();
 
         hash = 0;
 
@@ -171,13 +180,13 @@ public:
     }
 
     template<class T, typename... Pn>
-    std::shared_ptr<T> fetch_or_add(const unsigned int index, const Pn& ... args) {
+    std::shared_ptr<T> fetch_or_add(const unsigned int index) {
         auto k = std::static_pointer_cast<T>(this->fetch(index));
 
         if (k != nullptr)
             return k;
 
-        k = std::make_shared<T>(args...);
+        k = Globalreg::globalreg->packetchain->new_packet_component<T>();
         this->insert(index, k);
         return k;
     }
@@ -194,6 +203,12 @@ public:
 
     // Tags applied to the packet
     robin_hood::unordered_map<std::string, bool> tag_map;
+
+    // Original packet if we're a duplicate
+    std::shared_ptr<kis_packet> original;
+
+    // Packet lock
+    kis_mutex mutex;
 };
 
 
@@ -521,6 +536,8 @@ public:
         reset();
     }
 
+    virtual bool unique() override { return true; }
+
     void reset() {
         signal_type = kis_l1_signal_type_none;
         signal_dbm = noise_dbm = 0;
@@ -563,6 +580,25 @@ public:
     // Checksum, if checksumming is enabled; Only of the non-header 
     // data
     uint32_t content_checkum;
+};
+
+// Combined list of signal levels collected over time for tracking signal levels of the
+// same transmission over multiple datasources, collected by the content deduper phase
+class kis_layer1_aggregate_packinfo : public packet_component {
+public:
+    kis_layer1_aggregate_packinfo() {
+        reset();
+    }
+
+    // We're not unique - multiple packets can insert l1 signals into the same
+    // aggregated list
+    virtual bool unique() override { return false; }
+
+    void reset() {
+        source_l1_map.clear();
+    }
+
+    std::unordered_map<uuid, std::shared_ptr<kis_layer1_packinfo>> source_l1_map;
 };
 
 // JSON as a raw string; parsing happens in the DS code; currently supports one JSON report

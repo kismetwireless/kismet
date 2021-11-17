@@ -984,6 +984,19 @@ int main(int argc, char *argv[], char *envp[]) {
     // finalize any plugins which were waiting for other code to load
     plugintracker->finalize_plugins();
 
+    // Load alerts from the config
+    auto config_alerts = Globalreg::globalreg->kismet_config->fetch_opt_vec("load_alert");
+
+    for (const auto& a : config_alerts) {
+        header_value_config hc(a);
+
+        if (hc.get_raw().length() == 0)
+            continue;
+
+        alertracker->raise_one_shot(hc.get_header(), "SYSTEM", kis_alert_severity::critical,
+                hc.get_raw(), -1);
+    }
+
     // Complain about running as root
     if (getuid() == 0) {
         alertracker->define_alert("ROOTUSER", sat_second, 1, sat_second, 1);

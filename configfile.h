@@ -70,6 +70,9 @@ public:
     // Fetch an opt as a simple path
     std::string fetch_opt_path(const std::string& in_key, const std::string& in_dfl);
 
+    // Fetch an option as a pre-parsed multivalue group
+    header_value_config fetch_opt_complex(const std::string& in_key);
+
     // Older API
     int fetch_opt_int(const std::string& in_key, int dvalue);
     unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);
@@ -191,6 +194,10 @@ public:
     std::string get_header();
     void set_header(const std::string& in_str);
 
+    std::string get_raw() {
+        return raw;
+    };
+
     // Does a key exist?
     bool has_key(const std::string& in_key);
 
@@ -241,6 +248,7 @@ protected:
     kis_mutex mutex;
 
     std::string header;
+    std::string raw;
     std::map<std::string, std::string> content_map;
 
 };
