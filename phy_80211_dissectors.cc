@@ -1005,8 +1005,12 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 in_pack->insert(pack_comp_datapayload, datachunk);
             }
 
+# if 0
+            // Removed - no longer relevant, some false positives, and no reason to burn CPU
+
             if (datachunk->length() > LLC_UI_OFFSET + sizeof(PROBE_LLC_SIGNATURE) && 
                 memcmp(&(datachunk->data()[0]), LLC_UI_SIGNATURE, sizeof(LLC_UI_SIGNATURE)) == 0) {
+
                 // Handle the batch of frames that fall under the LLC UI 0x3 frame
                 if (memcmp(&(datachunk->data()[LLC_UI_OFFSET]),
                            PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
@@ -1053,6 +1057,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->cryptset |= crypt_fortress;
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             }
+#endif
 
             // Dot1x frames
             // +1 for the version byte at header_offset + hot1x off

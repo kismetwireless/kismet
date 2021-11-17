@@ -165,7 +165,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     alert_netstumbler_ref = 
         alertracker->activate_configured_alert("NETSTUMBLER", 
                 "PROBE", kis_alert_severity::low,
-                "Netstumbler (and similar older Windows tools) may generate unique "
+                "(Deprecated) Netstumbler (and similar older Windows tools) may generate unique "
                 "beacons which can be used to identify these tools in use.  These "
                 "tools and the cards which generate these frames are uncommon.",
                 phyid);
@@ -179,7 +179,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     alert_lucenttest_ref =
         alertracker->activate_configured_alert("LUCENTTEST", 
                 "PROBE", kis_alert_severity::low,
-                "Specific Lucent Orinoco test tools generate identifiable frames, "
+                "(Deprecated) Specific Lucent Orinoco test tools generate identifiable frames, "
                 "which can indicate these tools are in use.  These tools and the "
                 "cards which generate these frames are uncommon.",
                 phyid);
