@@ -2660,7 +2660,7 @@ int cf_send_rb_packet(kis_capture_handler_t *caph, const char *command, uint32_t
             len + sizeof(kismet_external_frame_v2_t));
 
     if (rs_sz != len + sizeof(kismet_external_frame_v2_t)) {
-        fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", len);
+        // fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", len);
         free(data);
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         return 0;
@@ -3286,7 +3286,7 @@ int cf_send_data(kis_capture_handler_t *caph,
                 buf_len + sizeof(kismet_external_frame_v2_t));
 
         if (rs_sz != buf_len + sizeof(kismet_external_frame_v2_t)) {
-            fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", buf_len);
+            // fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", buf_len);
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
             return 0;
         }
