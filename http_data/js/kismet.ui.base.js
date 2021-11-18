@@ -1760,6 +1760,102 @@ function datasourcepackets_refresh() {
 };
 
 // Settings options
+
+kismet_ui_settings.AddSettingsPane({
+    id: 'gps_topbar',
+    listTitle: "GPS Status",
+    create: function(elem) {
+        elem.append(
+            $('<form>', {
+                id: 'form'
+            })
+            .append(
+                $('<fieldset>', {
+                    id: 'set_gps'
+                })
+                .append(
+                    $('<legend>', {})
+                    .html("GPS Display")
+                )
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'gps_icon',
+                        name: 'gps_status',
+                        value: 'icon',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'gps_icon'
+                    })
+                    .html("Icon only")
+                )
+                .append($('<div>', { class: 'spacer' }).html(" "))
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'gps_text',
+                        name: 'gps_status',
+                        value: 'text',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'gps_text'
+                    })
+                    .html("Text only")
+                )
+                .append($('<div>', { class: 'spacer' }).html(" "))
+                .append(
+                    $('<input>', {
+                        type: 'radio',
+                        id: 'gps_both',
+                        name: 'gps_status',
+                        value: 'both',
+                    })
+                )
+                .append(
+                    $('<label>', {
+                        for: 'gps_both'
+                    })
+                    .html("Icon and Text")
+                )
+            )
+        );
+
+        $('#form', elem).on('change', function() {
+            kismet_ui_settings.SettingsModified();
+        });
+
+        if (kismet.getStorage('kismet.ui.gps.icon', 'True') === 'True') {
+            if (kismet.getStorage('kismet.ui.gps.text', 'True') === 'True') {
+                $('#gps_both', elem).attr('checked', 'checked');
+            } else {
+                $('#gps_icon', elem).attr('checked', 'checked');
+            }
+        } else {
+            $('#gps_text', elem).attr('checked', 'checked');
+        }
+
+        $('#set_gps', elem).controlgroup();
+    },
+    save: function(elem) {
+        var val = $("input[name='gps_status']:checked", elem).val();
+
+        if (val === "both") {
+            kismet.putStorage('kismet.ui.gps.text', 'True');
+            kismet.putStorage('kismet.ui.gps.icon', 'True');
+        } else if (val === "text") {
+            kismet.putStorage('kismet.ui.gps.text', 'True');
+            kismet.putStorage('kismet.ui.gps.icon', 'False');
+        } else if (val === "icon") {
+            kismet.putStorage('kismet.ui.gps.icon', 'True');
+            kismet.putStorage('kismet.ui.gps.text', 'False');
+        }
+    }
+})
+
 kismet_ui_settings.AddSettingsPane({
     id: 'base_units_measurements',
     listTitle: 'Units &amp; Measurements',

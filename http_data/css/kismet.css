@@ -229,3 +229,11 @@ div.k-c-p-c-notes {
     background-repeat: no-repeat;
     background-image: url(../images/collapsed.gif);
 }        
+
+.spacer {
+    height: 5px;
+    clear: both;
+    width: 100%;
+    display: block;
+}
+

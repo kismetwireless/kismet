@@ -30,6 +30,7 @@ div.kg-dialog-footer {
 
 i.kg-icon-base {
     color: #707070;
+    font-size: 18px;
 }
 
 i.kg-icon-2d {
@@ -65,4 +66,15 @@ span.kg-header-close {
     top: 50%;
     left: 50%;
     transform: translateX(-50%) translateY(-50%);
+}
+
+.gpstext {
+    padding-right: 4px;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+.gpstext_lost {
+    font-weight: bold;
+    color: red;
 }

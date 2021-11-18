@@ -763,7 +763,8 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
 
     // Packet components we inject
-    int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_no_gps,
+    int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_l1_agg,
+        pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
 };

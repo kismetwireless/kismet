@@ -757,7 +757,8 @@ int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
 
         // Copy the JSON as the meta field for logging, if it's valid
         if (rtladsb->json_to_rtl(device_json, in_pack)) {
-             in_pack->fetch_or_add<packet_metablob>(rtladsb->pack_comp_meta, "RTLADSB", json->json_string);;
+             auto adata = in_pack->fetch_or_add<packet_metablob>(rtladsb->pack_comp_meta);
+             adata->set_data("RTLADSB", json->json_string);
         }
     } catch (std::exception& e) {
         fprintf(stderr, "debug - error processing rtl json %s\n", e.what());

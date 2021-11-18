@@ -61,7 +61,8 @@ int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
     if (json->type != "radiation")
         return 0;
 
-    in_pack->fetch_or_add<packet_metablob>(radphy->pack_comp_meta, "radiation", json->json_string);
+    auto rdata = in_pack->fetch_or_add<packet_metablob>(radphy->pack_comp_meta);
+    rdata->set_data("radiation", json->json_string);
 
     return 1;
 }

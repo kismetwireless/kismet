@@ -140,4 +140,3 @@ public:
 #endif /* pcap */
 
 #endif /* __dump... */
-	

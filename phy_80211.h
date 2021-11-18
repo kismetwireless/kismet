@@ -195,6 +195,18 @@ class dot11_packinfo : public packet_component {
             basic_rates.clear();
             extended_rates.clear();
             mcs_rates.clear();
+
+            bssid_dev.reset();
+            source_dev.reset();
+            dest_dev.reset();
+            receive_dev.reset();
+            transmit_dev.reset();
+
+            bssid_dot11.reset();
+            source_dot11.reset();
+            dest_dot11.reset();
+            receive_dot11.reset();
+            transmit_dot11.reset();
         }
 
         // Corrupt 802.11 frame
@@ -309,6 +321,18 @@ class dot11_packinfo : public packet_component {
         // Did we just create records for these?
         bool new_device;
         bool new_adv_ssid;
+
+        std::shared_ptr<kis_tracked_device_base> source_dev;
+        std::shared_ptr<kis_tracked_device_base> dest_dev;
+        std::shared_ptr<kis_tracked_device_base> bssid_dev;
+        std::shared_ptr<kis_tracked_device_base> receive_dev;
+        std::shared_ptr<kis_tracked_device_base> transmit_dev;
+
+        std::shared_ptr<dot11_tracked_device> source_dot11;
+        std::shared_ptr<dot11_tracked_device> dest_dot11;
+        std::shared_ptr<dot11_tracked_device> bssid_dot11;
+        std::shared_ptr<dot11_tracked_device> receive_dot11;
+        std::shared_ptr<dot11_tracked_device> transmit_dot11;
 };
 
 class dot11_ssid_alert {

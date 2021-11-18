@@ -309,7 +309,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     }
 
     if (in_pack->duplicate) {
-        in_pack->filtered = 1;
         return 0;
     }
 
