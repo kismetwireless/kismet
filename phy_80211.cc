@@ -1992,7 +1992,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
             if (dot11info->dest_dev != NULL)
                 d11phy->process_client(dot11info->transmit_dev, dot11info->transmit_dot11, 
-                        dot11info->source_dev, dot11info->source_dot11,
+                        dot11info->dest_dev, dot11info->dest_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
         }
     }
@@ -3260,7 +3260,7 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         std::shared_ptr<kis_data_packinfo> pack_datainfo) {
 
     // Sanity check
-    if (bssiddev == nullptr)
+    if (bssiddev == nullptr || bssiddot11 == nullptr || clientdev == nullptr || clientdot11 == nullptr)
         return;
 
     // Create the client-side record of association to a given bssid
