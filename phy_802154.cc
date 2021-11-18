@@ -107,6 +107,9 @@ kis_802154_phy::~kis_802154_phy() {
 int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_802154_phy *>(auxdata);
 
+    if (in_pack->duplicate || in_pack->filtered)
+        return 1;
+
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
     _802_15_4_tap *tap_header = nullptr;
 
@@ -378,6 +381,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_802154_phy *>(auxdata);
 
+    if (in_pack->filtered)
+        return 1;
+
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
     if (packdata == nullptr)
@@ -394,6 +400,14 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
     if (common == NULL)
         return 0;
+
+    if (in_pack->duplicate) {
+        auto source_dev = mphy->devicetracker->update_common_device(common,
+                common->source, mphy, in_pack,
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | 
+                 UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
+                "802.15.4");
+    }
 
     // as source
     // Update with all the options in case we can add signal and frequency

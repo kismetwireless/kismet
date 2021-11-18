@@ -225,6 +225,10 @@ kis_btle_phy::~kis_btle_phy() {
 int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_btle_phy *>(auxdata);
 
+    if (in_pack->duplicate || in_pack->filtered) {
+        return 1;
+    }
+
     // Don't reclassify something that's already been seen
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
     if (common != NULL)
@@ -298,6 +302,9 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_btle_phy *>(auxdata);
 
+    if (in_pack->filtered)
+        return 1;
+
     auto btle_info = in_pack->fetch<btle_packinfo>(mphy->pack_comp_btle);
     if (btle_info == nullptr)
         return 0;
@@ -312,6 +319,17 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     // Drop randoms 
     if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random)
         return 0;
+
+    if (in_pack->duplicate) {
+        auto device = 
+            mphy->devicetracker->update_common_device(common,
+                    common->source, mphy, in_pack,
+                    (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                     UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
+                    "BTLE Device");
+        return 1;
+    }
+
 
     // Update with all the options in case we can add signal and frequency
     // in the future
