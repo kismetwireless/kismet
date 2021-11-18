@@ -375,7 +375,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                         hdr_len = buf[pkt_start+1];
                         pkt_len = buf[pkt_start+2];
                     }
-                    else if(buf[pkt_start+3] == 0x02)
+                    else if(buf[pkt_start+3] == 0x02 || buf[pkt_start+3] == 0x03)
                     {
                         hdr_len = 0x06;
                         pkt_len = buf[pkt_start+1];
@@ -383,7 +383,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 }
 
                 /* check the packet_type from the header */
-                if (buf[pkt_start+6] == 0x06) {
+                if (buf[pkt_start+6] == 0x06 || (buf[pkt_start+3] == 0x03 && buf[pkt_start+6] == 0x02)) {
                     valid_pkt = true;
                     /* pld_ctr = 0; */
                     pkt_ctr = 0;
