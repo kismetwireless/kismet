@@ -1543,7 +1543,7 @@ function packetqueuedisplay_refresh() {
                 pointStyle: 'star',
             },
             {
-                label: 'Ignored duplicates',
+                label: 'Duplicates',
                 fill: 'false',
                 borderColor: 'green',
                 backgroundColor: 'transparent',
