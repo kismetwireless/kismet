@@ -158,8 +158,6 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
         decapchunk->set_data(packet->data.substr(sizeof(btle_rf), pkt_ctr));
         packet->insert(pack_comp_decap, decapchunk);
-
-        kis_datasource::handle_rx_packet(packet);
     }
 }
 
