@@ -233,14 +233,14 @@ int try_flock(local_wifi_t *local_wifi, unsigned int tries) {
                 sleep(1);
                 continue;
             } else {
-                return -1;
+		return r;
             }
         } else {
-            return 1;
+            return 0;
         }
     }
 
-    return -1;
+    return ETIMEDOUT;
 }
 
 void release_flock(local_wifi_t *local_wifi) {
@@ -1628,6 +1628,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "this will ONLY work with the nexmon patches",
                 local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
+#if 0
     } else if (strcmp(driver, "iwlwifi") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks like an Intel iwlwifi device; under "
                 "some driver and firmware versions these have shown significant problems tuning to "
@@ -1635,6 +1636,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "this problem; if you're on an older version, set htchannels=false,vhtchannels=false "
                 "in your source definition.", local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
+#endif
     }
 
     /* Try to connect to mac80211 and get the mode */
@@ -1744,7 +1746,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* If we have a semaphore, acquire a lock; we need to be the only ones manipulating
      * interface names.  Linux can't handle two processes making vifs simultaneously
      * gracefully. */
-    if ((ret = try_flock(local_wifi, 5)) < 0) {
+    if ((ret = try_flock(local_wifi, 5)) != 0) {
         snprintf(msg, STATUS_MAX, "%s unable to acquire exclusive control of interface '%s' within 5"
                 "seconds (%s), something is wrong, check the Kismet linuxwifi documentation.", 
                 local_wifi->name, local_wifi->interface, strerror(ret));
@@ -2160,6 +2162,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
+    release_flock(local_wifi);
+
+    /* ********* End semaphore protected area ********** */
+
+
+
     /* Get the index and check the mode; if we didn't get into monitor mode, blow up */
     local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->cap_interface);
     if (local_wifi->mac80211_ifidx > 0) {
@@ -2266,7 +2274,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         g_object_unref(nmclient);
 #endif
 
-    /* fprintf(stderr, "debug - bringing up cap interface %s to capture\n", local_wifi->cap_interface); */
 
     /* Bring up the cap interface no matter what */
     if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
@@ -2277,11 +2284,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->name, local_wifi->cap_interface, errstr);
         return -1;
     }
-
-    release_flock(local_wifi);
-
-    /* ********* End semaphore protected area ********** */
-
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
     if ((placeholder_len = 
