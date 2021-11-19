@@ -234,16 +234,16 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     if (common != NULL)
         return 0;
 
-    auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
-
-    if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
-        packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_decap);
+    auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_decap, mphy->pack_comp_linkframe);
 
     if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
         return 0;
 
     // If this packet hasn't been checksummed already at the capture layer, 
     // do a checksum now.  We assume the last 3 bytes are the checksum.
+    // ticc and nrf don't provide an in-packet checksum, and we rely on the
+    // crc_ok from the firmware-specific radio headers that get turned into the
+    // bt_radio dlt.
     if (!in_pack->crc_ok) {
         // We need at least the AA, header, and CRC bytes
         if (packdata->length() < (4 + 2 + 3)) {

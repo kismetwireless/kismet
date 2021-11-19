@@ -27,18 +27,18 @@
 
 #include "kis_datasource.h"
 
-#include "kis_dlt_btle_ll_radio.h"
+#include "kis_dlt_btle_radio.h"
 
-kis_dlt_btle_ll_radio::kis_dlt_btle_ll_radio() :
+kis_dlt_btle_radio::kis_dlt_btle_radio() :
     kis_dlt_handler() {
 
-    dlt_name = "BTLE_LL_RADIO";
+    dlt_name = "BTLE_RADIO";
     dlt = KDLT_BTLE_RADIO;
 
-    _MSG("Registering support for DLT_BTLE_LL_RADIO packet header decoding", MSGFLAG_INFO);
+    _MSG("Registering support for DLT_BTLE_RADIO packet header decoding", MSGFLAG_INFO);
 }
 
-int kis_dlt_btle_ll_radio::handle_packet(std::shared_ptr<kis_packet> in_pack) {
+int kis_dlt_btle_radio::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -120,7 +120,6 @@ int kis_dlt_btle_ll_radio::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     in_pack->insert(pack_comp_radiodata, radioheader);
 
-    // TODO handle checksum validation
     // TODO handle dewhitening
     
     auto decapchunk = std::make_shared<kis_datachunk>();

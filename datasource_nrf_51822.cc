@@ -107,8 +107,11 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
         conv_header->signal = rssi;
 
         uint16_t bits = btle_rf_crc_checked;
-        if (valid_pkt)
+        if (valid_pkt) {
             bits += btle_rf_crc_valid;
+            packet->crc_ok = true;
+        }
+
         // MIC
         bits += btle_rf_mic_checked;
 
@@ -143,7 +146,6 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
         get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
-
 
         // Generate a l1 radio header and a decap header since we have it
         // computed already

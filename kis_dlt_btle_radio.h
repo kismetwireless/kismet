@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KIS_DLT_BT_LL_RADIO_H__
-#define __KIS_DLT_BT_LL_RADIO_H__
+#ifndef __KIS_DLT_BT_RADIO_H__
+#define __KIS_DLT_BT_RADIO_H__
 
 #include "config.h"
 
@@ -34,22 +34,22 @@
 #define KDLT_BTLE_RADIO             256
 #endif
 
-class kis_dlt_btle_ll_radio : public kis_dlt_handler {
+class kis_dlt_btle_radio : public kis_dlt_handler {
 public:
-    static std::string global_name() { return "DLT_BTLE_LL_RADIO"; }
+    static std::string global_name() { return "DLT_BTLE_RADIO"; }
 
-    static std::shared_ptr<kis_dlt_btle_ll_radio> create_dlt() {
-        std::shared_ptr<kis_dlt_btle_ll_radio> mon(new kis_dlt_btle_ll_radio());
+    static std::shared_ptr<kis_dlt_btle_radio> create_dlt() {
+        std::shared_ptr<kis_dlt_btle_radio> mon(new kis_dlt_btle_radio());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-	kis_dlt_btle_ll_radio();
+	kis_dlt_btle_radio();
 
 public:
-	virtual ~kis_dlt_btle_ll_radio() { };
+	virtual ~kis_dlt_btle_radio() { };
 
 protected:
 	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) override;

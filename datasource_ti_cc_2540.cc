@@ -99,8 +99,10 @@ void kis_datasource_ticc2540::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
     conv_header->signal = (fcs1 + (int) pow(2, 7)) % (int) pow(2, 8) - (int) pow(2, 7) - 73;
 
     uint16_t bits = btle_rf_crc_checked;
-    if (fcs2 & (1 << 7))
+    if (fcs2 & (1 << 7)) {
         bits += btle_rf_crc_valid;
+        packet->crc_ok = true;
+    }
 
     if (cc_payload_len >= 4) {
         memcpy(conv_header->reference_access_address, conv_header->payload, 4);
