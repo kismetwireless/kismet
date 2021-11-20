@@ -38,7 +38,7 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
     const uint16_t btle_rf_flag_signalvalid = (1 << 1);
     const uint16_t btle_rf_flag_reference_access_valid = (1 << 5);
     const uint16_t btle_rf_crc_checked = (1 << 10);
-    // const uint16_t btle_rf_crc_valid = (1 << 11);
+    const uint16_t btle_rf_crc_valid = (1 << 11);
 
     auto& rxdata = report.data();
 
@@ -165,6 +165,11 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         uint16_t bits = btle_rf_crc_checked;
         // if (true)//not sure yet
         //    bits += btle_rf_crc_valid;
+
+        // Right now we have no way to validate the packets from this firmware; either we
+        // allow all or allow none, which is pointless
+        bits += btle_rf_crc_valid;
+        packet->crc_ok = true;
 
         if (nxp_payload_len >= 4) {
             memcpy(conv_header->reference_access_address, conv_header->payload, 4);
