@@ -238,6 +238,11 @@
                     }
                 } else if (!liveupdate) {
                     var contentdiv = $('div#cd_' + id, drow);
+
+                    if ('groupField' in v) {
+                        if (typeof(v['groupField']) === 'string')
+                            v['baseobject'] = settings.baseobject + v['groupField'] + "/";
+                    }
                     contentdiv.devicedata(data, v);
                     return;
                 }
@@ -250,6 +255,11 @@
                 callopts['containerid'] = 'cd_' + id;
 
                 // Recursively fill in the div with the sub-settings
+                if ('groupField' in v) {
+                    if (typeof(v['groupField']) === 'string')
+                        v['baseobject'] = settings.baseobject + v['groupField'] + "/";
+                }
+
                 contentdiv.devicedata(data, v);
 
                 // Apply the draw function after the subgroup is created

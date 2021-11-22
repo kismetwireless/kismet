@@ -910,6 +910,56 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
+
+                {
+                    // Location is its own group
+                    groupTitle: "Avg. Location",
+                    id: "avg.dot11.probedssid.location",
+
+                    // Group field
+                    groupField: "dot11.probedssid.location",
+
+                    liveupdate: true,
+
+                    // Don't show location if we don't know it
+                    filter: function(opts) {
+                        return (kismet.ObjectByString(opts['base'], "dot11.probedssid.location/kismet.common.location.avg_loc/kismet.common.location.fix") >= 2);
+                    },
+
+                    fields: [
+                        {
+                            field: "kismet.common.location.avg_loc/kismet.common.location.geopoint",
+                            title: "Location",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    if (opts['value'][1] == 0 || opts['value'][0] == 0)
+                                        return "<i>Unknown</i>";
+
+                                    return kismet.censorLocation(opts['value'][1]) + ", " + kismet.censorLocation(opts['value'][0]);
+                                } catch (error) {
+                                    return "<i>Unknown</i>";
+                                }
+                            }
+                        },
+                        {
+                            field: "kismet.common.location.avg_loc/kismet.common.location.alt",
+                            title: "Altitude",
+                            liveupdate: true,
+                            filter: function(opts) {
+                                return (kismet.ObjectByString(opts['base'], "kismet.common.location.avg_loc/kismet.common.location.fix") >= 3);
+                            },
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.renderHeightDistance(opts['value']);
+                                } catch (error) {
+                                    return "<i>Unknown</i>";
+                                }
+                            },
+                        }
+                    ],
+                },
+
                 {
                     field: "dot11.probedssid.dot11r_mobility",
                     title: "802.11r Mobility",
@@ -1189,6 +1239,56 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
+
+                {
+                    // Location is its own group
+                    groupTitle: "Avg. Location",
+                    id: "avg.dot11.advertisedssid.location",
+
+                    // Group field
+                    groupField: "dot11.advertisedssid.location",
+
+                    liveupdate: true,
+
+                    // Don't show location if we don't know it
+                    filter: function(opts) {
+                        return (kismet.ObjectByString(opts['base'], "dot11.advertisedssid.location/kismet.common.location.avg_loc/kismet.common.location.fix") >= 2);
+                    },
+
+                    fields: [
+                        {
+                            field: "kismet.common.location.avg_loc/kismet.common.location.geopoint",
+                            title: "Location",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    if (opts['value'][1] == 0 || opts['value'][0] == 0)
+                                        return "<i>Unknown</i>";
+
+                                    return kismet.censorLocation(opts['value'][1]) + ", " + kismet.censorLocation(opts['value'][0]);
+                                } catch (error) {
+                                    return "<i>Unknown</i>";
+                                }
+                            }
+                        },
+                        {
+                            field: "kismet.common.location.avg_loc/kismet.common.location.alt",
+                            title: "Altitude",
+                            liveupdate: true,
+                            filter: function(opts) {
+                                return (kismet.ObjectByString(opts['base'], "kismet.common.location.avg_loc/kismet.common.location.fix") >= 3);
+                            },
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.renderHeightDistance(opts['value']);
+                                } catch (error) {
+                                    return "<i>Unknown</i>";
+                                }
+                            },
+                        }
+                    ],
+                },
+
                 {
                     field: "dot11.advertisedssid.beaconrate",
                     liveupdate: true,
@@ -1203,7 +1303,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     liveupdate: true,
                     title: "Max. Rate",
                     draw: function(opts) {
-                        return opts['value'] + ' mbit';
+                        return opts['value'] + ' MBit/s';
                     },
                     help: "The maximum basic transmission rate supported by this access point",
                 },
@@ -1517,12 +1617,63 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
+
+                {
+                    // Location is its own group
+                    groupTitle: "Avg. Location",
+                    id: "avg.dot11.advertisedssid.location",
+
+                    // Group field
+                    groupField: "dot11.advertisedssid.location",
+
+                    liveupdate: true,
+
+                    // Don't show location if we don't know it
+                    filter: function(opts) {
+                        return (kismet.ObjectByString(opts['base'], "dot11.advertisedssid.location/kismet.common.location.avg_loc/kismet.common.location.fix") >= 2);
+                    },
+
+                    fields: [
+                        {
+                            field: "kismet.common.location.avg_loc/kismet.common.location.geopoint",
+                            title: "Location",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    if (opts['value'][1] == 0 || opts['value'][0] == 0)
+                                        return "<i>Unknown</i>";
+
+                                    return kismet.censorLocation(opts['value'][1]) + ", " + kismet.censorLocation(opts['value'][0]);
+                                } catch (error) {
+                                    return "<i>Unknown</i>";
+                                }
+                            }
+                        },
+                        {
+                            field: "kismet.common.location.avg_loc/kismet.common.location.alt",
+                            title: "Altitude",
+                            liveupdate: true,
+                            filter: function(opts) {
+                                return (kismet.ObjectByString(opts['base'], "kismet.common.location.avg_loc/kismet.common.location.fix") >= 3);
+                            },
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.renderHeightDistance(opts['value']);
+                                } catch (error) {
+                                    return "<i>Unknown</i>";
+                                }
+                            },
+                        }
+                    ],
+                },
+
+
                 {
                     field: "dot11.advertisedssid.maxrate",
                     liveupdate: true,
                     title: "Max. Rate",
                     draw: function(opts) {
-                        return opts['value'] + ' mbit';
+                        return opts['value'] + ' MBit/s';
                     },
                     help: "The maximum basic transmission rate supported by this access point",
                 },
