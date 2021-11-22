@@ -9913,8 +9913,8 @@ if test "x$want_libwebsockets" != "xno"; then :
 
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libwebsockets >= 3.1.0" >&5
-$as_echo_n "checking for libwebsockets >= 3.1.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libwebsockets" >&5
+$as_echo_n "checking for libwebsockets... " >&6; }
 
 if test -n "$libwebsockets_CFLAGS"; then
     pkg_cv_libwebsockets_CFLAGS="$libwebsockets_CFLAGS"
@@ -9954,7 +9954,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -9981,7 +9981,7 @@ Alternatively, you may set the environment variables libwebsockets_CFLAGS
 and libwebsockets_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
@@ -10107,7 +10107,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10128,7 +10128,7 @@ fi
 $as_echo "$as_me: WARNING: No libpcap found in pkg-config" >&2;}
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: No libpcap found in pkg-config" >&5
@@ -10249,8 +10249,8 @@ fi
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${PROTOBUF}" >&5
-$as_echo_n "checking for ${PROTOBUF}... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5
+$as_echo_n "checking for protobuf... " >&6; }
 
 if test -n "$protobuf_CFLAGS"; then
     pkg_cv_protobuf_CFLAGS="$protobuf_CFLAGS"
@@ -10290,7 +10290,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10317,7 +10317,7 @@ Alternatively, you may set the environment variables protobuf_CFLAGS
 and protobuf_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
@@ -10406,8 +10406,8 @@ fi  # caponly
 # We need protobuf-c all the time
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libprotobuf-c" >&5
-$as_echo_n "checking for libprotobuf-c... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libprotobufc" >&5
+$as_echo_n "checking for libprotobufc... " >&6; }
 
 if test -n "$libprotobufc_CFLAGS"; then
     pkg_cv_libprotobufc_CFLAGS="$libprotobufc_CFLAGS"
@@ -10447,7 +10447,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10465,7 +10465,7 @@ fi
 
 	have_protobufc_pkg=no
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	have_protobufc_pkg=no
 else
@@ -10655,7 +10655,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10675,7 +10675,7 @@ fi
          as_fn_error $? "missing libbladeRF package" "$LINENO" 5
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
          as_fn_error $? "missing libbladeRF package" "$LINENO" 5
@@ -10945,7 +10945,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10963,7 +10963,7 @@ fi
 
 	havelibnm=no
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	havelibnm=no
 else
@@ -11075,8 +11075,8 @@ fi
 if test "$havenetlink" = "yes"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-3.0" >&5
-$as_echo_n "checking for libnl-3.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl30" >&5
+$as_echo_n "checking for libnl30... " >&6; }
 
 if test -n "$libnl30_CFLAGS"; then
     pkg_cv_libnl30_CFLAGS="$libnl30_CFLAGS"
@@ -11116,7 +11116,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11134,7 +11134,7 @@ fi
 
 	libnl30=no
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnl30=no
 else
@@ -11146,8 +11146,8 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-genl-3.0" >&5
-$as_echo_n "checking for libnl-genl-3.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnlgenl30" >&5
+$as_echo_n "checking for libnlgenl30... " >&6; }
 
 if test -n "$libnlgenl30_CFLAGS"; then
     pkg_cv_libnlgenl30_CFLAGS="$libnlgenl30_CFLAGS"
@@ -11187,7 +11187,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11205,7 +11205,7 @@ fi
 
 	libnlgenl30=no
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnlgenl30=no
 else
@@ -11217,8 +11217,8 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-2.0" >&5
-$as_echo_n "checking for libnl-2.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl20" >&5
+$as_echo_n "checking for libnl20... " >&6; }
 
 if test -n "$libnl20_CFLAGS"; then
     pkg_cv_libnl20_CFLAGS="$libnl20_CFLAGS"
@@ -11258,7 +11258,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11276,7 +11276,7 @@ fi
 
 	libnl20=no
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnl20=no
 else
@@ -11288,8 +11288,8 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-1" >&5
-$as_echo_n "checking for libnl-1... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl1" >&5
+$as_echo_n "checking for libnl1... " >&6; }
 
 if test -n "$libnl1_CFLAGS"; then
     pkg_cv_libnl1_CFLAGS="$libnl1_CFLAGS"
@@ -11329,7 +11329,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11347,7 +11347,7 @@ fi
 
 	libnl1=no
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnl1=no
 else
@@ -11517,8 +11517,8 @@ if test "x$want_usb" != "xno"; then :
 
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb-1.0" >&5
-$as_echo_n "checking for libusb-1.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb" >&5
+$as_echo_n "checking for libusb... " >&6; }
 
 if test -n "$libusb_CFLAGS"; then
     pkg_cv_libusb_CFLAGS="$libusb_CFLAGS"
@@ -11558,7 +11558,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11585,7 +11585,7 @@ Alternatively, you may set the environment variables libusb_CFLAGS
 and libusb_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
