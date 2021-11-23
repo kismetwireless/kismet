@@ -1769,7 +1769,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
                 dot11info->source_dev->set_type_string_ifonly([d11phy]() {
-                    return d11phy->devtype_wds_dev;
+                    return d11phy->devtype_wds;
                 }, KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
             } else if (dot11info->distrib == distrib_adhoc && dot11info->ibss) {
                 // We're some sort of adhoc device
