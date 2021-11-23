@@ -795,13 +795,9 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (ds == nullptr)
                         throw std::runtime_error("no such datasource");
 
-                    if (ds->get_source_running()) {
-                        _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
-                        ds->disable_source();
-                        return(ds);
-                    } else {
-                        throw std::runtime_error("Source already closed");
-                    }
+                    _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                    ds->disable_source();
+                    return(ds);
                 }));
 
     httpd->register_route("/datasource/by-uuid/:uuid/disable_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -817,13 +813,9 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (ds == nullptr)
                         throw std::runtime_error("no such datasource");
 
-                    if (ds->get_source_running()) {
-                        _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
-                        ds->disable_source();
-                        return(ds);
-                    } else {
-                        throw std::runtime_error("Source already closed");
-                    }
+                    _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                    ds->disable_source();
+                    return(ds);
                 }));
 
     httpd->register_route("/datasource/by-uuid/:uuid/open_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
