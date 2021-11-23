@@ -2384,6 +2384,10 @@ exports.AddSsidColumn = function(id, options) {
         coldef.width = options.width;
     }
 
+    if ('sClass' in options) {
+        coldef.sClass = options.sClass;
+    }
+
     var f;
     if (typeof(coldef.field) === 'string') {
         var fs = coldef.field.split('/');
@@ -2598,6 +2602,7 @@ function InitializeSsidTable() {
             destroy: true,
             scrollResize: true,
             scrollY: 200,
+            scrollX: "100%",
             serverSide: true,
             processing: true,
             dom: 'ft',
@@ -2615,6 +2620,9 @@ function InitializeSsidTable() {
                 timeout: 5000,
             },
             columns: cols,
+            columnDefs: [
+                { className: "dt_td", targets: "_all" },
+            ],
             order: [ [ 0, "desc" ] ],
             createdRow: function(row, data, index) {
                 row.id = data['dot11.ssidgroup.hash'];
@@ -2713,6 +2721,7 @@ exports.AddSsidColumn('col_ssid', {
     sTitle: 'SSID',
     field: 'dot11.ssidgroup.ssid',
     name: 'SSID',
+    // width: '250px',
     renderfunc: function(d, t, r, m) {
         if (d.length == 0)
             return "<i>Cloaked or Empty SSID</i>";
@@ -2726,13 +2735,15 @@ exports.AddSsidColumn('col_ssid_len', {
     sTitle: 'Length',
     field: 'dot11.ssidgroup.ssid_len',
     name: 'SSID Length',
-    width: '2em',
+    width: '10px',
+    sClass: "dt-body-right",
 });
 
 exports.AddSsidColumn('column_time', {
     sTitle: 'Last Seen',
     field: 'dot11.ssidgroup.last_time',
     description: 'Last-seen time',
+    width: '200px',
     renderfunc: function(d, t, r, m) {
         return kismet_ui_base.renderLastTime(d, t, r, m);
     },
@@ -2769,7 +2780,8 @@ exports.AddSsidColumn('column_probing', {
     field: 'dot11.ssidgroup.probing_devices_len',
     description: 'Count of probing devices',
     orderable: true,
-    width: '2em',
+    width: '40px',
+    sClass: "dt-body-right",
 });
 
 exports.AddSsidColumn('column_responding', {
@@ -2777,7 +2789,8 @@ exports.AddSsidColumn('column_responding', {
     field: 'dot11.ssidgroup.responding_devices_len',
     description: 'Count of responding devices',
     orderable: true,
-    width: '2em',
+    width: '40px',
+    sClass: "dt-body-right",
 });
 
 exports.AddSsidColumn('column_advertising', {
@@ -2785,7 +2798,8 @@ exports.AddSsidColumn('column_advertising', {
     field: 'dot11.ssidgroup.advertising_devices_len',
     description: 'Count of advertising devices',
     orderable: true,
-    width: '2em',
+    width: '40px',
+    sClass: "dt-body-right",
 });
 
 exports.AddSsidColumn('column_hash', {
