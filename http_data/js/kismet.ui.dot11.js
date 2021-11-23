@@ -304,13 +304,15 @@ kismet_ui.AddDeviceColumn('wifi_clients', {
     sTitle: 'Clients',
     field: 'dot11.device/dot11.device.num_associated_clients',
     description: 'Related Wi-Fi devices (associated and bridged)',
-    width: '2em'
+    width: '35px',
+    sClass: "dt-body-right",
 });
 
 kismet_ui.AddDeviceColumn('wifi_last_bssid', {
     sTitle: 'BSSID',
     field: 'dot11.device/dot11.device.last_bssid',
     description: 'Last associated BSSID',
+    width: '70px',
     sortable: true,
     searchable: true,
     renderfunc: function(d, t, r, m) {
@@ -358,6 +360,7 @@ kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
     sortable: true,
     searchable: true,
     visiable: false,
+    width: "100px",
     renderfunc: function(d, t, r, m) {
         var perc = "n/a";
 
@@ -373,11 +376,12 @@ kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
 });
 
 kismet_ui.AddDeviceColumn('wifi_qbss_clients', {
-    sTitle: 'QBSS Users',
+    sTitle: 'QBSS #',
     field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss_stations',
     description: '802.11e QBSS user count',
     sortable: true,
     visiable: false,
+    sClass: "dt-body-right",
     renderfunc: function(d, t, r, m) {
         if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
             return d;

@@ -247,7 +247,7 @@ exports.drawPackets = function(dyncolumn, table, row) {
     // Render the sparkline
     $(match, row.node()).sparkline(simple_rrd,
         { type: "bar",
-            width: 100,
+            width: "100px",
             height: 12,
             barColor: '#000000',
             nullColor: '#000000',
@@ -260,6 +260,7 @@ kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
     field: 'kismet.device.base.commonname',
     description: 'Device name',
+    width: "150px",
     renderfunc: function(d, t, r, m) {
         var dname = kismet.censorMAC(d);
         return (dname.length > 24) ? dname.substr(0, 23) + '&hellip;' : dname;
@@ -270,21 +271,21 @@ kismet_ui.AddDeviceColumn('column_type', {
     sTitle: 'Type',
     field: 'kismet.device.base.type',
     description: 'Device type',
-    width: '4em',
+    width: '75px',
 });
 
 kismet_ui.AddDeviceColumn('column_phy', {
     sTitle: 'Phy',
     field: 'kismet.device.base.phyname',
     description: 'Capture Phy name',
-    width: "8em",
+    width: "75px",
 });
 
 kismet_ui.AddDeviceColumn('column_crypto', {
     sTitle: 'Crypto',
     field: 'kismet.device.base.crypt',
     description: 'Encryption',
-    width: "8em",
+    width: "75px",
     renderfunc: function(d, t, r, m) {
         if (d == "") {
             return "n/a";
@@ -295,20 +296,22 @@ kismet_ui.AddDeviceColumn('column_crypto', {
 });
 
 kismet_ui.AddDeviceColumn('column_signal', {
-    sTitle: 'Signal',
+    sTitle: 'Sgn',
     field: 'kismet.device.base.signal/kismet.common.signal.last_signal',
     description: 'Last-seen signal',
-    width: "6em",
+    width: "30px",
+    sClass: "dt-body-right",
     renderfunc: function(d, t, r, m) {
         return exports.renderSignal(d, t, r, m);
     },
 });
 
 kismet_ui.AddDeviceColumn('column_channel', {
-    sTitle: 'Channel',
+    sTitle: 'Chan',
     field: 'kismet.device.base.channel',
     description: 'Last-seen channel',
-    width: "6em",
+    width: "40px",
+    sClass: "dt-body-right",
     renderfunc: function(d, t, r, m) {
         if (d != 0) {
             return d;
@@ -331,6 +334,7 @@ kismet_ui.AddDeviceColumn('column_time', {
     searchable: true,
     visible: false,
     orderable: true,
+    width: "100px",
 });
 
 kismet_ui.AddDeviceColumn('column_first_time', {
@@ -343,6 +347,7 @@ kismet_ui.AddDeviceColumn('column_first_time', {
     searchable: true,
     visible: false,
     orderable: true,
+    width: "100px",
 });
 
 kismet_ui.AddDeviceColumn('column_datasize', {
@@ -350,6 +355,8 @@ kismet_ui.AddDeviceColumn('column_datasize', {
     field: 'kismet.device.base.datasize',
     description: 'Data seen',
     bUseRendered: false,
+    sClass: "dt-body-right",
+    width: "40px",
     renderfunc: function(d, t, r, m) {
         return exports.renderDataSize(d, t, r, m);
     },
@@ -362,6 +369,7 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
     sTitle: 'Packets',
     field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'packet.rrd.last_time'],
     name: 'packets',
+    width: "110px",
     description: 'Packet history graph',
     renderfunc: function(d, t, r, m) {
         return exports.renderPackets(d, t, r, m);
@@ -429,6 +437,7 @@ kismet_ui.AddDeviceColumn('column_device_mac', {
     searchable: true,
     orderable: true,
     visible: false,
+    width: "70px",
     renderfunc: function(d, t, r, m) {
         return exports.renderMac(d, t, r, m);
     },
@@ -463,6 +472,7 @@ kismet_ui.AddDeviceColumn('column_manuf', {
     searchable: true,
     visible: false,
     orderable: true,
+    width: "70px",
     renderfunc: function(d, t, r, m) {
         return (d.length > 32) ? d.substr(0, 31) + '&hellip;' : d;
     }
@@ -2706,7 +2716,7 @@ kismet_ui_tabpane.AddTab({
             .append(
                 $('<table>', {
                     id: 'devices',
-                    class: 'stripe hover nowrap',
+                    class: 'fixeddt stripe hover nowrap',
                     'cell-spacing': 0,
                     width: '100%',
                 })
