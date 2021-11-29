@@ -237,3 +237,14 @@ div.k-c-p-c-notes {
     display: block;
 }
 
+.fixeddt {
+    table-layout: fixed;
+    word-wrap: break-word;
+}
+
+.dt_td {
+    text-overflow: clip;
+    overflow: hidden;
+    padding-right: 1px;
+}
+

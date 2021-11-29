@@ -285,6 +285,9 @@ exports.AddDeviceColumn = function(id, options) {
     if ('width' in options)
         coldef.width = options.width;
 
+    if ('sClass' in options)
+        coldef.sClass = options.sClass;
+
     var f;
     if (typeof(coldef.field) === 'string') {
         var fs = coldef.field.split("/");
@@ -1041,6 +1044,7 @@ exports.InitializeDeviceTable = function(element) {
 
         scrollResize: true,
         scrollY: 200,
+        scrollX: "100%",
 
         serverSide: true,
         processing: true,
@@ -1074,6 +1078,10 @@ exports.InitializeDeviceTable = function(element) {
 
         // Get our dynamic columns
         columns: cols,
+
+        columnDefs: [
+            { className: "dt_td", targets: "_all" },
+        ],
 
         order:
             [ [ 0, "desc" ] ],

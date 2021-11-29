@@ -1153,6 +1153,46 @@ function update_datasource2(data) {
             );
 
             pausediv.append(
+                $('<button>', {
+                    id: "disablecmd",
+                    uuid: source['kismet.datasource.uuid']
+                }).html('Disable')
+                .button()
+                .on('click', function() {
+                    ds_state['defer_command_progress'] = true;
+                    ds_state['defer_source_update'] = true;
+
+                    var uuid = $(this).attr('uuid');
+                    var sdiv = $('#' + uuid, ds_state['ds_content']);
+
+                    $('.k-ds-modal-message', sdiv).html("Disabling datasource...");
+                    $('.k-ds-modal', sdiv).show();
+                        
+                    $(this).addClass('enable-chan-user');
+                    $('#opencmd[uuid=' + uuid + ']', ds_state['ds_content']).removeClass('enable-chan-user');
+
+                    $.get(local_uri_prefix + '/datasource/by-uuid/' + uuid + '/disable_source.cmd')
+                    .done(function(data) {
+                        data = kismet.sanitizeObject(data);
+
+                        for (var u in ds_state['datasources']) {
+                            if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                                ds_state['remove_pending'].push(uuid);
+                                ds_state['datasources'][u] = data;
+                                update_datasource2(null);
+                                break;
+                            }
+                        }
+                    })
+                    .always(function() {
+                        ds_state['remove_pending'].push(uuid);
+                        ds_state['defer_command_progress'] = false;
+                    });
+
+                })
+            );
+
+            pausediv.append(
                 $('<p>', {
                     id: 'pausetext',
                     uuid: source['kismet.datasource.uuid']

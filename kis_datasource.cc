@@ -487,8 +487,10 @@ void kis_datasource::disable_source() {
 
     close_source();
 
-    set_int_source_error(false);
+    set_int_source_error(true);
     set_int_source_error_reason("Source disabled");
+
+    set_int_source_retry(false);
 
     // cancel any timers
     if (error_timer_id > 0)
@@ -1822,7 +1824,7 @@ void kis_datasource::handle_source_error() {
     // If we already have an error timer, we're thinking about restarting, 
     // be quiet about things; otherwise, talk about restarting, increment the
     // count, and set a timer
-    if (error_timer_id <= 0) {
+    if (error_timer_id <= 0 && get_source_retry()) {
 
         // Increment our failures
         inc_int_source_retry_attempts(1);
@@ -1844,6 +1846,9 @@ void kis_datasource::handle_source_error() {
                 kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource error_timer lambda");
 
                 error_timer_id = -1;
+
+                if (get_source_retry() == false)
+                    return 0;
 
                 _MSG("Attempting to re-open source " + get_source_name(), MSGFLAG_INFO);
 
