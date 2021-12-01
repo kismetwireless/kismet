@@ -39,6 +39,7 @@ typedef struct {
     /* flag to let use know when we are ready to capture */
     bool ready;
 
+    uint16_t error_ctr;
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
@@ -100,44 +101,60 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     unsigned char pkt[256];memset(pkt,0x00,256);
     int actual_len = 0;
     bool endofpkt=false;
-    int pkt_ctr = 0;
+        int pkt_ctr = 0;
     int res = 0;
     unsigned int loop_ctr = 0;
-
-    pthread_mutex_lock(&(localnrf->serial_mutex));
+    char errstr[STATUS_MAX];
 
     while(1) {
+        memset(buf,0x00,256);
+        pthread_mutex_lock(&(localnrf->serial_mutex));
 	    res = read(localnrf->fd,buf,255);
+        pthread_mutex_unlock(&(localnrf->serial_mutex));
+        
 	    if(res > 0)
 	    {
-            loop_ctr = 0;
-            for(int xp = 0;xp < res;xp++)
+            if (buf[0] == 0xAB && buf[res-1] == 0xBC) {
+                if(localnrf->error_ctr == 0)
+                {
+                    snprintf(errstr, STATUS_MAX, "nRF52840 with BTLE firmware detected please use the nRF51822 capture source instead");
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                }
+                localnrf->error_ctr++;
+                if(localnrf->error_ctr >= 1000)
+                    localnrf->error_ctr=0;
+            }
+            else
             {
-                if(buf[xp] == 'r' && buf[xp+1] == 'e' && buf[xp+2] == 'c') {
+                loop_ctr = 0;
+                for(int xp = 0;xp < res;xp++)
+                {
+                    if(buf[xp] == 'r' && buf[xp+1] == 'e' && buf[xp+2] == 'c') {
                         memset(pkt,0x00,256);
                         pkt_ctr = 0;//start over
-                }
+                    }
 
-                pkt[pkt_ctr] = buf[xp];
-                pkt_ctr++;
-                if(pkt_ctr > 254)
+                    pkt[pkt_ctr] = buf[xp];
+                    pkt_ctr++;
+                    if(pkt_ctr > 254)
+                            break;
+                    if(strstr((char*)pkt,"received:") > 0
+                    && strstr((char*)pkt,"power:") > 0
+                    && strstr((char*)pkt,"lqi:") > 0
+                    && strstr((char*)pkt,"time:") > 0
+                    )
+                    {
+                        endofpkt = true;
                         break;
-                if(strstr((char*)pkt,"received:") > 0
-                && strstr((char*)pkt,"power:") > 0
-                && strstr((char*)pkt,"lqi:") > 0
-                && strstr((char*)pkt,"time:") > 0
-                )
+                    }
+                }
+                if(pkt_ctr > 0 && endofpkt)
                 {
-                    endofpkt = true;
+                    memcpy(rx_buf,pkt,pkt_ctr);
+                    actual_len = pkt_ctr;
                     break;
                 }
             }
-	        if(pkt_ctr > 0 && endofpkt)
-        	{
-                memcpy(rx_buf,pkt,pkt_ctr);
-                actual_len = pkt_ctr;
-                break;
-		    }
 	    }
 	    else
 	    {
@@ -149,7 +166,6 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
             }
 	    }
     }
-    pthread_mutex_unlock(&(localnrf->serial_mutex));
 
     return actual_len;
 }
@@ -352,7 +368,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
-    int r;
+    int r = 1;
 
     if (privchan == NULL) {
         return 0;
@@ -392,11 +408,11 @@ void capture_thread(kis_capture_handler_t *caph) {
                 cf_handler_spindown(caph);
                 break;
             }
-
             //send the packet along
             if(buf_rx_len > 0){
                 /* insert the channel into the packet header*/
-                buf[2] = (uint8_t)localnrf->channel;
+                if(buf[0] != 0xAB && buf[buf_rx_len-1] != 0xBC)
+                    buf[2] = (uint8_t)localnrf->channel;
                 while (1) {
                     struct timeval tv;
 
@@ -426,9 +442,10 @@ void capture_thread(kis_capture_handler_t *caph) {
 int main(int argc, char *argv[]) {
     local_nrf_t localnrf = {
         .caph = NULL,
-	.name = NULL,
+	    .name = NULL,
         .interface = NULL,
         .fd = -1,
+        .error_ctr = 0,
     };
 
     kis_capture_handler_t *caph = cf_handler_init("nrf52840");
