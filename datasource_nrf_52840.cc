@@ -43,113 +43,120 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
     The below finds where the : are so we can better try to split everything apart.
     */
 
-    //printf("nrf52840 datasource got a packet\n");
-    for (unsigned int i = 0; i < rxdata.length(); i++) {
-        if (rxdata[i] == ':') {
-            loc[li] = i;
-            li++;
-            if (li > 4)
-                break;
+    if((uint8_t)rxdata[0] == 0xAB && (uint8_t)rxdata[rxdata.length()-1] == 0xBC)
+    {
+        //printf("we got a btle packet\n");
+    }
+    else
+    {
+        //printf("nrf52840 datasource got a packet\n");
+        for (unsigned int i = 0; i < rxdata.length(); i++) {
+            if (rxdata[i] == ':') {
+                loc[li] = i;
+                li++;
+                if (li > 4)
+                    break;
+            }
         }
+
+        // copy over the packet
+        unsigned int chunk_start = loc[0] + 2;
+        unsigned int chunk_str_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
+        unsigned int payload_len = chunk_str_len;
+        if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
+            packet->error = 1;
+            return;
+        }
+        memcpy(c_payload, &rxdata.data()[chunk_start], chunk_str_len);
+
+        // copy over the power/rssi
+        chunk_start = loc[1] + 2;
+        chunk_str_len = (loc[2] - loc[1] - 2 - (strlen("lqi")));
+        if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
+            packet->error = 1;
+            return;
+        }
+
+        memcpy(tmp, &rxdata.data()[chunk_start], chunk_str_len);
+        rssi = atoi(tmp);
+        memset(tmp, 0x00, 16);
+
+        // convert the string payload to bytes
+        unsigned char tmpc[2];
+        int c = 0;
+        int nrf_payload_len = 0;
+
+        for (int i = 0; i < (int) payload_len; i++) {
+            tmpc[0] = hextobytel(c_payload[i]);
+            i++;
+            tmpc[1] = hextobytel(c_payload[i]);
+            payload[c] = ((tmpc[0] << 4) | tmpc[1]);
+            c++;
+        }
+
+        nrf_payload_len = c;
+        uint8_t channel = rxdata[2];
+
+        // No good way to do packet validation that I know of at the moment.
+
+        // We can make a valid payload from this much
+        auto conv_buf_len = sizeof(_802_15_4_tap) + nrf_payload_len;
+        std::string conv_buf;
+        conv_buf.resize(conv_buf_len, 0);
+        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
+
+        // Copy the actual packet payload into the header
+        memcpy(conv_header->payload, payload, nrf_payload_len);
+
+        conv_header->version = kis_htole16(0);// currently only one version
+        conv_header->reserved = kis_htole16(0);// must be set to 0
+
+        // fcs setting
+        conv_header->tlv[0].type = kis_htole16(0);
+        conv_header->tlv[0].length = kis_htole16(1);
+        conv_header->tlv[0].value = kis_htole32(0);
+
+        // rssi
+        conv_header->tlv[1].type = kis_htole16(10);
+        conv_header->tlv[1].length = kis_htole16(1);
+        conv_header->tlv[1].value = kis_htole32(rssi);
+
+        // channel
+        conv_header->tlv[2].type = kis_htole16(3);
+        conv_header->tlv[2].length = kis_htole16(3);
+        conv_header->tlv[2].value = kis_htole32(channel);
+    
+        // size
+        conv_header->length = kis_htole16(sizeof(_802_15_4_tap)); 
+
+
+        // Put the modified data into the packet & fill in the rest of the base data info
+        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
+
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            packet->ts.tv_sec = report.time_sec();
+            packet->ts.tv_usec = report.time_usec();
+        }
+
+        datachunk->dlt = KDLT_IEEE802_15_4_TAP;
+
+        packet->set_data(conv_buf);
+        datachunk->set_data(packet->data);
+
+        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+
+        packet->insert(pack_comp_linkframe, datachunk);
+
+
+        auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
+        radioheader->signal_type = kis_l1_signal_type_dbm;
+        radioheader->signal_dbm = rssi;
+        radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
+        radioheader->channel = fmt::format("{}", (channel));
+        packet->insert(pack_comp_radiodata, radioheader);
     }
-
-    // copy over the packet
-    unsigned int chunk_start = loc[0] + 2;
-    unsigned int chunk_str_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
-    unsigned int payload_len = chunk_str_len;
-    if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
-        packet->error = 1;
-        return;
-    }
-    memcpy(c_payload, &rxdata.data()[chunk_start], chunk_str_len);
-
-    // copy over the power/rssi
-    chunk_start = loc[1] + 2;
-    chunk_str_len = (loc[2] - loc[1] - 2 - (strlen("lqi")));
-    if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
-        packet->error = 1;
-        return;
-    }
-
-    memcpy(tmp, &rxdata.data()[chunk_start], chunk_str_len);
-    rssi = atoi(tmp);
-    memset(tmp, 0x00, 16);
-
-    // convert the string payload to bytes
-    unsigned char tmpc[2];
-    int c = 0;
-    int nrf_payload_len = 0;
-
-    for (int i = 0; i < (int) payload_len; i++) {
-        tmpc[0] = hextobytel(c_payload[i]);
-        i++;
-        tmpc[1] = hextobytel(c_payload[i]);
-        payload[c] = ((tmpc[0] << 4) | tmpc[1]);
-        c++;
-    }
-
-    nrf_payload_len = c;
-    uint8_t channel = rxdata[2];
-
-    // No good way to do packet validation that I know of at the moment.
-
-    // We can make a valid payload from this much
-    auto conv_buf_len = sizeof(_802_15_4_tap) + nrf_payload_len;
-    std::string conv_buf;
-    conv_buf.resize(conv_buf_len, 0);
-    _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
-
-    // Copy the actual packet payload into the header
-    memcpy(conv_header->payload, payload, nrf_payload_len);
-
-    conv_header->version = kis_htole16(0);// currently only one version
-    conv_header->reserved = kis_htole16(0);// must be set to 0
-
-    // fcs setting
-    conv_header->tlv[0].type = kis_htole16(0);
-    conv_header->tlv[0].length = kis_htole16(1);
-    conv_header->tlv[0].value = kis_htole32(0);
-
-    // rssi
-    conv_header->tlv[1].type = kis_htole16(10);
-    conv_header->tlv[1].length = kis_htole16(1);
-    conv_header->tlv[1].value = kis_htole32(rssi);
-
-    // channel
-    conv_header->tlv[2].type = kis_htole16(3);
-    conv_header->tlv[2].length = kis_htole16(3);
-    conv_header->tlv[2].value = kis_htole32(channel);
-   
-    // size
-    conv_header->length = kis_htole16(sizeof(_802_15_4_tap)); 
-
-
-    // Put the modified data into the packet & fill in the rest of the base data info
-    auto datachunk = packetchain->new_packet_component<kis_datachunk>();
-
-    if (clobber_timestamp && get_source_remote()) {
-        gettimeofday(&(packet->ts), NULL);
-    } else {
-        packet->ts.tv_sec = report.time_sec();
-        packet->ts.tv_usec = report.time_usec();
-    }
-
-    datachunk->dlt = KDLT_IEEE802_15_4_TAP;
-
-    packet->set_data(conv_buf);
-    datachunk->set_data(packet->data);
-
-    get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
-
-    packet->insert(pack_comp_linkframe, datachunk);
-
-
-    auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-    radioheader->signal_type = kis_l1_signal_type_dbm;
-    radioheader->signal_dbm = rssi;
-    radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
-    radioheader->channel = fmt::format("{}", (channel));
-    packet->insert(pack_comp_radiodata, radioheader);
 }
 
 unsigned char hextobytel(char s) {
