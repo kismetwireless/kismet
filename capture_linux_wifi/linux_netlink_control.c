@@ -268,7 +268,7 @@ nla_put_failure:
     basephy1 = mac80211_find_parent(interface);
     basephy2 = mac80211_find_parent(newinterface);
 
-    if (basephy1 != NULL && basephy2 != NULL && strcmp(basephy1, basephy2) != 0) {
+    if (basephy1 != NULL && basephy2 != NULL && strcmp(basephy1, basephy2) == 0) {
         free(basephy1);
         free(basephy2);
         return 0;
