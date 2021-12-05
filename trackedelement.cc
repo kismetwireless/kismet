@@ -193,6 +193,8 @@ void tracker_element_mac_addr::coercive_set(const shared_tracker_element& e) {
 
 std::string tracker_element::type_to_string(tracker_type t) {
     switch (t) {
+        case tracker_type::tracker_unassigned:
+            return "unassigned";
         case tracker_type::tracker_string:
             return "string";
         case tracker_type::tracker_int8:
@@ -262,6 +264,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
 
 std::string tracker_element::type_to_typestring(tracker_type t) {
     switch (t) {
+        case tracker_type::tracker_unassigned:
+            return "tracker_unassigned";
         case tracker_type::tracker_string:
             return "tracker_string";
         case tracker_type::tracker_int8:

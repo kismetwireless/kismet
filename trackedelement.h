@@ -119,6 +119,8 @@ namespace std {
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
 // binary/fast serialization, new types must be added to the end of the list
 enum class tracker_type {
+    tracker_unassigned = -1,
+
     tracker_string = 0,
 
     tracker_int8 = 1, 
@@ -253,9 +255,17 @@ public:
     }
 
     // Serialization helpers
-    virtual bool is_stringable() const = 0; 
-    virtual std::string as_string() const = 0;
-    virtual bool needs_quotes() const = 0;
+    virtual bool is_stringable() const {
+        return false;
+    } 
+
+    virtual std::string as_string() const {
+        return "";
+    }
+
+    virtual bool needs_quotes() const {
+        return false;
+    }
 
     constexpr14 uint16_t get_id() const {
         return tracked_id;
@@ -267,7 +277,9 @@ public:
 
     void set_type(tracker_type type);
 
-    virtual tracker_type get_type() const = 0;
+    virtual tracker_type get_type() const {
+        return tracker_type::tracker_unassigned;
+    }
 
     std::string get_type_as_string() const {
         return type_to_string(get_type());
