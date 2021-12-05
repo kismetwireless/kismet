@@ -482,6 +482,16 @@ protected:
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;
 
+    // Append a new key pair to a definition; do not replace existing values
+    virtual bool append_interface_definition(const std::string& in_key,
+            const std::string& in_data);
+
+    // Append or replace a key pair on a definition
+    virtual void update_interface_definition(const std::string& in_key,
+            const std::string& in_data);
+
+    // Re-synthesize an interface definition
+    virtual std::string generate_interface_definition();
 
     // Async command API
     // Commands have to be sent over the IPC channel or the network connection, making

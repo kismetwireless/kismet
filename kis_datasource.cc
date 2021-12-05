@@ -687,6 +687,48 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
     return true;
 }
 
+bool kis_datasource::append_interface_definition(const std::string& in_key,
+        const std::string& in_data) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
+
+    if (source_definition_opts.find(str_lower(in_key)) == source_definition_opts.end()) {
+        source_definition_opts[str_lower(in_key)] = in_data;
+        return true;
+    }
+
+    return false;
+}
+
+void kis_datasource::update_interface_definition(const std::string& in_key,
+        const std::string& in_data) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
+    source_definition_opts[str_lower(in_key)] = in_data;
+}
+
+std::string kis_datasource::generate_interface_definition() {
+    std::stringstream ss;
+
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
+
+    ss << get_source_interface();
+
+    if (source_definition_opts.size()) {
+        ss << ":";
+
+        bool comma = false;
+
+        for (const auto& o : source_definition_opts) {
+            if (comma)
+                ss << ",";
+            comma = true;
+
+            ss << o.first << "=" << o.second;
+        }
+    }
+
+    return ss.str();
+}
+
 std::shared_ptr<kis_datasource::tracked_command> kis_datasource::get_command(uint32_t in_transaction) {
     auto i = command_ack_map.find(in_transaction);
 
