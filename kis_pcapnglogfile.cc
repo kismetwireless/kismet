@@ -30,6 +30,11 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
 
     log_duplicate_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_duplicate_packets", true);
+    log_data_packets =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_data_packets", true);
+
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
+    pack_comp_common = packetchain->register_packet_component("COMMON");
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {
@@ -56,6 +61,16 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
 
                 if (in_pack->duplicate && !log_duplicate_packets)
                     return false;
+
+                if (!log_data_packets) {
+                    auto ci = in_pack->fetch<kis_common_info>(pack_comp_common);
+
+                    if (ci != nullptr) {
+                        if (ci->type == packet_basic_data) {
+                            return false;
+                        }
+                    }
+                }
 
                 return true;
             }, nullptr, 16384);

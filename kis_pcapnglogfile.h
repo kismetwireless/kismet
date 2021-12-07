@@ -40,6 +40,9 @@ protected:
     std::thread stream_t;
 
     bool log_duplicate_packets;
+    bool log_data_packets;
+
+    int pack_comp_common;
 };
 
 class pcapng_logfile_builder : public kis_logfile_builder {
