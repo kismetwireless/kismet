@@ -238,6 +238,9 @@ bool kis_database_logfile::open_log(std::string in_path) {
     log_duplicate_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_duplicate_packets", true);
 
+    log_data_packets =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_data_packets", true);
+
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/logging/kismetdb/pcap/drop", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -908,6 +911,9 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
     std::string keystring;
     std::string sourceuuidstring;
     double frequency;
+
+    if (!log_data_packets)
+        return 0;
 
     if (in_pack->duplicate && !log_duplicate_packets)
         return 0;

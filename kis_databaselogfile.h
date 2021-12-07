@@ -222,6 +222,7 @@ protected:
     unsigned long alert_evt_id;
 
     bool log_duplicate_packets;
+    bool log_data_packets;
 };
 
 class kis_database_logfile_builder : public kis_logfile_builder {

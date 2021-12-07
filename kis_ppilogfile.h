@@ -87,13 +87,15 @@ protected:
 	void *cbaux;
 
     int pack_comp_80211, pack_comp_mangleframe, pack_comp_radiodata,
-        pack_comp_gps, pack_comp_checksum, pack_comp_decap, pack_comp_linkframe;
+        pack_comp_gps, pack_comp_checksum, pack_comp_decap, pack_comp_linkframe,
+        pack_comp_common;
 
     kis_mutex packet_mutex;
 
     std::atomic<bool> log_open;
 
     bool log_duplicate_packets;
+    bool log_data_packets;
 };
 
 class ppi_logfile_builder : public kis_logfile_builder {
