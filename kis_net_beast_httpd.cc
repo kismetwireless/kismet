@@ -452,7 +452,7 @@ void kis_net_beast_httpd::start_accept() {
 
     auto this_ref = shared_from_this();
 
-    acceptor.async_accept(Globalreg::globalreg->io,
+    acceptor.async_accept(boost::asio::make_strand(Globalreg::globalreg->io),
             boost::beast::bind_front_handler(&kis_net_beast_httpd::handle_connection, shared_from_this()));
 }
 
@@ -1854,24 +1854,24 @@ void kis_net_web_websocket_endpoint::close() {
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
     auto buffer = std::make_shared<boost::beast::flat_buffer>();
 
-    ws_.async_read(*buffer, [this, ref, buffer](boost::beast::error_code ec, size_t sz) {
-        if (ec) {
-            // All errors are equal as far as we care, we close down the websocket
-            close();
-            return;
-        }
+    ws_.async_read(*buffer, 
+            [this, ref, buffer](boost::beast::error_code ec, size_t sz) -> void {
+                if (ec) {
+                    // All errors are equal as far as we care, we close down the websocket
+                    return close();
+                }
 
-        try {
-            handler_cb(ref, *buffer, ws_.got_text());
-        } catch (const std::exception& e) {
-            // All handler errors close the websocket
-            close();
-            return;
-        }
+                try {
+                    handler_cb(ref, *buffer, ws_.got_text());
+                } catch (const std::exception& e) {
+                    // All handler errors close the websocket
+                    return close();
+                }
 
-        start_read(ref);
-    });
+                start_read(ref);
+            });
 }
+
 
 
 void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
