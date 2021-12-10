@@ -192,7 +192,7 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     }
 
     // Populate our local info about the interface
-    if (!parse_interface_definition(in_definition)) {
+    if (!parse_source_definition(in_definition)) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, false, "Malformed source config");
@@ -229,7 +229,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     set_int_source_definition(in_definition);
 
     // Populate our local info about the interface
-    if (!parse_interface_definition(in_definition)) {
+    if (!parse_source_definition(in_definition)) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, false, "Malformed source config");
@@ -435,7 +435,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     set_int_source_error(false);
     
     // Populate our local info about the interface
-    if (!parse_interface_definition(in_definition)) {
+    if (!parse_source_definition(in_definition)) {
         set_int_source_running(false);
         set_int_source_error(true);
         set_int_source_error_reason("Unable to parse interface definition of remote source");
@@ -528,7 +528,7 @@ void kis_datasource::handle_error(const std::string& in_error) {
 
     if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
-                get_source_name(), get_source_definition(), get_source_interface(), in_error);
+                get_source_name(), generate_source_definition(), get_source_interface(), in_error);
     }
 
     set_int_source_error(true);
@@ -610,7 +610,7 @@ double kis_datasource::get_definition_opt_double(std::string in_opt, double in_d
     return d;
 }
 
-bool kis_datasource::parse_interface_definition(std::string in_definition) {
+bool kis_datasource::parse_source_definition(std::string in_definition) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource parse_interface");
 
     local_uuid = false;
@@ -687,7 +687,7 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
     return true;
 }
 
-bool kis_datasource::append_interface_definition(const std::string& in_key,
+bool kis_datasource::append_source_definition(const std::string& in_key,
         const std::string& in_data) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
 
@@ -699,13 +699,13 @@ bool kis_datasource::append_interface_definition(const std::string& in_key,
     return false;
 }
 
-void kis_datasource::update_interface_definition(const std::string& in_key,
+void kis_datasource::update_source_definition(const std::string& in_key,
         const std::string& in_data) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
     source_definition_opts[str_lower(in_key)] = in_data;
 }
 
-std::string kis_datasource::generate_interface_definition() {
+std::string kis_datasource::generate_source_definition() {
     std::stringstream ss;
 
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
@@ -727,6 +727,23 @@ std::string kis_datasource::generate_interface_definition() {
     }
 
     return ss.str();
+}
+
+
+std::map<std::string, std::string> kis_datasource::get_config_overrides(const std::string& in_key) {
+    std::map<std::string, std::string> ret;
+    auto opts = Globalreg::globalreg->kismet_config->fetch_opt_vec(in_key);
+
+    for (const auto& o : opts) {
+        auto toks = str_tokenize(o, ",");
+
+        if (toks.size() != 2)
+            continue;
+
+        ret[toks[0]] = toks[1];
+    }
+
+    return ret;
 }
 
 std::shared_ptr<kis_datasource::tracked_command> kis_datasource::get_command(uint32_t in_transaction) {
@@ -1895,7 +1912,7 @@ void kis_datasource::handle_source_error() {
                 _MSG("Attempting to re-open source " + get_source_name(), MSGFLAG_INFO);
 
                 // Call open on the same sourceline, no transaction, no cb
-                open_interface(get_source_definition(), 0, 
+                open_interface(generate_source_definition(), 0, 
                         [this](int, bool success, std::string) {
                             if (!success)
                                 return;
@@ -1950,7 +1967,7 @@ bool kis_datasource::launch_ipc() {
     }
 
     _MSG_ERROR("Data source '{} / {}' could not launch IPC helper", get_source_name(), 
-            get_source_definition());
+            generate_source_definition());
 
     return false;
 }

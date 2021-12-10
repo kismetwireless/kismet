@@ -477,21 +477,24 @@ protected:
     // Common interface parsing to set our name/uuid/interface and interface
     // config pairs.  Once this is done it will have automatically set any 
     // local variables like name, uuid, etc that needed to get set.
-    virtual bool parse_interface_definition(std::string in_definition);
+    virtual bool parse_source_definition(std::string in_definition);
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;
 
     // Append a new key pair to a definition; do not replace existing values
-    virtual bool append_interface_definition(const std::string& in_key,
+    virtual bool append_source_definition(const std::string& in_key,
             const std::string& in_data);
 
     // Append or replace a key pair on a definition
-    virtual void update_interface_definition(const std::string& in_key,
+    virtual void update_source_definition(const std::string& in_key,
             const std::string& in_data);
 
     // Re-synthesize an interface definition
-    virtual std::string generate_interface_definition();
+    virtual std::string generate_source_definition();
+
+    // Grab overrides per key
+    virtual std::map<std::string, std::string> get_config_overrides(const std::string& in_key);
 
     // Async command API
     // Commands have to be sent over the IPC channel or the network connection, making
