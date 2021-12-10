@@ -166,6 +166,13 @@ public:
             fflush(stderr);
         }
 
+        // Don't propogate debug messages into the eventbus or silly things can happen
+        if (flags & MSGFLAG_DEBUG) {
+            fprintf(stdout, "DEBUG: %s\n", msg.c_str());
+            fflush(stdout);
+            return;
+        }
+
         auto tracked_msg = std::make_shared<tracked_message>(msg_proto->get_id(), msg, flags, time(0));
         auto evt = eventbus->get_eventbus_event(event_message());
         evt->get_event_content()->insert(event_message(), tracked_msg);
