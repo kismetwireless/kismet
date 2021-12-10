@@ -56,6 +56,12 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
         return;
     }
 
+    if (in_buf.size() == 0) {
+        _MSG_ERROR("(GPS) Error reading NMEA data: No data available");
+        close();
+        return;
+    }
+
     // Pull the buffer
     std::string line;
     std::istream is(&in_buf);

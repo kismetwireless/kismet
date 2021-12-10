@@ -233,6 +233,12 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
         return close();
     }
 
+    if (in_buf.size() == 0) {
+        _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, 
+                "No data available");
+        return close();
+    }
+
     // Pull the buffer
     std::string line;
     std::istream is(&in_buf);
