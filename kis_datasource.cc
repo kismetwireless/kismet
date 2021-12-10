@@ -470,7 +470,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
         if (time(0) - last_pong > 15) {
             ping_timer_id = -1;
-            trigger_error("did not get a ping response from the capture binary");
+            trigger_error("did not get a ping response from the capture");
             return 0;
         }
        

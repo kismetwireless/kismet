@@ -98,8 +98,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
                                         return;
                                     }
 
-                                    boost::asio::streambuf stream;
-                                    std::ostream os(&stream);
+                                    std::stringstream stream;
 
                                     std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
                                     Json::Value json;
@@ -155,13 +154,14 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
                                         // Sync w/ the tracked fields
                                         update_locations();
 
-                                        os << "{\"update\": \"ok\"}";
+                                        stream << "{\"update\": \"ok\"}";
 
-                                        ws->write(stream.data(), true);
+                                        ws->write(stream.str(), true);
                                     } catch (const std::exception& e) {
                                         _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
                                                 "/gps/web/update.ws");
-                                        os << "{\"update\": \"error\"}";
+                                        stream << "{\"update\": \"error\"}";
+                                        ws->write(stream.str(), true);
                                         return;
                                     }
                                 });

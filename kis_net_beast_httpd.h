@@ -479,6 +479,12 @@ protected:
 
 class kis_net_web_websocket_endpoint : public kis_net_web_endpoint, 
     public std::enable_shared_from_this<kis_net_web_websocket_endpoint> {
+
+        typedef struct {
+            std::string data;
+            bool text;
+        } ws_data;
+
 public:
     using handler_func_t = std::function<void (std::shared_ptr<kis_net_web_websocket_endpoint> ws, 
             boost::beast::flat_buffer& buf, bool text)>;
@@ -492,19 +498,31 @@ public:
 
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
 
-    int write(const std::string& data, bool text) {
+    void write(const std::string& data, bool text) {
+        boost::asio::post(ws_.get_executor(),
+                boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::on_write, 
+                    shared_from_this(), data, text));
+#if 0
         return write(data.data(), data.size(), text);
+#endif
     }
 
-    int write(const char *data, size_t len, bool text) {
+    void write(const char *data, size_t len, bool text) {
+        boost::asio::post(ws_.get_executor(),
+                boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::on_write,
+                    shared_from_this(), std::string(data, len), text));
+
+#if 0
         boost::asio::streambuf buf;
         std::ostream os(&buf);
 
         os.write(data, len);
 
         return write(buf.data(), text);
+#endif
     }
 
+#if 0
     template<class ConstBufferSequence>
     int write(const ConstBufferSequence& buffers, bool text) {
         if (!running)
@@ -531,13 +549,22 @@ public:
 
         return buffers.size();
     }
+#endif
 
     virtual void close();
 
 protected:
     virtual void start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref);
+    void handle_read(boost::beast::error_code ec, std::size_t);
+
+    void on_write(const std::string& msg, bool text);
+    void write_complete(boost::beast::error_code ec, std::size_t);
 
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
+
+    boost::beast::flat_buffer buffer_;
+
+    std::list<std::shared_ptr<ws_data>> ws_write_queue_;
 
     std::promise<void> handle_pr;
 

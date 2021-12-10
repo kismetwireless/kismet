@@ -1039,9 +1039,17 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 auto write_cb = 
                     [ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
+                        ws->write(data, sz, false);
+
+                        // Shim with both sizes for now since async always accepts all
+                        comp(sz, sz);
+
+#if 0
+                        // Async write means it just goes, now
                         auto ret = ws->write(data, sz, false);
 
                         comp(ret, sz);
+#endif
 
                         return sz;
                     };

@@ -1852,29 +1852,117 @@ void kis_net_web_websocket_endpoint::close() {
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
-    auto buffer = std::make_shared<boost::beast::flat_buffer>();
+    ws_.async_read(buffer_,
+            boost::beast::bind_front_handler(
+                &kis_net_web_websocket_endpoint::handle_read,
+                shared_from_this()));
+}
 
-    ws_.async_read(*buffer, 
-            [this, ref, buffer](boost::beast::error_code ec, size_t sz) -> void {
-                if (ec) {
-                    // All errors are equal as far as we care, we close down the websocket
-                    return close();
-                }
+void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, std::size_t) {
+    if (ec) {
+        return close();
+    }
 
-                try {
-                    handler_cb(ref, *buffer, ws_.got_text());
-                } catch (const std::exception& e) {
-                    // All handler errors close the websocket
-                    return close();
-                }
+    if (!running) {
+        return close();
+    }
 
-                start_read(ref);
-            });
+    try {
+        handler_cb(shared_from_this(), buffer_, ws_.got_text());
+
+        buffer_.consume(buffer_.size());
+
+        ws_.async_read(buffer_,
+                boost::beast::bind_front_handler(
+                    &kis_net_web_websocket_endpoint::handle_read,
+                    shared_from_this()));
+    } catch (const std::exception& e) {
+        return close();
+    }
+}
+
+void kis_net_web_websocket_endpoint::on_write(const std::string& msg, bool text) {
+    auto data = std::make_shared<ws_data>();
+    data->data = msg;
+    data->text = text;
+
+    ws_write_queue_.push_back(data);
+
+    // _MSG_DEBUG("ws {} write len {} queue {}", fmt::ptr(this), msg.size(), ws_write_queue_.size());
+
+    if (ws_write_queue_.size() > 1)
+        return;
+
+    try {
+        if (text) {
+            ws_.text(true);
+        } else {
+            ws_.binary(true);
+        }
+
+        ws_.async_write(boost::asio::buffer(msg), 
+                boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::write_complete,
+                    shared_from_this()));
+    } catch (const boost::beast::system_error& se) {
+        running = false;
+        if (se.code() != boost::beast::websocket::error::closed) {
+            _MSG_ERROR("Websocket error: {}", se.code().message());
+        }
+
+        return;
+    } catch (const std::exception& e) {
+        running = false;
+        _MSG_ERROR("Websocket error: {}", e.what());
+
+        return;
+    }
+}
+
+void kis_net_web_websocket_endpoint::write_complete(boost::beast::error_code ec, std::size_t) {
+    if (ec) {
+        running = false;
+        _MSG_ERROR("Websocket error: {}", ec.message());
+        return;
+    }
+
+    ws_write_queue_.pop_front();
+
+    if (!ws_write_queue_.empty()) {
+        auto front = ws_write_queue_.front();
+
+        // _MSG_DEBUG("ws {} write_complete len {} queue {}", fmt::ptr(this), front->data.size(), ws_write_queue_.size());
+
+        try {
+            if (front->text) {
+                ws_.text(true);
+            } else {
+                ws_.binary(true);
+            }
+
+            ws_.async_write(boost::asio::buffer(front->data.data(), front->data.size()), 
+                    boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::write_complete,
+                        shared_from_this()));
+        } catch (const boost::beast::system_error& se) {
+            running = false;
+            if (se.code() != boost::beast::websocket::error::closed) {
+                _MSG_ERROR("Websocket error: {}", se.code().message());
+            }
+
+            return;
+        } catch (const std::exception& e) {
+            running = false;
+            _MSG_ERROR("Websocket error: {}", e.what());
+
+            return;
+        }
+
+    }
 }
 
 
-
 void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    // _MSG_DEBUG("websocket {} - {}", fmt::ptr(this), con->uri());
+
     // Set the default timeouts
     ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
                 boost::beast::role_type::server));

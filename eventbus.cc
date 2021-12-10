@@ -92,17 +92,12 @@ void event_bus::trigger_deferred_startup() {
                                 auto id = 
                                     register_listener(json["SUBSCRIBE"].asString(), 
                                             [ws, json](std::shared_ptr<eventbus_event> evt) {
-                                            
-                                            boost::asio::streambuf stream;
-                                            std::ostream os(&stream);
-
-                                            Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os, 
-                                                    evt->get_event_content(), json);
-
-                                            ws->write(stream.data(), true);
-
+                                                std::stringstream os;
+                                                Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os, 
+                                                        evt->get_event_content(), json);
+                                                ws->write(os.str(), true);
                                             });
-                                
+
                                 reg_map[json["SUBSCRIBE"].asString()] = id;
                             } 
 
