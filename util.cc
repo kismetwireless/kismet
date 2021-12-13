@@ -436,49 +436,50 @@ std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<op
 
 int string_to_opts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec) {
     std::vector<std::string> optv;
-	opt_pair optp;
+    opt_pair optp;
 
-	int in_tag = 1, in_quote = 0;
-	
-	optp.quoted = 0;
+    int in_tag = 1, in_quote = 0;
 
-	for (unsigned int x = 0; x < in_line.length(); x++) {
-		if (in_tag && in_line[x] != '=') {
-			optp.opt += in_line[x];
-			continue;
-		}
+    optp.quoted = 0;
 
-		if (in_tag && in_line[x] == '=') {
-			in_tag = 0;
-			continue;
-		}
+    for (unsigned int x = 0; x < in_line.length(); x++) {
+        if (in_tag && in_line[x] != '=') {
+            optp.opt += in_line[x];
+            continue;
+        }
 
-		if (in_line[x] == '"') {
-			if (in_quote == 0) {
-				in_quote = 1;
-				optp.quoted = 1;
-			} else {
-				in_quote = 0;
-			}
+        if (in_tag && in_line[x] == '=') {
+            in_tag = 0;
+            continue;
+        }
 
-			continue;
-		}
+        if (in_line[x] == '"') {
+            if (in_quote == 0) {
+                in_quote = 1;
+                optp.quoted = 1;
+            } else {
+                in_quote = 0;
+            }
 
-		if (in_quote == 0 && in_line[x] == in_sep[0]) {
-			in_vec->push_back(optp);
-			optp.quoted = 0;
-			optp.opt = "";
-			optp.val = "";
-			in_tag = 1;
-			continue;
-		}
+            continue;
+        }
 
-		optp.val += in_line[x];
-	}
+        if (in_quote == 0 && in_line[x] == in_sep[0]) {
+            in_vec->push_back(optp);
+            optp.quoted = 0;
+            optp.opt = "";
+            optp.val = "";
+            in_tag = 1;
+            continue;
+        }
 
-	in_vec->push_back(optp);
+        optp.val += in_line[x];
+    }
 
-	return 1;
+    if (optp.opt.length() > 0 && optp.val.length() > 0)
+        in_vec->push_back(optp);
+
+    return 1;
 }
 
 void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
