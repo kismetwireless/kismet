@@ -30,7 +30,7 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
     kis_gps(in_builder),
     resolver{Globalreg::globalreg->io},
     socket{Globalreg::globalreg->io},
-    strand_{Globalreg::globalreg->io} {
+    strand_{Globalreg::globalreg->io.get_executor()} {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -127,9 +127,9 @@ void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
     } else {
         boost::asio::async_connect(socket, endpoints,
                 boost::asio::bind_executor(strand_, 
-                [this, ref](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
-                    handle_connect(ref, ec, endpoint);
-                }));
+                    [this, ref](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
+                        handle_connect(ref, ec, endpoint);
+                    }));
     }
 }
 
@@ -164,26 +164,14 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
     auto buf = std::make_shared<std::string>(data);
 
     boost::asio::post(strand_,
-        [this, buf]() {
-            out_bufs.push_back(buf);
+            [this, buf]() {
+                out_bufs.push_back(buf);
 
-            if (out_bufs.size() > 1)
-                return;
+                if (out_bufs.size() > 1)
+                    return;
 
-            write_impl();
+                write_impl();
             });
-
-        /*
-    boost::asio::async_write(socket, boost::asio::buffer(data),
-            [this](const boost::system::error_code& error, std::size_t) {
-                if (error) {
-                    if (error.value() == boost::asio::error::operation_aborted)
-                        return;
-
-                    _MSG_ERROR("(GPS) Error writing GPSD command: {}", error.message());
-                    close();
-                }
-            }); */
 }
 
 void kis_gps_gpsd_v3::write_impl() {
@@ -220,6 +208,9 @@ void kis_gps_gpsd_v3::start_read(std::shared_ptr<kis_gps_gpsd_v3> ref) {
 void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
         const boost::system::error_code& error, std::size_t t) {
     kis_unique_lock<kis_mutex> lk(gps_mutex, std::defer_lock, "handle_read");
+
+    if (!socket.is_open())
+        return;
 
     if (stopped)
         return;
@@ -670,16 +661,24 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
 
     // Disconnect the client if it still exists
     if (socket.is_open()) { 
-        try {
-            socket.cancel();
-            socket.close();
-        } catch (const std::exception& e) {
-            ;
-        }
+        std::promise<void> close_pm;
+        auto close_ft = close_pm.get_future();
 
-        strand_.post([this]() {
-            out_bufs.clear();
-            });
+        boost::asio::post(strand_,
+                [this, &close_pm]() {
+                    try {
+                        socket.cancel();
+                        socket.close();
+                    } catch (const std::exception& e) {
+                        ;
+                    }
+
+                    out_bufs.clear();
+
+                    close_pm.set_value();
+                });
+
+        close_ft.wait();
     }
 
     std::string proto_host;

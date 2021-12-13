@@ -220,36 +220,37 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
 
     boost::asio::async_read(ipc_in, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
-            if (ec) {
-                if (ec.value() == boost::asio::error::operation_aborted) {
-                    if (ipc_running) {
-                        handle_packet(in_buf);
-                        return trigger_error("IPC connection aborted");
-                    }
+            boost::asio::bind_executor(strand_, 
+                [this, ref](const boost::system::error_code& ec, std::size_t t) {
+                    if (ec) {
+                        if (ec.value() == boost::asio::error::operation_aborted) {
+                            if (ipc_running) {
+                                // handle_packet(in_buf);
+                                return trigger_error("IPC connection aborted");
+                            }
 
-                    return close_external();
-                }
+                            return close_external();
+                        }
 
-                if (ec.value() == boost::asio::error::eof) {
-                    if (ipc_running) {
-                        handle_packet(in_buf);
-                        return trigger_error("IPC connection closed");
-                    }
+                        if (ec.value() == boost::asio::error::eof) {
+                            if (ipc_running) {
+                                // handle_packet(in_buf);
+                                return trigger_error("IPC connection closed");
+                            }
 
-                    return close_external();
-                }
+                            return close_external();
+                        }
 
-                return trigger_error(fmt::format("IPC connection error: {}", ec.message()));
-            } 
+                        return trigger_error(fmt::format("IPC connection error: {}", ec.message()));
+                    } 
 
-            auto r = handle_packet(in_buf);
+                    auto r = handle_packet(in_buf);
 
-            if (r < 0)
-                return trigger_error("IPC read processing error");
+                    if (r < 0)
+                        return trigger_error("IPC read processing error");
 
-            return start_ipc_read(ref);
-            }));
+                    return start_ipc_read(ref);
+                }));
 }
 
 void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interface> ref) {

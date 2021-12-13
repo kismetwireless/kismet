@@ -1837,18 +1837,20 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 void kis_net_web_websocket_endpoint::close() {
     running = false;
 
-    try {
-        // ws_.close(boost::beast::websocket::close_code::none);
-        ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-    } catch (const std::exception& e) {
-        ;
-    } 
+    boost::asio::post(ws_.get_executor(),
+            [this]() {
+                try {
+                    ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+                } catch (const std::exception& e) {
+                    ;
+                } 
 
-    try {
-        running_promise.set_value();
-    } catch (const std::future_error& e) {
-        // If somehow we already pulled the future, fail silently
-    }
+                try {
+                    running_promise.set_value();
+                } catch (const std::future_error& e) {
+                    // If somehow we already pulled the future, fail silently
+                }
+            });
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {

@@ -59,7 +59,7 @@ protected:
     tcp::resolver resolver;
     tcp::socket socket;
 
-    boost::asio::io_service::strand strand_;
+    boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     boost::asio::streambuf in_buf;
 
     std::string host, port;
