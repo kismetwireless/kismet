@@ -35,6 +35,11 @@ public:
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_linux_wifi");
+
+        auto opts_override = get_config_overrides("dot11_datasource_opt");
+        for (const auto& opt : opts_override) {
+            append_source_definition(opt.first, opt.second);
+        }
     }
 
     virtual ~kis_datasource_linux_wifi() { };

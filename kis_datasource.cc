@@ -210,7 +210,7 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     // Launch the IPC
     if (launch_ipc()) {
         // Create and send probe command
-        send_probe_source(in_definition, in_transaction, in_cb);
+        send_probe_source(get_source_definition(), in_transaction, in_cb);
     } else {
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Failed to launch IPC to probe source");
@@ -311,7 +311,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     });
 
     // Create and send open command
-    send_open_source(in_definition, in_transaction, in_cb);
+    send_open_source(get_source_definition(), in_transaction, in_cb);
 }
 
 void kis_datasource::set_channel(std::string in_channel, unsigned int in_transaction,
@@ -479,7 +479,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     });
 
     // Send an opensource
-    send_open_source(in_definition, 0, in_cb);
+    send_open_source(get_source_definition(), 0, in_cb);
 }
 
 void kis_datasource::disable_source() {
@@ -642,6 +642,19 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
         }
     }
 
+    // Append and override
+    for (const auto& o : source_append_opts) {
+        if (source_definition_opts.find(o.first) == source_definition_opts.end()) {
+            source_definition_opts[o.first] = o.second;
+        }
+    }
+
+    for (const auto& o : source_override_opts) {
+        source_definition_opts[o.first] = o.second;
+    }
+
+    set_int_source_definition(generate_source_definition());
+
     // Set some basic options
    
     std::string namestr = get_definition_opt("name");
@@ -691,24 +704,21 @@ bool kis_datasource::append_source_definition(const std::string& in_key,
         const std::string& in_data) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
 
-    if (source_definition_opts.find(str_lower(in_key)) == source_definition_opts.end()) {
-        source_definition_opts[str_lower(in_key)] = in_data;
-        return true;
-    }
+    source_append_opts[str_lower(in_key)] = in_data;
 
-    return false;
+    return true;
 }
 
 void kis_datasource::update_source_definition(const std::string& in_key,
         const std::string& in_data) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
-    source_definition_opts[str_lower(in_key)] = in_data;
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource update_interface");
+    source_override_opts[str_lower(in_key)] = in_data;
 }
 
 std::string kis_datasource::generate_source_definition() {
     std::stringstream ss;
 
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource append_interface");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource generate_interface");
 
     ss << get_source_interface();
 

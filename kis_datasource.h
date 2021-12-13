@@ -481,6 +481,8 @@ protected:
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;
+    std::map<std::string, std::string> source_append_opts;
+    std::map<std::string, std::string> source_override_opts;
 
     // Append a new key pair to a definition; do not replace existing values
     virtual bool append_source_definition(const std::string& in_key,
