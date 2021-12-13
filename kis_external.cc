@@ -225,7 +225,7 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
                             if (ipc_running) {
-                                // handle_packet(in_buf);
+                                handle_packet(in_buf);
                                 return trigger_error("IPC connection aborted");
                             }
 
@@ -234,7 +234,7 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
 
                         if (ec.value() == boost::asio::error::eof) {
                             if (ipc_running) {
-                                // handle_packet(in_buf);
+                                handle_packet(in_buf);
                                 return trigger_error("IPC connection closed");
                             }
 
