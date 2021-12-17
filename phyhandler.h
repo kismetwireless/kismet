@@ -25,10 +25,9 @@
 
 #include "globalregistry.h"
 #include "trackedelement.h"
-#include "devicetracker.h"
+#include "packetchain.h"
 
 class device_tracker;
-
 class kis_tracked_device_base;
 
 class kis_phy_handler {
@@ -56,6 +55,11 @@ public:
     // and insert it into the device record in in_device
     virtual void load_phy_storage(shared_tracker_element in_storage __attribute__((unused)), 
             shared_tracker_element in_device __attribute__((unused))) { }
+
+    // Allow phys to override if the device is part of this phy
+    virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
+        return false;
+    }
 
 protected:
     void set_phy_name(std::string in_phyname) {

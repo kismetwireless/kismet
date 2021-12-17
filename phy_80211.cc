@@ -1015,6 +1015,16 @@ int kis_80211_phy::load_wepkeys() {
 	return 1;
 }
 
+
+bool kis_80211_phy::device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
+    return (dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id) != nullptr);
+}
+
+std::shared_ptr<dot11_tracked_device> kis_80211_phy::fetch_dot11_record(
+        std::shared_ptr<kis_tracked_device_base> dev) {
+    return dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+}
+
 // Common classifier responsible for generating the common devices & mapping wifi packets
 // to those devices
 int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {

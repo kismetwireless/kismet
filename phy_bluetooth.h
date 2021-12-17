@@ -145,7 +145,7 @@ public:
 		kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
 		return new kis_bluetooth_phy(in_phyid);
 	}
 
@@ -162,8 +162,9 @@ public:
 
     // Load stored data
     virtual void load_phy_storage(shared_tracker_element in_storage, 
-            shared_tracker_element in_device);
+            shared_tracker_element in_device) override;
 
+    virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) override;
 protected:
     std::shared_ptr<alert_tracker> alertracker;
     std::shared_ptr<packet_chain> packetchain;

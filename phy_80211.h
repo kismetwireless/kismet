@@ -455,6 +455,10 @@ public:
         return hash.hash();
     }
 
+    virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) override;
+
+    std::shared_ptr<dot11_tracked_device> fetch_dot11_record(std::shared_ptr<kis_tracked_device_base> dev);
+
 protected:
     std::shared_ptr<alert_tracker> alertracker;
     std::shared_ptr<packet_chain> packetchain;
