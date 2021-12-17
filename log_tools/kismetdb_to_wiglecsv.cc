@@ -239,6 +239,9 @@ int main(int argc, char *argv[]) {
 
         pcre *re;
         pcre_extra *study;
+#else
+        pcre_filter(const std::string& in_regex) {}
+        bool match(const std::string& target) {return false;}
 #endif
     };
 
