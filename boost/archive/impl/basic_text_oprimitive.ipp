@@ -87,8 +87,8 @@ basic_text_oprimitive<OStream>::basic_text_oprimitive(
 ) : 
     os(os_),
     flags_saver(os_),
-    precision_saver(os_),
 #ifndef BOOST_NO_STD_LOCALE
+    precision_saver(os_),
     codecvt_null_facet(1),
     archive_locale(os.getloc(), & codecvt_null_facet),
     locale_saver(os)
@@ -100,6 +100,7 @@ basic_text_oprimitive<OStream>::basic_text_oprimitive(
     os_ << std::noboolalpha;
 }
 #else
+    precision_saver(os_)
 {}
 #endif
 

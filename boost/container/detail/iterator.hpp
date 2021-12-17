@@ -30,7 +30,9 @@ namespace container {
 
 using ::boost::intrusive::iterator_traits;
 using ::boost::intrusive::iterator_distance;
+using ::boost::intrusive::iterator_udistance;
 using ::boost::intrusive::iterator_advance;
+using ::boost::intrusive::iterator_uadvance;
 using ::boost::intrusive::iterator;
 using ::boost::intrusive::iterator_enable_if_tag;
 using ::boost::intrusive::iterator_disable_if_tag;

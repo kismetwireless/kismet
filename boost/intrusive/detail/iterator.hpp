@@ -142,25 +142,25 @@ struct iterator_disable_if_tag_difference_type
 //    advance
 ////////////////////
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_tag<InputIt, std::input_iterator_tag>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    while(n--)
       ++it;
 }
 
-template<class InputIt, class Distance>
+template<class InputIt>
 typename iterator_enable_if_tag<InputIt, std::forward_iterator_tag>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    while(n--)
       ++it;
 }
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_tag<InputIt, std::bidirectional_iterator_tag>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    for (; 0 < n; --n)
       ++it;
@@ -175,37 +175,37 @@ BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_tag<InputIt, std::random
    it += n;
 }
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_convertible_tag
    <InputIt, const boost::iterators::incrementable_traversal_tag&, const boost::iterators::single_pass_traversal_tag&>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    while(n--)
       ++it;
 }
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_convertible_tag
    <InputIt, const boost::iterators::single_pass_traversal_tag &, const boost::iterators::forward_traversal_tag&>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    while(n--)
       ++it;
 }
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_convertible_tag
    <InputIt, const boost::iterators::forward_traversal_tag&, const boost::iterators::bidirectional_traversal_tag&>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    while(n--)
       ++it;
 }
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_convertible_tag
    <InputIt, const boost::iterators::bidirectional_traversal_tag&, const boost::iterators::random_access_traversal_tag&>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    for (; 0 < n; --n)
       ++it;
@@ -215,17 +215,24 @@ BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_convertible_tag
 
 class fake{};
 
-template<class InputIt, class Distance>
+template<class InputIt>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_convertible_tag
    <InputIt, const boost::iterators::random_access_traversal_tag&, const fake&>::type
-   iterator_advance(InputIt& it, Distance n)
+   iterator_advance(InputIt& it, typename iterator_traits<InputIt>::difference_type n)
 {
    it += n;
 }
 
-////////////////////
-//    distance
-////////////////////
+template<class It>
+BOOST_INTRUSIVE_FORCEINLINE 
+   void iterator_uadvance(It& it, typename iterator_traits<It>::size_type n)
+{
+   (iterator_advance)(it, (typename iterator_traits<It>::difference_type)n);
+}
+
+////////////////////////////////////////
+//    iterator_distance
+////////////////////////////////////////
 template<class InputIt> inline
 typename iterator_disable_if_tag_difference_type
    <InputIt, std::random_access_iterator_tag>::type
@@ -247,6 +254,39 @@ BOOST_INTRUSIVE_FORCEINLINE typename iterator_enable_if_tag_difference_type
    typename iterator_traits<InputIt>::difference_type off = last - first;
    return off;
 }
+
+////////////////////////////////////////
+//    iterator_udistance
+////////////////////////////////////////
+
+template<class It>
+BOOST_INTRUSIVE_FORCEINLINE typename iterator_traits<It>::size_type
+   iterator_udistance(It first, It last)
+{
+   return (typename iterator_traits<It>::size_type)(iterator_distance)(first, last);
+}
+
+////////////////////////////////////////
+//    iterator_next
+////////////////////////////////////////
+
+template<class InputIt>
+BOOST_INTRUSIVE_FORCEINLINE InputIt iterator_next(InputIt it, typename iterator_traits<InputIt>::difference_type n)
+{
+   (iterator_advance)(it, n);
+   return it;
+}
+
+template<class InputIt>
+BOOST_INTRUSIVE_FORCEINLINE InputIt iterator_unext(InputIt it, typename iterator_traits<InputIt>::size_type n)
+{
+   (iterator_uadvance)(it, n);
+   return it;
+}
+
+////////////////////////////////////////
+// iterator_arrow_result
+////////////////////////////////////////
 
 template<class I>
 BOOST_INTRUSIVE_FORCEINLINE typename iterator_traits<I>::pointer iterator_arrow_result(const I &i)

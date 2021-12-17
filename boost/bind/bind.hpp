@@ -28,6 +28,7 @@
 #include <boost/is_placeholder.hpp>
 #include <boost/bind/arg.hpp>
 #include <boost/bind/detail/result_traits.hpp>
+#include <boost/bind/std_placeholders.hpp>
 #include <boost/detail/workaround.hpp>
 #include <boost/visit_each.hpp>
 #include <boost/core/enable_if.hpp>

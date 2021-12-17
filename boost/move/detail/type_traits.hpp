@@ -65,7 +65,7 @@
 // BOOST_MOVE_HAS_NOTHROW_COPY(T) should evaluate to true if T(t) can not throw
 // BOOST_MOVE_HAS_NOTHROW_ASSIGN(T) should evaluate to true if t = u can not throw
 // BOOST_MOVE_IS_ENUM(T) should evaluate to true it t is a union type.
-// BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCT(T) should evaluate to true if T has a non-throwing move constructor.
+// BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR(T) should evaluate to true if T has a non-throwing move constructor.
 // BOOST_MOVE_HAS_NOTHROW_MOVE_ASSIGN(T) should evaluate to true if T has a non-throwing move assignment operator.
 //
 // The following can also be defined: when detected our implementation is greatly simplified.
@@ -106,13 +106,15 @@
 #   endif
 #  if _MSC_FULL_VER >= 180020827
 #     define BOOST_MOVE_HAS_NOTHROW_MOVE_ASSIGN(T) (__is_nothrow_assignable(T&, T&&))
-#     define BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCT(T) (__is_nothrow_constructible(T, T&&))
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR(T) (__is_nothrow_constructible(T, T&&))
 #  endif
 #endif
 
 #if defined(BOOST_CLANG)
 //    BOOST_MOVE_HAS_TRAIT
-#   ifdef __has_extension
+#   if defined __is_identifier
+#       define BOOST_MOVE_HAS_TRAIT(T) (__has_extension(T) || !__is_identifier(__##T))
+#   elif defined(__has_extension)
 #     define BOOST_MOVE_HAS_TRAIT(T) __has_extension(T)
 #   else
 #     define BOOST_MOVE_HAS_TRAIT(T) 0
@@ -195,11 +197,27 @@
 #   endif
 
 //    BOOST_MOVE_HAS_TRIVIAL_MOVE_ASSIGN
-#   if BOOST_MOVE_HAS_TRAIT(is_assignable) && BOOST_MOVE_HAS_TRAIT(is_trivially_assignable)
+#   if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES) && BOOST_MOVE_HAS_TRAIT(is_assignable) && BOOST_MOVE_HAS_TRAIT(is_trivially_assignable)
 #     define BOOST_MOVE_HAS_TRIVIAL_MOVE_ASSIGN(T) (__is_assignable(T, T&&) && __is_trivially_assignable(T, T&&))
 #   elif BOOST_MOVE_HAS_TRAIT(has_trivial_move_assign)
 #     define BOOST_MOVE_HAS_TRIVIAL_MOVE_ASSIGN(T) __has_trivial_move_assign(T)
 #   endif
+
+//    BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR
+#   if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES) && BOOST_MOVE_HAS_TRAIT(is_constructible) && BOOST_MOVE_HAS_TRAIT(is_nothrow_constructible)
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR(T) (__is_constructible(T, T&&) && __is_nothrow_constructible(T, T&&))
+#   elif BOOST_MOVE_HAS_TRAIT(has_nothrow_move_constructor)
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR(T) __has_nothrow_move_constructor(T)
+#   endif
+
+//    BOOST_MOVE_HAS_NOTHROW_MOVE_ASSIGN
+#   if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES) && BOOST_MOVE_HAS_TRAIT(is_assignable) && BOOST_MOVE_HAS_TRAIT(is_nothrow_assignable)
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_ASSIGN(T) (__is_assignable(T, T&&) && __is_nothrow_assignable(T, T&&))
+#   elif BOOST_MOVE_HAS_TRAIT(has_nothrow_move_assign)
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_ASSIGN(T) __has_nothrow_move_assign(T)
+#   endif
+
+//    BOOST_MOVE_ALIGNMENT_OF
 #   define BOOST_MOVE_ALIGNMENT_OF(T) __alignof(T)
 
 #endif   //#if defined(BOOST_CLANG)
@@ -230,7 +248,92 @@
 #   define BOOST_MOVE_HAS_NOTHROW_COPY(T) ((__has_nothrow_copy(T) BOOST_MOVE_INTEL_TT_OPTS))
 #   define BOOST_MOVE_HAS_NOTHROW_ASSIGN(T) ((__has_nothrow_assign(T) BOOST_MOVE_INTEL_TT_OPTS))
 
+#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES) && !defined(BOOST_NO_CXX11_SFINAE_EXPR)
+
+   template <typename T>
+   T && boost_move_tt_declval() BOOST_NOEXCEPT;
+
+#  if defined(BOOST_GCC) && (BOOST_GCC >= 80000)
+// __is_assignable / __is_constructible implemented
+#     define BOOST_MOVE_IS_ASSIGNABLE(T, U)     __is_assignable(T, U)
+#     define BOOST_MOVE_IS_CONSTRUCTIBLE(T, U)  __is_constructible(T, U)
+#  else
+
+   template<typename Tt, typename Ut>
+   class boost_move_tt_is_assignable
+   {
+      struct twochar {  char dummy[2]; };
+      template < class T
+               , class U
+               , class = decltype(boost_move_tt_declval<T>() = boost_move_tt_declval<U>())
+               > static char test(int);
+
+      template<class, class> static twochar test(...);
+
+      public:
+      static const bool value = sizeof(test<Tt, Ut>(0)) == sizeof(char);
+   };
+
+   template<typename Tt, typename Ut>
+   class boost_move_tt_is_constructible
+   {
+      struct twochar {  char dummy[2]; };
+      template < class T
+               , class U
+               , class = decltype(T(boost_move_tt_declval<U>()))
+               > static char test(int);
+
+      template<class, class> static twochar test(...);
+
+      public:
+      static const bool value = sizeof(test<Tt, Ut>(0)) == sizeof(char);
+   };
+
+#     define BOOST_MOVE_IS_ASSIGNABLE(T, U)     boost_move_tt_is_assignable<T,U>::value
+#     define BOOST_MOVE_IS_CONSTRUCTIBLE(T, U)  boost_move_tt_is_constructible<T, U>::value
+
+#  endif
+
+   template <typename T, typename U, bool = BOOST_MOVE_IS_ASSIGNABLE(T, U)>
+   struct boost_move_tt_is_nothrow_assignable
+   {
+      static const bool value = false;
+   };
+
+   template <typename T, typename U>
+   struct boost_move_tt_is_nothrow_assignable<T, U, true>
+   {
+      #if !defined(BOOST_NO_CXX11_NOEXCEPT)
+      static const bool value = noexcept(boost_move_tt_declval<T>() = boost_move_tt_declval<U>());
+      #else
+      static const bool value = false;
+      #endif
+   };
+
+   template <typename T, typename U, bool = BOOST_MOVE_IS_CONSTRUCTIBLE(T, U)>
+   struct boost_move_tt_is_nothrow_constructible
+   {
+      static const bool value = false;
+   };
+
+   template <typename T, typename U>
+   struct boost_move_tt_is_nothrow_constructible<T, U, true>
+   {
+      #if !defined(BOOST_NO_CXX11_NOEXCEPT)
+      static const bool value = noexcept(T(boost_move_tt_declval<U>()));
+      #else
+      static const bool value = false;
+      #endif
+   };
+
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_ASSIGN(T)       boost_move_tt_is_nothrow_assignable<T, T&&>::value
+#     define BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR(T)  boost_move_tt_is_nothrow_constructible<T, T&&>::value
+
+#  endif
+
 #   define BOOST_MOVE_IS_ENUM(T) __is_enum(T)
+
+// BOOST_MOVE_ALIGNMENT_OF
 #   if (!defined(unix) && !defined(__unix__)) || defined(__LP64__)
       // GCC sometimes lies about alignment requirements
       // of type double on 32-bit unix platforms, use the
@@ -355,8 +458,8 @@
    #define BOOST_MOVE_IS_NOTHROW_COPY_ASSIGNABLE(T) BOOST_MOVE_IS_TRIVIALLY_COPY_ASSIGNABLE(T)
 #endif
 
-#ifdef BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCT
-   #define BOOST_MOVE_IS_NOTHROW_MOVE_CONSTRUCTIBLE(T)   BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCT(T) || ::boost::move_detail::is_pod<T>::value
+#ifdef BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR
+   #define BOOST_MOVE_IS_NOTHROW_MOVE_CONSTRUCTIBLE(T)   BOOST_MOVE_HAS_NOTHROW_MOVE_CONSTRUCTOR(T) || ::boost::move_detail::is_pod<T>::value
 #else
    #define BOOST_MOVE_IS_NOTHROW_MOVE_CONSTRUCTIBLE(T)   BOOST_MOVE_IS_TRIVIALLY_MOVE_ASSIGNABLE(T)
 #endif

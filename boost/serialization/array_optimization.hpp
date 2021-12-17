@@ -1,5 +1,5 @@
-#ifndef BOOST_SERIALIZATION_ARRAY_OPTIMIZATON_HPP
-#define BOOST_SERIALIZATION_ARRAY_OPTIMIZATON_HPP
+#ifndef BOOST_SERIALIZATION_ARRAY_OPTIMIZATION_HPP
+#define BOOST_SERIALIZATION_ARRAY_OPTIMIZATION_HPP
 
 // (C) Copyright 2005 Matthias Troyer and Dave Abrahams
 // Use, modification and distribution is subject to the Boost Software
@@ -34,4 +34,4 @@ template <> struct use_array_optimization<Archive> {                  \
     >::type {};                                                       \
 }; }}
 
-#endif //BOOST_SERIALIZATION_ARRAY_OPTIMIZATON_HPP
+#endif //BOOST_SERIALIZATION_ARRAY_OPTIMIZATION_HPP

@@ -152,6 +152,14 @@
 
 #if defined(BOOST_ATOMIC_DETAIL_HAS_FUTEX)
 #define BOOST_ATOMIC_DETAIL_WAIT_BACKEND futex
+#elif defined(__APPLE__)
+#if (defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 101200) || \
+    (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 100000) || \
+    (defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ >= 100000) || \
+    (defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ >= 30000)
+// Darwin 16+ supports ulock API
+#define BOOST_ATOMIC_DETAIL_WAIT_BACKEND darwin_ulock
+#endif // __ENVIRONMENT_*_VERSION_MIN_REQUIRED__
 #elif defined(__FreeBSD__)
 #include <sys/param.h>
 // FreeBSD prior to 7.0 had _umtx_op with a different signature

@@ -10,13 +10,6 @@
 #define BOOST_RESULT_OF_HPP
 
 #include <boost/config.hpp>
-#include <boost/preprocessor/cat.hpp>
-#include <boost/preprocessor/iteration/iterate.hpp>
-#include <boost/preprocessor/repetition/enum_params.hpp>
-#include <boost/preprocessor/repetition/enum_trailing_params.hpp>
-#include <boost/preprocessor/repetition/enum_binary_params.hpp>
-#include <boost/preprocessor/repetition/enum_shifted_params.hpp>
-#include <boost/preprocessor/facilities/intercept.hpp>
 #include <boost/detail/workaround.hpp>
 #include <boost/type_traits/is_class.hpp>
 #include <boost/type_traits/is_pointer.hpp>
@@ -29,9 +22,25 @@
 #include <boost/type_traits/integral_constant.hpp>
 #include <boost/core/enable_if.hpp>
 
+#ifdef BOOST_NO_CXX11_VARIADIC_TEMPLATES
+#  undef BOOST_RESULT_OF_NO_VARIADIC_TEMPLATES
+#  define BOOST_RESULT_OF_NO_VARIADIC_TEMPLATES
+#endif
+#ifdef BOOST_RESULT_OF_NO_VARIADIC_TEMPLATES
+#  include <boost/preprocessor/cat.hpp>
+#  include <boost/preprocessor/iteration/iterate.hpp>
+#  include <boost/preprocessor/repetition/enum_params.hpp>
+#  include <boost/preprocessor/repetition/enum_trailing_params.hpp>
+#  include <boost/preprocessor/repetition/enum_binary_params.hpp>
+#  include <boost/preprocessor/repetition/enum_shifted_params.hpp>
+#  include <boost/preprocessor/facilities/intercept.hpp>
+#endif
+
+#ifndef BOOST_UTILITY_DOCS
 #ifndef BOOST_RESULT_OF_NUM_ARGS
 #  define BOOST_RESULT_OF_NUM_ARGS 16
 #endif
+#endif // BOOST_UTILITY_DOCS
 
 // Use the decltype-based version of result_of by default if the compiler
 // supports N3276 <http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2011/n3276.pdf>.
@@ -44,6 +53,7 @@
   BOOST_RESULT_OF_USE_TR1_WITH_DECLTYPE_FALLBACK cannot be defined at the same time.
 #endif
 
+#ifndef BOOST_UTILITY_DOCS
 #ifndef BOOST_RESULT_OF_USE_TR1
 #  ifndef BOOST_RESULT_OF_USE_DECLTYPE
 #    ifndef BOOST_RESULT_OF_USE_TR1_WITH_DECLTYPE_FALLBACK
@@ -55,6 +65,7 @@
 #    endif
 #  endif
 #endif
+#endif // BOOST_UTILITY_DOCS
 
 namespace boost {
 
@@ -217,8 +228,12 @@ struct tr1_result_of_impl<F, FArgs, false>
 
 } // end namespace detail
 
-#define BOOST_PP_ITERATION_PARAMS_1 (3,(0,BOOST_RESULT_OF_NUM_ARGS,<boost/utility/detail/result_of_iterate.hpp>))
-#include BOOST_PP_ITERATE()
+#ifndef BOOST_RESULT_OF_NO_VARIADIC_TEMPLATES
+#  include <boost/utility/detail/result_of_variadic.hpp>
+#else
+#  define BOOST_PP_ITERATION_PARAMS_1 (3,(0,BOOST_RESULT_OF_NUM_ARGS,<boost/utility/detail/result_of_iterate.hpp>))
+#  include BOOST_PP_ITERATE()
+#endif
 
 #if 0
 // inform dependency trackers, as they can't see through macro includes

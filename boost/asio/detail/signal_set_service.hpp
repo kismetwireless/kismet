@@ -2,7 +2,7 @@
 // detail/signal_set_service.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,7 +35,11 @@
 #endif // defined(BOOST_ASIO_HAS_IOCP)
 
 #if !defined(BOOST_ASIO_WINDOWS) && !defined(__CYGWIN__)
-# include <boost/asio/detail/reactor.hpp>
+# if defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
+#  include <boost/asio/detail/io_uring_service.hpp>
+# else // defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
+#  include <boost/asio/detail/reactor.hpp>
+# endif // defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 #endif // !defined(BOOST_ASIO_WINDOWS) && !defined(__CYGWIN__)
 
 #include <boost/asio/detail/push_options.hpp>
@@ -198,14 +202,22 @@ private:
 #if !defined(BOOST_ASIO_WINDOWS) \
   && !defined(BOOST_ASIO_WINDOWS_RUNTIME) \
   && !defined(__CYGWIN__)
-  // The type used for registering for pipe reactor notifications.
+  // The type used for processing pipe readiness notifications.
   class pipe_read_op;
 
+# if defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
+  // The io_uring service used for waiting for pipe readiness.
+  io_uring_service& io_uring_service_;
+
+  // The per I/O object data used for the pipe.
+  io_uring_service::per_io_object_data io_object_data_;
+# else // defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
   // The reactor used for waiting for pipe readiness.
   reactor& reactor_;
 
   // The per-descriptor reactor data used for the pipe.
   reactor::per_descriptor_data reactor_data_;
+# endif // defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 #endif // !defined(BOOST_ASIO_WINDOWS)
        //   && !defined(BOOST_ASIO_WINDOWS_RUNTIME)
        //   && !defined(__CYGWIN__)

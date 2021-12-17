@@ -2,7 +2,7 @@
 // use_awaitable.hpp
 // ~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -100,18 +100,15 @@ struct use_awaitable_t
     typedef use_awaitable_t default_completion_token_type;
 
     /// Construct the adapted executor from the inner executor type.
-    executor_with_default(const InnerExecutor& ex) BOOST_ASIO_NOEXCEPT
-      : InnerExecutor(ex)
-    {
-    }
-
-    /// Convert the specified executor to the inner executor type, then use
-    /// that to construct the adapted executor.
-    template <typename OtherExecutor>
-    executor_with_default(const OtherExecutor& ex,
-        typename enable_if<
-          is_convertible<OtherExecutor, InnerExecutor>::value
-        >::type* = 0) BOOST_ASIO_NOEXCEPT
+    template <typename InnerExecutor1>
+    executor_with_default(const InnerExecutor1& ex,
+        typename constraint<
+          conditional<
+            !is_same<InnerExecutor1, executor_with_default>::value,
+            is_convertible<InnerExecutor1, InnerExecutor>,
+            false_type
+          >::type::value
+        >::type = 0) BOOST_ASIO_NOEXCEPT
       : InnerExecutor(ex)
     {
     }

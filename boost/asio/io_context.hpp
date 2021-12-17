@@ -2,7 +2,7 @@
 // io_context.hpp
 // ~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <typeinfo>
 #include <boost/asio/async_result.hpp>
+#include <boost/asio/detail/cstdint.hpp>
 #include <boost/asio/detail/wrapped_handler.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/asio/execution.hpp>
@@ -57,9 +58,10 @@ namespace detail {
 
   struct io_context_bits
   {
-    BOOST_ASIO_STATIC_CONSTEXPR(unsigned int, blocking_never = 1);
-    BOOST_ASIO_STATIC_CONSTEXPR(unsigned int, relationship_continuation = 2);
-    BOOST_ASIO_STATIC_CONSTEXPR(unsigned int, outstanding_work_tracked = 4);
+    BOOST_ASIO_STATIC_CONSTEXPR(uintptr_t, blocking_never = 1);
+    BOOST_ASIO_STATIC_CONSTEXPR(uintptr_t, relationship_continuation = 2);
+    BOOST_ASIO_STATIC_CONSTEXPR(uintptr_t, outstanding_work_tracked = 4);
+    BOOST_ASIO_STATIC_CONSTEXPR(uintptr_t, runtime_bits = 3);
   };
 } // namespace detail
 
@@ -219,10 +221,10 @@ private:
 #endif
 
 public:
-  template <typename Allocator, unsigned int Bits>
+  template <typename Allocator, uintptr_t Bits>
   class basic_executor_type;
 
-  template <typename Allocator, unsigned int Bits>
+  template <typename Allocator, uintptr_t Bits>
   friend class basic_executor_type;
 
   /// Executor used to submit functions to an io_context.
@@ -401,7 +403,7 @@ public:
   BOOST_ASIO_DECL count_type run_one();
 
 #if !defined(BOOST_ASIO_NO_DEPRECATED)
-  /// (Deprecated: Use non-error_code overlaod.) Run the io_context object's
+  /// (Deprecated: Use non-error_code overload.) Run the io_context object's
   /// event processing loop to execute at most one handler.
   /**
    * The run_one() function blocks until one handler has been dispatched, or
@@ -668,31 +670,30 @@ namespace detail {
 } // namespace detail
 
 /// Executor implementation type used to submit functions to an io_context.
-template <typename Allocator, unsigned int Bits>
-class io_context::basic_executor_type : detail::io_context_bits
+template <typename Allocator, uintptr_t Bits>
+class io_context::basic_executor_type :
+  detail::io_context_bits, Allocator
 {
 public:
   /// Copy constructor.
   basic_executor_type(
       const basic_executor_type& other) BOOST_ASIO_NOEXCEPT
-    : io_context_(other.io_context_),
-      allocator_(other.allocator_),
-      bits_(other.bits_)
+    : Allocator(static_cast<const Allocator&>(other)),
+      target_(other.target_)
   {
     if (Bits & outstanding_work_tracked)
-      if (io_context_)
-        io_context_->impl_.work_started();
+      if (context_ptr())
+        context_ptr()->impl_.work_started();
   }
 
 #if defined(BOOST_ASIO_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
   /// Move constructor.
   basic_executor_type(basic_executor_type&& other) BOOST_ASIO_NOEXCEPT
-    : io_context_(other.io_context_),
-      allocator_(BOOST_ASIO_MOVE_CAST(Allocator)(other.allocator_)),
-      bits_(other.bits_)
+    : Allocator(BOOST_ASIO_MOVE_CAST(Allocator)(other)),
+      target_(other.target_)
   {
     if (Bits & outstanding_work_tracked)
-      other.io_context_ = 0;
+      other.target_ = 0;
   }
 #endif // defined(BOOST_ASIO_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
 
@@ -700,8 +701,8 @@ public:
   ~basic_executor_type() BOOST_ASIO_NOEXCEPT
   {
     if (Bits & outstanding_work_tracked)
-      if (io_context_)
-        io_context_->impl_.work_finished();
+      if (context_ptr())
+        context_ptr()->impl_.work_finished();
   }
 
   /// Assignment operator.
@@ -713,6 +714,12 @@ public:
   basic_executor_type& operator=(
       basic_executor_type&& other) BOOST_ASIO_NOEXCEPT;
 #endif // defined(BOOST_ASIO_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
+
+#if !defined(GENERATING_DOCUMENTATION)
+private:
+  friend struct boost_asio_require_fn::impl;
+  friend struct boost_asio_prefer_fn::impl;
+#endif // !defined(GENERATING_DOCUMENTATION)
 
   /// Obtain an executor with the @c blocking.possibly property.
   /**
@@ -727,8 +734,8 @@ public:
   BOOST_ASIO_CONSTEXPR basic_executor_type require(
       execution::blocking_t::possibly_t) const
   {
-    return basic_executor_type(io_context_,
-        allocator_, bits_ & ~blocking_never);
+    return basic_executor_type(context_ptr(),
+        *this, bits() & ~blocking_never);
   }
 
   /// Obtain an executor with the @c blocking.never property.
@@ -744,8 +751,8 @@ public:
   BOOST_ASIO_CONSTEXPR basic_executor_type require(
       execution::blocking_t::never_t) const
   {
-    return basic_executor_type(io_context_,
-        allocator_, bits_ | blocking_never);
+    return basic_executor_type(context_ptr(),
+        *this, bits() | blocking_never);
   }
 
   /// Obtain an executor with the @c relationship.fork property.
@@ -761,8 +768,8 @@ public:
   BOOST_ASIO_CONSTEXPR basic_executor_type require(
       execution::relationship_t::fork_t) const
   {
-    return basic_executor_type(io_context_,
-        allocator_, bits_ & ~relationship_continuation);
+    return basic_executor_type(context_ptr(),
+        *this, bits() & ~relationship_continuation);
   }
 
   /// Obtain an executor with the @c relationship.continuation property.
@@ -778,8 +785,8 @@ public:
   BOOST_ASIO_CONSTEXPR basic_executor_type require(
       execution::relationship_t::continuation_t) const
   {
-    return basic_executor_type(io_context_,
-        allocator_, bits_ | relationship_continuation);
+    return basic_executor_type(context_ptr(),
+        *this, bits() | relationship_continuation);
   }
 
   /// Obtain an executor with the @c outstanding_work.tracked property.
@@ -797,7 +804,7 @@ public:
   require(execution::outstanding_work_t::tracked_t) const
   {
     return basic_executor_type<Allocator, Bits | outstanding_work_tracked>(
-        io_context_, allocator_, bits_);
+        context_ptr(), *this, bits());
   }
 
   /// Obtain an executor with the @c outstanding_work.untracked property.
@@ -815,7 +822,7 @@ public:
   require(execution::outstanding_work_t::untracked_t) const
   {
     return basic_executor_type<Allocator, Bits & ~outstanding_work_tracked>(
-        io_context_, allocator_, bits_);
+        context_ptr(), *this, bits());
   }
 
   /// Obtain an executor with the specified @c allocator property.
@@ -833,7 +840,7 @@ public:
   require(execution::allocator_t<OtherAllocator> a) const
   {
     return basic_executor_type<OtherAllocator, Bits>(
-        io_context_, a.value(), bits_);
+        context_ptr(), a.value(), bits());
   }
 
   /// Obtain an executor with the default @c allocator property.
@@ -850,8 +857,15 @@ public:
   require(execution::allocator_t<void>) const
   {
     return basic_executor_type<std::allocator<void>, Bits>(
-        io_context_, std::allocator<void>(), bits_);
+        context_ptr(), std::allocator<void>(), bits());
   }
+
+#if !defined(GENERATING_DOCUMENTATION)
+private:
+  friend struct boost_asio_query_fn::impl;
+  friend struct boost::asio::execution::detail::mapping_t<0>;
+  friend struct boost::asio::execution::detail::outstanding_work_t<0>;
+#endif // !defined(GENERATING_DOCUMENTATION)
 
   /// Query the current value of the @c mapping property.
   /**
@@ -882,7 +896,7 @@ public:
    */
   io_context& query(execution::context_t) const BOOST_ASIO_NOEXCEPT
   {
-    return *io_context_;
+    return *context_ptr();
   }
 
   /// Query the current value of the @c blocking property.
@@ -899,7 +913,7 @@ public:
   BOOST_ASIO_CONSTEXPR execution::blocking_t query(
       execution::blocking_t) const BOOST_ASIO_NOEXCEPT
   {
-    return (bits_ & blocking_never)
+    return (bits() & blocking_never)
       ? execution::blocking_t(execution::blocking.never)
       : execution::blocking_t(execution::blocking.possibly);
   }
@@ -918,7 +932,7 @@ public:
   BOOST_ASIO_CONSTEXPR execution::relationship_t query(
       execution::relationship_t) const BOOST_ASIO_NOEXCEPT
   {
-    return (bits_ & relationship_continuation)
+    return (bits() & relationship_continuation)
       ? execution::relationship_t(execution::relationship.continuation)
       : execution::relationship_t(execution::relationship.fork);
   }
@@ -956,7 +970,7 @@ public:
   BOOST_ASIO_CONSTEXPR Allocator query(
       execution::allocator_t<OtherAllocator>) const BOOST_ASIO_NOEXCEPT
   {
-    return allocator_;
+    return static_cast<const Allocator&>(*this);
   }
 
   /// Query the current value of the @c allocator property.
@@ -972,9 +986,10 @@ public:
   BOOST_ASIO_CONSTEXPR Allocator query(
       execution::allocator_t<void>) const BOOST_ASIO_NOEXCEPT
   {
-    return allocator_;
+    return static_cast<const Allocator&>(*this);
   }
 
+public:
   /// Determine whether the io_context is running in the current thread.
   /**
    * @return @c true if the current thread is running the io_context. Otherwise
@@ -989,9 +1004,8 @@ public:
   friend bool operator==(const basic_executor_type& a,
       const basic_executor_type& b) BOOST_ASIO_NOEXCEPT
   {
-    return a.io_context_ == b.io_context_
-      && a.allocator_ == b.allocator_
-      && a.bits_ == b.bits_;
+    return a.target_ == b.target_
+      && static_cast<const Allocator&>(a) == static_cast<const Allocator&>(b);
   }
 
   /// Compare two executors for inequality.
@@ -1001,10 +1015,14 @@ public:
   friend bool operator!=(const basic_executor_type& a,
       const basic_executor_type& b) BOOST_ASIO_NOEXCEPT
   {
-    return a.io_context_ != b.io_context_
-      || a.allocator_ != b.allocator_
-      || a.bits_ != b.bits_;
+    return a.target_ != b.target_
+      || static_cast<const Allocator&>(a) != static_cast<const Allocator&>(b);
   }
+
+#if !defined(GENERATING_DOCUMENTATION)
+private:
+  friend struct boost_asio_execution_execute_fn::impl;
+#endif // !defined(GENERATING_DOCUMENTATION)
 
   /// Execution function.
   /**
@@ -1019,6 +1037,7 @@ public:
   void execute(BOOST_ASIO_MOVE_ARG(Function) f) const;
 
 #if !defined(BOOST_ASIO_NO_TS_EXECUTORS)
+public:
   /// Obtain the underlying execution context.
   io_context& context() const BOOST_ASIO_NOEXCEPT;
 
@@ -1097,38 +1116,40 @@ public:
 
 private:
   friend class io_context;
-  template <typename, unsigned int> friend class basic_executor_type;
+  template <typename, uintptr_t> friend class basic_executor_type;
 
   // Constructor used by io_context::get_executor().
   explicit basic_executor_type(io_context& i) BOOST_ASIO_NOEXCEPT
-    : io_context_(&i),
-      allocator_(),
-      bits_(0)
+    : Allocator(),
+      target_(reinterpret_cast<uintptr_t>(&i))
   {
     if (Bits & outstanding_work_tracked)
-      io_context_->impl_.work_started();
+      context_ptr()->impl_.work_started();
   }
 
   // Constructor used by require().
   basic_executor_type(io_context* i,
-      const Allocator& a, unsigned int bits) BOOST_ASIO_NOEXCEPT
-    : io_context_(i),
-      allocator_(a),
-      bits_(bits)
+      const Allocator& a, uintptr_t bits) BOOST_ASIO_NOEXCEPT
+    : Allocator(a),
+      target_(reinterpret_cast<uintptr_t>(i) | bits)
   {
     if (Bits & outstanding_work_tracked)
-      if (io_context_)
-        io_context_->impl_.work_started();
+      if (context_ptr())
+        context_ptr()->impl_.work_started();
   }
 
-  // The underlying io_context.
-  io_context* io_context_;
+  io_context* context_ptr() const BOOST_ASIO_NOEXCEPT
+  {
+    return reinterpret_cast<io_context*>(target_ & ~runtime_bits);
+  }
 
-  // The allocator used for execution functions.
-  Allocator allocator_;
+  uintptr_t bits() const BOOST_ASIO_NOEXCEPT
+  {
+    return target_ & runtime_bits;
+  }
 
-  // The runtime-switched properties of the io_context executor.
-  unsigned int bits_;
+  // The underlying io_context and runtime bits.
+  uintptr_t target_;
 };
 
 #if !defined(BOOST_ASIO_NO_DEPRECATED)
@@ -1259,7 +1280,7 @@ namespace traits {
 
 #if !defined(BOOST_ASIO_HAS_DEDUCED_EQUALITY_COMPARABLE_TRAIT)
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct equality_comparable<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>
   >
@@ -1272,7 +1293,7 @@ struct equality_comparable<
 
 #if !defined(BOOST_ASIO_HAS_DEDUCED_EXECUTE_MEMBER_TRAIT)
 
-template <typename Allocator, unsigned int Bits, typename Function>
+template <typename Allocator, uintptr_t Bits, typename Function>
 struct execute_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     Function
@@ -1287,7 +1308,7 @@ struct execute_member<
 
 #if !defined(BOOST_ASIO_HAS_DEDUCED_REQUIRE_MEMBER_TRAIT)
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::blocking_t::possibly_t
@@ -1299,7 +1320,7 @@ struct require_member<
       Allocator, Bits> result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::blocking_t::never_t
@@ -1311,7 +1332,7 @@ struct require_member<
       Allocator, Bits> result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::relationship_t::fork_t
@@ -1323,7 +1344,7 @@ struct require_member<
       Allocator, Bits> result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::relationship_t::continuation_t
@@ -1335,7 +1356,7 @@ struct require_member<
       Allocator, Bits> result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::outstanding_work_t::tracked_t
@@ -1347,7 +1368,7 @@ struct require_member<
       Allocator, Bits | outstanding_work_tracked> result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::outstanding_work_t::untracked_t
@@ -1359,7 +1380,7 @@ struct require_member<
       Allocator, Bits & ~outstanding_work_tracked> result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::allocator_t<void>
@@ -1371,7 +1392,7 @@ struct require_member<
       std::allocator<void>, Bits> result_type;
 };
 
-template <unsigned int Bits,
+template <uintptr_t Bits,
     typename Allocator, typename OtherAllocator>
 struct require_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
@@ -1388,7 +1409,7 @@ struct require_member<
 
 #if !defined(BOOST_ASIO_HAS_DEDUCED_QUERY_STATIC_CONSTEXPR_MEMBER_TRAIT)
 
-template <typename Allocator, unsigned int Bits, typename Property>
+template <typename Allocator, uintptr_t Bits, typename Property>
 struct query_static_constexpr_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     Property,
@@ -1412,7 +1433,7 @@ struct query_static_constexpr_member<
   }
 };
 
-template <typename Allocator, unsigned int Bits, typename Property>
+template <typename Allocator, uintptr_t Bits, typename Property>
 struct query_static_constexpr_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     Property,
@@ -1438,7 +1459,7 @@ struct query_static_constexpr_member<
 
 #if !defined(BOOST_ASIO_HAS_DEDUCED_QUERY_MEMBER_TRAIT)
 
-template <typename Allocator, unsigned int Bits, typename Property>
+template <typename Allocator, uintptr_t Bits, typename Property>
 struct query_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     Property,
@@ -1455,7 +1476,7 @@ struct query_member<
   typedef boost::asio::execution::blocking_t result_type;
 };
 
-template <typename Allocator, unsigned int Bits, typename Property>
+template <typename Allocator, uintptr_t Bits, typename Property>
 struct query_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     Property,
@@ -1472,7 +1493,7 @@ struct query_member<
   typedef boost::asio::execution::relationship_t result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct query_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::context_t
@@ -1483,7 +1504,7 @@ struct query_member<
   typedef boost::asio::io_context& result_type;
 };
 
-template <typename Allocator, unsigned int Bits>
+template <typename Allocator, uintptr_t Bits>
 struct query_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::allocator_t<void>
@@ -1494,7 +1515,7 @@ struct query_member<
   typedef Allocator result_type;
 };
 
-template <typename Allocator, unsigned int Bits, typename OtherAllocator>
+template <typename Allocator, uintptr_t Bits, typename OtherAllocator>
 struct query_member<
     boost::asio::io_context::basic_executor_type<Allocator, Bits>,
     boost::asio::execution::allocator_t<OtherAllocator>
@@ -1508,6 +1529,15 @@ struct query_member<
 #endif // !defined(BOOST_ASIO_HAS_DEDUCED_QUERY_MEMBER_TRAIT)
 
 } // namespace traits
+
+namespace execution {
+
+template <>
+struct is_executor<io_context> : false_type
+{
+};
+
+} // namespace execution
 
 #endif // !defined(GENERATING_DOCUMENTATION)
 

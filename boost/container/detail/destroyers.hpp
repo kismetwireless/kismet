@@ -83,9 +83,8 @@ struct null_scoped_deallocator
 {
    typedef boost::container::allocator_traits<Allocator> AllocTraits;
    typedef typename AllocTraits::pointer    pointer;
-   typedef typename AllocTraits::size_type  size_type;
 
-   null_scoped_deallocator(pointer, Allocator&, size_type)
+   null_scoped_deallocator(pointer, Allocator&, std::size_t)
    {}
 
    void release()
@@ -107,11 +106,11 @@ struct scoped_array_deallocator
    typedef typename AllocTraits::pointer    pointer;
    typedef typename AllocTraits::size_type  size_type;
 
-   scoped_array_deallocator(pointer p, Allocator& a, size_type length)
+   scoped_array_deallocator(pointer p, Allocator& a, std::size_t length)
       : m_ptr(p), m_alloc(a), m_length(length) {}
 
    ~scoped_array_deallocator()
-   {  if (m_ptr) m_alloc.deallocate(m_ptr, m_length);  }
+   {  if (m_ptr) m_alloc.deallocate(m_ptr, size_type(m_length));  }
 
    void release()
    {  m_ptr = 0; }
@@ -119,7 +118,7 @@ struct scoped_array_deallocator
    private:
    pointer     m_ptr;
    Allocator&  m_alloc;
-   size_type   m_length;
+   std::size_t m_length;
 };
 
 template <class Allocator>
@@ -127,9 +126,8 @@ struct null_scoped_array_deallocator
 {
    typedef boost::container::allocator_traits<Allocator> AllocTraits;
    typedef typename AllocTraits::pointer    pointer;
-   typedef typename AllocTraits::size_type  size_type;
 
-   null_scoped_array_deallocator(pointer, Allocator&, size_type)
+   null_scoped_array_deallocator(pointer, Allocator&, std::size_t)
    {}
 
    void release()
@@ -141,7 +139,6 @@ struct scoped_destroy_deallocator
 {
    typedef boost::container::allocator_traits<Allocator> AllocTraits;
    typedef typename AllocTraits::pointer    pointer;
-   typedef typename AllocTraits::size_type  size_type;
    typedef dtl::integral_constant<unsigned,
       boost::container::dtl::
          version<Allocator>::value>                          alloc_version;
@@ -181,23 +178,22 @@ struct scoped_destructor_n
    typedef boost::container::allocator_traits<Allocator> AllocTraits;
    typedef typename AllocTraits::pointer    pointer;
    typedef typename AllocTraits::value_type value_type;
-   typedef typename AllocTraits::size_type  size_type;
 
-   BOOST_CONTAINER_FORCEINLINE scoped_destructor_n(pointer p, Allocator& a, size_type n)
+   BOOST_CONTAINER_FORCEINLINE scoped_destructor_n(pointer p, Allocator& a, std::size_t n)
       : m_p(p), m_a(a), m_n(n)
    {}
 
    BOOST_CONTAINER_FORCEINLINE void release()
    {  m_p = 0; m_n = 0; }
 
-   BOOST_CONTAINER_FORCEINLINE void increment_size(size_type inc)
+   BOOST_CONTAINER_FORCEINLINE void increment_size(std::size_t inc)
    {  m_n += inc;   }
 
-   BOOST_CONTAINER_FORCEINLINE void increment_size_backwards(size_type inc)
-   {  m_n += inc;   m_p -= inc;  }
+   BOOST_CONTAINER_FORCEINLINE void increment_size_backwards(std::size_t inc)
+   {  m_n += inc;   m_p -= std::ptrdiff_t(inc);  }
 
-   BOOST_CONTAINER_FORCEINLINE void shrink_forward(size_type inc)
-   {  m_n -= inc;   m_p += inc;  }
+   BOOST_CONTAINER_FORCEINLINE void shrink_forward(std::size_t inc)
+   {  m_n -= inc;   m_p += std::ptrdiff_t(inc);  }
 
    ~scoped_destructor_n()
    {
@@ -214,7 +210,7 @@ struct scoped_destructor_n
    private:
    pointer     m_p;
    Allocator & m_a;
-   size_type   m_n;
+   std::size_t m_n;
 };
 
 //!A deleter for scoped_ptr that destroys
@@ -224,18 +220,17 @@ struct null_scoped_destructor_n
 {
    typedef boost::container::allocator_traits<Allocator> AllocTraits;
    typedef typename AllocTraits::pointer pointer;
-   typedef typename AllocTraits::size_type size_type;
 
-   BOOST_CONTAINER_FORCEINLINE null_scoped_destructor_n(pointer, Allocator&, size_type)
+   BOOST_CONTAINER_FORCEINLINE null_scoped_destructor_n(pointer, Allocator&, std::size_t)
    {}
 
-   BOOST_CONTAINER_FORCEINLINE void increment_size(size_type)
+   BOOST_CONTAINER_FORCEINLINE void increment_size(std::size_t)
    {}
 
-   BOOST_CONTAINER_FORCEINLINE void increment_size_backwards(size_type)
+   BOOST_CONTAINER_FORCEINLINE void increment_size_backwards(std::size_t)
    {}
 
-   BOOST_CONTAINER_FORCEINLINE void shrink_forward(size_type)
+   BOOST_CONTAINER_FORCEINLINE void shrink_forward(std::size_t)
    {}
 
    BOOST_CONTAINER_FORCEINLINE void release()
