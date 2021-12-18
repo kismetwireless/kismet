@@ -411,6 +411,11 @@ public:
         return alias_element;
     }
 
+    template <class A>
+    std::shared_ptr<A> get_as() {
+        return std::static_pointer_cast<A>(alias_element);
+    }
+
     void set(std::shared_ptr<tracker_element> ae) {
         alias_element = ae;
     }
