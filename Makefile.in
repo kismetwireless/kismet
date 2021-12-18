@@ -240,6 +240,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
+	kis_wiglecsvlogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
 	pcapng_stream_futurebuf.cc.o \

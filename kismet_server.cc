@@ -90,6 +90,7 @@
 #include "kis_ppilogfile.h"
 #include "kis_databaselogfile.h"
 #include "kis_pcapnglogfile.h"
+#include "kis_wiglecsvlogfile.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
@@ -932,6 +933,7 @@ int main(int argc, char *argv[], char *envp[]) {
     logtracker->register_log(shared_log_builder(new ppi_logfile_builder()));
     logtracker->register_log(shared_log_builder(new kis_database_logfile_builder()));
     logtracker->register_log(shared_log_builder(new pcapng_logfile_builder()));
+	logtracker->register_log(shared_log_builder(new wiglecsv_logfile_builder()));
 
 	// Create the scan-only handlers
 	dot11_scan_source::create_dot11_scan_source();
