@@ -63,6 +63,12 @@ public:
     int type;
 };
 
+enum class bt_device_type {
+    bredr,
+    btle,
+    bt,
+};
+
 class bluetooth_tracked_device : public tracker_component {
 public:
     bluetooth_tracked_device() :
@@ -107,9 +113,11 @@ public:
 
     __Proxy(txpower, int16_t, int16_t, int16_t, txpower);
     __Proxy(pathloss, int16_t, int16_t, int16_t, pathloss);
+    __Proxy(bt_device_type, uint8_t, uint8_t, uint8_t, bt_device_type);
 
 protected:
     virtual void register_fields() override {
+        register_field("bluetooth.device.type", "bt device type", &bt_device_type);
         register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("bluetooth.device.solicitation_uuid_vec", 
 				"advertised solicitation UUIDs", &solicitation_uuid_vec);
@@ -123,6 +131,8 @@ protected:
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
     }
+
+    std::shared_ptr<tracker_element_uint8> bt_device_type;
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
 	std::shared_ptr<tracker_element_vector> solicitation_uuid_vec;
@@ -165,6 +175,9 @@ public:
             shared_tracker_element in_device) override;
 
     virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) override;
+
+    std::shared_ptr<bluetooth_tracked_device> fetch_bluetooth_record(std::shared_ptr<kis_tracked_device_base> dev);
+
 protected:
     std::shared_ptr<alert_tracker> alertracker;
     std::shared_ptr<packet_chain> packetchain;

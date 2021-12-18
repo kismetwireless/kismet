@@ -80,6 +80,10 @@ kis_bluetooth_phy::~kis_bluetooth_phy() {
 bool kis_bluetooth_phy::device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
     return (dev->get_sub_as<bluetooth_tracked_device>(bluetooth_device_entry_id) != nullptr);
 }
+std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::fetch_bluetooth_record(
+        std::shared_ptr<kis_tracked_device_base> dev) {
+    return dev->get_sub_as<bluetooth_tracked_device>(bluetooth_device_entry_id);
+}
 
 int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
     auto btphy = static_cast<kis_bluetooth_phy *>(auxdata);
@@ -284,14 +288,19 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
 
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-    if (btpi->type == 0)
+    if (btpi->type == 0) {
         basedev->set_tracker_type_string(btphy->btdev_bredr);
-    else if (btpi->type == 1)
+        btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
+    } else if (btpi->type == 1) {
         basedev->set_tracker_type_string(btphy->btdev_btle);
-    else if (btpi->type == 2)
+        btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
+    } else if (btpi->type == 2) {
         basedev->set_tracker_type_string(btphy->btdev_btle);
-    else
+        btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
+    } else {
         basedev->set_tracker_type_string(btphy->btdev_bt);
+        btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
+    }
 
     // Always set the name, but don't forget a name we used to know
     if (btpi->name.length() > 0)
