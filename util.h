@@ -218,6 +218,7 @@ constexpr17 uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, 
     uint32_t ls1 = cs & 0xFFFF;
     uint32_t ls2 = (cs >> 16) & 0xffff;
     const uint32_t *buf = (const uint32_t *) in_buf;
+	const uint8_t *sub_buf = nullptr;
 
     if (in_len < 4)
         return 0;
@@ -246,21 +247,30 @@ constexpr17 uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, 
             ls2 += ls1;
             break;
         case 3:
-            ls1 += ((*buf) & 0xFF);
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
             ls2 += ls1;
-            ls1 += ((*buf >> 8) & 0xFF);
+            // ls1 += ((*buf >> 8) & 0xFF);
+			ls1 += sub_buf[1];
             ls2 += ls1;
-            ls1 += ((*buf >> 16) & 0xFF);
+            // ls1 += ((*buf >> 16) & 0xFF);
+			ls1 += sub_buf[2];
             ls2 += ls1;
             break;
         case 2:
-            ls1 += ((*buf) & 0xFF);
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
             ls2 += ls1;
-            ls1 += ((*buf >> 8) & 0xFF);
+            // ls1 += ((*buf >> 8) & 0xFF);
+			ls1 += sub_buf[1];
             ls2 += ls1;
             break;
         case 1:
-            ls1 += ((*buf) & 0xFF);
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
             ls2 += ls1;
             break;
     }
@@ -272,9 +282,13 @@ constexpr17 uint32_t adler32_checksum(const void *in_buf, size_t in_len) {
     return adler32_append_checksum(in_buf, in_len, 0);
 }
 
+/*
 constexpr17 uint32_t adler32_checksum(const nonstd::string_view& in_buf) {
     return adler32_checksum(in_buf.data(), in_buf.length());
 }
+*/
+
+uint32_t adler32_checksum(const std::string& in_buf);
 
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
 #define IEEE_802_3_CRC32_POLY	0xEDB88320

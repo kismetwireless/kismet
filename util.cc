@@ -72,6 +72,10 @@
 
 #include <pthread.h>
 
+uint32_t adler32_checksum(const std::string& in_buf) {
+    return adler32_checksum(in_buf.data(), in_buf.length());
+}
+
 // Convert a byte to an octal escape
 std::string d2oa(uint8_t n) {
     std::string oa = "\\000";
