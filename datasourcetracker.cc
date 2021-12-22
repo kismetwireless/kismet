@@ -1039,7 +1039,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 auto write_cb = 
                     [ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
-                        ws->write(data, sz, false);
+                        ws->write(data, sz);
 
                         // Shim with both sizes for now since async always accepts all
                         comp(sz, sz);
@@ -1061,6 +1061,8 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 ds_bridge->bridged_ds->set_write_cb(write_cb);
                 ds_bridge->bridged_ds->set_closure_cb(closure_cb);
+
+                ws->binary();
 
                 // Blind-catch all errors b/c we must release our listeners at the end
                 try {

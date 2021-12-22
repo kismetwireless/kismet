@@ -156,15 +156,19 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
 
                                         stream << "{\"update\": \"ok\"}";
 
-                                        ws->write(stream.str(), true);
+										auto data = stream.str();
+                                        ws->write(data);
                                     } catch (const std::exception& e) {
                                         _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
                                                 "/gps/web/update.ws");
                                         stream << "{\"update\": \"error\"}";
-                                        ws->write(stream.str(), true);
+										auto data = stream.str();
+                                        ws->write(data);
                                         return;
                                     }
                                 });
+                    ws->text();
+                    ws->handle_request(con);
                 }
                 ));
 

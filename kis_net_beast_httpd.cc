@@ -370,8 +370,10 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                             boost::beast::flat_buffer& buf, bool text) {
                             // Simple echo protocol
                             ws->write(boost::asio::buffer_cast<const char *>(buf.data()),
-                                    buf.size(), text);
+                                    buf.size());
                         });
+
+                ws->text();
                 ws->handle_request(con);
                 }));
 }
@@ -1716,7 +1718,6 @@ void kis_net_beast_route::invoke(std::shared_ptr<kis_net_beast_httpd_connection>
 }
 
 
-
 kis_net_beast_auth::kis_net_beast_auth(const Json::Value& json)  {
     try {
         token_ = json["token"].asString();
@@ -1837,16 +1838,19 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 void kis_net_web_websocket_endpoint::close() {
     running = false;
 
-    boost::asio::post(ws_.get_executor(),
-            [this]() {
+    boost::asio::post(strand_,
+            [self = shared_from_this()]() {
+                while (!self->ws_write_queue_.empty())
+                    self->ws_write_queue_.pop();
+
                 try {
-                    ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+                    self->ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
                 } catch (const std::exception& e) {
                     ;
                 } 
 
                 try {
-                    running_promise.set_value();
+                    self->running_promise.set_value();
                 } catch (const std::future_error& e) {
                     // If somehow we already pulled the future, fail silently
                 }
@@ -1883,12 +1887,8 @@ void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, st
     }
 }
 
-void kis_net_web_websocket_endpoint::on_write(const std::string& msg, bool text) {
-    auto data = std::make_shared<ws_data>();
-    data->data = msg;
-    data->text = text;
-
-    ws_write_queue_.push_back(data);
+void kis_net_web_websocket_endpoint::on_write(const std::string& msg) {
+    ws_write_queue_.push(msg);
 
     // _MSG_DEBUG("ws {} write len {} queue {}", fmt::ptr(this), msg.size(), ws_write_queue_.size());
 
@@ -1896,12 +1896,6 @@ void kis_net_web_websocket_endpoint::on_write(const std::string& msg, bool text)
         return;
 
     try {
-        if (text) {
-            ws_.text(true);
-        } else {
-            ws_.binary(true);
-        }
-
         ws_.async_write(boost::asio::buffer(msg), 
                 boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::write_complete,
                     shared_from_this()));
@@ -1927,7 +1921,11 @@ void kis_net_web_websocket_endpoint::write_complete(boost::beast::error_code ec,
         return;
     }
 
-    ws_write_queue_.pop_front();
+    if (!running) {
+        return;
+    }
+
+    ws_write_queue_.pop();
 
     if (!ws_write_queue_.empty()) {
         auto front = ws_write_queue_.front();
@@ -1935,13 +1933,7 @@ void kis_net_web_websocket_endpoint::write_complete(boost::beast::error_code ec,
         // _MSG_DEBUG("ws {} write_complete len {} queue {}", fmt::ptr(this), front->data.size(), ws_write_queue_.size());
 
         try {
-            if (front->text) {
-                ws_.text(true);
-            } else {
-                ws_.binary(true);
-            }
-
-            ws_.async_write(boost::asio::buffer(front->data.data(), front->data.size()), 
+            ws_.async_write(boost::asio::buffer(front.data(), front.size()), 
                     boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::write_complete,
                         shared_from_this()));
         } catch (const boost::beast::system_error& se) {
@@ -1976,7 +1968,9 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
     auto running_future = running_promise.get_future();
 
     // Wait for the handlers to finish
-    start_read(shared_from_this());
+    boost::asio::post(strand_,
+            boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::start_read,
+                shared_from_this(), shared_from_this()));
 
     running_future.wait();
 }

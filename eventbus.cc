@@ -95,7 +95,8 @@ void event_bus::trigger_deferred_startup() {
                                                 std::stringstream os;
                                                 Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os, 
                                                         evt->get_event_content(), json);
-                                                ws->write(os.str(), true);
+												auto data = os.str();
+                                                ws->write(data);
                                             });
 
                                 reg_map[json["SUBSCRIBE"].asString()] = id;
@@ -110,6 +111,8 @@ void event_bus::trigger_deferred_startup() {
 
                             }
                         });
+
+                ws->text();
 
                 // Blind-catch all errors b/c we must release our listeners at the end
                 try {

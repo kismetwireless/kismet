@@ -687,7 +687,8 @@ device_tracker::device_tracker() :
                                                         if (dev->get_mod_time() > last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
-                                                            ws->write(ss.str(), true);
+                                                            auto data = ss.str();
+                                                            ws->write(data);
                                                         }
 
                                                         return false;
@@ -702,7 +703,8 @@ device_tracker::device_tracker() :
                                                         if (dev->get_mod_time() > last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
-                                                            ws->write(ss.str(), true);
+                                                            auto data = ss.str();
+                                                            ws->write(data);
                                                         }
                                                     }
                                                 } else if (!dev_m.error()) {
@@ -713,7 +715,8 @@ device_tracker::device_tracker() :
                                                         if (mmpi->second->get_mod_time() > last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, mmpi->second, json);
-                                                            ws->write(ss.str(), true);
+                                                            auto data = ss.str();
+                                                            ws->write(data);
                                                         }
                                                     }
                                                 }
@@ -732,6 +735,8 @@ device_tracker::device_tracker() :
                         }
 
                     });
+
+                ws->text();
 
                 try {
                     ws->handle_request(con);
@@ -1186,7 +1191,6 @@ std::shared_ptr<kis_tracked_device_base>
         load_stored_tags(device);
 
         new_device = true;
-
     }
 
     // Tag the packet with the base device

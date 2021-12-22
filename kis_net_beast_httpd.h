@@ -492,79 +492,48 @@ public:
     kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
         kis_net_web_endpoint{},
         ws_{con->release_stream()},
+		strand_{Globalreg::globalreg->io.get_executor()},
         handler_cb{handler_func} { }
 
     virtual ~kis_net_web_websocket_endpoint() { }
 
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
 
-    void write(const std::string& data, bool text) {
-        boost::asio::post(ws_.get_executor(),
+    void write(std::string data) {
+        boost::asio::post(strand_,
                 boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::on_write, 
-                    shared_from_this(), data, text));
-#if 0
-        return write(data.data(), data.size(), text);
-#endif
+                    shared_from_this(), data));
     }
 
-    void write(const char *data, size_t len, bool text) {
-        boost::asio::post(ws_.get_executor(),
+    void write(const char *data, size_t len) {
+        boost::asio::post(strand_,
                 boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::on_write,
-                    shared_from_this(), std::string(data, len), text));
-
-#if 0
-        boost::asio::streambuf buf;
-        std::ostream os(&buf);
-
-        os.write(data, len);
-
-        return write(buf.data(), text);
-#endif
+                    shared_from_this(), std::string(data, len)));
     }
-
-#if 0
-    template<class ConstBufferSequence>
-    int write(const ConstBufferSequence& buffers, bool text) {
-        if (!running)
-            return -1;
-
-        try {
-            if (text)
-                ws_.text(true);
-            else
-                ws_.binary(true);
-
-            ws_.write(buffers);
-        } catch (const boost::beast::system_error& se) {
-            running = false;
-            if (se.code() != boost::beast::websocket::error::closed) {
-                _MSG_ERROR("Websocket error: {}", se.code().message());
-            }
-            return -1;
-        } catch (const std::exception& e) {
-            running = false;
-            _MSG_ERROR("Websocket error: {}", e.what());
-            return -1;
-        }
-
-        return buffers.size();
-    }
-#endif
 
     virtual void close();
+
+	virtual void binary() {
+		ws_.binary(true);
+	}
+
+	virtual void text() {
+		ws_.text(true);
+	}
 
 protected:
     virtual void start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref);
     void handle_read(boost::beast::error_code ec, std::size_t);
 
-    void on_write(const std::string& msg, bool text);
+    void on_write(const std::string& msg);
     void write_complete(boost::beast::error_code ec, std::size_t);
 
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
     boost::beast::flat_buffer buffer_;
+	boost::asio::strand<boost::asio::io_context::executor_type> strand_;
 
-    std::list<std::shared_ptr<ws_data>> ws_write_queue_;
+	std::queue<std::string, std::deque<std::string>> ws_write_queue_;
 
     std::promise<void> handle_pr;
 

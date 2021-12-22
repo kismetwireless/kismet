@@ -263,7 +263,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
                                 memcpy(frame->modes, adsb_content.data(), adsb_content.size());
 
-                                ws->write(std::string(buf, sizeof(adsb_beast_frame) + adsb_content.size()), false);
+                                ws->write(std::string(buf, sizeof(adsb_beast_frame) + adsb_content.size()));
 
                                 delete[] buf;
 
@@ -274,6 +274,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
                             return 1;
                     }, CHAINPOS_LOGGING, 1000);
+
+                ws->binary();
 
                 try {
                     ws->handle_request(con);
@@ -319,7 +321,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                                 auto adsb_content = 
                                     fmt::format("*{};\n", device_json["adsb_raw_msg"].asString());
 
-                                ws->write(adsb_content, true);
+                                ws->write(adsb_content);
                             } catch (std::exception& e) {
                                 return 0;
                             }
@@ -327,6 +329,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
                             return 1;
                     }, CHAINPOS_LOGGING, 1000);
+
+                ws->text();
 
                 try {
                     ws->handle_request(con);
@@ -386,7 +390,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                                 auto adsb_content = 
                                     fmt::format("*{};\n", device_json["adsb_raw_msg"].asString());
 
-                                ws->write(adsb_content, true);
+                                ws->write(adsb_content);
                             } catch (std::exception& e) {
                                 return 0;
                             }
@@ -394,6 +398,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
                             return 1;
                     }, CHAINPOS_LOGGING, 1000);
+
+                ws->text();
 
                 try {
                     ws->handle_request(con);

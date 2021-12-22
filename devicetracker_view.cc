@@ -162,7 +162,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                                                         if (dev->get_mod_time() > last_tm) {
                                                             std::stringstream ss;
                                                             Globalreg::globalreg->entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
-                                                            ws->write(ss.str(), true);
+                                                            ws->write(ss.str());
                                                         }
 
                                                         return false;
@@ -177,7 +177,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                                                         if (dev->get_mod_time() > last_tm) {
                                                             std::stringstream ss;
                                                             Globalreg::globalreg->entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
-                                                            ws->write(ss.str(), true);
+                                                            ws->write(ss.str());
                                                         }
                                                     }
                                                 } else if (!dev_m.error()) {
@@ -193,7 +193,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                                                         if (i->get_mod_time() > last_tm) {
                                                             std::stringstream ss;
                                                             Globalreg::globalreg->entrytracker->serialize_with_json_summary(format_t, ss, i, json);
-                                                            ws->write(ss.str(), true);
+                                                            ws->write(ss.str());
                                                         }
                                                     }
                                                 }
@@ -212,6 +212,8 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                         }
 
                     });
+
+                ws->text();
 
                 try {
                     ws->handle_request(con);
