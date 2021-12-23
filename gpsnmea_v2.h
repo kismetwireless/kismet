@@ -36,20 +36,22 @@ class kis_gps_nmea_v2 : public kis_gps, public std::enable_shared_from_this<kis_
 public:
     kis_gps_nmea_v2(shared_gps_builder in_builder) :
         kis_gps(in_builder),
+        strand_{Globalreg::globalreg->io.get_executor()},
         last_heading_time(time(0)),
 		last_data_time(time(0)) { }
 
     virtual ~kis_gps_nmea_v2() { };
+
+    virtual void handle_read(const boost::system::error_code& error, std::size_t sz);
 
 protected:
     virtual void close() = 0;
 
     virtual void start_read();
     virtual void start_read_impl() = 0;
-    virtual void handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
-            const boost::system::error_code& error, std::size_t sz);
 
     boost::asio::streambuf in_buf;
+    boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     std::atomic<bool> stopped;
 
     // Have we ever seen data from the device?

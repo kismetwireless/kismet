@@ -161,11 +161,9 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
     if (stopped)
         return;
 
-    auto buf = std::make_shared<std::string>(data);
-
     boost::asio::post(strand_,
-            [this, buf]() {
-                out_bufs.push_back(buf);
+            [this, data]() {
+                out_bufs.push(data);
 
                 if (out_bufs.size() > 1)
                     return;
@@ -175,13 +173,11 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
 }
 
 void kis_gps_gpsd_v3::write_impl() {
-    auto buf = out_bufs.front();
-
     if (socket.is_open()) {
-        boost::asio::async_write(socket, boost::asio::buffer(buf->data(), buf->size()),
+        boost::asio::async_write(socket, boost::asio::buffer(out_bufs.front()),
                 boost::asio::bind_executor(strand_, 
                     [this](const boost::system::error_code& ec, std::size_t) {
-                        out_bufs.pop_front();
+                        out_bufs.pop();
 
                         if (ec) {
                             if (ec.value() == boost::asio::error::operation_aborted)
@@ -191,7 +187,7 @@ void kis_gps_gpsd_v3::write_impl() {
                             return close();
                         }
 
-                        if (out_bufs.size())
+                        if (!out_bufs.empty())
                             return write_impl();
                     }));
     }
@@ -673,7 +669,8 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
                         ;
                     }
 
-                    out_bufs.clear();
+                    while (!out_bufs.empty())
+                        out_bufs.pop();
 
                     close_pm.set_value();
                 });

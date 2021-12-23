@@ -37,7 +37,7 @@
 
 kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) : 
     kis_gps_nmea_v2{in_builder},
-	serialport{Globalreg::globalreg->io} {
+    serialport{Globalreg::globalreg->io} {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -111,9 +111,10 @@ void kis_gps_serial_v3::close() {
 
 void kis_gps_serial_v3::start_read_impl() {
     boost::asio::async_read_until(serialport, in_buf, '\n',
-            [this](const boost::system::error_code& error, std::size_t t) {
-                handle_read(shared_from_this(), error, t);
-            });
+            boost::asio::bind_executor(strand_, 
+                [self = shared_from_this()](const boost::system::error_code& error, std::size_t t) {
+                    self->handle_read(error, t);
+                }));
 
 }
 

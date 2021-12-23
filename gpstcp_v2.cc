@@ -98,10 +98,10 @@ void kis_gps_tcp_v2::close() {
 
 void kis_gps_tcp_v2::start_read_impl() {
     boost::asio::async_read_until(socket, in_buf, '\n',
-            [this](const boost::system::error_code& error, std::size_t t) {
-                handle_read(shared_from_this(), error, t);
-            });
-
+            boost::asio::bind_executor(strand_, 
+                [self = shared_from_this()](const boost::system::error_code& error, std::size_t t) {
+                    self->handle_read(error, t);
+                }));
 }
 
 void kis_gps_tcp_v2::start_connect(std::shared_ptr<kis_gps_tcp_v2> ref,

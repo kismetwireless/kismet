@@ -48,7 +48,8 @@ protected:
     void handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
             const boost::system::error_code& error, std::size_t sz);
 
-    std::list<std::shared_ptr<std::string>> out_bufs;
+    std::queue<std::string, std::deque<std::string>> out_bufs;
+
     void write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std::string& data);
     void write_impl();
 

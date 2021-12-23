@@ -38,9 +38,7 @@ void kis_gps_nmea_v2::start_read() {
     start_read_impl();
 }
 
-void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
-        const boost::system::error_code& ec, std::size_t sz) {
-
+void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size_t sz) {
     kis_unique_lock<kis_mutex> lk(gps_mutex, std::defer_lock, "handle_read");
 
     if (stopped)
@@ -245,7 +243,11 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 #endif
         }
     } catch (const kis_gps_nmea_v2_soft_fail& e) {
-        return start_read();
+        boost::asio::dispatch(strand_,
+                [self = shared_from_this()]() {
+                    self->start_read();
+                });
+        return;
     }
 
     lk.lock();
@@ -281,6 +283,10 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 
     lk.unlock();
 
-    return start_read();
+    boost::asio::dispatch(strand_,
+            [self = shared_from_this()]() {
+                self->start_read();
+            });
+    return;
 }
 
