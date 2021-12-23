@@ -1895,62 +1895,36 @@ void kis_net_web_websocket_endpoint::on_write(const std::string& msg) {
     if (ws_write_queue_.size() > 1)
         return;
 
-    try {
-        ws_.async_write(boost::asio::buffer(msg), 
-                boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::write_complete,
-                    shared_from_this()));
-    } catch (const boost::beast::system_error& se) {
-        running = false;
-        if (se.code() != boost::beast::websocket::error::closed) {
-            _MSG_ERROR("Websocket error: {}", se.code().message());
-        }
-
-        return;
-    } catch (const std::exception& e) {
-        running = false;
-        _MSG_ERROR("Websocket error: {}", e.what());
-
-        return;
-    }
+    boost::asio::dispatch(strand_,
+            [self = shared_from_this()]() {
+                self->handle_write();
+            });
 }
 
-void kis_net_web_websocket_endpoint::write_complete(boost::beast::error_code ec, std::size_t) {
-    if (ec) {
-        running = false;
-        _MSG_ERROR("Websocket error: {}", ec.message());
+void kis_net_web_websocket_endpoint::handle_write() {
+    if (!running || !ws_.is_open() || ws_write_queue_.empty()) {
         return;
     }
 
-    if (!running) {
-        return;
-    }
+    auto front = ws_write_queue_.front();
 
-    ws_write_queue_.pop();
+    ws_.async_write(boost::asio::buffer(ws_write_queue_.front()),
+            [self = shared_from_this()](const boost::system::error_code& ec, std::size_t) {
+                if (ec) {
+                    self->running = false;
+                    if (ec != boost::beast::websocket::error::closed) {
+                        _MSG_ERROR("Websocket error: {}", ec.message());
+                    }
 
-    if (!ws_write_queue_.empty()) {
-        auto front = ws_write_queue_.front();
+                    return self->close();
+                }
 
-        // _MSG_DEBUG("ws {} write_complete len {} queue {}", fmt::ptr(this), front->data.size(), ws_write_queue_.size());
+                self->ws_write_queue_.pop();
 
-        try {
-            ws_.async_write(boost::asio::buffer(front.data(), front.size()), 
-                    boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::write_complete,
-                        shared_from_this()));
-        } catch (const boost::beast::system_error& se) {
-            running = false;
-            if (se.code() != boost::beast::websocket::error::closed) {
-                _MSG_ERROR("Websocket error: {}", se.code().message());
-            }
-
-            return;
-        } catch (const std::exception& e) {
-            running = false;
-            _MSG_ERROR("Websocket error: {}", e.what());
-
-            return;
-        }
-
-    }
+                if (!self->ws_write_queue_.empty()) {
+                    return self->handle_write();
+                }
+            });
 }
 
 

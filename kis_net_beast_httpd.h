@@ -526,7 +526,7 @@ protected:
     void handle_read(boost::beast::error_code ec, std::size_t);
 
     void on_write(const std::string& msg);
-    void write_complete(boost::beast::error_code ec, std::size_t);
+    void handle_write();
 
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
