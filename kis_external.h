@@ -231,7 +231,7 @@ protected:
 
     std::atomic<unsigned int> protocol_version;
 
-    void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
+    void start_ipc_read();
 
     void ipc_soft_kill();
     void ipc_hard_kill();

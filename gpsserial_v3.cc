@@ -95,21 +95,38 @@ kis_gps_serial_v3::~kis_gps_serial_v3() {
 }
 
 void kis_gps_serial_v3::close() {
-    stopped = true;
-    set_int_device_connected(false);
+    kis_lock_guard<kis_mutex> lg(gps_mutex);
 
-    if (serialport.is_open()) {
-        try {
-            serialport.cancel();
-            serialport.close();
-        } catch (const std::exception& e) {
-            // Ignore failures to close the socket, so long as its closed
-            ;
-        }
-    }
+    std::promise<void> pm;
+    auto ft = pm.get_future();
+
+    boost::asio::post(strand_,
+            [this, &pm]() {
+                stopped = true;
+                set_int_device_connected(false);
+
+                if (serialport.is_open()) {
+                    try {
+                        serialport.cancel();
+                        serialport.close();
+                    } catch (const std::exception& e) {
+                        // Ignore failures to close the socket, so long as its closed
+                        ;
+                    }
+                }
+
+                in_buf.consume(in_buf.size());
+
+                pm.set_value();
+            });
+
+    ft.wait();
 }
 
 void kis_gps_serial_v3::start_read_impl() {
+    if (stopped || !serialport.is_open())
+        return;
+
     boost::asio::async_read_until(serialport, in_buf, '\n',
             boost::asio::bind_executor(strand_, 
                 [self = shared_from_this()](const boost::system::error_code& error, std::size_t t) {
@@ -124,16 +141,7 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
     if (!kis_gps::open_gps(in_opts))
         return false;
 
-    set_int_device_connected(false);
-
-    if (serialport.is_open()) {
-        try {
-            serialport.cancel();
-            serialport.close();
-        } catch (const std::exception& e) {
-            ;
-        }
-    }
+    close();
 
     std::string proto_device;
     std::string proto_baud_s;
@@ -193,7 +201,10 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
 
     lk.unlock();
 
-    start_read();
+    boost::asio::post(strand_,
+            [this]() {
+                start_read();
+            });
 
     return 1;
 }

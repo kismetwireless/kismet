@@ -139,6 +139,8 @@ void kis_external_interface::close_external() {
 
     write_cb = nullptr;
     closure_cb = nullptr;
+
+    in_buf.consume(in_buf.size());
 };
 
 void kis_external_interface::ipc_soft_kill() {
@@ -212,7 +214,7 @@ void kis_external_interface::trigger_error(const std::string& in_error) {
     close_external();
 }
 
-void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interface> ref) {
+void kis_external_interface::start_ipc_read() {
     if (stopped || cancelled) {
         handle_packet(in_buf);
         return;
@@ -221,7 +223,7 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
     boost::asio::async_read(ipc_in, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
             boost::asio::bind_executor(strand_, 
-                [this, ref](const boost::system::error_code& ec, std::size_t t) {
+                [this](const boost::system::error_code& ec, std::size_t t) {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
                             if (ipc_running) {
@@ -249,7 +251,7 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
                     if (r < 0)
                         return trigger_error("IPC read processing error");
 
-                    return start_ipc_read(ref);
+                    return start_ipc_read();
                 }));
 }
 
@@ -334,24 +336,20 @@ bool kis_external_interface::run_ipc() {
     // int ipc_strand_no = ipc_strand_g++;
 
     boost::asio::post(strand_, 
-            [this, &ipc_promise, &child_pid /*, ipc_strand_no */]() mutable {
+            [self = shared_from_this(), &ipc_promise, &child_pid]() mutable {
 
             // _MSG_DEBUG("running on strand {}", ipc_strand_no);
 
-            stopped = true;
-            cancelled = true;
-            ipc_running = false;
+            self->stopped = true;
+            self->cancelled = true;
+            self->ipc_running = false;
 
-            in_buf.consume(in_buf.size());
-            out_bufs.clear();
+            self->in_buf.consume(self->in_buf.size());
+            self->out_bufs.clear();
 
             struct stat fstat;
 
-            stopped = true;
-            in_buf.consume(in_buf.size());
-            out_bufs.clear();
-
-            if (external_binary == "") {
+            if (self->external_binary == "") {
                 _MSG("Kismet external interface did not have an IPC binary to launch", MSGFLAG_ERROR);
                 ipc_promise.set_value(false);
             }
@@ -371,7 +369,7 @@ bool kis_external_interface::run_ipc() {
 
             for (auto rp : bin_paths) {
                 std::string fp = fmt::format("{}/{}",
-                        Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1), external_binary);
+                        Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1), self->external_binary);
 
                 if (stat(fp.c_str(), &fstat) != -1) {
                     if (S_ISDIR(fstat.st_mode))
@@ -386,7 +384,7 @@ bool kis_external_interface::run_ipc() {
 
             if (helper_path.length() == 0) {
                 _MSG_ERROR("Kismet external interface can not find IPC binary for launch: {}",
-                        external_binary);
+                        self->external_binary);
                 ipc_promise.set_value(false);
                 return;
             }
@@ -471,7 +469,7 @@ bool kis_external_interface::run_ipc() {
                 pthread_sigmask(SIG_UNBLOCK, &unblock_mask, nullptr);
 
                 // argv[0], "--in-fd" "--out-fd" ... NULL
-                cmdarg = new char*[external_binary_args.size() + 4];
+                cmdarg = new char*[self->external_binary_args.size() + 4];
                 cmdarg[0] = strdup(helper_path.c_str());
 
                 // Child reads from inpair
@@ -484,10 +482,10 @@ bool kis_external_interface::run_ipc() {
                 argstr = fmt::format("--out-fd={}", outpipepair[1]);
                 cmdarg[2] = strdup(argstr.c_str());
 
-                for (unsigned int x = 0; x < external_binary_args.size(); x++)
-                    cmdarg[x+3] = strdup(external_binary_args[x].c_str());
+                for (unsigned int x = 0; x < self->external_binary_args.size(); x++)
+                    cmdarg[x+3] = strdup(self->external_binary_args[x].c_str());
 
-                cmdarg[external_binary_args.size() + 3] = NULL;
+                cmdarg[self->external_binary_args.size() + 3] = NULL;
 
                 // close the unused half of the pairs on the child
                 ::close(inpipepair[1]);
@@ -504,8 +502,8 @@ bool kis_external_interface::run_ipc() {
             ::close(inpipepair[0]);
             ::close(outpipepair[1]);
 
-            ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
-            ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
+            self->ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
+            self->ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
 
             // _MSG_DEBUG("exiting strand work {}", ipc_strand_no);
             ipc_promise.set_value(true);
@@ -532,7 +530,10 @@ bool kis_external_interface::run_ipc() {
 
         ipctracker->register_ipc(ipc);
 
-        start_ipc_read(shared_from_this());
+        boost::asio::post(strand_,
+                [self = shared_from_this()]() {
+                    self->start_ipc_read();
+                });
     }
 
     return r;

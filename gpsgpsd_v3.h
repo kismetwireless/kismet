@@ -39,18 +39,17 @@ public:
     virtual bool get_location_valid();
 
 protected:
-    void start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
-            const boost::system::error_code& error, tcp::resolver::iterator endpoint_iter);
-    void handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref, 
-            const boost::system::error_code& error, tcp::resolver::iterator endpoint);
+    void start_connect(const boost::system::error_code& error, 
+            tcp::resolver::iterator endpoint_iter);
+    void handle_connect(const boost::system::error_code& error, 
+            tcp::resolver::iterator endpoint);
 
-    void start_read(std::shared_ptr<kis_gps_gpsd_v3> ref);
-    void handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
-            const boost::system::error_code& error, std::size_t sz);
+    void start_read();
+    void handle_read(const boost::system::error_code& error, std::size_t sz);
 
     std::queue<std::string, std::deque<std::string>> out_bufs;
 
-    void write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std::string& data);
+    void write_gpsd(const std::string& data);
     void write_impl();
 
     void close();
@@ -61,7 +60,7 @@ protected:
     tcp::socket socket;
 
     boost::asio::strand<boost::asio::io_context::executor_type> strand_;
-    boost::asio::streambuf in_buf;
+    boost::asio::streambuf in_buf{4096};
 
     std::string host, port;
 
