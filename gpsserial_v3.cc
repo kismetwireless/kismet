@@ -97,30 +97,20 @@ kis_gps_serial_v3::~kis_gps_serial_v3() {
 void kis_gps_serial_v3::close() {
     kis_lock_guard<kis_mutex> lg(gps_mutex);
 
-    std::promise<void> pm;
-    auto ft = pm.get_future();
+    stopped = true;
+    set_int_device_connected(false);
 
-    boost::asio::post(strand_,
-            [this, &pm]() {
-                stopped = true;
-                set_int_device_connected(false);
+    if (serialport.is_open()) {
+        try {
+            serialport.cancel();
+            serialport.close();
+        } catch (const std::exception& e) {
+            // Ignore failures to close the socket, so long as its closed
+            ;
+        }
+    }
 
-                if (serialport.is_open()) {
-                    try {
-                        serialport.cancel();
-                        serialport.close();
-                    } catch (const std::exception& e) {
-                        // Ignore failures to close the socket, so long as its closed
-                        ;
-                    }
-                }
-
-                in_buf.consume(in_buf.size());
-
-                pm.set_value();
-            });
-
-    ft.wait();
+    in_buf.consume(in_buf.size());
 }
 
 void kis_gps_serial_v3::start_read_impl() {

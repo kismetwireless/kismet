@@ -98,29 +98,18 @@ void kis_gps_gpsd_v3::close() {
     stopped = true;
     set_int_device_connected(false);
 
-    std::promise<void> cl_pm;
-    auto cl_ft = cl_pm.get_future();
+    try {
+        socket.cancel();
+        socket.close();
+    } catch (const std::exception& e) {
+        // Ignore failures to close the socket, so long as its closed
+        ;
+    }
 
-    boost::asio::post(strand_,
-            [self = shared_from_this(), &cl_pm]() {
-                try {
-                    self->socket.cancel();
-                    self->socket.close();
-                } catch (const std::exception& e) {
-                    // Ignore failures to close the socket, so long as its closed
-                    ;
-                }
+    while (!out_bufs.empty())
+        out_bufs.pop();
 
-                while (!self->out_bufs.empty())
-                    self->out_bufs.pop();
-
-                self->in_buf.consume(self->in_buf.size());
-
-                cl_pm.set_value();
-            });
-
-    cl_ft.wait();
-
+    in_buf.consume(in_buf.size());
 }
 
 void kis_gps_gpsd_v3::start_connect(const boost::system::error_code& error, 
