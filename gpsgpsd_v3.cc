@@ -158,7 +158,7 @@ void kis_gps_gpsd_v3::handle_connect(const boost::system::error_code& error,
 
     in_buf.consume(in_buf.size());
 
-    boost::asio::dispatch(strand_,
+    boost::asio::post(strand_,
             [this]() {
                 start_read();
             });

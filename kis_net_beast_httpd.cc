@@ -1895,7 +1895,7 @@ void kis_net_web_websocket_endpoint::on_write(const std::string& msg) {
     if (ws_write_queue_.size() > 1)
         return;
 
-    boost::asio::dispatch(strand_,
+    boost::asio::post(strand_,
             [self = shared_from_this()]() {
                 self->handle_write();
             });
