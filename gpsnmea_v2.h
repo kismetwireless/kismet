@@ -46,6 +46,7 @@ public:
 
 protected:
     virtual void close() = 0;
+    virtual void close_impl() = 0;
 
     virtual void start_read();
     virtual void start_read_impl() = 0;

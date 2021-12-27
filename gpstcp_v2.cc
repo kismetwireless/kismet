@@ -72,7 +72,7 @@ kis_gps_tcp_v2::kis_gps_tcp_v2(shared_gps_builder in_builder) :
 }
 
 kis_gps_tcp_v2::~kis_gps_tcp_v2() {
-    close();
+    close_impl();
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
@@ -82,6 +82,20 @@ kis_gps_tcp_v2::~kis_gps_tcp_v2() {
 }
 
 void kis_gps_tcp_v2::close() {
+    std::promise<void> pm;
+    auto ft = pm.get_future();
+
+    kis_lock_guard<kis_mutex> lg(gps_mutex, "close");
+
+    boost::asio::post(strand_, 
+            [self = std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()), &pm]() {
+                self->close_impl();
+                pm.set_value();
+            });
+
+    ft.wait();
+}
+void kis_gps_tcp_v2::close_impl() {
     stopped = true;
     set_int_device_connected(false);
 
@@ -130,7 +144,7 @@ void kis_gps_tcp_v2::handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
         else
             _MSG_ERROR("(GPS) Could not connect to TCP GPS server {} - {}", endpoint->endpoint(), 
                     error.message());
-        close();
+        close_impl();
         return;
     }
 

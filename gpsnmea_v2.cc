@@ -50,13 +50,13 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
             return;
 
         _MSG_ERROR("(GPS) Error reading NMEA data: {}", ec.message());
-        close();
+        close_impl();
         return;
     }
 
     if (in_buf.size() == 0) {
         _MSG_ERROR("(GPS) Error reading NMEA data: No data available");
-        close();
+        close_impl();
         return;
     }
 

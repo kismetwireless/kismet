@@ -47,6 +47,8 @@ protected:
 	virtual void start_read_impl() override;
 	virtual void close() override;
 
+    virtual void close_impl() override;
+
     boost::asio::serial_port serialport;
 
     // Device

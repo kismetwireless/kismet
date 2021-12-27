@@ -85,7 +85,7 @@ kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) :
 }
 
 kis_gps_serial_v3::~kis_gps_serial_v3() {
-    close();
+    close_impl();
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
@@ -95,8 +95,21 @@ kis_gps_serial_v3::~kis_gps_serial_v3() {
 }
 
 void kis_gps_serial_v3::close() {
+    std::promise<void> pm;
+    auto ft = pm.get_future();
+
     kis_lock_guard<kis_mutex> lg(gps_mutex);
 
+    boost::asio::post(strand_,
+            [self = std::static_pointer_cast<kis_gps_serial_v3>(shared_from_this()), &pm]() {
+                self->close_impl();
+                pm.set_value();
+            });
+
+    ft.get();
+}
+
+void kis_gps_serial_v3::close_impl() {
     stopped = true;
     set_int_device_connected(false);
 
@@ -131,7 +144,7 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
     if (!kis_gps::open_gps(in_opts))
         return false;
 
-    close();
+    close_impl();
 
     std::string proto_device;
     std::string proto_baud_s;

@@ -38,7 +38,12 @@ public:
 
     virtual bool get_location_valid();
 
+    // Blocking public close that waits for the socket to close
+    void close();
+
 protected:
+    void handle_open_gps();
+
     void start_connect(const boost::system::error_code& error, 
             tcp::resolver::iterator endpoint_iter);
     void handle_connect(const boost::system::error_code& error, 
@@ -52,7 +57,8 @@ protected:
     void write_gpsd(const std::string& data);
     void write_impl();
 
-    void close();
+    // Internal closure that performs the closing; must be executed on the gps strand
+    void close_impl();
 
     std::atomic<bool> stopped;
 

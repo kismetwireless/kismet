@@ -83,7 +83,7 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
 }
 
 kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
-    close();
+    close_impl();
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
@@ -93,7 +93,24 @@ kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
 }
 
 void kis_gps_gpsd_v3::close() {
+    // This must never be executed on the gps strand because it will deadlock waiting
+    // for the promise; it should only be called from timers and externally.
     kis_lock_guard<kis_mutex> lk(gps_mutex, "close");
+
+    std::promise<void> pm;
+    auto ft = pm.get_future();
+
+    boost::asio::post(strand_, 
+            [self = shared_from_this(), &pm]() {
+                self->close_impl();
+                pm.set_value();
+            });
+
+    ft.get();
+}
+
+void kis_gps_gpsd_v3::close_impl() {
+    // This must only be called on the gps strand
 
     stopped = true;
     set_int_device_connected(false);
@@ -109,7 +126,7 @@ void kis_gps_gpsd_v3::close() {
     while (!out_bufs.empty())
         out_bufs.pop();
 
-    in_buf.consume(in_buf.size());
+    in_buf.consume(in_buf.size() + 1);
 }
 
 void kis_gps_gpsd_v3::start_connect(const boost::system::error_code& error, 
@@ -147,7 +164,7 @@ void kis_gps_gpsd_v3::handle_connect(const boost::system::error_code& error,
             _MSG_ERROR("(GPS) Could not connect to gpsd {}:{} - {}", host, port, error.message());
         else
             _MSG_ERROR("(GPS) Could not connect to gpsd {} - {}", endpoint->endpoint(), error.message());
-        close();
+        close_impl();
         return;
     }
 
@@ -191,7 +208,8 @@ void kis_gps_gpsd_v3::write_impl() {
                                 return;
 
                             _MSG_ERROR("(GPS) Error writing GPSD command: {}", ec.message());
-                            return close();
+                            close_impl();
+                            return;
                         }
 
                         if (!out_bufs.empty())
@@ -223,13 +241,15 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
             return;
 
         _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, error.message());
-        return close();
+        close_impl();
+        return;
     }
 
     if (in_buf.size() == 0) {
         _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, 
                 "No data available");
-        return close();
+        close_impl();
+        return;
     }
 
     // Pull the buffer
@@ -390,7 +410,8 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
         } catch (std::exception& e) {
             _MSG_ERROR("(GPS) Received an invalid JSON record from GPSD {}:{} - '{}'", host, port, e.what());
-            return close();
+            close_impl();
+            return;
         }
     } else if (poll_mode == 0 && line == "GPSD") {
         // Look for a really old gpsd which doesn't do anything intelligent
@@ -661,7 +682,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
         return false;
 
     // Make sure we're closed, in case we were open from a previous attempt
-    close();
+    close_impl();
 
     std::string proto_host;
     std::string proto_port;
