@@ -223,7 +223,12 @@
 
         last_gps = data;
 
-        d = new Date(last_gps['kismet.common.location.time_sec']*1000).toISOString();
+        var d = "Unknown"
+        try {
+            d = new Date(last_gps['kismet.common.location.time_sec']*1000).toISOString();
+        } catch (e) {
+            ;
+        }
 
         if (last_gps['kismet.common.location.valid'] != 0 &&
             last_gps['kismet.common.location.fix'] >= 2) {
