@@ -64,7 +64,7 @@ void event_bus::trigger_deferred_startup() {
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con, 
                         [this, &reg_map](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            boost::beast::flat_buffer& buf, bool text) mutable {
 
                             if (!text) {
                                 ws->close();
