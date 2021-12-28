@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <time.h>
+#include <future>
 
 #include "gpsgpsd_v3.h"
 #include "gpstracker.h"
@@ -32,35 +33,21 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
     socket{Globalreg::globalreg->io},
     strand_{Globalreg::globalreg->io.get_executor()} {
 
+    timetracker = 
+        Globalreg::fetch_mandatory_global_as<time_tracker>();
+
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
 
-    last_heading_time = time(0);
+    last_heading_time = last_data_time = time(0);
+
+    stopped = true;
 
     poll_mode = 0;
     si_units = 0;
     si_raw = 0;
 
-    last_data_time = time(0);
-
-    auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
-
-    error_reconnect_timer = 
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
-                [this](int) -> int {
-                kis_lock_guard<kis_mutex> lk(gps_mutex, "error timer");
-
-                if (socket.is_open())
-                    return 1;
-
-                if (!get_gps_reconnect())
-                    return 1;
-
-                open_gps(get_gps_definition());
-
-                return 1;
-                });
-
+    error_reconnect_timer = -1;
     data_timeout_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -92,28 +79,42 @@ kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
     }
 }
 
+void kis_gps_gpsd_v3::handle_error() {
+    if (error_reconnect_timer > 0)
+        timetracker->remove_timer(error_reconnect_timer);
+
+    error_reconnect_timer = 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0,
+                [self = shared_from_this()](int) -> int {
+                    kis_lock_guard<kis_mutex> lk(self->gps_mutex, "error timer");
+
+                    if (self->socket.is_open() || !self->get_gps_reconnect())
+                        return 0;
+
+                    self->open_gps(self->get_gps_definition());
+
+                    return 1;
+                });
+}
+
 void kis_gps_gpsd_v3::close() {
     // This must never be executed on the gps strand because it will deadlock waiting
     // for the promise; it should only be called from timers and externally.
     kis_lock_guard<kis_mutex> lk(gps_mutex, "close");
 
-    std::promise<void> pm;
-    auto ft = pm.get_future();
+    auto f = boost::asio::post(strand_, 
+            std::packaged_task<void()>(
+                [self = shared_from_this()]() {
+                    self->close_impl();
+                }));
 
-    boost::asio::post(strand_, 
-            [self = shared_from_this(), &pm]() {
-                self->close_impl();
-                pm.set_value();
-            });
-
-    ft.get();
+    f.get();
 }
 
 void kis_gps_gpsd_v3::close_impl() {
     // This must only be called on the gps strand
 
     stopped = true;
-    set_int_device_connected(false);
 
     try {
         socket.cancel();
@@ -146,8 +147,9 @@ void kis_gps_gpsd_v3::start_connect(const boost::system::error_code& error,
     } else {
         boost::asio::async_connect(socket, endpoints,
                 boost::asio::bind_executor(strand_, 
-                    [this](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
-                        handle_connect(ec, endpoint);
+                    [self = shared_from_this()](const boost::system::error_code& ec, 
+                        tcp::resolver::iterator endpoint) {
+                        self->handle_connect(ec, endpoint);
                     }));
     }
 }
@@ -164,7 +166,8 @@ void kis_gps_gpsd_v3::handle_connect(const boost::system::error_code& error,
             _MSG_ERROR("(GPS) Could not connect to gpsd {}:{} - {}", host, port, error.message());
         else
             _MSG_ERROR("(GPS) Could not connect to gpsd {} - {}", endpoint->endpoint(), error.message());
-        close_impl();
+
+        handle_error();
         return;
     }
 
@@ -176,8 +179,8 @@ void kis_gps_gpsd_v3::handle_connect(const boost::system::error_code& error,
     in_buf.consume(in_buf.size());
 
     boost::asio::post(strand_,
-            [this]() {
-                start_read();
+            [self = shared_from_this()]() {
+                self->start_read();
             });
 }
 
@@ -209,6 +212,7 @@ void kis_gps_gpsd_v3::write_impl() {
 
                             _MSG_ERROR("(GPS) Error writing GPSD command: {}", ec.message());
                             close_impl();
+                            handle_error();
                             return;
                         }
 
@@ -240,15 +244,23 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
         if (error.value() == boost::asio::error::operation_aborted)
             return;
 
-        _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, error.message());
+        if (error.value() == boost::asio::error::eof)
+            _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - GPSD closed "
+                    "the connection", host, port);
+        else
+            _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", 
+                    host, port, error.message());
+
         close_impl();
+        handle_error();
         return;
     }
 
-    if (in_buf.size() == 0) {
+    if (in_buf.size() == 0 || t == 0) {
         _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, 
                 "No data available");
         close_impl();
+        handle_error();
         return;
     }
 
@@ -411,6 +423,7 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
         } catch (std::exception& e) {
             _MSG_ERROR("(GPS) Received an invalid JSON record from GPSD {}:{} - '{}'", host, port, e.what());
             close_impl();
+            handle_error();
             return;
         }
     } else if (poll_mode == 0 && line == "GPSD") {
@@ -642,8 +655,6 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     lk.lock();
 
     last_data_time = time(0);
-
-    set_int_gps_data_time(last_data_time);
 
     if (set_alt || set_speed || set_lat_lon || set_fix || set_heading || set_error) {
         set_int_gps_signal_time(last_data_time);

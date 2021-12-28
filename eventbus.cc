@@ -118,12 +118,11 @@ void event_bus::trigger_deferred_startup() {
                 try {
                     ws->handle_request(con);
                 } catch (const std::exception& e) {
-                    ;
+                    ws->close();
                 }
 
                 for (auto s : reg_map)
                     remove_listener(s.second);
-
                 }));
 
 }

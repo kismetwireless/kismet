@@ -122,7 +122,7 @@ public:
     __ProxyPrivSplit(gps_data_time, uint64_t, time_t, time_t, gps_data_time);
     __ProxyPrivSplit(gps_signal_time, uint64_t, time_t, time_t, gps_signal_time);
 
-    __ProxyPrivSplitM(device_connected, uint8_t, bool, bool, gps_connected, gps_mutex);
+    __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
         kis_lock_guard<kis_mutex> lk(gps_mutex);

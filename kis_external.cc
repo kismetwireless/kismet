@@ -66,7 +66,7 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
     auto tcp_ft = tcp_promise.get_future();
 
     boost::asio::post(strand_, 
-            [this, &tcp_promise, &socket]() {
+            [this, tcp_promise = std::move(tcp_promise), &socket]() mutable {
 
             if (ipc.pid > 0) {
                 _MSG_ERROR("Tried to attach a TCP socket to an external endpoint that already has "
@@ -336,7 +336,8 @@ bool kis_external_interface::run_ipc() {
     // int ipc_strand_no = ipc_strand_g++;
 
     boost::asio::post(strand_, 
-            [self = shared_from_this(), &ipc_promise, &child_pid]() mutable {
+            [self = shared_from_this(), ipc_promise = std::move(ipc_promise), 
+            &child_pid]() mutable {
 
             // _MSG_DEBUG("running on strand {}", ipc_strand_no);
 

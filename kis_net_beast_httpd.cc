@@ -1836,25 +1836,30 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 
 
 void kis_net_web_websocket_endpoint::close() {
-    running = false;
 
-    boost::asio::post(strand_,
-            [self = shared_from_this()]() {
-                while (!self->ws_write_queue_.empty())
-                    self->ws_write_queue_.pop();
+    auto f = 
+        boost::asio::post(strand_,
+                std::packaged_task<void()>(
+                    [self = shared_from_this()]() {
+                        self->running = false;
 
-                try {
-                    self->ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-                } catch (const std::exception& e) {
-                    ;
-                } 
+                        while (!self->ws_write_queue_.empty())
+                            self->ws_write_queue_.pop();
 
-                try {
-                    self->running_promise.set_value();
-                } catch (const std::future_error& e) {
-                    // If somehow we already pulled the future, fail silently
-                }
-            });
+                        try {
+                            self->ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+                        } catch (const std::exception& e) {
+                            ;
+                        } 
+
+                        try {
+                            self->running_promise.set_value();
+                        } catch (const std::future_error& e) {
+                            // If somehow we already pulled the future, fail silently
+                        }
+                    }));
+
+    f.get();
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {

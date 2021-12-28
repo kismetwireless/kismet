@@ -95,18 +95,16 @@ kis_gps_serial_v3::~kis_gps_serial_v3() {
 }
 
 void kis_gps_serial_v3::close() {
-    std::promise<void> pm;
-    auto ft = pm.get_future();
-
     kis_lock_guard<kis_mutex> lg(gps_mutex);
 
-    boost::asio::post(strand_,
-            [self = std::static_pointer_cast<kis_gps_serial_v3>(shared_from_this()), &pm]() {
-                self->close_impl();
-                pm.set_value();
-            });
+    auto f =
+        boost::asio::post(strand_,
+                std::packaged_task<void()>(
+                    [self = std::static_pointer_cast<kis_gps_serial_v3>(shared_from_this())]() {
+                        self->close_impl();
+                    }));
 
-    ft.get();
+    f.get();
 }
 
 void kis_gps_serial_v3::close_impl() {

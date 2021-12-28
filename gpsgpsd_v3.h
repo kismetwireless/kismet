@@ -42,6 +42,8 @@ public:
     void close();
 
 protected:
+    void handle_error();
+
     void handle_open_gps();
 
     void start_connect(const boost::system::error_code& error, 
@@ -72,10 +74,10 @@ protected:
 
     // Last time we got data, to allow us to reset the connection if we 
     // seem to stall
-    time_t last_data_time;
+    std::atomic<time_t> last_data_time;
     int data_timeout_timer;
 
-    int error_reconnect_timer;
+    std::atomic<int> error_reconnect_timer;
 
     // Last time we calculated the heading, don't do it more than once every 
     // few seconds or we get nasty noise
@@ -92,6 +94,8 @@ protected:
     int si_units;
     // Do we run in raw mode?
     int si_raw;
+
+    std::shared_ptr<time_tracker> timetracker;
 };
 
 class gps_gpsd_v3_builder : public kis_gps_builder {
