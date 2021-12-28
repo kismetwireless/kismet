@@ -1919,8 +1919,6 @@ void kis_net_web_websocket_endpoint::handle_write() {
         return;
     }
 
-    auto front = ws_write_queue_.front();
-
     ws_.async_write(boost::asio::buffer(ws_write_queue_.front()),
             boost::asio::bind_executor(
                 strand_,
