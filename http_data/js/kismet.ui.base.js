@@ -1545,7 +1545,7 @@ function packetqueuedisplay_refresh() {
                 pointStyle: 'cross',
             },
             {
-                label: 'Dropped / lost packets',
+                label: 'Dropped / error packets',
                 fill: 'false',
                 borderColor: 'red',
                 backgroundColor: 'transparent',
