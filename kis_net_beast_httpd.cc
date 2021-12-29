@@ -1836,30 +1836,33 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 
 
 void kis_net_web_websocket_endpoint::close() {
-
     auto f = 
         boost::asio::post(strand_,
                 std::packaged_task<void()>(
                     [self = shared_from_this()]() {
-                        self->running = false;
-
-                        while (!self->ws_write_queue_.empty())
-                            self->ws_write_queue_.pop();
-
-                        try {
-                            self->ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-                        } catch (const std::exception& e) {
-                            ;
-                        } 
-
-                        try {
-                            self->running_promise.set_value();
-                        } catch (const std::future_error& e) {
-                            // If somehow we already pulled the future, fail silently
-                        }
+                        self->close_impl();
                     }));
 
     f.get();
+}
+
+void kis_net_web_websocket_endpoint::close_impl() {
+    running = false;
+
+    while (!ws_write_queue_.empty())
+        ws_write_queue_.pop();
+
+    try {
+        ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+    } catch (const std::exception& e) {
+        ;
+    } 
+
+    try {
+        running_promise.set_value();
+    } catch (const std::future_error& e) {
+        // If somehow we already pulled the future, fail silently
+    }
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
@@ -1875,11 +1878,11 @@ void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_webs
 
 void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, std::size_t) {
     if (ec) {
-        return close();
+        return close_impl();
     }
 
     if (!running) {
-        return close();
+        return close_impl();
     }
 
     try {
@@ -1896,7 +1899,7 @@ void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, st
                         std::placeholders::_1,
                         std::placeholders::_2)));
     } catch (const std::exception& e) {
-        return close();
+        return close_impl();
     }
 }
 
@@ -1925,12 +1928,11 @@ void kis_net_web_websocket_endpoint::handle_write() {
                 std::bind(
                     [self = shared_from_this()](const boost::system::error_code& ec, std::size_t) {
                         if (ec) {
-                            self->running = false;
                             if (ec != boost::beast::websocket::error::closed) {
                                 _MSG_ERROR("Websocket error: {}", ec.message());
                             }
 
-                            return self->close();
+                            return self->close_impl();
                         }
 
                         self->ws_write_queue_.pop();

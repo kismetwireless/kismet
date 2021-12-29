@@ -522,6 +522,8 @@ public:
 	}
 
 protected:
+    virtual void close_impl();
+
     virtual void start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref);
     void handle_read(boost::beast::error_code ec, std::size_t);
 
