@@ -191,9 +191,9 @@ bool kis_gps_web::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_web::get_location_valid() {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_web get_location_valid");
+    kis_lock_guard<kis_mutex> lk(data_mutex, "gps_web get_location_valid");
 
-    if (gps_location == NULL) {
+    if (gps_location == nullptr) {
         return false;
     }
 
@@ -210,7 +210,9 @@ bool kis_gps_web::get_location_valid() {
 }
 
 bool kis_gps_web::get_device_connected() {
-    if (gps_location == NULL)
+    kis_lock_guard<kis_mutex> lk(data_mutex, "gps_web get_device_connected");
+
+    if (gps_location == nullptr)
         return false;
 
     // If we've seen a GPS update w/in the past 2 minutes, we count as 'connected' to a gps

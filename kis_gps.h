@@ -110,19 +110,23 @@ public:
 
     virtual void initialize() { };
 
-    __ProxyPrivSplit(gps_name, std::string, std::string, std::string, gps_name);
-    __ProxyPrivSplit(gps_description, std::string, std::string, std::string, gps_description);
-    __ProxyPrivSplit(gps_uuid, uuid, uuid, uuid, gps_uuid);
-    __ProxyPrivSplit(gps_definition, std::string, std::string, std::string, gps_definition);
-    __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
-    __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
-    __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
-    __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
+    __ProxyPrivSplitM(gps_name, std::string, std::string, std::string, 
+            gps_name, data_mutex);
+    __ProxyPrivSplitM(gps_description, std::string, std::string, std::string, 
+            gps_description, data_mutex);
+    __ProxyPrivSplitM(gps_uuid, uuid, uuid, uuid, gps_uuid, data_mutex);
+    __ProxyPrivSplitM(gps_definition, std::string, std::string, std::string, 
+            gps_definition, data_mutex);
+    __ProxyPrivSplitM(gps_priority, int32_t, int32_t, int32_t, gps_priority, data_mutex);
+    __ProxyPrivSplitM(gps_data_only, uint8_t, bool, bool, gps_data_only, data_mutex);
+    __ProxyPrivSplitM(gps_reconnect, uint8_t, bool, bool, gps_reconnect, data_mutex);
+    __ProxyTrackableM(gps_prototype, kis_gps_builder, gps_prototype, data_mutex);
 
-    __ProxyPrivSplit(gps_data_time, uint64_t, time_t, time_t, gps_data_time);
-    __ProxyPrivSplit(gps_signal_time, uint64_t, time_t, time_t, gps_signal_time);
+    __ProxyPrivSplitM(gps_data_time, uint64_t, time_t, time_t, gps_data_time, data_mutex);
+    __ProxyPrivSplitM(gps_signal_time, uint64_t, time_t, time_t, gps_signal_time, 
+            data_mutex);
 
-    __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
+    __ProxyPrivSplitM(device_connected, uint8_t, bool, bool, gps_connected, data_mutex);
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
         kis_lock_guard<kis_mutex> lk(gps_mutex);
@@ -149,7 +153,7 @@ public:
 
 protected:
     // We share mutexes down to the driver engines so we use a shared
-    kis_mutex gps_mutex;
+    kis_mutex gps_mutex, data_mutex;
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;

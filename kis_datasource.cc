@@ -39,6 +39,8 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
         ext_mutex.set_name(fmt::format("kis_datasource({})", in_builder->get_source_type()));
     else
         ext_mutex.set_name(fmt::format("kis_datasource(base)"));
+
+    data_mutex.set_name("kds_data");
     
     register_fields();
     reserve_fields(nullptr);

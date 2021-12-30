@@ -735,13 +735,13 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_gpsd_v3::get_location_valid() {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_gpsd_v3 get_location_valid");
+    kis_lock_guard<kis_mutex> lg(data_mutex);
 
     if (!get_device_connected()) {
         return false;
     }
 
-    if (gps_location == NULL) {
+    if (gps_location == nullptr) {
         return false;
     }
 

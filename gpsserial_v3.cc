@@ -211,9 +211,9 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_serial_v3::get_location_valid() {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_serial_v3 get_location_valid");
+    kis_lock_guard<kis_mutex> lk(data_mutex, "gps_serial_v3 get_location_valid");
 
-    if (gps_location == NULL) {
+    if (gps_location == nullptr) {
         return false;
     }
 
