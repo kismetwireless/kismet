@@ -84,6 +84,11 @@ public:
     __Proxy(event_id, std::string, std::string, std::string, event_id);
     __ProxyTrackable(event_content, tracker_element_string_map, event_content);
 
+    void reset() {
+        event_id->reset();
+        event_content->reset();
+    }
+
 protected:
     std::shared_ptr<tracker_element_string> event_id;
     std::shared_ptr<tracker_element_string_map> event_content;

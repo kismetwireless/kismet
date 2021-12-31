@@ -26,6 +26,8 @@ event_bus::event_bus() :
     mutex.set_name("event_bus");
     handler_mutex.set_name("event_bus_handler");
 
+    Globalreg::enable_pool_type<eventbus_event>();
+
     next_cbl_id = 1;
 
     shutdown = false;
@@ -128,7 +130,10 @@ void event_bus::trigger_deferred_startup() {
 }
 
 std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string& event_type) {
-    return std::make_shared<eventbus_event>(eventbus_event_id, event_type);
+    auto evt = Globalreg::new_from_pool<eventbus_event>();
+    evt->set_id(eventbus_event_id);
+    evt->set_event_id(event_type);
+    return evt;
 }
 
 void event_bus::event_queue_dispatcher() {
