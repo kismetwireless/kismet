@@ -129,12 +129,12 @@ public:
     __ProxyPrivSplitM(device_connected, uint8_t, bool, bool, gps_connected, data_mutex);
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
-        kis_lock_guard<kis_mutex> lk(gps_mutex);
+        kis_lock_guard<kis_mutex> lk(data_mutex);
         return gps_location;
     }
 
     virtual std::shared_ptr<kis_gps_packinfo> get_last_location() { 
-        kis_lock_guard<kis_mutex> lk(gps_mutex);
+        kis_lock_guard<kis_mutex> lk(data_mutex);
         return gps_last_location;
     }
 
