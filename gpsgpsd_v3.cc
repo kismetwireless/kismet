@@ -80,6 +80,9 @@ kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
 }
 
 void kis_gps_gpsd_v3::handle_error() {
+    set_int_device_connected(false);
+    stopped = true;
+
     if (error_reconnect_timer > 0)
         timetracker->remove_timer(error_reconnect_timer);
 
@@ -132,9 +135,6 @@ void kis_gps_gpsd_v3::close_impl() {
 
 void kis_gps_gpsd_v3::start_connect(const boost::system::error_code& error, 
         tcp::resolver::iterator endpoints) {
-
-    if (stopped)
-        return;
 
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve gpsd address {}:{} - {}", host, port, error.message());
@@ -234,8 +234,6 @@ void kis_gps_gpsd_v3::start_read() {
 }
 
 void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::size_t t) {
-    kis_unique_lock<kis_mutex> lk(gps_mutex, std::defer_lock, "handle_read");
-
     if (!socket.is_open() || stopped)
         return;
 
@@ -283,7 +281,6 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     bool set_speed;
     bool set_fix;
     bool set_heading;
-    bool set_error;
 
     set_lat_lon = false;
     set_alt = false;
@@ -329,17 +326,14 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                 if (json.isMember("epx")) {
                     new_location->error_x = json["epx"].asDouble();
-                    set_error = true;
                 }
 
                 if (json.isMember("epy")) {
                     new_location->error_y = json["epy"].asDouble();
-                    set_error = true;
                 }
 
                 if (json.isMember("epv")) {
                     new_location->error_v = json["epv"].asDouble();
-                    set_error = true;
                 }
 
                 if (set_fix && new_location->fix >= 2) {
@@ -652,11 +646,13 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     // If we've gotten this far in the parser, we've gotten usable data, even if it's not
     // actionable data (ie status w/ no valid signal is OK, but mangled unparsable nonsense isn't.)
     
+    kis_unique_lock<kis_mutex> lk(data_mutex, std::defer_lock, "handle_read");
+
     lk.lock();
 
     last_data_time = time(0);
 
-    if (set_alt || set_speed || set_lat_lon || set_fix || set_heading || set_error) {
+    if (set_alt || set_speed || set_lat_lon || set_fix || set_heading) {
         set_int_gps_signal_time(last_data_time);
 
         gettimeofday(&(new_location->tv), NULL);
@@ -737,7 +733,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
 bool kis_gps_gpsd_v3::get_location_valid() {
     kis_lock_guard<kis_mutex> lg(data_mutex);
 
-    if (!get_device_connected()) {
+    if (stopped) {
         return false;
     }
 
