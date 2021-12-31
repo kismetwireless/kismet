@@ -103,8 +103,10 @@ gps_tracker::gps_tracker() :
     httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    auto loctrip = std::make_shared<kis_tracked_location_full>();
-                    auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
+                    auto loctrip = Globalreg::new_from_pool<kis_tracked_location_full>();
+                    auto ue = 
+                        Globalreg::new_from_pool<tracker_element_uuid>();
+                    ue->set_id(tracked_uuid_addition_id);
 
                     auto pi = get_best_location();
                     if (pi != nullptr) {
@@ -222,8 +224,10 @@ gps_tracker::gps_tracker() :
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
                 kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker location event");
-                auto loctrip = std::make_shared<kis_tracked_location_full>();
-                auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
+
+                auto loctrip = Globalreg::new_from_pool<kis_tracked_location_full>();
+                auto ue = Globalreg::new_from_pool<tracker_element_uuid>();
+                ue->set_id(tracked_uuid_addition_id);
 
                 auto pi = get_best_location();
                 if (pi != nullptr) {
@@ -402,7 +406,7 @@ std::shared_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "get_best_location");
 
     // Iterate 
-    for (auto d : *gps_instances_vec) {
+    for (const auto& d : *gps_instances_vec) {
         auto gps = std::static_pointer_cast<kis_gps>(d);
 
         if (gps->get_gps_data_only())
@@ -413,7 +417,7 @@ std::shared_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
