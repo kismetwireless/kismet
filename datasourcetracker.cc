@@ -1439,7 +1439,6 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 void datasource_tracker::open_datasource(const std::string& in_source, 
         shared_datasource_builder in_proto,
         const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
-    kis_lock_guard<kis_mutex> lk(dst_lock, "dst open_datasource string");
 
     // Make a data source from the builder
     shared_datasource ds = in_proto->build_datasource(in_proto);
