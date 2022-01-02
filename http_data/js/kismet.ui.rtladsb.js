@@ -253,7 +253,8 @@ kismet_ui_tabpane.AddTab({
         var url = new URL(parent.document.URL);
         url.searchParams.append('parent_url', url.origin)
         url.searchParams.append('local_uri_prefix', local_uri_prefix);
-        url.pathname = `${local_uri_prefix}/adsb_map_panel.html`;
+        url.searchParams.append('KISMET_PROXY_PREFIX', KISMET_PROXY_PREFIX);
+        url.pathname = `${local_uri_prefix}${KISMET_PROXY_PREFIX}adsb_map_panel.html`;
 
         div.append(
             $('<iframe>', {

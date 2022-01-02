@@ -107,6 +107,8 @@ div.autosize {
 </style>
 
 <script>
+var KISMET_PROXY_PREFIX = "";
+
 const queryString = window.location.search;
 const urlParams = new URLSearchParams(queryString);
 
@@ -153,7 +155,6 @@ if (typeof document.addEventListener === "undefined" || hidden === undefined) {
       document.addEventListener(visibilityChange, handleVisibilityChange, false);
 }
 
-
 function load_main_ui() {
     // Don't let DT make alerts
     $.fn.dataTableExt.sErrMode = "console";
@@ -189,67 +190,82 @@ function load_main_ui() {
         },
     });
 
-    kismet_ui_base.OpenEventbusWs();
-
-    // Dynamic load of our plugin js, then continue.  is this the only way to do
-    // this?  sure is annoying.
-    kismet.LoadDynamicIncludes(function() {
-
-    // kismet_ui.CreateDeviceTable($('#devices'));
-
-    kismet_ui_iconbar.AddIconbarItem({
-        id: 'gps',
-        priority: 110,
-        createCallback: function(div) {
-            div.gps();
-        }
+    // Derive the proxy prefix, if any, from the headers.  We can't get this from our
+    // own current request, we have to do a HEAD req and nest everything inside that.
+    var jqxhr = $.ajax({
+        type: "HEAD",
+        url: Document.URL
     })
+    .always(function() {
+        const pfx = jqxhr.getResponseHeader('X-Proxy-Dir');
 
-    kismet_ui_iconbar.AddIconbarItem({
-        id: 'alert',
-        priority: 125,
-        createCallback: function(div) {
-            div.alert();
-        },
-    });
-
-    kismet_ui_iconbar.AddIconbarItem({
-        id: 'battery',
-        priority: 150,
-        createCallback: function(div) {
-            div.battery();
+        if (pfx != null) {
+            KISMET_PROXY_PREFIX = pfx;
         }
-    });
 
-    kismet_ui_iconbar.AddIconbarItem({
-        id: 'packets',
-        priority: 0,
-        createCallback: function(div) {
-            div.packetrate();
-        }
-    });
-
-    kismet_ui_iconbar.makeIconbar($('#iconbar'));
-
-    kismet_ui.HealthCheck();
-
-    // Finalize the sidebar
-    kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
-
-    // finalize the tabs
-    kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
-    kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
-
-    // Try to scrape the server name
-    kismet_ui_base.FetchServerName(function(name) {
-        if (name.length > 0) {
-            $('#topbar_title').html("Kismet - " + name);
-            top.document.title = "Kismet - " + name;
-        }
+        kismet_ui_base.OpenEventbusWs();
     
-    });
-
-    }); // when
+        // Dynamic load of our plugin js, then continue.  is this the only way to do
+        // this?  sure is annoying.
+        kismet.LoadDynamicIncludes(function() {
+    
+        // kismet_ui.CreateDeviceTable($('#devices'));
+    
+        kismet_ui_iconbar.AddIconbarItem({
+            id: 'gps',
+            priority: 110,
+            createCallback: function(div) {
+                div.gps();
+            }
+        })
+    
+        kismet_ui_iconbar.AddIconbarItem({
+            id: 'alert',
+            priority: 125,
+            createCallback: function(div) {
+                div.alert();
+            },
+        });
+    
+        kismet_ui_iconbar.AddIconbarItem({
+            id: 'battery',
+            priority: 150,
+            createCallback: function(div) {
+                div.battery();
+            }
+        });
+    
+        kismet_ui_iconbar.AddIconbarItem({
+            id: 'packets',
+            priority: 0,
+            createCallback: function(div) {
+                div.packetrate();
+            }
+        });
+    
+        kismet_ui_iconbar.makeIconbar($('#iconbar'));
+    
+        kismet_ui.HealthCheck();
+    
+        // Finalize the sidebar
+        kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
+    
+        // finalize the tabs
+        kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
+        kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
+    
+        // Try to scrape the server name
+        kismet_ui_base.FetchServerName(function(name) {
+            if (name.length > 0) {
+                $('#topbar_title').html("Kismet - " + name);
+                top.document.title = "Kismet - " + name;
+            }
+        
+        });
+    
+        }); // when
+    
+    }); // always head fetch
 }
 
 // jquery onload complete

@@ -222,6 +222,7 @@
         var urlparam = new URL(window.location.href);
         var param_url = urlparam.searchParams.get('parent_url') + "/";
         var param_prefix = urlparam.searchParams.get('local_uri_prefix', "");
+        var KISMET_PROXY_PREFIX = urlparam.searchParams.get('KISMET_PROXY_PREFIX', "");
 
         if (param_prefix == 0)
             param_prefix=""
@@ -561,7 +562,7 @@
 
         function poll_map() {
             if (window_visible && !$('#map').is(':hidden') && load_maps) {
-                $.get(local_uri_prefix + "phy/RTLADSB/map_data.json")
+                $.get(local_uri_prefix + KISMET_PROXY_PREFIX + "phy/RTLADSB/map_data.json")
                     .done(function(d) {
                         map_cb(d);
                     })
