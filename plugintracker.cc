@@ -399,10 +399,22 @@ int plugin_tracker::activate_plugins() {
                 continue;
             }
 
-            std::string module = js.substr(0, cpos);
+            std::string plugmod = js.substr(0, cpos);
             std::string path = js.substr(cpos + 1, js.length());
 
-            if (!httpdregistry->register_js_module(module, path)) {
+            if (path.length() == 0) {
+                _MSG_ERROR("Plugin '{}' invalid JS plugin module, expected path",
+                        x->get_plugin_path());
+                continue;
+            }
+
+            if (path[0] == '/') {
+                _MSG_ERROR("Plugin '{}' invalid JS plugin module, expected relative path "
+                        "but got absolute path beginning with '/'", x->get_plugin_path());
+                continue;
+            }
+
+            if (!httpdregistry->register_js_module(plugmod, path)) {
                 _MSG("Plugin '" + x->get_plugin_path() + "' could not "
                         "register JS plugin module", MSGFLAG_ERROR);
                 continue;
