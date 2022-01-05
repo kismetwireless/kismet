@@ -468,7 +468,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     auto socket_moved_ft = socket_moved.get_future();
 
     if (!ec) {
-        std::thread conthread([this, &socket, &socket_moved]() {
+        std::thread conthread([this, &socket, socket_moved = std::move(socket_moved)]() mutable {
                 thread_set_process_name("beast connection");
 
                 auto mv_socket = boost::beast::tcp_stream{std::move(socket)};
@@ -1468,13 +1468,14 @@ bool kis_net_beast_httpd_connection::start() {
     auto generator_launched = std::promise<void>();
     auto generator_ft = generator_launched.get_future();
 
-    auto self_ref = shared_from_this();
+    std::thread tr([this, route, generator_launched = std::move(generator_launched),
+            self = shared_from_this()]() mutable {
+        thread_set_process_name("beast generator");
 
-    std::thread tr([this, route, &generator_launched, self_ref]() {
         generator_launched.set_value();
 
         try {
-            route->invoke(self_ref);
+            route->invoke(self);
         } catch (const std::exception& e) {
             try {
                 set_status(500);
