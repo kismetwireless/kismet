@@ -765,23 +765,24 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 	return crc;
 }
 
-void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
+int subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
 					 struct timeval *out_tv) {
-	if (in_tv1->tv_sec < in_tv2->tv_sec ||
-		(in_tv1->tv_sec == in_tv2->tv_sec && in_tv1->tv_usec < in_tv2->tv_usec) ||
-		in_tv1->tv_sec == 0 || in_tv2->tv_sec == 0) {
-		out_tv->tv_sec = 0;
-		out_tv->tv_usec = 0;
-		return;
-	}
+    if (in_tv1->tv_usec < in_tv2->tv_usec) {
+        int nsec = (in_tv2->tv_usec - in_tv2->tv_usec) / 1000000 + 1;
+        in_tv2->tv_usec -= 1000000 * nsec;
+        in_tv2->tv_sec += nsec;
+    }
 
-	if (in_tv2->tv_usec > in_tv1->tv_usec) {
-		out_tv->tv_usec = 1000000 + in_tv1->tv_usec - in_tv2->tv_usec;
-		out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec - 1;
-	} else {
-		out_tv->tv_usec = in_tv1->tv_usec - in_tv2->tv_usec;
-		out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec;
-	}
+    if (in_tv1->tv_usec - in_tv2->tv_usec > 1000000) {
+        int nsec = (in_tv1->tv_usec - in_tv2->tv_usec) / 1000000;
+        in_tv2->tv_usec += 1000000 * nsec;
+        in_tv2->tv_sec -= nsec;
+    }
+
+    out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec;
+    out_tv->tv_usec = in_tv1->tv_usec - in_tv2->tv_usec;
+
+    return in_tv1->tv_sec < in_tv2->tv_sec;
 }
 
 /* Airware PPI gps conversion code from Johnny Csh */

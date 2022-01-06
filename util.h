@@ -105,7 +105,7 @@ public:
 #define ulong_int_to_string(L)		n_to_string<unsigned long int>((L)).Str()
 #define float_to_string(F)		n_to_string<float>((F)).Str()
 
-void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
+int subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
         struct timeval *out_tv);
 
 // Generic options pair
