@@ -274,8 +274,24 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
-    // so if we're within a second of the previous one we can aggregate them
+    // so if we're within a second of the previous one we can aggregate them.
+   
+    // We don't have to worry about mutexes here because we're the only ones 
+    // who can alter this, so we can blind read and copy gps_location
+
     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
+
+    // If it's been < 1 second since the last time, inherit it
+    struct timeval now;
+    struct timeval tdiff;
+
+    gettimeofday(&now, NULL);
+
+    subtract_timeval(&gps_location->tv, &now, &tdiff);
+
+    if (now.tv_sec < 1)
+        new_location->set(gps_location);
+
     bool set_lat_lon;
     bool set_alt;
     bool set_speed;
