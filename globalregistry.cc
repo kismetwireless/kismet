@@ -73,7 +73,7 @@ global_registry::global_registry() {
 }
 
 // External globals -- allow other things to tie structs to us
-int global_registry::RegisterGlobal(std::string in_name) {
+int global_registry::register_global(std::string in_name) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "global_registry register_global");
 
     std::map<std::string, int>::iterator i;
@@ -137,7 +137,7 @@ void global_registry::remove_global(int in_ref) {
 }
 
 int global_registry::insert_global(std::string in_name, std::shared_ptr<void> in_data) {
-	int ref = RegisterGlobal(in_name);
+	int ref = register_global(in_name);
 
 	return insert_global(ref, in_data);
 }

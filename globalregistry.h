@@ -221,7 +221,7 @@ public:
     global_registry();
 
     // External globals -- allow other things to tie structs to us
-    int RegisterGlobal(std::string in_name);
+    int register_global(std::string in_name);
     int fetch_global_ref(std::string in_name);
 
     std::shared_ptr<void> fetch_global(int in_ref);
