@@ -1321,7 +1321,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
             } else {
                 dot11info->bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-                dot11info->bssid_dev->set_tracker_type_string(d11phy->devtype_ap);
+
+                // Don't override WDS AP flags
+                dot11info->bssid_dev->set_type_string_ifnot([d11phy]() { 
+                    return d11phy->devtype_ap; 
+                }, (KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER));
             }
 
             // Do some maintenance on the bssid device if we're a beacon or other ssid-carrying
