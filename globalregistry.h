@@ -222,10 +222,10 @@ public:
 
     // External globals -- allow other things to tie structs to us
     int RegisterGlobal(std::string in_name);
-    int FetchGlobalRef(std::string in_name);
+    int fetch_global_ref(std::string in_name);
 
-    std::shared_ptr<void> FetchGlobal(int in_ref);
-	std::shared_ptr<void> FetchGlobal(std::string in_name);
+    std::shared_ptr<void> fetch_global(int in_ref);
+	std::shared_ptr<void> fetch_global(std::string in_name);
 
     int insert_global(int in_ref, std::shared_ptr<void> in_data);
 	int insert_global(std::string in_name, std::shared_ptr<void> in_data);
@@ -282,7 +282,7 @@ namespace Globalreg {
 
     template<typename T> 
     std::shared_ptr<T> fetch_global_as(global_registry *in_globalreg, int in_ref) {
-        return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
+        return std::static_pointer_cast<T>(in_globalreg->fetch_global(in_ref));
     }
 
     template<typename T> 
@@ -292,7 +292,7 @@ namespace Globalreg {
 
     template<typename T> 
     std::shared_ptr<T> fetch_global_as(global_registry *in_globalreg, const std::string& in_name) {
-        return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
+        return std::static_pointer_cast<T>(in_globalreg->fetch_global(in_name));
     }
 
     template<typename T> 
@@ -308,7 +308,7 @@ namespace Globalreg {
     template<typename T> 
     std::shared_ptr<T> fetch_mandatory_global_as(global_registry *in_globalreg, 
             const std::string& in_name) {
-        std::shared_ptr<T> r = std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
+        std::shared_ptr<T> r = std::static_pointer_cast<T>(in_globalreg->fetch_global(in_name));
 
         if (r == nullptr) 
             throw std::runtime_error(fmt::format("Unable to find '{}' in the global registry, "

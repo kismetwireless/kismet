@@ -88,7 +88,7 @@ int global_registry::RegisterGlobal(std::string in_name) {
 	return next_ext_ref;
 }
 
-int global_registry::FetchGlobalRef(std::string in_name) {
+int global_registry::fetch_global_ref(std::string in_name) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "global_registry fetch_global_ref");
 
     auto extref = ext_name_map.find(str_lower(in_name));
@@ -99,7 +99,7 @@ int global_registry::FetchGlobalRef(std::string in_name) {
     return extref->second;
 }
 
-std::shared_ptr<void> global_registry::FetchGlobal(int in_ref) {
+std::shared_ptr<void> global_registry::fetch_global(int in_ref) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "global_registry fetch_global");
 
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
@@ -108,12 +108,12 @@ std::shared_ptr<void> global_registry::FetchGlobal(int in_ref) {
 	return ext_data_map[in_ref];
 }
 
-std::shared_ptr<void> global_registry::FetchGlobal(std::string in_name) {
+std::shared_ptr<void> global_registry::fetch_global(std::string in_name) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "global_registry fetch_global");
 
 	int ref;
 
-	if ((ref = FetchGlobalRef(in_name)) < 0) {
+	if ((ref = fetch_global_ref(in_name)) < 0) {
 		return NULL;
 	}
 
@@ -143,7 +143,7 @@ int global_registry::insert_global(std::string in_name, std::shared_ptr<void> in
 }
 
 void global_registry::remove_global(std::string in_name) {
-    int ref = FetchGlobalRef(in_name);
+    int ref = fetch_global_ref(in_name);
     remove_global(ref);
 }
 
