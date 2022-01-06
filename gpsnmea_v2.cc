@@ -71,6 +71,18 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
     }
 
     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
+
+    // If it's been < 1 second since the last time, inherit it
+    struct timeval now;
+    struct timeval tdiff;
+
+    gettimeofday(&now, NULL);
+
+    subtract_timeval(&gps_location->tv, &now, &tdiff);
+
+    if (now.tv_sec < 1)
+        new_location->set(gps_location);
+
     bool set_lat_lon;
     bool set_alt;
     bool set_speed;
