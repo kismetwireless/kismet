@@ -103,9 +103,19 @@ public:
     }
     std::shared_ptr<tracker_element> get_shared_instance(uint16_t in_id);
 
-    // Register a serializer for auto-serialization based on type
+    // Serializer manipulation
+    //
+    // These ARE NOT THREAD SAFE.  
+    // 
+    // Registering and removing serializers MUST NOT BE DONE while other threads may be able
+    // to call can_serialize or serialize.
+    //
+    // Serialization registration must happen at the startup of the system and may not happen later
+    // in operation.
+
     void register_serializer(const std::string& type, std::shared_ptr<tracker_element_serializer> in_ser);
     void remove_serializer(const std::string& type);
+
     bool can_serialize(const std::string& type);
 
     int serialize(const std::string& type, std::ostream& stream, shared_tracker_element elem,
@@ -125,7 +135,7 @@ public:
 
 protected:
     kis_mutex entry_mutex;
-    kis_mutex serializer_mutex;
+    // kis_mutex serializer_mutex;
 
     int next_field_num;
 

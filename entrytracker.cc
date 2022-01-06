@@ -27,7 +27,7 @@
 
 entry_tracker::entry_tracker() {
     entry_mutex.set_name("entry_tracker");
-    serializer_mutex.set_name("entry_tracker_serializer");
+    // serializer_mutex.set_name("entry_tracker_serializer");
 
     next_field_num = 1;
 
@@ -239,7 +239,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::s
 
 void entry_tracker::register_serializer(const std::string& in_name, 
         std::shared_ptr<tracker_element_serializer> in_ser) {
-    kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker register_serializer");
+    // kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker register_serializer");
     
     if (serializer_map.find(in_name) != serializer_map.end()) {
         _MSG_ERROR("Attempted to register two serializers to type {}", in_name);
@@ -250,7 +250,7 @@ void entry_tracker::register_serializer(const std::string& in_name,
 }
 
 void entry_tracker::remove_serializer(const std::string& in_name) {
-    kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker remove_serializer");
+    // kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker remove_serializer");
 
     auto i = serializer_map.find(in_name);
 
@@ -260,7 +260,7 @@ void entry_tracker::remove_serializer(const std::string& in_name) {
 }
 
 bool entry_tracker::can_serialize(const std::string& in_name) {
-    kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker can_serialize");
+    // kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker can_serialize");
 
     auto i = serializer_map.find(in_name);
 
@@ -275,16 +275,16 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
         shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
-    kis_unique_lock<kis_mutex> lock(serializer_mutex, std::defer_lock, "entry_tracker serialize");
+    // kis_unique_lock<kis_mutex> lock(serializer_mutex, std::defer_lock, "entry_tracker serialize");
 
-    lock.lock();
+    // lock.lock();
     auto dpos = in_name.find_last_of(".");
     if (dpos == std::string::npos) {
         auto i = serializer_map.find(in_name);
 
         if (i == serializer_map.end()) 
             return -1;
-        lock.unlock();
+        // lock.unlock();
 
         return i->second->serialize(e, stream, name_map);
     } else {
@@ -292,7 +292,7 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
 
         if (i == serializer_map.end()) 
             return -1;
-        lock.unlock();
+        // lock.unlock();
 
         return i->second->serialize(e, stream, name_map);
 
