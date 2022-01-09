@@ -82,7 +82,7 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
     auto thread_p = std::promise<void>();
     auto thread_f = thread_p.get_future();
 
-    stream_t = std::thread([this, &thread_p]() {
+    stream_t = std::thread([this, thread_p = std::move(thread_p)]() mutable {
             thread_p.set_value();
 
             while (buffer.running() || buffer.size() > 0) {

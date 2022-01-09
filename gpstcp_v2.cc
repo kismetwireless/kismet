@@ -88,7 +88,7 @@ void kis_gps_tcp_v2::close() {
     kis_lock_guard<kis_mutex> lg(gps_mutex, "close");
 
     boost::asio::post(strand_, 
-            [self = std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()), &pm]() {
+            [self = std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()), pm = std::move(pm)]() mutable {
                 self->close_impl();
                 pm.set_value();
             });
