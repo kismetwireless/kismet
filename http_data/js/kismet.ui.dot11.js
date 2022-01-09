@@ -1103,6 +1103,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     },
                 },
                 {
+                    field: "dot11.advertisedssid.meshid",
+                    liveupdate: true,
+                    title: "Mesh ID",
+                    filterOnEmpty: true,
+                    help: "802.11s mesh id, present only in meshing networks.",
+                },
+                {
                     field: "dot11.advertisedssid.crypt_set",
                     liveupdate: true,
                     title: "Encryption",
