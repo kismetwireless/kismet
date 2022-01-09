@@ -464,20 +464,14 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     if (!running)
         return;
 
-    auto socket_moved = std::promise<bool>();
-    auto socket_moved_ft = socket_moved.get_future();
-
     if (!ec) {
-        std::thread conthread([this, &socket, socket_moved = std::move(socket_moved)]() mutable {
+        std::thread conthread([this, tcp_socket = boost::beast::tcp_stream(std::move(socket))]() mutable {
                 thread_set_process_name("beast connection");
 
-                auto mv_socket = boost::beast::tcp_stream{std::move(socket)};
-                socket_moved.set_value(true);
-
-                while (mv_socket.socket().is_open()) {
+                while (tcp_socket.socket().is_open()) {
                     // Associate the socket
                     auto conn = 
-                        std::make_shared<kis_net_beast_httpd_connection>(mv_socket, shared_from_this());
+                        std::make_shared<kis_net_beast_httpd_connection>(tcp_socket, shared_from_this());
 
                     // Run the connection
                     auto retain = conn->start();
@@ -487,7 +481,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                 }
 
                 try {
-                    mv_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+                    tcp_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
                 } catch (std::exception& e) {
                     ;
                 }
@@ -495,9 +489,6 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
 
         conthread.detach();
     }
-
-    // Make sure we know we've moved the socket inside the thread before we leave scope
-    socket_moved_ft.wait();
 
     // Accept another connection
     return start_accept();
