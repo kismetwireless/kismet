@@ -1762,7 +1762,7 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
 
     try {
         auto output_content = std::shared_ptr<tracker_element>();
-        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+        auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
         if (content == nullptr && generator == nullptr) {
             con->set_status(500);

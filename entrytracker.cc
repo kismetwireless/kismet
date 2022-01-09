@@ -55,6 +55,8 @@ entry_tracker::entry_tracker() {
     Globalreg::enable_pool_type<tracker_element_placeholder>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<tracker_element_summary>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<tracker_element_serializer::rename_map>([](auto *a) { a->clear(); });
 }
 
 entry_tracker::~entry_tracker() {
@@ -303,7 +305,7 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
 
 int entry_tracker::serialize_with_json_summary(const std::string& type, std::ostream& stream, 
         shared_tracker_element elem, const Json::Value& json_summary) {
-    auto name_map = std::make_shared<tracker_element_serializer::rename_map>();
+    auto name_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
     auto sumelem = 
         summarize_tracker_element_with_json(elem, json_summary, name_map);

@@ -869,7 +869,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     std::ostream os(&con->response_stream());
 
     auto summary_vec = std::vector<SharedElementSummary>{};
-    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+    auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
     auto search_term = std::string{};
 

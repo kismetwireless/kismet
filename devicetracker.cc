@@ -673,7 +673,7 @@ device_tracker::device_tracker() :
                                 if (kt_v != key_timer_map.end())
                                     timetracker->remove_timer(kt_v->second);
 
-                                auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+                                auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
                                 time_t last_tm = 0;
 

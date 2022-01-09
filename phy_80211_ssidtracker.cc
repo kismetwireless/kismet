@@ -154,7 +154,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     std::ostream stream(&con->response_stream());
 
     auto summary_vec = std::vector<SharedElementSummary>{};
-    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+    auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
     time_t timestamp_min = 0;
 
