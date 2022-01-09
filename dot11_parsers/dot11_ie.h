@@ -31,13 +31,15 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include <kaitai/kaitaistream.h>
 #include "multi_constexpr.h"
 
 class dot11_ie {
 public:
     class dot11_ie_tag;
-    typedef std::vector<std::shared_ptr<dot11_ie_tag> > shared_ie_tag_vector;
+    typedef std::vector<std::shared_ptr<dot11_ie_tag>> shared_ie_tag_vector;
+    typedef std::unordered_map<uint8_t, std::shared_ptr<dot11_ie_tag>> shared_ie_tag_map;
 
     dot11_ie() {
 
@@ -53,8 +55,13 @@ public:
         return m_tags;
     }
 
+    std::shared_ptr<shared_ie_tag_map> tags_map() const {
+        return m_tags_map;
+    }
+
 protected:
     std::shared_ptr<shared_ie_tag_vector> m_tags;
+    std::shared_ptr<shared_ie_tag_map> m_tags_map;
 
 public:
     class dot11_ie_tag {

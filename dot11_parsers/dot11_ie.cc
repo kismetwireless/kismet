@@ -20,11 +20,13 @@
 
 void dot11_ie::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_tags.reset(new shared_ie_tag_vector());
+    m_tags_map.reset(new shared_ie_tag_map());
 
     while (!p_io->is_eof()) {
         std::shared_ptr<dot11_ie_tag> t(new dot11_ie_tag());
         t->parse(p_io);
         m_tags->push_back(t);
+        (*m_tags_map)[t->tag_num()] = t;
     }
 }
 
