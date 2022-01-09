@@ -91,6 +91,8 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
     streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
+    Globalreg::enable_pool_type<std::vector<ie_tag_tuple>>([](auto *t) { t->clear(); });
+
     // Initialize the crc tables
     crc32_init_table_80211(Globalreg::globalreg->crc32_table);
 
@@ -2536,6 +2538,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     }
 
     if (new_ssid) {
+        auto taglist = packet_dot11_ie_list(in_pack, dot11info);
+
         ssid->set_ssid_hash(dot11info->ssid_csum);
 
         ssid->set_crypt_set(dot11info->cryptset);
@@ -2558,13 +2562,20 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
         }
 
+        if (dot11info->ie_tags != nullptr) {
+            auto meshid = dot11info->ie_tags->tags_map()->find(114);
+
+            if (meshid != dot11info->ie_tags->tags_map()->end()) {
+                ssid->set_meshid(munge_to_printable(meshid->second->tag_data()));
+            }
+        }
+
         // Look for 221 IE tags if we don't know the manuf
         if (Globalreg::globalreg->manufdb->is_unknown_manuf(basedev->get_manuf())) {
-            auto taglist = PacketDot11IElist(in_pack, dot11info);
             bool matched = false;
 
             // Match priority tags we know take precedence
-            for (const auto& t : taglist) {
+            for (const auto& t : *taglist) {
                 if (std::get<0>(t) == 221) {
                     // Pick up the primary manuf tags with priority; ubnt, cisco, etc
                     bool priority = false;
@@ -2591,7 +2602,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             }
 
             if (!matched) {
-                for (const auto& t : taglist) {
+                for (const auto& t : *taglist) {
                     if (std::get<0>(t) == 221) {
                         // Exclude known generic 221 OUIs, and exclude anything where we don't know
                         // the manuf from the tag OUI, either.
@@ -2677,6 +2688,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         if (ssid->get_ssid() != "") {
             basedev->set_devicename(ssid->get_ssid());
+            
+        } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
+            basedev->set_devicename(ssid->get_meshid());
         } else {
             basedev->set_devicename(basedev->get_macaddr().mac_to_string());
         }
@@ -2719,9 +2733,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
     if (keep_ie_tags_per_bssid) {
-        auto taglist = PacketDot11IElist(in_pack, dot11info);
+        auto taglist = packet_dot11_ie_list(in_pack, dot11info);
         ssid->get_ie_tag_list()->clear();
-        for (const auto& ti : taglist) 
+        for (const auto& ti : *taglist) 
             ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
         // If we snapshot the ie tags, do so
@@ -3181,9 +3195,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
         // Update the IE listing at the device level
         if (keep_ie_tags_per_bssid) {
-            auto taglist = PacketDot11IElist(in_pack, dot11info);
+            auto taglist = packet_dot11_ie_list(in_pack, dot11info);
             probessid->get_ie_tag_list()->clear();
-            for (const auto& ti : taglist) 
+            for (const auto& ti : *taglist) 
                 probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
         }
 

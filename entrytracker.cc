@@ -31,30 +31,30 @@ entry_tracker::entry_tracker() {
 
     next_field_num = 1;
 
-    Globalreg::enable_pool_type<tracker_element_alias>();
-    Globalreg::enable_pool_type<tracker_element_string>();
-    Globalreg::enable_pool_type<tracker_element_byte_array>();
-    Globalreg::enable_pool_type<tracker_element_device_key>();
-    Globalreg::enable_pool_type<tracker_element_uuid>();
-    Globalreg::enable_pool_type<tracker_element_mac_addr>();
+    Globalreg::enable_pool_type<tracker_element_alias>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_string>([](auto *s) { s->reset(); });
+    Globalreg::enable_pool_type<tracker_element_byte_array>([](auto *b) { b->reset(); });
+    Globalreg::enable_pool_type<tracker_element_device_key>([](auto *d) { d->reset(); });
+    Globalreg::enable_pool_type<tracker_element_uuid>([](auto *u) { u->reset(); });
+    Globalreg::enable_pool_type<tracker_element_mac_addr>([](auto *m) { m->reset(); });
     // We don't actually use ipv4 anywhere in the base codebase and that makes this
     // a compile error; re-enable once we use it somewhere
     // Globalreg::enable_pool_type<tracker_element_ipv4_addr>();
-    Globalreg::enable_pool_type<tracker_element_map>();
-    Globalreg::enable_pool_type<tracker_element_int_map>();
-    Globalreg::enable_pool_type<tracker_element_hashkey_map>();
-    Globalreg::enable_pool_type<tracker_element_double_map>();
-    Globalreg::enable_pool_type<tracker_element_mac_map>();
-    Globalreg::enable_pool_type<tracker_element_string_map>();
-    Globalreg::enable_pool_type<tracker_element_device_key_map>();
-    Globalreg::enable_pool_type<tracker_element_uuid_map>();
-    Globalreg::enable_pool_type<tracker_element_double_map_double>();
-    Globalreg::enable_pool_type<tracker_element_vector>();
-    Globalreg::enable_pool_type<tracker_element_vector_double>();
-    Globalreg::enable_pool_type<tracker_element_vector_string>();
-    Globalreg::enable_pool_type<tracker_element_placeholder>();
+    Globalreg::enable_pool_type<tracker_element_map>([](auto *m) { m->reset(); });
+    Globalreg::enable_pool_type<tracker_element_int_map>([](auto *i) { i->reset(); });
+    Globalreg::enable_pool_type<tracker_element_hashkey_map>([](auto *h) { h->reset(); });
+    Globalreg::enable_pool_type<tracker_element_double_map>([](auto *d) { d->reset(); });
+    Globalreg::enable_pool_type<tracker_element_mac_map>([](auto *m) { m->reset(); });
+    Globalreg::enable_pool_type<tracker_element_string_map>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_device_key_map>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_uuid_map>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_double_map_double>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_vector>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_vector_double>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_vector_string>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<tracker_element_placeholder>([](auto *a) { a->reset(); });
 
-    Globalreg::enable_pool_type<tracker_element_summary>();
+    Globalreg::enable_pool_type<tracker_element_summary>([](auto *a) { a->reset(); });
 }
 
 entry_tracker::~entry_tracker() {

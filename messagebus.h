@@ -142,7 +142,7 @@ private:
 
         eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
-        Globalreg::enable_pool_type<tracked_message>();
+        Globalreg::enable_pool_type<tracked_message>([](tracked_message *m) { m->reset(); });
 
         msg_proto =
             Globalreg::globalreg->entrytracker->register_and_get_field_as<tracked_message>("kismet.messagebus.message",

@@ -549,6 +549,8 @@ public:
 
     void set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags);
 
+    __ProxyFullyDynamic(meshid, std::string, std::string, std::string, tracker_element_string, meshid_id);
+
 protected:
     virtual void register_fields() override;
 
@@ -643,6 +645,9 @@ protected:
     // IE tag contents
     uint16_t ie_tag_content_id;
     uint16_t ie_tag_content_element_id;
+
+    // Mesh ID
+    uint16_t meshid_id;
 };
 
 /* dot11 client

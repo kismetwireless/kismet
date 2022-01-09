@@ -306,6 +306,10 @@ void dot11_advertised_ssid::register_fields() {
         register_field("dot11.advertisedssid.ie_tag_content_entry",
                 tracker_element_factory<dot11_tracked_ietag>(),
                 "802.11 IE tag content");
+
+    meshid_id =
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.meshid",
+                "802.11s Mesh ID");
 }
 
 void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags) {

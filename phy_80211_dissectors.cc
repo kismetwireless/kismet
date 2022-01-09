@@ -1158,10 +1158,14 @@ eap_end:
     return 1;
 }
 
-std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
+std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_dot11_ie_list(
         std::shared_ptr<kis_packet> in_pack, 
         std::shared_ptr<dot11_packinfo> packinfo) {
-    auto ret = std::vector<ie_tag_tuple>{};
+    if (packinfo->ie_tags_listed != nullptr)
+        return packinfo->ie_tags_listed;
+
+    packinfo->ie_tags_listed = 
+        Globalreg::new_from_pool<std::vector<ie_tag_tuple>>();
 
     if (packinfo->ie_tags == nullptr) {
         // If we can't have IE tags at all
@@ -1170,19 +1174,20 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
                     packinfo->subtype == packet_sub_probe_req ||
                     packinfo->subtype == packet_sub_probe_resp ||
                     packinfo->subtype == packet_sub_association_req ||
-                    packinfo->subtype == packet_sub_reassociation_req)) 
-            return ret;
+                    packinfo->subtype == packet_sub_reassociation_req)) {
+            return packinfo->ie_tags_listed;
+        }
 
         // If we can't grab an 802.11 chunk, grab the raw link frame
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
         if (chunk == nullptr) {
-            return ret;
+            return packinfo->ie_tags_listed;
         }
 
         // If we don't have a dot11 frame, throw it away
         if (chunk->dlt != KDLT_IEEE802_11)
-            return ret;
+            return packinfo->ie_tags_listed;
 
         membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]), 
                 (char *) &(chunk->data()[chunk->length()]));
@@ -1194,7 +1199,7 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
             std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
             packinfo->ie_tags->parse(stream_ietags);
         } catch (const std::exception& e) {
-            return ret;
+            return packinfo->ie_tags_listed;
         }
     }
 
@@ -1206,9 +1211,9 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
                 std::shared_ptr<dot11_ie_150_vendor> vendor(new dot11_ie_150_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
 
-                ret.push_back(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
+                packinfo->ie_tags_listed->push_back(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
             } catch (const std::exception &e) {
-                return ret;
+                return packinfo->ie_tags_listed;
             }
         } else if (ie_tag->tag_num() == 221) {
             try {
@@ -1217,16 +1222,16 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
                 std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
 
-                ret.push_back(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
+                packinfo->ie_tags_listed->push_back(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
             } catch (const std::exception &e) {
-                return ret;
+                return packinfo->ie_tags_listed;
             }
         } else {
-            ret.push_back(ie_tag_tuple{ie_tag->tag_num(), 0, 0});
+            packinfo->ie_tags_listed->push_back(ie_tag_tuple{ie_tag->tag_num(), 0, 0});
         }
     }
 
-    return ret;
+    return packinfo->ie_tags_listed;
 }
 
 int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack, 

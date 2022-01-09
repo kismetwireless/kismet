@@ -26,7 +26,7 @@ event_bus::event_bus() :
     mutex.set_name("event_bus");
     handler_mutex.set_name("event_bus_handler");
 
-    Globalreg::enable_pool_type<eventbus_event>();
+    Globalreg::enable_pool_type<eventbus_event>([](auto *a) { a->reset(); });
 
     next_cbl_id = 1;
 

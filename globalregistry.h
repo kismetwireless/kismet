@@ -331,7 +331,7 @@ namespace Globalreg {
     // Enable pooling for a type, with an optional resetter function.  By default, a returned object 
     // has 'reset()' called on it during return, and must implement this
     template<typename T>
-    void enable_pool_type(std::function<void (T*)> resetter = nullptr) {
+    void enable_pool_type(std::function<void (T*)> resetter) {
         kis_lock_guard<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg enable_pool_type");
 
         auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
@@ -340,10 +340,7 @@ namespace Globalreg {
 
         auto pool = std::make_shared<shared_object_pool<T>>();
         pool->set_max(1024);
-        if (resetter)
-            pool->set_reset(resetter);
-        else
-            pool->set_reset([](T *o) { o->reset(); });
+        pool->set_reset(resetter);
         Globalreg::globalreg->object_pool_map.insert({typeid(T).hash_code(), pool});
     }
 

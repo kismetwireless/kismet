@@ -57,7 +57,7 @@ device_tracker::device_tracker() :
     kis_database("devicetracker"),
     deferred_startup() {
 
-    Globalreg::enable_pool_type<kis_historic_location>();
+    Globalreg::enable_pool_type<kis_historic_location>([](auto *a) { a->reset(); });
 
     phy_mutex.set_name("device_tracker::phy_mutex");
     devicelist_mutex.set_name("devicetracker::devicelist");

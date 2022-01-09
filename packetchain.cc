@@ -56,7 +56,7 @@ packet_chain::packet_chain() {
 
     dedupe_list_pos = 0;
 
-    Globalreg::enable_pool_type<kis_tracked_packet>();
+    Globalreg::enable_pool_type<kis_tracked_packet>([](auto *a) { a->reset(); });
 
     next_componentid = 1;
 	next_handlerid = 1;

@@ -180,6 +180,7 @@ class dot11_packinfo : public packet_component {
             ietag_hash_map.clear();
             dot11d_country = "";
             ie_tags.reset();
+            ie_tags_listed.reset();
             dot11d_vec.clear();
 
             qbss.reset();
@@ -276,6 +277,9 @@ class dot11_packinfo : public packet_component {
 
         // Parsed IE tags, if we've parsed them
         std::shared_ptr<dot11_ie> ie_tags;
+
+        using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
+        std::shared_ptr<std::vector<ie_tag_tuple>> ie_tags_listed;
 
         std::string dot11d_country;
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
@@ -386,7 +390,7 @@ public:
     int packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack, 
             std::shared_ptr<dot11_packinfo> in_dot11info);
     // Generate a list of IE tag numbers
-    std::vector<ie_tag_tuple> PacketDot11IElist(std::shared_ptr<kis_packet> in_pack, 
+    std::shared_ptr<std::vector<ie_tag_tuple>> packet_dot11_ie_list(std::shared_ptr<kis_packet> in_pack, 
             std::shared_ptr<dot11_packinfo> in_dot11info);
 
     // Special decoders, not called as part of a chain
