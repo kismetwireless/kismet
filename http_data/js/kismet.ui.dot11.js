@@ -1103,7 +1103,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     },
                 },
                 {
-                    field: "dot11.advertisedssid.meshid",
+                    field: "dot11.advertisedssid.dot11s.meshid",
                     liveupdate: true,
                     title: "Mesh ID",
                     filterOnEmpty: true,
@@ -1175,6 +1175,37 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Beacon Info",
                     filterOnEmpty: true,
                     help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
+                },
+                {
+                    field: "dot11.advertisedssid.dot11s.gateway",
+                    liveupdate: true,
+                    title: "Mesh Gateway",
+                    help: "An 802.11s mesh device in gateway mode bridges Wi-Fi traffic to another network, such as a wired Ethernet connection.",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        if (opts['value'] == 1)
+                            return "Enabled";
+                        return "Disabled (not a gateway)";
+                    }
+                },
+                {
+                    field: "dot11.advertisedssid.dot11s.forwarding",
+                    liveupdate: true,
+                    title: "Mesh Forwarding",
+                    help: "An 802.11s mesh device may forward packets to another mesh device for delivery.",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        if (opts['value'] == 1)
+                            return "Forwarding";
+                        return "No";
+                    }
+                },
+                {
+                    field: "dot11.advertisedssid.dot11s.num_peerings",
+                    liveupdate: true,
+                    title: "Mesh Peers",
+                    help: "Number of mesh peers for this device in an 802.11s network.",
+                    filterOnEmpty: true,
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_qbss_stations",

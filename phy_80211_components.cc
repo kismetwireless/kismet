@@ -308,19 +308,19 @@ void dot11_advertised_ssid::register_fields() {
                 "802.11 IE tag content");
 
     meshid_id =
-        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.meshid",
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.dot11s.meshid",
                 "802.11s Mesh ID");
 
     mesh_gateway_id =
-        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.gateway",
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.dot11s.gateway",
                 "802.11s Mesh in gateway mode");
 
     mesh_peerings_id =
-        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.num_peerings",
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.dot11s.num_peerings",
                 "802.11s Mesh number of peers");
 
     mesh_forwarding_id =
-        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.forwarding",
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.dot11s.forwarding",
                 "802.11s Mesh forwarding enabled");
 }
 
