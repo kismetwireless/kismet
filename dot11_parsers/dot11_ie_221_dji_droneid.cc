@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "globalregistry.h"
 #include "dot11_ie_221_dji_droneid.h"
 
 void dot11_ie_221_dji_droneid::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -28,11 +29,11 @@ void dot11_ie_221_dji_droneid::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_raw_record_data_stream.reset(new kaitai::kstream(m_raw_record_data));
 
     if (subcommand() == subcommand_flightreg) {
-        std::shared_ptr<dji_subcommand_flight_reg> fr(new dji_subcommand_flight_reg());
+        auto fr = Globalreg::new_from_pool<dji_subcommand_flight_reg>();
         fr->parse(m_raw_record_data_stream);
         m_record = fr;
     } else if (subcommand() == subcommand_flightpurpose) {
-        std::shared_ptr<dji_subcommand_flight_purpose> fp(new dji_subcommand_flight_purpose());
+        auto fp = Globalreg::new_from_pool<dji_subcommand_flight_purpose>();
         fp->parse(m_raw_record_data_stream);
         m_record = fp;
     }

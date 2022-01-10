@@ -87,6 +87,12 @@ public:
         return m_wfa_content_stream;
     }
 
+    void reset() {
+        m_wfa_subtype = 0;
+        m_wfa_content = "";
+        m_wfa_content_stream.reset();
+    }
+
 protected:
     uint8_t m_wfa_subtype;
     std::string m_wfa_content;

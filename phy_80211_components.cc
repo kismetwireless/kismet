@@ -310,6 +310,18 @@ void dot11_advertised_ssid::register_fields() {
     meshid_id =
         register_dynamic_field<tracker_element_string>("dot11.advertisedssid.meshid",
                 "802.11s Mesh ID");
+
+    mesh_gateway_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.gateway",
+                "802.11s Mesh in gateway mode");
+
+    mesh_peerings_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.num_peerings",
+                "802.11s Mesh number of peers");
+
+    mesh_forwarding_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.forwarding",
+                "802.11s Mesh forwarding enabled");
 }
 
 void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags) {

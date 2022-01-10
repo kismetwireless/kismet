@@ -77,6 +77,16 @@ public:
         return m_akm_ciphers;
     }
 
+    void reset() {
+        m_vendor_subtype = 0;
+        m_wpa_version = 0;
+        m_multicast_cipher.reset();
+        m_unicast_count = 0;
+        m_unicast_ciphers.reset();
+        m_akm_count = 0;
+        m_akm_ciphers.reset();
+    }
+
 protected:
     uint8_t m_vendor_subtype;
     uint16_t m_wpa_version;
@@ -122,6 +132,11 @@ public:
 
         constexpr17 uint8_t cipher_type() const {
             return m_cipher_type;
+        }
+
+        void reset() {
+            m_oui = "";
+            m_cipher_type = 0;
         }
 
     protected:
