@@ -148,6 +148,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
     Globalreg::enable_pool_type<dot11_ie_54_mobility>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_61_ht_op>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_113_mesh_config>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_133_cisco_ccx>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_191_vht_cap>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_150_cisco_powerlevel>([](auto *a) { a->reset(); });
@@ -180,6 +181,10 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_ap_setup>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_config_methods>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_generic>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_wfa_p2p_ie>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_wfa_p2p_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
+    Globalreg::enable_pool_type<dot11_wfa_p2p_ie::dot11_wfa_p2p_ie_tag>([](auto *a) { a->reset(); });
 
     // Initialize the crc tables
     crc32_init_table_80211(Globalreg::globalreg->crc32_table);
@@ -2959,7 +2964,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             auto meshcap = dot11info->ie_tags->tags_map()->find(113);
             if (meshcap != dot11info->ie_tags->tags_map()->end()) {
                 try {
-                    std::shared_ptr<dot11_ie_113_mesh_config> mc(new dot11_ie_113_mesh_config());
+                    auto mc = Globalreg::new_from_pool<dot11_ie_113_mesh_config>();
                     mc->parse(meshcap->second->tag_data_stream());
 
                     ssid->set_mesh_forwarding(mc->mesh_forwarding());

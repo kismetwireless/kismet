@@ -16,13 +16,14 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "globalregistry.h"
 #include "dot11_p2p_ie.h"
 
 void dot11_wfa_p2p_ie::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_tags.reset(new shared_ie_tag_vector());
+    m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
 
     while (!p_io->is_eof()) {
-        std::shared_ptr<dot11_wfa_p2p_ie_tag> t(new dot11_wfa_p2p_ie_tag());
+        auto t = Globalreg::new_from_pool<dot11_wfa_p2p_ie_tag>();
         t->parse(p_io);
         m_tags->push_back(t);
     }

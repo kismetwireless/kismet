@@ -679,7 +679,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                         (char *) &(chunk->data()[chunk->length()]));
                 std::istream pack_stream(&pack_membuf);
 
-                // std::shared_ptr<dot11_action> action(new dot11_action());
 				auto action = Globalreg::new_from_pool<dot11_action>();
 
                 try {
@@ -2074,7 +2073,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                     wfa->parse(vendor->vendor_tag_stream());
 
                     if (wfa->wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
-                        std::shared_ptr<dot11_wfa_p2p_ie> ietags(new dot11_wfa_p2p_ie());
+						auto ietags = Globalreg::new_from_pool<dot11_wfa_p2p_ie>();
                         ietags->parse(wfa->wfa_content_stream());
 
                         for (auto ie_tag : *(ietags->tags())) {
@@ -2739,7 +2738,7 @@ kis_80211_phy::packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
                     }
                 }
 
-                std::shared_ptr<dot11_ie> ietags(new dot11_ie());
+				auto ietags = Globalreg::new_from_pool<dot11_ie>();
                 ietags->parse(rsnkey->wpa_key_data_stream());
 
                 for (auto ie_tag : *(ietags->tags())) {
