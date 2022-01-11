@@ -1,15 +1,5 @@
-(
-  typeof define === "function" ? function (m) { define("kismet-ui-uav-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_uav = m(); }
-)(function () {
 
 "use strict";
-
-var exports = {};
-
-// Flag we're still loading
-exports.load_complete = 0;
 
 /* Highlight UAV devices */
 kismet_ui.AddDeviceRowHighlight({
@@ -141,9 +131,3 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
     },
 });
 
-// We're done loading
-exports.load_complete = 1;
-
-return exports;
-
-});

@@ -1,55 +1,44 @@
-(
-  typeof define === "function" ? function (m) { define("kismet-ui-dot11-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_dot11 = m(); }
-)(function () {
-
 "use strict";
-
-var exports = {};
 
 var local_uri_prefix = ""; 
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
-// Flag we're still loading
-exports.load_complete = 0;
-
 // Crypt set from packet_ieee80211.h
-exports.crypt_none = 0;
-exports.crypt_unknown = 1;
-exports.crypt_wep = (1 << 1);
-exports.crypt_layer3 = (1 << 2);
-exports.crypt_wep40 = (1 << 3);
-exports.crypt_wep104 = (1 << 4);
-exports.crypt_tkip = (1 << 5);
-exports.crypt_wpa = (1 << 6);
-exports.crypt_psk = (1 << 7);
-exports.crypt_aes_ocb = (1 << 8);
-exports.crypt_aes_ccm = (1 << 9);
-exports.crypt_wpa_migmode = (1 << 10);
-exports.crypt_eap = (1 << 11);
-exports.crypt_leap = (1 << 12);
-exports.crypt_ttls = (1 << 13);
-exports.crypt_tls = (1 << 14);
-exports.crypt_peap = (1 << 15);
-exports.crypt_sae = (1 << 16);
-exports.crypt_wpa_owe = (1 << 17);
+export const crypt_none = 0;
+export const crypt_unknown = 1;
+export const crypt_wep = (1 << 1);
+export const crypt_layer3 = (1 << 2);
+export const crypt_wep40 = (1 << 3);
+export const crypt_wep104 = (1 << 4);
+export const crypt_tkip = (1 << 5);
+export const crypt_wpa = (1 << 6);
+export const crypt_psk = (1 << 7);
+export const crypt_aes_ocb = (1 << 8);
+export const crypt_aes_ccm = (1 << 9);
+export const crypt_wpa_migmode = (1 << 10);
+export const crypt_eap = (1 << 11);
+export const crypt_leap = (1 << 12);
+export const crypt_ttls = (1 << 13);
+export const crypt_tls = (1 << 14);
+export const crypt_peap = (1 << 15);
+export const crypt_sae = (1 << 16);
+export const crypt_wpa_owe = (1 << 17);
 
-exports.crypt_protectmask = 0xFFFFF;
-exports.crypt_isakmp = (1 << 20);
-exports.crypt_pptp = (1 << 21);
-exports.crypt_fortress = (1 << 22);
-exports.crypt_keyguard = (1 << 23);
-exports.crypt_unknown_protected = (1 << 24);
-exports.crypt_unknown_nonwep = (1 << 25);
-exports.crypt_wps = (1 << 26);
-exports.crypt_version_wpa = (1 << 27);
-exports.crypt_version_wpa2 = (1 << 28);
-exports.crypt_version_wpa3 = (1 << 29);
+export const crypt_protectmask = 0xFFFFF;
+export const crypt_isakmp = (1 << 20);
+export const crypt_pptp = (1 << 21);
+export const crypt_fortress = (1 << 22);
+export const crypt_keyguard = (1 << 23);
+export const crypt_unknown_protected = (1 << 24);
+export const crypt_unknown_nonwep = (1 << 25);
+export const crypt_wps = (1 << 26);
+export const crypt_version_wpa = (1 << 27);
+export const crypt_version_wpa2 = (1 << 28);
+export const crypt_version_wpa3 = (1 << 29);
 
-exports.crypt_l3_mask = 0x300004;
-exports.crypt_l2_mask = 0xFBFA;
+export const crypt_l3_mask = 0x300004;
+export const crypt_l2_mask = 0xFBFA;
 
 // Some hex and ascii manipulation
 function hexstr_to_bytes(hex) {
@@ -127,101 +116,101 @@ function pretty_hexdump(b) {
     return ret_groups;
 }
 
-exports.CryptToHumanReadable = function(cryptset) {
+export const CryptToHumanReadable = (cryptset) => {
     var ret = [];
 
-    if (cryptset == exports.crypt_none)
+    if (cryptset == crypt_none)
         return "None / Open";
 
-    if (cryptset == exports.crypt_unknown)
+    if (cryptset == crypt_unknown)
         return "Unknown";
 
-    if (cryptset & exports.crypt_wps)
+    if (cryptset & crypt_wps)
         ret.push("WPS");
 
-    if ((cryptset & exports.crypt_protectmask) == exports.crypt_wep) {
+    if ((cryptset & crypt_protectmask) == crypt_wep) {
         ret.push("WEP");
         return ret.join(" ");
     }
 
-    if (cryptset == exports.crypt_wpa_owe)
+    if (cryptset == crypt_wpa_owe)
         return "Open (OWE)";
 
-    if (cryptset & exports.crypt_wpa_owe)
+    if (cryptset & crypt_wpa_owe)
         return "OWE";
 
     var WPAVER = "WPA";
 
-    if (cryptset & exports.crypt_version_wpa2)
+    if (cryptset & crypt_version_wpa2)
         WPAVER = "WPA2";
 
-    if (cryptset & exports.crypt_version_wpa3)
+    if (cryptset & crypt_version_wpa3)
         WPAVER = "WPA3";
 
-    if (cryptset & exports.crypt_wpa)
+    if (cryptset & crypt_wpa)
         ret.push(WPAVER);
 
-	if ((cryptset & exports.crypt_version_wpa3) && (cryptset & exports.crypt_psk) && (cryptset & exports.crypt_sae))
+	if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
         ret.push("WPA3-TRANSITION");
 
-    if (cryptset & exports.crypt_psk)
+    if (cryptset & crypt_psk)
         ret.push(WPAVER + "-PSK");
 
-    if (cryptset & exports.crypt_sae)
+    if (cryptset & crypt_sae)
         ret.push(WPAVER + "-SAE");
 
-    if (cryptset & exports.crypt_eap)
+    if (cryptset & crypt_eap)
         ret.push(WPAVER + "-EAP");
 
-    if (cryptset & exports.crypt_peap)
+    if (cryptset & crypt_peap)
         ret.push(WPAVER + "-PEAP");
 
-    if (cryptset & exports.crypt_leap)
+    if (cryptset & crypt_leap)
         ret.push("EAP-LEAP");
 
-    if (cryptset & exports.crypt_ttls)
+    if (cryptset & crypt_ttls)
         ret.push("EAP-TTLS");
 
-    if (cryptset & exports.crypt_tls)
+    if (cryptset & crypt_tls)
         ret.push("EAP-TLS");
 
-    if (cryptset & exports.crypt_wpa_migmode)
+    if (cryptset & crypt_wpa_migmode)
         ret.push("WPA-MIGRATION");
 
-    if (cryptset & exports.crypt_wep40)
+    if (cryptset & crypt_wep40)
         ret.push("WEP40");
 
-    if (cryptset & exports.crypt_wep104)
+    if (cryptset & crypt_wep104)
         ret.push("WEP104");
 
-    if (cryptset & exports.crypt_tkip)
+    if (cryptset & crypt_tkip)
         ret.push("TKIP");
 
-    if (cryptset & exports.crypt_aes_ocb)
+    if (cryptset & crypt_aes_ocb)
         ret.push("AES-OCB");
 
-    if (cryptset & exports.crypt_aes_ccm)
+    if (cryptset & crypt_aes_ccm)
         ret.push("AES-CCM");
 
-    if (cryptset & exports.crypt_layer3)
+    if (cryptset & crypt_layer3)
         ret.push("Layer3");
 
-    if (cryptset & exports.crypt_isakmp)
+    if (cryptset & crypt_isakmp)
         ret.push("Layer3-ISA-KMP");
 
-    if (cryptset & exports.crypt_pptp)
+    if (cryptset & crypt_pptp)
         ret.push("Layer3-PPTP");
 
-    if (cryptset & exports.crypt_fortress)
+    if (cryptset & crypt_fortress)
         ret.push("Fortress");
 
-    if (cryptset & exports.crypt_keyguard)
+    if (cryptset & crypt_keyguard)
         ret.push("Keyguard");
 
-    if (cryptset & exports.crypt_unknown_protected)
+    if (cryptset & crypt_unknown_protected)
         ret.push("Unknown");
 
-    if (cryptset & exports.crypt_unknown_nonwep)
+    if (cryptset & crypt_unknown_nonwep)
         ret.push("Unknown-Non-WEP");
 
     return ret.join(" ");
@@ -1114,7 +1103,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     liveupdate: true,
                     title: "Encryption",
                     draw: function(opts) {
-                        return exports.CryptToHumanReadable(opts['value']);
+                        return CryptToHumanReadable(opts['value']);
                     },
                     help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
                 },
@@ -1573,7 +1562,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     liveupdate: true,
                     title: "Encryption",
                     draw: function(opts) {
-                        return exports.CryptToHumanReadable(opts['value']);
+                        return CryptToHumanReadable(opts['value']);
                     },
                     help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
                 },
@@ -2374,7 +2363,7 @@ var ssid_status_element;
 
 var SsidColumns = new Array();
 
-exports.AddSsidColumn = function(id, options) {
+export const AddSsidColumn = (id, options) => {
     var coldef = {
         kismetId: id,
         sTitle: options.sTitle,
@@ -2449,7 +2438,7 @@ exports.AddSsidColumn = function(id, options) {
     SsidColumns.push(coldef);
 }
 
-exports.GetSsidColumns = function(showall = false) {
+export const GetSsidColumns = (showall = false) => {
     var ret = new Array();
 
     var order = kismet.getStorage('kismet.ssidtable.columns', []);
@@ -2535,7 +2524,7 @@ exports.GetSsidColumns = function(showall = false) {
     return ret;
 }
 
-exports.GetSsidColumnMap = function(columns) {
+export const GetSsidColumnMap = (columns) => {
     var ret = {};
 
     for (var ci in columns) {
@@ -2553,9 +2542,9 @@ exports.GetSsidColumnMap = function(columns) {
     return ret;
 }
 
-exports.GetSsidFields = function(selected) {
+export const GetSsidFields = (selected) => {
     var rawret = new Array();
-    var cols = exports.GetSsidColumns();
+    var cols = GetSsidColumns();
 
     for (var i in cols) {
         if ('field' in cols[i])
@@ -2608,9 +2597,9 @@ function ScheduleSsidSummary() {
 }
 
 function InitializeSsidTable() {
-    var cols = exports.GetSsidColumns();
-    var colmap = exports.GetSsidColumnMap(cols);
-    var fields = exports.GetSsidFields();
+    var cols = GetSsidColumns();
+    var colmap = GetSsidColumnMap(cols);
+    var fields = GetSsidFields();
 
     var json = {
         fields: fields,
@@ -2701,7 +2690,7 @@ function InitializeSsidTable() {
 
     // Set an onclick handler to spawn the device details dialog
     $('tbody', ssid_element).on('click', 'tr', function () {
-        exports.SsidDetailWindow(this.id);
+        SsidDetailWindow(this.id);
     } );
 
     $('tbody', ssid_element)
@@ -2755,7 +2744,7 @@ kismet_ui_tabpane.AddTab({
     priority: -1000,
 }, 'center');
 
-exports.AddSsidColumn('col_ssid', {
+AddSsidColumn('col_ssid', {
     sTitle: 'SSID',
     field: 'dot11.ssidgroup.ssid',
     name: 'SSID',
@@ -2769,7 +2758,7 @@ exports.AddSsidColumn('col_ssid', {
     },
 });
 
-exports.AddSsidColumn('col_ssid_len', {
+AddSsidColumn('col_ssid_len', {
     sTitle: 'Length',
     field: 'dot11.ssidgroup.ssid_len',
     name: 'SSID Length',
@@ -2777,7 +2766,7 @@ exports.AddSsidColumn('col_ssid_len', {
     sClass: "dt-body-right",
 });
 
-exports.AddSsidColumn('column_time', {
+AddSsidColumn('column_time', {
     sTitle: 'Last Seen',
     field: 'dot11.ssidgroup.last_time',
     description: 'Last-seen time',
@@ -2790,7 +2779,7 @@ exports.AddSsidColumn('column_time', {
     orderable: true,
 });
 
-exports.AddSsidColumn('column_first_time', {
+AddSsidColumn('column_first_time', {
     sTitle: 'First Seen',
     field: 'dot11.ssidgroup.first_time',
     description: 'First-seen time',
@@ -2802,18 +2791,18 @@ exports.AddSsidColumn('column_first_time', {
     orderable: true,
 });
 
-exports.AddSsidColumn('column_crypt', {
+AddSsidColumn('column_crypt', {
     sTitle: 'Encryption',
     field: 'dot11.ssidgroup.crypt_set',
     description: 'Encryption',
     renderfunc: function(d, t, r, m) {
-        return exports.CryptToHumanReadable(d);
+        return CryptToHumanReadable(d);
     },
     searchable: true,
     orderable: true,
 });
 
-exports.AddSsidColumn('column_probing', {
+AddSsidColumn('column_probing', {
     sTitle: '# Probing',
     field: 'dot11.ssidgroup.probing_devices_len',
     description: 'Count of probing devices',
@@ -2822,7 +2811,7 @@ exports.AddSsidColumn('column_probing', {
     sClass: "dt-body-right",
 });
 
-exports.AddSsidColumn('column_responding', {
+AddSsidColumn('column_responding', {
     sTitle: '# Responding',
     field: 'dot11.ssidgroup.responding_devices_len',
     description: 'Count of responding devices',
@@ -2831,7 +2820,7 @@ exports.AddSsidColumn('column_responding', {
     sClass: "dt-body-right",
 });
 
-exports.AddSsidColumn('column_advertising', {
+AddSsidColumn('column_advertising', {
     sTitle: '# Advertising',
     field: 'dot11.ssidgroup.advertising_devices_len',
     description: 'Count of advertising devices',
@@ -2840,7 +2829,7 @@ exports.AddSsidColumn('column_advertising', {
     sClass: "dt-body-right",
 });
 
-exports.AddSsidColumn('column_hash', {
+AddSsidColumn('column_hash', {
     sTitle: 'Hash key',
     field: 'dot11.ssidgroup.hash',
     description: 'Hash',
@@ -2851,13 +2840,13 @@ exports.AddSsidColumn('column_hash', {
 
 
 // SSID panel
-exports.SsidDetails = new Array();
+var SsidDetails = new Array();
 
-exports.AddSsidDetail = function(id, title, pos, options) {
-    kismet_ui.AddDetail(exports.SsidDetails, id, title, pos, options);
+const AddSsidDetail = function(id, title, pos, options) {
+    kismet_ui.AddDetail(SsidDetails, id, title, pos, options);
 }
 
-exports.SsidDetailWindow = function(key) {
+export const SsidDetailWindow = (key) => {
     kismet_ui.DetailWindow(key, "SSID Details", 
         {
             storage: {},
@@ -2891,7 +2880,7 @@ exports.SsidDetailWindow = function(key) {
                                 content.append(accordion);
                             }
 
-                            var detailslist = exports.SsidDetails;
+                            var detailslist = SsidDetails;
 
                             for (var dii in detailslist) {
                                 var di = detailslist[dii];
@@ -2965,7 +2954,7 @@ exports.SsidDetailWindow = function(key) {
 };
 
 /* Custom device details for dot11 data */
-exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
+AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
     draw: function(data, target, options, storage) {
         target.devicedata(data, {
             "id": "ssiddetails",
@@ -3001,7 +2990,7 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 liveupdate: true,
                 title: "Encryption",
                 draw: function(opts) {
-                    return exports.CryptToHumanReadable(opts['value']);
+                    return CryptToHumanReadable(opts['value']);
                 },
                 help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
             },
@@ -3207,7 +3196,7 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
 
                 var crypttxt;
                 try {
-                    crypttxt = exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                    crypttxt = CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
                 } catch (e) {
                     ;
                 }
@@ -3259,7 +3248,7 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             liveupdate: true,
                             draw: function(opts) {
                                 try {
-                                    return exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                                    return CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
                                 } catch (e) {
                                     return '<i>Unknown</i>';
                                 }
@@ -3328,7 +3317,7 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
 
                 var crypttxt;
                 try {
-                    crypttxt = exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                    crypttxt = CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
                 } catch (e) {
                     ;
                 }
@@ -3380,7 +3369,7 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             liveupdate: true,
                             draw: function(opts) {
                                 try {
-                                    return exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                                    return CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
                                 } catch (e) {
                                     return '<i>Unknown</i>';
                                 }
@@ -3476,8 +3465,3 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
 
 });
 
-exports.load_complete = 1;
-
-return exports;
-
-});

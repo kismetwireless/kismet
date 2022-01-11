@@ -49,6 +49,33 @@ kis_httpd_registry::kis_httpd_registry() :
                     std::ostream os(&con->response_stream());
                     os << root;
                 }));
+
+	httpd->register_unauth_route("/dynamic.js", {"GET"},
+			std::make_shared<kis_net_web_function_endpoint>(
+				[this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+					kis_lock_guard<kis_mutex> lk(reg_lock, "httpd_registry /dyamic.js");
+                    
+					std::ostream os(&con->response_stream());
+
+					os << "var local_uri_prefix = \"./\";" << std::endl;
+					os << "if (typeof(KISMET_URI_PREFIX) !== 'undefined')" << std::endl;
+    				os << "local_uri_prefix = KISMET_URI_PREFIX;" << std::endl;
+
+					for (const auto& m : js_module_path_map) {
+						os << "var " << m.first << ";" << std::endl;
+					}
+
+					os << "(async () => {" << std::endl;
+
+					for (const auto& m : js_module_path_map) {
+						os << m.first << " = await import(`${local_uri_prefix}" << m.second << 
+							"`);" << std::endl;
+					}
+
+					os << "})();" << std::endl;
+					
+				}
+				));
 }
 
 kis_httpd_registry::~kis_httpd_registry() {

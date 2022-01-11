@@ -1,19 +1,8 @@
-(
-  typeof define === "function" ? function (m) { define("kismet-ui-datasource-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_datasources = m(); }
-)(function () {
-
 "use strict";
-
-var exports = {};
 
 var local_uri_prefix = ""; 
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
-
-// Flag we're still loading
-exports.load_complete = 0;
 
 // Load our css
 $('<link>')
@@ -25,7 +14,7 @@ $('<link>')
     });
 
 /* Convert a hop rate to human readable */
-exports.hop_to_human = function(hop) {
+export const hop_to_human = (hop) => {
     if (hop >= 1) {
         return hop + "/second";
     }
@@ -49,7 +38,7 @@ kismet_ui_sidebar.AddSidebarItem({
     id: 'datasource_channel_coverage',
     listTitle: '<i class="fa fa-bar-chart-o"></i> Channel Coverage',
     clickCallback: function() {
-        exports.ChannelCoverage();
+        ChannelCoverage();
     },
 });
 
@@ -62,7 +51,7 @@ var channelcoverage_chart = null;
 var channelhop_chart = null;
 var cc_uuid_pos_map = {};
 
-exports.ChannelCoverage = function() {
+export const ChannelCoverage = () => {
     var w = $(window).width() * 0.85;
     var h = $(window).height() * 0.75;
     var offy = 20;
@@ -513,7 +502,7 @@ kismet_ui_sidebar.AddSidebarItem({
     listTitle: '<i class="fa fa-cogs"></i> Data Sources',
     priority: -500,
     clickCallback: function() {
-        exports.DataSources2();
+        DataSources2();
     },
 });
 
@@ -1368,7 +1357,7 @@ function update_datasource2(data) {
                 $('#hop', quickopts).addClass('enable-chan-user');
                 $('#lock', quickopts).removeClass('enable-chan-user');
                 $('#hoprate', quickopts).html("  (Hopping at " + 
-                        exports.hop_to_human(source['kismet.datasource.hop_rate']) + ")");
+                        hop_to_human(source['kismet.datasource.hop_rate']) + ")");
                 $('#hoprate', quickopts).show();
             } else {
                 $('#hop', quickopts).removeClass('enable-chan-user');
@@ -1483,7 +1472,7 @@ function update_datasource2(data) {
     }
 }
 
-exports.DataSources2 = function() {
+export const DataSources2 = () => {
     var w = $(window).width() * 0.95;
     var h = $(window).height() * 0.75;
     var offy = 20;
@@ -1611,9 +1600,3 @@ function datasource_interface_refresh(cb) {
     grab_interfaces(cb);
 }
 
-// We're done loading
-exports.load_complete = 1;
-
-return exports;
-
-});

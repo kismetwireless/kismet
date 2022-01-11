@@ -1,15 +1,4 @@
-(
-  typeof define === "function" ? function (m) { define("kismet-ui-bluetooth-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_bluetooth = m(); }
-)(function () {
-
 "use strict";
-
-var exports = {};
-
-// Flag we're still loading
-exports.load_complete = 0;
 
 kismet_ui.AddDeviceRowHighlight({
     name: "Bluetooth Device",
@@ -53,9 +42,3 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
-// We're done loading
-exports.load_complete = 1;
-
-return exports;
-
-});

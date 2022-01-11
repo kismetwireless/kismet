@@ -1,15 +1,5 @@
-(
-  typeof define === "function" ? function (m) { define("kismet-ui-rtl433-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_rtl433 = m(); }
-)(function () {
 
 "use strict";
-
-var exports = {};
-
-// Flag we're still loading
-exports.load_complete = 0;
 
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
@@ -249,9 +239,3 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
     },
 });
 
-// We're done loading
-exports.load_complete = 1;
-
-return exports;
-
-});

@@ -106,6 +106,8 @@ div.autosize {
 
 </style>
 
+<script src="dynamic.js"></script>
+
 <script>
 var KISMET_PROXY_PREFIX = "";
 
@@ -205,12 +207,6 @@ function load_main_ui() {
 
         kismet_ui_base.OpenEventbusWs();
     
-        // Dynamic load of our plugin js, then continue.  is this the only way to do
-        // this?  sure is annoying.
-        kismet.LoadDynamicIncludes(function() {
-    
-        // kismet_ui.CreateDeviceTable($('#devices'));
-    
         kismet_ui_iconbar.AddIconbarItem({
             id: 'gps',
             priority: 110,
@@ -262,8 +258,6 @@ function load_main_ui() {
             }
         
         });
-    
-        }); // when
     
     }); // always head fetch
 }

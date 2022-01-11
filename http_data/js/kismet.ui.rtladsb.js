@@ -1,19 +1,9 @@
-(
-  typeof define === "function" ? function (m) { define("kismet-ui-rtladsb-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_rtladsb = m(); }
-)(function () {
 
 "use strict";
-
-var exports = {};
 
 var local_uri_prefix = ""; 
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
-
-// Flag we're still loading
-exports.load_complete = 0;
 
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
@@ -268,9 +258,3 @@ kismet_ui_tabpane.AddTab({
 
 }, 'center');
 
-// We're done loading
-exports.load_complete = 1;
-
-return exports;
-
-});
