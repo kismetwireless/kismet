@@ -1397,132 +1397,134 @@ void kis_database_logfile::usage(const char *argv0) {
 
 
 void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    using namespace kissqlite3;
+	using namespace kissqlite3;
 
-    auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
+	auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
-    auto ts_start_k = con->http_variables().find("timestamp_start");
-    if (ts_start_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("ts_sec", GE, string_to_n<uint64_t>(ts_start_k->second)));
+	auto ts_start_k = con->http_variables().find("timestamp_start");
+	if (ts_start_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("ts_sec", GE, string_to_n<uint64_t>(ts_start_k->second)));
 
-    auto ts_end_k = con->http_variables().find("timestamp_end");
-    if (ts_end_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("ts_sec", LE, string_to_n<uint64_t>(ts_end_k->second)));
+	auto ts_end_k = con->http_variables().find("timestamp_end");
+	if (ts_end_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("ts_sec", LE, string_to_n<uint64_t>(ts_end_k->second)));
 
-    auto datasource_k = con->http_variables().find("datasource");
-    if (datasource_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("datasource", LIKE, datasource_k->second));
+	auto datasource_k = con->http_variables().find("datasource");
+	if (datasource_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("datasource", LIKE, datasource_k->second));
 
-    auto deviceid_k = con->http_variables().find("device_id");
-    if (deviceid_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("devkey", LIKE, deviceid_k->second));
+	auto deviceid_k = con->http_variables().find("device_id");
+	if (deviceid_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("devkey", LIKE, deviceid_k->second));
 
-    auto dlt_k = con->http_variables().find("dlt");
-    if (dlt_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("dlt", EQ, string_to_n<unsigned int>(dlt_k->second)));
+	auto dlt_k = con->http_variables().find("dlt");
+	if (dlt_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("dlt", EQ, string_to_n<unsigned int>(dlt_k->second)));
 
-    auto frequency_k = con->http_variables().find("frequency");
-    if (frequency_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("frequency", EQ, string_to_n<unsigned int>(frequency_k->second)));
+	auto frequency_k = con->http_variables().find("frequency");
+	if (frequency_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("frequency", EQ, string_to_n<unsigned int>(frequency_k->second)));
 
-    auto frequency_min_k = con->http_variables().find("frequency_min");
-    if (frequency_min_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("frequency_min", GE, string_to_n<unsigned int>(frequency_min_k->second)));
+	auto frequency_min_k = con->http_variables().find("frequency_min");
+	if (frequency_min_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("frequency_min", GE, string_to_n<unsigned int>(frequency_min_k->second)));
 
-    auto frequency_max_k = con->http_variables().find("frequency_max");
-    if (frequency_max_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("frequency_max", LE, string_to_n<unsigned int>(frequency_max_k->second)));
+	auto frequency_max_k = con->http_variables().find("frequency_max");
+	if (frequency_max_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("frequency_max", LE, string_to_n<unsigned int>(frequency_max_k->second)));
 
-    auto signal_min_k = con->http_variables().find("signal_min");
-    if (signal_min_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("signal_min", GE, string_to_n<unsigned int>(signal_min_k->second)));
+	auto signal_min_k = con->http_variables().find("signal_min");
+	if (signal_min_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("signal_min", GE, string_to_n<unsigned int>(signal_min_k->second)));
 
-    auto signal_max_k = con->http_variables().find("signal_max");
-    if (signal_max_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("signal_max", LE, string_to_n<unsigned int>(signal_max_k->second)));
+	auto signal_max_k = con->http_variables().find("signal_max");
+	if (signal_max_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("signal_max", LE, string_to_n<unsigned int>(signal_max_k->second)));
 
-    auto address_source_k = con->http_variables().find("address_source");
-    if (address_source_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("address_source", LIKE, address_source_k->second));
+	auto address_source_k = con->http_variables().find("address_source");
+	if (address_source_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("address_source", LIKE, address_source_k->second));
 
-    auto address_dest_k = con->http_variables().find("address_dest");
-    if (address_dest_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("address_dest", LIKE, address_dest_k->second));
+	auto address_dest_k = con->http_variables().find("address_dest");
+	if (address_dest_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("address_dest", LIKE, address_dest_k->second));
 
-    auto address_trans_k = con->http_variables().find("address_trans");
-    if (address_trans_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("address_trans", LIKE, address_trans_k->second));
+	auto address_trans_k = con->http_variables().find("address_trans");
+	if (address_trans_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("address_trans", LIKE, address_trans_k->second));
 
-    auto location_lat_min_k = con->http_variables().find("location_lat_min");
-    if (location_lat_min_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("location_lat_min", GE, string_to_n<double>(location_lat_min_k->second)));
+	auto location_lat_min_k = con->http_variables().find("location_lat_min");
+	if (location_lat_min_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("location_lat_min", GE, string_to_n<double>(location_lat_min_k->second)));
 
-    auto location_lat_max_k = con->http_variables().find("location_lat_max");
-    if (location_lat_max_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("location_lat_max", LE, string_to_n<double>(location_lat_max_k->second)));
+	auto location_lat_max_k = con->http_variables().find("location_lat_max");
+	if (location_lat_max_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("location_lat_max", LE, string_to_n<double>(location_lat_max_k->second)));
 
-    auto location_lon_min_k = con->http_variables().find("location_lon_min");
-    if (location_lon_min_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("location_lon_min", GE, string_to_n<double>(location_lon_min_k->second)));
+	auto location_lon_min_k = con->http_variables().find("location_lon_min");
+	if (location_lon_min_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("location_lon_min", GE, string_to_n<double>(location_lon_min_k->second)));
 
-    auto location_lon_max_k = con->http_variables().find("location_lon_max");
-    if (location_lon_max_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("location_lon_max", LE, string_to_n<double>(location_lon_max_k->second)));
+	auto location_lon_max_k = con->http_variables().find("location_lon_max");
+	if (location_lon_max_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("location_lon_max", LE, string_to_n<double>(location_lon_max_k->second)));
 
-    auto size_min_k = con->http_variables().find("size_min");
-    if (size_min_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("size_min", GE, string_to_n<unsigned long int>(size_min_k->second)));
+	auto size_min_k = con->http_variables().find("size_min");
+	if (size_min_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("size_min", GE, string_to_n<unsigned long int>(size_min_k->second)));
 
-    auto size_max_k = con->http_variables().find("size_max");
-    if (size_max_k != con->http_variables().end()) 
-        query.append_where(AND, _WHERE("size_max", LE, string_to_n<unsigned long int>(size_max_k->second)));
+	auto size_max_k = con->http_variables().find("size_max");
+	if (size_max_k != con->http_variables().end()) 
+		query.append_where(AND, _WHERE("size_max", LE, string_to_n<unsigned long int>(size_max_k->second)));
 
-    auto tag_k = con->http_variables().find("tag");
-    if (tag_k != con->http_variables().end())
-        query.append_where(AND, _WHERE("tags", LIKE, tag_k->second));
-    
-    auto limit_k = con->http_variables().find("limit");
-    if (limit_k != con->http_variables().end()) 
-        query.append_clause(LIMIT, string_to_n<unsigned long>(limit_k->second));
+	auto tag_k = con->http_variables().find("tag");
+	if (tag_k != con->http_variables().end())
+		query.append_where(AND, _WHERE("tags", LIKE, tag_k->second));
 
-    auto pcapng = std::make_shared<pcapng_stream_database>(con->response_stream());
+	auto limit_k = con->http_variables().find("limit");
+	if (limit_k != con->http_variables().end()) 
+		query.append_clause(LIMIT, string_to_n<unsigned long>(limit_k->second));
 
-    con->set_target_file(fmt::format("{}.pcapng", con->uri_params()[":title"]));
-    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+	con->clear_timeout();
 
-    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
-    auto sid = 
-        streamtracker->register_streamer(pcapng, fmt::format("kismet-dblog.pcapng"),
-            "pcapng", "httpd", 
-            fmt::format("pcapng of from dblog"));
+	auto pcapng = std::make_shared<pcapng_stream_database>(con->response_stream());
+
+	con->set_target_file(fmt::format("{}.pcapng", con->uri_params()[":title"]));
+	con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+	auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
+	auto sid = 
+		streamtracker->register_streamer(pcapng, fmt::format("kismet-dblog.pcapng"),
+				"pcapng", "httpd", 
+				fmt::format("pcapng of from dblog"));
 
 
-    pcapng->start_stream();
+	pcapng->start_stream();
 
-    // Get the list of all the interfaces we know about in the database and push them into the
-    // pcapng handler
-    auto datasource_query = _SELECT(db, "datasources", {"uuid", "name", "interface"});
+	// Get the list of all the interfaces we know about in the database and push them into the
+	// pcapng handler
+	auto datasource_query = _SELECT(db, "datasources", {"uuid", "name", "interface"});
 
-    for (auto ds : datasource_query)  {
-        pcapng->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
-                sqlite3_column_as<std::string>(ds, 1),
-                sqlite3_column_as<std::string>(ds, 2));
-    }
+	for (auto ds : datasource_query)  {
+		pcapng->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
+				sqlite3_column_as<std::string>(ds, 1),
+				sqlite3_column_as<std::string>(ds, 2));
+	}
 
-    // Database handler registers itself as timing out so this should be OK to just blitz through
-    // now, we'll block as necessary
-    for (auto p : query) {
-        if (pcapng->pcapng_write_database_packet(
-                    sqlite3_column_as<std::uint64_t>(p, 0),
-                    sqlite3_column_as<std::uint64_t>(p, 1),
-                    sqlite3_column_as<std::string>(p, 2),
-                    sqlite3_column_as<unsigned int>(p, 3),
-                    sqlite3_column_as<std::string>(p, 4)) < 0) {
-            return;
-        }
-    }
+	// Database handler registers itself as timing out so this should be OK to just blitz through
+	// now, we'll block as necessary
+	for (auto p : query) {
+		if (pcapng->pcapng_write_database_packet(
+					sqlite3_column_as<std::uint64_t>(p, 0),
+					sqlite3_column_as<std::uint64_t>(p, 1),
+					sqlite3_column_as<std::string>(p, 2),
+					sqlite3_column_as<unsigned int>(p, 3),
+					sqlite3_column_as<std::string>(p, 4)) < 0) {
+			return;
+		}
+	}
 
-    streamtracker->remove_streamer(sid);
+	streamtracker->remove_streamer(sid);
 }
 
 void kis_database_logfile::packet_drop_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
