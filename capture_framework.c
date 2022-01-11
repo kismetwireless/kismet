@@ -61,6 +61,7 @@ uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
     uint32_t ls2 = (cs >> 16) & 0xFFFF;
 
     const uint32_t *buf = (const uint32_t *) in_buf;
+	const uint8_t *sub_buf = NULL;
 
     if (in_len < 4)
         return 0;
@@ -89,21 +90,30 @@ uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
             ls2 += ls1;
             break;
         case 3:
-            ls1 += ((*buf) & 0xFF);
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
             ls2 += ls1;
-            ls1 += ((*buf >> 8) & 0xFF);
+            // ls1 += ((*buf >> 8) & 0xFF);
+			ls1 += sub_buf[1];
             ls2 += ls1;
-            ls1 += ((*buf >> 16) & 0xFF);
+            // ls1 += ((*buf >> 16) & 0xFF);
+			ls1 += sub_buf[2];
             ls2 += ls1;
             break;
         case 2:
-            ls1 += ((*buf) & 0xFF);
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
             ls2 += ls1;
-            ls1 += ((*buf >> 8) & 0xFF);
+            // ls1 += ((*buf >> 8) & 0xFF);
+			ls1 += sub_buf[1];
             ls2 += ls1;
             break;
         case 1:
-            ls1 += ((*buf) & 0xFF);
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
             ls2 += ls1;
             break;
     }
