@@ -80,10 +80,8 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     endpoint{endpoint},
     acceptor{Globalreg::globalreg->io} {
 
-    mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
-    static_mutex.set_name("kis_net_beast_httpd static");
 }
 
 void kis_net_beast_httpd::trigger_deferred_startup() {
@@ -611,20 +609,16 @@ void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded
 }
 
 void kis_net_beast_httpd::register_mime_type(const std::string& extension, const std::string& type) {
-    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd register_mime_type");
     mime_map.emplace(std::make_pair(extension, type));
 }
 
 void kis_net_beast_httpd::remove_mime_type(const std::string& extension) {
-    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd remove_mime_type");
     auto k = mime_map.find(extension);
     if (k != mime_map.end())
         mime_map.erase(k);
 }
 
 std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension) {
-    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd resolve_mime_type");
-
     auto dpos = extension.find_last_of(".");
 
     if (dpos == std::string::npos) {
@@ -641,8 +635,6 @@ std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension)
 }
 
 std::string kis_net_beast_httpd::resolve_mime_type(const boost::beast::string_view& extension) {
-    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd resolve_mime_type");
-
     auto dpos = extension.find_last_of(".");
 
     if (dpos == boost::beast::string_view::npos) {
@@ -931,8 +923,6 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoin
 }
 
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
-    kis_lock_guard<kis_shared_mutex> lk(static_mutex, "beast_httpd register_static_dir");
-
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
 }
 
@@ -978,8 +968,6 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
         uri = "/index.html";
     else if (uri.back() == '/') 
         uri += "index.html";
-
-    kis_lock_guard<kis_shared_mutex> lk(static_mutex, kismet::shared_lock, "beast_httpd serve_file");
 
     for (auto sd : static_dir_vec) {
         ec = {};

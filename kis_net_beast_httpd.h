@@ -81,6 +81,8 @@ public:
     static void decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& cookie_map);
     static std::string escape_html(const boost::beast::string_view& html);
 
+    // Register mime types.  These functions are NOT THREAD SAFE and must not be called
+    // currently or while the webserver is serving content.
     void register_mime_type(const std::string& extension, const std::string& type);
     void remove_mime_type(const std::string& extension);
     std::string resolve_mime_type(const std::string& extension);
@@ -133,7 +135,8 @@ public:
     bool check_admin_login(const std::string& username, const std::string& password);
 
 
-    // Map a content directory into the virtual paths
+    // Map a content directory into the virtual paths.  This is NOT THREAD SAFE and must not be
+    // called concurrently or while the webserver is serving content.
     void register_static_dir(const std::string& prefix, const std::string& path);
 
 
@@ -157,7 +160,6 @@ protected:
     bool allow_auth_creation;
     bool allow_auth_view;
 
-    kis_mutex mime_mutex;
     std::unordered_map<std::string, std::string> mime_map;
 
     kis_mutex route_mutex;
@@ -167,7 +169,6 @@ protected:
     kis_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
-    kis_shared_mutex static_mutex;
     class static_content_dir {
     public:
         static_content_dir(const std::string& prefix, const std::string& path) :
