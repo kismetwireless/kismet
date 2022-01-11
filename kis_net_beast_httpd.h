@@ -202,6 +202,9 @@ protected:
 
     void set_admin_login(const std::string& username, const std::string& password);
 
+    // Internal non-locked implementation of auth creation
+    std::string create_auth_impl(const std::string& name, const std::string& role, time_t expiry);
+
 };
 
 

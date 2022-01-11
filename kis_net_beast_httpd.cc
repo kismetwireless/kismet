@@ -754,6 +754,11 @@ void kis_net_beast_httpd::register_websocket_route(const std::string& route,
 std::string kis_net_beast_httpd::create_auth(const std::string& name, const std::string& role, time_t expiry) {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd create_auth");
 
+	return create_auth_impl(name, role, expiry);
+}
+
+std::string kis_net_beast_httpd::create_auth_impl(const std::string& name, const std::string& role, time_t expiry) {
+
     // Pull an existing token if one exists for this name
     for (const auto& a : auth_vec) {
         if (a->name() == name) {
@@ -805,7 +810,7 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name,
         }
     }
 
-    return create_auth(name, role, expiry);
+    return create_auth_impl(name, role, expiry);
 }
 
 bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
@@ -834,7 +839,7 @@ std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const 
 }
 
 void kis_net_beast_httpd::store_auth() {
-    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd stor_auth");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd store_auth");
 
     Json::Value vec(Json::arrayValue);
 
