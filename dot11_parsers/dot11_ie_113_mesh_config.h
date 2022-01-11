@@ -79,16 +79,6 @@ public:
         return capability_info() & 0x08;
     }
 
-    void reset() {
-        m_path_select_proto = 0;
-        m_path_select_metric = 0;
-        m_congestion_control = 0;
-        m_sync_method = 0;
-        m_auth_protocol = 0;
-        m_formation_info = 0;
-        m_capability_info = 0;
-    }
-
 protected:
     uint8_t m_path_select_proto;
     uint8_t m_path_select_metric;
