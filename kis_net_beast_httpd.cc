@@ -462,11 +462,16 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     if (!running)
         return;
 
+	// Spin each connection into its own thread
     if (!ec) {
         std::thread conthread([this, tcp_socket = boost::beast::tcp_stream(std::move(socket))]() mutable {
                 thread_set_process_name("beast connection");
 
                 while (tcp_socket.socket().is_open()) {
+					// Reset the timeout every loop through; each request in this 
+					// socket pipeline has up to 30 seconds to complete
+					boost::beast::get_lowest_layer(tcp_socket).expires_after(std::chrono::seconds(30));
+
                     // Associate the socket
                     auto conn = 
                         std::make_shared<kis_net_beast_httpd_connection>(tcp_socket, shared_from_this());
@@ -480,7 +485,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
 
                 try {
                     tcp_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-                } catch (std::exception& e) {
+                } catch (...) {
                     ;
                 }
             });
@@ -1122,9 +1127,6 @@ void kis_net_beast_httpd_connection::append_header(const std::string& header, co
 }
 
 bool kis_net_beast_httpd_connection::start() {
-    // Set a default timeout
-    boost::beast::get_lowest_layer(stream_).expires_after(std::chrono::seconds(30));
-
     parser_.emplace();
     parser_->body_limit(100000);
 
