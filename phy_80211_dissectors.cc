@@ -679,7 +679,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                         (char *) &(chunk->data()[chunk->length()]));
                 std::istream pack_stream(&pack_membuf);
 
-				auto action = Globalreg::new_from_pool<dot11_action>();
+                std::shared_ptr<dot11_action> action(new dot11_action());
 
                 try {
                     std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
@@ -696,7 +696,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 if (action->category_code() == dot11_action::category_code_radio_measurement &&
                         (action_rmm = action->action_frame_rmm()) != NULL) {
                     // Scan the action IE tags
-					auto rmm_tags = Globalreg::new_from_pool<dot11_ie>();
+                    std::shared_ptr<dot11_ie> rmm_tags(new dot11_ie());
 
                     try {
                         rmm_tags->parse(action_rmm->tags_data_stream());
@@ -1193,7 +1193,7 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
                 (char *) &(chunk->data()[chunk->length()]));
         std::istream istream_ietags(&tags_membuf);
 
-		packinfo->ie_tags = Globalreg::new_from_pool<dot11_ie>();
+        packinfo->ie_tags = std::make_shared<dot11_ie>();
 
         try {
             std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
@@ -1208,7 +1208,7 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
             try {
                 ie_tag->tag_data_stream()->seek(0);
 
-				auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
+                std::shared_ptr<dot11_ie_150_vendor> vendor(new dot11_ie_150_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
 
                 packinfo->ie_tags_listed->push_back(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
@@ -1219,7 +1219,7 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
             try {
                 ie_tag->tag_data_stream()->seek(0);
 
-				auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
+                std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
 
                 packinfo->ie_tags_listed->push_back(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
@@ -1261,7 +1261,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 (char *) &(chunk->data()[chunk->length()]));
         std::istream istream_ietags(&tags_membuf);
 
-		packinfo->ie_tags = Globalreg::new_from_pool<dot11_ie>();
+        packinfo->ie_tags = std::make_shared<dot11_ie>();
 
         try {
             std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
@@ -1287,7 +1287,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
         if (ie_tag->tag_num() == 150) {
             try {
-				auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
+                auto vendor = std::make_shared<dot11_ie_150_vendor>();
                 vendor->parse(ie_tag->tag_data_stream());
 
                 packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{150, vendor->vendor_oui_int(), 
@@ -1298,7 +1298,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
             }
         } else if (ie_tag->tag_num() == 221) {
             try {
-				auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
+                auto vendor = std::make_shared<dot11_ie_221_vendor>();
                 vendor->parse(ie_tag->tag_data_stream());
 
                 packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor->vendor_oui_int(), 
@@ -1583,7 +1583,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 11 QBSS
         if (ie_tag->tag_num() == 11) {
             try {
-				auto qbss = Globalreg::new_from_pool<dot11_ie_11_qbss>();
+                std::shared_ptr<dot11_ie_11_qbss> qbss(new dot11_ie_11_qbss());
                 ie_tag->tag_data_stream()->seek(0);
                 qbss->parse(ie_tag->tag_data_stream());
                 packinfo->qbss = qbss;
@@ -1599,7 +1599,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 33 advertised txpower in probe req
         if (ie_tag->tag_num() == 33) {
             try {
-				packinfo->tx_power = Globalreg::new_from_pool<dot11_ie_33_power>();
+                packinfo->tx_power = std::make_shared<dot11_ie_33_power>();
                 packinfo->tx_power->parse(ie_tag->tag_data_stream());
             } catch (const std::exception& e) {
                 // fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
@@ -1610,7 +1610,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 36, advertised supported channels in probe req
         if (ie_tag->tag_num() == 36) {
             try {
-				packinfo->supported_channels = Globalreg::new_from_pool<dot11_ie_36_supported_channels>();
+                packinfo->supported_channels = std::make_shared<dot11_ie_36_supported_channels>();
                 packinfo->supported_channels->parse(ie_tag->tag_data_stream());
             } catch (const std::exception& e) {
                 // fmt::print(stderr, "debug  corrupt ie36 supported channels: {}\n", e.what());
@@ -1629,7 +1629,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
             std::vector<std::string> mcsrates;
 
             try {
-				auto ht = Globalreg::new_from_pool<dot11_ie_45_ht_cap>();
+                std::shared_ptr<dot11_ie_45_ht_cap> ht(new dot11_ie_45_ht_cap());
                 ht->parse(ie_tag->tag_data_stream());
 
                 std::stringstream mcsstream;
@@ -1702,7 +1702,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
             bool rsn_invalid = false;
 
             try {
-				auto rsn = Globalreg::new_from_pool<dot11_ie_48_rsn>();
+                std::shared_ptr<dot11_ie_48_rsn> rsn(new dot11_ie_48_rsn());
                 rsn->parse(ie_tag->tag_data_stream());
 
                 // TODO - don't aggregate these in the future
@@ -1743,7 +1743,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
             // CVE-2017-9714
             if (rsn_invalid) {
                 try {
-					auto rsn = Globalreg::new_from_pool<dot11_ie_48_rsn_partial>();
+                    std::shared_ptr<dot11_ie_48_rsn_partial> rsn(new dot11_ie_48_rsn_partial());
                     ie_tag->tag_data_stream()->seek(0);
                     rsn->parse(ie_tag->tag_data_stream());
 
@@ -1771,7 +1771,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 54 Mobility
         if (ie_tag->tag_num() == 54) {
             try {
-				auto mobility = Globalreg::new_from_pool<dot11_ie_54_mobility>();
+                std::shared_ptr<dot11_ie_54_mobility> mobility(new dot11_ie_54_mobility());
                 mobility->parse(ie_tag->tag_data_stream());
                 packinfo->dot11r_mobility = mobility;
             } catch (const std::exception& e) {
@@ -1784,7 +1784,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 61 HT
         if (ie_tag->tag_num() == 61) {
             try {
-				auto ht = Globalreg::new_from_pool<dot11_ie_61_ht_op>();
+                std::shared_ptr<dot11_ie_61_ht_op> ht(new dot11_ie_61_ht_op());
                 ht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11ht = ht;
             } catch (const std::exception& e) {
@@ -1799,7 +1799,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 133 CISCO CCX
         if (ie_tag->tag_num() == 133) {
             try {
-				auto ccx1 = Globalreg::new_from_pool<dot11_ie_133_cisco_ccx>();
+                std::shared_ptr<dot11_ie_133_cisco_ccx> ccx1(new dot11_ie_133_cisco_ccx());
                 ccx1->parse(ie_tag->tag_data_stream());
                 packinfo->beacon_info = munge_to_printable(ccx1->ap_name());
             } catch (const std::exception& e) {
@@ -1824,25 +1824,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                         packinfo->channel, al);
 
             }
-
-			continue;
         }
-
-		// IE 113 Mesh ID field
-		if (ie_tag->tag_num() == 113) {
-			// If we have no SSID tag, use the mesh ID as the SSID checksum to differentiate
-			// between multiple mesh advertisements; otherwise use the SSID
-			if (packinfo->ssid_len == 0) {
-				packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag->tag_data().data(), 
-						ie_tag->tag_data().length());
-			}
-		}
 
         // IE 191 VHT Capabilities TODO compbine with VHT OP to derive actual usable
         // rate
         if (ie_tag->tag_num() == 191) {
             try {
-				auto vht = Globalreg::new_from_pool<dot11_ie_191_vht_cap>();
+                std::shared_ptr<dot11_ie_191_vht_cap> vht(new dot11_ie_191_vht_cap());
                 vht->parse(ie_tag->tag_data_stream());
 
                 bool gi80 = vht->vht_cap_80mhz_shortgi();
@@ -1920,12 +1908,12 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // Vendor 150 collection
         if (ie_tag->tag_num() == 150) {
             try {
-				auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
+                auto vendor = std::make_shared<dot11_ie_150_vendor>();
                 ie_tag->tag_data_stream()->seek(0);
                 vendor->parse(ie_tag->tag_data_stream());
 
                 if (vendor->vendor_oui_int() == dot11_ie_150_cisco_powerlevel::cisco_oui()) {
-					auto ccx_power = Globalreg::new_from_pool<dot11_ie_150_cisco_powerlevel>();
+                    auto ccx_power = std::make_shared<dot11_ie_150_cisco_powerlevel>();
                     ccx_power->parse(vendor->vendor_tag_stream());
 
                     packinfo->ccx_txpower = ccx_power->cisco_ccx_txpower();
@@ -1939,7 +1927,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
         // IE 192 VHT Operation
         if (ie_tag->tag_num() == 192) {
             try {
-				auto vht = Globalreg::new_from_pool<dot11_ie_192_vht_op>();
+                auto vht = std::make_shared<dot11_ie_192_vht_op>();
                 vht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11vht = vht;
 
@@ -1953,7 +1941,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
         if (ie_tag->tag_num() == 221) {
             try {
-				auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
+                auto vendor = std::make_shared<dot11_ie_221_vendor>();
                 ie_tag->tag_data_stream()->seek(0);
                 vendor->parse(ie_tag->tag_data_stream());
 
@@ -2007,7 +1995,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
                 // Look for DJI DroneID OUIs
                 if (vendor->vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
-					auto droneid = Globalreg::new_from_pool<dot11_ie_221_dji_droneid>();
+                    std::shared_ptr<dot11_ie_221_dji_droneid> droneid(new dot11_ie_221_dji_droneid());
                     vendor->vendor_tag_stream()->seek(0);
                     droneid->parse(vendor->vendor_tag_stream());
 
@@ -2017,7 +2005,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 // Look for MS/WFA WPA
                 if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
-					auto wpa = Globalreg::new_from_pool<dot11_ie_221_wfa_wpa>();
+                    std::shared_ptr<dot11_ie_221_wfa_wpa> wpa(new dot11_ie_221_wfa_wpa());
                     vendor->vendor_tag_stream()->seek(0);
                     wpa->parse(vendor->vendor_tag_stream());
 
@@ -2048,7 +2036,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 // Look for cisco client MFP
                 if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
                         vendor->vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
-					auto mfp = Globalreg::new_from_pool<dot11_ie_221_cisco_client_mfp>();
+                    auto mfp = std::make_shared<dot11_ie_221_cisco_client_mfp>();
                     vendor->vendor_tag_stream()->seek(0);
                     mfp->parse(vendor->vendor_tag_stream());
 
@@ -2058,7 +2046,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 // Look for wpa owe transitional tags
                 if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
                     if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
-						auto owe_trans = Globalreg::new_from_pool<dot11_ie_221_owe_transition>();
+                        auto owe_trans = std::make_shared<dot11_ie_221_owe_transition>();
                         vendor->vendor_tag_stream()->seek(0);
                         owe_trans->parse(vendor->vendor_tag_stream());
                         packinfo->owe_transition = owe_trans;
@@ -2068,7 +2056,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
                 // Look for WFA p2p to check the rtlwifi exploit
                 if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
-					auto wfa = Globalreg::new_from_pool<dot11_ie_221_wfa>();
+                    auto wfa = std::make_shared<dot11_ie_221_wfa>();
                     vendor->vendor_tag_stream()->seek(0);
                     wfa->parse(vendor->vendor_tag_stream());
 
@@ -2099,7 +2087,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 // Look for WPS MS
                 if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
-					auto wps = Globalreg::new_from_pool<dot11_ie_221_ms_wps>();
+                    auto wps = std::make_shared<dot11_ie_221_ms_wps>();
                     vendor->vendor_tag_stream()->seek(0);
                     wps->parse(vendor->vendor_tag_stream());
 

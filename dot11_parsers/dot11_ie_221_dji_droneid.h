@@ -104,16 +104,6 @@ public:
         return NULL;
     }
 
-    void reset() {
-        m_vendor_type = 0;
-        m_unk1 = 0;
-        m_unk2 = 0;
-        m_subcommand = 0;
-        m_raw_record_data = "";
-        m_raw_record_data_stream.reset();
-        m_record.reset();
-    }
-
 protected:
     uint8_t m_vendor_type;
     uint8_t m_unk1;
@@ -291,28 +281,6 @@ public:
             return ((float) raw_yaw() / 100.0f) / 57.296f;
         }
 
-        void reset() {
-            m_version = 0;
-            m_seq = 0;
-            m_state_info = 0;
-            m_serialnumber = "";
-            m_raw_lon = 0;
-            m_raw_lat = 0;
-            m_altitude = 0;
-            m_height = 0;
-            m_v_north = 0;
-            m_v_east = 0;
-            m_v_up = 0;
-            m_raw_pitch = 0;
-            m_raw_roll = 0;
-            m_raw_yaw = 0;
-            m_raw_home_lon = 0;
-            m_raw_home_lat = 0;
-            m_product_type = 0;
-            m_uuid_len = 0;
-            m_uuid = "";
-        }
-
     protected:
         uint8_t m_version;
         uint16_t m_seq;
@@ -360,14 +328,6 @@ public:
 
         std::string purpose() {
             return m_purpose;
-        }
-
-        void reset() {
-            m_serialnumber = "";
-            m_drone_id_len = 0;
-            m_drone_id = "";
-            m_purpose_len = 0;
-            m_purpose = "";
         }
 
     protected:

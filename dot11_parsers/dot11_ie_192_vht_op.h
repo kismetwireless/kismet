@@ -89,13 +89,6 @@ public:
         return basic_mcs_map() & 0x3000;
     }
 
-    void reset() {
-        m_channel_width = 0;
-        m_center1 = 0;
-        m_center2 = 0;
-        m_basic_mcs_map = 0;
-    }
-
 protected:
     uint8_t m_channel_width;
     uint8_t m_center1;

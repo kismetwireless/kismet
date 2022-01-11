@@ -93,13 +93,6 @@ public:
         return NULL;
     }
 
-    void reset() {
-        m_category_code = 0;
-        m_action_data = "";
-        m_action_data_stream.reset();
-        m_action_frame.reset();
-    }
-
 protected:
     uint8_t m_category_code;
     std::string m_action_data;
@@ -143,13 +136,6 @@ public:
 
         std::shared_ptr<kaitai::kstream> tags_data_stream() const {
             return m_tags_data_stream;
-        }
-
-        void reset() {
-            m_rmm_action_code = 0;
-            m_dialog_token = 0;
-            m_tags_data = "";
-            m_tags_data_stream.reset();
         }
 
     protected:

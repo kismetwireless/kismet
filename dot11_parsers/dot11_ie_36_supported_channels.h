@@ -42,10 +42,6 @@ public:
         return m_supported_channels;
     }
 
-    void reset() {
-        m_supported_channels.clear();
-    }
-
 protected:
     std::vector<unsigned int> m_supported_channels;
 };

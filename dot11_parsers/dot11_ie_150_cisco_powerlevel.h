@@ -44,10 +44,6 @@ public:
         return m_txpower;
     }
 
-    void reset() {
-        m_txpower = 0;
-    }
-
 protected:
     uint8_t m_txpower;
 };

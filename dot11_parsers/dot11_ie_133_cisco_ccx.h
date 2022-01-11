@@ -54,13 +54,6 @@ public:
         return m_ccx_unk2;
     }
 
-    void reset() { 
-        m_ccx_unk1 = "";
-        m_ap_name = "";
-        m_station_count = 0;
-        m_ccx_unk2 = "";
-    }
-
 protected:
     std::string m_ccx_unk1;
     std::string m_ap_name;

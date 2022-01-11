@@ -59,11 +59,6 @@ public:
         return m_tags_map;
     }
 
-    void reset() {
-        m_tags->clear();
-        m_tags_map->clear();
-    }
-
 protected:
     std::shared_ptr<shared_ie_tag_vector> m_tags;
     std::shared_ptr<shared_ie_tag_map> m_tags_map;
@@ -90,13 +85,6 @@ public:
 
         std::shared_ptr<kaitai::kstream> tag_data_stream() const {
             return m_tag_data_stream;
-        }
-
-        void reset() {
-            m_tag_num = 0;
-            m_tag_len = 0;
-            m_tag_data = "";
-            m_tag_data_stream.reset();
         }
 
     protected:

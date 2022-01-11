@@ -205,14 +205,6 @@ public:
         return (tx_mcs_map() & 0xC000) >> 14;
     }
 
-    void reset() { 
-        m_vht_capabilities = 0;
-        m_rx_mcs_map = 0;
-        m_rx_mcs_set = 0;
-        m_tx_mcs_set = 0;
-        m_tx_mcs_map = 0;
-    }
-
 protected: 
     uint32_t m_vht_capabilities;
     uint16_t m_rx_mcs_map;

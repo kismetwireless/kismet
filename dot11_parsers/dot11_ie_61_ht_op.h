@@ -90,14 +90,6 @@ public:
         return (info_subset_1() & 0xe0) >> 5;
     }
 
-    void reset() {
-        m_primary_channel = 0;
-        m_info_subset_1 = 0;
-        m_info_subset_2 = 0;
-        m_info_subset_3 = 0;
-        m_rx_coding_scheme = 0;
-    }
-
 protected:
     uint8_t m_primary_channel;
     uint8_t m_info_subset_1;

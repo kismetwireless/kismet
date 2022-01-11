@@ -62,13 +62,6 @@ public:
         return m_vendor_oui_type;
     }
 
-    void reset() {
-        m_vendor_oui = "";
-        m_vendor_tag = "";
-        m_vendor_tag_stream.reset();
-        m_vendor_oui_type = 0;
-    }
-
 protected:
     std::string m_vendor_oui;
     std::string m_vendor_tag;
