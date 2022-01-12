@@ -1394,7 +1394,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of 
                 // some sort and not just bridged
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-                dot11info->source_dev->set_type_string_ifnot([d11phy]() { 
+                dot11info->source_dev->set_type_string_ifnotany([d11phy]() { 
                     return d11phy->devtype_client; 
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             }
@@ -1428,7 +1428,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // If it's receiving a management packet, it must be a wifi device
             dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
             dot11info->dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-            dot11info->dest_dev->set_type_string_ifnot([d11phy]() {
+            dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
                 return d11phy->devtype_client;
             }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
 
@@ -1778,7 +1778,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     dot11info->subtype == packet_sub_data_qos_null) {
                 // Only wireless devices can send null function data
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-                dot11info->source_dev->set_type_string_ifnot([d11phy]() {
+                dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             } else if (dot11info->distrib == distrib_inter) {
@@ -1795,13 +1795,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->set_tracker_type_string(d11phy->devtype_adhoc);
             } else if (dot11info->distrib == distrib_from) {
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-                dot11info->source_dev->set_type_string_ifnot([d11phy]() {
+                dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_bridged;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             } else {
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
-                dot11info->source_dev->set_type_string_ifnot([d11phy]() {
+                dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             }
