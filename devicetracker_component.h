@@ -404,9 +404,15 @@ public:
 
     // Set the type string if the matching set is NOT found
     void set_type_string_ifnot(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if (!(get_basic_type_set() & if_set))
+        if ((get_basic_type_set() & if_set) != if_set)
             set_tracker_type_string(in_type());
     }
+
+    void set_type_string_ifany(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
+        if ((get_basic_type_set() & if_set))
+            set_tracker_type_string(in_type());
+    }
+
 
     __Proxy(crypt_string, std::string, std::string, std::string, crypt_string);
 
