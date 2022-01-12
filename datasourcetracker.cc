@@ -71,9 +71,7 @@ void datasource_tracker_source_probe::cancel() {
         // Defer deleting sources until the probe map is cleared
     }
 
-    // Unlock just before we call the CB so that we're not callbacked inside a thread lock;
-    // call back with whatever we found - if we got something, great, otherwise we callback a 
-    // nullptr
+    // Call outside the locked context
     if (probe_cb) 
         probe_cb(source_builder);
 }
@@ -85,12 +83,13 @@ shared_datasource_builder datasource_tracker_source_probe::get_proto() {
 
 void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned int in_transaction,
         std::string in_reason __attribute__((unused))) {
-    kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe complete_probe");
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them, we're going
     // to be torn down so we don't even need to find our transaction
     if (cancelled)
         return;
+
+    kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe complete_probe");
 
     auto v = ipc_probe_map.find(in_transaction);
 
@@ -111,11 +110,13 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
     // If we've succeeded, cancel any others, cancel will take care of our
     // callback for completion
     if (in_success) {
+        lk.unlock();
         cancel();
         return;
     } else {
         // If we've exhausted everything in the map, we're also done
         if (ipc_probe_map.size() == 0) {
+            lk.unlock();
             cancel();
             return;
         }
