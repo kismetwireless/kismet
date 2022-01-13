@@ -56,12 +56,16 @@
             // Compute trimmed date
             var ds = (new Date(state['message_list'][x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
 
-            var pse = $('<p>').html(ds);
-            var ce = $('<span>').text(kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string']));
+            /*
+            var pse = $('<p>').text(ds);
+            var ce = $('<span>').html(kismet.sanitizeHTML(kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string'])));
 
             d.empty();
             d.append(pse);
             d.append(ce);
+            */
+
+            d.html(`<p>${ds}</p> ${kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string'])}`);
 
             // Remove all flagged clases
             d.removeClass("messagebus_debug");
@@ -92,7 +96,7 @@
             .done(function(data) {
                 data['kismet.messagebus.list'].reverse();
 
-                merge_messages(state, data['kismet.messagebus.list']);
+                merge_messages(state, kismet.sanitizeObject(data['kismet.messagebus.list']));
             })
     }
 
