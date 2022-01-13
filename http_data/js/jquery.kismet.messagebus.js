@@ -56,9 +56,12 @@
             // Compute trimmed date
             var ds = (new Date(state['message_list'][x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
 
-            // Set the HTML
-            d.html('<p>' + ds + '</p>' +
-                kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string']));
+            var pse = $('<p>').html(ds);
+            var ce = $('<span>').text(kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string']));
+
+            d.empty();
+            d.append(pse);
+            d.append(ce);
 
             // Remove all flagged clases
             d.removeClass("messagebus_debug");
