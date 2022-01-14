@@ -249,14 +249,19 @@ kismet_ui.AddDeviceRowHighlight({
         'dot11.device/dot11.device.wpa_present_handshake'
     ],
     selector: function(data) {
-        var pnums = data['dot11.device.wpa_present_handshake'];
+        try {
+            var pnums = data['dot11.device.wpa_present_handshake'];
 
-        // We need packets 1&2 or 2&3 to be able to crack the handshake
-        if ((pnums & 0x06) == 0x06 || (pnums & 0x0C) == 0x0C) {
-            return true;
+            // We need packets 1&2 or 2&3 to be able to crack the handshake
+            if ((pnums & 0x06) == 0x06 || (pnums & 0x0C) == 0x0C) {
+                return true;
+            }
+
+            return false;
+
+        } catch (e) {
+            return false;
         }
-
-        return false;
     }
 });
 
@@ -271,7 +276,11 @@ kismet_ui.AddDeviceRowHighlight({
         'dot11.device/dot11.device.pmkid_packet'
     ],
     selector: function(data) {
-        return data['dot11.device.pmkid_packet'] != 0;
+        try {
+            return 'dot11.device.pmkid_packet' in data && data['dot11.device.pmkid_packet'] != 0;
+        } catch (e) {
+            return false;
+        }
     }
 });
 
