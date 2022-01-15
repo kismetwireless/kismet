@@ -143,7 +143,7 @@ exports.OpenEventbusWs = function() {
 exports.SubscribeEventbus("TIMESTAMP", [], function(data) {
     data = kismet.sanitizeObject(data);
     kismet.timestamp_sec = data['kismet.system.timestamp.sec'];
-    kismet.timestamp_usec = data['ksimet.system.timestamp.usec'];
+    kismet.timestamp_usec = data['kismet.system.timestamp.usec'];
 });
 
 // exports.SubscribeEventbus("MESSAGE", [], function(e) { console.log(e); });
