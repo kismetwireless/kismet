@@ -105,6 +105,7 @@ int config_file::parse_config(const char *in_fname,
         // It's easier to parse this using C++ functions
         std::string parsestr = str_strip(confline);
         std::string directive, value;
+        bool append = false;
 
         if (parsestr.length() == 0)
             continue;
@@ -113,12 +114,18 @@ int config_file::parse_config(const char *in_fname,
 
         unsigned int eq;
 
-        if ((eq = parsestr.find("=")) > parsestr.length()) {
+        if ((eq = parsestr.find("=")) > parsestr.length() || eq == 0) {
             directive = parsestr;
             value = "";
         } else {
-            directive = str_strip(parsestr.substr(0, eq));
-            value = str_strip(parsestr.substr(eq+1, parsestr.length()));
+            if (parsestr[eq - 1] == '+') {
+                append = true;
+                directive = str_strip(parsestr.substr(0, eq - 1));
+                value = str_strip(parsestr.substr(eq + 1, parsestr.length()));
+            } else {
+                directive = str_strip(parsestr.substr(0, eq));
+                value = str_strip(parsestr.substr(eq+1, parsestr.length()));
+            }
 
             if (value == "") {
                 sstream << "Illegal config option in '" << in_fname << "' line " <<
@@ -147,7 +154,7 @@ int config_file::parse_config(const char *in_fname,
                 // Store the override for parsing at the end
                 config_override_file_list.push_back(expand_log_path(value, "", "", 0, 1));
             } else {
-                config_entity e(value, in_fname);
+                config_entity e(value, in_fname, append);
                 target_map[str_lower(directive)].push_back(e);
                 target_map_dirty[str_lower(directive)] = 1;
             }
@@ -216,9 +223,25 @@ int config_file::parse_opt_override(const std::string path) {
     if (r <= 0)
         return r;
 
-    // Clobber any existing values
-    for (auto v : override_config_map) 
-        config_map[v.first] = v.second;
+    // Clobber or append existing values
+    for (auto v : override_config_map) {
+        bool appendonly = true;
+
+        for (const auto& uv : v.second) {
+            if (!uv.append)
+                appendonly = false;
+        }
+
+        // If we only use append +=, concat to an existing value, otherwise
+        // override per usual since we have a '=' and a '+='
+        if (appendonly) {
+            for (const auto& uv : v.second) {
+                config_map[v.first].push_back(uv);
+            }
+        } else {
+            config_map[v.first] = v.second;
+        }
+    }
 
     for (auto d : override_config_map_dirty)
         config_map_dirty[d.first] = d.second;

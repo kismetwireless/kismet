@@ -135,10 +135,18 @@ protected:
         config_entity(std::string v, std::string sf) {
             value = v;
             sourcefile = sf;
+            append = false;
+        }
+
+        config_entity(std::string v, std::string sf, bool ap) {
+            value = v;
+            sourcefile = sf;
+            append = false;
         }
 
         std::string value;
         std::string sourcefile;
+        bool append;
     };
 
 	void calculate_file_checksum();
