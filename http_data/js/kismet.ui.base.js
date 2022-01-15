@@ -262,8 +262,11 @@ kismet_ui.AddDeviceColumn('column_name', {
     description: 'Device name',
     width: "150px",
     renderfunc: function(d, t, r, m) {
+        return kismet.censorMAC(d);
+        /*
         var dname = kismet.censorMAC(d);
         return (dname.length > 24) ? dname.substr(0, 23) + '&hellip;' : dname;
+        */
     }
 });
 
