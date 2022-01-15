@@ -154,10 +154,18 @@ void log_tracker::trigger_deferred_startup() {
 
     std::vector<std::string> types;
    
-    if (argtypes.length() == 0)
-        types = str_tokenize(Globalreg::globalreg->kismet_config->fetch_opt("log_types"), ",");
-    else
+    if (argtypes.length() == 0) {
+        auto tv = Globalreg::globalreg->kismet_config->fetch_opt_vec("log_types");
+
+        for (const auto& t : tv) {
+            auto subtypes = str_tokenize(t, ",");
+
+            for (const auto& st : subtypes)
+                types.push_back(st);
+        }
+    } else {
         types = str_tokenize(argtypes, ",");
+    }
         
 
     for (auto t : types) {
