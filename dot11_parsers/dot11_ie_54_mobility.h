@@ -53,6 +53,11 @@ public:
         return mobility_policy() & 0x02;
     }
 
+    void reset() { 
+        m_mobility_domain = 0;
+        m_mobility_policy = 0;
+    }
+
 protected:
     uint16_t m_mobility_domain;
     uint8_t m_mobility_policy;

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -16,13 +16,14 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "globalregistry.h"
 #include "dot11_ie_221_ms_wps.h"
 
 void dot11_ie_221_ms_wps::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_vendor_subtype = p_io->read_u1();
-    m_wps_elements.reset(new shared_wps_de_sub_element_vector());
+    m_wps_elements = Globalreg::new_from_pool<shared_wps_de_sub_element_vector>();
     while (!p_io->is_eof()) {
-        std::shared_ptr<wps_de_sub_element> e(new wps_de_sub_element());
+        auto e = Globalreg::new_from_pool<wps_de_sub_element>();
         e->parse(p_io);
         m_wps_elements->push_back(e);
     }
@@ -35,51 +36,51 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::parse(std::shared_ptr<kaitai::kstr
     m_wps_de_content_data_stream.reset(new kaitai::kstream(m_wps_de_content));
 
     if (wps_de_type() == wps_de_device_name) {
-        std::shared_ptr<wps_de_sub_string> s(new wps_de_sub_string());
+        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_manuf) {
-        std::shared_ptr<wps_de_sub_string> s(new wps_de_sub_string());
+        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_model) {
-        std::shared_ptr<wps_de_sub_string> s(new wps_de_sub_string());
+        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_model_num) {
-        std::shared_ptr<wps_de_sub_string> s(new wps_de_sub_string());
+        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_rfbands) {
-        std::shared_ptr<wps_de_sub_rfband> s(new wps_de_sub_rfband());
+        auto s = Globalreg::new_from_pool<wps_de_sub_rfband>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_serial) {
-        std::shared_ptr<wps_de_sub_string> s(new wps_de_sub_string());
+        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_version) {
-        std::shared_ptr<wps_de_sub_version> s(new wps_de_sub_version());
+        auto s = Globalreg::new_from_pool<wps_de_sub_version>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_state) {
-        std::shared_ptr<wps_de_sub_state> s(new wps_de_sub_state());
+        auto s = Globalreg::new_from_pool<wps_de_sub_state>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_ap_setup) {
-        std::shared_ptr<wps_de_sub_ap_setup> s(new wps_de_sub_ap_setup());
+        auto s = Globalreg::new_from_pool<wps_de_sub_ap_setup>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_config_methods) {
-        std::shared_ptr<wps_de_sub_config_methods> s(new wps_de_sub_config_methods());
+        auto s = Globalreg::new_from_pool<wps_de_sub_config_methods>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_uuid_e) {
-        std::shared_ptr<wps_de_sub_uuid_e> s(new wps_de_sub_uuid_e());
+        auto s = Globalreg::new_from_pool<wps_de_sub_uuid_e>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else {
-        std::shared_ptr<wps_de_sub_generic> s(new wps_de_sub_generic());
+        auto s = Globalreg::new_from_pool<wps_de_sub_generic>();
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     }

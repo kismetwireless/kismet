@@ -57,7 +57,34 @@
 
 #include "pcapng_stream_futurebuf.h"
 
+#include "dot11_parsers/dot11_wpa_eap.h"
+#include "dot11_parsers/dot11_action.h"
+#include "dot11_parsers/dot11_ie.h"
+#include "dot11_parsers/dot11_ie_7_country.h"
+#include "dot11_parsers/dot11_ie_11_qbss.h"
+#include "dot11_parsers/dot11_ie_33_power.h"
+#include "dot11_parsers/dot11_ie_36_supported_channels.h"
+#include "dot11_parsers/dot11_ie_45_ht_cap.h"
+#include "dot11_parsers/dot11_ie_48_rsn.h"
+#include "dot11_parsers/dot11_ie_52_rmm_neighbor.h"
+#include "dot11_parsers/dot11_ie_54_mobility.h"
+#include "dot11_parsers/dot11_ie_61_ht_op.h"
 #include "dot11_parsers/dot11_ie_113_mesh_config.h"
+#include "dot11_parsers/dot11_ie_133_cisco_ccx.h"
+#include "dot11_parsers/dot11_ie_150_vendor.h"
+#include "dot11_parsers/dot11_ie_150_cisco_powerlevel.h"
+#include "dot11_parsers/dot11_ie_191_vht_cap.h"
+#include "dot11_parsers/dot11_ie_192_vht_op.h"
+#include "dot11_parsers/dot11_ie_221_vendor.h"
+#include "dot11_parsers/dot11_ie_221_dji_droneid.h"
+#include "dot11_parsers/dot11_ie_221_ms_wmm.h"
+#include "dot11_parsers/dot11_ie_221_ms_wps.h"
+#include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
+#include "dot11_parsers/dot11_ie_221_cisco_client_mfp.h"
+#include "dot11_parsers/dot11_ie_221_wpa_transition.h"
+#include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
+#include "dot11_parsers/dot11_ie_221_wfa.h"
+#include "dot11_parsers/dot11_p2p_ie.h"
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
@@ -94,6 +121,70 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
     Globalreg::enable_pool_type<std::vector<ie_tag_tuple>>([](auto *t) { t->clear(); });
+
+    // This is clunky but valuable
+    Globalreg::enable_pool_type<dot11_action>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_action::action_rmm>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie::dot11_ie_tag>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
+    Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_map>([](auto *a) { a->clear(); });
+
+    Globalreg::enable_pool_type<dot11_ie_150_vendor>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_vendor>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_11_qbss>([](auto *a) { a->reset();  });
+    Globalreg::enable_pool_type<dot11_ie_33_power>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_36_supported_channels>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_45_ht_cap>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_45_ht_cap::dot11_ie_45_rx_mcs>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_48_rsn>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_management>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_48_rsn::shared_rsn_cipher_vector>([](auto *a) { a->clear(); });
+    Globalreg::enable_pool_type<dot11_ie_48_rsn_partial>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_54_mobility>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_61_ht_op>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_113_mesh_config>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_133_cisco_ccx>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_191_vht_cap>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_150_cisco_powerlevel>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_192_vht_op>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_221_dji_droneid>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_dji_droneid::dji_subcommand_flight_purpose>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_dji_droneid::dji_subcommand_flight_reg>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_221_wfa>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_221_wfa_wpa>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_wfa_wpa::shared_wpa_v1_cipher_vector>([](auto *a) { a->clear(); });
+    Globalreg::enable_pool_type<dot11_ie_221_wfa_wpa::wpa_v1_cipher>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_221_cisco_client_mfp>([](auto *) { });
+
+    Globalreg::enable_pool_type<dot11_ie_221_owe_transition>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::shared_wps_de_sub_element_vector>([](auto *a) { a->clear(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_string>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_rfband>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_state>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_uuid_e>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_primary_type>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_vendor_extension>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_version>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_ap_setup>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_config_methods>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_generic>([](auto *a) { a->reset(); });
+
+    Globalreg::enable_pool_type<dot11_wfa_p2p_ie>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_wfa_p2p_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
+    Globalreg::enable_pool_type<dot11_wfa_p2p_ie::dot11_wfa_p2p_ie_tag>([](auto *a) { a->reset(); });
 
     // Initialize the crc tables
     crc32_init_table_80211(Globalreg::globalreg->crc32_table);
@@ -2566,7 +2657,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         if (dot11info->ie_tags != nullptr) {
             auto meshid = dot11info->ie_tags->tags_map()->find(114);
-
             if (meshid != dot11info->ie_tags->tags_map()->end()) {
                 ssid->set_meshid(munge_to_printable(meshid->second->tag_data()));
             }
@@ -2690,7 +2780,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         if (ssid->get_ssid() != "") {
             basedev->set_devicename(ssid->get_ssid());
-            
         } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
             basedev->set_devicename(ssid->get_meshid());
         } else {
@@ -2875,7 +2964,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             auto meshcap = dot11info->ie_tags->tags_map()->find(113);
             if (meshcap != dot11info->ie_tags->tags_map()->end()) {
                 try {
-                    auto mc = std::make_shared<dot11_ie_113_mesh_config>();
+                    auto mc = Globalreg::new_from_pool<dot11_ie_113_mesh_config>();
                     mc->parse(meshcap->second->tag_data_stream());
 
                     ssid->set_mesh_forwarding(mc->mesh_forwarding());
@@ -2886,7 +2975,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                 }
             }
         }
-
     } else if (dot11info->subtype == packet_sub_probe_resp) {
         if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
                 dot11info->source_mac) {

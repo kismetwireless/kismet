@@ -120,6 +120,15 @@ public:
         return ht_capabilities() & 0x8000;
     }
 
+    void reset() {
+        m_ht_capabilities = 0;
+        m_ampdu = 0;
+        m_mcs.reset();
+        m_ht_extended_caps= 0;
+        m_txbf_caps = 0;
+        m_asel_caps = 0;
+    }
+
 protected:
     uint16_t m_ht_capabilities;
     uint8_t m_ampdu;
@@ -153,6 +162,11 @@ public:
             return m_txflags;
         }
 
+        void reset() {
+            m_rx_mcs = "";
+            m_supported_data_rate = 0;
+            m_txflags = 0;
+        }
 
     protected:
         std::string m_rx_mcs;

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "globalregistry.h"
 #include "dot11_ie_221_wfa_wpa.h"
 
 void dot11_ie_221_wfa_wpa::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -24,16 +25,16 @@ void dot11_ie_221_wfa_wpa::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_multicast_cipher.reset(new wpa_v1_cipher());
     m_multicast_cipher->parse(p_io);
     m_unicast_count = p_io->read_u2le();
-    m_unicast_ciphers.reset(new shared_wpa_v1_cipher_vector());
+    m_unicast_ciphers = Globalreg::new_from_pool<shared_wpa_v1_cipher_vector>();
     for (uint16_t i = 0; i < unicast_count(); i++) {
-        std::shared_ptr<wpa_v1_cipher> c(new wpa_v1_cipher());
+        auto c = Globalreg::new_from_pool<wpa_v1_cipher>();
         c->parse(p_io);
         m_unicast_ciphers->push_back(c);
     }
     m_akm_count = p_io->read_u2le();
-    m_akm_ciphers.reset(new shared_wpa_v1_cipher_vector());
+    m_akm_ciphers = Globalreg::new_from_pool<shared_wpa_v1_cipher_vector>();
     for (uint16_t i = 0; i < akm_count(); i++) {
-        std::shared_ptr<wpa_v1_cipher> c(new wpa_v1_cipher());
+        auto c = Globalreg::new_from_pool<wpa_v1_cipher>();
         c->parse(p_io);
         m_akm_ciphers->push_back(c);
     }

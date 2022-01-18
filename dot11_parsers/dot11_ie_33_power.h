@@ -49,6 +49,10 @@ public:
         return m_max_power;
     }
 
+    void reset() {
+        m_min_power = 0;
+        m_max_power = 0;
+    }
 
 protected:
     uint8_t m_min_power;

@@ -550,9 +550,9 @@ public:
     void set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags);
 
     __ProxyFullyDynamic(meshid, std::string, std::string, std::string, tracker_element_string, meshid_id);
-    __ProxyFullyDynamic(mesh_gateway, uint8_t, bool, bool, tracker_element_uint8, mesh_gateway_id);
-    __ProxyFullyDynamic(mesh_peerings, uint8_t, uint8_t, uint8_t, tracker_element_uint8, mesh_peerings_id);
-    __ProxyFullyDynamic(mesh_forwarding, uint8_t, bool, bool, tracker_element_uint8, mesh_forwarding_id);
+	__ProxyFullyDynamic(mesh_gateway, uint8_t, bool, bool, tracker_element_uint8, mesh_gateway_id);
+	__ProxyFullyDynamic(mesh_peerings, uint8_t, uint8_t, uint8_t, tracker_element_uint8, mesh_peerings_id);
+	__ProxyFullyDynamic(mesh_forwarding, uint8_t, bool, bool, tracker_element_uint8, mesh_forwarding_id);
 
 protected:
     virtual void register_fields() override;
@@ -649,11 +649,11 @@ protected:
     uint16_t ie_tag_content_id;
     uint16_t ie_tag_content_element_id;
 
-    // Mesh 
+    // Mesh ID
     uint16_t meshid_id;
-    uint16_t mesh_gateway_id;
-    uint16_t mesh_peerings_id;
-    uint16_t mesh_forwarding_id;
+	uint16_t mesh_gateway_id;
+	uint16_t mesh_peerings_id;
+	uint16_t mesh_forwarding_id;
 };
 
 /* dot11 client

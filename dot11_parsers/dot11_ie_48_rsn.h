@@ -99,6 +99,16 @@ public:
         return (rsn_capabilities() & 0x80);
     }
 
+    void reset() {
+        m_rsn_version = 0;
+        m_group_cipher.reset();
+        m_pairwise_count = 0;
+        m_pairwise_ciphers.reset();
+        m_akm_count = 0;
+        m_akm_ciphers.reset();
+        m_rsn_capabilities = 0;
+    }
+
 protected:
     uint16_t m_rsn_version;
     std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> m_group_cipher;
@@ -137,6 +147,10 @@ public:
             return (rsn_cipher_type) m_cipher_type;
         }
 
+        void reset() {
+            m_cipher_suite_oui = "";
+            m_cipher_type = 0;
+        }
 
     protected:
         std::string m_cipher_suite_oui;
@@ -170,6 +184,11 @@ public:
             return (rsn_management) m_management_type;
         }
 
+        void reset() {
+            m_management_suite_oui = "";
+            m_management_type = 0;
+        }
+
     protected:
         std::string m_management_suite_oui;
         uint8_t m_management_type;
@@ -194,6 +213,12 @@ public:
 
     constexpr17 uint16_t pairwise_count() const {
         return m_pairwise_count;
+    }
+
+    void reset() {
+        m_rsn_version = 0;
+        m_group_cipher = "";
+        m_pairwise_count = 0;
     }
 
 protected:

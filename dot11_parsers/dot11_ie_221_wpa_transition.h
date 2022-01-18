@@ -53,6 +53,12 @@ public:
         return m_ssid;
     }
 
+    void reset() {
+        m_vendor_type = 0;
+        m_bssid = mac_addr();
+        m_ssid = "";
+    }
+
 protected:
     uint8_t m_vendor_type;
     mac_addr m_bssid;

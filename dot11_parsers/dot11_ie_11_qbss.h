@@ -51,6 +51,12 @@ public:
         return m_available_admissions;
     }
 
+    void reset() {
+        m_station_count = 0;
+        m_channel_utilization = 0;
+        m_available_admissions = 0;
+    }
+
 protected:
     uint16_t m_station_count;
     uint8_t m_channel_utilization;
