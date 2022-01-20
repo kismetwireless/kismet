@@ -139,7 +139,7 @@ public:
     }
 
     size_t get(char **data) {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
 
         if (total_sz_ == 0 || chunk_list_.size() == 0) {
             *data = nullptr;
@@ -152,7 +152,7 @@ public:
     }
 
     void consume(size_t sz) {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
 
         if (chunk_list_.size() == 0)
             return;
@@ -324,10 +324,9 @@ public:
     }
 
     int sync() override {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
         try {
-            if (waiting_)
-                wait_promise_.set_value();
+            wait_promise_.set_value();
         } catch (const std::future_error& e) {
             ;
         }
@@ -342,12 +341,12 @@ public:
     }
 
     size_t size() {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
         return total_sz_;
     }
 
     void reset() {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
 
         if (waiting_)
             throw std::runtime_error("reset futurechainbuf while waiting");
@@ -364,12 +363,16 @@ public:
     }
 
     void cancel() {
+        mutex_.lock();
         cancel_ = true;
+        mutex_.unlock();
         sync();
     }
 
     void complete() {
+        mutex_.lock();
         complete_ = true;
+        mutex_.unlock();
         sync();
     }
 
@@ -378,6 +381,7 @@ public:
     }
 
     size_t wait() {
+        std::unique_lock<std::recursive_mutex> lk(mutex_);
         if (waiting_)
             throw std::runtime_error("future_stream already blocking");
 
@@ -385,11 +389,10 @@ public:
             return total_sz_;
         }
 
-        mutex_.lock();
         waiting_ = true;
         wait_promise_ = std::promise<void>();
         auto ft = wait_promise_.get_future();
-        mutex_.unlock();
+        lk.unlock();
 
         ft.wait();
 
@@ -397,17 +400,18 @@ public:
     }
 
     size_t wait_write() {
+        std::unique_lock<std::recursive_mutex> lk(mutex_);
+
         if (write_waiting_)
             throw std::runtime_error("future_stream already blocking for write");
 
         if (!running())
             return total_sz_;
 
-        mutex_.lock();
         write_waiting_ = true;
         write_wait_promise_ = std::promise<void>();
         auto ft = write_wait_promise_.get_future();
-        mutex_.unlock();
+        lk.unlock();
 
         ft.wait();
 
@@ -415,7 +419,7 @@ public:
     }
 
 protected:
-    std::mutex mutex_;
+    std::recursive_mutex mutex_;
 
     std::list<data_chunk *> chunk_list_;
 
