@@ -470,7 +470,8 @@ void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_devic
 
 std::shared_ptr<tracker_element> 
 device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    auto ret = std::make_shared<tracker_element_vector>();
+    auto ret = Globalreg::new_from_pool<tracker_element_vector>();
+    std::ostream os(&con->response_stream());
 
     auto tv_k = con->uri_params().find(":timestamp");
     auto tv = string_to_n_dfl<int64_t>(tv_k->second, 0);
@@ -482,6 +483,9 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
         ts = tv;
     }
 
+    // Regular expression terms, if any
+    auto regex = con->json()["regex"];
+
     auto worker = 
         device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < ts)
@@ -490,7 +494,23 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
                 return true;
                 });
 
-    return do_device_work(worker);
+    auto next_work_vec = do_device_work(worker);
+
+    // Apply a regex filter
+    if (!regex.isNull()) {
+        try {
+            auto worker = 
+                device_tracker_view_regex_worker(regex);
+            auto r_vec = do_readonly_device_work(worker, next_work_vec);
+            next_work_vec = r_vec;
+        } catch (const std::exception& e) {
+            con->set_status(400);
+            os << "Invalid regex: " << e.what() << "\n";
+            return nullptr;
+        }
+    }
+
+    return next_work_vec;
 }
 
 void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -655,6 +675,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     } catch (const std::exception& e) {
         con->set_status(400);
         os << "Invalid request: " << e.what() << "\n";
+        return;
     }
 
     // Next vector we do work on
@@ -669,10 +690,10 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     if (timestamp_min > 0) {
         auto worker = 
             device_tracker_view_function_worker([timestamp_min] (std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                    if (dev->get_last_time() < timestamp_min)
-                        return false;
-                    return true;
-                    });
+                if (dev->get_last_time() < timestamp_min)
+                    return false;
+                return true;
+            });
 
         // Do the work and copy the vector
         auto ts_vec = do_readonly_device_work(worker, next_work_vec);
@@ -698,6 +719,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         } catch (const std::exception& e) {
             con->set_status(400);
             os << "Invalid regex: " << e.what() << "\n";
+            return;
         }
     }
 
