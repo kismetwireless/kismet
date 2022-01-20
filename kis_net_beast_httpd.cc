@@ -1465,7 +1465,7 @@ bool kis_net_beast_httpd_connection::start() {
         } catch (const std::exception& e) {
             try {
                 set_status(500);
-            } catch (const std::exception& e) {
+            } catch (...) {
                 ;
             }
 
@@ -1841,7 +1841,7 @@ void kis_net_web_websocket_endpoint::close_impl() {
 
     try {
         ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-    } catch (const std::exception& e) {
+    } catch (...) {
         ;
     } 
 
@@ -1935,6 +1935,8 @@ void kis_net_web_websocket_endpoint::handle_write() {
 
 void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     // _MSG_DEBUG("websocket {} - {}", fmt::ptr(this), con->uri());
+    auto name = fmt::format("websocket - {}", con->uri());
+    thread_set_process_name(name);
 
     // Set the default timeouts
     ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
