@@ -311,9 +311,10 @@ void packet_chain::start_processing() {
 
     for (int n = 0; n < nt; n++) {
         packet_threads.emplace_back(std::thread([this, nt, n]() {
-                thread_set_process_name(fmt::format("packethandler {}/{}", n, nt));
-                packet_queue_processor();
-                }));
+            auto name = fmt::format("PACKET {}/{}", n, nt);
+            thread_set_process_name(name);
+            packet_queue_processor();
+        }));
     }
 
 }
