@@ -19,13 +19,13 @@
 #include "config.h"
 
 #include <string.h>
+#include <getopt.h>
 
 #include "alertracker.h"
 #include "base64.h"
 #include "configfile.h"
 #include "datasourcetracker.h"
 #include "endian_magic.h"
-#include "getopt.h"
 #include "globalregistry.h"
 #include "kis_databaselogfile.h"
 #include "kis_httpd_registry.h"

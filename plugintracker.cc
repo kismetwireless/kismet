@@ -28,9 +28,9 @@
 #include <unistd.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #include "configfile.h"
-#include "getopt.h"
 #include "globalregistry.h"
 #include "messagebus.h"
 #include "plugintracker.h"

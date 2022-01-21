@@ -18,7 +18,7 @@
 
 #include "config.h"
 
-#include "getopt.h"
+#include <getopt.h>
 
 #include "logtracker.h"
 #include "globalregistry.h"

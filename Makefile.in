@@ -209,7 +209,7 @@ TOOL_BINS = \
 
 PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
 	globalregistry.cc.o eventbus.cc.o \
-	packet.cc.o configfile.cc.o getopt.cc.o \
+	packet.cc.o configfile.cc.o \
 	battery.cc.o \
 	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \

@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "getopt.h"
+#include <getopt.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <pwd.h>
