@@ -592,7 +592,6 @@ usedl=0
 AC_CHECK_LIB([dl], [dlopen],
 			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
-
 if test "$usedl" = 1; then
 	LIBS="$LIBS -ldl"
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
@@ -603,6 +602,12 @@ AC_CHECK_LIB([z], [deflate],
              usez=1,
              AC_MSG_ERROR([libz is required and could not be found]))
 LIBS="$LIBS -lz"
+
+# Do we need -latomic
+AC_SEARCH_LIBS([__atomic_load_8], [atomic], useda=1)
+if test "$useda" = 1; then
+    LIBS="$LIBS -latomic"
+fi
 
 # We need threads
 PTHREAD_CFLAGS="-pthread"

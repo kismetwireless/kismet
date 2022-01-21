@@ -4,9 +4,9 @@ INSTUSR 	?= "root"
 
 BLDHOME		= @srcdir@
 
-CXX			= @CXX@
-CC			= @CC@
-LD			= @CXX@
+CXX		= @CXX@
+CC		= @CC@
+LD		= @CXX@
 CCLD		= @CC@
 
 # Set a number of warnings to silent; some of our dependent libraries (asio) and generated code (protobuf)
