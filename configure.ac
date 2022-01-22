@@ -592,7 +592,6 @@ usedl=0
 AC_CHECK_LIB([dl], [dlopen],
 			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
-
 if test "$usedl" = 1; then
 	LIBS="$LIBS -ldl"
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
@@ -603,6 +602,22 @@ AC_CHECK_LIB([z], [deflate],
              usez=1,
              AC_MSG_ERROR([libz is required and could not be found]))
 LIBS="$LIBS -lz"
+
+# Do we need -latomic
+AC_MSG_CHECKING([for libatomic])
+OLIBS="$LIBS"
+LIBS="$LIBS -latomic"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                ]],
+                [[
+                 return 0;
+                ]] )], [have_atomic=yes], [have_atomic=no])
+if test "$have_atomic" = "yes"; then
+    AC_MSG_RESULT([yes])
+else
+    AC_MSG_RESULT([no])
+    LIBS="$OLIBS"
+fi
 
 # We need threads
 PTHREAD_CFLAGS="-pthread"

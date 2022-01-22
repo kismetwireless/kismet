@@ -8572,7 +8572,6 @@ else
 $as_echo "$as_me: WARNING: libdl doesn't seem to be needed on this system" >&2;}
 fi
 
-
 if test "$usedl" = 1; then
 	LIBS="$LIBS -ldl"
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
@@ -8622,6 +8621,41 @@ else
 fi
 
 LIBS="$LIBS -lz"
+
+# Do we need -latomic
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libatomic" >&5
+$as_echo_n "checking for libatomic... " >&6; }
+OLIBS="$LIBS"
+LIBS="$LIBS -latomic"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+
+                 return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  have_atomic=yes
+else
+  have_atomic=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+if test "$have_atomic" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    LIBS="$OLIBS"
+fi
 
 # We need threads
 PTHREAD_CFLAGS="-pthread"
