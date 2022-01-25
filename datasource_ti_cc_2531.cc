@@ -52,7 +52,7 @@ void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + cc_payload_len;
-        uint8_t conv_buf[conv_buf_len];
+        char conv_buf[conv_buf_len];
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
         memset(conv_header, 0, conv_buf_len);

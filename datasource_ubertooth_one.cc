@@ -78,7 +78,7 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
 
 
     auto conv_buf_len = sizeof(btle_rf) + payload_len;
-    uint8_t conv_buf[conv_buf_len];
+    char conv_buf[conv_buf_len];
 
     btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
 

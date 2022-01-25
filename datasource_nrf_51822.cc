@@ -92,7 +92,7 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(btle_rf) + pkt_ctr; // cc_payload_len;
-        uint8_t conv_buf[conv_buf_len];
+        char conv_buf[conv_buf_len];
 
         btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
 
