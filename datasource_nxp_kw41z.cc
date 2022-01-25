@@ -67,10 +67,9 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + nxp_payload_len;
-        std::string conv_buf;
-        conv_buf.resize(conv_buf_len, 0);
+        uint8_t conv_buf[conv_buf_len];
 
-        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
+        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
         memset(conv_header, 0, conv_buf_len);
 
         // Copy the actual packet payload into the header
@@ -110,10 +109,10 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        packet->set_data(conv_buf);
+        packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
 

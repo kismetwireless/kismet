@@ -92,10 +92,9 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(btle_rf) + pkt_ctr; // cc_payload_len;
-        std::string conv_buf;
-        conv_buf.resize(conv_buf_len, 0);
+        uint8_t conv_buf[conv_buf_len];
 
-        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
+        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &pkt[0], pkt_ctr);
@@ -140,10 +139,10 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
 
         datachunk->dlt = KDLT_BTLE_RADIO;
 
-        packet->set_data(conv_buf);
+        packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
 
