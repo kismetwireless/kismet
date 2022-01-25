@@ -206,7 +206,7 @@ packet_chain::packet_chain() {
                 // We have to wait until everything is done being changed in the packet
                 // before we can copy the duplicate decoded state over, grab the lock that
                 // is released at the end of the chain
-                auto lg = kis_lock_guard<kis_mutex>(dedupe_list[i].original_pkt->mutex);
+                kis_lock_guard<kis_mutex> lg(dedupe_list[i].original_pkt->mutex);
                 for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
                     auto cp = dedupe_list[i].original_pkt->content_vec[c];
                     if (cp != nullptr) {
