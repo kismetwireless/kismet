@@ -42,10 +42,9 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
 
 	    // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
-        std::string conv_buf;
-        conv_buf.resize(conv_buf_len, 0);
+        char conv_buf[conv_buf_len];
 
-        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
+        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &rxdata.data()[9], rz_payload_len);
@@ -82,11 +81,11 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
             packet->ts.tv_usec = report.time_usec();
         }
 
-        packet->set_data(conv_buf);
+        packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
 

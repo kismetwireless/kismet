@@ -148,9 +148,8 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(btle_rf) + nxp_payload_len;
-        std::string conv_buf;
-        conv_buf.resize(conv_buf_len, 0);
-        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
+        char conv_buf[conv_buf_len];
+        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &rxdata.data()[12], nxp_payload_len);
@@ -192,10 +191,10 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         datachunk->dlt = KDLT_BTLE_RADIO;
 
-        packet->set_data(conv_buf);
+        packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
 
