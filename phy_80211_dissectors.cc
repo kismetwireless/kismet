@@ -2327,9 +2327,7 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_p
 
 
     // Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
-    std::string manglebuf;
-    manglebuf.resize(in_chunk->length() - 8);
-
+    char manglebuf[in_chunk->length() - 8];
 
     // Decrypt the data payload and check the CRC
     kba = kbb = 0;
@@ -2385,12 +2383,12 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_p
     }
 
     // Remove the privacy flag in the mangled data
-    auto fc = reinterpret_cast<frame_control *>(manglebuf.data());
+    auto fc = reinterpret_cast<frame_control *>(manglebuf);
     fc->wep = 0;
 
     manglechunk = std::make_shared<kis_datachunk>();
     manglechunk->dlt = KDLT_IEEE802_11;
-    manglechunk->copy_raw_data(manglebuf);
+    manglechunk->copy_raw_data(manglebuf, in_chunk->length() - 8);
 
 
     return manglechunk;
