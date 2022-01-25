@@ -101,9 +101,8 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + nrf_payload_len;
-        std::string conv_buf;
-        conv_buf.resize(conv_buf_len, 0);
-        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
+        char conv_buf[conv_buf_len];
+        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, payload, nrf_payload_len);
@@ -142,10 +141,10 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        packet->set_data(conv_buf);
+        packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
 
