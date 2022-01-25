@@ -72,6 +72,75 @@
 
 #include <pthread.h>
 
+uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, uint32_t cs) {
+    size_t i{0};
+    uint32_t ls1 = cs & 0xFFFF;
+    uint32_t ls2 = (cs >> 16) & 0xffff;
+    const uint32_t *buf = (const uint32_t *) in_buf;
+	const uint8_t *sub_buf = nullptr;
+
+    if (in_len < 4)
+        return 0;
+
+    for (i = 0; i < (in_len - 4); i += 4, buf++) {
+        ls2 += (4 * (ls1 + ((*buf) & 0xFF))) + 
+            (3 * ((*buf >> 8) & 0xFF)) +
+            (2 * ((*buf >> 16) & 0xFF)) + 
+            ((*buf >> 24) & 0xFF);
+
+        ls1 += ((*buf >> 24) & 0xFF) +
+            ((*buf >> 16) & 0xFF) +
+            ((*buf >> 8) & 0xFF) +
+            ((*buf) & 0xFF);
+    }
+
+    switch (in_len - i) {
+        case 4:
+            ls1 += ((*buf) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 8) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 16) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 24) & 0xFF);
+            ls2 += ls1;
+            break;
+        case 3:
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
+            ls2 += ls1;
+            // ls1 += ((*buf >> 8) & 0xFF);
+			ls1 += sub_buf[1];
+            ls2 += ls1;
+            // ls1 += ((*buf >> 16) & 0xFF);
+			ls1 += sub_buf[2];
+            ls2 += ls1;
+            break;
+        case 2:
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
+            ls2 += ls1;
+            // ls1 += ((*buf >> 8) & 0xFF);
+			ls1 += sub_buf[1];
+            ls2 += ls1;
+            break;
+        case 1:
+			sub_buf = (uint8_t *) buf;
+            // ls1 += ((*buf) & 0xFF);
+			ls1 += sub_buf[0];
+            ls2 += ls1;
+            break;
+    }
+
+	return (ls1 & 0xffff) + (ls2 << 16);
+}
+
+uint32_t adler32_checksum(const void *in_buf, size_t in_len) {
+    return adler32_append_checksum(in_buf, in_len, 0);
+}
+
 uint32_t adler32_checksum(const std::string& in_buf) {
     return adler32_checksum(in_buf.data(), in_buf.length());
 }
