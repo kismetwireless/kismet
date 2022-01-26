@@ -21,6 +21,7 @@
 
 #include "messagebus.h"
 #include "timetracker.h"
+#include "gpstracker.h"
 
 kis_gps::kis_gps(shared_gps_builder in_builder) : 
     tracker_component() {
@@ -29,6 +30,7 @@ kis_gps::kis_gps(shared_gps_builder in_builder) :
     reserve_fields(NULL);
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
 
     // Force the ID
     set_id(Globalreg::globalreg->entrytracker->register_field("kismet.gps.instance", 
@@ -84,9 +86,9 @@ bool kis_gps::open_gps(std::string in_definition) {
 
     std::string sname = fetch_opt("name", source_definition_opts);
     if (sname != "") {
-        set_int_gps_name(sname);
+        set_int_gps_name(gpstracker->find_next_name(sname));
     } else {
-        set_int_gps_name(gps_prototype->get_default_name());
+        set_int_gps_name(gpstracker->find_next_name(gps_prototype->get_default_name()));
     }
 
     std::string suuid = fetch_opt("uuid", source_definition_opts);

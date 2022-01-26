@@ -31,6 +31,7 @@
 #include "gpsgpsd_v3.h"
 #include "gpsfake.h"
 #include "gpsweb.h"
+#include "gpsmeta.h"
 #include "kis_databaselogfile.h"
 
 gps_tracker::gps_tracker() :
@@ -42,6 +43,18 @@ gps_tracker::gps_tracker() :
     Globalreg::enable_pool_type<kis_tracked_location>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<kis_tracked_location_full>([](auto *a) { a->reset(); });
 
+}
+
+gps_tracker::~gps_tracker() {
+    Globalreg::globalreg->remove_global("GPSTRACKER");
+
+    Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
+
+    timetracker->remove_timer(log_snapshot_timer);
+    timetracker->remove_timer(event_timer_id);
+}
+
+void gps_tracker::trigger_deferred_startup() {
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
@@ -85,6 +98,7 @@ gps_tracker::gps_tracker() :
     register_gps_builder(shared_gps_builder(new gps_gpsd_v3_builder()));
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));
     register_gps_builder(shared_gps_builder(new gps_web_builder()));
+    register_gps_builder(shared_gps_builder(new gps_meta_builder()));
 
     // Process any gps options in the config file
     std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->fetch_opt_vec("gps");
@@ -223,40 +237,31 @@ gps_tracker::gps_tracker() :
     event_timer_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
-                kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker location event");
+                    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker location event");
 
-                auto loctrip = Globalreg::new_from_pool<kis_tracked_location_full>();
-                auto ue = Globalreg::new_from_pool<tracker_element_uuid>();
-                ue->set_id(tracked_uuid_addition_id);
+                    auto loctrip = Globalreg::new_from_pool<kis_tracked_location_full>();
+                    auto ue = Globalreg::new_from_pool<tracker_element_uuid>();
+                    ue->set_id(tracked_uuid_addition_id);
 
-                auto pi = get_best_location();
-                if (pi != nullptr) {
-                    ue->set(pi->gpsuuid);
-                    loctrip->set_location(pi->lat, pi->lon);
-                    loctrip->set_alt(pi->alt);
-                    loctrip->set_speed(pi->speed);
-                    loctrip->set_heading(pi->heading);
-                    loctrip->set_fix(pi->fix);
-                    loctrip->set_time_sec(pi->tv.tv_sec);
-                    loctrip->set_time_usec(pi->tv.tv_usec);
-                    loctrip->insert(ue);
-                }
+                    auto pi = get_best_location();
+                    if (pi != nullptr) {
+                        ue->set(pi->gpsuuid);
+                        loctrip->set_location(pi->lat, pi->lon);
+                        loctrip->set_alt(pi->alt);
+                        loctrip->set_speed(pi->speed);
+                        loctrip->set_heading(pi->heading);
+                        loctrip->set_fix(pi->fix);
+                        loctrip->set_time_sec(pi->tv.tv_sec);
+                        loctrip->set_time_usec(pi->tv.tv_usec);
+                        loctrip->insert(ue);
+                    }
 
-                auto evt = eventbus->get_eventbus_event(event_gps_location());
-                evt->get_event_content()->insert(event_gps_location(), loctrip);
-                eventbus->publish(evt);
+                    auto evt = eventbus->get_eventbus_event(event_gps_location());
+                    evt->get_event_content()->insert(event_gps_location(), loctrip);
+                    eventbus->publish(evt);
 
-                return 1;
+                    return 1;
                 });
-}
-
-gps_tracker::~gps_tracker() {
-    Globalreg::globalreg->remove_global("GPSTRACKER");
-
-    Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
-
-    timetracker->remove_timer(log_snapshot_timer);
-    timetracker->remove_timer(event_timer_id);
 }
 
 void gps_tracker::log_snapshot_gps() {
@@ -370,6 +375,36 @@ std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
             });
 
     return gps;
+}
+
+std::string gps_tracker::find_next_name(const std::string& in_name) {
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker find_next_name");
+
+    auto found_name = [this](const std::string& name) -> bool {
+        for (const auto& g : *gps_instances_vec) {
+            auto gps = std::static_pointer_cast<kis_gps>(g);
+            if (gps->get_gps_name() == name)
+                return true;
+        }
+
+        return false;
+    };
+
+    if (!found_name(in_name))
+        return in_name;
+
+    for (unsigned int num = 1; num < 1000; num++) {
+        auto proposed = fmt::format("{}{}", in_name, num);
+
+        if (!found_name(proposed))
+            return proposed;
+    }
+
+    _MSG_FATAL("Could not form a unique GPS name within 1000 attempts for a "
+            "GPS called {}.  Check your configs, and provide GPS names.",
+            in_name);
+
+    return "ERROR";
 }
 
 bool gps_tracker::remove_gps(uuid in_uuid) {

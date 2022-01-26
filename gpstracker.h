@@ -144,7 +144,7 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class gps_tracker : public lifetime_global {
+class gps_tracker : public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "GPSTRACKER"; }
 
@@ -152,6 +152,7 @@ public:
         std::shared_ptr<gps_tracker> mon(new gps_tracker());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         return mon;
     }
 
@@ -161,11 +162,17 @@ private:
 public:
     virtual ~gps_tracker();
 
+    virtual void trigger_deferred_startup() override;
+
     // Register a gps builer prototype
     void register_gps_builder(shared_gps_builder in_builder);
 
     // Create a GPS from a definition string
     std::shared_ptr<kis_gps> create_gps(std::string in_definition);
+
+    // Find the next available name for a gps, named interface style as 
+    // name, name1, name2, etc
+    std::string find_next_name(const std::string& in_name);
 
     // Remove a GPS by UUID
     bool remove_gps(uuid in_uuid);

@@ -38,6 +38,8 @@ typedef std::shared_ptr<kis_gps_builder> shared_gps_builder;
 class kis_gps;
 typedef std::shared_ptr<kis_gps> shared_gps;
 
+class gps_tracker;
+
 // GPS builders are responsible for telling the GPS tracker what sort of GPS,
 // the basic priority, the type and default name, and so on.
 class kis_gps_builder : public tracker_component {
@@ -189,6 +191,7 @@ protected:
     virtual void update_locations();
 
     std::shared_ptr<packet_chain> packetchain;
+    std::shared_ptr<gps_tracker> gpstracker;
 
     std::shared_ptr<kis_gps_builder> gps_prototype;
 
