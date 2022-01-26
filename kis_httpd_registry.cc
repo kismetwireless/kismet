@@ -65,14 +65,14 @@ kis_httpd_registry::kis_httpd_registry() :
 						os << "var " << m.first << ";" << std::endl;
 					}
 
-					os << "(async () => {" << std::endl;
+					os << "async function load_dynamics() {" << std::endl;
 
 					for (const auto& m : js_module_path_map) {
 						os << m.first << " = await import(`${local_uri_prefix}" << m.second << 
 							"`);" << std::endl;
 					}
 
-					os << "})();" << std::endl;
+					os << "}" << std::endl;
 					
 				}
 				));

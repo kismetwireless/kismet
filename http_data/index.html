@@ -158,6 +158,7 @@ if (typeof document.addEventListener === "undefined" || hidden === undefined) {
 }
 
 function load_main_ui() {
+    load_dynamics().then((res) => {
     // Don't let DT make alerts
     $.fn.dataTableExt.sErrMode = "console";
 
@@ -191,6 +192,7 @@ function load_main_ui() {
             },
         },
     });
+
 
     // Derive the proxy prefix, if any, from the headers.  We can't get this from our
     // own current request, we have to do a HEAD req and nest everything inside that.
@@ -242,14 +244,14 @@ function load_main_ui() {
         kismet_ui_iconbar.makeIconbar($('#iconbar'));
     
         kismet_ui.HealthCheck();
-    
-        // Finalize the sidebar
-        kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
-    
-        // finalize the tabs
+ 
+        // Finalize the tabs
         kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
         kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
     
+        // Finalize the sidebar
+        kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
+   
         // Try to scrape the server name
         kismet_ui_base.FetchServerName(function(name) {
             if (name.length > 0) {
@@ -260,6 +262,8 @@ function load_main_ui() {
         });
     
     }); // always head fetch
+
+    });
 }
 
 // jquery onload complete
