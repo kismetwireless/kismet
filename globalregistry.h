@@ -99,7 +99,8 @@ class kis_net_beast_httpd;
     Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_ALERT)
 
 #define _MSG_FATAL(...) \
-    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_FATAL)
+    { Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_FATAL); \
+      Globalreg::globalreg->fatal_condition = true; }
 
 // Record of how we failed critically.  We want to spin a critfail message out
 // to the client so it can do something intelligent.  A critical fail is something
