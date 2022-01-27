@@ -8,7 +8,8 @@ CONFIGFILES = \
 	kismet_logging.conf \
 	kismet_filter.conf \
 	kismet_uav.conf \
-	kismet_80211.conf 
+	kismet_80211.conf \
+	kismet_wardrive.conf
 
 # Parsers (modeled on former Kaitai model)
 PARSERS = \
