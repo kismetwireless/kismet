@@ -426,12 +426,25 @@ bool gps_tracker::remove_gps(uuid in_uuid) {
 std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "find_gps");
 
-    for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
-        auto gps = std::static_pointer_cast<kis_gps>((*gps_instances_vec)[i]);
+    for (const auto& g : *gps_instances_vec) {
+        auto gps = std::static_pointer_cast<kis_gps>(g);
 
         if (gps->get_gps_uuid() == in_uuid) {
             return gps;
         }
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<kis_gps> gps_tracker::find_gps_by_name(const std::string& in_name) {
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "find_gps_by_name");
+
+    for (const auto& g : *gps_instances_vec) {
+        auto gps = std::static_pointer_cast<kis_gps>(g);
+
+        if (gps->get_gps_name() == in_name)
+            return gps;
     }
 
     return nullptr;
