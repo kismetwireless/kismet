@@ -686,10 +686,6 @@ subrelease-%:
 	@echo $*
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
 	@git pull origin kismet-`echo $* | cut -d- -f1,2`
-	@make manuf
-	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
-	@make icao
-	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
