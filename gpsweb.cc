@@ -30,7 +30,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    httpd->register_route("/gps/web/update", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+    httpd->register_route("/gps/web/update", {"POST"}, {httpd->LOGON_ROLE, "WEBGPS"}, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     std::ostream stream(&con->response_stream());
