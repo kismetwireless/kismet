@@ -241,6 +241,20 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         return;
     }
 
+    if (has_definition_opt("metagps")) {
+        auto gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+        auto metaname = get_definition_opt("metagps");
+
+        auto gps = gpstracker->find_gps_by_name(metaname);
+        if (gps != nullptr) {
+            set_device_gps(gps);
+        } else {
+            auto gpsdef = fmt::format("meta:name={}", metaname);
+            set_device_gps(gpstracker->create_gps(gpsdef));
+        }
+    }
+   
+
     if (get_source_builder()->get_passive_capable()) {
         if (get_source_uuid().error && !local_uuid) {
             uuid nuuid;
@@ -449,6 +463,20 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         return;
     }
 
+    if (has_definition_opt("metagps")) {
+        auto gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+        auto metaname = get_definition_opt("metagps");
+
+        auto gps = gpstracker->find_gps_by_name(metaname);
+        if (gps != nullptr) {
+            set_device_gps(gps);
+        } else {
+            auto gpsdef = fmt::format("meta:name={}", metaname);
+            set_device_gps(gpstracker->create_gps(gpsdef));
+        }
+    }
+   
+
     if (in_tcp)  {
         attach_tcp_socket(in_remote->tcpsocket);
     } else {
@@ -571,6 +599,22 @@ void kis_datasource::close_external() {
     lk.unlock();
     cancel_all_commands("source closed");
     kis_external_interface::close_external();
+}
+
+void kis_datasource::set_device_gps(std::shared_ptr<kis_gps> in_gps) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource set_gps");
+    device_gps = in_gps;
+}
+
+void kis_datasource::clear_device_gps() {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource clear_gps");
+    device_gps.reset();
+}
+
+bool kis_datasource::has_definition_opt(const std::string& in_opt) {
+
+    return source_definition_opts.find(str_lower(in_opt)) !=
+            source_definition_opts.end();
 }
 
 std::string kis_datasource::get_definition_opt(std::string in_opt) {
@@ -698,7 +742,7 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
     set_source_info_antenna_beamwidth(get_definition_opt_double("info_antenna_beamwidth", 0.0f));
     set_source_info_amp_type(get_definition_opt("info_amp_type"));
     set_source_info_amp_gain(get_definition_opt_double("info_amp_gain", 0.0f));
-   
+
     return true;
 }
 
@@ -1380,6 +1424,11 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
     } else if (suppress_gps) {
         auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
         packet->insert(pack_comp_no_gps, nogpsinfo);
+    } else if (device_gps != nullptr) {
+        auto gpsinfo = device_gps->get_location();
+
+        if (gpsinfo != nullptr)
+            packet->insert(pack_comp_gps, gpsinfo);
     }
 
     // TODO handle spectrum

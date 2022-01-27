@@ -51,6 +51,8 @@ class kis_datasource_cap_keyed_object;
 class datasource_tracker;
 class kis_datasource;
 
+class kis_gps;
+
 class kis_packreport_packinfo : public packet_component {
 public:
     kis_packreport_packinfo(std::shared_ptr<KismetDatasource::DataReport> r) :
@@ -337,6 +339,7 @@ public:
 
 
     // Get an option from the definition
+    virtual bool has_definition_opt(const std::string& in_opt);
     virtual std::string get_definition_opt(std::string in_opt);
     virtual bool get_definition_opt_bool(std::string in_opt, bool in_default);
     virtual double get_definition_opt_double(std::string in_opt, double in_default);
@@ -469,6 +472,10 @@ public:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
     virtual void handle_error(const std::string& in_reason) override;
+
+    // Manage a specific GPS linked to this datasource (metagps, etc)
+    virtual void set_device_gps(std::shared_ptr<kis_gps> in_gps);
+    virtual void clear_device_gps();
 
 protected:
     // Mutex for data elements
@@ -780,6 +787,9 @@ protected:
 
     // packet_chain
     std::shared_ptr<packet_chain> packetchain;
+
+    // gps, if a specific gps is bound to this interface
+    std::shared_ptr<kis_gps> device_gps;
 
     // Packet components we inject
     int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_l1_agg,
