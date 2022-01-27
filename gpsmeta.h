@@ -46,10 +46,7 @@ protected:
 
 class gps_meta_builder : public kis_gps_builder {
 public:
-    gps_meta_builder() : 
-        kis_gps_builder() { 
-        initialize();
-    }
+    gps_meta_builder();
 
     virtual void initialize() override {
         set_int_gps_class("meta");

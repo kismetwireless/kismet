@@ -21,10 +21,15 @@
 #include "gpstracker.h"
 #include "messagebus.h"
 
+gps_meta_builder::gps_meta_builder() : kis_gps_builder() { 
+    initialize();
+}
+
 kis_gps_meta::kis_gps_meta(shared_gps_builder in_builder) : 
     kis_gps(in_builder) {
 
     last_heading_time = 0;
+    set_int_gps_data_only(true);
 }
 
 kis_gps_meta::~kis_gps_meta() {
@@ -43,7 +48,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     auto update_rte = fmt::format("/gps/meta/{}/update", get_gps_name());
-    httpd->register_route(update_rte, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+    httpd->register_route(update_rte, {"POST"}, {httpd->LOGON_ROLE, "WEBGPS"}, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     std::ostream stream(&con->response_stream());
@@ -98,8 +103,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                     stream << "Updated\n";
                 }));
 
-    auto update_ws_rte = fmt::format("/gps/meta/{}/update", get_gps_name());
-    httpd->register_websocket_route("/gps/web/update", {httpd->LOGON_ROLE, "WEBGPS"}, {"ws"},
+    httpd->register_websocket_route(update_rte, {httpd->LOGON_ROLE, "WEBGPS"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto ws = 
@@ -174,7 +178,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                                         ws->write(data);
                                     } catch (const std::exception& e) {
                                         _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
-                                                "/gps/web/update.ws");
+                                                "/gps/meta/.../update.ws");
                                         stream << "{\"update\": \"error\"}";
 										auto data = stream.str();
                                         ws->write(data);
