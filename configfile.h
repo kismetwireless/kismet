@@ -141,7 +141,7 @@ protected:
         config_entity(std::string v, std::string sf, bool ap) {
             value = v;
             sourcefile = sf;
-            append = false;
+            append = ap;
         }
 
         std::string value;
