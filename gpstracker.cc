@@ -43,6 +43,9 @@ gps_tracker::gps_tracker() :
     Globalreg::enable_pool_type<kis_tracked_location>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<kis_tracked_location_full>([](auto *a) { a->reset(); });
 
+    gps_prototypes_vec = std::make_shared<tracker_element_vector>();
+    gps_instances_vec = std::make_shared<tracker_element_vector>();
+
 }
 
 gps_tracker::~gps_tracker() {
@@ -72,9 +75,6 @@ void gps_tracker::trigger_deferred_startup() {
     // Register the packet chain hook
     Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this,
             CHAINPOS_POSTCAP, -100);
-
-    gps_prototypes_vec = std::make_shared<tracker_element_vector>();
-    gps_instances_vec = std::make_shared<tracker_element_vector>();
 
     // Manage logging
     log_snapshot_timer = -1;
@@ -410,6 +410,9 @@ std::string gps_tracker::find_next_name(const std::string& in_name) {
 bool gps_tracker::remove_gps(uuid in_uuid) {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "remove_gps");
 
+    if (gps_instances_vec == nullptr)
+        return false;
+
     for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
         auto gps = std::static_pointer_cast<kis_gps>((*gps_instances_vec)[i]);
 
@@ -426,6 +429,9 @@ bool gps_tracker::remove_gps(uuid in_uuid) {
 std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "find_gps");
 
+    if (gps_instances_vec == nullptr)
+        return nullptr;
+
     for (const auto& g : *gps_instances_vec) {
         auto gps = std::static_pointer_cast<kis_gps>(g);
 
@@ -440,6 +446,9 @@ std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {
 std::shared_ptr<kis_gps> gps_tracker::find_gps_by_name(const std::string& in_name) {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "find_gps_by_name");
 
+    if (gps_instances_vec == nullptr)
+        return nullptr;
+
     for (const auto& g : *gps_instances_vec) {
         auto gps = std::static_pointer_cast<kis_gps>(g);
 
@@ -452,6 +461,9 @@ std::shared_ptr<kis_gps> gps_tracker::find_gps_by_name(const std::string& in_nam
 
 std::shared_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "get_best_location");
+
+    if (gps_instances_vec == nullptr)
+        return nullptr;
 
     // Iterate 
     for (const auto& d : *gps_instances_vec) {
