@@ -169,55 +169,27 @@ public:
     kis_lock_guard(M& m, const std::string& op = "UNKNOWN") :
         mutex{m},
         op{op},
-        retain{false},
-        shared{false} {
+        retain{false} {
             mutex.lock();
-            /*
-            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
-                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
-                            "timeout period for op {}", mutex.get_name(), op));
-                            */
         }
 
     kis_lock_guard(M& m, std::adopt_lock_t t, const std::string& op = "UNKNOWN") :
         mutex{m},
         op{op},
-        retain{false},
-        shared{false} { }
+        retain{false} { }
 
     kis_lock_guard(M& m, kismet::retain_lock_t t, const std::string& op = "UNKNOWN") :
         mutex{m},
         op{op},
-        retain{true},
-        shared{false} {
+        retain{true} {
             mutex.lock();
-            /*
-            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
-                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
-                            "timeout period for op {}", mutex.get_name(), op));
-                            */
-        }
-
-    kis_lock_guard(M& m, kismet::shared_lock_t t, const std::string& op = "UNKNOWN") :
-        mutex{m},
-        op{op},
-        retain{false},
-        shared{true} {
-            mutex.lock_shared();
-            /*
-            if (!mutex.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
-                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
-                            "timeout period for op {}", mutex.get_name(), op));
-                            */
         }
 
     kis_lock_guard(const kis_lock_guard&) = delete;
     kis_lock_guard& operator=(const kis_lock_guard&) = delete;
 
     ~kis_lock_guard() {
-        if (shared) {
-            mutex.unlock_shared();
-        } else if (!retain) {
+        if (!retain) {
             mutex.unlock();
         }
     }
@@ -226,7 +198,6 @@ protected:
     M& mutex;
     std::string op;
     bool retain;
-    bool shared;
 };
 
 template<class M>
@@ -265,14 +236,8 @@ public:
     void lock(const std::string& op = "UNKNOWN") {
         if (locked)
             throw std::runtime_error(fmt::format("invalid use: thread {} attempted to lock "
-                        "unique lock {} when already locked fo {}", 
+                        "unique lock {} when already locked for {}", 
                         std::this_thread::get_id(), mutex.get_name(), op));
-
-        /*
-        if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
-            throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
-                        "timeout period for op {}", mutex.get_name(), op));
-                        */
         mutex.lock();
         locked = true;
 
@@ -298,6 +263,60 @@ public:
                         mutex.get_name()));
 
         mutex.unlock();
+        locked = false;
+    }
+
+protected:
+    M& mutex;
+    std::string op;
+    bool locked{false};
+};
+
+template<class M>
+class kis_shared_lock {
+public:
+    kis_shared_lock(M& m, const std::string& op) :
+        mutex{m},
+        op{op} {
+            mutex.shared_lock();
+            locked = true;
+        }
+
+    kis_shared_lock(M& m, std::defer_lock_t t, const std::string& op = "UNKNOWN") :
+        mutex{m},
+        op{op},
+        locked{false} { }
+
+    kis_shared_lock(M& m, std::adopt_lock_t, const std::string& op = "UNKNOWN") :
+        mutex{m},
+        op{op},
+        locked{true} { }
+
+    kis_shared_lock(const kis_shared_lock&) = delete;
+    kis_shared_lock& operator=(const kis_shared_lock&) = delete;
+
+    ~kis_shared_lock() {
+        if (locked)
+            mutex.shared_unlock();
+    }
+
+    void lock(const std::string& op = "UNKNOWN") {
+        if (locked)
+            throw std::runtime_error(fmt::format("invalid use: thread {} attempted to lock "
+                        "unique lock {} when already locked for {}", 
+                        std::this_thread::get_id(), mutex.get_name(), op));
+        mutex.shared_lock();
+        locked = true;
+
+    }
+
+    void unlock() {
+        if (!locked)
+            throw std::runtime_error(fmt::format("unvalid use:  thread{} attempted to unlock "
+                        "unique lock {} when not locked", std::this_thread::get_id(), 
+                        mutex.get_name()));
+
+        mutex.shared_unlock();
         locked = false;
     }
 
