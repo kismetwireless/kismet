@@ -298,7 +298,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
         auto channel = frequency_to_wifi_channel(dev->get_frequency());
 
-        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},0,{}\n",
                 dev->get_macaddr(),
                 name,
                 crypt,
