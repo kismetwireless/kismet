@@ -814,6 +814,7 @@ with_libprelude_prefix
 enable_libwebsockets
 with_protoc
 with_protocc
+enable_btgeiger
 enable_bladerf
 enable_libnm
 with_netlink_tiny
@@ -1507,6 +1508,7 @@ Optional Features:
   --disable-libwebsockets Disable C-based libwebsockets, this will only impact
                           building remote capture sources. The Kismet server
                           will still have websockets support.
+  --enable-btgeiger       Enable custom BTLE connected geiger counter input
   --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libnm         Disable libnm networkmanager support
   --disable-libusb        Disable libUSB support and any libUSB based data
@@ -4177,7 +4179,7 @@ BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=1
 BUILD_CAPTURE_SDR_RTLAMR=1
 BUILD_CAPTURE_SDR_RTLADSB=1
-BUILD_CAPTURE_BT_GEIGER=1
+BUILD_CAPTURE_BT_GEIGER=0
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
@@ -7887,9 +7889,10 @@ $as_echo "no" >&6; }
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
         as_fn_error $? "Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version" "$LINENO" 5
     else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE) \$(CAPTURE_BT_GEIGER)"
-    fi
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+        fi
 fi
+
 
 
 
@@ -10629,6 +10632,31 @@ fi
 
 
 
+
+
+# Check whether --enable-btgeiger was given.
+if test "${enable_btgeiger+set}" = set; then :
+  enableval=$enable_btgeiger; case "${enableval}" in
+      yes) want_btgeiger=yes ;;
+        *) want_btgeiger=no ;;
+    esac
+else
+  want_btgeiger=no
+
+fi
+
+
+if test "x$want_btgeiger" == "xyes"; then :
+
+       if test "x$want_python" != "xyes"; then :
+
+              as_fn_error $? "Can not enable btgeiger without enabling python" "$LINENO" 5
+
+fi
+       BUILD_CAPTURE_BT_GEIGER=1
+       DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BT_GEIGER)"
+
+fi
 
 
 # To use wiphy we need a very recent bladerf, and we need it even when only building for caponly
@@ -13632,7 +13660,7 @@ printf "    BTLE Geiger Sensor: "
 if test "$BUILD_CAPTURE_BT_GEIGER" = 1; then
         echo "yes";
 else
-        echo "no (python modules are disabled)";
+        echo "no (not explicitly enabled)";
 fi
 
 printf "      Freaklabs Zigbee: "

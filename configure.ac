@@ -34,7 +34,7 @@ BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=1
 BUILD_CAPTURE_SDR_RTLAMR=1
 BUILD_CAPTURE_SDR_RTLADSB=1
-BUILD_CAPTURE_BT_GEIGER=1
+BUILD_CAPTURE_BT_GEIGER=0
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
@@ -373,12 +373,13 @@ else
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
         AC_MSG_ERROR([Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version])
     else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE) \$(CAPTURE_BT_GEIGER)"
-    fi
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+        fi
 fi
 AC_SUBST(PYTHON)
 AC_SUBST(PYTHON_VERSION)
 AC_SUBST(BUILD_PYTHON_MODULES)
+
 
 # HAVE_LIBHACKRF=0
 # HAVE_LIBFFTW3=0
@@ -1148,6 +1149,24 @@ AC_SUBST(PROTOCLIBS)
 AC_SUBST(PROTOCCFLAGS)
 AC_SUBST(PROTOBUF_CPP_O_TARGET)
 AC_SUBST(PROTOBUF_CPP_H_TARGET)
+
+AC_ARG_ENABLE(btgeiger,
+    AS_HELP_STRING([--enable-btgeiger], [Enable custom BTLE connected geiger counter input]),
+    [case "${enableval}" in
+      yes) want_btgeiger=yes ;;
+        *) want_btgeiger=no ;;
+    esac],
+    [want_btgeiger=no]
+)
+
+AS_IF([test "x$want_btgeiger" == "xyes"], [
+       AS_IF([test "x$want_python" != "xyes"], [
+              AC_MSG_ERROR([Can not enable btgeiger without enabling python])
+              ])
+       BUILD_CAPTURE_BT_GEIGER=1
+       DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BT_GEIGER)"
+])
+
 
 # To use wiphy we need a very recent bladerf, and we need it even when only building for caponly
 AC_ARG_ENABLE(bladerf,
@@ -1930,7 +1949,7 @@ printf "    BTLE Geiger Sensor: "
 if test "$BUILD_CAPTURE_BT_GEIGER" = 1; then
         echo "yes";
 else
-        echo "no (python modules are disabled)";
+        echo "no (not explicitly enabled)";
 fi
 
 printf "      Freaklabs Zigbee: "
