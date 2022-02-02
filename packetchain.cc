@@ -190,6 +190,9 @@ packet_chain::packet_chain() {
         if (chunk == nullptr)
             return 1;
 
+        if (chunk->length() == 0)
+            return 1;
+
         // Lock every packet at the beginning of the dupe check
         in_pack->mutex.lock();
 
