@@ -437,11 +437,6 @@ public:
     __Proxy(packets, uint64_t, uint64_t, uint64_t, packets);
     __ProxyIncDec(packets, uint64_t, uint64_t, packets);
 
-    __Proxy(rx_packets, uint64_t, uint64_t, uint64_t, rx_packets);
-    __ProxyIncDec(rx_packets, uint64_t, uint64_t, rx_packets);
-
-    __Proxy(tx_packets, uint64_t, uint64_t, uint64_t, tx_packets);
-    __ProxyIncDec(tx_packets, uint64_t, uint64_t, tx_packets)
     __Proxy(llc_packets, uint64_t, uint64_t, uint64_t, llc_packets);
     __ProxyIncDec(llc_packets, uint64_t, uint64_t, llc_packets);
 
@@ -560,8 +555,6 @@ protected:
 
     // Packet counts
     std::shared_ptr<tracker_element_uint64> packets;
-    std::shared_ptr<tracker_element_uint64> tx_packets;
-    std::shared_ptr<tracker_element_uint64> rx_packets;
     std::shared_ptr<tracker_element_uint64> llc_packets;
     std::shared_ptr<tracker_element_uint64> error_packets;
     std::shared_ptr<tracker_element_uint64> data_packets;
