@@ -241,10 +241,10 @@ public:
 protected:
     void gen_hash() {
         hash = std::hash<uint64_t>{}(time_low);
-        hash ^= (std::hash<uint16_t>{}(time_mid) << 1);
-        hash ^= (std::hash<uint16_t>{}(time_hi) << 1);
-        hash ^= (std::hash<uint16_t>{}(clock_seq) << 1);
-        hash ^= (std::hash<uint64_t>{}(node) << 1);
+        hash ^= (std::hash<uint16_t>{}(time_mid) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
+        hash ^= (std::hash<uint16_t>{}(time_hi) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
+        hash ^= (std::hash<uint16_t>{}(clock_seq) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
+        hash ^= (std::hash<uint64_t>{}(node) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
     }
 
     void get_random_bytes(void *buf, int nbytes) {
