@@ -302,7 +302,7 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
         pds->list_interfaces(transaction, 
             [this, self_ref] (std::shared_ptr<kis_datasource> src, unsigned int transaction, 
-                std::vector<shared_interface> interfaces) {
+                std::vector<shared_interface> interfaces) mutable {
                 complete_list(src, interfaces, transaction);
             });
     }
@@ -313,7 +313,7 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
     cancel_event_id = 
         timetracker->register_timer(std::chrono::seconds(10), false, 
-            [this, self_ref] (int) -> int {
+            [this, self_ref] (int) mutable -> int {
                 if (cancelled)
                     return 0;
 
@@ -592,7 +592,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     // Initiate the open
                     list_interfaces(
-                        [cl](std::vector<shared_interface> iflist) {
+                        [cl](std::vector<shared_interface> iflist) mutable {
                             cl->unlock(iflist);
                         });
 
@@ -609,7 +609,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
     httpd->register_route("/datasource/by-uuid/:uuid/source", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) mutable -> std::shared_ptr<tracker_element> {
                     auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
                     
                     if (ds_uuid.error)
@@ -638,7 +638,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     open_datasource(definition,
                             [&error_reason, &create_promise, &r, &success](bool cbsuccess, std::string reason,
-                                shared_datasource ds) {
+                                shared_datasource ds) mutable {
                                 success = cbsuccess;
                                 error_reason = reason;
                                 r = ds;
@@ -679,7 +679,7 @@ void datasource_tracker::trigger_deferred_startup() {
                                 ds->get_source_name(), ds->get_source_uuid(), ch);
 
                         ds->set_channel(ch, 0,
-                                [&set_success, &set_promise](unsigned int t, bool success, std::string e) {
+                                [&set_success, &set_promise](unsigned int t, bool success, std::string e) mutable {
                                 // _MSG_DEBUG("ds set channel callback {} {} '{}'", t, success, e);
                                 set_success = success;
                                 set_promise.set_value();
@@ -724,7 +724,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         ds->set_channel_hop(rate, converted_channels, shuffle,
                                 ds->get_source_hop_offset(), 0,
-                                [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                                [&set_success, &set_promise](unsigned int, bool success, std::string) mutable {
                                 set_success = success;
                                 set_promise.set_value();
                                 });
@@ -768,7 +768,7 @@ void datasource_tracker::trigger_deferred_startup() {
                             ds->get_source_hop_vec(),
                             ds->get_source_hop_shuffle(),
                             ds->get_source_hop_offset(), 0,
-                            [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                            [&set_success, &set_promise](unsigned int, bool success, std::string) mutable {
                             set_success = success;
                             set_promise.set_value();
                             });
@@ -842,7 +842,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     _MSG_INFO("Re-opening source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
 
                     ds->open_interface(ds->get_source_definition(), 0,
-                            [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                            [&set_success, &set_promise](unsigned int, bool success, std::string) mutable {
                             set_success = success;
                             set_promise.set_value();
                             });
@@ -1445,7 +1445,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     shared_datasource ds = in_proto->build_datasource(in_proto);
 
     ds->open_interface(in_source, 0, 
-        [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
+        [this, ds, in_cb] (unsigned int, bool success, std::string reason) mutable {
             // Always merge it so that it gets scheduled for re-opening; when we
             // know the type we know how to keep trying
             merge_source(ds);
@@ -1470,6 +1470,8 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
     kis_lock_guard<kis_mutex> lk(dst_lock, "dst merge_source");
 
     const uuid u = in_source->get_source_uuid();
+
+    _MSG_DEBUG("merge source - incoming source {} {} / {}", in_source->get_source_definition(), in_source->get_source_name(), in_source->get_source_uuid());
 
     // We maintain a persistent map of source uuids to source numbers, which
     // persists even if a source is later removed entirely from the datasource
