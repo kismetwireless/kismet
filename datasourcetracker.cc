@@ -1456,7 +1456,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 in_cb(true, "", ds);
             } else {
                 // It's 'safe' to put them in the broken source vec because all we do is
-                // clear that vector on a timer; if the source is in error state but
+                // clear that vector on a timer; if the source is in in_sourceerror state but
                 // bound elsewhere in the system it won't be removed.
                 kis_lock_guard<kis_mutex> lk(dst_lock, "dst open_datasource string open lambda broken");
                 broken_source_vec.push_back(ds);
@@ -1469,11 +1469,13 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 void datasource_tracker::merge_source(shared_datasource in_source) {
     kis_lock_guard<kis_mutex> lk(dst_lock, "dst merge_source");
 
-    // Get the UUID and compare it to our map; re-use a UUID if we knew
-    // it before, otherwise add a new one
-    uuid u = in_source->get_source_uuid();
+    const uuid u = in_source->get_source_uuid();
 
-    auto i = uuid_source_num_map.find(u);
+    // We maintain a persistent map of source uuids to source numbers, which
+    // persists even if a source is later removed entirely from the datasource
+    // list.
+
+    const auto& i = uuid_source_num_map.find(u);
     if (i != uuid_source_num_map.end()) {
         in_source->set_source_number(i->second);
     } else {
@@ -1497,18 +1499,29 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
         }
     }
 
-    bool found_ds = false;
+    // We should only ever have one copy of a datasource in the datasource vector,
+    // unique by UUID.  If there's already a datasource in there that has the same uuid,
+    // something has gone wrong, because re-opening an existing datasource doesn't create
+    // a new datasource object!
+    //
+    // A remote ds will make sure an existing ds doesn't exist with the same UUID before
+    // merging the incoming remote connection, and a local datasource should never hit
+    // merge if it's not unique
+
     for (const auto& dsi : *datasource_vec) {
         auto ds = std::static_pointer_cast<kis_datasource>(dsi);
 
-        if (ds->get_source_uuid() == in_source->get_source_uuid()) {
-            found_ds = true;
+        if (ds->get_source_uuid() == u) {
+            _MSG_ERROR("Conflict of new datasource {}/{} and existing datasource {} with "
+                    "the same UUID.  Datasource UUIDs must be unique, if you are specifying "
+                    "a UUID on the datasource config line, make sure it is unique",
+                    in_source->get_source_name(), u, ds->get_source_name());
+            in_source->close_source();
             break;
         }
     }
 
-    if (!found_ds)
-        datasource_vec->push_back(in_source);
+    datasource_vec->push_back(in_source);
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
@@ -1634,8 +1647,11 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
     for (auto p : *datasource_vec) {
         shared_datasource d = std::static_pointer_cast<kis_datasource>(p);
 
+        /* Throw errors for UUID collisions between remote and local even if they're
+         * not remote capable
         if (!d->get_source_builder()->get_remote_capable())
             continue;
+            */
 
         if (d->get_source_uuid() == in_uuid) {
             merge_target_device = d;
