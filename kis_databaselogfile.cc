@@ -714,7 +714,7 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     std::shared_ptr<kis_gps_packinfo> loc;
 
     if (gpstracker != nullptr) 
-        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+        loc = gpstracker->get_best_location();
 
     sql =
         "INSERT INTO messages "
@@ -1336,7 +1336,7 @@ int kis_database_logfile::log_snapshot(std::shared_ptr<kis_gps_packinfo> gps, st
     std::shared_ptr<kis_gps_packinfo> loc;
 
     if (gps == nullptr && gpstracker != nullptr) 
-        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+        loc = gpstracker->get_best_location();
 
     sql =
         "INSERT INTO snapshots "
@@ -1556,7 +1556,7 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
 
     std::shared_ptr<kis_gps_packinfo> loc;
     if (gpstracker != nullptr) 
-        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+        loc = gpstracker->get_best_location();
 
     if (!con->json()["note"].isNull()) {
         poi_data = "{\"note\": \"" +

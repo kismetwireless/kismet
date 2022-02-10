@@ -372,7 +372,7 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
     info->text = in_text;
 
     if (gpstracker != nullptr)
-        info->gps = std::move(gpstracker->get_best_location());
+        info->gps = gpstracker->get_best_location();
 
     // Increment and set the timers
     arec->inc_burst_sent(1);
