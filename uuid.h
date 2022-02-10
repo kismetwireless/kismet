@@ -107,7 +107,7 @@ public:
             ((uint64_t) node_f[2] << 16) |
             ((uint64_t) node_f[1] << 8) |
             ((uint64_t) node_f[0]);
-        gen_hash();
+        hash = gen_hash();
     }
 
     void generate_random_time_uuid() {
@@ -130,7 +130,7 @@ public:
         get_random_bytes(reinterpret_cast<uint8_t *>(&node) + 2, 6);
 #endif
         error = 0;
-        gen_hash();
+        hash = gen_hash();
     }
 
     void generate_time_uuid(uint8_t *in_node) {
@@ -153,7 +153,7 @@ public:
         memcpy(reinterpret_cast<uint8_t *>(&node) + 2, in_node, 6);
 #endif
         error = 0;
-        gen_hash();
+        hash = gen_hash();
     }
 
     std::string as_string() const {
@@ -239,12 +239,8 @@ public:
     uint8_t error;
 
 protected:
-    void gen_hash() {
-        hash = std::hash<uint64_t>{}(time_low);
-        hash ^= (std::hash<uint16_t>{}(time_mid) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
-        hash ^= (std::hash<uint16_t>{}(time_hi) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
-        hash ^= (std::hash<uint16_t>{}(clock_seq) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
-        hash ^= (std::hash<uint64_t>{}(node) + 0x9e3779b9 + (hash << 6) + (hash >> 2));
+    std::size_t gen_hash() {
+        return std::hash<std::string>{}(as_string());
     }
 
     void get_random_bytes(void *buf, int nbytes) {
@@ -330,13 +326,7 @@ std::istream& operator>>(std::istream &is, uuid& u);
 namespace std {
     template<> struct hash<uuid> {
         std::size_t operator()(uuid const& u) const noexcept {
-            auto h = std::hash<uint64_t>{}(u.time_low);
-            h = h ^ (std::hash<uint16_t>{}(u.time_mid) << 1);
-            h = h ^ (std::hash<uint16_t>{}(u.time_hi) << 1);
-            h = h ^ (std::hash<uint16_t>{}(u.clock_seq) << 1);
-            h = h ^ (std::hash<uint64_t>{}(u.node) << 1);
-
-            return h;
+            return u.hash;
         }
     };
 }
