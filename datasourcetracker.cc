@@ -1471,8 +1471,6 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 
     const uuid u = in_source->get_source_uuid();
 
-    _MSG_DEBUG("merge source - incoming source {} {} / {}", in_source->get_source_definition(), in_source->get_source_name(), in_source->get_source_uuid());
-
     // We maintain a persistent map of source uuids to source numbers, which
     // persists even if a source is later removed entirely from the datasource
     // list.
@@ -1514,7 +1512,6 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
         auto ds = std::static_pointer_cast<kis_datasource>(dsi);
 
         if (ds->get_source_uuid() == u) {
-            _MSG_DEBUG("think equal uuids: {} == {}, hash {} == {}", ds->get_source_uuid(), u, ds->get_source_uuid().hash, u.hash);
             _MSG_ERROR("Conflict of new datasource {}/{} and existing datasource {} with "
                     "the same UUID.  Datasource UUIDs must be unique, check the Kismet documentation "
                     "for the datasources you are using, and ensure that any manually defined "
