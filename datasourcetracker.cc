@@ -1513,8 +1513,9 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 
         if (ds->get_source_uuid() == u) {
             _MSG_ERROR("Conflict of new datasource {}/{} and existing datasource {} with "
-                    "the same UUID.  Datasource UUIDs must be unique, if you are specifying "
-                    "a UUID on the datasource config line, make sure it is unique",
+                    "the same UUID.  Datasource UUIDs must be unique, check the Kismet documentation "
+                    "for the datasources you are using, and ensure that any manually defined "
+                    "UUIDs are unique.",
                     in_source->get_source_name(), u, ds->get_source_name());
             in_source->close_source();
             break;
