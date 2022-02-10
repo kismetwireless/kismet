@@ -1003,6 +1003,9 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         msg = report.message().msgtext();
     }
 
+    _MSG_DEBUG("datasource report {} - self uuid {} report uuid {} local uuid {}",
+            get_source_definition(), get_source_uuid(), report.uuid(), local_uuid);
+
     if (report.has_uuid() && get_source_uuid() == 0) {
         // Don't clobber local UUID
         uuid u(report.uuid());
