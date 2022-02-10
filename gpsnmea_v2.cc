@@ -93,6 +93,17 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
     set_speed = false;
     set_fix = false;
 
+    for (unsigned int x = 0; x < line.length(); x++) {
+        if (line[x] < 0x32 || line[x] > 0x7A) {
+            if (!warned_about_binary) {
+                warned_about_binary = true;
+                _MSG_ERROR("NMEA GPS {} appears to be reporting binary data, not NMEA.  If this "
+                        "is a binary-only GPS unit, you will need to use gpsd and configure Kismet "
+                        "for gpsd mode.", get_gps_name());
+            }
+        }
+    }
+
     if (line.length() < 4) {
         return start_read();
     }

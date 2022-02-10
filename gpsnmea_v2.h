@@ -55,6 +55,8 @@ protected:
     boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     std::atomic<bool> stopped;
 
+    bool warned_about_binary;
+
     // Have we ever seen data from the device?
     bool ever_seen_gps;
 
