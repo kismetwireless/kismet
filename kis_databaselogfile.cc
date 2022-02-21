@@ -1435,11 +1435,11 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 
 	auto signal_min_k = con->http_variables().find("signal_min");
 	if (signal_min_k != con->http_variables().end()) 
-		query.append_where(AND, _WHERE("signal", GE, string_to_n<unsigned int>(signal_min_k->second)));
+		query.append_where(AND, _WHERE("signal", GE, string_to_n<int>(signal_min_k->second)));
 
 	auto signal_max_k = con->http_variables().find("signal_max");
 	if (signal_max_k != con->http_variables().end()) 
-		query.append_where(AND, _WHERE("signal", LE, string_to_n<unsigned int>(signal_max_k->second)));
+		query.append_where(AND, _WHERE("signal", LE, string_to_n<int>(signal_max_k->second)));
 
 	auto address_source_k = con->http_variables().find("address_source");
 	if (address_source_k != con->http_variables().end()) 
@@ -1471,11 +1471,11 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 
 	auto size_min_k = con->http_variables().find("size_min");
 	if (size_min_k != con->http_variables().end()) 
-		query.append_where(AND, _WHERE("length(packet)", GE, string_to_n<unsigned long int>(size_min_k->second)));
+		query.append_where(AND, _WHERE("packet_len", GE, string_to_n<unsigned long int>(size_min_k->second)));
 
 	auto size_max_k = con->http_variables().find("size_max");
 	if (size_max_k != con->http_variables().end()) 
-		query.append_where(AND, _WHERE("length(packet)", LE, string_to_n<unsigned long int>(size_max_k->second)));
+		query.append_where(AND, _WHERE("packet_len", LE, string_to_n<unsigned long int>(size_max_k->second)));
 
 	auto tag_k = con->http_variables().find("tag");
 	if (tag_k != con->http_variables().end())
