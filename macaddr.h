@@ -357,6 +357,15 @@ struct mac_addr {
         return index64(longmac, mdex);
     }
 
+    void set_byte(unsigned int index, uint8_t val) {
+        if (index >= MAC_LEN_MAX)
+            return;
+
+        uint64_t clear_set = (uint64_t) 0xFF << ((MAC_LEN_MAX - index - 1) * 8);
+        longmac &= ~clear_set;
+        longmac |= (uint64_t) val << ((MAC_LEN_MAX - index - 1) * 8);
+    }
+
 	constexpr17 uint32_t OUI() const {
 		return (longmac >> 40) & 0x00FFFFFF;
 	}
