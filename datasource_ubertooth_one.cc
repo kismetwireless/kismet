@@ -124,12 +124,8 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
         packet->ts.tv_usec = report.time_usec();
     }
 
-    // Override the DLT if we have one
-    if (get_source_override_linktype()) {
-        datachunk->dlt = get_source_override_linktype();
-    } else {
-        datachunk->dlt = report.dlt();
-    }
+    // We always override the ubertooth DLT since we don't get it from the ds
+    datachunk->dlt = get_source_override_linktype();
 
     packet->set_data(conv_buf, conv_buf_len);
     datachunk->set_data(packet->data);
