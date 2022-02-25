@@ -13,6 +13,8 @@
 #include "../config.h"
 #include "nrf_51822.h"
 
+#define BUFFER_SIZE 256
+
 #define MODEMDEVICE "/dev/ttyUSB0"
 
 #ifndef CRTSCTS
@@ -90,7 +92,7 @@ bool ping_check(kis_capture_handler_t *caph) {
     PING_REQ = 0x0D
     PING_RESP = 0x0E
     **/
-    uint8_t buf[255];
+    uint8_t buf[BUFFER_SIZE-1];
     buf[0] = 0x0D;
     uint16_t ctr = 0;
     int8_t res = 0;
@@ -109,9 +111,9 @@ bool ping_check(kis_capture_handler_t *caph) {
         /* looking for a response */
         while (ctr < 5000) {
             usleep(25);
-            memset(buf, 0x00, 255);
+            memset(buf, 0x00, sizeof(buf));
             found = false;
-            res = read(localnrf->fd, buf, 255);
+            res = read(localnrf->fd, buf, BUFFER_SIZE-1);
             /* currently if we get something back that is fine and continue */
             if (res > 0) {
                 found = true;
@@ -318,10 +320,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     localnrf->newtio.c_oflag = 0;
 
     /* newtio.c_lflag = ICANON; */
+    localnrf->newtio.c_cc[VTIME] = 5; // 0.5 seconds
+    localnrf->newtio.c_cc[VMIN] = 0;
 
     /* flush and set up */
-    tcflush(localnrf->fd, TCIFLUSH);
-    tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio);
+    if (tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio)) {
+        snprintf(msg, STATUS_MAX, "%s failed to set serial device options - %s",
+                 localnrf->name, strerror(errno));
+        return -1;
+    }
+
+    if (tcflush(localnrf->fd, TCIFLUSH)) {
+        snprintf(msg, STATUS_MAX, "%s failed to flush serial device - %s",
+                 localnrf->name, strerror(errno));
+        return -1;
+    }
 
     return 1;
 }
@@ -331,10 +344,10 @@ void capture_thread(kis_capture_handler_t *caph) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
     char errstr[STATUS_MAX];
-    uint8_t buf[256];
+    uint8_t buf[BUFFER_SIZE];
     int buf_rx_len = 0;
-    unsigned char pkt[255];
-    memset(pkt, 0x00, 255);
+    unsigned char pkt[BUFFER_SIZE-1];
+    memset(pkt, 0x00, sizeof(pkt));
 
     int pkt_start = 0;
     int hdr_len = 0;
@@ -353,12 +366,24 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         valid_pkt = false;
-        buf_rx_len = nrf_receive_payload(caph, buf, 256);
+	memset(buf, 0, sizeof(buf));
+        buf_rx_len = nrf_receive_payload(caph, buf, BUFFER_SIZE);
 
         if (buf_rx_len < 0) {
             cf_send_error(caph, 0, errstr);
             cf_handler_spindown(caph);
             break;
+        }
+
+        if (buf_rx_len > 0 ) {
+	    if (buf[0] == SLIP_START && buf[buf_rx_len - 1] != SLIP_END) {
+		while(buf[buf_rx_len - 1] != SLIP_END && buf_rx_len < BUFFER_SIZE)
+		{
+		    int size_read = 0, size_to_read = BUFFER_SIZE - buf_rx_len;
+                    size_read = nrf_receive_payload(caph, &buf[buf_rx_len], size_to_read);
+		    buf_rx_len += size_read;
+		}
+	    }
         }
 
         /* multiple packets can be returned at the same time.
@@ -368,13 +393,13 @@ void capture_thread(kis_capture_handler_t *caph) {
          */
         /* do some parsing or validation */
 
-        if (buf[0] == 0xAB && buf[buf_rx_len - 1] == 0xBC) {
+        if (buf[0] == SLIP_START && buf[buf_rx_len - 1] == SLIP_END) {
             for (int xp = 0; xp < buf_rx_len; xp++) {
-                if ((buf[xp] == 0xAB && xp == 0) ||
-                    (buf[xp] == 0xAB && buf[xp - 1] == 0xBC)) {
+                if ((buf[xp] == SLIP_START && xp == 0) ||
+                    (buf[xp] == SLIP_START && buf[xp - 1] == SLIP_END)) {
                     pkt_start = xp;
                     xp++;
-                    // check the protocol version
+                    /* check the protocol version */
                     if (buf[pkt_start + 3] == 0x01) {
                         hdr_len = buf[pkt_start + 1];
                         pkt_len = buf[pkt_start + 2];
@@ -386,12 +411,12 @@ void capture_thread(kis_capture_handler_t *caph) {
                 }
 
                 /* check the packet_type from the header */
-                if (buf[pkt_start + 6] == 0x06 || 
-                        (buf[pkt_start+3] == 0x03 && buf[pkt_start+6] == 0x02)) {
+                if (buf[pkt_start + 6] == EVENT_PACKET_DATA ||
+                        (buf[pkt_start + 3] == 0x03 && buf[pkt_start + 6] == EVENT_PACKET_ADVERTISING)) {
                     valid_pkt = true;
                     /* pld_ctr = 0; */
                     pkt_ctr = 0;
-                    memset(pkt, 0x00, 255);
+                    memset(pkt, 0x00, sizeof(pkt));
 
                     for (int hctr = (pkt_start + 1 + hdr_len);
                          hctr < (pkt_len + pkt_start + 1 + hdr_len); hctr++) {

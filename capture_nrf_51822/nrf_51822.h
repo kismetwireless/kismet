@@ -58,9 +58,15 @@
 #define B4000000 4000000
 #endif
 
+// SLIP CHARS
+#define SLIP_START 0xAB
+#define SLIP_END   0xBC
 
+// PACKET ID
+#define EVENT_PACKET_ADVERTISING 0x02
+#define EVENT_PACKET_DATA        0x06
 
-#define D_BAUDRATE B460800
+#define D_BAUDRATE B1000000
 
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 
