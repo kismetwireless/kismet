@@ -53,7 +53,27 @@ public:
     }
 };
 
-}
+};
+
+namespace translated_adapter {
+
+class serializer : public tracker_element_serializer {
+public:
+    serializer() :
+        tracker_element_serializer() { }
+
+    virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
+            std::shared_ptr<rename_map> name_map = nullptr) override {
+        json_adapter::pack(stream, in_elem, name_map, false, 0,
+                           [](const std::string& s) { 
+                               return multi_replace_all(s, ".", "_");
+                           });
+        return 0;
+    }
+};
+
+};
+
 
 // "ELK-style" JSON adapter.  This will behave the same as the normal JSON
 // serializer with a few important differences:  
