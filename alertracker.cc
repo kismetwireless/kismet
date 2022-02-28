@@ -806,7 +806,7 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
         con->set_status(400);
         
         std::ostream os(&con->response_stream());
-        os << "Invalid requestion: " << e.what() << "\n";
+        os << "Invalid request: " << e.what() << "\n";
         return;
     }
 }
