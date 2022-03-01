@@ -48,6 +48,9 @@ public:
         // We synthesize BTLE_LL_RADIO headers
         set_int_source_dlt(KDLT_BTLE_RADIO);
 
+        // always override linktype because the u1 packets don't come in w/ one
+        set_int_source_override_linktype(KDLT_BTLE_RADIO);
+
         pack_comp_decap =
             packetchain->register_packet_component("DECAP");
         pack_comp_radiodata = 
