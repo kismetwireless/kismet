@@ -63,10 +63,6 @@ void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_compone
                     "outside of the maximum bounds {}; this implies the pack_comp_x or _PCM "
                     "index is corrupt.", index, MAX_PACKET_COMPONENTS));
 
-	if (content_vec[index] != nullptr)
-        _MSG_ERROR("Losing packet component {}/{}, inserting on top of existing component",
-                index, Globalreg::globalreg->packetchain->fetch_packet_component_name(index));
-
 	content_vec[index] = data;
 }
 
