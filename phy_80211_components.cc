@@ -158,9 +158,11 @@ void dot11_probed_ssid::register_fields() {
     location_id = 
         register_dynamic_field<kis_tracked_location>("dot11.probedssid.location", "estimated location");
 
-    register_dynamic_field<tracker_element_uint8>("dot11.probedssid.dot11r_mobility", 
+    dot11r_mobility_id = 
+        register_dynamic_field<tracker_element_uint8>("dot11.probedssid.dot11r_mobility", 
             "advertised dot11r mobility support");
-    register_dynamic_field<tracker_element_uint16>("dot11.probedssid.dot11r_mobility_domain_id", 
+    dot11r_mobility_domain_id_id = 
+        register_dynamic_field<tracker_element_uint16>("dot11.probedssid.dot11r_mobility_domain_id", 
             "advertised dot11r mobility domain id");
 
     register_field("dot11.probedssid.crypt_set", "Requested encryption set", &crypt_set);
