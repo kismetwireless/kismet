@@ -1493,8 +1493,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->subtype == packet_sub_probe_req ||
                     dot11info->subtype == packet_sub_association_req ||
                     dot11info->subtype == packet_sub_reassociation_req) {
+                in_pack->tag_map["DOT11_PROBE_REQ"] = true;
                 handle_probed_ssid = true;
-                // d11phy->handle_probed_ssid(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
             }
 
             d11phy->devicetracker->update_view_device(dot11info->source_dev);
