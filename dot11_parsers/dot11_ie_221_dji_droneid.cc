@@ -41,24 +41,54 @@ void dot11_ie_221_dji_droneid::parse(std::shared_ptr<kaitai::kstream> p_io) {
 
 void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_version = p_io->read_u1();
-    m_seq = p_io->read_u2le();
-    m_state_info = p_io->read_u2le();
-    m_serialnumber = p_io->read_bytes(16);
-    m_raw_lon = p_io->read_s4le();
-    m_raw_lat = p_io->read_s4le();
-    m_altitude = p_io->read_s2le();
-    m_height = p_io->read_s2le();
-    m_v_north = p_io->read_s2le();
-    m_v_east = p_io->read_s2le();
-    m_v_up = p_io->read_s2le();
-    m_raw_pitch = p_io->read_s2le();
-    m_raw_roll = p_io->read_s2le();
-    m_raw_yaw = p_io->read_s2le();
-    m_raw_home_lon = p_io->read_s4le();
-    m_raw_home_lat = p_io->read_s4le();
-    m_product_type = p_io->read_u1();
-    m_uuid_len = p_io->read_u1();
-    m_uuid = p_io->read_bytes(uuid_len());
+
+    switch (m_version) {
+        case 1:
+            m_seq = p_io->read_u2le();
+            m_state_info = p_io->read_u2le();
+            m_serialnumber = p_io->read_bytes(16);
+            m_raw_lon = p_io->read_s4le();
+            m_raw_lat = p_io->read_s4le();
+            m_altitude = p_io->read_s2le();
+            m_height = p_io->read_s2le();
+            m_v_north = p_io->read_s2le();
+            m_v_east = p_io->read_s2le();
+            m_v_up = p_io->read_s2le();
+            m_raw_pitch = p_io->read_s2le();
+            m_raw_roll = p_io->read_s2le();
+            m_raw_yaw = p_io->read_s2le();
+            m_raw_home_lon = p_io->read_s4le();
+            m_raw_home_lat = p_io->read_s4le();
+            m_product_type = p_io->read_u1();
+            m_uuid_len = p_io->read_u1();
+            m_uuid = p_io->read_bytes(uuid_len());
+            break;
+        case 2:
+            m_seq = p_io->read_u2le();
+            m_state_info = p_io->read_u2le();
+            m_serialnumber = p_io->read_bytes(16);
+            m_raw_lon = p_io->read_s4le();
+            m_raw_lat = p_io->read_s4le();
+            // Height is from barometric actual height, altitude is height since
+            // takeoff
+            m_height = p_io->read_s2le() / 10;
+            m_altitude = p_io->read_s2le();
+
+            // v2 8 byte gap - is this the pitch/roll/yaw from v1 still?
+            // Not sure; skip for now
+            p_io->read_bytes(8);
+
+            // V2 gps time
+            m_gps_time = p_io->read_u8le();
+            m_raw_app_lat = p_io->read_s4le();
+            m_raw_app_lon = p_io->read_s4le();
+            m_raw_home_lon = p_io->read_s4le();
+            m_raw_home_lat = p_io->read_s4le();
+
+            m_product_type = p_io->read_u1();
+            m_uuid_len = p_io->read_u1();
+            m_uuid = p_io->read_bytes(uuid_len());
+    }
 }
 
 void dot11_ie_221_dji_droneid::dji_subcommand_flight_purpose::parse(std::shared_ptr<kaitai::kstream> p_io) {

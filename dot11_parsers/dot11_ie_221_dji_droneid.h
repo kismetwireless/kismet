@@ -139,155 +139,277 @@ public:
 
         virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        uint8_t version() {
+        const uint8_t version() const {
             return m_version;
         }
 
-        uint16_t seq() {
+        const uint16_t seq() const {
             return m_seq;
         }
 
-        uint16_t state_info() {
+        const uint16_t state_info() const {
             return m_state_info;
         }
 
-        std::string serialnumber() {
+        const std::string serialnumber() const {
             return m_serialnumber;
         }
 
-        int32_t raw_lon() {
+        const int32_t raw_lon() const {
             return m_raw_lon;
         }
 
-        int32_t raw_lat() {
+        const int32_t raw_lat() const {
             return m_raw_lat;
         }
 
-        int16_t altitude() {
+        const int16_t altitude() const {
             return m_altitude;
         }
 
-        int16_t height() {
+        const int16_t height() const {
             return m_height;
         }
 
-        int16_t v_north() {
+        const int16_t v_north() const {
             return m_v_north;
         }
 
-        int16_t v_east() {
+        const int16_t v_east() const {
             return m_v_east;
         }
 
-        int16_t v_up() {
+        const int16_t v_up() const {
             return m_v_up;
         }
 
-        int16_t raw_pitch() {
+        const int16_t raw_pitch() const {
             return m_raw_pitch;
         }
 
-        int16_t raw_roll() {
+        const int16_t raw_roll() const {
             return m_raw_roll;
         }
 
-        int16_t raw_yaw() {
+        const int16_t raw_yaw() const {
             return m_raw_yaw;
         }
 
-        int32_t raw_home_lon() {
+        const int32_t raw_home_lon() const {
             return m_raw_home_lon;
         }
 
-        int32_t raw_home_lat() {
+        const int32_t raw_home_lat() const {
             return m_raw_home_lat;
         }
 
-        uint8_t product_type() {
+        const int32_t raw_app_lon() const {
+            return m_raw_app_lon;
+        }
+
+        const int32_t raw_app_lat() const {
+            return m_raw_app_lat;
+        }
+
+        const uint8_t product_type() const {
             return m_product_type;
         }
 
-        uint8_t uuid_len() {
+        const std::string product_type_str() {
+            switch (product_type()) {
+                case 1:
+                    return "Instpire 1";
+                case 2:
+                case 3:
+                    return "Phantom 3 Series";
+                case 4: 
+                    return "Phandom 3 Std";
+                case 5:
+                    return "M100";
+                case 6:
+                    return "ACEONE";
+                case 7:
+                    return "WKM";
+                case 8:
+                    return "NAZA";
+                case 9:
+                    return "A2";
+                case 10:
+                    return "A3";
+                case 11:
+                    return "Phantom 4";
+                case 12:
+                    return "MG1";
+                case 14:
+                    return "M600";
+                case 15:
+                    return "Phantom 3 4k";
+                case 16:
+                    return "Mavic Pro";
+                case 17:
+                    return "Inspire 2";
+                case 18:
+                    return "Phantom 4 Pro";
+                case 20:
+                    return "N2";
+                case 21:
+                    return "Spark";
+                case 23:
+                    return "M600 Pro";
+                case 24:
+                    return "Mavic Air";
+                case 25:
+                    return "M200";
+                case 26:
+                    return "Phantom 4 Series";
+                case 27:
+                    return "Phantom 4 Adv";
+                case 28:
+                    return "M210";
+                case 30:
+                    return "M210RTK";
+                case 31:
+                    return "A3_AG";
+                case 32:
+                    return "MG2";
+                case 34:
+                    return "MG1A";
+                case 35:
+                    return "Phantom 4 RTK";
+                case 36:
+                    return "Phantom 4 Pro V2.0";
+                case 38:
+                    return "MG1P";
+                case 40:
+                    return "MV1P-RTK";
+                case 41:
+                    return "Mavic 2";
+                case 44:
+                    return "M200 V2 Series";
+                case 51:
+                    return "Mavic 2 Enterprise";
+                case 53:
+                    return "Mavic Mini";
+                case 58:
+                    return "Mavic Air 2";
+                case 59:
+                    return "P4M";
+                case 60:
+                    return "M300 RTK";
+                case 61:
+                    return "DJI FPV";
+                case 63:
+                    return "Mini 2";
+                case 64:
+                    return "AGRAS T10";
+                case 65:
+                    return "AGRAS T30";
+                case 66:
+                    return "Air 2S";
+                case 68:
+                    return "Mavic 3";
+                case 69:
+                    return "Mavic 2 Enterprise Advanced";
+                case 70:
+                    return "Mini SE";
+                default:
+                    return fmt::format("Unknown ({})", product_type());
+            }
+        }
+
+        const uint8_t uuid_len() const {
             return m_uuid_len;
         }
 
-        std::string uuid() {
+        const std::string uuid() const {
             return m_uuid;
         }
 
-        unsigned int state_serial_valid() {
+        const unsigned int state_serial_valid() const {
             return state_info() & 0x01;
         }
 
-        unsigned int state_user_privacy_enabled() {
+        const unsigned int state_user_privacy_enabled() const {
             return (state_info() & 0x02) == 0;
         }
 
-        unsigned int state_homepoint_set() {
+        const unsigned int state_homepoint_set() const {
             return state_info() & 0x04;
         }
 
-        unsigned int state_uuid_set() {
+        const unsigned int state_uuid_set() const {
             return state_info() & 0x08;
         }
 
-        unsigned int state_motor_on() {
+        const unsigned int state_motor_on() const {
             return state_info() & 0x10;
         }
 
-        unsigned int state_in_air() {
+        const unsigned int state_in_air() const {
             return state_info() & 0x20;
         }
 
-        unsigned int state_gps_valid() {
+        const unsigned int state_gps_valid() const {
             return state_info() & 0x40;
         }
 
-        unsigned int state_alt_valid() {
+        const unsigned int state_alt_valid() const {
             return state_info() & 0x80;
         }
 
-        unsigned int state_height_valid() {
+        const unsigned int state_height_valid() const {
             return state_info() & 0x100;
         }
 
-        unsigned int state_horiz_valid() {
+        const unsigned int state_horiz_valid() const {
             return state_info() & 0x200;
         }
 
-        unsigned int state_vup_valid() {
+        const unsigned int state_vup_valid() const {
             return state_info() & 0x400;
         }
 
-        unsigned int state_pitchroll_valid() {
+        const unsigned int state_pitchroll_valid() const {
             return state_info() & 0x800;
         }
 
-        float lon() {
+        const float lon() const {
             return (float) raw_lon() / 174533.0f;
         }
 
-        float lat() {
+        const float lat() const {
             return (float) raw_lat() / 174533.0f;
         }
 
-        float home_lon() {
+        const float home_lon() const {
             return (float) raw_home_lon() / 174533.0f;
         }
 
-        float home_lat() {
+        const float home_lat() const {
             return (float) raw_home_lat() / 174533.0f;
         }
 
-        float pitch() {
+        const float app_lon() const {
+            return (float) raw_app_lon() / 174533.0f;
+        }
+
+        const float app_lat() const {
+            return (float) raw_app_lat() / 174533.0f;
+        }
+
+        const uint64_t gps_time() const {
+            return m_gps_time;
+        }
+
+        const float pitch() const {
             return ((float) raw_pitch() / 100.0f) / 57.296f;
         }
 
-        float roll() {
+        const float roll() const {
             return ((float) raw_roll() / 100.0f) / 57.296f;
         }
 
-        float yaw() {
+        const float yaw() const {
             return ((float) raw_yaw() / 100.0f) / 57.296f;
         }
 
@@ -311,6 +433,9 @@ public:
             m_product_type = 0;
             m_uuid_len = 0;
             m_uuid = "";
+            m_gps_time = 0;
+            m_raw_app_lon = 0;
+            m_raw_app_lat = 0;
         }
 
     protected:
@@ -333,6 +458,11 @@ public:
         uint8_t m_product_type;
         uint8_t m_uuid_len;
         std::string m_uuid;
+
+        // V2 additional fields
+        uint64_t m_gps_time;
+        int32_t m_raw_app_lon;
+        int32_t m_raw_app_lat;
     };
 
     class dji_subcommand_flight_purpose : public dji_subcommand_common {
