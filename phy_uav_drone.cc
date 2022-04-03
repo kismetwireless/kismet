@@ -191,7 +191,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                         }
 
                         uavdev->set_uav_manufacturer("DJI");
-                        uavdev->set_uav_model("Mavic (Broken firmware)");
+                        uavdev->set_uav_model("(Broken firmware)");
                         uavdev->set_uav_match_type("DroneID");
                     }
 
@@ -228,13 +228,24 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     uavdev->set_uav_match_type("DroneID");
 
                     if (uavdev->get_uav_manufacturer() == "")
-                        uavdev->set_uav_manufacturer("DJI/DroneID");
+                        uavdev->set_uav_manufacturer("DJI");
+
+                    if (uavdev->get_uav_model() == "")
+                        uavdev->set_uav_model(flightinfo->product_type_str());
 
                     // Set the home location
                     if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
                         auto homeloc = uavdev->get_home_location();
                         homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
+                        homeloc->set_fix(2);
                     }
+
+                    if (flightinfo->app_lat() != 0 && flightinfo->app_lon() != 0) {
+                        auto apploc = uavdev->get_app_location();
+                        apploc->set(flightinfo->app_lat(), flightinfo->app_lon());
+                        apploc->set_fix(2);
+                    }
+
                 } 
                
                 auto flightpurpose = dot11info->droneid->flight_purpose_record();

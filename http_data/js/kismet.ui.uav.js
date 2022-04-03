@@ -7,11 +7,12 @@ kismet_ui.AddDeviceRowHighlight({
     description: "UAV and Drone devices",
     priority: 100,
     defaultcolor: "#f49e42",
-    defaultenable: false,
+    defaultenable: true,
     fields: [
         'uav.device'
     ],
     selector: function(data) {
+        console.log(data['uav.device']);
         return ('uav.device' in data && data['uav.device'] != 0);
     }
 });
@@ -47,6 +48,30 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                 title: "ID Method",
                 empty: "<i>Unknown</i>",
                 help: "Kismet can identify a UAV device by several methods; 'WifiMatch' compares the MAC address and SSID.  'DroneID' matches the DJI DroneID protocol added to packets from the device.",
+            },
+            {
+                field: "home_location",
+                title: "Home Location",
+                render: function(opts) {
+                    var loc =
+                        kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.geopoint[1]") + ", " +
+                        kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.geopoint[0]");
+
+                    return loc;
+                },
+                help: "Last advertised <b>home</b> location.  The home location is where a UAV will return to if signal is lost or a return-to-home is received.",
+            },
+            {
+                field: "app_location",
+                title: "App Location",
+                render: function(opts) {
+                    var loc =
+                        kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.app_location/kismet.common.location.geopoint[1]") + ", " +
+                        kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.app_location/kismet.common.location.geopoint[0]");
+
+                    return loc;
+                },
+                help: "Last advertised <b>application</b> location.  This is the last-known location of the operator application.",
             },
             {
                 field: "uav.device/uav.last_telemetry",
@@ -88,18 +113,6 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                         return loc;
                     },
                     help: "Last advertised location",
-                },
-                {
-                    field: "home_location",
-                    title: "Home Location",
-                    render: function(opts) {
-                        var loc =
-                            kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.geopoint[1]") + ", " +
-                            kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.goepoint[0]");
-
-                        return loc;
-                    },
-                    help: "Last advertised <b>home</b> location.  The home location is where a UAV will return to if signal is lost or a return-to-home is received.",
                 },
                 {
                     field: "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.alt",

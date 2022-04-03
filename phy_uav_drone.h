@@ -78,6 +78,7 @@ public:
 
     __ProxyTrackable(location, kis_tracked_location_triplet, location);
     __Proxy(telem_timestamp, double, double, double, telem_ts);
+
     __Proxy(yaw, double, double, double, yaw);
     __Proxy(pitch, double, double, double, pitch);
     __Proxy(roll, double, double, double, roll);
@@ -90,6 +91,7 @@ public:
     __Proxy(airborne, uint8_t, bool, bool, airborne);
 
     void from_droneid_flight_reg(std::shared_ptr<dot11_ie_221_dji_droneid::dji_subcommand_flight_reg> flight_reg) {
+
         if (flight_reg->state_gps_valid()) {
             location->set(flight_reg->lat(), flight_reg->lon());
             
@@ -305,6 +307,8 @@ public:
 
     __ProxyDynamicTrackable(home_location, kis_tracked_location_triplet, 
             home_location, home_location_id);
+    __ProxyDynamicTrackable(app_location, kis_tracked_location_triplet, 
+            app_location, app_location_id);
     __ProxyDynamicTrackable(matched_type, uav_manuf_match, matched_type, matched_type_id);
 
 protected:
@@ -330,6 +334,10 @@ protected:
         home_location_id =
             register_field("uav.telemetry.home_location", "UAV takeoff/home location",
                     &home_location);
+
+        app_location_id =
+            register_field("uav.telemetry.app_location", "UAV app/operator location",
+                    &app_location);
 
         matched_type_id =
             register_field("uav.type", "Matched device", &matched_type);
@@ -363,6 +371,8 @@ protected:
 
     std::shared_ptr<kis_tracked_location_triplet> home_location;
     int home_location_id;
+    std::shared_ptr<kis_tracked_location_triplet> app_location;
+    int app_location_id;
 
     std::shared_ptr<uav_manuf_match> matched_type;
     int matched_type_id;
