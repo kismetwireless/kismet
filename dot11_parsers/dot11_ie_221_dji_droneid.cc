@@ -74,9 +74,10 @@ void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(std::shared_ptr<
             m_height = p_io->read_s2le() / 10;
             m_altitude = p_io->read_s2le();
 
-            // v2 8 byte gap - is this the pitch/roll/yaw from v1 still?
-            // Not sure; skip for now
-            p_io->read_bytes(8);
+            m_v_north = p_io->read_s2le();
+            m_v_east = p_io->read_s2le();
+            m_v_up = p_io->read_s2le();
+            m_raw_yaw = p_io->read_s2le();
 
             // V2 gps time
             m_gps_time = p_io->read_u8le();
