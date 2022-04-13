@@ -266,7 +266,7 @@ int main(int argc, char *argv[]) {
 
     struct stat statbuf;
 
-    unsigned int rate_limit = 0;
+    unsigned int rate_limit = 1;
     unsigned int cache_limit = 1000;
 
     while (1) {
