@@ -42,6 +42,18 @@ void dot11_ie_221_dji_droneid::parse(std::shared_ptr<kaitai::kstream> p_io) {
 void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_version = p_io->read_u1();
 
+    /* None of the decodes seem proper and there is no way to validate any of the additional data, 
+     * including if height/altitude is swapped, so decode the little we CAN reliably read from
+     * whatever they seem to be sending
+     */
+
+    m_seq = p_io->read_u2le();
+    m_state_info = p_io->read_u2le();
+    m_serialnumber = p_io->read_bytes(16);
+    m_raw_lon = p_io->read_s4le();
+    m_raw_lat = p_io->read_s4le();
+
+    /*
     switch (m_version) {
         case 1:
             m_seq = p_io->read_u2le();
@@ -90,6 +102,7 @@ void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(std::shared_ptr<
             m_uuid_len = p_io->read_u1();
             m_uuid = p_io->read_bytes(uuid_len());
     }
+    */
 }
 
 void dot11_ie_221_dji_droneid::dji_subcommand_flight_purpose::parse(std::shared_ptr<kaitai::kstream> p_io) {
