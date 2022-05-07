@@ -150,8 +150,17 @@ public:
     const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
 
     bool serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    bool serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con, std::string filepath);
 
     void strip_uri_prefix(boost::beast::string_view& uri_view);
+
+    const bool& redirect_unknown() const {
+        return redirect_unknown_;
+    }
+
+    const std::string& redirect_unknown_target() const {
+        return redirect_unknown_target_;
+    }
 
 protected:
     std::atomic<bool> running;
@@ -195,6 +204,9 @@ protected:
 
     bool allow_cors_;
     std::string allowed_cors_referrer_;
+
+    bool redirect_unknown_;
+    std::string redirect_unknown_target_;
 
     // Yes, these are stored in ram.  yes, I'm ok with this.
     std::string admin_username, admin_password;

@@ -190,6 +190,10 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     allowed_cors_referrer_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
 
+    redirect_unknown_target_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_redirect_unknown", "");
+    redirect_unknown_ = redirect_unknown_target_.length();
+
     auto http_data_dir =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_home", "");
     if (http_data_dir == "") {
@@ -964,20 +968,9 @@ std::string kis_net_beast_httpd::escape_html(const boost::beast::string_view& ht
     return ss.str();
 }
 
-bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con,
+                                     std::string uri) {
     boost::beast::error_code ec;
-
-    std::string uri;
-    auto encoding_pos = con->uri().find_first_of("?");
-    if (encoding_pos != con->uri().npos)
-        uri = static_cast<std::string>(con->uri().substr(0, encoding_pos));
-    else
-        uri = static_cast<std::string>(con->uri());
-
-    if (uri.length() == 0)
-        uri = "/index.html";
-    else if (uri.back() == '/') 
-        uri += "index.html";
 
     for (auto sd : static_dir_vec) {
         ec = {};
@@ -1058,6 +1051,18 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     }
 
     return false;
+}
+
+bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+    std::string uri;
+    auto encoding_pos = con->uri().find_first_of("?");
+    if (encoding_pos != con->uri().npos)
+        uri = static_cast<std::string>(con->uri().substr(0, encoding_pos));
+    else
+        uri = static_cast<std::string>(con->uri());
+
+    return serve_file(con, uri);
 }
 
 void kis_net_beast_httpd::strip_uri_prefix(boost::beast::string_view& uri_view) {
@@ -1380,6 +1385,11 @@ bool kis_net_beast_httpd_connection::start() {
         if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head)
             file_served = httpd->serve_file(shared_from_this());
 
+        // Fallback to trying to serve the fallback content
+        if (!file_served && httpd->redirect_unknown())
+            file_served = httpd->serve_file(shared_from_this(), httpd->redirect_unknown_target());
+
+        // If we still didn't serve content, 404
         if (!file_served) {
             boost::beast::http::response<boost::beast::http::string_body> 
                 res{boost::beast::http::status::not_found, request_.version()};
