@@ -334,16 +334,24 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string 
 
     shared_logfile lf = in_builder->build_logfile(in_builder);
     lf->set_id(logfile_entry_id);
-    logfile_vec->push_back(lf);
 
     std::string logpath =
         Globalreg::globalreg->kismet_config->expand_log_path(get_log_template(),
                 in_title, lf->get_builder()->get_log_class(), 1, 0);
 
+    if (logpath.length() == 0) {
+        _MSG_ERROR("Failed to resolve a log path for {}", 
+                   lf->get_builder()->get_log_class());
+        return nullptr;
+    }
+
     if (!lf->open_log(logpath)) {
         _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
                 MSGFLAG_ERROR);
+        return nullptr;
     }
+
+    logfile_vec->push_back(lf);
 
     return lf;
 }
