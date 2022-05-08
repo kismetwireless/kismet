@@ -972,6 +972,11 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
                                      std::string uri) {
     boost::beast::error_code ec;
 
+    if (uri.length() == 0)
+        uri = "/index.html";
+    else if (uri.back() == '/')
+        uri += "index.html";
+
     for (auto sd : static_dir_vec) {
         ec = {};
 
@@ -1061,6 +1066,8 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
         uri = static_cast<std::string>(con->uri().substr(0, encoding_pos));
     else
         uri = static_cast<std::string>(con->uri());
+
+    printf("serving: %s\n", uri.c_str());
 
     return serve_file(con, uri);
 }
