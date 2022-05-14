@@ -5,17 +5,17 @@ var local_uri_prefix = "";
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
-/* Highlight rtl devices */
+/* Highlight ADSB devices */
 kismet_ui.AddDeviceRowHighlight({
-    name: "RTLadsb Devices",
-    description: "RTLadsb Sensor",
+    name: "ADSB Devices",
+    description: "ADSB Sensor",
     priority: 50,
     //defaultcolor: "#efe0c3",
     defaultcolor: "#ffb3b3",
     defaultenable: true,
     fields: [
         'kismet.device.base.phyname',
-        'rtladsb.device'
+        'adsb.device'
     ],
     selector: function(data) {
         var aircraft_info = [
@@ -88,13 +88,13 @@ kismet_ui.AddDeviceRowHighlight({
             'ac7b99',
 	    ];
 
-        if (data['kismet.device.base.phyname'] === 'RTLADSB') {
+        if (data['kismet.device.base.phyname'] === 'ADSB') {
             for (var re of aircraft_info) {
 		 var retval = false;
-		 if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(re)) {
+		 if (data['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(re)) {
 	            retval = true;
 		    for (var excld of exclude_list) {
-		      if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(excld)) {
+		      if (data['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(excld)) {
 			retval=false;
 		      }
 	            }
@@ -105,7 +105,7 @@ kismet_ui.AddDeviceRowHighlight({
 		 }
 	    }
 	    for (var re of icao_list) {
-		 if (data['rtladsb.device']['rtladsb.device.icao'].toLowerCase().includes(re))
+		 if (data['adsb.device']['adsb.device.icao'].toLowerCase().includes(re))
                     return true;
             }
         }
@@ -113,22 +113,22 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
-kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
+kismet_ui.AddDeviceDetail("adsb", "ADSB (SDR)", 0, {
     filter: function(data) {
-        return (data['kismet.device.base.phyname'] === "RTLADSB");
+        return (data['kismet.device.base.phyname'] === "ADSB");
     },
     draw: function(data, target) {
         target.devicedata(data, {
-            "id": "RtladsbData",
+            "id": "adsbData",
             "fields": [
             {
-                field: "rtladsb.device/rtladsb.device.icao",
+                field: "adsb.device/adsb.device.icao",
                 liveupdate: true,
                 title: "Plane ICAO",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtladsb.device/rtladsb.device.callsign",
+                field: "adsb.device/adsb.device.callsign",
                 liveupdate: true,
                 title: "Callsign",
                 filterOnZero: true,
@@ -136,7 +136,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 help: "Flight registration / Callsign",
             },
             {
-                field: "rtladsb.device/rtladsb.device.callsign",
+                field: "adsb.device/adsb.device.callsign",
                 id: "fa_callsign",
                 liveupdate: true,
                 title: "Flightaware",
@@ -147,7 +147,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 },
             },
             {
-                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.regid",
+                field: "adsb.device/kismet.adsb.icao_record/adsb.icao.regid",
                 liveupdate: true,
                 title: "Registration ID",
                 filterOnZero: true,
@@ -155,7 +155,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 help: "Aircraft registration ID or tail number",
             },
             {
-                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.atype",
+                field: "adsb.device/kismet.adsb.icao_record/adsb.icao.atype",
                 liveupdate: true,
                 title: "Aircraft Classification",
                 filterOnZero: true,
@@ -163,7 +163,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 help: "Aircraft classification type",
             },
             {
-                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.model",
+                field: "adsb.device/kismet.adsb.icao_record/adsb.icao.model",
                 liveupdate: true,
                 title: "Model",
                 filterOnZero: true,
@@ -171,7 +171,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 help: "Aircraft model (general model type)",
             },
             {
-                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.type",
+                field: "adsb.device/kismet.adsb.icao_record/adsb.icao.type",
                 liveupdate: true,
                 title: "Type",
                 filterOnZero: true,
@@ -179,7 +179,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 help: "Aircraft type (specific model type)",
             },
             {
-                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.owner",
+                field: "adsb.device/kismet.adsb.icao_record/adsb.icao.owner",
                 liveupdate: true,
                 title: "Aircraft Operator",
                 filterOnZero: true,
@@ -187,19 +187,19 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 help: "Aircraft operator or owner of record",
             },
             {
-                field: "rtladsb.device/rtladsb.device.altitude",
+                field: "adsb.device/adsb.device.altitude",
                 liveupdate: true,
                 title: "Altitude",
                 filterOnZero: true,
             },
             {
-                field: "rtladsb.device/rtladsb.device.speed",
+                field: "adsb.device/adsb.device.speed",
                 liveupdate: true,
                 title: "Speed",
                 filterOnZero: true,
             },
             {
-                field: "rtladsb.device/rtladsb.device.heading",
+                field: "adsb.device/adsb.device.heading",
                 liveupdate: true,
                 title: "Heading",
                 filterOnZero: true,
@@ -210,14 +210,14 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 },
             },
             {
-                field: "rtladsb.device/rtladsb.device.latitude",
+                field: "adsb.device/adsb.device.latitude",
                 liveupdate: true,
                 title: "Location",
                 filterOnZero: true,
                 filterOnEmpty: true,
                 draw: function(opts) {
                     try {
-                        return opts['data']['rtladsb.device']['rtladsb.device.latitude'] + ', ' + opts['data']['rtladsb.device']['rtladsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['rtladsb.device']['rtladsb.device.latitude'] + '&mlon=' + opts['data']['rtladsb.device']['rtladsb.device.longitude'] + '">View on Open Street Maps</a>';
+                        return opts['data']['adsb.device']['adsb.device.latitude'] + ', ' + opts['data']['adsb.device']['adsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['adsb.device']['adsb.device.latitude'] + '&mlon=' + opts['data']['adsb.device']['adsb.device.longitude'] + '">View on Open Street Maps</a>';
                     } catch (error) {
                         return 'n/a'
                     }
@@ -225,7 +225,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 },
             },
             {
-                field: "rtladsb.device/rtladsb.device.asgs",
+                field: "adsb.device/adsb.device.asgs",
                 liveupdate: true,
                 title: "Airspeed(AS) / Groundspeed (GS)",
                 filterOnZero: true,

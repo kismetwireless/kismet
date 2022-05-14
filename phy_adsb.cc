@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#include "phy_rtladsb.h"
+#include "phy_adsb.h"
 #include "datasource_virtual.h"
 
 #include "devicetracker.h"
@@ -29,10 +29,10 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
+kis_adsb_phy::kis_adsb_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
-    set_phy_name("RTLADSB");
+    set_phy_name("ADSB");
 
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
@@ -54,10 +54,10 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
     pack_comp_datasource =
         packetchain->register_packet_component("KISDATASRC");
 
-    rtladsb_adsb_id =
-        Globalreg::globalreg->entrytracker->register_field("rtladsb.device",
-                tracker_element_factory<rtladsb_tracked_adsb>(),
-                "RTLADSB adsb");
+    adsb_adsb_id =
+        Globalreg::globalreg->entrytracker->register_field("adsb.device",
+                tracker_element_factory<adsb_tracked_adsb>(),
+                "ADSB adsb");
 
 
     map_min_lat_id = 
@@ -82,12 +82,12 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                 "ADSB map recent devices");
 
     // Make the manuf string
-    rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("RTLADSB");
+    rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("ADSB");
 
     // Register js module for UI
     auto httpregistry =
         Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
-    httpregistry->register_js_module("kismet_ui_rtladsb", "js/kismet.ui.rtladsb.js");
+    httpregistry->register_js_module("kismet_ui_adsb", "js/kismet.ui.adsb.js");
 
 	packetchain->register_handler(&packet_handler, this, CHAINPOS_CLASSIFIER, -100);
 
@@ -95,7 +95,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    httpd->register_route("/phy/RTLADSB/proxy/create", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+    httpd->register_route("/phy/ADSB/proxy/create", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this, httpd](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                     uuid src_uuid;
@@ -133,7 +133,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
                     datasourcetracker->merge_source(virtual_source);
 
-                    auto uri = fmt::format("/phy/RTLADSB/by-uuid/{}/proxy", src_uuid);
+                    auto uri = fmt::format("/phy/ADSB/by-uuid/{}/proxy", src_uuid);
                     httpd->register_websocket_route(uri, {httpd->LOGON_ROLE, "datasource"}, {"ws"},
                             std::make_shared<kis_net_web_function_endpoint>(
                                 [this, virtual_source, vs_cast](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -171,7 +171,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
                                             auto jsoninfo = std::make_shared<kis_json_packinfo>();
 
-                                            jsoninfo->type = "RTLadsb";
+                                            jsoninfo->type = "adsb";
 
                                             jsoninfo->json_string = 
                                                 fmt::format("{{\"adsb_raw_msg\": \"{}\"}}",
@@ -195,13 +195,13 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                     return virtual_source;
                 }));
 
-    httpd->register_route("/phy/RTLADSB/map_data", {"GET", "POST"}, httpd->RO_ROLE, {},
+    httpd->register_route("/phy/ADSB/map_data", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return adsb_map_endp_handler(con);
                 }, devicetracker->get_devicelist_mutex()));
 
-    httpd->register_websocket_route("/phy/RTLADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
+    httpd->register_websocket_route("/phy/ADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
@@ -224,7 +224,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                             if (json == NULL)
                                 return 0;
 
-                            if (json->type != "RTLadsb")
+                            if (json->type != "adsb")
                                 return 0;
 
                             std::stringstream ss(json->json_string);
@@ -286,7 +286,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                 packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
             }));
 
-    httpd->register_websocket_route("/phy/RTLADSB/raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
+    httpd->register_websocket_route("/phy/ADSB/raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
@@ -309,7 +309,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                             if (json == NULL)
                                 return 0;
 
-                            if (json->type != "RTLadsb")
+                            if (json->type != "adsb")
                                 return 0;
 
                             std::stringstream ss(json->json_string);
@@ -370,7 +370,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
                             if (json == nullptr)
                                 return 0;
 
-                            if (json->type != "RTLadsb")
+                            if (json->type != "adsb")
                                 return 0;
 
                             auto src = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
@@ -412,11 +412,11 @@ kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
 
 }
 
-kis_rtladsb_phy::~kis_rtladsb_phy() {
+kis_adsb_phy::~kis_adsb_phy() {
     packetchain->remove_handler(&packet_handler, CHAINPOS_CLASSIFIER);
 }
 
-mac_addr kis_rtladsb_phy::json_to_mac(Json::Value json) {
+mac_addr kis_adsb_phy::json_to_mac(Json::Value json) {
     // Derive a mac addr from the model and device id data
     //
     // We turn the model string into 4 bytes using the adler32 checksum,
@@ -463,7 +463,7 @@ mac_addr kis_rtladsb_phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_rtladsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
+bool kis_adsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -509,7 +509,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> 
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtladsb_json_to_rtl");
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
 
     std::string dn = "Airplane";
 
@@ -523,7 +523,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> 
     basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
     basedev->set_devicename(fmt::format("ADSB {}", dn));
 
-    std::shared_ptr<rtladsb_tracked_adsb> adsbdev;
+    std::shared_ptr<adsb_tracked_adsb> adsbdev;
 
     if (is_adsb(json))
         adsbdev = add_adsb(packet, json, basedev);
@@ -600,15 +600,15 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> 
         packet->insert(pack_comp_gps, gpsinfo);
 
         devicetracker->update_common_device(common, common->source, this, packet,
-                (UCD_UPDATE_LOCATION), "RTLADSB Transmitter");
+                (UCD_UPDATE_LOCATION), "ADSB Transmitter");
     }
 
     return true;
 }
 
-bool kis_rtladsb_phy::is_adsb(Json::Value json) {
+bool kis_adsb_phy::is_adsb(Json::Value json) {
 
-    //fprintf(stderr, "RTLADSB: checking to see if it is a adsb\n");
+    //fprintf(stderr, "ADSB: checking to see if it is a adsb\n");
     auto icao_j = json["icao"];
 
     if (!icao_j.isNull()) {
@@ -618,7 +618,7 @@ bool kis_rtladsb_phy::is_adsb(Json::Value json) {
     return false;
 }
 
-std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(std::shared_ptr<kis_packet> packet,
+std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_packet> packet,
         Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder) {
     auto icao_j = json["icao"];
     bool new_adsb = false;
@@ -626,11 +626,11 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(std::shared_ptr<
 
     if (!icao_j.isNull()) {
         auto adsbdev = 
-            rtlholder->get_sub_as<rtladsb_tracked_adsb>(rtladsb_adsb_id);
+            rtlholder->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
 
         if (adsbdev == NULL) {
             adsbdev = 
-                std::make_shared<rtladsb_tracked_adsb>(rtladsb_adsb_id);
+                std::make_shared<adsb_tracked_adsb>(adsb_adsb_id);
             rtlholder->insert(adsbdev);
             new_adsb = true;
 
@@ -737,22 +737,22 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(std::shared_ptr<
     return nullptr;
 }
 
-int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
-    kis_rtladsb_phy *rtladsb = (kis_rtladsb_phy *) auxdata;
+int kis_adsb_phy::packet_handler(CHAINCALL_PARMS) {
+    kis_adsb_phy *adsb = (kis_adsb_phy *) auxdata;
 
-    //fprintf(stderr, "RTLADSB: packethandler kicked in\n");
+    //fprintf(stderr, "ADSB: packethandler kicked in\n");
 
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    auto json = in_pack->fetch<kis_json_packinfo>(rtladsb->pack_comp_json);
+    auto json = in_pack->fetch<kis_json_packinfo>(adsb->pack_comp_json);
     if (json == NULL)
         return 0;
 
-    //std::fprintf(stderr, "RTLADSB: json type: %s\n", json->type.c_str());
+    //std::fprintf(stderr, "ADSB: json type: %s\n", json->type.c_str());
     
 
-    if (json->type != "RTLadsb")
+    if (json->type != "adsb" && json->type != "RTLadsb")
         return 0;
 
     std::stringstream ss(json->json_string);
@@ -762,12 +762,12 @@ int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
         ss >> device_json;
 
         // Copy the JSON as the meta field for logging, if it's valid
-        if (rtladsb->json_to_rtl(device_json, in_pack)) {
-             auto adata = in_pack->fetch_or_add<packet_metablob>(rtladsb->pack_comp_meta);
-             adata->set_data("RTLADSB", json->json_string);
+        if (adsb->json_to_rtl(device_json, in_pack)) {
+             auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
+             adata->set_data("ADSB", json->json_string);
         }
     } catch (std::exception& e) {
-        fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
+        fprintf(stderr, "debug - error processing json %s\n", e.what());
         return 0;
     }
 
@@ -777,7 +777,7 @@ int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
 // cpr_mod, _nl, _n, _dlon, and decode_cpr from the dump1090 project,
 // Copyright (C) 2012 by Salvatore Sanfilippo <antirez@gmail.com>
 // Modified minimally for C++ and use with our data structures
-int kis_rtladsb_phy::cpr_mod(int a, int b) {
+int kis_adsb_phy::cpr_mod(int a, int b) {
     // Force positive on MOD
     int res = a % b;
 
@@ -787,7 +787,7 @@ int kis_rtladsb_phy::cpr_mod(int a, int b) {
     return res;
 }
 
-int kis_rtladsb_phy::cpr_nl(double lat) {
+int kis_adsb_phy::cpr_nl(double lat) {
     // Precomputed table from 1090-WP-9-14
     //
     if (lat < 0) 
@@ -854,7 +854,7 @@ int kis_rtladsb_phy::cpr_nl(double lat) {
     else return 1;
 }
 
-int kis_rtladsb_phy::cpr_n(double lat, int odd) {
+int kis_adsb_phy::cpr_n(double lat, int odd) {
     int nl = cpr_nl(lat) - odd;
 
     if (nl < 1)
@@ -863,11 +863,11 @@ int kis_rtladsb_phy::cpr_n(double lat, int odd) {
     return nl;
 }
 
-double kis_rtladsb_phy::cpr_dlon(double lat, int odd) {
+double kis_adsb_phy::cpr_dlon(double lat, int odd) {
     return 360.0 / cpr_n(lat, odd);
 }
 
-void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb,
+void kis_adsb_phy::decode_cpr(std::shared_ptr<adsb_tracked_adsb> adsb,
         std::shared_ptr<kis_packet> packet) {
     /* This algorithm comes from:
      * http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
@@ -925,7 +925,7 @@ void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb,
 }
 
 std::shared_ptr<tracker_element> 
-kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+kis_adsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     auto ret_map = std::make_shared<tracker_element_map>();
     auto adsb_view = devicetracker->get_phy_view(phyid);
 
@@ -962,7 +962,7 @@ kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_conne
         device_tracker_view_function_worker([this, now, recent_devs, min_lat, 
                 min_lon, max_lat, max_lon, &response_mutex](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
             auto adsbdev = 
-                dev->get_sub_as<rtladsb_tracked_adsb>(rtladsb_adsb_id);
+                dev->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
  
             if (adsbdev == nullptr) {
                 return false;

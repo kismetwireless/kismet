@@ -19,7 +19,7 @@
 #include "config.h"
 #include "kis_datasource.h"
 #include "datasource_rtladsb.h"
-#include "phy_rtladsb.h"
+#include "phy_adsb.h"
 
 kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_builder) :
     kis_datasource(in_builder) {

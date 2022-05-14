@@ -110,7 +110,7 @@
 #include "phy_80211.h"
 #include "phy_rtl433.h"
 #include "phy_rtlamr.h"
-#include "phy_rtladsb.h"
+#include "phy_adsb.h"
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
@@ -885,17 +885,17 @@ int main(int argc, char *argv[], char *envp[]) {
     auto ipdissector = kis_dissector_ip_data::create_dissector_ip_data();
 
     // Register the base PHYs
-    devicetracker->register_phy_handler(new kis_80211_phy());
-    devicetracker->register_phy_handler(new Kis_RTL433_Phy());
-    devicetracker->register_phy_handler(new Kis_Zwave_Phy());
-    devicetracker->register_phy_handler(new kis_bluetooth_phy());
-    devicetracker->register_phy_handler(new Kis_UAV_Phy());
-    devicetracker->register_phy_handler(new Kis_Mousejack_Phy());
-    devicetracker->register_phy_handler(new kis_btle_phy());
-    devicetracker->register_phy_handler(new kis_rtlamr_phy());
-    devicetracker->register_phy_handler(new kis_rtladsb_phy());
-    devicetracker->register_phy_handler(new kis_802154_phy());
-    devicetracker->register_phy_handler(new kis_radiation_phy());
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_80211_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_RTL433_Phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Zwave_Phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_bluetooth_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_UAV_Phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Mousejack_Phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_btle_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_rtlamr_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_adsb_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_802154_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_radiation_phy()));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();

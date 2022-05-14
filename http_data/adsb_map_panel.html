@@ -372,10 +372,10 @@
                     var heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
                     var altitude = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.alt'];
                     var speed = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.speed'];
-                    var icao = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.icao'];
-                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.regid'];
+                    var icao = data['kismet.adsb.map.devices'][d]['adsb.device']['adsb.device.icao'];
+                    var id = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.regid'];
                     var packets = data['kismet.adsb.map.devices'][d]['kismet.device.base.packets.data'];
-                    var atype = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.atype_short'];
+                    var atype = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.atype_short'];
 
 
                     // console.log([icao, id, altitude, speed, heading, packets]);
@@ -464,9 +464,9 @@
                         markers[key]['path'] = null;
                         markers[key]['last_path_ts'] = 0;
 
-                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.model'];
-                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'];
-                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.callsign'];
+                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.model'];
+                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'];
+                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['adsb.device']['adsb.device.callsign'];
 
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
@@ -562,7 +562,7 @@
 
         function poll_map() {
             if (window_visible && !$('#map').is(':hidden') && load_maps) {
-                $.get(local_uri_prefix + KISMET_PROXY_PREFIX + "phy/RTLADSB/map_data.json")
+                $.get(local_uri_prefix + KISMET_PROXY_PREFIX + "phy/ADSB/map_data.json")
                     .done(function(d) {
                         map_cb(d);
                     })

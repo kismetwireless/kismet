@@ -17,8 +17,8 @@
 
 */
 
-#ifndef __PHY_RTLADSB_H__
-#define __PHY_RTLADSB_H__
+#ifndef __PHY_ADSB_H__
+#define __PHY_ADSB_H__
 
 #include "config.h"
 
@@ -45,9 +45,9 @@ typedef struct adsb_beast_frame {
 } __attribute__((packed)) adsb_beast_frame_t;
 
 // ADSB plane data
-class rtladsb_tracked_adsb : public tracker_component {
+class adsb_tracked_adsb : public tracker_component {
 public:
-    rtladsb_tracked_adsb() :
+    adsb_tracked_adsb() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -56,7 +56,7 @@ public:
         update_location = false;
     }
 
-    rtladsb_tracked_adsb(int in_id) :
+    adsb_tracked_adsb(int in_id) :
        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
@@ -65,7 +65,7 @@ public:
         update_location = false;
         }
 
-    rtladsb_tracked_adsb(int in_id, std::shared_ptr<tracker_element_map> e) :
+    adsb_tracked_adsb(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -75,7 +75,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("rtladsb_tracked_adsb");
+        return adler32_checksum("adsb_tracked_adsb");
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
@@ -99,16 +99,16 @@ public:
 
 protected:
     virtual void register_fields() override {
-        register_field("rtladsb.device.icao", "ICAO", &icao);
-        register_field("rtladsb.device.icao_record", "ICAO record", &icao_record);
-        register_field("rtladsb.device.gsas", "GSAS", &gsas);
-        register_field("rtladsb.device.callsign", "Callsign", &callsign);
-        register_field("rtladsb.device.odd_raw_lat", "Odd-packet raw latitude", &odd_raw_lat);
-        register_field("rtladsb.device.odd_raw_lon", "Odd-packet raw longitude", &odd_raw_lon);
-        register_field("rtladsb.device.odd_ts", "Timestamp of last odd-packet", &odd_ts);
-        register_field("rtladsb.device.even_raw_lat", "even-packet raw latitude", &even_raw_lat);
-        register_field("rtladsb.device.even_raw_lon", "even-packet raw longitude", &even_raw_lon);
-        register_field("rtladsb.device.even_ts", "Timestamp of last even-packet", &even_ts);
+        register_field("adsb.device.icao", "ICAO", &icao);
+        register_field("adsb.device.icao_record", "ICAO record", &icao_record);
+        register_field("adsb.device.gsas", "GSAS", &gsas);
+        register_field("adsb.device.callsign", "Callsign", &callsign);
+        register_field("adsb.device.odd_raw_lat", "Odd-packet raw latitude", &odd_raw_lat);
+        register_field("adsb.device.odd_raw_lon", "Odd-packet raw longitude", &odd_raw_lon);
+        register_field("adsb.device.odd_ts", "Timestamp of last odd-packet", &odd_ts);
+        register_field("adsb.device.even_raw_lat", "even-packet raw latitude", &even_raw_lat);
+        register_field("adsb.device.even_raw_lon", "even-packet raw longitude", &even_raw_lon);
+        register_field("adsb.device.even_ts", "Timestamp of last even-packet", &even_ts);
     }
 
     std::shared_ptr<tracker_element_string> icao;
@@ -130,22 +130,22 @@ protected:
     double lat, lon, alt, heading, speed;
     bool update_location;
 
-    friend class kis_rtladsb_phy;
+    friend class kis_adsb_phy;
 };
 
-class kis_rtladsb_phy : public kis_phy_handler {
+class kis_adsb_phy : public kis_phy_handler {
 public:
-    virtual ~kis_rtladsb_phy();
+    virtual ~kis_adsb_phy();
 
-    kis_rtladsb_phy() :
+    kis_adsb_phy() :
         kis_phy_handler() { };
 
 	// Build a strong version of ourselves
 	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
-		return new kis_rtladsb_phy(in_phyid);
+		return new kis_adsb_phy(in_phyid);
 	}
 
-    kis_rtladsb_phy(int in_phyid);
+    kis_adsb_phy(int in_phyid);
 
     static int packet_handler(CHAINCALL_PARMS);
 
@@ -165,7 +165,7 @@ protected:
 
     bool is_adsb(Json::Value json);
 
-    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
+    std::shared_ptr<adsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
             Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder);
 
     double f_to_c(double f);
@@ -174,13 +174,13 @@ protected:
     int cpr_nl(double lat);
     int cpr_n(double lat, int odd);
     double cpr_dlon(double lat, int odd);
-    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb, std::shared_ptr<kis_packet> packet);
+    void decode_cpr(std::shared_ptr<adsb_tracked_adsb> adsb, std::shared_ptr<kis_packet> packet);
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
-    int rtladsb_adsb_id;
+    int adsb_adsb_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_datasource;
 
