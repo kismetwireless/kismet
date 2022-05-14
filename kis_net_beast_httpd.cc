@@ -1067,8 +1067,6 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     else
         uri = static_cast<std::string>(con->uri());
 
-    printf("serving: %s\n", uri.c_str());
-
     return serve_file(con, uri);
 }
 
