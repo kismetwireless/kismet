@@ -19,7 +19,6 @@
 #include "config.h"
 #include "kis_datasource.h"
 #include "datasource_rtlamr.h"
-#include "phy_rtlamr.h"
 
 kis_datasource_rtlamr::kis_datasource_rtlamr(shared_datasource_builder in_builder, bool in_mqtt) :
     kis_datasource(in_builder) {
@@ -54,44 +53,6 @@ void kis_datasource_rtlamr::open_interface(std::string in_definition, unsigned i
     }
 
 }
-
-#if 0
-int kis_datasource_rtlamr::httpd_post_complete(kis_net_httpd_connection *concls) {
-    std::string stripped = httpd_strip_suffix(concls->url);
-    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
-
-    // Anything involving POST here requires a login
-    if (!httpd->has_valid_session(concls, true)) {
-        return 1;
-    }
-
-    if (tokenurl.size() < 5)
-        return MHD_NO;
-
-    if (tokenurl[1] != "datasource")
-        return MHD_NO;
-
-    if (tokenurl[2] != "by-uuid")
-        return MHD_NO;
-
-    if (tokenurl[3] != get_source_uuid().uuid_to_string())
-        return MHD_NO;
-
-    if (tokenurl[4] == "update") {
-
-        packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
-        datasrcinfo->ref_source = this;
-        packet->insert(pack_comp_datasrc, datasrcinfo);
-
-        inc_source_num_packets(1);
-        get_source_packet_rrd()->add_sample(1, time(0));
-
-        packetchain->process_packet(packet);
-    }
-
-    return MHD_NO;
-}
-#endif
 
 
 

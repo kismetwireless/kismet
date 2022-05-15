@@ -3,8 +3,8 @@
 
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
-    name: "RTLamr Devices",
-    description: "RTLamr Sensor",
+    name: "RF Meter Devices",
+    description: "RF Power, Water, Gas Meters",
     priority: 100,
     defaultcolor: "#b3ffe6",
     defaultenable: true,
@@ -12,30 +12,30 @@ kismet_ui.AddDeviceRowHighlight({
         'kismet.device.base.phyname'
     ],
     selector: function(data) {
-        return data['kismet.device.base.phyname'] === "RTLAMR";
+        return data['kismet.device.base.phyname'] === "RF Meter";
     }
 });
 
-kismet_ui.AddDeviceDetail("rtlamr", "RTLAMR (SDR)", 0, {
+kismet_ui.AddDeviceDetail("rfmeter", "Meter (SDR)", 0, {
     filter: function(data) {
         return (data['kismet.device.base.phyname'] === "RTLAMR");
     },
     draw: function(data, target) {
         target.devicedata(data, {
-            "id": "rtlamrData",
+            "id": "meterData",
             "fields": [
             {
-                field: "rtlamr.device/rtlamr.device.meter_id",
+                field: "meter.device/meter.device.meter_id",
                 title: "Meter ID",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtlamr.device/rtlamr.device.meter_type",
+                field: "meter.device/meter.device.meter_type",
                 title: "Meter Type",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtlamr.device/rtlamr.device.consumption",
+                field: "meter.device/meter.device.consumption",
                 title: "Consumption",
                 empty: "<i>Unknown</i>"
             },

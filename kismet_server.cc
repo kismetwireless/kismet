@@ -109,7 +109,7 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 #include "phy_rtl433.h"
-#include "phy_rtlamr.h"
+#include "phy_meter.h"
 #include "phy_adsb.h"
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
@@ -892,7 +892,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_UAV_Phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Mousejack_Phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_btle_phy()));
-    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_rtlamr_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meter_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_adsb_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_802154_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_radiation_phy()));

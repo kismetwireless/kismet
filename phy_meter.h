@@ -17,8 +17,8 @@
 
 */
 
-#ifndef __PHY_RTLAMR_H__
-#define __PHY_RTLAMR_H__
+#ifndef __PHY_METER_H__
+#define __PHY_METER_H__
 
 #include "config.h"
 #include "globalregistry.h"
@@ -31,7 +31,7 @@
  * slot overlaps.  This fits a lot of generic situations in RTLAMR sensors which
  * only report a few times a second (if that).
  */
-class rtlamr_empty_aggregator {
+class meter_empty_aggregator {
 public:
     // Select the most extreme value
     static int64_t combine_element(const int64_t a, const int64_t b) {
@@ -86,33 +86,33 @@ public:
     }
 
     static std::string name() {
-        return "rtlamr_empty";
+        return "meter_empty";
     }
 };
 
 // AMR meter device
-class rtlamr_tracked_meter : public tracker_component {
+class tracked_meter : public tracker_component {
 public:
-    rtlamr_tracked_meter() :
+    tracked_meter() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    rtlamr_tracked_meter(int in_id) :
+    tracked_meter(int in_id) :
        tracker_component(in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
-    rtlamr_tracked_meter(int in_id, std::shared_ptr<tracker_element_map> e) :
+    tracked_meter(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("rtlamr_tracked_meter");
+        return adler32_checksum("tracked_meter");
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
@@ -129,20 +129,20 @@ public:
     __Proxy(endpoint_tamper_flags, uint8_t, uint8_t, uint8_t, endpoint_tamper_flags);
     __Proxy(consumption, double, double, double, consumption);
 
-    typedef kis_tracked_rrd<rtlamr_empty_aggregator> rrdt;
+    typedef kis_tracked_rrd<meter_empty_aggregator> rrdt;
     __ProxyTrackable(consumption_rrd, rrdt, consumption_rrd);
 
 protected:
     virtual void register_fields() override {
-        register_field("rtlamr.device.meter_id", "Meter ID", &meter_id);
+        register_field("meter.device.meter_id", "Meter ID", &meter_id);
 
-        register_field("rtlamr.device.meter_type", "Meter type", &meter_type);
-        register_field("rtlamr.device.meter_type_code", "Meter type code", &meter_type_code);
-        register_field("rtlamr.device.phy_tamper_flags", "Physical tamper flags", &phy_tamper_flags);
-        register_field("rtlamr.device.endpoint_tamper_flags", "Endpoint tamper flags", &endpoint_tamper_flags);
+        register_field("meter.device.meter_type", "Meter type", &meter_type);
+        register_field("meter.device.meter_type_code", "Meter type code", &meter_type_code);
+        register_field("meter.device.phy_tamper_flags", "Physical tamper flags", &phy_tamper_flags);
+        register_field("amr.device.endpoint_tamper_flags", "Endpoint tamper flags", &endpoint_tamper_flags);
 
-        register_field("rtlamr.device.consumption", "Consumption", &consumption);
-        register_field("rtlamr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+        register_field("amr.device.consumption", "Consumption", &consumption);
+        register_field("amr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
     }
 
     std::shared_ptr<tracker_element_uint64> meter_id;
@@ -155,47 +155,47 @@ protected:
 
     std::shared_ptr<tracker_element_double> consumption;
 
-    std::shared_ptr<kis_tracked_rrd<rtlamr_empty_aggregator>> consumption_rrd;
+    std::shared_ptr<kis_tracked_rrd<meter_empty_aggregator>> consumption_rrd;
 };
 
-class kis_rtlamr_phy : public kis_phy_handler {
+class kis_meter_phy : public kis_phy_handler {
 public:
-    virtual ~kis_rtlamr_phy();
+    virtual ~kis_meter_phy();
 
-    kis_rtlamr_phy() :
+    kis_meter_phy() :
         kis_phy_handler() { };
 
 	// Build a strong version of ourselves
 	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
-		return new kis_rtlamr_phy(in_phyid);
+		return new kis_meter_phy(in_phyid);
 	}
 
-    kis_rtlamr_phy(int in_phyid);
+    kis_meter_phy(int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 
 protected:
-    // Convert a JSON record to a RTL-based device key
+    // Convert a JSON record to a device key
     mac_addr json_to_mac(Json::Value in_json);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json, std::shared_ptr<kis_packet> packet);
+    bool rtlamr_json_to_phy(Json::Value in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_amr_meter(Json::Value json);
 
-    void add_amr_meter(Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder);
+    void add_amr_meter(Json::Value json, std::shared_ptr<kis_tracked_device_base> phyholder);
 
 protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
-    int rtlamr_meter_id;
+    int tracked_meter_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_radiodata;
 
-    std::shared_ptr<tracker_element_string> rtl_manuf;
+    std::shared_ptr<tracker_element_string> meter_manuf;
 
 };
 

@@ -236,7 +236,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	kaitaistream.cc.o \
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
-	phy_rtl433.cc.o phy_rtlamr.cc.o phy_adsb.cc.o phy_zwave.cc.o \
+	phy_rtl433.cc.o phy_meter.cc.o phy_adsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_802154.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o \
 	kis_dissector_ipdata.cc.o \
