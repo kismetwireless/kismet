@@ -12,7 +12,6 @@ kismet_ui.AddDeviceRowHighlight({
         'uav.device'
     ],
     selector: function(data) {
-        console.log(data['uav.device']);
         return ('uav.device' in data && data['uav.device'] != 0);
     }
 });
