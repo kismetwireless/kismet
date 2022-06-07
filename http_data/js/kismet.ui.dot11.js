@@ -791,7 +791,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     id: "device",
                     title: "Client MAC",
                     draw: function(opts) {
-                        return opts['index'];
+                        return kismet.censorMAC(opts['index']);
                     },
                 },
                 {
