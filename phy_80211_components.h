@@ -953,15 +953,13 @@ public:
 
     __Proxy(wps_m3_last, uint64_t, uint64_t, uint64_t, wps_m3_last);
 
-    __ProxyDynamicTrackable(wpa_key_vec, tracker_element_vector, wpa_key_vec, wpa_key_vec_id);
+    __ProxyDynamicTrackable(wpa_key_map, tracker_element_mac_map, wpa_key_map, wpa_key_map_id);
     std::shared_ptr<dot11_tracked_eapol> create_eapol_packet() {
         return std::make_shared<dot11_tracked_eapol>(wpa_key_entry_id);
     }
 
     __ProxyDynamicTrackable(ssid_beacon_packet, kis_tracked_packet, ssid_beacon_packet, ssid_beacon_packet_id);
     __ProxyDynamicTrackable(pmkid_packet, kis_tracked_packet, pmkid_packet, pmkid_packet_id);
-
-    __Proxy(wpa_present_handshake, uint8_t, uint8_t, uint8_t, wpa_present_handshake);
 
     __ProxyDynamicTrackable(wpa_nonce_vec, tracker_element_vector, wpa_nonce_vec, wpa_nonce_vec_id);
     __ProxyDynamicTrackable(wpa_anonce_vec, tracker_element_vector, wpa_anonce_vec, wpa_anonce_vec_id);
@@ -1121,8 +1119,9 @@ protected:
         register_field("dot11.device.wps_m3_count", "WPS M3 message count", &wps_m3_count);
         register_field("dot11.device.wps_m3_last", "WPS M3 last message", &wps_m3_last);
 
-        wpa_key_vec_id = 
-            register_dynamic_field("dot11.device.wpa_handshake_list", "WPA handshakes", &wpa_key_vec);
+        wpa_key_map_id =
+            register_dynamic_field("dot11.device.wpa_handshake_list", "WPA handshakes per client",
+                                   &wpa_key_map);
 
         wpa_key_entry_id =
             register_field("dot11.eapol.key",
@@ -1134,9 +1133,6 @@ protected:
 
         wpa_anonce_vec_id =
             register_dynamic_field("dot11.device.wpa_anonce_list", "Previous WPA ANonces", &wpa_anonce_vec);
-
-        register_field("dot11.device.wpa_present_handshake", 
-                "handshake sequences seen (bitmask)", &wpa_present_handshake);
 
         wpa_nonce_entry_id =
             register_field("dot11.device.wpa_nonce",
@@ -1214,12 +1210,16 @@ protected:
             // We don't have to deal with the client map because it's a map of
             // simplistic types
 
-            if (wpa_key_vec != nullptr) {
-                for (auto k = wpa_key_vec->begin(); k != wpa_key_vec->end(); ++k) {
-                    auto eap =
-                        std::make_shared<dot11_tracked_eapol>(wpa_key_entry_id, 
-                                std::static_pointer_cast<tracker_element_map>(*k));
-                    *k = eap;
+            if (wpa_key_map != nullptr) {
+                for (auto v = wpa_key_map->begin(); v != wpa_key_map->end(); ++v) {
+                    auto vec = std::static_pointer_cast<tracker_element_vector>(v->second);
+
+                    for (auto k = vec->begin(); k != vec->end(); ++k) {
+                        auto eap =
+                            std::make_shared<dot11_tracked_eapol>(wpa_key_entry_id, 
+                                                                  std::static_pointer_cast<tracker_element_map>(*k));
+                        *k = eap;
+                    }
                 }
             }
 
@@ -1293,8 +1293,8 @@ protected:
     std::shared_ptr<tracker_element_uint64> wps_m3_count;
     std::shared_ptr<tracker_element_uint64> wps_m3_last;
 
-    std::shared_ptr<tracker_element_vector> wpa_key_vec;
-    int wpa_key_vec_id;
+    int wpa_key_map_id;
+    std::shared_ptr<tracker_element_mac_map> wpa_key_map;
     int wpa_key_entry_id;
 
     std::shared_ptr<tracker_element_vector> wpa_nonce_vec;
@@ -1302,8 +1302,6 @@ protected:
 
     std::shared_ptr<tracker_element_vector> wpa_anonce_vec;
     int wpa_anonce_vec_id;
-
-    std::shared_ptr<tracker_element_uint8> wpa_present_handshake;
     int wpa_nonce_entry_id;
 
     std::shared_ptr<kis_tracked_packet> ssid_beacon_packet;

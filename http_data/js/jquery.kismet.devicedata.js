@@ -41,6 +41,7 @@
         and apply fields to each?
         "iterateTitle": string|function(opts) // Fixed string
         or optional function for each index
+        each index.
         "fields": [...] // Additional nested fields which will be indexed 
         and grouped.
 
@@ -277,14 +278,14 @@
             if ('groupIterate' in v && v['groupIterate'] == true) {
                 for (var idx in d) {
                     // index the subobject
-                    v['baseobject'] = v['field'] + '[' + idx + ']' + '/';
+                    v['baseobject'] = `${v['field']}[${idx}]/`;
                     v['index'] = idx;
 
                     callopts['index'] = idx;
-                    callopts['basekey'] = v['field'] + '[' + idx + ']' + '/';
+                    callopts['basekey'] = `${v['field']}[${idx}]/`;
                     callopts['base'] = kismet.ObjectByString(data, callopts['basekey']);
 
-                    var subid = kismet.sanitizeId(id + '[' + idx + ']');
+                    var subid = kismet.sanitizeId(`${id}[${idx}]`);
                     callopts['id'] = subid;
 
                     var drow = $('tr.kismet_devicedata_groupdata#tr_' + subid, subtable);

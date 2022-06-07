@@ -246,15 +246,19 @@ kismet_ui.AddDeviceRowHighlight({
     defaultcolor: "#F00",
     defaultenable: true,
     fields: [
-        'dot11.device/dot11.device.wpa_present_handshake'
+        'dot11.device/dot11.device.wpa_handshake_list'
     ],
     selector: function(data) {
         try {
-            var pnums = data['dot11.device.wpa_present_handshake'];
+            for (const dev in data['dot11.device']['dot11.device.wpa_handshake_list']) {
+                var pmask = 0;
+                
+                for (const p of data['dot11.device']['dot11.device.wpa_handshake_list'][dev]) {
+                    pmask = pmask | (1 << p['dot11.eapol.message_num']);
 
-            // We need packets 1&2 or 2&3 to be able to crack the handshake
-            if ((pnums & 0x06) == 0x06 || (pnums & 0x0C) == 0x0C) {
-                return true;
+                    if ((pmask & 0x06) == 0x06 || (pmask & 0x0C) == 0x0C)
+                        return true;
+                }
             }
 
             return false;
@@ -758,43 +762,77 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
             {
                 field: "dot11.device/dot11.device.wpa_handshake_list",
-                id: "wpa_handshake",
-                help: "When a client joins a WPA network, it performs a &quot;handshake&quot; of four packets to establish the connection and the unique per-session key.  To decrypt WPA or derive the PSK, at least two specific packets of this handshake are required.  Kismet provides a simplified pcap file of the handshake packets seen, which can be used with other tools to derive the PSK or decrypt the packet stream.",
+                id: "wpa_handshake_title",
                 filter: function(opts) {
                     try {
-                        return (opts['data']['dot11.device']['dot11.device.wpa_handshake_list'].length);
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.wpa_handshake_list']).length);
                     } catch (error) {
                         return false;
                     }
                 },
-                groupTitle: "WPA Key Exchange",
+                groupTitle: "WPA Handshakes",
+            },
+            {
+                field: "dot11.device/dot11.device.wpa_handshake_list",
+                id: "wpa_handshake",
+                help: "When a client joins a WPA network, it performs a &quot;handshake&quot; of four packets to establish the connection and the unique per-session key.  To decrypt WPA or derive the PSK, at least two specific packets of this handshake are required.  Kismet provides a simplified pcap file of the handshake packets seen, which can be used with other tools to derive the PSK or decrypt the packet stream.",
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.wpa_handshake_list']).length);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+                groupIterate: true,
 
                 fields: [
                 {
-                    field: "wpa_handshake_count",
-                    id: "handshake_count",
-                    title: "Handshake Packets",
+                    field: "device",
+                    id: "device",
+                    title: "Client MAC",
                     draw: function(opts) {
-                        var hs = opts['data']['dot11.device']['dot11.device.wpa_handshake_list'];
-                        return (hs.length);
+                        return opts['index'];
                     },
+                },
+                {
+                    field: "hsnums",
+                    id: "hsnums",
+                    title: "Packets",
+                    draw: function(opts) {
+                        var hs = 0;
+                        for (const p of kismet.ObjectByString(opts['data'], opts['basekey'])) {
+                            hs = hs | (1 << p['dot11.eapol.message_num']);
+                        }
+
+                        var n = "";
+
+                        for (const p of [1, 2, 3, 4]) {
+                            if (hs & (1 << p)) {
+                                n = n + p + " ";
+                            }
+                        }
+
+                        return n;
+                    }
                 },
                 {
                     field: "wpa_handshake_download",
                     id: "handshake_download",
                     title: "Handshake PCAP",
                     draw: function(opts) {
-                        var pnums = opts['data']['dot11.device']['dot11.device.wpa_present_handshake'];
+                        var hs = 0;
+                        for (const p of kismet.ObjectByString(opts['data'], opts['basekey'])) {
+                            hs = hs | (1 << p['dot11.eapol.message_num']);
+                        }
 
                         // We need packets 1&2 or 2&3 to be able to crack the handshake
                         var warning = "";
-                        if ((pnums & 0x06) != 0x06 &&
-                            (pnums & 0x0C) != 0x0C) {
-                            warning = '<br><i style="color: red;">While handshake packets have been seen, no complete handshakes collected.</i>';
+                        if (hs != 30) {
+                            warning = '<br><i style="color: red;">While handshake packets have been seen, a complete 4-way handshake has not been observed.  You may still be able to utilize the partial handshake.</i>';
                         }
 
                         var key = opts['data']['kismet.device.base.key'];
-                        var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/handshake.pcap">' +
+                        var url = `<a href="phy/phy80211/by-key/${key}/device/${opts['index']}/pcap/handshake.pcap">` +
                             '<i class="fa fa-download"></i> Download Pcap File</a>' +
                             warning;
                         return url;
@@ -809,13 +847,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 help: "Some access points disclose the RSN PMKID during the first part of the authentication process.  This can be used to attack the PSK via tools like Aircrack-NG or Hashcat.  If a RSN PMKID packet is seen, Kismet can provide a pcap file.",
                 filterOnZero: true,
                 filterOnEmpty: true,
-                groupTitle: "RSN PMKID",
+                groupTitle: "WPA RSN PMKID",
 
                 fields: [
                 {
                     field: "pmkid_download",
                     id: "pmkid_download",
-                    title: "PMKID PCAP",
+                    title: "WPA PMKID PCAP",
                     draw: function(opts) {
                         var key = opts['data']['kismet.device.base.key'];
                         var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/handshake-pmkid.pcap">' +

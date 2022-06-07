@@ -511,7 +511,7 @@ protected:
     void generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con,
             std::shared_ptr<kis_tracked_device_base> dev, 
             std::shared_ptr<dot11_tracked_device> dot11dev, 
-            std::string mode);
+            mac_addr target_mac, std::string mode);
 
     int dot11_device_entry_id;
 

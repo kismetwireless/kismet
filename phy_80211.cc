@@ -946,13 +946,17 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     return cl;
                 }, devicetracker->get_devicelist_mutex()));
 
-    httpd->register_route("/phy/phy80211/by-key/:key/pcap/handshake", {"GET"}, httpd->RO_ROLE, {"pcap"},
+    httpd->register_route("/phy/phy80211/by-key/:key/device/:device/pcap/handshake", {"GET"}, httpd->RO_ROLE, {"pcap"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto key = string_to_n<device_key>(con->uri_params()[":key"]);
+                    auto device = string_to_n<mac_addr>(con->uri_params()[":device"]);
 
                     if (key.get_error())
                         throw std::runtime_error("invalid key");
+
+                    if (device.error())
+                        throw std::runtime_error("invalid device mac");
 
                     auto dev = devicetracker->fetch_device(key);
 
@@ -964,9 +968,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     if (dot11 == nullptr)
                         throw std::runtime_error("not an 802.11 device");
 
-                    con->set_target_file(fmt::format("{}-handshake.pcap", dev->get_macaddr()));
+                    con->set_target_file(fmt::format("{}-{}-handshake.pcap", dev->get_macaddr(), device));
 
-                    return generate_handshake_pcap(con, dev, dot11, "handshake");
+                    return generate_handshake_pcap(con, dev, dot11, device, "handshake");
                 }));
 
     httpd->register_route("/phy/phy80211/by-key/:key/pcap/handshake-pmkid", {"GET"}, httpd->RO_ROLE, {"pcap"},
@@ -988,7 +992,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                         throw std::runtime_error("not an 802.11 device");
 
                     con->set_target_file(fmt::format("{}-pmkid.pcap", dev->get_macaddr()));
-                    return generate_handshake_pcap(con, dev, dot11, "pmkid");
+                    return generate_handshake_pcap(con, dev, dot11, mac_addr(), "pmkid");
                 }));
 
     httpd->register_route("/phy/phy80211/pcap/by-bssid/:mac/packets.pcapng", {"GET"}, httpd->RO_ROLE, {"pcapng"},
@@ -3604,7 +3608,7 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
     // We want to start looking for the next advertised ssid
     bssid_dot11->set_snap_next_beacon(true);
 
-    auto bssid_vec(bssid_dot11->get_wpa_key_vec());
+    auto bssid_map(bssid_dot11->get_wpa_key_map());
 
     // Do we have a pmkid and need one?  set the pmkid packet.
     if (bssid_dot11->get_pmkid_needed() && eapol->get_rsnpmkid_bytes().length() != 0) {
@@ -3617,6 +3621,16 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
     // handshake sequence, so find out what duplicates we have
     // and eliminate the oldest one of them if we need to
     uint8_t keymask = 0;
+
+    auto bssid_vec_i = bssid_map->find(dest_dev->get_macaddr());
+    auto bssid_vec = std::shared_ptr<tracker_element_vector>();
+
+    if (bssid_vec_i == bssid_map->end()) {
+        bssid_vec = Globalreg::new_from_pool<tracker_element_vector>();
+        bssid_map->insert(std::make_pair(dest_dev->get_macaddr(), bssid_vec));
+    } else {
+        bssid_vec = std::static_pointer_cast<tracker_element_vector>(bssid_vec_i->second);
+    }
 
     if (bssid_vec->size() > 16) {
         for (tracker_element_vector::iterator kvi = bssid_vec->begin();
@@ -3645,7 +3659,6 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
         keymask |= (1 << std::static_pointer_cast<dot11_tracked_eapol>(kvi)->get_eapol_msg_num());
     }
 
-    bssid_dot11->set_wpa_present_handshake(keymask);
 
     auto evt = eventbus->get_eventbus_event(dot11_wpa_handshake_event);
     evt->get_event_content()->insert(dot11_wpa_handshake_event_base, bssid_dev);
@@ -3951,7 +3964,8 @@ std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
 
 void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con, 
         std::shared_ptr<kis_tracked_device_base> dev, 
-        std::shared_ptr<dot11_tracked_device> dot11dev, std::string mode) {
+        std::shared_ptr<dot11_tracked_device> dot11dev, 
+        mac_addr target_mac, std::string mode) {
 
     // Hardcode the pcap header
     struct pcap_header {
@@ -3996,22 +4010,28 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
 
     if (mode == "handshake") {
         // Write all the handshakes
-        if (dot11dev->has_wpa_key_vec()) {
-            for (const auto& i : *(dot11dev->get_wpa_key_vec())) {
-                auto eapol =
-                    std::static_pointer_cast<dot11_tracked_eapol>(i);
+        if (dot11dev->has_wpa_key_map()) {
+            const auto hsm = dot11dev->get_wpa_key_map();
+            const auto hsi = hsm->find(target_mac);
 
-                auto packet = eapol->get_eapol_packet();
+            if (hsi != hsm->end()) {
+                const auto hsv = std::static_pointer_cast<tracker_element_vector>(hsi->second);
+                for (const auto& i : *(hsv)) {
+                    auto eapol =
+                        std::static_pointer_cast<dot11_tracked_eapol>(i);
 
-                // Make a pcap header
-                pkt_hdr.timeval_s = packet->get_ts_sec();
-                pkt_hdr.timeval_us = packet->get_ts_usec();
+                    auto packet = eapol->get_eapol_packet();
 
-                pkt_hdr.len = packet->get_data()->length();
-                pkt_hdr.caplen = pkt_hdr.len;
+                    // Make a pcap header
+                    pkt_hdr.timeval_s = packet->get_ts_sec();
+                    pkt_hdr.timeval_us = packet->get_ts_usec();
 
-                stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
-                stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+                    pkt_hdr.len = packet->get_data()->length();
+                    pkt_hdr.caplen = pkt_hdr.len;
+
+                    stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+                    stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+                }
             }
         }
     } else if (mode == "pmkid") {
