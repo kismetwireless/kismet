@@ -95,6 +95,147 @@
 
 #define MAX_PACKET_LEN  8192
 
+// BPF program to parse radiotap and 802.11, and pass management and eapol ONLY
+struct bpf_insn rt_pgm[] = {
+    // 00 LDB [3]      a = pkt[3] second half of length
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 3),
+    // 01 LSH #8       a = a << 8
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_LSH), 8),
+    // 02 TAX          x = a
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
+    // 03 LDB [2]      a = pkt[2] first half of length
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 2),
+    // 04 OR X         a = a | x  // combine endian swapped
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_OR) + BPF_SRC(BPF_X), 0),
+
+    // 05 ST M[0]      m[0] = a (rtap length)
+    BPF_STMT(BPF_ST, 0),
+    // 06 TAX          x = a = rtap length
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
+
+    // 07 LDB [x + 0]  a = pkt[rtap + 0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
+    // 08 RSH #2       a = a >> 2
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_RSH), 2),
+    // 09 AND 0x3      a = a & 0x3
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_AND), 3),
+
+    // 10 JEQ #0       if a == 0 succeed
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 1),
+    // 11 RET 0x40000  return success
+    BPF_STMT(BPF_RET, 0x40000),
+
+    // 12 JEQ #2       if a == 2, continue, else fail
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x2, 1, 0),
+    // 13 RET 0x0      return fail
+    BPF_STMT(BPF_RET, 0),
+
+    // 14 LDB [x + 0]  a = pkt[rtap + 0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
+    // 15 RSH #4       a = a >> 4
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_RSH), 4),
+
+    // 16 JEQ #0       a == 0x0 (subtype data)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 2),
+    // 17 LD #24        a = 24 (non-qos header len)
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IMM), 24),
+    // 18 JMP          jump past qos
+    BPF_STMT(BPF_JMP + BPF_JA, 3),
+
+    // 19 JEQ #8       a == 0x8 (subtype qos data)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x8, 1, 0),
+    // 20 RET 0x0      return fail, not normal or qos
+    BPF_STMT(BPF_RET, 0),
+
+    // 21 LD #26       a = 26 (qos header len)
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IMM), 26),
+
+    // 22 LDX M[0]     X = m[0] (rtap length)
+    BPF_STMT(BPF_LDX + BPF_MODE(BPF_MEM), 0),
+    // 23 ADD X        a = a + x
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_ADD) + BPF_SRC(BPF_X), 0),
+    // 24 ST M[1]      m[1] = a (rtap length + offset length)
+    BPF_STMT(BPF_ST, 1),
+    // 25 TAX          x = a
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
+
+    // 26 LDH [x + 0]  a = pkt[rtap + header + 0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 0),
+    // 27 JEQ 0xAAAA   a == 0xAAAA (SNAP header)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0xAAAA, 0, 2),
+
+    // 28 LDH [x + 0]  a = pkt[rtap + header + 6]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 6),
+    // 29 JEQ 0x888e   a == 0x888E eapol sig
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x888E, 1, 0),
+
+    // 30 RET 0x0      return fail
+    BPF_STMT(BPF_RET, 0),
+    // 31 RET 0x0      return success
+    BPF_STMT(BPF_RET, 0x40000),
+};
+unsigned int rt_pgm_len = 32;
+
+// BPF program to parse raw 802.11 and pass management and eapol ONLY
+struct bpf_insn dot11_pgm[] = {
+    // 00 LDX #0       x = 0
+    BPF_STMT(BPF_LDX + BPF_MODE(BPF_IMM), 0),
+
+    // 01 LDB [x + 0]  a = pkt[0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
+    // 02 RSH #2       a = a >> 2
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_RSH), 2),
+    // 03 AND 0x3      a = a & 0x3
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_AND), 3),
+
+    // 04 JEQ #0       if a == 0 succeed
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 1),
+    // 05 RET 0x40000  return success
+    BPF_STMT(BPF_RET, 0x40000),
+
+    // 06 JEQ #2       if a == 2, continue, else fail
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x2, 1, 0),
+    // 07 RET 0x0      return fail
+    BPF_STMT(BPF_RET, 0),
+
+    // 08 LDB [x + 0]  a = pkt[rtap + 0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
+    // 09 RSH #4       a = a >> 4
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_RSH), 4),
+
+    // 10 JEQ #0       a == 0x0 (subtype data)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 2),
+    // 11 LDX #24      x = 24 (non-qos header len)
+    BPF_STMT(BPF_LDX + BPF_MODE(BPF_IMM), 24),
+    // 12 JMP          jump past qos
+    BPF_STMT(BPF_JMP + BPF_JA, 3),
+
+    // 13 JEQ #8       a == 0x8 (subtype qos data)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x8, 1, 0),
+    // 14 RET 0x0      return fail, not normal or qos
+    BPF_STMT(BPF_RET, 0),
+
+    // 15 LDX #26      x = 26 (qos header len)
+    BPF_STMT(BPF_LDX + BPF_MODE(BPF_IMM), 26),
+
+    // 16 LDH [x + 0]  a = pkt[rtap + header + 0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 0),
+    // 17 JEQ 0xAAAA   a == 0xAAAA (SNAP header)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0xAAAA, 0, 2),
+
+    // 18 LDH [x + 0]  a = pkt[rtap + header + 6]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 6),
+    // 19 JEQ 0x888e   a == 0x888E eapol sig
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x888E, 1, 0),
+
+    // 20 RET 0x0      return fail
+    BPF_STMT(BPF_RET, 0),
+    // 21 RET 0x0      return success
+    BPF_STMT(BPF_RET, 0x40000),
+};
+unsigned int dot11_pgm_len = 22;
+
+
 /* State tracking, put in userdata */
 typedef struct {
     pcap_t *pd;
@@ -128,6 +269,9 @@ typedef struct {
      * options */
     int use_ht_channels;
     int use_vht_channels;
+
+    /* Do we filter traffic to mgmt+eapol? */
+    bool wardrive_filter;
 
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
@@ -1390,6 +1534,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Do we ignore any other interfaces on this device? */
     if ((placeholder_len = 
+                cf_find_flag(&placeholder, "filter_mgmt", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->wardrive_filter = false;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->wardrive_filter = true;
+        }
+    }
+
+    /* Do we ignore any other interfaces on this device? */
+    if ((placeholder_len = 
                 cf_find_flag(&placeholder, "filter_locals", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
             filter_locals = 0;
@@ -1398,11 +1552,23 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    if (filter_locals && local_wifi->wardrive_filter) {
+        snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt' and 'filter_locals' or 'filter_interface' "
+                 "please pick just one option.");
+        return -1;
+    }
+
     if ((num_filter_interfaces = 
                 cf_count_flag("filter_interface", definition)) > 0) {
         if (filter_locals) {
             snprintf(msg, STATUS_MAX, "Can not combine 'filter_locals' and 'filter_interface' "
                     "please pick one or the other.");
+            return -1;
+        }
+
+        if (local_wifi->wardrive_filter) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt' and 'filter_locals' or 'filter_interface' "
+                     "please pick just one option.");
             return -1;
         }
 
@@ -2341,7 +2507,31 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    if (filter_locals) {
+    if (local_wifi->wardrive_filter) {
+        if (pcap_datalink(local_wifi->pd) == DLT_IEEE802_11_RADIO) {
+            bpf.bf_len = rt_pgm_len;
+            bpf.bf_insns = rt_pgm;
+            if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter: %s",
+                         local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            }
+        } else if (pcap_datalink(local_wifi->pd) == DLT_IEEE802_11) {
+            bpf.bf_len = dot11_pgm_len;
+            bpf.bf_insns = dot11_pgm;
+            if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter: %s",
+                         local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            }
+        } else {
+            snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter on unknown link type %u/%s",
+                     local_wifi->name, pcap_datalink(local_wifi->pd), 
+                     pcap_datalink_val_to_name(pcap_datalink(local_wifi->pd)));
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        }
+
+    } else if (filter_locals) {
         if ((ret = build_first_localdev_filter(&ignore_filter)) > 0) {
             if (ret > 8) {
                 snprintf(errstr, STATUS_MAX, "%s found more than 8 local interfaces (%d), limiting "
