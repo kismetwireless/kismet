@@ -1214,11 +1214,16 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(d11phy->pack_comp_gps);
     auto pack_datainfo = in_pack->fetch<kis_data_packinfo>(d11phy->pack_comp_basicdata);
 
+#if 0
+    // Try to avoid a universal lock now
     kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
             "phy80211 common_classifier");
+#endif
 
     // Handle duplicates; we update seenby, location, and signals, but that's it
     if (in_pack->duplicate) {
+        // Duplicate packets can be handled with no lock; devietracker updates are done safely
+        // under lock and we don't make any local changes to the contents of the devices.
         if (dot11info->type == packet_management) {
             if (dot11info->bssid_dev != nullptr) {
                 unsigned int bflags = UCD_UPDATE_SEENBY;
@@ -1269,6 +1274,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         return 1;
     }
+
+    // Temporarily move lock down to here
+    kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
+            "phy80211 common_classifier");
 
     if (dot11info->type == packet_management) {
         // Resolve the common structures of management frames; this is a lot of code
