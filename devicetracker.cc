@@ -1142,10 +1142,16 @@ std::shared_ptr<kis_tracked_device_base>
             mac_addr in_mac, kis_phy_handler *in_phy, std::shared_ptr<kis_packet> in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
+#if 0
+
+    Thread rework - try to revert to only locking the device while we need it
+
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
     // so the entire chain is perforce locked
     kis_lock_guard<kis_mutex> lg(get_devicelist_mutex(), "device_tracker update_common_device");
+
+#endif
 
     std::stringstream sstr;
 
@@ -1161,9 +1167,14 @@ std::shared_ptr<kis_tracked_device_base>
 
     key = device_key(in_phy->fetch_phyname_hash(), in_mac);
 
-	if ((device = fetch_device_nr(key)) == NULL) {
+    kis_unique_lock<kis_mutex> list_lk(get_devicelist_mutex(), "device_tracker update_common_device");
+    device = fetch_device_nr(key);
+
+    if (device == nullptr) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
+
+        new_device = true;
 
         device = std::make_shared<kis_tracked_device_base>(device_base_id);
 
@@ -1190,8 +1201,46 @@ std::shared_ptr<kis_tracked_device_base>
         load_stored_username(device);
         load_stored_tags(device);
 
-        new_device = true;
+        // Add the new device to the list
+        tracked_map[key] = device;
+
+        tracked_vec.push_back(device);
+        immutable_tracked_vec->push_back(device);
+
+        auto mm_pair = std::make_pair(in_mac, device);
+        tracked_mac_multimap.insert(mm_pair);
     }
+
+	// Update seenby records for time, frequency, packets.  Do this under total list lock.
+	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
+        double f = -1;
+
+        packinfo_sig_combo *sc = NULL;
+
+        if (pack_l1info != NULL)
+            f = pack_l1info->freq_khz;
+
+        if (track_persource_history) {
+            // Only populate signal, frequency map, etc per-source if we're tracking that
+            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, 
+                    sc.get(), !ram_no_rrd);
+        } else {
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
+        }
+
+        if (map_seenby_views)
+            update_view_device(device);
+
+        if (sc != NULL)
+            delete(sc);
+	}
+
+    // Unlock device list
+    list_lk.unlock();
+
+    // Obtain the lock on the device AFTER the list has been unlocked
+    device->mutex.lock();
 
     // Tag the packet with the base device
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
@@ -1334,44 +1383,10 @@ std::shared_ptr<kis_tracked_device_base>
 
     }
 
-	// Update seenby records for time, frequency, packets
-	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
-        double f = -1;
-
-        packinfo_sig_combo *sc = NULL;
-
-        if (pack_l1info != NULL)
-            f = pack_l1info->freq_khz;
-
-        if (track_persource_history) {
-            // Only populate signal, frequency map, etc per-source if we're tracking that
-            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, 
-                    sc.get(), !ram_no_rrd);
-        } else {
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
-        }
-
-        if (map_seenby_views)
-            update_view_device(device);
-
-        if (sc != NULL)
-            delete(sc);
-	}
-
     if (pack_common != NULL)
         device->add_basic_crypt(pack_common->basic_crypt_set);
 
     if (new_device) {
-        // Add the new device to the list
-        tracked_map[key] = device;
-
-        tracked_vec.push_back(device);
-        immutable_tracked_vec->push_back(device);
-
-        auto mm_pair = std::make_pair(in_mac, device);
-        tracked_mac_multimap.insert(mm_pair);
-
         // If we have no packet info, add it to the device list immediately,
         // otherwise, flag the packet to trigger a new device event at the
         // end of the packet processing stage of the chain
@@ -1385,11 +1400,11 @@ std::shared_ptr<kis_tracked_device_base>
             evt->get_event_content()->insert(event_new_device(), device);
             in_pack->process_complete_events.push_back(evt);
         }
+    }
 
-#if 0
-        // Release the devicelist lock before we add it to the views
-        ul_list.unlock();
-#endif
+    // If we're not retaining the device, unlock it here
+	if (!(in_flags & UCD_RETAIN_MUTEX_LOCK)) {
+        device->mutex.unlock();
     }
 
     return device;

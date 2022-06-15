@@ -44,6 +44,8 @@
 #include "trackedrrd.h"
 #include "packinfo_signal.h"
 
+#include "kis_mutex.h"
+
 class kis_datasource;
 
 enum kis_ipdata_type {
@@ -299,18 +301,21 @@ class kis_tracked_device_base : public tracker_component {
 public:
     kis_tracked_device_base() :
         tracker_component() {
+        mutex.set_name("device base");
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_tracked_device_base(int in_id) :
         tracker_component(in_id) {
+        mutex.set_name("device base");
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
+        mutex.set_name("device base");
         register_fields();
         reserve_fields(e);
     }
@@ -501,6 +506,9 @@ public:
 
     // Optional location cloud
     __ProxyFullyDynamicTrackable(location_cloud, kis_location_rrd, location_cloud_id);
+
+    // Per-device mutex, trying to optimize threading yet again
+    kis_mutex mutex;
 
 protected:
     virtual void register_fields() override;

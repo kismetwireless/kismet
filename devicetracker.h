@@ -183,6 +183,8 @@ public:
 #define UCD_UPDATE_EMPTY_SIGNAL     (1 << 7)
 // Only update location if we have no existing location
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
+// Retain per-device lock
+#define UCD_RETAIN_MUTEX_LOCK       (1 << 9)
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             std::shared_ptr<kis_common_info> pack_common,
