@@ -770,12 +770,10 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             }
 
             // Pull the fixparm timestamp
-            uint64_t temp_ts;
-            memcpy(&temp_ts, fixparm->timestamp, 8);
 #ifdef WORDS_BIGENDIAN
-            packinfo->timestamp = kis_swap64(temp_ts);
+            packinfo->timestamp = kis_swap64(fixparm->timestamp);
 #else
-            packinfo->timestamp = temp_ts;
+            packinfo->timestamp = fixparm->timestamp;
 #endif
         }
 
@@ -833,63 +831,61 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
         packinfo->type = packet_data;
         common->type = packet_basic_data;
 
-        // Collect the subtypes - we probably want to do something better with thse
-        // in the future
-        if (fc->subtype == 0) {
-            packinfo->subtype = packet_sub_data;
-
-        } else if (fc->subtype == 1) {
-            packinfo->subtype = packet_sub_data_cf_ack;
-
-        } else if (fc->subtype == 2) {
-            packinfo->subtype = packet_sub_data_cf_poll;
-
-        } else if (fc->subtype == 3) {
-            packinfo->subtype = packet_sub_data_cf_ack_poll;
-
-        } else if (fc->subtype == 4) {
-            packinfo->subtype = packet_sub_data_null;
-
-        } else if (fc->subtype == 5) {
-            packinfo->subtype = packet_sub_cf_ack;
-
-        } else if (fc->subtype == 6) {
-            packinfo->subtype = packet_sub_cf_ack_poll;
-        } else if (fc->subtype == 8) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_data;
-            // printf("debug - qos data, offset +2, %u to %u\n", packinfo->header_offset, packinfo->header_offset + 2);
-            packinfo->header_offset += 2;
-        } else if (fc->subtype == 9) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_data_cf_ack;
-            packinfo->header_offset += 2;
-        } else if (fc->subtype == 10) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_data_cf_poll;
-            packinfo->header_offset += 2;
-        } else if (fc->subtype == 11) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_data_cf_ack_poll;
-            packinfo->header_offset += 2;
-        } else if (fc->subtype == 12) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_null;
-            packinfo->header_offset += 2;
-        } else if (fc->subtype == 14) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_cf_poll_nod;
-            packinfo->header_offset += 2;
-        } else if (fc->subtype == 15) {
-            // Ugly hack, do this better
-            packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
-            packinfo->header_offset += 2;
-        } else {
-            // fmt::print(stderr, "debug - unknown type/subtype {} {}\n", packinfo->type, packinfo->subtype);
-            packinfo->corrupt = 1;
-            packinfo->subtype = packet_sub_unknown;
-            in_pack->insert(pack_comp_80211, packinfo);
-            return 0;
+        switch (fc->subtype) {
+            case 0:
+                packinfo->subtype = packet_sub_data;
+                break;
+            case 1:
+                packinfo->subtype = packet_sub_data_cf_ack;
+                break;
+            case 2:
+                packinfo->subtype = packet_sub_data_cf_poll;
+                break;
+            case 3:
+                packinfo->subtype = packet_sub_data_cf_ack_poll;
+                break;
+            case 4:
+                packinfo->subtype = packet_sub_data_null;
+                break;
+            case 5:
+                packinfo->subtype = packet_sub_cf_ack;
+                break;
+            case 6:
+                packinfo->subtype = packet_sub_cf_ack_poll;
+                break;
+            case 8:
+                packinfo->subtype = packet_sub_data_qos_data;
+                packinfo->header_offset += 2;
+                break;
+            case 9:
+                packinfo->subtype = packet_sub_data_qos_data_cf_ack;
+                packinfo->header_offset += 2;
+                break;
+            case 10:
+                packinfo->subtype = packet_sub_data_qos_data_cf_poll;
+                packinfo->header_offset += 2;
+                break;
+            case 11:
+                packinfo->subtype = packet_sub_data_qos_data_cf_ack_poll;
+                packinfo->header_offset += 2;
+                break;
+            case 12:
+                packinfo->subtype = packet_sub_data_qos_null;
+                packinfo->header_offset += 2;
+                break;
+            case 14:
+                packinfo->subtype = packet_sub_data_qos_cf_poll_nod;
+                packinfo->header_offset += 2;
+                break;
+            case 15:
+                packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
+                packinfo->header_offset += 2;
+                break;
+            default:
+                packinfo->corrupt = 1;
+                packinfo->subtype = packet_sub_unknown;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
         }
 
         // Extract ID's
@@ -1004,60 +1000,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                             chunk->length() - packinfo->header_offset));
                 in_pack->insert(pack_comp_datapayload, datachunk);
             }
-
-# if 0
-            // Removed - no longer relevant, some false positives, and no reason to burn CPU
-
-            if (datachunk->length() > LLC_UI_OFFSET + sizeof(PROBE_LLC_SIGNATURE) && 
-                memcmp(&(datachunk->data()[0]), LLC_UI_SIGNATURE, sizeof(LLC_UI_SIGNATURE)) == 0) {
-
-                // Handle the batch of frames that fall under the LLC UI 0x3 frame
-                if (memcmp(&(datachunk->data()[LLC_UI_OFFSET]),
-                           PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
-
-                    // Packets that look like netstumber probes...
-                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_322_SIGNATURE) < datachunk->length() && 
-                        memcmp(&(datachunk->data()[NETSTUMBLER_OFFSET]),
-                               NETSTUMBLER_322_SIGNATURE, sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
-                        _ALERT(alert_netstumbler_ref, in_pack, packinfo,
-                               "Detected Netstumbler 3.22 probe");
-                    }
-
-                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_323_SIGNATURE) < datachunk->length() && 
-                        memcmp(&(datachunk->data()[NETSTUMBLER_OFFSET]),
-                               NETSTUMBLER_323_SIGNATURE, sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
-                        _ALERT(alert_netstumbler_ref, in_pack, packinfo,
-                               "Detected Netstumbler 3.23 probe");
-                    }
-
-                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_330_SIGNATURE) < datachunk->length() && 
-                        memcmp(&(datachunk->data()[NETSTUMBLER_OFFSET]),
-                               NETSTUMBLER_330_SIGNATURE, sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
-                        _ALERT(alert_netstumbler_ref, in_pack, packinfo,
-                               "Detected Netstumbler 3.30 probe");
-                    }
-
-                    if (LUCENT_OFFSET + sizeof(LUCENT_TEST_SIGNATURE) < datachunk->length() && 
-                        memcmp(&(datachunk->data()[LUCENT_OFFSET]),
-                               LUCENT_TEST_SIGNATURE, sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
-                        _ALERT(alert_lucenttest_ref, in_pack, packinfo,
-                               "Detected Lucent probe/link test");
-                    }
-
-                    _ALERT(alert_netstumbler_ref, in_pack, packinfo,
-                           "Detected what looks like a Netstumber probe but didn't "
-                           "match known version fingerprint");
-                } // LLC_SIGNATURE
-            } // LLC_UI
-
-            // Fortress LLC
-            if ((LLC_UI_OFFSET + 1 + sizeof(FORTRESS_SIGNATURE)) < datachunk->length() && 
-                memcmp(&(datachunk->data()[LLC_UI_OFFSET]), 
-                       FORTRESS_SIGNATURE, sizeof(FORTRESS_SIGNATURE)) == 0) {
-                packinfo->cryptset |= crypt_fortress;
-                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-            }
-#endif
 
             // Dot1x frames
             // +1 for the version byte at header_offset + hot1x off
