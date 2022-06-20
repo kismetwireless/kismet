@@ -72,6 +72,11 @@ public:
     // Time of packet creation
     struct timeval ts;
 
+    // Assignment identifier (different from hash); used to map packets to processing
+    // threads.  Should be formed from the device MAC (or MACs) in a way to assign
+    // packets from the same device the same identifier as consistently as possible.
+    uint32_t assignment_id;
+
     // Unique number of this packet
     uint64_t packet_no;
 
@@ -110,6 +115,7 @@ public:
     ~kis_packet();
 
     kis_packet(kis_packet&& p) {
+        assignment_id = p.assignment_id;
         packet_no = p.packet_no;
         error = p.error;
         crc_ok = p.crc_ok;
@@ -126,6 +132,7 @@ public:
     }
 
     void reset() {
+        assignment_id = 0;
         packet_no = 0;
         error = 0;
         crc_ok = 0;
