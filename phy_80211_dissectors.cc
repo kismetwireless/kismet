@@ -536,230 +536,351 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
 
         const fixed_parameters *fixparm = NULL;
 
-        if (fc->subtype == 0) {
-            packinfo->subtype = packet_sub_association_req;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-        } else if (fc->subtype == 1) {
-            packinfo->subtype = packet_sub_association_resp;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-        } else if (fc->subtype == 2) {
-            packinfo->subtype = packet_sub_reassociation_req;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-        } else if (fc->subtype == 3) {
-            packinfo->subtype = packet_sub_reassociation_resp;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-        } else if (fc->subtype == 4) {
-            packinfo->subtype = packet_sub_probe_req;
-
-            packinfo->distrib = distrib_to;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-            
-        } else if (fc->subtype == 5) {
-            packinfo->subtype = packet_sub_probe_resp;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-        } else if (fc->subtype == 8) {
-            packinfo->subtype = packet_sub_beacon;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-            // If beacons aren't do a broadcast destination, consider them corrupt.
-            if (packinfo->dest_mac != Globalreg::globalreg->broadcast_mac) {
-                // fprintf(stderr, "debug - dest mac not broadcast\n");
-                packinfo->corrupt = 1;
-            }
-            
-        } else if (fc->subtype == 9) {
-            // I'm not positive this is the right handling of atim packets.  
-            // Do something smarter in the future
-            packinfo->subtype = packet_sub_atim;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-            packinfo->distrib = distrib_unknown;
-
-        } else if (fc->subtype == 10) {
-            packinfo->subtype = packet_sub_disassociation;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-            packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
-
-        } else if (fc->subtype == 11) {
-            packinfo->subtype = packet_sub_authentication;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-            packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
-
-        } else if (fc->subtype == 12) {
-            packinfo->subtype = packet_sub_deauthentication;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-            packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
-        } else if (fc->subtype == 13) {
-            if (chunk->length() < 30) {
-                packinfo->corrupt = 1;
-                in_pack->insert(pack_comp_80211, packinfo);
-                return 0;
-            }
-
-            packinfo->subtype = packet_sub_action;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-        } else if (fc->subtype == 14) {
-            if (chunk->length() < 30) {
-                packinfo->corrupt = 1;
-                in_pack->insert(pack_comp_80211, packinfo);
-                return 0;
-            }
-
-            packinfo->subtype = packet_sub_action_noack;
-
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-        } else {
-            // fmt::print(stderr, "debug - unhandled type - {} {}\n", fc->type, fc->subtype);
-            packinfo->subtype = packet_sub_unknown;
-        }
-
-        if (fc->subtype == packet_sub_probe_req || 
-            fc->subtype == packet_sub_disassociation || 
-            fc->subtype == packet_sub_authentication || 
-            fc->subtype == packet_sub_deauthentication) {
-            // Shortcut handling of probe req, disassoc, auth, deauth since they're
-            // not normal management frames
-            packinfo->header_offset = 24;
-            fixparm = NULL;
-        } else if (fc->subtype == packet_sub_action) {
-            // Action frames have their own structure and a non-traditional
-            // fixed parameters field, handle it all here
-            packinfo->header_offset = 22;
-            fixparm = NULL;
-
-            // Action frames can be encrypted; we can't do anything with them if they are.
-
-            if (!fc->wep) {
-                membuf pack_membuf((char *) &chunk->data()[packinfo->header_offset], 
-                        (char *) &(chunk->data()[chunk->length()]));
-                std::istream pack_stream(&pack_membuf);
-
-				auto action = Globalreg::new_from_pool<dot11_action>();
-
-                try {
-                    std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
-                    action->parse(ks);
-                } catch (const std::exception& e) {
-                    // fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
+        switch (fc->subtype) {
+            case 0:
+                if (chunk->length() < 36) {
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
                 }
 
-                // We only care about RMM for wids purposes right now
-                std::shared_ptr<dot11_action::action_rmm> action_rmm;
-                if (action->category_code() == dot11_action::category_code_radio_measurement &&
-                        (action_rmm = action->action_frame_rmm()) != NULL) {
-                    // Scan the action IE tags
-					auto rmm_tags = Globalreg::new_from_pool<dot11_ie>();
+                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                packinfo->header_offset = 24 + 4;
+
+                packinfo->subtype = packet_sub_association_req;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->ietag_csum =
+                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                                           chunk->length() - packinfo->header_offset);
+
+                break;
+
+            case 1:
+                if (chunk->length() < 36) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                packinfo->header_offset = 24 + 12;
+
+                packinfo->subtype = packet_sub_association_resp;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->ietag_csum =
+                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                                           chunk->length() - packinfo->header_offset);
+
+                break;
+
+            case 2:
+                if (chunk->length() < 36) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                packinfo->header_offset = 24 + 10;
+
+                packinfo->subtype = packet_sub_reassociation_req;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->ietag_csum =
+                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                                           chunk->length() - packinfo->header_offset);
+
+                break;
+
+            case 3:
+                packinfo->subtype = packet_sub_reassociation_resp;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+                break;
+
+            case 4:
+                packinfo->subtype = packet_sub_probe_req;
+
+                packinfo->distrib = distrib_to;
+
+                packinfo->header_offset = 24;
+                fixparm = NULL;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->ietag_csum =
+                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                                           chunk->length() - packinfo->header_offset);
+
+                break;
+
+            case 5:
+                if (chunk->length() < 36) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                packinfo->header_offset = 24 + 12;
+
+                packinfo->subtype = packet_sub_probe_resp;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->ietag_csum =
+                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                                           chunk->length() - packinfo->header_offset);
+
+                break;
+
+            case 8:
+                if (chunk->length() < 36) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                packinfo->header_offset = 24 + 12;
+
+                packinfo->subtype = packet_sub_beacon;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+#if 0
+                // If beacons aren't do a broadcast destination, consider them corrupt.
+                if (packinfo->dest_mac != Globalreg::globalreg->broadcast_mac) {
+                    // fprintf(stderr, "debug - dest mac not broadcast\n");
+                    packinfo->corrupt = 1;
+                }
+#endif
+
+                // Look for MSF opcode beacons before tag decode
+                if (packinfo->source_mac == msfopcode_mac) {
+                    _ALERT(alert_msfbcomssid_ref, in_pack, packinfo,
+                           "MSF-style poisoned beacon packet for Broadcom drivers detected");
+                }
+
+                if (chunk->length() >= 1184) {
+                    if (memcmp(&(chunk->data()[1180]), "\x6a\x39\x58\x01", 4) == 0)
+                        _ALERT(alert_msfnetgearbeacon_ref, in_pack, packinfo,
+                               "MSF-style poisoned options in over-sized beacon for Netgear "
+                               "driver attack");
+                }
+
+                packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
+
+                packinfo->ietag_csum =
+                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                                           chunk->length() - packinfo->header_offset);
+
+                break;
+
+            case 9:
+                if (chunk->length() < 36) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                packinfo->header_offset = 24 + 12;
+
+                packinfo->subtype = packet_sub_atim;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->distrib = distrib_unknown;
+                break;
+
+            case 10:
+                packinfo->subtype = packet_sub_disassociation;
+
+                packinfo->header_offset = 24;
+                fixparm = NULL;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
+
+                if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
+                    packinfo->mgt_reason_code > 45) {
+
+                    _ALERT(alert_disconinvalid_ref, in_pack, packinfo,
+                           "Unknown disassociation code " +
+                           hex_int_to_string(packinfo->mgt_reason_code) + 
+                           " from network " + packinfo->bssid_mac.mac_to_string());
+                }
+
+                break;
+
+            case 11:
+                packinfo->subtype = packet_sub_authentication;
+
+                packinfo->header_offset = 24;
+                fixparm = NULL;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
+                break;
+
+            case 12:
+                packinfo->subtype = packet_sub_deauthentication;
+
+                packinfo->header_offset = 24;
+                fixparm = NULL;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
+
+                if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
+                    packinfo->mgt_reason_code > 45) {
+
+                    _ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
+                           "Unknown deauthentication code " +
+                           hex_int_to_string(packinfo->mgt_reason_code) + 
+                           " from network " + packinfo->bssid_mac.mac_to_string());
+                }
+
+                break;
+
+            case 13:
+                if (chunk->length() < 30) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                packinfo->subtype = packet_sub_action;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+
+                // Action frames have their own structure and a non-traditional
+                // fixed parameters field, handle it all here
+                packinfo->header_offset = 22;
+                fixparm = NULL;
+
+                // Action frames can be encrypted; we can't do anything with them if they are.
+
+                if (!fc->wep) {
+                    membuf pack_membuf((char *) &chunk->data()[packinfo->header_offset], 
+                                       (char *) &(chunk->data()[chunk->length()]));
+                    std::istream pack_stream(&pack_membuf);
+
+                    auto action = Globalreg::new_from_pool<dot11_action>();
 
                     try {
-                        rmm_tags->parse(action_rmm->tags_data_stream());
+                        std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
+                        action->parse(ks);
                     } catch (const std::exception& e) {
-                        // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
+                        // fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
                         packinfo->corrupt = 1;
                         in_pack->insert(pack_comp_80211, packinfo);
                         return 0;
                     }
 
-                    for (auto t : *(rmm_tags->tags())) {
-                        if (t->tag_num() == 52) {
-                            try {
-                                dot11_ie_52_rmm ie_rmm;
-                                ie_rmm.parse(t->tag_data_stream());
+                    // We only care about RMM for wids purposes right now
+                    std::shared_ptr<dot11_action::action_rmm> action_rmm;
+                    if (action->category_code() == dot11_action::category_code_radio_measurement &&
+                        (action_rmm = action->action_frame_rmm()) != NULL) {
+                        // Scan the action IE tags
+                        auto rmm_tags = Globalreg::new_from_pool<dot11_ie>();
 
-                                if (ie_rmm.channel_number() > 0xE0) {
-                                    std::stringstream ss;
+                        try {
+                            rmm_tags->parse(action_rmm->tags_data_stream());
+                        } catch (const std::exception& e) {
+                            // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
+                            packinfo->corrupt = 1;
+                            in_pack->insert(pack_comp_80211, packinfo);
+                            return 0;
+                        }
 
-                                    ss << "IEE80211 Access Point BSSID " <<
-                                        packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
-                                        "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
-                                        "greater than the maximum channel, 224.  This may be an " << 
-                                        "exploit attempt against Broadcom chipsets used in mobile " <<
-                                        "devices.";
+                        for (auto t : *(rmm_tags->tags())) {
+                            if (t->tag_num() == 52) {
+                                try {
+                                    dot11_ie_52_rmm ie_rmm;
+                                    ie_rmm.parse(t->tag_data_stream());
 
-                                    alertracker->raise_alert(alert_11kneighborchan_ref, in_pack, 
-                                            packinfo->bssid_mac, packinfo->source_mac, 
-                                            packinfo->dest_mac, packinfo->other_mac, 
-                                            packinfo->channel, ss.str());
+                                    if (ie_rmm.channel_number() > 0xE0) {
+                                        std::stringstream ss;
+
+                                        ss << "IEE80211 Access Point BSSID " <<
+                                            packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
+                                            "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
+                                            "greater than the maximum channel, 224.  This may be an " << 
+                                            "exploit attempt against Broadcom chipsets used in mobile " <<
+                                            "devices.";
+
+                                        alertracker->raise_alert(alert_11kneighborchan_ref, in_pack, 
+                                                                 packinfo->bssid_mac, packinfo->source_mac, 
+                                                                 packinfo->dest_mac, packinfo->other_mac, 
+                                                                 packinfo->channel, ss.str());
+                                    }
+
+                                } catch (const std::exception& e) {
+                                    // fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
                                 }
-
-                            } catch (const std::exception& e) {
-                                // fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
                             }
                         }
                     }
                 }
-            }
-        } else {
-            // If we're not long enough to have the fixparm and look like a normal
-            // mgt header, bail.
-            if (chunk->length() < 36) {
-                packinfo->corrupt = 1;
-                in_pack->insert(pack_comp_80211, packinfo);
-                return 0;
-            }
 
-            packinfo->header_offset = 24;
-            fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                break;
 
-            if (fc->subtype == packet_sub_association_req)
-                packinfo->header_offset += 4;
-            else if (fc->subtype == packet_sub_reassociation_req)
-                packinfo->header_offset += 10;
-            else
-                packinfo->header_offset += 12;
+            case 14:
+                if (chunk->length() < 30) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
 
-            if (fixparm->wep) {
-                packinfo->cryptset |= crypt_wep;
-                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-            }
+                packinfo->subtype = packet_sub_action_noack;
 
+                fixparm = nullptr;
+
+                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+                break;
+
+            default:
+                packinfo->subtype = packet_sub_unknown;
+                break;
+        }
+
+        if (fixparm != nullptr) {
             // Set the transmitter info
             packinfo->ess = fixparm->ess;
             packinfo->ibss = fixparm->ibss;
@@ -775,56 +896,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
 #else
             packinfo->timestamp = fixparm->timestamp;
 #endif
-        }
-
-        // Look for MSF opcode beacons before tag decode
-        if (fc->subtype == packet_sub_beacon &&
-            packinfo->source_mac == msfopcode_mac) {
-            _ALERT(alert_msfbcomssid_ref, in_pack, packinfo,
-                   "MSF-style poisoned beacon packet for Broadcom drivers detected");
-        }
-
-        if (fc->subtype == packet_sub_beacon && chunk->length() >= 1184) {
-            if (memcmp(&(chunk->data()[1180]), "\x6a\x39\x58\x01", 4) == 0)
-                _ALERT(alert_msfnetgearbeacon_ref, in_pack, packinfo,
-                       "MSF-style poisoned options in over-sized beacon for Netgear "
-                       "driver attack");
-        }
-
-        std::map<int, std::vector<int> > tag_cache_map;
-        std::map<int, std::vector<int> >::iterator tcitr;
-
-        if (fc->subtype == packet_sub_beacon || 
-            fc->subtype == packet_sub_probe_req || 
-            fc->subtype == packet_sub_probe_resp ||
-            fc->subtype == packet_sub_association_resp ||
-            fc->subtype == packet_sub_reassociation_req) {
-
-            if (fc->subtype == packet_sub_beacon)
-                packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
-
-            packinfo->ietag_csum =
-                crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
-                        chunk->length() - packinfo->header_offset);
-
-        } else if (fc->subtype == packet_sub_deauthentication) {
-            if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
-                packinfo->mgt_reason_code > 45) {
-
-                _ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
-                       "Unknown deauthentication code " +
-                       hex_int_to_string(packinfo->mgt_reason_code) + 
-                       " from network " + packinfo->bssid_mac.mac_to_string());
-            }
-        } else if (fc->subtype == packet_sub_disassociation) {
-            if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
-                packinfo->mgt_reason_code > 45) {
-
-                _ALERT(alert_disconinvalid_ref, in_pack, packinfo,
-                       "Unknown disassociation code " +
-                       hex_int_to_string(packinfo->mgt_reason_code) + 
-                       " from network " + packinfo->bssid_mac.mac_to_string());
-            }
         }
 
     } else if (fc->type == packet_data) {
