@@ -196,11 +196,13 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 tracker_element_factory<dot11_tracked_device>(),
                 "IEEE802.11 device");
 
+    // Top level decoder and assignment processor
+    packetchain->register_handler(&phydot11_packethook_dot11, this, CHAINPOS_POSTCAP, 100);
+
     // Packet classifier - makes basic records plus dot11 data
     packetchain->register_handler(&packet_dot11_common_classifier, this, CHAINPOS_CLASSIFIER, -100);
     packetchain->register_handler(&packet_dot11_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
     packetchain->register_handler(&phydot11_packethook_wep, this, CHAINPOS_DECRYPT, -100);
-    packetchain->register_handler(&phydot11_packethook_dot11, this, CHAINPOS_LLCDISSECT, -100);
 
     // If we haven't registered packet components yet, do so.  We have to
     // co-exist with the old tracker core for some time
