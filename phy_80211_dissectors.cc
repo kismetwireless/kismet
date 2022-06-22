@@ -1164,9 +1164,18 @@ eap_end:
     common->dest = packinfo->dest_mac;
     common->network = packinfo->bssid_mac;
     common->transmitter = packinfo->transmit_mac;
+
     common->type = packet_basic_data;
 
     in_pack->insert(pack_comp_80211, packinfo);
+
+    uint32_t aid = 0;
+    aid = adler32_checksum(&common->source.longmac, sizeof(common->source.longmac));
+    aid = adler32_append_checksum(&common->dest.longmac, sizeof(common->dest.longmac), aid);
+    aid = adler32_append_checksum(&common->network.longmac, sizeof(common->network.longmac), aid);
+    aid = adler32_append_checksum(&common->transmitter.longmac, sizeof(common->transmitter.longmac), aid);
+
+    in_pack->assignment_id = aid;
 
     return 1;
 }
@@ -1778,7 +1787,11 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                     // something is wrong we're just trying to extract the
                     // better errors
                 }
+
+                return -1;
             }
+
+            continue;
         }
 
         // IE 54 Mobility
@@ -1849,6 +1862,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 				packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag->tag_data().data(), 
 						ie_tag->tag_data().length());
 			}
+
+            continue;
 		}
 
         // IE 191 VHT Capabilities TODO compbine with VHT OP to derive actual usable
@@ -1927,6 +1942,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 fprintf(stderr, "debug - vht 191 error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
             }
+
+            continue;
         }
 
 
@@ -1947,6 +1964,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 // fprintf(stderr, "debug - ie150 vendor tag error: %s\n", e.what());
                 // Don't consider this a corrupt packet because ie150 can be highly variable
             }
+
+            continue;
         }
 
         // IE 192 VHT Operation
@@ -2199,92 +2218,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
     }
 
     return 1;
-
-#if 0
-
-
-
-            // WPA frame matching if we have the privacy bit set
-            if ((packinfo->cryptset & crypt_wep)) {
-                // Liberally borrowed from Ethereal
-                if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
-                    for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
-                         tagct++) {
-                        tag_offset = tcitr->second[tagct];
-                        unsigned int tag_orig = tag_offset + 1;
-                        unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
-                        unsigned int offt = 0;
-
-                        if (tag_orig + taglen > chunk->length) {
-                            packinfo->corrupt = 1;
-                            in_pack->insert(pack_comp_80211, packinfo);
-                            return 0;
-                        }
-
-                        // Match 221 tag header for WPA
-                        if (taglen < 6)
-                            continue;
-
-                        if (memcmp(&(chunk->data[tag_orig + offt]), 
-                                   WPA_OUI, sizeof(WPA_OUI)))
-                            continue;
-
-                        offt += 6;
-
-                        // Match WPA multicast suite
-                        if (offt + 4 > taglen)
-                            continue;
-                        
-                        if (memcmp(&(chunk->data[tag_orig + offt]), WPA_OUI,
-                                   sizeof(WPA_OUI)))
-                            continue;
-
-                        packinfo->cryptset |= 
-                            wpa_cipher_conv(chunk->data[tag_orig + offt + 3]);
-
-                        // We don't care about parsing the number of ciphers,
-                        // we'll just iterate, so skip the cipher number
-                        offt += 6;
-
-                        // Match WPA unicast components
-                        while (offt + 4 <= taglen) {
-                            if (memcmp(&(chunk->data[tag_orig + offt]), 
-                                      WPA_OUI, sizeof(WPA_OUI)) == 0) {
-                                packinfo->cryptset |= 
-                                    wpa_cipher_conv(chunk->data[tag_orig + offt + 3]);
-                                offt += 4;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        // WPA Migration Mode
-                        if ((packinfo->cryptset & crypt_tkip) && 
-                            ((packinfo->cryptset & crypt_wep40) || 
-                             (packinfo->cryptset & crypt_wep104)) )
-                            packinfo->cryptset |= crypt_wpa_migmode;
-
-                        // Match auth key components
-                        offt += 2;
-                        while (offt + 4 <= taglen) {
-                            if (memcmp(&(chunk->data[tag_orig + offt]), 
-                                      WPA_OUI, sizeof(WPA_OUI)) == 0) {
-                                packinfo->cryptset |= 
-                                    wpa_key_mgt_conv(chunk->data[tag_orig + offt + 3]);
-                                offt += 4;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        // Set WPA version flag
-                        packinfo->cryptset |= crypt_version_wpa;
-                    }
-                } /* 221 */
-
-#endif
-
-
 }
 
 std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_packinfo> in_packinfo,
