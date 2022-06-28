@@ -1763,10 +1763,16 @@ Json::Value kis_net_beast_auth::as_json() {
 
 
 void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    // We have to assume that we have to acquire a unique lock, no matter what,
+    // because something we call could demand a unique lock
     kis_unique_lock<kis_mutex> lk(mutex, std::defer_lock, "tracked endpoint");
+    kis_unique_lock<kis_shared_mutex> slk(shmutex, std::defer_lock, "tracked endpoint");
 
-    if (use_mutex)
+    if (use_mutex) {
         lk.lock();
+    } else if (use_shmutex) {
+        slk.lock();
+    }
 
     std::ostream os(&con->response_stream());
 
@@ -1810,10 +1816,16 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
 }
 
 void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    // We have to assume that we have to acquire a unique lock, no matter what,
+    // because something we call could demand a unique lock
     kis_unique_lock<kis_mutex> lk(mutex, std::defer_lock, "function endpoint");
+    kis_unique_lock<kis_shared_mutex> slk(shmutex, std::defer_lock, "tracked endpoint");
 
-    if (use_mutex)
+    if (use_mutex) {
         lk.lock();
+    } else if (use_shmutex) {
+        slk.lock();
+    }
 
     try {
         if (pre_func != nullptr)

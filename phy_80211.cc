@@ -1634,7 +1634,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         }
 
-
         // BSSTS relationship worker
         if (associate_bssts) {
             auto bss_worker = 
@@ -1702,7 +1701,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         commoninfo->type = packet_basic_phy;
     } else if (dot11info->type == packet_data) {
         // Temporarily move lock down to here
-        kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
+        kis_unique_lock<kis_shared_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
                                                "phy80211 common_classifier");
 
         commoninfo->type = packet_basic_data;
@@ -2235,7 +2234,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Wi-Fi Device");
 
-        kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
+        kis_unique_lock<kis_shared_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
                 "phy80211 json_classifier");
 
         auto bssid_dot11 =
@@ -3263,7 +3262,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
             dot11info->subtype == packet_sub_association_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
 
-        kis_unique_lock<kis_mutex> list_locker(devicetracker->get_devicelist_mutex(),
+        kis_unique_lock<kis_shared_mutex> list_locker(devicetracker->get_devicelist_mutex(),
                 "phy80211 handle_probed_ssid");
 
         auto probemap(dot11dev->get_probed_ssid_map());
@@ -4038,7 +4037,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
 
     stream.write((const char *) &hdr, sizeof(hdr));
 
-    kis_unique_lock<kis_mutex> list_locker(devicetracker->get_devicelist_mutex(),
+    kis_unique_lock<kis_shared_mutex> list_locker(devicetracker->get_devicelist_mutex(),
             "phy80211 generate_handshake_pcap");
 
 

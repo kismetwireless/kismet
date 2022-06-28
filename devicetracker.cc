@@ -696,7 +696,7 @@ device_tracker::device_tracker() :
 
                                                     do_device_work(worker);
                                                 } else if (!dev_k.get_error()) {
-                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
+                                                    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
 
                                                     auto dev = fetch_device(dev_k);
                                                     if (dev != nullptr) {
@@ -708,7 +708,7 @@ device_tracker::device_tracker() :
                                                         }
                                                     }
                                                 } else if (!dev_m.error()) {
-                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
+                                                    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
 
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
@@ -906,7 +906,7 @@ device_tracker::~device_tracker() {
 }
 
 void device_tracker::macdevice_timer_event() {
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker macdevice_timer_event");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker macdevice_timer_event");
 
     time_t now = time(0);
 
@@ -968,7 +968,7 @@ std::string device_tracker::fetch_phy_name(int in_phy) {
 }
 
 int device_tracker::fetch_num_devices() {
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_num_devices");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_num_devices");
 
     return tracked_map.size();
 }
@@ -1031,7 +1031,7 @@ void device_tracker::update_full_refresh() {
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device");
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -1052,7 +1052,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_
 
 // Fetch one or more devices by mac address or mac mask
 std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devices(mac_addr in_mac) {
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
     std::vector<std::shared_ptr<kis_tracked_device_base>> ret;
    
     const auto mmp = tracked_mac_multimap.equal_range(in_mac);
@@ -1167,7 +1167,7 @@ std::shared_ptr<kis_tracked_device_base>
 
     key = device_key(in_phy->fetch_phyname_hash(), in_mac);
 
-    kis_unique_lock<kis_mutex> list_lk(get_devicelist_mutex(), "device_tracker update_common_device");
+    kis_unique_lock<kis_shared_mutex> list_lk(get_devicelist_mutex(), "device_tracker update_common_device");
     device = fetch_device_nr(key);
 
     if (device == nullptr) {
@@ -1440,7 +1440,7 @@ bool devicetracker_sort_lastseen(std::shared_ptr<kis_tracked_device_base> a,
 
 void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
-        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
+        kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
 
         time_t ts_now = time(0);
         bool purged = false;
@@ -1487,7 +1487,7 @@ void device_tracker::timetracker_event(int eventid) {
             update_full_refresh();
 
     } else if (eventid == max_devices_timer) {
-        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event max_devices_timer");
+        kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event max_devices_timer");
 
 		// Do nothing if we don't care
 		if (max_num_devices <= 0)
@@ -1627,7 +1627,7 @@ int device_tracker::database_upgrade_db() {
 }
 
 void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
 
     if (fetch_device_nr(device->get_key()) != NULL) {
         _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
@@ -1648,7 +1648,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
 }
 
 bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
-    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1667,7 +1667,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 }
 
 void device_tracker::remove_view(const std::string& in_id) {
-    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
         auto vi = std::static_pointer_cast<device_tracker_view>(*i);
@@ -1679,7 +1679,7 @@ void device_tracker::remove_view(const std::string& in_id) {
 }
 
 void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1688,7 +1688,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
 }
 
 void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1697,7 +1697,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1706,7 +1706,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) {
-    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
 
     auto vk = phy_view_map.find(in_phyid);
     if (vk != phy_view_map.end())
@@ -1855,7 +1855,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_user_name");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "set_device_user_name");
 
     in_dev->set_username(in_username);
 
@@ -1905,7 +1905,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
 
-    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_tag");
+    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "set_device_tag");
 
     auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);

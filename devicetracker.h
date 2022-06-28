@@ -234,7 +234,7 @@ public:
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
     // Expose to devicelist mutex for external batch locking
-    kis_mutex& get_devicelist_mutex() {
+    kis_shared_mutex& get_devicelist_mutex() {
         return devicelist_mutex;
     }
 
@@ -371,7 +371,7 @@ protected:
     kis_mutex phy_mutex;
 
     // New multimutex primitive
-    kis_mutex devicelist_mutex;
+    kis_shared_mutex devicelist_mutex;
 
     kis_mutex storing_mutex;
     std::atomic<bool> devices_storing;

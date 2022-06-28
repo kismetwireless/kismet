@@ -509,7 +509,7 @@ bool kis_adsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> pac
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
+    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
 
     std::string dn = "Airplane";
 

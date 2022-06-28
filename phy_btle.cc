@@ -345,7 +345,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE Device");
 
-    kis_lock_guard<kis_mutex> lk(mphy->devicetracker->get_devicelist_mutex(), "btle_common_classifier");
+    kis_lock_guard<kis_shared_mutex> lk(mphy->devicetracker->get_devicelist_mutex(), "btle_common_classifier");
 
     auto new_dev = false;
 
