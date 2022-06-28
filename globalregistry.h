@@ -253,8 +253,9 @@ public:
     void shutdown_deferred();
 
     // Global ASIO contexts and IO threads
-    const int n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
-    boost::asio::io_context io{n_io_threads};
+    unsigned int n_io_threads;
+    boost::asio::io_context io;
+
 
     kis_mutex ext_mutex;
     // Exernal global references, string to intid

@@ -318,20 +318,18 @@ packet_chain::~packet_chain() {
 }
 
 void packet_chain::start_processing() {
-#if 1
-    auto nt = static_cast<int>(std::thread::hardware_concurrency());
-#else
-    auto nt = int(1);
-#endif
+    n_packet_threads = Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_packet_threads", 0);
 
-    n_packet_threads = nt;
-    packet_threads = new packet_thread*[nt];
+    if (n_packet_threads == 0)
+        n_packet_threads = static_cast<unsigned int>(std::thread::hardware_concurrency());
 
-    for (int n = 0; n < nt; n++) {
+    packet_threads = new packet_thread*[n_packet_threads];
+
+    for (int n = 0; n < n_packet_threads; n++) {
         packet_threads[n] = new packet_thread();
         packet_threads[n]->packet_thread = 
-            std::thread([this, nt, n]() {
-            auto name = fmt::format("PACKET {}/{}", n, nt);
+            std::thread([this, n]() {
+            auto name = fmt::format("PACKET {}/{}", n, n_packet_threads);
             thread_set_process_name(name);
             packet_queue_processor(&packet_threads[n]->packet_queue);
         });

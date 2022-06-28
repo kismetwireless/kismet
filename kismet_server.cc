@@ -593,20 +593,6 @@ int main(int argc, char *argv[], char *envp[]) {
                 tracker_element_factory<tracker_element_uuid>(),
                 "unique server UUID");
 
-    // Make the IO threads early
-    boost::asio::io_service::work work(Globalreg::globalreg->io);
-
-
-    std::vector<std::thread> iov;
-    iov.reserve(Globalreg::globalreg->n_io_threads);
-    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([i] () {
-                thread_set_process_name(fmt::format("IO {}", i));
-                Globalreg::globalreg->io.run();
-                });
-    }
-
-
 	// Create the event bus used by inter-code comms
 	auto eventbus = event_bus::create_eventbus();
 
@@ -788,6 +774,30 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->manufdb = new kis_manuf();
     if (globalregistry->fatal_condition)
         SpindownKismet();
+
+
+
+    globalreg->n_io_threads = 
+        globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_io_threads", 0);
+
+    if (globalreg->n_io_threads == 0)
+        globalreg->n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
+
+    // globalreg->io = std::move(boost::asio::io_context(globalreg->n_io_threads));
+
+    // Make the IO threads early
+    boost::asio::io_service::work work(Globalreg::globalreg->io);
+
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([i] () {
+                thread_set_process_name(fmt::format("IO {}/{}", i, Globalreg::globalreg->n_io_threads));
+                Globalreg::globalreg->io.run();
+        });
+    }
+
+
 
     // Base serializers
     entrytracker->register_serializer("json", std::make_shared<json_adapter::serializer>());
