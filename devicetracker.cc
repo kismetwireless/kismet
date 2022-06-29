@@ -1165,7 +1165,7 @@ std::shared_ptr<kis_tracked_device_base>
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
 
-    key = device_key(in_phy->fetch_phyname_hash(), in_mac);
+    key = in_phy->make_key(in_mac);
 
     kis_unique_lock<kis_shared_mutex> list_lk(get_devicelist_mutex(), "device_tracker update_common_device");
     device = fetch_device_nr(key);
@@ -1236,11 +1236,11 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 	}
 
+    // Acquire devices within the list lock, so only one device can be grabbed at a time
+    device->mutex.lock();
+
     // Unlock device list
     list_lk.unlock();
-
-    // Obtain the lock on the device AFTER the list has been unlocked
-    device->mutex.lock();
 
     // Tag the packet with the base device
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
