@@ -56,7 +56,10 @@ struct mac_addr {
         return ((uint64_t) -1) << (64 - bits);
     }
 
-    uint8_t num_left_bits(uint64_t v) const {
+    constexpr17 uint8_t num_left_bits(uint64_t v) const {
+        if (v == 0)
+            return 0;
+
         uint8_t r = 0;
         for (int b = 0; b < 64; b++) {
             if ((v >> (63 - b)) & 0x1) {
