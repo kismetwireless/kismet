@@ -1629,6 +1629,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
         }
 
+#if 0
+        // We don't use this, don't decode
         // IE 36, advertised supported channels in probe req
         if (ie_tag->tag_num() == 36) {
             try {
@@ -1638,6 +1640,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                 // fmt::print(stderr, "debug  corrupt ie36 supported channels: {}\n", e.what());
             }
         }
+#endif
 
         if (ie_tag->tag_num() == 45) {
             /*

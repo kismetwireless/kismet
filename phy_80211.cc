@@ -1327,7 +1327,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
                 dot11info->bssid_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-                if (dot11info->channel != "0" && dot11info->channel != "") {
+                if (dot11info->channel.length() != 0 && dot11info->channel != "0") {
                     dot11info->bssid_dev->set_channel(dot11info->channel);
                 } else if (pack_l1info != NULL && 
                            (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
@@ -1525,7 +1525,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     dot11info->source_dot11->set_last_bssid(mac_addr());
                 }
 
-                if (dot11info->channel != "0" && dot11info->channel != "") {
+                if (dot11info->channel.length() != 0 && dot11info->channel != "0") {
                     dot11info->source_dev->set_channel(dot11info->channel);
                 } else if (pack_l1info != NULL && 
                            (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
@@ -1699,6 +1699,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         // If we WERE going to process them, it would go here, and we'd start looking for 
         // source and dest where we could find them
         commoninfo->type = packet_basic_phy;
+        return 1;
     } else if (dot11info->type == packet_data) {
         // Temporarily move lock down to here
         kis_unique_lock<kis_shared_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
@@ -1813,7 +1814,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->bssid_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (dot11info->channel.length() != 0 && dot11info->channel != "0") {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
@@ -1888,7 +1889,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->bssid_dev != nullptr)
                 dot11info->source_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (dot11info->channel.length() != 0 && dot11info->channel != "0") {
                 dot11info->source_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
@@ -2043,7 +2044,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (dot11info->channel.length() != 0 && dot11info->channel != "0") {
                 dot11info->transmit_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->transmit_dev->get_frequency() ||
@@ -2253,7 +2254,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         bssid_dot11->set_last_bssid(bssid_dev->get_macaddr());
 
-        if (pack_l1info->channel != "" && pack_l1info->channel != "0") {
+        if (pack_l1info->channel.length() != 0 && pack_l1info->channel != "0") {
             bssid_dev->set_channel(pack_l1info->channel);
         } else if (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
                 bssid_dev->get_channel() == "") {
@@ -2401,7 +2402,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                         commoninfo->channel, al);
             }
 
-            if (ssid->get_ssid() != "") {
+            if (ssid->get_ssid().length() != 0) {
                 bssid_dev->set_devicename(ssid->get_ssid());
             } else {
                 bssid_dev->set_devicename(bssid_dev->get_macaddr().mac_to_string());
@@ -2610,7 +2611,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
     }
 
-    if (dot11info->channel != "0" && dot11info->channel != "") {
+    if (dot11info->channel.length() != 0 && dot11info->channel != "0") {
         basedev->set_channel(dot11info->channel);
     }
 
@@ -2813,7 +2814,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                     dot11info->channel, al);
         }
 
-        if (ssid->get_ssid() != "") {
+        if (ssid->get_ssid().length() != 0) {
             basedev->set_devicename(ssid->get_ssid());
         } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
             basedev->set_devicename(ssid->get_meshid());
@@ -3149,19 +3150,19 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     ssid->set_wps_version(dot11info->wps_version);
     ssid->set_wps_state(dot11info->wps);
     ssid->set_wps_config_methods(dot11info->wps_config_methods);
-    if (dot11info->wps_device_name != "")
+    if (dot11info->wps_device_name.length() != 0)
         ssid->set_wps_device_name(dot11info->wps_device_name);
-    if (dot11info->wps_manuf != "")
+    if (dot11info->wps_manuf.length() != 0)
         ssid->set_wps_manuf(dot11info->wps_manuf);
-    if (dot11info->wps_model_name != "") {
+    if (dot11info->wps_model_name.length() != 0) {
         ssid->set_wps_model_name(dot11info->wps_model_name);
     }
-    if (dot11info->wps_model_number != "") 
+    if (dot11info->wps_model_number.length() != 0) 
         ssid->set_wps_model_number(dot11info->wps_model_number);
-    if (dot11info->wps_serial_number != "")
+    if (dot11info->wps_serial_number.length() != 0)
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
-    if (dot11info->wps_uuid_e != "") 
+    if (dot11info->wps_uuid_e.length() != 0) 
         ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
@@ -3326,14 +3327,14 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         probessid->set_wps_version(dot11info->wps_version);
         probessid->set_wps_state(dot11info->wps);
         probessid->set_wps_config_methods(dot11info->wps_config_methods);
-        if (dot11info->wps_manuf != "")
+        if (dot11info->wps_manuf.length() != 0)
             probessid->set_wps_manuf(dot11info->wps_manuf);
-        if (dot11info->wps_model_name != "") {
+        if (dot11info->wps_model_name.length() != 0) {
             probessid->set_wps_model_name(dot11info->wps_model_name);
         }
-        if (dot11info->wps_model_number != "") 
+        if (dot11info->wps_model_number.length() != 0) 
             probessid->set_wps_model_number(dot11info->wps_model_number);
-        if (dot11info->wps_serial_number != "")
+        if (dot11info->wps_serial_number.length() != 0)
             probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
         // Update the IE listing at the device level
@@ -3362,7 +3363,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // XXHash32 says the canonical representation of the hash is little-endian
         dot11dev->set_probe_fingerprint(htole32(tag_hash.hash()));
 
-        if (dot11info->wps_uuid_e != "") {
+        if (dot11info->wps_uuid_e.length() != 0) {
             if (probessid->get_wps_uuid_e() != dot11info->wps_uuid_e) {
                 // lk.unlock();
 
@@ -3516,12 +3517,12 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
             }
 
             if (pack_datainfo != NULL) {
-                if (pack_datainfo->proto == proto_eap && pack_datainfo->auxstring != "") {
+                if (pack_datainfo->proto == proto_eap && pack_datainfo->auxstring.length() != 0) {
                     client_record->set_eap_identity(pack_datainfo->auxstring);
                 }
 
-                if (pack_datainfo->discover_vendor != "") {
-                    if (client_record->get_dhcp_vendor() != "" &&
+                if (pack_datainfo->discover_vendor.length() != 0) {
+                    if (client_record->get_dhcp_vendor().length() != 0 &&
                         client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
                         alertracker->potential_alert(alert_dhcpos_ref)) {
                         std::string al = "IEEE80211 network BSSID " + 
@@ -3542,8 +3543,8 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
                     client_record->set_dhcp_vendor(pack_datainfo->discover_vendor);
                 }
 
-                if (pack_datainfo->discover_host != "") {
-                    if (client_record->get_dhcp_host() != "" &&
+                if (pack_datainfo->discover_host.length() != 0) {
+                    if (client_record->get_dhcp_host().length() != 0 &&
                         client_record->get_dhcp_host() != pack_datainfo->discover_host &&
                         alertracker->potential_alert(alert_dhcpname_ref)) {
                         std::string al = "IEEE80211 network BSSID " + 
@@ -3564,11 +3565,11 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
                     client_record->set_dhcp_host(pack_datainfo->discover_host);
                 }
 
-                if (pack_datainfo->cdp_dev_id != "") {
+                if (pack_datainfo->cdp_dev_id.length() != 0) {
                     client_record->set_cdp_device(pack_datainfo->cdp_dev_id);
                 }
 
-                if (pack_datainfo->cdp_port_id != "") {
+                if (pack_datainfo->cdp_port_id.length() != 0) {
                     client_record->set_cdp_port(pack_datainfo->cdp_port_id);
                 }
 
