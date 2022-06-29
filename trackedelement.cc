@@ -1332,10 +1332,8 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         shared_tracker_element f = get_tracker_element_path(si->resolved_path, in);
 
         if (f == nullptr) {
-            f = Globalreg::globalreg->entrytracker->register_and_get_field(fmt::format("unknown{}", fn),
-                    tracker_element_factory<tracker_element_placeholder>(),
-                    "unallocated field");
-
+            f = Globalreg::new_from_pool<tracker_element_placeholder>();
+            std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(fmt::format("unknown{}", fn));
             std::static_pointer_cast<tracker_element_placeholder>(f)->set(0);
         
             if (si->rename.length() != 0) {
