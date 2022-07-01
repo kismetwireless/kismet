@@ -243,7 +243,7 @@ device_tracker::device_tracker() :
     unsigned int preload_sz = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
-    tracked_vec.reserve(preload_sz);
+    // tracked_vec.reserve(preload_sz);
     immutable_tracked_vec->reserve(preload_sz);
 
     // Set up the device timeout
@@ -900,7 +900,7 @@ device_tracker::~device_tracker() {
     for (auto p : phy_handler_map)
         delete(p.second);
 
-    tracked_vec.clear();
+    // tracked_vec.clear();
     immutable_tracked_vec->clear();
     tracked_mac_multimap.clear();
 }
@@ -1204,7 +1204,7 @@ std::shared_ptr<kis_tracked_device_base>
         // Add the new device to the list
         tracked_map[key] = device;
 
-        tracked_vec.push_back(device);
+        // tracked_vec.push_back(device);
         immutable_tracked_vec->push_back(device);
 
         auto mm_pair = std::make_pair(in_mac, device);
@@ -1432,10 +1432,9 @@ std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(
 
 // Simple std::sort comparison function to order by the least frequently
 // seen devices
-bool devicetracker_sort_lastseen(std::shared_ptr<kis_tracked_device_base> a,
-	std::shared_ptr<kis_tracked_device_base> b) {
-
-	return a->get_last_time() < b->get_last_time();
+bool devicetracker_sort_lastseen(std::shared_ptr<tracker_element> a, std::shared_ptr<tracker_element> b) {
+	return std::static_pointer_cast<kis_tracked_device_base>(a)->get_last_time() < 
+        std::static_pointer_cast<kis_tracked_device_base>(b)->get_last_time();
 }
 
 void device_tracker::timetracker_event(int eventid) {
@@ -1445,6 +1444,44 @@ void device_tracker::timetracker_event(int eventid) {
         time_t ts_now = time(0);
         bool purged = false;
 
+
+        // Reset the smart pointer of any devices we're dropping from the device list
+        for (auto i : *immutable_tracked_vec) {
+            if (i == nullptr)
+                continue;
+
+            auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
+
+            if (ts_now - d->get_last_time() > device_idle_expiration &&
+                (d->get_packets() < device_idle_min_packets || 
+                 device_idle_min_packets <= 0)) {
+
+                device_itr mi = tracked_map.find(d->get_key());
+                if (mi != tracked_map.end())
+                    tracked_map.erase(mi);
+
+                // Erase it from the multimap
+                auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
+
+                for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                    if (mmpi->second->get_key() == d->get_key()) {
+                        tracked_mac_multimap.erase(mmpi);
+                        break;
+                    }
+                }
+
+                // Forget it from any views
+                remove_view_device(d);
+
+                // Forget the immutable vec pointer to it
+                i.reset();
+
+                purged = true;
+
+            }
+        }
+
+#if 0
         // Find all eligible devices, remove them from the tracked vec
         tracked_vec.erase(std::remove_if(tracked_vec.begin(), tracked_vec.end(),
                 [&](std::shared_ptr<kis_tracked_device_base> d) {
@@ -1482,6 +1519,7 @@ void device_tracker::timetracker_event(int eventid) {
                     return false;
          
                     }), tracked_vec.end());
+#endif
 
         if (purged)
             update_full_refresh();
@@ -1494,12 +1532,42 @@ void device_tracker::timetracker_event(int eventid) {
             return;
 
 		// Do nothing if the number of devices is less than the max
-		if (tracked_vec.size() <= max_num_devices)
+		if (immutable_tracked_vec->size() <= max_num_devices)
             return;
+
+        // Now this gets expensive; clone the immutable vec, sort it, and then we start
+        // zeroing out the immutable vec records
+        tracker_element_vector sorted_vec(immutable_tracked_vec);
+
+        std::stable_sort(sorted_vec.begin(), sorted_vec.end(), devicetracker_sort_lastseen);
+
+        for (auto i = sorted_vec.begin() + max_num_devices; i != sorted_vec.end(); ++i) {
+            auto d = std::static_pointer_cast<kis_tracked_device_base>(*i);
+
+            device_itr mi = tracked_map.find(d->get_key());
+            if (mi != tracked_map.end())
+                tracked_map.erase(mi);
+
+            // Erase it from the multimap
+            auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
+
+            for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                if (mmpi->second->get_key() == d->get_key()) {
+                    tracked_mac_multimap.erase(mmpi);
+                    break;
+                }
+            }
+
+            // Forget it from the immutable vec, but keep its 
+            // position; we need to have vecpos = devid
+            auto iti = immutable_tracked_vec->begin() + d->get_kis_internal_id();
+            (*iti).reset();
+        }
 
         // Do an update since we're trimming something
         update_full_refresh();
 
+#if 0
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list
         // has to sort it themselves
@@ -1531,7 +1599,9 @@ void device_tracker::timetracker_event(int eventid) {
                     return true;
          
                     }), tracked_vec.end());
+#endif
 	}
+
 }
 
 void device_tracker::usage(const char *name __attribute__((unused))) {
@@ -1640,7 +1710,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
     device->set_kis_internal_id(immutable_tracked_vec->size());
 
     tracked_map[device->get_key()] = device;
-    tracked_vec.push_back(device);
+    // tracked_vec.push_back(device);
     immutable_tracked_vec->push_back(device);
 
     auto mm_pair = std::make_pair(device->get_macaddr(), device);
