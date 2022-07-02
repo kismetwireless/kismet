@@ -29,6 +29,7 @@
 #include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "timetracker.h"
 #include "trackedcomponent.h"
 
 // Message flags for queuing data
@@ -154,6 +155,7 @@ private:
         lifetime_global() {
 
         eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+        timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
 
         Globalreg::enable_pool_type<tracked_message>([](tracked_message *m) { m->reset(); });
 
@@ -161,6 +163,12 @@ private:
             Globalreg::globalreg->entrytracker->register_and_get_field_as<tracked_message>("kismet.messagebus.message",
                     tracker_element_factory<tracked_message>(),
                     "Message");
+
+        timer_id = timetracker->register_timer(
+            std::chrono::seconds(1), true, [this](int) -> int {
+                n_info_sec = 0; 
+                return 1;
+            });
     }
 
 public:
@@ -186,6 +194,10 @@ public:
             return;
         }
 
+        // Throttle info messages if we're getting obliterated
+        if ((flags & MSGFLAG_INFO) && throttle_info != 0 && n_info_sec > throttle_info)
+            return;
+
         auto tracked_msg = std::make_shared<tracked_message>(msg_proto.get(), msg, flags, time(0));
         auto evt = eventbus->get_eventbus_event(event_message());
         evt->get_event_content()->insert(event_message(), tracked_msg);
@@ -194,7 +206,14 @@ public:
 
 protected:
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<tracked_message> msg_proto;
+
+    int timer_id;
+
+    unsigned int throttle_info;
+
+    std::atomic<unsigned int> n_info_sec;
 };
 
 #endif

@@ -596,6 +596,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Create the event bus used by inter-code comms
 	auto eventbus = event_bus::create_eventbus();
 
+    // Make the timetracker
+    auto timetracker = time_tracker::create_timetracker();
+
     // First order - create our message bus and our client for outputting
     auto messagebus = message_bus::create_messagebus();
     globalreg->messagebus = messagebus;
@@ -759,9 +762,6 @@ int main(int argc, char *argv[], char *envp[]) {
             }
         }
     }
-
-    // Make the timetracker
-    auto timetracker = time_tracker::create_timetracker();
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
