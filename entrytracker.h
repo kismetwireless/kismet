@@ -134,7 +134,7 @@ public:
     bool search_xform(std::shared_ptr<tracker_element> elem, std::string& mapped_str);
 
 protected:
-    kis_mutex entry_mutex;
+    kis_shared_mutex entry_mutex;
     // kis_mutex serializer_mutex;
 
     int next_field_num;
