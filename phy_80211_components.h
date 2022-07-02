@@ -583,6 +583,7 @@ public:
             __ImportField(crypt_set, p);
             __ImportField(wpa_mfp_required, p);
             __ImportField(wpa_mfp_supported, p);
+            __ImportField(maxrate, p);
             __ImportField(beaconrate, p);
             __ImportField(beacons_sec, p);
             __ImportField(ietag_checksum, p);
@@ -620,6 +621,7 @@ public:
             __ImportId(ie_tag_content_element_id, p);
 
 
+            __ImportId(meshid_id, p);
             __ImportId(mesh_gateway_id, p);
             __ImportId(mesh_peerings_id, p);
             __ImportId(mesh_forwarding_id, p);
@@ -1141,6 +1143,8 @@ public:
             __ImportId(last_beaconed_ssid_record_id, p);
             __ImportId(last_probed_ssid_record_id, p);
 
+            __ImportField(advertised_ssid_builder, p);
+
             reserve_fields(nullptr);
         }
 
@@ -1174,7 +1178,7 @@ public:
             advertised_ssid_map_id, {advertised_ssid_map->set_as_vector(true);});
 
     std::shared_ptr<dot11_advertised_ssid> new_advertised_ssid() {
-        return std::make_shared<dot11_advertised_ssid>(advertised_ssid_map_entry_id);
+        return std::make_shared<dot11_advertised_ssid>(advertised_ssid_builder.get());
     }
 
     __Proxy(num_advertised_ssids, uint64_t, uint64_t, uint64_t, num_advertised_ssids);
@@ -1334,6 +1338,9 @@ protected:
             register_field("dot11.device.advertised_ssid",
                     tracker_element_factory<dot11_advertised_ssid>(),
                     "advertised SSID");
+
+        advertised_ssid_builder =
+            std::make_shared<dot11_advertised_ssid>(advertised_ssid_map_entry_id);
 
         register_field("dot11.device.num_advertised_ssids", 
                 "number of advertised SSIDs", &num_advertised_ssids);
@@ -1536,6 +1543,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> num_client_aps;
 
     std::shared_ptr<tracker_element_hashkey_map> advertised_ssid_map;
+    std::shared_ptr<dot11_advertised_ssid> advertised_ssid_builder;
     int advertised_ssid_map_id;
     int advertised_ssid_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_advertised_ssids;

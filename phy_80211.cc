@@ -3199,23 +3199,25 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             ssid->clear_dot11d_vec();
     }
 
-    ssid->set_wps_version(dot11info->wps_version);
-    ssid->set_wps_state(dot11info->wps);
-    ssid->set_wps_config_methods(dot11info->wps_config_methods);
-    if (dot11info->wps_device_name.length() != 0)
-        ssid->set_wps_device_name(dot11info->wps_device_name);
-    if (dot11info->wps_manuf.length() != 0)
-        ssid->set_wps_manuf(dot11info->wps_manuf);
-    if (dot11info->wps_model_name.length() != 0) {
-        ssid->set_wps_model_name(dot11info->wps_model_name);
-    }
-    if (dot11info->wps_model_number.length() != 0) 
-        ssid->set_wps_model_number(dot11info->wps_model_number);
-    if (dot11info->wps_serial_number.length() != 0)
-        ssid->set_wps_serial_number(dot11info->wps_serial_number);
+    if (ssid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
+        ssid->set_wps_version(dot11info->wps_version);
+        ssid->set_wps_state(dot11info->wps);
+        ssid->set_wps_config_methods(dot11info->wps_config_methods);
+        if (dot11info->wps_device_name.length() != 0)
+            ssid->set_wps_device_name(dot11info->wps_device_name);
+        if (dot11info->wps_manuf.length() != 0)
+            ssid->set_wps_manuf(dot11info->wps_manuf);
+        if (dot11info->wps_model_name.length() != 0) {
+            ssid->set_wps_model_name(dot11info->wps_model_name);
+        }
+        if (dot11info->wps_model_number.length() != 0) 
+            ssid->set_wps_model_number(dot11info->wps_model_number);
+        if (dot11info->wps_serial_number.length() != 0)
+            ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
-    if (dot11info->wps_uuid_e.length() != 0) 
-        ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
+        if (dot11info->wps_uuid_e.length() != 0) 
+            ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
+    }
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
@@ -3376,18 +3378,20 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
 
-        probessid->set_wps_version(dot11info->wps_version);
-        probessid->set_wps_state(dot11info->wps);
-        probessid->set_wps_config_methods(dot11info->wps_config_methods);
-        if (dot11info->wps_manuf.length() != 0)
-            probessid->set_wps_manuf(dot11info->wps_manuf);
-        if (dot11info->wps_model_name.length() != 0) {
-            probessid->set_wps_model_name(dot11info->wps_model_name);
+        if (probessid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
+            probessid->set_wps_version(dot11info->wps_version);
+            probessid->set_wps_state(dot11info->wps);
+            probessid->set_wps_config_methods(dot11info->wps_config_methods);
+            if (dot11info->wps_manuf.length() != 0)
+                probessid->set_wps_manuf(dot11info->wps_manuf);
+            if (dot11info->wps_model_name.length() != 0) {
+                probessid->set_wps_model_name(dot11info->wps_model_name);
+            }
+            if (dot11info->wps_model_number.length() != 0) 
+                probessid->set_wps_model_number(dot11info->wps_model_number);
+            if (dot11info->wps_serial_number.length() != 0)
+                probessid->set_wps_serial_number(dot11info->wps_serial_number);
         }
-        if (dot11info->wps_model_number.length() != 0) 
-            probessid->set_wps_model_number(dot11info->wps_model_number);
-        if (dot11info->wps_serial_number.length() != 0)
-            probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
         // Update the IE listing at the device level
         if (keep_ie_tags_per_bssid) {
