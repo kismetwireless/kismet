@@ -410,7 +410,8 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
 
     // Make a new seenby record
     if (seenby_iter == seenby_map->end()) {
-        seenby = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_tracked_seenby_data>(seenby_val_id);
+        // seenby = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_tracked_seenby_data>(seenby_val_id);
+        seenby = Globalreg::new_from_pool<kis_tracked_seenby_data>(seenby_builder.get());
 
         auto sb_uuid = seenby->get_src_uuid();
         sb_uuid->set(source->get_tracker_source_uuid());
@@ -506,6 +507,8 @@ void kis_tracked_device_base::register_fields() {
         register_field("kismet.device.base.seenby.data",
                 tracker_element_factory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
+    seenby_builder = 
+        std::make_shared<kis_tracked_seenby_data>(seenby_val_id);
 
     register_field("kismet.device.base.related_devices",
             "Related devices, organized by relationship", &related_devices_map);

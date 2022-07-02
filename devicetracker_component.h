@@ -379,6 +379,7 @@ public:
             __ImportId(location_id, p);
 
             __ImportField(seenby_map, p);
+            __ImportField(seenby_builder, p);
 
             __ImportId(frequency_val_id, p);
             __ImportId(seenby_val_id, p);
@@ -533,7 +534,6 @@ public:
 
     typedef kis_tracked_rrd<> rrdt;
     __ProxyFullyDynamicTrackable(packets_rrd, kis_tracked_rrd<>, packets_rrd_id);
-
     __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
     __ProxyFullyDynamicTrackable(data_rrd, rrdt, data_rrd_id);
 
@@ -675,6 +675,7 @@ protected:
 
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;
+    std::shared_ptr<kis_tracked_seenby_data> seenby_builder;
     uint16_t seenby_map_id;
 
     // Non-exported local value for frequency count
