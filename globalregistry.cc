@@ -26,6 +26,8 @@
 
 global_registry *Globalreg::globalreg = NULL;
 
+thread_local robin_hood::unordered_map<size_t, std::shared_ptr<void>> global_registry::object_pool_map;
+
 global_registry::global_registry() { 
     ext_mutex.set_name("globalreg_ext_mutex");
     lifetime_mutex.set_name("globalreg_lifetime_mutex");
