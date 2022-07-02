@@ -1109,7 +1109,7 @@ public:
             __ImportField(datasize, p);
             __ImportField(datasize_retry, p);
 
-            __ImportId(last_bssid_id, p);
+            __ImportField(last_bssid, p);
 
             __ImportField(last_beacon_timestamp, p);
 
@@ -1228,7 +1228,7 @@ public:
     __Proxy(datasize_retry, uint64_t, uint64_t, uint64_t, datasize_retry);
     __ProxyIncDec(datasize_retry, uint64_t, uint64_t, datasize_retry);
 
-    __ProxyDynamic(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid, last_bssid_id);
+    __Proxy(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid);
 
     __Proxy(last_beacon_timestamp, uint64_t, time_t, 
             time_t, last_beacon_timestamp);
@@ -1397,8 +1397,7 @@ protected:
         register_field("dot11.device.datasize", "data in bytes", &datasize);
         register_field("dot11.device.datasize_retry", "retried data in bytes", &datasize_retry);
 
-        last_bssid_id =
-            register_dynamic_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
+        register_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
 
         register_field("dot11.device.last_beacon_timestamp",
                 "unix timestamp of last beacon frame", 
@@ -1575,7 +1574,6 @@ protected:
     std::shared_ptr<tracker_element_uint64> datasize_retry;
 
     std::shared_ptr<tracker_element_mac_addr> last_bssid;
-    int last_bssid_id;
 
     std::shared_ptr<tracker_element_uint64> last_beacon_timestamp;
 
