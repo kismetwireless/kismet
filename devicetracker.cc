@@ -58,6 +58,7 @@ device_tracker::device_tracker() :
     deferred_startup() {
 
     Globalreg::enable_pool_type<kis_historic_location>([](auto *a) { a->reset(); });
+    historic_location_builder = std::make_shared<kis_historic_location>();
 
     phy_mutex.set_name("device_tracker::phy_mutex");
     devicelist_mutex.set_name("devicetracker::devicelist");
@@ -1357,7 +1358,8 @@ std::shared_ptr<kis_tracked_device_base>
             // Throttle history cloud to one update per second to prevent floods of
             // data from swamping the cloud
             if (track_history_cloud && pack_gpsinfo->fix >= 2) {
-                auto histloc = Globalreg::new_from_pool<kis_historic_location>();
+                auto histloc =
+                    Globalreg::new_from_pool<kis_historic_location>(historic_location_builder.get());
 
                 histloc->set_lat(pack_gpsinfo->lat);
                 histloc->set_lon(pack_gpsinfo->lon);

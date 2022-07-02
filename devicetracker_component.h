@@ -117,7 +117,8 @@ public:
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
-    __ProxyFullyDynamicTrackable(signal_min_rrd, kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>, 
+    __ProxyFullyDynamicTrackable(signal_min_rrd, 
+                                 kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>, 
                                  signal_min_rrd_id);
 
     __ProxyFullyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc_id);
