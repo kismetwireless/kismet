@@ -104,14 +104,49 @@ public:
         mutex.set_name("kis_tracked_rrd");
     }
 
+    kis_tracked_rrd(const kis_tracked_rrd *p) :
+        tracker_component(p) {
+
+            __ImportField(last_time, p);
+            __ImportField(serial_time, p);
+            __ImportField(minute_vec, p);
+            __ImportField(hour_vec, p);
+            __ImportField(day_vec, p);
+            __ImportField(blank_val, p);
+            __ImportId(second_entry_id, p);
+            __ImportId(minute_entry_id, p);
+            __ImportId(hour_entry_id, p);
+
+            reserve_fields(nullptr);
+    }
+
+    void reset() {
+        last_time->set(0);
+        serial_time->set(0);
+        
+        for (size_t x = 0; x < minute_vec->size(); x++) {
+            (*minute_vec)[x] = 0;
+        }
+        for (size_t x = 0; x < hour_vec->size(); x++) {
+            (*hour_vec)[x] = 0;
+        }
+        for (size_t x = 0; x < day_vec->size(); x++) {
+            (*day_vec)[x] = 0;
+        }
+    }
+
     virtual uint32_t get_signature() const override {
+        return adler32_checksum("kis_tracked_rrd");
+    } 
+
+    static uint32_t get_static_signature() {
         return adler32_checksum("kis_tracked_rrd");
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
+        // We probably can't use a global pool because of our sub-types but lets try
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>();
-        r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>(this);
         return r;
     }
 
@@ -466,14 +501,29 @@ public:
         mutex.set_name("kis_tracked_minute_rrd");
     }
 
+    kis_tracked_minute_rrd(const kis_tracked_minute_rrd *p) :
+        tracker_component(p) {
+
+            __ImportField(last_time, p);
+            __ImportField(serial_time, p);
+            __ImportField(minute_vec, p);
+            __ImportField(blank_val, p);
+            __ImportId(second_entry_id, p);
+
+            reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
+        return adler32_checksum("kis_tracked_minute_rrd");
+    }
+
+    static uint32_t get_static_signature() {
         return adler32_checksum("kis_tracked_minute_rrd");
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>();
-        r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>(this);
         return r;
     }
 
@@ -553,6 +603,15 @@ public:
 
     virtual void post_serialize() override {
         kis_lock_guard<kis_mutex> lk(mutex, std::adopt_lock);
+    }
+
+    void reset() {
+        last_time->set(0);
+        serial_time->set(0);
+        
+        for (size_t x = 0; x < minute_vec->size(); x++) {
+            (*minute_vec)[x] = 0;
+        }
     }
 
 protected:
