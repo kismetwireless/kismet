@@ -3149,7 +3149,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (dot11info->subtype == packet_sub_beacon) {
         bool dot11dmismatch = false;
 
-        if (ssid->get_dot11d_country().length() > 0 &&
+        if (ssid->has_dot11d_country() && 
                 ssid->get_dot11d_country() != dot11info->dot11d_country) {
             dot11dmismatch = true;
         }
@@ -3191,7 +3191,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             }
         }
 
-        ssid->set_dot11d_country(dot11info->dot11d_country);
+        if (ssid->has_dot11d_country() || dot11info->dot11d_country.length() > 0)
+            ssid->set_dot11d_country(dot11info->dot11d_country);
 
         if (dot11info->dot11d_vec.size() > 0 && ssid->has_dot11d_vec())
             ssid->set_dot11d_vec(dot11info->dot11d_vec);
