@@ -60,6 +60,18 @@ public:
         // last_device_sec = 0;
     }
 
+    channel_tracker_v2_channel(const channel_tracker_v2_channel* p) :
+        tracker_component{p} {
+
+            __ImportField(channel, p);
+            __ImportField(frequency, p);
+            __ImportField(packets_rrd, p);
+            __ImportField(data_rrd, p);
+            __ImportField(device_rrd, p);
+            __ImportField(signal_data, p);
+            reserve_fields(nullptr);
+        }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("channel_tracker_v2_channel");
     }

@@ -35,6 +35,8 @@
 #include "robin_hood.h"
 #include "trackedelement.h"
 
+#define PROFILE_ENTRIES
+
 class kis_net_beast_httpd_connection;
 
 // Allocate and track named fields and give each one a custom int
@@ -149,6 +151,12 @@ protected:
 
         // Builder instance
         std::shared_ptr<tracker_element> builder;
+
+#ifdef PROFILE_ENTRIES
+        std::atomic<unsigned int> string_lookup;
+        std::atomic<unsigned int> id_lookup;
+#endif
+
     };
 
     robin_hood::unordered_node_map<std::string, std::shared_ptr<reserved_field> > field_name_map;

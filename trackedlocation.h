@@ -45,11 +45,11 @@ public:
     kis_tracked_location_triplet();
     kis_tracked_location_triplet(int in_id);
     kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_location_triplet(const kis_tracked_location_triplet*);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>();
-        r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>(this);
         return r;
     }
 
@@ -120,11 +120,11 @@ public:
     kis_tracked_location_full();
     kis_tracked_location_full(int in_id);
     kis_tracked_location_full(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_location_full(const kis_tracked_location_full *);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>();
-        r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>(this);
         return r;
     }
 
@@ -162,11 +162,11 @@ public:
     kis_tracked_location();
     kis_tracked_location(int in_id);
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_location(const kis_tracked_location *);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>();
-        r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>(this);
         return r;
     }
 
@@ -257,10 +257,23 @@ public:
             reserve_fields(e);
         }
 
+    kis_historic_location(const kis_historic_location *p) :
+        tracker_component{p} {
+
+            __ImportField(geopoint, p);
+            __ImportField(alt, p);
+            __ImportField(heading, p);
+            __ImportField(speed, p);
+            __ImportField(signal, p);
+            __ImportField(frequency, p);
+            __ImportField(time_sec, p);
+
+            reserve_fields(nullptr);
+        }
+
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>();
-        r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>(this);
         return r;
     }
 
@@ -344,6 +357,18 @@ public:
         samples_100_cascade = 0;
     }
 
+    kis_location_rrd(const kis_location_rrd* p) :
+        tracker_component{p} {
+
+            __ImportField(samples_100, p);
+            __ImportField(samples_10k, p);
+            __ImportField(samples_1m, p);
+            __ImportField(last_sample_ts, p);
+
+            __ImportField(historic_location_builder, p);
+
+        }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_location_rrd");
     }
@@ -354,8 +379,7 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::shared_ptr<this_t>(new this_t());
-        dup->set_id(get_id());
+        auto dup = std::shared_ptr<this_t>(new this_t(this));
         return dup;
     }
 
@@ -409,7 +433,7 @@ public:
             }
 
             auto aggloc =
-                std::make_shared<kis_historic_location>();
+                Globalreg::new_from_pool<kis_historic_location>(historic_location_builder.get());
 
             double r_x = avg_x / samples_100->size();
             double r_y = avg_y / samples_100->size();
@@ -477,7 +501,7 @@ public:
                 }
 
                 auto aggloc10 =
-                    std::make_shared<kis_historic_location>();
+                    Globalreg::new_from_pool<kis_historic_location>(historic_location_builder.get());
 
                 r_x = avg_x / samples_100->size();
                 r_y = avg_y / samples_100->size();
@@ -528,6 +552,9 @@ protected:
             &samples_1m);
         register_field("kis.gps.rrd.last_sample_ts",
             "time (unix ts) of last sample", &last_sample_ts);
+
+        historic_location_builder = 
+            Globalreg::new_from_pool<kis_historic_location>();
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -542,6 +569,8 @@ protected:
     std::shared_ptr<tracker_element_vector> samples_1m;
     
     std::shared_ptr<tracker_element_uint64> last_sample_ts;
+
+    std::shared_ptr<kis_historic_location> historic_location_builder;
 
     unsigned int samples_100_cascade;
     unsigned int samples_10k_cascade;

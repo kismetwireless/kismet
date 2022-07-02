@@ -338,6 +338,9 @@ protected:
     // Signal threshold
     int device_location_signal_threshold;
 
+    // Device factory for making new tracked devices
+    std::shared_ptr<kis_tracked_device_base> device_base_factory;
+
 	// Tracked devices by device key
     device_map_t tracked_map;
 

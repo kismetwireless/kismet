@@ -88,7 +88,14 @@ void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_ht
     stream << "<body>";
     stream << "<h2>Kismet field descriptions</h2>";
     stream << "<table padding=\"5\">";
-    stream << "<tr><td><b>Name</b></td><td><b>ID</b></td><td><b>Type</b></td><td><b>Description</b></td></tr>";
+    stream << "<tr><td><b>Name</b></td><td><b>ID</b></td><td><b>Type</b></td><td><b>Description</b></td>";
+
+#ifdef PROFILE_ENTRIES
+    stream << "<td><b>Name Lookup</b></td>";
+    stream << "<td><b>ID Lookup</b></td>";
+#endif
+
+    stream << "</tr>";
 
     for (auto i : field_id_map) {
         stream << "<tr>";
@@ -102,6 +109,11 @@ void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_ht
             i.second->builder->get_signature() << "</td>"; 
 
         stream << "<td>" << i.second->field_description << "</td>";
+
+#ifdef PROFILE_ENTRIES
+        stream << "<td>" << i.second->string_lookup << "</td>";
+        stream << "<td>" << i.second->id_lookup << "</td>";
+#endif
 
         stream << "</tr>";
 
@@ -122,6 +134,10 @@ int entry_tracker::register_field(const std::string& in_name,
     auto field_iter = field_name_map.find(in_name);
 
     if (field_iter != field_name_map.end()) {
+#ifdef PROFILE_ENTRIES
+        field_iter->second->string_lookup++;
+#endif
+
         lk.unlock();
         if (field_iter->second->builder->get_signature() != in_builder->get_signature()) 
             throw std::runtime_error(fmt::format("tried to register field {} of type {}/{} "
@@ -161,6 +177,11 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
 
     if (field_iter != field_name_map.end()) {
         lk.unlock();
+
+#ifdef PROFILE_ENTRIES
+        field_iter->second->string_lookup++;
+#endif
+
         if (field_iter->second->builder->get_signature() != in_builder->get_signature()) 
             throw std::runtime_error(fmt::format("tried to register field {} of type {}/{} "
                         "but field already exists with conflicting type/signature {}/{}",
@@ -199,6 +220,10 @@ uint16_t entry_tracker::get_field_id(const std::string& in_name) {
     if (iter == field_name_map.end()) 
         return -1;
 
+#ifdef PROFILE_ENTRIES
+    iter->second->string_lookup++;
+#endif
+
     return iter->second->field_id;
 }
 
@@ -233,6 +258,10 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(uint16_t in_
     if (iter == field_id_map.end()) 
         return nullptr;
 
+#ifdef PROFILE_ENTRIES
+    iter->second->id_lookup++;
+#endif
+
     return iter->second->builder->clone_type();
 }
 
@@ -244,6 +273,10 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::s
 
     if (iter == field_name_map.end()) 
         return nullptr;
+
+#ifdef PROFILE_ENTRIES
+    iter->second->string_lookup++;
+#endif
 
     return iter->second->builder->clone_type();
 }
