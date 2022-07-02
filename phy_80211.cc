@@ -3147,6 +3147,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
     // Only process dot11d from beacons
     if (dot11info->subtype == packet_sub_beacon) {
+#if 0
         bool dot11dmismatch = false;
 
         if (ssid->has_dot11d_country() && 
@@ -3198,6 +3199,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             ssid->set_dot11d_vec(dot11info->dot11d_vec);
         else if (dot11info->dot11d_vec.size() == 0 && ssid->has_dot11d_vec())
             ssid->clear_dot11d_vec();
+#endif
     }
 
     if (ssid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
