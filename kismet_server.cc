@@ -1034,6 +1034,9 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
     }
 
+    // Start throttling messages
+    messagebus->set_info_throttle(20);
+
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
 

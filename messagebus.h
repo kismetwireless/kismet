@@ -176,6 +176,10 @@ public:
         Globalreg::globalreg->remove_global(global_name());
     }
 
+    void set_info_throttle(unsigned int throttle_s) {
+        throttle_info = throttle_s;
+    }
+
     static std::string event_message() {
         return "MESSAGE";
     }
