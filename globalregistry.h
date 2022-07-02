@@ -271,8 +271,8 @@ public:
     bool deferred_started;
     std::vector<std::shared_ptr<deferred_startup> > deferred_vec;
 
-    // kis_mutex pool_map_mutex;
-    thread_local static robin_hood::unordered_map<size_t, std::shared_ptr<void>> object_pool_map;
+    kis_mutex pool_map_mutex;
+    robin_hood::unordered_map<size_t, std::shared_ptr<void>> object_pool_map;
 };
 
 namespace Globalreg {
@@ -334,7 +334,7 @@ namespace Globalreg {
     // has 'reset()' called on it during return, and must implement this
     template<typename T>
     void enable_pool_type(std::function<void (T*)> resetter) {
-        // kis_lock_guard<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg enable_pool_type");
+        kis_lock_guard<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg enable_pool_type");
 
         auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
         if (p != Globalreg::globalreg->object_pool_map.end())
@@ -350,13 +350,13 @@ namespace Globalreg {
     // is not enabled for this type.  By default a uniqueptr is constructed with a generic new
     template<typename T>
     std::shared_ptr<T> new_from_pool(std::function<std::shared_ptr<T> ()> fallback_new = nullptr) {
-        // kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
+        kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
 
         auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
         if (p == Globalreg::globalreg->object_pool_map.end()) {
             // Unlock before instantiating a new item, in case it in turns needs to touch the pool, 
             // such as creating complex tracked components
-            // lk.unlock();
+            lk.unlock();
 
             if (fallback_new)
                 return fallback_new();
@@ -368,13 +368,13 @@ namespace Globalreg {
 
     template<typename T>
     std::shared_ptr<T> new_from_pool(const T* model, std::function<std::shared_ptr<T> (const T*)> fallback_new = nullptr) {
-        // kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
+        kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
 
         auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
         if (p == Globalreg::globalreg->object_pool_map.end()) {
             // Unlock before instantiating a new item, in case it in turns needs to touch the pool, 
             // such as creating complex tracked components
-            // lk.unlock();
+            lk.unlock();
 
             if (fallback_new)
                 return fallback_new(model);
