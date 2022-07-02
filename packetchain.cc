@@ -325,7 +325,7 @@ void packet_chain::start_processing() {
 
     packet_threads = new packet_thread*[n_packet_threads];
 
-    for (int n = 0; n < n_packet_threads; n++) {
+    for (unsigned int n = 0; n < n_packet_threads; n++) {
         packet_threads[n] = new packet_thread();
         packet_threads[n]->packet_thread = 
             std::thread([this, n]() {
