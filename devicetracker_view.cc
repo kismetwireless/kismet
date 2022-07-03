@@ -384,8 +384,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
     if (update_cb == nullptr)
         return;
 
-    // Only called under guard from devicetracker already
-    // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
+    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
     
     bool retain = update_cb(device);
 
@@ -416,8 +415,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base> device) {
-    // Only called under guard from devicetracker
-    // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
+    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 
