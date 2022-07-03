@@ -363,8 +363,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(devic
 
 void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
-        // Only called under guard from devicetracker
-        // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
+        kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
 
         if (new_cb(device)) {
             auto dpmi = device_presence_map.find(device->get_key());
