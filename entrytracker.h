@@ -35,7 +35,7 @@
 #include "robin_hood.h"
 #include "trackedelement.h"
 
-#define PROFILE_ENTRIES
+// #define PROFILE_ENTRIES
 
 class kis_net_beast_httpd_connection;
 
