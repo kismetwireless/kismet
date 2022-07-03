@@ -220,10 +220,6 @@ uint16_t entry_tracker::get_field_id(const std::string& in_name) {
     if (iter == field_name_map.end()) 
         return -1;
 
-#ifdef PROFILE_ENTRIES
-    iter->second->string_lookup++;
-#endif
-
     return iter->second->field_id;
 }
 
