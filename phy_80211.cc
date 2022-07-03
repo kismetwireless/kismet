@@ -1271,7 +1271,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     // Do we have a worker we have to call later?  We must defer workers until we release the locks
     // on devices
-    bool associate_bssts = false;
+    // bool associate_bssts = false;
     bool handle_probed_ssid = false;
     std::function<void ()> handle_probed_ssid_f;
 
@@ -1303,6 +1303,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->bssid_mac, d11phy, in_pack, 
                         bflags,
                         "Wi-Fi Device");
+
 
             if (dot11info->bssid_dev != nullptr) {
                 // Adopt a scoped lock
@@ -1344,10 +1345,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     auto bsts = dot11info->bssid_dot11->get_bss_timestamp();
                     dot11info->bssid_dot11->set_bss_timestamp(dot11info->timestamp);
 
+#if 0
                     // If we have a new device, look for related devices; use the apview to search other APs
                     if ((bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
                         associate_bssts = true;
                     }
+#endif
 
                     uint64_t diff = 0;
 
@@ -1502,7 +1505,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // Update the view outside of device lock!
             if (dot11info->bssid_dev != nullptr) 
                 d11phy->devicetracker->update_view_device(dot11info->bssid_dev);
-
         }
 
 
@@ -1656,6 +1658,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
 
 
+#if 0
+        // Disable for now - appears to be a huge slowdown
         // BSSTS relationship worker
         if (associate_bssts) {
             auto bss_worker = 
@@ -1707,6 +1711,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 rdev->add_related_device("dot11_bssts_similar", dot11info->bssid_dev->get_key());
             }
         }
+#endif
 
         // Reap the async ssid probe outside of lock
         if (handle_probed_ssid)
