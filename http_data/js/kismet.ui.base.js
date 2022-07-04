@@ -1522,8 +1522,18 @@ function packetqueuedisplay_refresh() {
             kismet.RecalcRrdData2(data['kismet.packetchain.dropped_packets_rrd'], rrdtype);
         var dupe_linedata =
             kismet.RecalcRrdData2(data['kismet.packetchain.dupe_packets_rrd'], rrdtype);
+        var processing_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.processed_packets_rrd'], rrdtype);
 
         var datasets = [
+            {
+                label: 'Processed',
+                fill: 'false',
+                borderColor: 'orange',
+                backgroundColor: 'transparent',
+                data: processing_linedata,
+                pointStyle: 'cross',
+            },
             {
                 label: 'Incoming packets (peak)',
                 fill: 'false',
@@ -1540,7 +1550,7 @@ function packetqueuedisplay_refresh() {
                 pointStyle: 'rect',
             },
             {
-                label: 'Processing queue',
+                label: 'Queue',
                 fill: 'false',
                 borderColor: 'blue',
                 backgroundColor: 'transparent',
