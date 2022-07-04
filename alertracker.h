@@ -155,6 +155,27 @@ public:
         from_alert_info(info);
     }
 
+    tracked_alert(const tracked_alert *p) :
+        tracker_component{p} {
+
+            __ImportField(devicekey, p);
+            __ImportField(header, p);
+            __ImportField(alertclass, p);
+            __ImportField(severity, p);
+            __ImportField(phy, p);
+            __ImportField(timestamp, p);
+            __ImportField(transmitter_mac, p);
+            __ImportField(source_mac, p);
+            __ImportField(dest_mac, p);
+            __ImportField(other_mac, p);
+            __ImportField(channel, p);
+            __ImportField(frequency, p);
+            __ImportField(location, p);
+            __ImportField(hash, p);
+
+            reserve_fields(nullptr);
+        }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_alert");
     }
@@ -314,6 +335,25 @@ public:
         register_fields();
         reserve_fields(e);
     }
+
+    tracked_alert_definition(const tracked_alert_definition *p) :
+        tracker_component{p} {
+
+            __ImportField(header, p);
+            __ImportField(alertclass, p);
+            __ImportField(severity, p);
+            __ImportField(description, p);
+            __ImportField(phy, p);
+            __ImportField(limit_unit, p);
+            __ImportField(limit_rate, p);
+            __ImportField(burst_unit, p);
+            __ImportField(limit_burst, p);
+            __ImportField(burst_sent, p);
+            __ImportField(total_sent, p);
+            __ImportField(time_last, p);
+
+            reserve_fields(nullptr);
+        }
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_alert_definition");
