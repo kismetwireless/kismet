@@ -405,6 +405,8 @@ protected:
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
     kis_mutex device_phy_name_cache_mutex;
 
+    std::shared_ptr<kis_tracked_device_base> device_builder;
+
 };
 
 class devicelist_scope_locker {

@@ -372,7 +372,6 @@ public:
             __ImportId(location_id, p);
 
             __ImportField(seenby_map, p);
-            __ImportField(seenby_builder, p);
 
             __ImportId(frequency_val_id, p);
             __ImportId(seenby_val_id, p);
@@ -667,7 +666,6 @@ protected:
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;
     uint16_t seenby_map_id;
-    std::shared_ptr<kis_tracked_seenby_data> seenby_builder;
 
     // Non-exported local value for frequency count
     uint16_t frequency_val_id;

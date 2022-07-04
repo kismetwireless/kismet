@@ -86,6 +86,7 @@ device_tracker::device_tracker() :
         entrytracker->register_field("kismet.device.base", 
                 tracker_element_factory<kis_tracked_device_base>(),
                 "core device record");
+    device_builder = std::make_shared<kis_tracked_device_base>(device_base_id);
     device_list_base_id =
         entrytracker->register_field("kismet.device.list",
                 tracker_element_factory<tracker_element_vector>(),
@@ -1165,7 +1166,7 @@ std::shared_ptr<kis_tracked_device_base>
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
 
-        device = std::make_shared<kis_tracked_device_base>(device_base_id);
+        device = std::make_shared<kis_tracked_device_base>(device_builder.get());
 
         // Device ID is the size of the vector so a new device always gets put
         // in it's numbered slot
