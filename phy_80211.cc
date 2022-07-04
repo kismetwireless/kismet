@@ -195,6 +195,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         Globalreg::globalreg->entrytracker->register_field("dot11.device",
                 tracker_element_factory<dot11_tracked_device>(),
                 "IEEE802.11 device");
+    dot11_builder = std::make_shared<dot11_tracked_device>(dot11_device_entry_id);
 
     // Packet classifier - makes basic records plus dot11 data
     packetchain->register_handler(&packet_dot11_common_classifier, this, CHAINPOS_CLASSIFIER, -100);
@@ -1344,7 +1345,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->bssid_dev->get_macaddr().mac_to_string());
 
                 dot11info->bssid_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
                 dot11_tracked_device::attach_base_parent(dot11info->bssid_dot11, 
                         dot11info->bssid_dev);
@@ -1456,7 +1457,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->source_dev->get_macaddr().mac_to_string());
 
                 dot11info->source_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
                 dot11_tracked_device::attach_base_parent(dot11info->source_dot11, 
                         dot11info->source_dev);
@@ -1515,7 +1516,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->dest_dev->get_macaddr());
 
                 dot11info->dest_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
                 dot11_tracked_device::attach_base_parent(dot11info->dest_dot11, dot11info->dest_dev);
                 
@@ -1777,7 +1778,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->bssid_dev->get_macaddr());
 
                 dot11info->bssid_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
                 dot11_tracked_device::attach_base_parent(dot11info->bssid_dot11, dot11info->bssid_dev);
 
@@ -1850,7 +1851,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->source_dev->get_macaddr());
 
                 dot11info->source_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
                 dot11_tracked_device::attach_base_parent(dot11info->source_dot11, 
                         dot11info->source_dev);
@@ -1957,7 +1958,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->dest_dev->get_macaddr());
 
                 dot11info->dest_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
                 dot11_tracked_device::attach_base_parent(dot11info->dest_dot11, 
                         dot11info->dest_dev);
@@ -2008,7 +2009,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->transmit_dev->get_macaddr());
 
                 dot11info->transmit_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
                 
                 dot11_tracked_device::attach_base_parent(dot11info->transmit_dot11, 
                         dot11info->transmit_dev);
@@ -2056,7 +2057,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->receive_dev->get_macaddr());
 
                 dot11info->receive_dot11 =
-                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                    std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
                 
                 dot11_tracked_device::attach_base_parent(dot11info->receive_dot11, 
                         dot11info->receive_dev);
@@ -2219,7 +2220,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     bssid_dev->get_macaddr().mac_to_string());
 
             bssid_dot11 =
-                d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
 
             dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
         }
@@ -4208,7 +4209,7 @@ void kis_80211_phy::load_phy_storage(shared_tracker_element in_storage, shared_t
             return;
 
         auto d11dev =
-            entrytracker->get_shared_instance_as<dot11_tracked_device>(dot11_device_entry_id);
+            std::make_shared<dot11_tracked_device>(dot11_builder.get());
 
         in_map->insert(d11dev);
     }

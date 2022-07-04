@@ -623,6 +623,8 @@ protected:
     std::shared_ptr<tracker_element_string> devtype_wds_ap;
     std::shared_ptr<tracker_element_string> devtype_bridged;
     std::shared_ptr<tracker_element_string> devtype_device;
+
+    std::shared_ptr<dot11_tracked_device> dot11_builder;
 };
 
 #endif
