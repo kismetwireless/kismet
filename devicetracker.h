@@ -338,8 +338,7 @@ protected:
 
 	// Tracked devices
     device_map_t tracked_map;
-	// Vector of tracked devices so we can iterate them quickly
-    std::vector<std::shared_ptr<kis_tracked_device_base> > tracked_vec;
+
     // MAC address lookups are incredibly expensive from the webui if we don't
     // track by map; in theory multiple objects in different PHYs could have the
     // same MAC so it's not a simple 1:1 map
