@@ -58,7 +58,6 @@ device_tracker::device_tracker() :
     deferred_startup() {
 
     Globalreg::enable_pool_type<kis_historic_location>([](auto *a) { a->reset(); });
-    historic_location_builder = std::make_shared<kis_historic_location>();
 
     phy_mutex.set_name("device_tracker::phy_mutex");
     devicelist_mutex.set_name("devicetracker::devicelist");
@@ -87,8 +86,6 @@ device_tracker::device_tracker() :
         entrytracker->register_field("kismet.device.base", 
                 tracker_element_factory<kis_tracked_device_base>(),
                 "core device record");
-    device_base_factory = std::make_shared<kis_tracked_device_base>(device_base_id);
-
     device_list_base_id =
         entrytracker->register_field("kismet.device.list",
                 tracker_element_factory<tracker_element_vector>(),
@@ -246,7 +243,7 @@ device_tracker::device_tracker() :
     unsigned int preload_sz = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
-    // tracked_vec.reserve(preload_sz);
+    tracked_vec.reserve(preload_sz);
     immutable_tracked_vec->reserve(preload_sz);
 
     // Set up the device timeout
@@ -699,7 +696,7 @@ device_tracker::device_tracker() :
 
                                                     do_device_work(worker);
                                                 } else if (!dev_k.get_error()) {
-                                                    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
+                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
 
                                                     auto dev = fetch_device(dev_k);
                                                     if (dev != nullptr) {
@@ -711,7 +708,7 @@ device_tracker::device_tracker() :
                                                         }
                                                     }
                                                 } else if (!dev_m.error()) {
-                                                    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
+                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
 
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
@@ -903,13 +900,13 @@ device_tracker::~device_tracker() {
     for (auto p : phy_handler_map)
         delete(p.second);
 
-    // tracked_vec.clear();
+    tracked_vec.clear();
     immutable_tracked_vec->clear();
     tracked_mac_multimap.clear();
 }
 
 void device_tracker::macdevice_timer_event() {
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker macdevice_timer_event");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker macdevice_timer_event");
 
     time_t now = time(0);
 
@@ -971,7 +968,7 @@ std::string device_tracker::fetch_phy_name(int in_phy) {
 }
 
 int device_tracker::fetch_num_devices() {
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_num_devices");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_num_devices");
 
     return tracked_map.size();
 }
@@ -1034,7 +1031,7 @@ void device_tracker::update_full_refresh() {
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device");
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -1055,7 +1052,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_
 
 // Fetch one or more devices by mac address or mac mask
 std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devices(mac_addr in_mac) {
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
     std::vector<std::shared_ptr<kis_tracked_device_base>> ret;
    
     const auto mmp = tracked_mac_multimap.equal_range(in_mac);
@@ -1145,16 +1142,10 @@ std::shared_ptr<kis_tracked_device_base>
             mac_addr in_mac, kis_phy_handler *in_phy, std::shared_ptr<kis_packet> in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
-#if 0
-
-    Thread rework - try to revert to only locking the device while we need it
-
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
     // so the entire chain is perforce locked
     kis_lock_guard<kis_mutex> lg(get_devicelist_mutex(), "device_tracker update_common_device");
-
-#endif
 
     std::stringstream sstr;
 
@@ -1168,18 +1159,13 @@ std::shared_ptr<kis_tracked_device_base>
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
 
-    key = in_phy->make_key(in_mac);
+    key = device_key(in_phy->fetch_phyname_hash(), in_mac);
 
-    kis_unique_lock<kis_shared_mutex> list_lk(get_devicelist_mutex(), "device_tracker update_common_device");
-    device = fetch_device_nr(key);
-
-    if (device == nullptr) {
+	if ((device = fetch_device_nr(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
 
-        new_device = true;
-
-        device = std::make_shared<kis_tracked_device_base>(device_base_factory.get());
+        device = std::make_shared<kis_tracked_device_base>(device_base_id);
 
         // Device ID is the size of the vector so a new device always gets put
         // in it's numbered slot
@@ -1204,46 +1190,8 @@ std::shared_ptr<kis_tracked_device_base>
         load_stored_username(device);
         load_stored_tags(device);
 
-        // Add the new device to the list
-        tracked_map[key] = device;
-
-        // tracked_vec.push_back(device);
-        immutable_tracked_vec->push_back(device);
-
-        auto mm_pair = std::make_pair(in_mac, device);
-        tracked_mac_multimap.insert(mm_pair);
+        new_device = true;
     }
-
-	// Update seenby records for time, frequency, packets.  Do this under total list lock.
-	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
-        double f = -1;
-
-        packinfo_sig_combo *sc = NULL;
-
-        if (pack_l1info != NULL)
-            f = pack_l1info->freq_khz;
-
-        if (track_persource_history) {
-            // Only populate signal, frequency map, etc per-source if we're tracking that
-            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, 
-                    sc.get(), !ram_no_rrd);
-        } else {
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
-        }
-
-        if (map_seenby_views)
-            update_view_device(device);
-
-        if (sc != NULL)
-            delete(sc);
-	}
-
-    // Acquire devices within the list lock, so only one device can be grabbed at a time
-    device->mutex.lock();
-
-    // Unlock device list
-    list_lk.unlock();
 
     // Tag the packet with the base device
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
@@ -1358,8 +1306,7 @@ std::shared_ptr<kis_tracked_device_base>
             // Throttle history cloud to one update per second to prevent floods of
             // data from swamping the cloud
             if (track_history_cloud && pack_gpsinfo->fix >= 2) {
-                auto histloc =
-                    Globalreg::new_from_pool<kis_historic_location>(historic_location_builder.get());
+                auto histloc = Globalreg::new_from_pool<kis_historic_location>();
 
                 histloc->set_lat(pack_gpsinfo->lat);
                 histloc->set_lon(pack_gpsinfo->lon);
@@ -1387,10 +1334,44 @@ std::shared_ptr<kis_tracked_device_base>
 
     }
 
+	// Update seenby records for time, frequency, packets
+	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
+        double f = -1;
+
+        packinfo_sig_combo *sc = NULL;
+
+        if (pack_l1info != NULL)
+            f = pack_l1info->freq_khz;
+
+        if (track_persource_history) {
+            // Only populate signal, frequency map, etc per-source if we're tracking that
+            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, 
+                    sc.get(), !ram_no_rrd);
+        } else {
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
+        }
+
+        if (map_seenby_views)
+            update_view_device(device);
+
+        if (sc != NULL)
+            delete(sc);
+	}
+
     if (pack_common != NULL)
         device->add_basic_crypt(pack_common->basic_crypt_set);
 
     if (new_device) {
+        // Add the new device to the list
+        tracked_map[key] = device;
+
+        tracked_vec.push_back(device);
+        immutable_tracked_vec->push_back(device);
+
+        auto mm_pair = std::make_pair(in_mac, device);
+        tracked_mac_multimap.insert(mm_pair);
+
         // If we have no packet info, add it to the device list immediately,
         // otherwise, flag the packet to trigger a new device event at the
         // end of the packet processing stage of the chain
@@ -1404,11 +1385,11 @@ std::shared_ptr<kis_tracked_device_base>
             evt->get_event_content()->insert(event_new_device(), device);
             in_pack->process_complete_events.push_back(evt);
         }
-    }
 
-    // If we're not retaining the device, unlock it here
-	if (!(in_flags & UCD_RETAIN_MUTEX_LOCK)) {
-        device->mutex.unlock();
+#if 0
+        // Release the devicelist lock before we add it to the views
+        ul_list.unlock();
+#endif
     }
 
     return device;
@@ -1436,56 +1417,19 @@ std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(
 
 // Simple std::sort comparison function to order by the least frequently
 // seen devices
-bool devicetracker_sort_lastseen(std::shared_ptr<tracker_element> a, std::shared_ptr<tracker_element> b) {
-	return std::static_pointer_cast<kis_tracked_device_base>(a)->get_last_time() < 
-        std::static_pointer_cast<kis_tracked_device_base>(b)->get_last_time();
+bool devicetracker_sort_lastseen(std::shared_ptr<kis_tracked_device_base> a,
+	std::shared_ptr<kis_tracked_device_base> b) {
+
+	return a->get_last_time() < b->get_last_time();
 }
 
 void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
-        kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
+        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
 
         time_t ts_now = time(0);
         bool purged = false;
 
-
-        // Reset the smart pointer of any devices we're dropping from the device list
-        for (auto i : *immutable_tracked_vec) {
-            if (i == nullptr)
-                continue;
-
-            auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
-
-            if (ts_now - d->get_last_time() > device_idle_expiration &&
-                (d->get_packets() < device_idle_min_packets || 
-                 device_idle_min_packets <= 0)) {
-
-                device_itr mi = tracked_map.find(d->get_key());
-                if (mi != tracked_map.end())
-                    tracked_map.erase(mi);
-
-                // Erase it from the multimap
-                auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
-
-                for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                    if (mmpi->second->get_key() == d->get_key()) {
-                        tracked_mac_multimap.erase(mmpi);
-                        break;
-                    }
-                }
-
-                // Forget it from any views
-                remove_view_device(d);
-
-                // Forget the immutable vec pointer to it
-                i.reset();
-
-                purged = true;
-
-            }
-        }
-
-#if 0
         // Find all eligible devices, remove them from the tracked vec
         tracked_vec.erase(std::remove_if(tracked_vec.begin(), tracked_vec.end(),
                 [&](std::shared_ptr<kis_tracked_device_base> d) {
@@ -1523,55 +1467,24 @@ void device_tracker::timetracker_event(int eventid) {
                     return false;
          
                     }), tracked_vec.end());
-#endif
 
         if (purged)
             update_full_refresh();
 
     } else if (eventid == max_devices_timer) {
-        kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event max_devices_timer");
+        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event max_devices_timer");
 
 		// Do nothing if we don't care
 		if (max_num_devices <= 0)
             return;
 
 		// Do nothing if the number of devices is less than the max
-		if (immutable_tracked_vec->size() <= max_num_devices)
+		if (tracked_vec.size() <= max_num_devices)
             return;
-
-        // Now this gets expensive; clone the immutable vec, sort it, and then we start
-        // zeroing out the immutable vec records
-        tracker_element_vector sorted_vec(immutable_tracked_vec);
-
-        std::stable_sort(sorted_vec.begin(), sorted_vec.end(), devicetracker_sort_lastseen);
-
-        for (auto i = sorted_vec.begin() + max_num_devices; i != sorted_vec.end(); ++i) {
-            auto d = std::static_pointer_cast<kis_tracked_device_base>(*i);
-
-            device_itr mi = tracked_map.find(d->get_key());
-            if (mi != tracked_map.end())
-                tracked_map.erase(mi);
-
-            // Erase it from the multimap
-            auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
-
-            for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                if (mmpi->second->get_key() == d->get_key()) {
-                    tracked_mac_multimap.erase(mmpi);
-                    break;
-                }
-            }
-
-            // Forget it from the immutable vec, but keep its 
-            // position; we need to have vecpos = devid
-            auto iti = immutable_tracked_vec->begin() + d->get_kis_internal_id();
-            (*iti).reset();
-        }
 
         // Do an update since we're trimming something
         update_full_refresh();
 
-#if 0
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list
         // has to sort it themselves
@@ -1603,9 +1516,7 @@ void device_tracker::timetracker_event(int eventid) {
                     return true;
          
                     }), tracked_vec.end());
-#endif
 	}
-
 }
 
 void device_tracker::usage(const char *name __attribute__((unused))) {
@@ -1701,7 +1612,7 @@ int device_tracker::database_upgrade_db() {
 }
 
 void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
 
     if (fetch_device_nr(device->get_key()) != NULL) {
         _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
@@ -1714,7 +1625,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
     device->set_kis_internal_id(immutable_tracked_vec->size());
 
     tracked_map[device->get_key()] = device;
-    // tracked_vec.push_back(device);
+    tracked_vec.push_back(device);
     immutable_tracked_vec->push_back(device);
 
     auto mm_pair = std::make_pair(device->get_macaddr(), device);
@@ -1722,7 +1633,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
 }
 
 bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
-    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1741,7 +1652,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 }
 
 void device_tracker::remove_view(const std::string& in_id) {
-    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
         auto vi = std::static_pointer_cast<device_tracker_view>(*i);
@@ -1753,7 +1664,7 @@ void device_tracker::remove_view(const std::string& in_id) {
 }
 
 void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1762,7 +1673,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
 }
 
 void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1771,7 +1682,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1780,7 +1691,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) {
-    kis_lock_guard<kis_shared_mutex> lk(devicelist_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     auto vk = phy_view_map.find(in_phyid);
     if (vk != phy_view_map.end())
@@ -1929,7 +1840,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "set_device_user_name");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_user_name");
 
     in_dev->set_username(in_username);
 
@@ -1979,7 +1890,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
 
-    kis_lock_guard<kis_shared_mutex> lk(get_devicelist_mutex(), "set_device_tag");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_tag");
 
     auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);

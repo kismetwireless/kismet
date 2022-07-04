@@ -253,9 +253,8 @@ public:
     void shutdown_deferred();
 
     // Global ASIO contexts and IO threads
-    unsigned int n_io_threads;
-    boost::asio::io_context io;
-
+    const int n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
+    boost::asio::io_context io{n_io_threads};
 
     kis_mutex ext_mutex;
     // Exernal global references, string to intid
@@ -361,24 +360,6 @@ namespace Globalreg {
             if (fallback_new)
                 return fallback_new();
             return std::make_shared<T>();
-        }
-
-        return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
-    }
-
-    template<typename T>
-    std::shared_ptr<T> new_from_pool(const T* model, std::function<std::shared_ptr<T> (const T*)> fallback_new = nullptr) {
-        kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
-
-        auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
-        if (p == Globalreg::globalreg->object_pool_map.end()) {
-            // Unlock before instantiating a new item, in case it in turns needs to touch the pool, 
-            // such as creating complex tracked components
-            lk.unlock();
-
-            if (fallback_new)
-                return fallback_new(model);
-            return std::make_shared<T>(model);
         }
 
         return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());

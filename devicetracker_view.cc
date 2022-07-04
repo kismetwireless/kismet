@@ -170,7 +170,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
                                                     do_device_work(worker);
                                                 } else if (!dev_k.get_error()) {
-                                                    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex(), "view ws monitor timer serialize lambda");
+                                                    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "view ws monitor timer serialize lambda");
 
                                                     auto dev = fetch_device(dev_k);
                                                     if (dev != nullptr) {
@@ -181,7 +181,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                                                         }
                                                     }
                                                 } else if (!dev_m.error()) {
-                                                    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex(), "view ws monitor timer serialize lambda");
+                                                    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "view ws monitor timer serialize lambda");
 
                                                     auto mvec = devicetracker->fetch_devices(dev_m);
 
@@ -250,18 +250,18 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 }
 
 void device_tracker_view::pre_serialize() {
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex(), kismet::retain_lock, "devicetracker_view serialize");
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), kismet::retain_lock, "devicetracker_view serialize");
 }
 
 void device_tracker_view::post_serialize() {
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex(), std::adopt_lock, "devicetracker_view post_serialize");
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), std::adopt_lock, "devicetracker_view post_serialize");
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker) {
     // Make a copy of the vector in case the worker manipulates the original
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
-        kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+        kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
@@ -272,7 +272,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     // Make a copy of the vector in case the worker manipulates the original
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
-        kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+        kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
@@ -286,7 +286,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
     // Lock the whole device list for the duration; we may already hold this lock if we're inside the webserver
     // but that's OK
-    kis_lock_guard<kis_shared_mutex> dev_lg(devicetracker->get_devicelist_mutex(), 
+    kis_lock_guard<kis_mutex> dev_lg(devicetracker->get_devicelist_mutex(), 
             "device_tracker_view do_device_work");
 
     std::for_each(devices->begin(), devices->end(),
@@ -351,7 +351,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(device_key in_key) {
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex(), "device_tracker_view fetch_device");
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "device_tracker_view fetch_device");
 
     auto present_itr = device_presence_map.find(in_key);
 
@@ -363,7 +363,8 @@ std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(devic
 
 void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
-        kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+        // Only called under guard from devicetracker
+        // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
         if (new_cb(device)) {
             auto dpmi = device_presence_map.find(device->get_key());
@@ -383,7 +384,8 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
     if (update_cb == nullptr)
         return;
 
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+    // Only called under guard from devicetracker already
+    // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
     
     bool retain = update_cb(device);
 
@@ -414,7 +416,8 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+    // Only called under guard from devicetracker
+    // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -433,7 +436,7 @@ void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -447,7 +450,7 @@ void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_b
 }
 
 void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(devicetracker->get_devicelist_mutex());
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 

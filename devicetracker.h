@@ -183,8 +183,6 @@ public:
 #define UCD_UPDATE_EMPTY_SIGNAL     (1 << 7)
 // Only update location if we have no existing location
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
-// Retain per-device lock
-#define UCD_RETAIN_MUTEX_LOCK       (1 << 9)
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             std::shared_ptr<kis_common_info> pack_common,
@@ -234,7 +232,7 @@ public:
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
     // Expose to devicelist mutex for external batch locking
-    kis_shared_mutex& get_devicelist_mutex() {
+    kis_mutex& get_devicelist_mutex() {
         return devicelist_mutex;
     }
 
@@ -338,12 +336,10 @@ protected:
     // Signal threshold
     int device_location_signal_threshold;
 
-    // Device factory for making new tracked devices
-    std::shared_ptr<kis_tracked_device_base> device_base_factory;
-
-	// Tracked devices by device key
+	// Tracked devices
     device_map_t tracked_map;
-
+	// Vector of tracked devices so we can iterate them quickly
+    std::vector<std::shared_ptr<kis_tracked_device_base> > tracked_vec;
     // MAC address lookups are incredibly expensive from the webui if we don't
     // track by map; in theory multiple objects in different PHYs could have the
     // same MAC so it's not a simple 1:1 map
@@ -373,7 +369,7 @@ protected:
     kis_mutex phy_mutex;
 
     // New multimutex primitive
-    kis_shared_mutex devicelist_mutex;
+    kis_mutex devicelist_mutex;
 
     kis_mutex storing_mutex;
     std::atomic<bool> devices_storing;
@@ -408,8 +404,6 @@ protected:
     // Cached phyname map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
     kis_mutex device_phy_name_cache_mutex;
-
-    std::shared_ptr<kis_historic_location> historic_location_builder;
 };
 
 class devicelist_scope_locker {

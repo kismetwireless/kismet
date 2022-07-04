@@ -59,24 +59,16 @@ class eventbus_event : public tracker_component {
 public:
     eventbus_event() :
         tracker_component() {
-            register_fields();
-            reserve_fields(NULL);
-        }
+        register_fields();
+        reserve_fields(NULL);
+    }
 
     eventbus_event(int in_id, const std::string& in_event) :
         tracker_component() {
-            register_fields();
-            reserve_fields(NULL);
-            set_event_id(in_event);
-        }
-
-    eventbus_event(const eventbus_event *p) :
-        tracker_component(p) {
-
-            __ImportField(event_id, p);
-            __ImportField(event_content, p);
-            reserve_fields(nullptr);
-        }
+        register_fields();
+        reserve_fields(NULL);
+        set_event_id(in_event);
+    }
         
     virtual uint32_t get_signature() const override {
         return adler32_checksum("eventbus_event");
@@ -84,7 +76,8 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>(this);
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 
@@ -153,7 +146,7 @@ protected:
     // sending out events
     kis_mutex mutex, handler_mutex;
 
-    std::shared_ptr<eventbus_event> event_builder;
+    int eventbus_event_id;
 
     unsigned long next_cbl_id;
 

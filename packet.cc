@@ -38,7 +38,6 @@
 
 
 kis_packet::kis_packet() {
-    assignment_id = 0;
     packet_no = 0;
 	error = 0;
     crc_ok = 0;

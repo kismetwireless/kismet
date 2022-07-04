@@ -158,7 +158,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     if (devinfo == nullptr || commoninfo == nullptr || dot11info == nullptr)
         return 1;
 
-    kis_lock_guard<kis_shared_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");
+    kis_lock_guard<kis_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");
 
     for (auto di : devinfo->devrefs) {
         auto basedev = di.second;

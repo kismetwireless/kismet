@@ -86,9 +86,9 @@ public:
     }
 };
 
-
-class kis_shared_mutex : public std::shared_mutex {
+class kis_shared_mutex {
 private:
+    std::shared_timed_mutex mutex;
     std::string name;
 
 public:
@@ -110,32 +110,50 @@ public:
         return name;
     }
 
-    void lock(void) {
-        std::thread::id this_id = std::this_thread::get_id();
-        if (owner == this_id) {
-            count++;
-        } else {
-            shared_mutex::lock();
-            owner = this_id;
-            count = 1;
-        }
+    void lock() {
+        mutex.lock();
     }
 
-    void unlock(void) {
-        if (count > 1) {
-            count--;
-        } else {
-            owner = std::thread::id();
-            count = 0;
-            shared_mutex::unlock();
-        }
+    bool try_lock() {
+        return mutex.try_lock();
     }
 
-private:
-    std::atomic<std::thread::id> owner;
-    int count;
+    template<class Rep, class Period>
+    bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        return mutex.try_lock_for(timeout_duration);
+    }
+
+    template<class Clock, class Duration>
+    bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        return mutex.try_lock_until(timeout_time);
+    }
+
+    void unlock() {
+        return mutex.unlock();
+    }
+
+    void lock_shared() {
+        mutex.lock_shared();
+    }
+
+    bool try_lock_shared() {
+        return mutex.try_lock_shared();
+    }
+
+    template<class Rep, class Period>
+    bool try_lock_shared_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        return mutex.try_lock_shared_for(timeout_duration);
+    }
+
+    template<class Clock, class Duration>
+    bool try_lock_shared_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        return mutex.try_lock_shared_until(timeout_time);
+    }
+
+    void unlock_shared() {
+        return mutex.unlock_shared();
+    }
 };
-
 
 namespace kismet {
     typedef struct { } retain_lock_t;
@@ -188,6 +206,11 @@ public:
     kis_unique_lock(M& m, const std::string& op) :
         mutex{m},
         op{op} {
+            /*
+            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
+                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
+                            "timeout period for op {}", mutex.get_name(), op));
+                            */
             mutex.lock();
             locked = true;
         }
@@ -255,7 +278,7 @@ public:
     kis_shared_lock(M& m, const std::string& op) :
         mutex{m},
         op{op} {
-            mutex.lock_shared();
+            mutex.shared_lock();
             locked = true;
         }
 
@@ -274,7 +297,7 @@ public:
 
     ~kis_shared_lock() {
         if (locked)
-            mutex.unlock_shared();
+            mutex.shared_unlock();
     }
 
     void lock(const std::string& op = "UNKNOWN") {
@@ -282,18 +305,18 @@ public:
             throw std::runtime_error(fmt::format("invalid use: thread {} attempted to lock "
                         "unique lock {} when already locked for {}", 
                         std::this_thread::get_id(), mutex.get_name(), op));
-        mutex.lock_shared();
+        mutex.shared_lock();
         locked = true;
 
     }
 
     void unlock() {
         if (!locked)
-            throw std::runtime_error(fmt::format("invalid use:  thread{} attempted to unlock "
+            throw std::runtime_error(fmt::format("unvalid use:  thread{} attempted to unlock "
                         "unique lock {} when not locked", std::this_thread::get_id(), 
                         mutex.get_name()));
 
-        mutex.unlock_shared();
+        mutex.shared_unlock();
         locked = false;
     }
 

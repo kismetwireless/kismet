@@ -593,11 +593,22 @@ int main(int argc, char *argv[], char *envp[]) {
                 tracker_element_factory<tracker_element_uuid>(),
                 "unique server UUID");
 
+    // Make the IO threads early
+    boost::asio::io_service::work work(Globalreg::globalreg->io);
+
+
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([i] () {
+                thread_set_process_name(fmt::format("IO {}", i));
+                Globalreg::globalreg->io.run();
+                });
+    }
+
+
 	// Create the event bus used by inter-code comms
 	auto eventbus = event_bus::create_eventbus();
-
-    // Make the timetracker
-    auto timetracker = time_tracker::create_timetracker();
 
     // First order - create our message bus and our client for outputting
     auto messagebus = message_bus::create_messagebus();
@@ -763,6 +774,9 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
+    // Make the timetracker
+    auto timetracker = time_tracker::create_timetracker();
+
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
     auto beast = kis_net_beast_httpd::create_httpd();
@@ -774,30 +788,6 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->manufdb = new kis_manuf();
     if (globalregistry->fatal_condition)
         SpindownKismet();
-
-
-
-    globalreg->n_io_threads = 
-        globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_io_threads", 0);
-
-    if (globalreg->n_io_threads == 0)
-        globalreg->n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
-
-    // globalreg->io = std::move(boost::asio::io_context(globalreg->n_io_threads));
-
-    // Make the IO threads early
-    boost::asio::io_service::work work(Globalreg::globalreg->io);
-
-    std::vector<std::thread> iov;
-    iov.reserve(Globalreg::globalreg->n_io_threads);
-    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([i] () {
-                thread_set_process_name(fmt::format("IO {}/{}", i, Globalreg::globalreg->n_io_threads));
-                Globalreg::globalreg->io.run();
-        });
-    }
-
-
 
     // Base serializers
     entrytracker->register_serializer("json", std::make_shared<json_adapter::serializer>());
@@ -1033,9 +1023,6 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalreg->fatal_condition) {
         SpindownKismet();
     }
-
-    // Start throttling messages
-    messagebus->set_info_throttle(20);
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();

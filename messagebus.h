@@ -29,7 +29,6 @@
 #include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "timetracker.h"
 #include "trackedcomponent.h"
 
 // Message flags for queuing data
@@ -69,29 +68,16 @@ public:
         reserve_fields(e);
     }
 
-    tracked_message(const tracked_message *p) :
-        tracker_component{p} {
+    tracked_message(int in_id, const std::string& in_msg, int in_flags, time_t in_time) :
+        tracker_component{in_id} {
 
-            __ImportField(message, p);
-            __ImportField(flags, p);
-            __ImportField(timestamp, p);
+        register_fields();
+        reserve_fields(nullptr);
 
-            reserve_fields(nullptr);
-        }
-
-    tracked_message(const tracked_message *p, const std::string& in_msg, int in_flags, time_t in_time) :
-        tracker_component{p} {
-
-            __ImportField(message, p);
-            __ImportField(flags, p);
-            __ImportField(timestamp, p);
-
-            reserve_fields(nullptr);
-
-            set_message(in_msg);
-            set_flags(in_flags);
-            set_timestamp(in_time);
-        }
+        set_message(in_msg);
+        set_flags(in_flags);
+        set_timestamp(in_time);
+    }
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_message");
@@ -155,7 +141,6 @@ private:
         lifetime_global() {
 
         eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
-        timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
 
         Globalreg::enable_pool_type<tracked_message>([](tracked_message *m) { m->reset(); });
 
@@ -163,21 +148,11 @@ private:
             Globalreg::globalreg->entrytracker->register_and_get_field_as<tracked_message>("kismet.messagebus.message",
                     tracker_element_factory<tracked_message>(),
                     "Message");
-
-        timer_id = timetracker->register_timer(
-            std::chrono::seconds(1), true, [this](int) -> int {
-                n_info_sec = 0; 
-                return 1;
-            });
     }
 
 public:
 	virtual ~message_bus() {
         Globalreg::globalreg->remove_global(global_name());
-    }
-
-    void set_info_throttle(unsigned int throttle_s) {
-        throttle_info = throttle_s;
     }
 
     static std::string event_message() {
@@ -198,11 +173,7 @@ public:
             return;
         }
 
-        // Throttle info messages if we're getting obliterated
-        if ((flags & MSGFLAG_INFO) && throttle_info != 0 && n_info_sec > throttle_info)
-            return;
-
-        auto tracked_msg = std::make_shared<tracked_message>(msg_proto.get(), msg, flags, time(0));
+        auto tracked_msg = std::make_shared<tracked_message>(msg_proto->get_id(), msg, flags, time(0));
         auto evt = eventbus->get_eventbus_event(event_message());
         evt->get_event_content()->insert(event_message(), tracked_msg);
         eventbus->publish(evt);
@@ -210,14 +181,7 @@ public:
 
 protected:
     std::shared_ptr<event_bus> eventbus;
-    std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<tracked_message> msg_proto;
-
-    int timer_id;
-
-    unsigned int throttle_info;
-
-    std::atomic<unsigned int> n_info_sec;
 };
 
 #endif

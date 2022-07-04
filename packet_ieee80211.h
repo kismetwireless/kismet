@@ -277,7 +277,7 @@ typedef struct {
 } __attribute__ ((packed)) wireless_fragseq;
 
 typedef struct {
-    uint64_t timestamp;
+    uint8_t timestamp[8];
 
     // This field must be converted to host-endian before being used
     unsigned int beacon : 16;
@@ -320,7 +320,7 @@ typedef struct {
 } __attribute__ ((packed)) wireless_fragseq;
 
 typedef struct {
-    uint64_t timestamp;
+    uint8_t timestamp[8];
 
     // This field must be converted to host-endian before being used
     unsigned int beacon : 16;

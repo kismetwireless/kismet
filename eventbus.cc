@@ -32,12 +32,10 @@ event_bus::event_bus() :
 
     shutdown = false;
 
-    auto eventbus_event_id = 
+    eventbus_event_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.eventbus.event",
                 tracker_element_factory<eventbus_event>(),
                 "Eventbus event");
-    event_builder = std::make_shared<eventbus_event>();
-    event_builder->set_id(eventbus_event_id);
 
     event_cl.lock();
 
@@ -132,7 +130,8 @@ void event_bus::trigger_deferred_startup() {
 }
 
 std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string& event_type) {
-    auto evt = Globalreg::new_from_pool<eventbus_event>(event_builder.get());
+    auto evt = Globalreg::new_from_pool<eventbus_event>();
+    evt->set_id(eventbus_event_id);
     evt->set_event_id(event_type);
     return evt;
 }

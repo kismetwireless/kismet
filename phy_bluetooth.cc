@@ -156,7 +156,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
 
         in_pack->insert(btphy->pack_comp_common, commoninfo);
 
-        kis_lock_guard<kis_shared_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
+        kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
                 "packet_bluetooth_scan_json_classifier");
 
         auto btdev =
@@ -257,7 +257,7 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (ci == nullptr)
         return 0;
 
-    kis_lock_guard<kis_shared_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
+    kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
             "packet_tracker_bluetooth");
 
     std::shared_ptr<kis_tracked_device_base> basedev =

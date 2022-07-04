@@ -44,8 +44,6 @@
 #include "trackedrrd.h"
 #include "packinfo_signal.h"
 
-#include "kis_mutex.h"
-
 class kis_datasource;
 
 enum kis_ipdata_type {
@@ -63,11 +61,11 @@ public:
     kis_tracked_ip_data();
     kis_tracked_ip_data(int in_id);
     kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_ip_data(const kis_tracked_ip_data *ip);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>(this);
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 
@@ -92,11 +90,11 @@ public:
     kis_tracked_signal_data();
     kis_tracked_signal_data(int in_id);
     kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_signal_data(const kis_tracked_signal_data *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>(this);
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 
@@ -117,8 +115,7 @@ public:
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
-    __ProxyFullyDynamicTrackable(signal_min_rrd, 
-                                 kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>, 
+    __ProxyFullyDynamicTrackable(signal_min_rrd, kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>, 
                                  signal_min_rrd_id);
 
     __ProxyFullyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc_id);
@@ -155,11 +152,11 @@ public:
     kis_tracked_seenby_data();
     kis_tracked_seenby_data(int in_id);
     kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_seenby_data(const kis_tracked_seenby_data *);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>(this);
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 
@@ -210,25 +207,14 @@ public:
         reserve_fields(e);
     }
 
-    kis_tracked_data_bins(const kis_tracked_data_bins *p) :
-        tracker_component{p} {
-
-            __ImportId(packet_rrd_bin_250_id, p);
-            __ImportId(packet_rrd_bin_500_id, p);
-            __ImportId(packet_rrd_bin_1000_id, p);
-            __ImportId(packet_rrd_bin_1500_id, p);
-            __ImportId(packet_rrd_bin_jumbo_id, p);
-
-            reserve_fields(nullptr);
-        }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_data_bins");
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>(this);
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 
@@ -313,86 +299,21 @@ class kis_tracked_device_base : public tracker_component {
 public:
     kis_tracked_device_base() :
         tracker_component() {
-        mutex.set_name("device base");
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_tracked_device_base(int in_id) :
         tracker_component(in_id) {
-        mutex.set_name("device base");
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
-        mutex.set_name("device base");
         register_fields();
         reserve_fields(e);
     }
-
-    kis_tracked_device_base(const kis_tracked_device_base *p) :
-        tracker_component{p} {
-            mutex.set_name("device base");
-
-            __ImportField(key, p);
-            __ImportField(macaddr, p);
-            __ImportField(phyname, p);
-            __ImportField(devicename, p);
-
-            __ImportId(username_id, p);
-
-            __ImportField(commonname, p);
-            __ImportField(type_string, p);
-            __ImportField(basic_type_set,p );
-            __ImportField(crypt_string, p);
-            __ImportField(basic_crypt_set, p);
-            __ImportField(first_time, p);
-            __ImportField(last_time, p);
-            __ImportField(mod_time, p);
-
-            __ImportField(packets, p);
-            __ImportField(llc_packets, p);
-            __ImportField(error_packets, p);
-            __ImportField(data_packets, p);
-            __ImportField(crypt_packets, p);
-            __ImportField(filter_packets, p);
-
-
-            __ImportField(datasize, p);
-
-            __ImportId(packets_rrd_id, p);
-            __ImportId(data_rrd_id, p);
-
-            __ImportField(channel, p);
-            __ImportField(frequency, p);
-
-            __ImportId(signal_data_id, p);
-
-            __ImportField(freq_khz_map, p);
-            __ImportField(manuf, p);
-            __ImportField(alert, p);
-
-            __ImportId(tag_map_id, p);
-            __ImportId(tag_entry_id, p);
-
-            __ImportId(location_id, p);
-
-            __ImportField(seenby_map, p);
-            __ImportField(seenby_builder, p);
-
-            __ImportId(frequency_val_id, p);
-            __ImportId(seenby_val_id, p);
-
-            __ImportField(related_devices_map, p);
-            __ImportId(related_device_group_id, p);
-
-            __ImportId(location_cloud_id, p);
-
-
-            reserve_fields(nullptr);
-        }
 
     virtual ~kis_tracked_device_base() { }
 
@@ -406,7 +327,8 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>(this);
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 
@@ -535,6 +457,7 @@ public:
 
     typedef kis_tracked_rrd<> rrdt;
     __ProxyFullyDynamicTrackable(packets_rrd, kis_tracked_rrd<>, packets_rrd_id);
+
     __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
     __ProxyFullyDynamicTrackable(data_rrd, rrdt, data_rrd_id);
 
@@ -578,9 +501,6 @@ public:
 
     // Optional location cloud
     __ProxyFullyDynamicTrackable(location_cloud, kis_location_rrd, location_cloud_id);
-
-    // Per-device mutex, trying to optimize threading yet again
-    kis_mutex mutex;
 
 protected:
     virtual void register_fields() override;
@@ -676,7 +596,6 @@ protected:
 
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;
-    std::shared_ptr<kis_tracked_seenby_data> seenby_builder;
     uint16_t seenby_map_id;
 
     // Non-exported local value for frequency count

@@ -48,29 +48,21 @@
 
 #include "moodycamel/blockingconcurrentqueue.h"
 
-/* 
- * Packets are captured (typically from an IO thread, either for ASIO IPC and TCP or 
- * boost-beast websocket io).
+/* Packets are added to the packet queue from any thread (including the main 
+ * thread).
  *
- * Within the capturing thread, the POSTCAP chain is executed; this is responsible 
- * for doing the initial decapsulation of the packet and creation of an assignment
- * hash which is used to assign the packet to a demod thread.
+ * They are then processed by the packet consumption thread(s) via the registered
+ * chain handlers.
  *
- * Assignment hashes should attempt to be consistent for the devices contained in
- * the packet.  This necessitates dissecting the basic mac-layer information from
- * the packet, but allows kismet to assign packets modifying the same devices to 
- * the same threads, minimizing device locking requirements when updating the device
- * content.
+ * Once being inserted into the packet chain, the packet pointer may no longer be
+ * considered valid by the generating thread.
  *
  * Packet chain progression
  * GENESIS
  * 
  * (arbitrary fill-in by whomever generated the packet before injection)
  * 
- * POST-CAPTURE (executed in capture io thread)
- *
- * (assignment to mapped packet chain based on post-capture packet identifier 
- * hash mapped to number of packet processing chains we have)
+ * POST-CAPTURE
  * 
  * DISSECT
  * 
@@ -167,7 +159,7 @@ public:
     }
 
 protected:
-    void packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue);
+    void packet_queue_processor();
 
     // Common function for both insertion methods
     int register_int_handler(pc_callback in_cb, void *in_aux, 
@@ -194,14 +186,10 @@ protected:
     // Packet chain mutex
     kis_shared_mutex packetchain_mutex;
 
-    struct packet_thread {
-        std::thread packet_thread;
-        moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> packet_queue;
-    };
+    // std::thread packet_thread;
+    std::list<std::thread> packet_threads;
 
-    packet_thread **packet_threads;
-    size_t n_packet_threads;
-
+    moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> packet_queue;
     bool packetchain_shutdown;
 
     // Warning and discard levels for packet queue being full

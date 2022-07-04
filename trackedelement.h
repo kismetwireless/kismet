@@ -402,8 +402,8 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>(this);
-        // r->set_id(this->get_id());
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
         return r;
     }
 

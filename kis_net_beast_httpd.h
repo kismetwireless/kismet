@@ -416,7 +416,6 @@ public:
         kis_net_web_endpoint{},
         function{function},
         mutex{dfl_mutex},
-        shmutex{dfl_shmutex},
         use_mutex{false},
         pre_func{pre_func},
         post_func{post_func} { }
@@ -428,21 +427,7 @@ public:
         kis_net_web_endpoint{},
         function{function},
         mutex{mutex},
-        shmutex{dfl_shmutex},
         use_mutex{true},
-        pre_func{pre_func},
-        post_func{post_func} { }
-
-    kis_net_web_function_endpoint(function_t function,
-            kis_shared_mutex& mutex,
-            wrapper_func_t pre_func = nullptr,
-            wrapper_func_t post_func = nullptr) : 
-        kis_net_web_endpoint{},
-        function{function},
-        mutex{dfl_mutex},
-        shmutex{dfl_shmutex},
-        use_mutex{false},
-        use_shmutex{true},
         pre_func{pre_func},
         post_func{post_func} { }
 
@@ -455,12 +440,7 @@ protected:
 
     kis_mutex& mutex;
     kis_mutex dfl_mutex;
-
-    kis_shared_mutex& shmutex;
-    kis_shared_mutex dfl_shmutex;
-
     bool use_mutex;
-    bool use_shmutex;
 
     wrapper_func_t pre_func, post_func;
 };
@@ -477,54 +457,26 @@ public:
             wrapper_func_t post_func = nullptr) : 
         content{content},
         mutex{mutex}, 
-        shmutex{dfl_shmutex},
         use_mutex{true},
-        use_shmutex{false},
-        pre_func{pre_func},
-        post_func{post_func} { }
-
-    kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content,
-            kis_shared_mutex& mutex,
-            wrapper_func_t pre_func = nullptr,
-            wrapper_func_t post_func = nullptr) : 
-        content{content},
-        mutex{dfl_mutex}, 
-        shmutex{mutex},
-        use_mutex{false},
-        use_shmutex{true},
         pre_func{pre_func},
         post_func{post_func} { }
 
     kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content) :
         content{content},
-        mutex{dfl_mutex},
-        shmutex{dfl_shmutex},
-        use_mutex{false},
-        use_shmutex{false} { }
+        mutex{dfl_mutex} { }
 
     kis_net_web_tracked_endpoint(gen_func_t generator, 
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) :
         mutex{dfl_mutex},
-        shmutex{dfl_shmutex},
-        use_mutex{false},
-        use_shmutex{false},
+        use_mutex{true},
         generator{generator},
         pre_func{pre_func},
         post_func{post_func} { }
 
     kis_net_web_tracked_endpoint(gen_func_t generator, kis_mutex& mutex) :
         mutex{mutex},
-        shmutex{dfl_shmutex},
         use_mutex{true},
-        use_shmutex{false},
-        generator{generator} { }
-
-    kis_net_web_tracked_endpoint(gen_func_t generator, kis_shared_mutex& mutex) :
-        mutex{dfl_mutex},
-        shmutex{mutex},
-        use_mutex{false},
-        use_shmutex{true},
         generator{generator} { }
 
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
@@ -534,10 +486,7 @@ protected:
 
     kis_mutex& mutex;
     kis_mutex dfl_mutex;
-    kis_shared_mutex& shmutex;
-    kis_shared_mutex dfl_shmutex;
     bool use_mutex;
-    bool use_shmutex;
 
     gen_func_t generator;
     wrapper_func_t pre_func;
