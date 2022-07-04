@@ -257,14 +257,26 @@ packet_chain::~packet_chain() {
     {
         // Tell the packet thread we're dying and unlock it
         packetchain_shutdown = true;
-        packet_queue.enqueue(nullptr);
 
-        for (auto& t: packet_threads) {
-            if (t.joinable())
-                t.join();
+        // packet_queue.enqueue(nullptr);
+
+        for (size_t i = 0; i < n_packet_threads; i++) {
+            auto t = packet_threads[i];
+
+            if (t == nullptr)
+                continue;
+
+            t->packet_queue.enqueue(nullptr);
+
+            if (t->packet_thread.joinable())
+                t->packet_thread.join();
+
+            delete(t);
+            packet_threads[i] = nullptr;
         }
 
-        // packet_thread.join();
+        delete[] packet_threads;
+        packet_threads = nullptr;
     }
 
     {
@@ -306,18 +318,21 @@ packet_chain::~packet_chain() {
 }
 
 void packet_chain::start_processing() {
-#if 1
-    auto nt = static_cast<int>(std::thread::hardware_concurrency());
-#else
-    auto nt = int(1);
-#endif
+    n_packet_threads = Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_packet_threads", 0);
 
-    for (int n = 0; n < nt; n++) {
-        packet_threads.emplace_back(std::thread([this, nt, n]() {
-            auto name = fmt::format("PACKET {}/{}", n, nt);
+    if (n_packet_threads == 0)
+        n_packet_threads = static_cast<unsigned int>(std::thread::hardware_concurrency());
+
+    packet_threads = new packet_thread*[n_packet_threads];
+
+    for (unsigned int n = 0; n < n_packet_threads; n++) {
+        packet_threads[n] = new packet_thread();
+        packet_threads[n]->packet_thread = 
+            std::thread([this, n]() {
+            auto name = fmt::format("PACKET {}/{}", n, n_packet_threads);
             thread_set_process_name(name);
-            packet_queue_processor();
-        }));
+            packet_queue_processor(&packet_threads[n]->packet_queue);
+        });
     }
 
 }
@@ -376,7 +391,7 @@ std::shared_ptr<kis_packet> packet_chain::generate_packet() {
     // return std::make_shared<kis_packet>();
 }
 
-void packet_chain::packet_queue_processor() {
+void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue) {
     std::shared_ptr<kis_packet> packet;
 
     while (!packetchain_shutdown && 
@@ -384,7 +399,7 @@ void packet_chain::packet_queue_processor() {
             !Globalreg::globalreg->fatal_condition &&
             !Globalreg::globalreg->complete) {
 
-        packet_queue.wait_dequeue(packet);
+        packet_queue->wait_dequeue(packet);
 
         if (packet == nullptr)
             break;
@@ -397,12 +412,14 @@ void packet_chain::packet_queue_processor() {
             // the worker thread is in the sync block above, so we shouldn't
             // need to worry about the integrity of these vectors while running
 
+            /* Postcap is now handled before it gets into the per-thread chain
             for (const auto& pcl : postcap_chain) {
                 if (pcl->callback != nullptr)
                     pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
+            */
 
             for (const auto& pcl : llcdissect_chain) {
                 if (pcl->callback != nullptr)
@@ -447,28 +464,55 @@ void packet_chain::packet_queue_processor() {
             }
         }
 
+        auto now = time(0);
+
         if (packet->error)
-            packet_error_rrd->add_sample(1, time(0));
+            packet_error_rrd->add_sample(1, now);
 
         if (packet->duplicate)
-            packet_dupe_rrd->add_sample(1, time(0));
+            packet_dupe_rrd->add_sample(1, now);
 
-        packet_processed_rrd->add_sample(1, time(0));
+        packet_processed_rrd->add_sample(1, now);
 
         continue;
     }
 }
 
 int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
-    // Total packet rate always gets added, even when we drop, so we can compare
-    packet_rate_rrd->add_sample(1, time(0));
-    packet_peak_rrd->add_sample(1, time(0));
+    auto now = time(0);
 
-    if (packet_queue_drop != 0 && packet_queue.size_approx() > packet_queue_drop) {
-        time_t offt = time(0) - last_packet_drop_user_warning;
+    // Total packet rate always gets added, even when we drop, so we can compare
+    packet_rate_rrd->add_sample(1, now);
+    packet_peak_rrd->add_sample(1, now);
+
+    // Lock the chain mutexes until we're done processing this packet
+    std::shared_lock<kis_shared_mutex> lk(packetchain_mutex);
+
+    // Run the post-capture processing
+    for (const auto& pcl : postcap_chain) {
+        if (pcl->callback != nullptr)
+            pcl->callback(pcl->auxdata, in_pack);
+        else if (pcl->l_callback != nullptr)
+            pcl->l_callback(in_pack);
+    }
+
+    // assign it to a thread
+    unsigned int processing_id;
+
+    // If there is no assignment id, randomly assign the packet to a thread.
+    // Otherwise transform the assignment id to a consistent thread.
+    if (in_pack->assignment_id == 0)
+        processing_id = rand() % n_packet_threads;
+    else
+        processing_id = in_pack->assignment_id % n_packet_threads;
+
+    auto qsize = packet_threads[processing_id]->packet_queue.size_approx();
+
+    if (packet_queue_drop != 0 && qsize > packet_queue_drop) {
+        time_t offt = now - last_packet_drop_user_warning;
 
         if (offt > 30) {
-            last_packet_drop_user_warning = time(0);
+            last_packet_drop_user_warning = now;
 
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>();
@@ -481,16 +525,16 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
                         "packet_backlog_limit configuration parameter.", packet_queue_drop), -1);
         }
 
-        packet_drop_rrd->add_sample(1, time(0));
+        packet_drop_rrd->add_sample(1, now);
 
         return 1;
     }
 
-    if (packet_queue.size_approx() > packet_queue_warning && packet_queue_warning != 0) {
-        time_t offt = time(0) - last_packet_queue_user_warning;
+    if (qsize > packet_queue_warning && packet_queue_warning != 0) {
+        time_t offt = now - last_packet_queue_user_warning;
 
         if (offt > 30) {
-            last_packet_queue_user_warning = time(0);
+            last_packet_queue_user_warning = now;
 
             auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETQUEUE", 
@@ -504,10 +548,9 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     }
 
 
-    // Queue the packet
-    packet_queue.enqueue(in_pack);
-
-    packet_queue_rrd->add_sample(packet_queue.size_approx(), time(0));
+    // Queue the packet to the target thread
+    packet_threads[processing_id]->packet_queue.enqueue(in_pack);
+    packet_queue_rrd->add_sample(qsize, now);
 
     return 1;
 }
