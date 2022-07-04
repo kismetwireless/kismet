@@ -606,6 +606,8 @@ int main(int argc, char *argv[], char *envp[]) {
                 });
     }
 
+    // Make the timetracker
+    auto timetracker = time_tracker::create_timetracker();
 
 	// Create the event bus used by inter-code comms
 	auto eventbus = event_bus::create_eventbus();
@@ -773,9 +775,6 @@ int main(int argc, char *argv[], char *envp[]) {
             }
         }
     }
-
-    // Make the timetracker
-    auto timetracker = time_tracker::create_timetracker();
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
@@ -1023,6 +1022,9 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalreg->fatal_condition) {
         SpindownKismet();
     }
+
+    // Throttle info messages after startup
+    messagebus->set_info_throttle(25);
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
