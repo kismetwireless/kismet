@@ -706,7 +706,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
         std::string ssid = fetch_opt("ssid", &optvec);
 
-        if (ssid == "") {
+        if (ssid.length() == 0) {
             _MSG("Invalid 'apspoof' configuration line, expected 'name:ssid=\"...\","  
                     "validmacs=\"...\" but got '" + l + "'", MSGFLAG_ERROR);
             continue;
@@ -1358,7 +1358,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
-                    dot11info->bssid_dev->get_channel() == "")) {
+                    dot11info->bssid_dev->get_channel().length() == 0)) {
                 try {
                     dot11info->bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1474,7 +1474,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
-                    dot11info->source_dev->get_channel() == "")) {
+                    dot11info->source_dev->get_channel().length() == 0)) {
                 try {
                     dot11info->source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1790,7 +1790,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
-                    dot11info->bssid_dev->get_channel() == "")) {
+                    dot11info->bssid_dev->get_channel().length() == 0)) {
                 try {
                     dot11info->bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1865,7 +1865,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
-                    dot11info->source_dev->get_channel() == "")) {
+                    dot11info->source_dev->get_channel().length() == 0)) {
                 try {
                     dot11info->source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -2020,7 +2020,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->transmit_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->transmit_dev->get_frequency() ||
-                    dot11info->transmit_dev->get_channel() == "")) {
+                    dot11info->transmit_dev->get_channel().length() == 0)) {
 
                 try {
                     dot11info->transmit_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
@@ -2229,7 +2229,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         if (pack_l1info->channel != "" && pack_l1info->channel != "0") {
             bssid_dev->set_channel(pack_l1info->channel);
         } else if (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
-                bssid_dev->get_channel() == "") {
+                bssid_dev->get_channel().length() == 0) {
             try {
                 bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
             } catch (const std::runtime_error& e) {
@@ -3119,23 +3119,26 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             ssid->clear_dot11d_vec();
     }
 
-    ssid->set_wps_version(dot11info->wps_version);
-    ssid->set_wps_state(dot11info->wps);
-    ssid->set_wps_config_methods(dot11info->wps_config_methods);
-    if (dot11info->wps_device_name != "")
-        ssid->set_wps_device_name(dot11info->wps_device_name);
-    if (dot11info->wps_manuf != "")
-        ssid->set_wps_manuf(dot11info->wps_manuf);
-    if (dot11info->wps_model_name != "") {
-        ssid->set_wps_model_name(dot11info->wps_model_name);
-    }
-    if (dot11info->wps_model_number != "") 
-        ssid->set_wps_model_number(dot11info->wps_model_number);
-    if (dot11info->wps_serial_number != "")
-        ssid->set_wps_serial_number(dot11info->wps_serial_number);
+    if (ssid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
+        ssid->set_wps_version(dot11info->wps_version);
+        ssid->set_wps_state(dot11info->wps);
+        ssid->set_wps_config_methods(dot11info->wps_config_methods);
+        if (dot11info->wps_device_name != "")
+            ssid->set_wps_device_name(dot11info->wps_device_name);
+        if (dot11info->wps_manuf != "")
+            ssid->set_wps_manuf(dot11info->wps_manuf);
+        if (dot11info->wps_model_name != "") {
+            ssid->set_wps_model_name(dot11info->wps_model_name);
+        }
+        if (dot11info->wps_model_number != "") 
+            ssid->set_wps_model_number(dot11info->wps_model_number);
+        if (dot11info->wps_serial_number != "")
+            ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
-    if (dot11info->wps_uuid_e != "") 
-        ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
+        if (dot11info->wps_uuid_e != "") 
+            ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
+
+    }
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
@@ -3296,18 +3299,20 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
 
-        probessid->set_wps_version(dot11info->wps_version);
-        probessid->set_wps_state(dot11info->wps);
-        probessid->set_wps_config_methods(dot11info->wps_config_methods);
-        if (dot11info->wps_manuf != "")
-            probessid->set_wps_manuf(dot11info->wps_manuf);
-        if (dot11info->wps_model_name != "") {
-            probessid->set_wps_model_name(dot11info->wps_model_name);
+        if (probessid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
+            probessid->set_wps_version(dot11info->wps_version);
+            probessid->set_wps_state(dot11info->wps);
+            probessid->set_wps_config_methods(dot11info->wps_config_methods);
+            if (dot11info->wps_manuf != "")
+                probessid->set_wps_manuf(dot11info->wps_manuf);
+            if (dot11info->wps_model_name != "") {
+                probessid->set_wps_model_name(dot11info->wps_model_name);
+            }
+            if (dot11info->wps_model_number != "") 
+                probessid->set_wps_model_number(dot11info->wps_model_number);
+            if (dot11info->wps_serial_number != "")
+                probessid->set_wps_serial_number(dot11info->wps_serial_number);
         }
-        if (dot11info->wps_model_number != "") 
-            probessid->set_wps_model_number(dot11info->wps_model_number);
-        if (dot11info->wps_serial_number != "")
-            probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
         // Update the IE listing at the device level
         if (keep_ie_tags_per_bssid) {
