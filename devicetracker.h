@@ -404,6 +404,7 @@ protected:
     // Cached phyname map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
     kis_mutex device_phy_name_cache_mutex;
+
 };
 
 class devicelist_scope_locker {

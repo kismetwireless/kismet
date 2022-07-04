@@ -59,6 +59,14 @@
 // name, so that the entry tracker can differentiate multiple tracker_map classes
 class tracker_component : public tracker_element_map {
 
+// Import from a builder instance and insert into our map
+#define __ImportField(f, b) \
+    f = tracker_element_clone_adaptor(b->f); \
+    insert(f)
+
+#define __ImportId(f, b) \
+    f = b->f
+
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
 // <rtype>, referencing class variable <cvar>
