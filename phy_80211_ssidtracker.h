@@ -59,7 +59,29 @@ public:
         reserve_fields(e);
     }
 
-    dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
+    dot11_tracked_ssid_group(const dot11_tracked_ssid_group* p) :
+        tracker_component(p) {
+
+        __ImportField(ssid_hash, p);
+        __ImportField(ssid, p);
+        __ImportField(ssid_len, p);
+        __ImportField(crypt_set, p);
+
+        __ImportField(advertising_device_map, p);
+        __ImportField(responding_device_map, p);
+        __ImportField(probing_device_map, p);
+
+        __ImportField(advertising_device_len, p);
+        __ImportField(responding_device_len, p);
+        __ImportField(probing_device_len, p);
+
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+
+        reserve_fields(nullptr);
+    }
+
+    dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p, const std::string& in_ssid, unsigned int in_ssid_len,
             unsigned int in_crypt_set);
 
     virtual uint32_t get_signature() const override {
@@ -68,8 +90,7 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>();
-        r->set_id(this->get_id());
+        auto r = std::make_shared<this_t>(this);
         return r;
     }
 
@@ -161,6 +182,7 @@ protected:
     std::shared_ptr<tracker_element_vector> ssid_vector;
 
     int tracked_ssid_id;
+    std::shared_ptr<dot11_tracked_ssid_group> group_builder;
 
     void ssid_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> detail_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);

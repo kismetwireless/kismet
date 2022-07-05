@@ -24,12 +24,27 @@
 #include "trackedelement_workers.h"
 #include "messagebus.h"
 
-dot11_tracked_ssid_group::dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
+dot11_tracked_ssid_group::dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p, const std::string& in_ssid, unsigned int in_ssid_len,
         unsigned int in_crypt_set) :
-    tracker_component(in_id) {
+    tracker_component(p) {
         mutex.set_name("dot11_tracked_ssid_group internal");
 
-        register_fields();
+        __ImportField(ssid_hash, p);
+        __ImportField(ssid, p);
+        __ImportField(ssid_len, p);
+        __ImportField(crypt_set, p);
+
+        __ImportField(advertising_device_map, p);
+        __ImportField(responding_device_map, p);
+        __ImportField(probing_device_map, p);
+
+        __ImportField(advertising_device_len, p);
+        __ImportField(responding_device_len, p);
+        __ImportField(probing_device_len, p);
+
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+
         reserve_fields(nullptr);
 
         set_ssid(in_ssid);
@@ -114,6 +129,7 @@ phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
         Globalreg::globalreg->entrytracker->register_field("dot11.ssidtracker.ssid",
                 tracker_element_factory<dot11_tracked_ssid_group>(),
                 "Tracked SSID grouping");
+    group_builder = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id);
 
     ssid_vector = std::make_shared<tracker_element_vector>();
 
@@ -422,7 +438,7 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
     auto mapdev = ssid_map.find(key);
 
     if (mapdev == ssid_map.end()) {
-        auto tssid = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id, ssid, ssid_len, crypt_set);
+        auto tssid = std::make_shared<dot11_tracked_ssid_group>(group_builder.get(), ssid, ssid_len, crypt_set);
         tssid->add_advertising_device(device);
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
@@ -448,7 +464,7 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
     auto mapdev = ssid_map.find(key);
 
     if (mapdev == ssid_map.end()) {
-        auto tssid = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id, ssid, ssid_len, crypt_set);
+        auto tssid = std::make_shared<dot11_tracked_ssid_group>(group_builder.get(), ssid, ssid_len, crypt_set);
         tssid->add_responding_device(device);
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
@@ -475,7 +491,7 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
     auto mapdev = ssid_map.find(key);
 
     if (mapdev == ssid_map.end()) {
-        auto tssid = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id, ssid, ssid_len, crypt_set);
+        auto tssid = std::make_shared<dot11_tracked_ssid_group>(group_builder.get(), ssid, ssid_len, crypt_set);
         tssid->add_probing_device(device);
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
