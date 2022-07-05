@@ -1248,18 +1248,24 @@ shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
 bool datasource_tracker::close_datasource(const uuid& in_uuid) {
     kis_lock_guard<kis_mutex> lk(dst_lock, "dst close_datasource");
 
+    shared_datasource kds;
+
     for (auto i : *datasource_vec) {
-        shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
+        kds = std::static_pointer_cast<kis_datasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) {
-            _MSG_INFO("Closing source '{}'", kds->get_source_name());
-
-            // close it
-            kds->close_source();
-
-            // Done
-            return true;
+            break;
         }
+    }
+
+    if (kds != nullptr) {
+        _MSG_INFO("Closing source '{}'", kds->get_source_name());
+
+        // close it
+        kds->close_source();
+
+        // Done
+        return true;
     }
 
     return false;
@@ -1669,7 +1675,9 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
                     "which may occur with rtlsdr and others.  You may need to set the uuid= "
                     "parameter in your remote source definition.",
                     in_uuid.uuid_to_string(), merge_target_device->get_source_name());
+            lock.unlock();
             merge_target_device->close_source();
+            lock.lock();
         } else {
             _MSG_INFO("Matching new remote source '{}' with known source with UUID '{}'",
                     in_definition, in_uuid.uuid_to_string());
