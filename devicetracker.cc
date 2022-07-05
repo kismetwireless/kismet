@@ -1416,7 +1416,12 @@ std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(
 // Simple std::sort comparison function to order by the least frequently
 // seen devices
 bool devicetracker_sort_lastseen(std::shared_ptr<tracker_element> a, std::shared_ptr<tracker_element> b) {
-       return std::static_pointer_cast<kis_tracked_device_base>(a)->get_last_time() <
+    if (a == nullptr)
+        return true;
+    if (b == nullptr)
+        return true;
+
+    return std::static_pointer_cast<kis_tracked_device_base>(a)->get_last_time() <
         std::static_pointer_cast<kis_tracked_device_base>(b)->get_last_time();
 }
 
@@ -1428,11 +1433,11 @@ void device_tracker::timetracker_event(int eventid) {
         bool purged = false;
 
         // Reset the smart pointer of any devices we're dropping from the device list
-        for (auto i : *immutable_tracked_vec) {
-            if (i == nullptr)
-                continue;
+        for (size_t pi = 0; pi < immutable_tracked_vec->size(); pi++) {
+            auto d = std::static_pointer_cast<kis_tracked_device_base>(*(immutable_tracked_vec->begin() + pi));
 
-            auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
+            if (d == nullptr)
+                continue;
 
             if (ts_now - d->get_last_time() > device_idle_expiration &&
                 (d->get_packets() < device_idle_min_packets ||
@@ -1456,7 +1461,7 @@ void device_tracker::timetracker_event(int eventid) {
                 remove_view_device(d);
 
                 // Forget the immutable vec pointer to it
-                i.reset();
+                (immutable_tracked_vec->begin() + pi)->reset();
 
                 purged = true;
 
@@ -1502,8 +1507,7 @@ void device_tracker::timetracker_event(int eventid) {
 
             // Forget it from the immutable vec, but keep its
             // position; we need to have vecpos = devid
-            auto iti = immutable_tracked_vec->begin() + d->get_kis_internal_id();
-            (*iti).reset();
+            (immutable_tracked_vec->begin() + d->get_kis_internal_id())->reset();
         }
 
         // Do an update since we're trimming something
