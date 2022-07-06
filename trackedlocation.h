@@ -138,6 +138,7 @@ public:
 
     __ProxyFullyDynamic(speed, float, float, float, tracker_element_float, spd_id);
     __ProxyFullyDynamic(heading, float, float, float, tracker_element_float, heading_id);
+    __ProxyFullyDynamic(magheading, float, float, float, tracker_element_float, magheading_id);
 
     virtual void set(kis_gps_packinfo *in_packinfo) override;
 
@@ -147,6 +148,7 @@ public:
         kis_tracked_location_triplet::reset();
         clear_speed();
         clear_heading();
+        clear_magheading();
     }
 
 protected:
@@ -155,6 +157,7 @@ protected:
 
     uint16_t spd_id;
     uint16_t heading_id;
+    uint16_t magheading_id;
 };
 
 class kis_tracked_location : public tracker_component {

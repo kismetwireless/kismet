@@ -62,6 +62,7 @@ public:
         alt = src->alt;
         speed = src->speed;
         heading = src->heading;
+        magheading = src->magheading;
         precision = src->precision;
         fix = src->fix;
         tv.tv_sec = src->tv.tv_sec;
@@ -74,7 +75,7 @@ public:
         merge_partial = false;
         merge_flags = 0;
 
-        lat = lon = alt = speed = heading = 0;
+        lat = lon = alt = speed = heading = magheading = 0;
         precision = 0;
         fix = 0;
         tv.tv_sec = 0;
@@ -89,14 +90,17 @@ public:
 
         r->set_location(lat, lon);
         r->set_alt(alt);
-        r->set_speed(speed);
-        r->set_heading(heading);
+
+        if (speed != 0)
+            r->set_speed(speed);
+
+        if (heading != 0)
+            r->set_heading(heading);
+
+        if (magheading != 0)
+            r->set_magheading(magheading);
+
         r->set_fix(fix);
-        /*
-        r->set_error_x(error_x);
-        r->set_error_y(error_y);
-        r->set_error_v(error_v);
-        */
         r->set_time_sec(tv.tv_sec);
         r->set_time_usec(tv.tv_usec);
 
@@ -108,6 +112,7 @@ public:
     double alt;
     double speed;
     double heading;
+    double magheading;
 
     // If we know it, how accurate our location is, in meters
     double precision;

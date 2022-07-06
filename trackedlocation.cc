@@ -170,7 +170,8 @@ kis_tracked_location_full::kis_tracked_location_full(const kis_tracked_location_
     kis_tracked_location_triplet(p) {
 
         __ImportId(spd_id, p);
-        __ImportId(alt_id, p);
+        __ImportId(heading_id, p);
+        __ImportId(magheading_id, p);
 
         reserve_fields(nullptr);
 }
@@ -185,8 +186,13 @@ void kis_tracked_location_full::set(kis_gps_packinfo *in_packinfo) {
 
     set_alt(in_packinfo->alt);
     set_fix(in_packinfo->fix);
-    set_speed(in_packinfo->speed);
-    set_heading(in_packinfo->heading);
+
+    if (in_packinfo->speed != 0)
+        set_speed(in_packinfo->speed);
+
+    if (in_packinfo->heading != 0)
+        set_heading(in_packinfo->heading);
+
     set_time_sec(in_packinfo->tv.tv_sec);
     set_time_usec(in_packinfo->tv.tv_usec);
 }
@@ -224,6 +230,11 @@ kis_tracked_location_full& kis_tracked_location_full::operator= (const kis_track
     else
         clear_heading();
 
+    if (in.has_magheading())
+        set_magheading(in.get_only_magheading());
+    else
+        clear_magheading();
+
     return *this;
 }
 
@@ -235,6 +246,9 @@ void kis_tracked_location_full::register_fields() {
 
     heading_id =
         register_dynamic_field<tracker_element_float>("kismet.common.location.heading", "heading (degrees)");
+
+    magheading_id =
+        register_dynamic_field<tracker_element_float>("kismet.common.location.magheading", "magnetic heading (degrees)");
 }
 
 void kis_tracked_location_full::reserve_fields(std::shared_ptr<tracker_element_map> e) {
