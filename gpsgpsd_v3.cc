@@ -292,17 +292,12 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     if (now.tv_sec < 1)
         new_location->set(gps_location);
 
-    bool set_lat_lon;
-    bool set_alt;
-    bool set_speed;
-    bool set_fix;
-    bool set_heading;
-
-    set_lat_lon = false;
-    set_alt = false;
-    set_speed = false;
-    set_fix = false;
-    set_heading = false;
+    bool set_lat_lon = false;
+    bool set_alt= false;
+    bool set_speed = false;
+    bool set_fix = false;
+    bool set_heading = false;
+    bool set_magheading = false;
 
     // We don't know what we're going to get from GPSD.  If it starts with 
     // { then it probably is json, try to parse it
@@ -362,8 +357,19 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
                     }
 
                     if (json.isMember("track")) {
-                        new_location->heading = json["track"].asDouble();
-                        set_heading = true;
+                        auto t = json["track"].asDouble();
+                        if (t != 0) {
+                            new_location->heading = t;
+                            set_heading = true;
+                        }
+                    }
+
+                    if (json.isMember("magtrack")) {
+                        auto t = json["magtrack"].asDouble();
+                        if (t != 0) {
+                            new_location->magheading = t;
+                            set_magheading = true;
+                        }
                     }
 
                     if (json.isMember("speed")) {
@@ -373,6 +379,11 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
                         // GPSD JSON reports in meters/second, convert to kph
                         new_location->speed *= 3.6;
                     }
+                }
+            } else if (msg_class == "ATT") {
+                if (json.isMember("heading")) {
+                    last_att_heading_time = time(0);
+                    last_att_heading = json["heading"].asDouble();
                 }
 #if 0
             } else if (msg_class == "SKY") {
@@ -525,6 +536,7 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
             new_location->fix = 2;
 
         set_heading = false;
+        set_magheading = false;
         set_fix = true;
         set_lat_lon = true;
 
@@ -666,7 +678,9 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
     lk.lock();
 
-    last_data_time = time(0);
+    time_t now_t = time(0);
+
+    last_data_time = now_t;
 
     if (set_alt || set_speed || set_lat_lon || set_fix || set_heading) {
         set_int_gps_signal_time(last_data_time);
@@ -676,8 +690,15 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
         new_location->gpsname = get_gps_name();
 
         if (!set_heading) {
-            if (time(0) - last_heading_time > 5 &&
+            if (now_t - last_att_heading_time < 2 && new_location != nullptr) {
+                // Favor att block heading
+                new_location->heading = last_att_heading;
+            } else if (set_magheading && new_location != nullptr) {
+                // Use mag heading if present and no other location
+                new_location->heading = new_location->magheading;
+            } else if (now_t - last_heading_time > 5 &&
                 gps_location != nullptr && gps_location->fix >= 2) {
+                // Calculate from earlier location
                 new_location->heading = 
                     gps_calc_heading(new_location->lat, new_location->lon, 
                                      gps_location->lat, gps_location->lon);

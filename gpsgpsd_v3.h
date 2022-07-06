@@ -83,6 +83,11 @@ protected:
     // few seconds or we get nasty noise
     time_t last_heading_time;
 
+    // Last time we saw an ATT heading, and heading data
+    time_t last_att_heading_time;
+    double last_att_heading;
+
+
     // Decaying reconnection algorithm
     int reconnect_tid;
     int num_reconnects;
