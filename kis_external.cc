@@ -326,16 +326,14 @@ bool kis_external_interface::check_ipc(const std::string& in_binary) {
 // std::atomic<int> ipc_strand_g(0);
 
 bool kis_external_interface::run_ipc() {
-    // Launch on a strand so we don't risk perturbing any io in progress already, wait on strand exec
+    // Close using the strand & wait for it to complete, then fork and launch.
 
     pid_t child_pid;
-
-    // int ipc_strand_no = ipc_strand_g++;
 
     auto ipc_ft =
         boost::asio::post(strand_, 
                 std::packaged_task<bool ()>(
-                    [self = shared_from_this(), &child_pid]() mutable {
+                    [self = shared_from_this()]() mutable -> bool {
 
                         self->stopped = true;
                         self->cancelled = true;
@@ -344,191 +342,187 @@ bool kis_external_interface::run_ipc() {
                         self->in_buf.consume(self->in_buf.size());
                         self->out_bufs.clear();
 
-                        struct stat fstat;
-
-                        if (self->external_binary == "") {
-                            _MSG("Kismet external interface did not have an IPC binary to launch", MSGFLAG_ERROR);
-                            return false;
-                        }
-
-                        // Get allowed paths for binaries
-                        auto bin_paths = 
-                            Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
-
-                        if (bin_paths.size() == 0) {
-                            _MSG("No helper_binary_path found in kismet.conf, make sure your config "
-                                    "files are up to date; using the default binary path where Kismet "
-                                    "is installed.", MSGFLAG_ERROR);
-                            bin_paths.push_back("%B");
-                        }
-
-                        std::string helper_path;
-
-                        for (auto rp : bin_paths) {
-                            std::string fp = fmt::format("{}/{}",
-                                    Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1), self->external_binary);
-
-                            if (stat(fp.c_str(), &fstat) != -1) {
-                                if (S_ISDIR(fstat.st_mode))
-                                    continue;
-
-                                if ((S_IXUSR & fstat.st_mode)) {
-                                    helper_path = fp;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (helper_path.length() == 0) {
-                            _MSG_ERROR("Kismet external interface can not find IPC binary for launch: {}",
-                                    self->external_binary);
-                            return false;
-                        }
-
-                        // See if we can execute the IPC tool
-                        if (!(fstat.st_mode & S_IXOTH)) {
-                            if (getuid() != fstat.st_uid && getuid() != 0) {
-                                bool group_ok = false;
-                                gid_t *groups;
-                                int ngroups;
-
-                                if (getgid() != fstat.st_gid) {
-                                    ngroups = getgroups(0, NULL);
-
-                                    if (ngroups > 0) {
-                                        groups = new gid_t[ngroups];
-                                        ngroups = getgroups(ngroups, groups);
-
-                                        for (int g = 0; g < ngroups; g++) {
-                                            if (groups[g] == fstat.st_gid) {
-                                                group_ok = true;
-                                                break;
-                                            }
-                                        }
-
-                                        delete[] groups;
-                                    }
-
-                                    if (!group_ok) {
-                                        _MSG_ERROR("IPC cannot run binary '{}', Kismet was installed "
-                                                "setgid and you are not in that group. If you recently added your "
-                                                "user to the kismet group, you will need to log out and back in to "
-                                                "activate it.  You can check your groups with the 'groups' command.",
-                                                helper_path);
-                                        return false;
-                                    }
-                                }
-                            }
-                        }
-
-                        // 'in' to the spawned process, write to the server process, 
-                        // [1] belongs to us, [0] to them
-                        int inpipepair[2];
-                        // 'out' from the spawned process, read to the server process, 
-                        // [0] belongs to us, [1] to them
-                        int outpipepair[2];
-
-                        if (pipe(inpipepair) < 0) {
-                            _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
-                            return false;
-                        }
-
-                        if (pipe(outpipepair) < 0) {
-                            _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
-                            ::close(inpipepair[0]);
-                            ::close(inpipepair[1]);
-                            return false;
-                        }
-
-                        // We don't need to do signal masking because we run a dedicated signal handling thread
-
-                        char **cmdarg;
-
-                        if ((child_pid = fork()) < 0) {
-                            _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
-                            ::close(inpipepair[0]);
-                            ::close(inpipepair[1]);
-                            ::close(outpipepair[0]);
-                            ::close(outpipepair[1]);
-
-                            return false;
-                        } else if (child_pid == 0) {
-                            // We're the child process
-
-                            // Unblock all signals in the child so nothing carries over from the parent fork
-                            sigset_t unblock_mask;
-                            sigfillset(&unblock_mask);
-                            pthread_sigmask(SIG_UNBLOCK, &unblock_mask, nullptr);
-
-                            // argv[0], "--in-fd" "--out-fd" ... NULL
-                            cmdarg = new char*[self->external_binary_args.size() + 4];
-                            cmdarg[0] = strdup(helper_path.c_str());
-
-                            // Child reads from inpair
-                            std::string argstr;
-
-                            argstr = fmt::format("--in-fd={}", inpipepair[0]);
-                            cmdarg[1] = strdup(argstr.c_str());
-
-                            // Child writes to writepair
-                            argstr = fmt::format("--out-fd={}", outpipepair[1]);
-                            cmdarg[2] = strdup(argstr.c_str());
-
-                            for (unsigned int x = 0; x < self->external_binary_args.size(); x++)
-                                cmdarg[x+3] = strdup(self->external_binary_args[x].c_str());
-
-                            cmdarg[self->external_binary_args.size() + 3] = NULL;
-
-                            // close the unused half of the pairs on the child
-                            ::close(inpipepair[1]);
-                            ::close(outpipepair[0]);
-
-                            execvp(cmdarg[0], cmdarg);
-
-                            exit(255);
-                        } 
-
-                        // Parent process
-
-                        // close the remote side of the pipes from the parent, they're open in the child
-                        ::close(inpipepair[0]);
-                        ::close(outpipepair[1]);
-
-                        self->ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
-                        self->ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
-
-                        // _MSG_DEBUG("exiting strand work {}", ipc_strand_no);
                         return true;
                     }));
 
-    // _MSG_DEBUG("waiting for strand {}", ipc_strand_no);
-    auto r = ipc_ft.get();
+    // Wait for the strand to close us down
+    ipc_ft.get();
 
-    // _MSG_DEBUG("got strand {}", ipc_strand_no);
-    if (r) {
-        stopped = false;
-        cancelled = false;
-        ipc_running = true;
 
-        auto self_ref = shared_from_this();
+    struct stat fstat;
 
-        ipc = kis_ipc_record(child_pid,
-                [this, self_ref](const std::string&) {
-                close_external();
-                },
-                [this, self_ref](const std::string& err) {
-                trigger_error(err);
-                });
-
-        ipctracker->register_ipc(ipc);
-
-        boost::asio::post(strand_,
-                [self = shared_from_this()]() {
-                    self->start_ipc_read();
-                });
+    if (external_binary == "") {
+        _MSG("Kismet external interface did not have an IPC binary to launch", MSGFLAG_ERROR);
+        return false;
     }
 
-    return r;
+    // Get allowed paths for binaries
+    auto bin_paths = 
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
+
+    if (bin_paths.size() == 0) {
+        _MSG("No helper_binary_path found in kismet.conf, make sure your config "
+             "files are up to date; using the default binary path where Kismet "
+             "is installed.", MSGFLAG_ERROR);
+        bin_paths.push_back("%B");
+    }
+
+    std::string helper_path;
+
+    for (auto rp : bin_paths) {
+        std::string fp = fmt::format("{}/{}",
+                                     Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1), external_binary);
+
+        if (stat(fp.c_str(), &fstat) != -1) {
+            if (S_ISDIR(fstat.st_mode))
+                continue;
+
+            if ((S_IXUSR & fstat.st_mode)) {
+                helper_path = fp;
+                break;
+            }
+        }
+    }
+
+    if (helper_path.length() == 0) {
+        _MSG_ERROR("Kismet external interface can not find IPC binary for launch: {}",
+                   external_binary);
+        return false;
+    }
+
+    // See if we can execute the IPC tool
+    if (!(fstat.st_mode & S_IXOTH)) {
+        if (getuid() != fstat.st_uid && getuid() != 0) {
+            bool group_ok = false;
+            gid_t *groups;
+            int ngroups;
+
+            if (getgid() != fstat.st_gid) {
+                ngroups = getgroups(0, NULL);
+
+                if (ngroups > 0) {
+                    groups = new gid_t[ngroups];
+                    ngroups = getgroups(ngroups, groups);
+
+                    for (int g = 0; g < ngroups; g++) {
+                        if (groups[g] == fstat.st_gid) {
+                            group_ok = true;
+                            break;
+                        }
+                    }
+
+                    delete[] groups;
+                }
+
+                if (!group_ok) {
+                    _MSG_ERROR("IPC cannot run binary '{}', Kismet was installed "
+                               "setgid and you are not in that group. If you recently added your "
+                               "user to the kismet group, you will need to log out and back in to "
+                               "activate it.  You can check your groups with the 'groups' command.",
+                               helper_path);
+                    return false;
+                }
+            }
+        }
+    }
+
+    // 'in' to the spawned process, write to the server process, 
+    // [1] belongs to us, [0] to them
+    int inpipepair[2];
+    // 'out' from the spawned process, read to the server process, 
+    // [0] belongs to us, [1] to them
+    int outpipepair[2];
+
+    if (pipe(inpipepair) < 0) {
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
+        return false;
+    }
+
+    if (pipe(outpipepair) < 0) {
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
+        ::close(inpipepair[0]);
+        ::close(inpipepair[1]);
+        return false;
+    }
+
+    // We don't need to do signal masking because we run a dedicated signal handling thread
+
+    char **cmdarg;
+
+    if ((child_pid = fork()) < 0) {
+        _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
+        ::close(inpipepair[0]);
+        ::close(inpipepair[1]);
+        ::close(outpipepair[0]);
+        ::close(outpipepair[1]);
+
+        return false;
+    } else if (child_pid == 0) {
+        // We're the child process
+
+        // Unblock all signals in the child so nothing carries over from the parent fork
+        sigset_t unblock_mask;
+        sigfillset(&unblock_mask);
+        pthread_sigmask(SIG_UNBLOCK, &unblock_mask, nullptr);
+
+        // argv[0], "--in-fd" "--out-fd" ... NULL
+        cmdarg = new char*[external_binary_args.size() + 4];
+        cmdarg[0] = strdup(helper_path.c_str());
+
+        // Child reads from inpair
+        std::string argstr;
+
+        argstr = fmt::format("--in-fd={}", inpipepair[0]);
+        cmdarg[1] = strdup(argstr.c_str());
+
+        // Child writes to writepair
+        argstr = fmt::format("--out-fd={}", outpipepair[1]);
+        cmdarg[2] = strdup(argstr.c_str());
+
+        for (unsigned int x = 0; x < external_binary_args.size(); x++)
+            cmdarg[x+3] = strdup(external_binary_args[x].c_str());
+
+        cmdarg[external_binary_args.size() + 3] = NULL;
+
+        // close the unused half of the pairs on the child
+        ::close(inpipepair[1]);
+        ::close(outpipepair[0]);
+
+        execvp(cmdarg[0], cmdarg);
+
+        exit(255);
+    } 
+
+    // Parent process
+
+    // close the remote side of the pipes from the parent, they're open in the child
+    ::close(inpipepair[0]);
+    ::close(outpipepair[1]);
+
+    ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
+    ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
+
+    stopped = false;
+    cancelled = false;
+    ipc_running = true;
+
+    auto self_ref = shared_from_this();
+
+    ipc = kis_ipc_record(child_pid,
+                         [this, self_ref](const std::string&) {
+                             close_external();
+                         },
+                         [this, self_ref](const std::string& err) {
+                             trigger_error(err);
+                         });
+
+    ipctracker->register_ipc(ipc);
+
+    boost::asio::post(strand_,
+                      [self = shared_from_this()]() {
+                          self->start_ipc_read();
+                      });
+    return true;
 }
 
 void kis_external_interface::start_write(const char *data, size_t len) {
