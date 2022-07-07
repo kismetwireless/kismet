@@ -1222,7 +1222,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     if (in_pack->duplicate) {
         if (dot11info->type == packet_management) {
             if (dot11info->bssid_dev != nullptr) {
-                unsigned int bflags = UCD_UPDATE_SEENBY;
+                unsigned int bflags = UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY;
 
                 if (dot11info->source_mac == dot11info->bssid_mac) {
                     bflags |= (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION);
@@ -1242,7 +1242,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     dot11info->source_mac != Globalreg::globalreg->empty_mac && 
                     !(dot11info->source_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
-                unsigned int bflags = UCD_UPDATE_SEENBY;
+                unsigned int bflags = UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY;
 
                 // Only update source signal info if it's TO the AP, don't inherit the AP
                 // resending bridged packets
@@ -1263,7 +1263,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->dest_dev =
                     d11phy->devicetracker->update_common_device(commoninfo, 
                             dot11info->dest_mac, d11phy, in_pack, 
-                            (UCD_UPDATE_SEENBY),
+                            (UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
                             "Wi-Fi Device (Inferred)");
             }
         }
@@ -1325,7 +1325,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dot11info->dest_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->dest_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_SEENBY),
+                        (UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device (Inferred)");
         }
 
@@ -1522,6 +1522,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 
                 dot11info->new_device = true;
             }
+
+            if (dot11info->bssid_dev != nullptr)
+                dot11info->dest_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
             // If it's receiving a management packet, it must be a wifi device
             dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
