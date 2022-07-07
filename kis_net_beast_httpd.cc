@@ -1851,8 +1851,10 @@ void kis_net_web_websocket_endpoint::close() {
 void kis_net_web_websocket_endpoint::close_impl() {
     running = false;
 
+    /* Non-dynamic memory, should be able to just destroy the pending write queue
     while (!ws_write_queue_.empty())
         ws_write_queue_.pop();
+        */
 
     try {
         ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
@@ -1906,6 +1908,9 @@ void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, st
 }
 
 void kis_net_web_websocket_endpoint::on_write(const std::string& msg) {
+    if (!running || !ws_.is_open())
+        return;
+
     ws_write_queue_.push(msg);
 
     // _MSG_DEBUG("ws {} write len {} queue {}", fmt::ptr(this), msg.size(), ws_write_queue_.size());
