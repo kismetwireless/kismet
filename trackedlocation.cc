@@ -306,7 +306,9 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
     add_loc(in_lat, in_lon, in_alt, fix, in_speed, in_heading);
 
     if (avg_loc == nullptr) {
-        avg_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>();
+        // We probably have a last location; set the ID anyhow to make sure; if we don't,
+        // this is just a new(nullptr) which is also fine
+        avg_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>(last_loc.get());
         avg_loc->set_id(avg_loc_id);
         insert(avg_loc);
     }
@@ -339,7 +341,12 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
     if (num_alt_avg > 0) 
        r_alt =  agg_a / num_alt_avg;
 
-    avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI, r_alt, 3);
+    // Use the incoming if we're the first packet
+    if (num_avg > 1)
+        avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI, 
+                     r_alt, num_alt_avg > 0 ? 3 : 2);
+    else
+        avg_loc->set(in_lat, in_lon, in_alt, fix);
 }
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt, 
