@@ -1838,6 +1838,7 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 
 
 void kis_net_web_websocket_endpoint::close() {
+#if 0
     auto f = 
         boost::asio::post(strand_,
                 std::packaged_task<void()>(
@@ -1846,6 +1847,8 @@ void kis_net_web_websocket_endpoint::close() {
                     }));
 
     f.get();
+#endif
+    close_impl();
 }
 
 void kis_net_web_websocket_endpoint::close_impl() {
