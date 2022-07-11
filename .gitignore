@@ -1,3 +1,5 @@
+compile_commands.json
+
 *.o
 *~
 
@@ -5,6 +7,9 @@
 .*.swp*
 .swp*
 .*.tmp*
+
+# IDE stuff
+.cache/*
 
 # Test files
 callgrind*
