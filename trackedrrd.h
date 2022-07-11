@@ -59,7 +59,7 @@ public:
     // hours, and so on).
     static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0;
-        for (auto i : *e)
+        for (const auto i : *e)
             avg += i;
 
         return avg / e->size();
