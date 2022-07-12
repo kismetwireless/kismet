@@ -102,6 +102,9 @@ public:
     std::string raw_data;
     nonstd::string_view data;
 
+    // Original length of capture, if truncated
+    uint64_t original_len;
+
     // Did this packet trigger creation of a new device?  Since a 
     // single packet can create multiple devices in some phys, maintain
     // a vector of device events to publish when all devices are done
