@@ -1491,10 +1491,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             } else {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of 
                 // some sort and not just bridged
-                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() { 
                     return d11phy->devtype_client; 
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
@@ -1527,11 +1527,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->dest_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
             // If it's receiving a management packet, it must be a wifi device
-            dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-            dot11info->dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
                 return d11phy->devtype_client;
             }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+            dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
+            dot11info->dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
             d11phy->devicetracker->update_view_device(dot11info->dest_dev);
         }
@@ -1880,33 +1880,33 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->subtype == packet_sub_data_null ||
                     dot11info->subtype == packet_sub_data_qos_null) {
                 // Only wireless devices can send null function data
-                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             } else if (dot11info->distrib == distrib_inter) {
                 // If it's from the ess, we're some sort of wired device; set the type
                 // accordingly
-                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-
                 dot11info->source_dev->set_type_string_ifonly([d11phy]() {
                     return d11phy->devtype_wds;
                 }, KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
+                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+
             } else if (dot11info->distrib == distrib_adhoc && dot11info->ibss) {
                 // We're some sort of adhoc device
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 dot11info->source_dev->set_tracker_type_string(d11phy->devtype_adhoc);
             } else if (dot11info->distrib == distrib_from) {
-                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_bridged;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
             } else {
-                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+
             }
 
             dot11info->source_dot11->inc_datasize(dot11info->datasize);
