@@ -105,8 +105,8 @@ struct bpf_insn rt_pgm[] = {
     BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
     // 03 LDB [2]      a = pkt[2] first half of length
     BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 2),
-    // 04 OR X         a = a | x  // combine endian swapped
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_OR) + BPF_SRC(BPF_X), 0),
+    // 04 ADD X        a = a + x  // combine endian swapped
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_ADD) + BPF_SRC(BPF_X), 0),
 
     // 05 ST M[0]      m[0] = a (rtap length)
     BPF_STMT(BPF_ST, 0),
@@ -176,6 +176,114 @@ struct bpf_insn rt_pgm[] = {
 };
 unsigned int rt_pgm_len = 32;
 
+// Pass management, EAPOL
+// Crop other data to rtap+dot11 headers
+struct bpf_insn rt_pgm_crop_data[] = {
+    // 00 LDB [3]      a = pkt[3] second half of length
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 3),
+    // 01 LSH #8       a = a << 8
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_LSH), 8),
+    // 02 TAX          x = a
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
+    // 03 LDB [2]      a = pkt[2] first half of length
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 2),
+    // 04 ADD X         a = a + x  // combine endian swapped
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_ADD) + BPF_SRC(BPF_X), 0),
+
+    // 05 ST M[0]      m[0] = a (rtap length)
+    BPF_STMT(BPF_ST, 0),
+    // 06 TAX          x = a = rtap length
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
+
+    // Fetch frame type
+
+    // 07 LDB [x + 0]  a = pkt[rtap + 0]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
+
+    // 08 AND #0xC     a & 0xC - extract type
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_AND), 0xC),
+
+    // 09 JEQ #0x0    if == 0, accept as management frame
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 1),
+    // 10 RET 0x40000  return success
+    BPF_STMT(BPF_RET, 0x40000),
+
+    // 11 JEQ #2       if a == 0x8, continue - process data frames (0x8 == b1000)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x8, 1, 0),
+    // 12 RET 0x0      reject all other frames
+    BPF_STMT(BPF_RET, 0),
+
+    // 13 LDB [x + 0]  a = pkt[rtap + 0] - re-load A with FC byte
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
+    // 14 AND #0xF0    a = a & 0xF0 - isolate subtype
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_AND), 0xF0),
+
+    // 15 JEQ #0       a == 0x0 (subtype normal data)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 2),
+    // 16 LD #24        a = 24 (non-qos header len)
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IMM), 24),
+    // 17 JMP          jump past qos (22)
+    BPF_STMT(BPF_JMP + BPF_JA, 3),
+
+    // 18 JEQ #0x80    a == 0x80 (subtype qos data)
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x80, 1, 0),
+    // 29 RET 0x0      reject, data subtype we don't care to process
+    BPF_STMT(BPF_RET, 0),
+
+    // 20 LD #26       a = 26 - set qos header len
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IMM), 26),
+
+    // 21 ST M[1]      m[1] = a (offset length) -- Store length before checking protected flag
+    BPF_STMT(BPF_ST, 1),
+
+    // 22 LDB [ x + 1]  a = pkt[rtap + 1] (flags)
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 1),
+    // 23 JSET 0x40   if a & 0x40 set protected bit
+    BPF_JUMP(BPF_JMP + BPF_JSET, 0x40, 1, 0),
+
+    // 24 LD #0       a = 0
+    BPF_STMT(BPF_LD + BPF_SRC(BPF_K), 0),
+    // 25 ST M[2]     m[2] = 0
+    BPF_STMT(BPF_ST, 2),
+
+    // 26 LDA m[1] .   a = m[1] (saved data offset length)
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_MEM), 1),
+    // 27 LDX M[0]     X = m[0] (rtap length)
+    BPF_STMT(BPF_LDX + BPF_MODE(BPF_MEM), 0),
+    // 28 ADD X        a = a + x
+    BPF_STMT(BPF_ALU + BPF_OP(BPF_ADD) + BPF_SRC(BPF_X), 0),
+    // 29 ST M[1]      m[1] = a (rtap length + offset length)
+    BPF_STMT(BPF_ST, 1),
+    // 30 TAX          x = a (x = total offset length)
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
+
+    // 31 LDA m[2] .   a = m[2] (saved flags)
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_MEM), 2),
+    // 32 JEQ #0 .     a == 0x0 - truncate if it's a protected frame
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 4),
+
+    // 33 LDH [x + 0]  a = pkt[rtap + header + 0] - X hasn't been changed since we loaded it
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 0),
+    // 34 JEQ 0xAAAA   a == 0xAAAA (SNAP header) or truncate
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0xAAAA, 0, 2),
+
+    // 35 LDH [x + 0]  a = pkt[rtap + header + 6]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 6),
+    // 36 JEQ 0x888e   a == 0x888E eapol sig or truncate
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x888E, 0, 2),
+
+    // truncate - x is still the total length of the header restored from m2
+
+    // 37 TXA          a = x
+    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TXA), 0),
+    // 38 RET a        Return a (limit packet length to rtap+dot11+qos?)
+    BPF_STMT(BPF_RET + BPF_RVAL(BPF_A), 0),
+
+    // 39 RET 0x0      return entire packet
+    BPF_STMT(BPF_RET, 0x40000),
+};
+unsigned int rt_pgm_crop_data_len = 40;
+
 // BPF program to parse raw 802.11 and pass management and eapol ONLY
 struct bpf_insn dot11_pgm[] = {
     // 00 LDX #0       x = 0
@@ -234,110 +342,6 @@ struct bpf_insn dot11_pgm[] = {
     BPF_STMT(BPF_RET, 0x40000),
 };
 unsigned int dot11_pgm_len = 22;
-
-// BPF filter program to drop encrypted data packets to just the
-// RT + dot11 headers
-struct bpf_insn nocrypt_rt_pgm[] = {
-    BPF_STMT(BPF_RET, 0x5),
-    // 00 LDB [3]      a = pkt[3] second half of length
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 3),
-    // 01 LSH #8       a = a << 8
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_LSH), 8),
-    // 02 TAX          x = a
-    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
-    // 03 LDB [2]      a = pkt[2] first half of length
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_ABS) + BPF_SIZE(BPF_B), 2),
-    // 04 OR X         a = a | x  // combine endian swapped
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_OR) + BPF_SRC(BPF_X), 0),
-
-    // 05 ST M[0]      m[0] = a (rtap length)
-    BPF_STMT(BPF_ST, 0),
-    // 06 TAX          x = a = rtap length
-    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
-
-    // 07 LDB [x + 0]  a = pkt[rtap + 0]
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
-    // 08 RSH #2       a = a >> 2
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_RSH), 2),
-    // 09 AND 0x3      a = a & 0x3
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_AND), 3),
-
-    // 10 JEQ #0       if a == 0 succeed
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 1),
-    // 11 RET 0x40000  return success
-    BPF_STMT(BPF_RET, 0x40000),
-
-    // 12 JEQ #2       if a == 2, continue, else fail
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x2, 1, 0),
-    // 13 RET 0x0      return fail
-    BPF_STMT(BPF_RET, 0),
-
-    // 14 LDB [x + 0]  a = pkt[rtap + 0]
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 0),
-    // 15 RSH #4       a = a >> 4
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_RSH), 4),
-
-    // 16 JEQ #0       a == 0x0 (subtype data)
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 2),
-    // 17 LD #24        a = 24 (non-qos header len)
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IMM), 24),
-    // 18 JMP          jump past qos
-    BPF_STMT(BPF_JMP + BPF_JA, 3),
-
-    // 19 JEQ #8       a == 0x8 (subtype qos data)
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x8, 1, 0),
-    // 20 RET 0x0      return 0, not normal or qos
-    BPF_STMT(BPF_RET, 0),
-
-    // 21 LD #26       a = 26 (qos header len)
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IMM), 26),
-
-    // 22 ST M[1]      m[1] = a (offset length) -- Store length before checking protected flag
-    BPF_STMT(BPF_ST, 1),
-
-    // 23 LDB [ x + 1]  a = pkt[rtap + 1] (flags)
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 1),
-    // 24 AND 0x40    a = a & 0x40 (protected)
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_AND), 0x40),
-    // 25 ST M[2]      m[2] = a (protected bit set or 0)
-    BPF_STMT(BPF_ST, 2),
-
-    // 26 LDA m[1] .   a = m[1] (saved data offset length)
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_MEM), 1),
-    // 27 LDX M[0]     X = m[0] (rtap length)
-    BPF_STMT(BPF_LDX + BPF_MODE(BPF_MEM), 0),
-    // 28 ADD X        a = a + x
-    BPF_STMT(BPF_ALU + BPF_OP(BPF_ADD) + BPF_SRC(BPF_X), 0),
-    // 29 ST M[1]      m[1] = a (rtap length + offset length)
-    BPF_STMT(BPF_ST, 1),
-    // 30 TAX          x = a (x = total offset length)
-    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TAX), 0),
-
-    // 31 LDA m[2] .   a = m[2] (saved flags)
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_MEM), 2),
-    // 32 JEQ #0 .     a == 0x0 (protected flag)
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 2, 0),
-    // 33 TXA          a = x
-    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TXA), 0),
-    // 34 RET x        Return x (limit packet length to rtap+data+qos?)
-    BPF_STMT(BPF_RET + BPF_RVAL(BPF_A), 0),
-
-    // 35 LDH [x + 0]  a = pkt[rtap + header + 0]
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 0),
-    // 36 JEQ 0xAAAA   a == 0xAAAA (SNAP header)
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0xAAAA, 0, 2),
-
-    // 37 LDH [x + 0]  a = pkt[rtap + header + 6]
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 6),
-    // 38 JEQ 0x888e   a == 0x888E eapol sig
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x888E, 1, 0),
-
-    // 39 RET 0x0      return fail
-    BPF_STMT(BPF_RET, 0),
-    // 40 RET 0x0      return success
-    BPF_STMT(BPF_RET, 0x40000),
-};
-unsigned int rt_nocrypt_pgm_len = 42;
 
 /* State tracking, put in userdata */
 typedef struct {
