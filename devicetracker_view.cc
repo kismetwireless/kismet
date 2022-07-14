@@ -18,6 +18,10 @@
 
 #include "config.h"
 
+#ifdef HAVE_CXX17
+#include <execution>
+#endif
+
 #include "devicetracker_view.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
@@ -745,7 +749,11 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     length_elem->set(ei - si);
 
     if (in_order_column_num.length() && order_field.size() > 0) {
-        std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
+        std::stable_sort(
+#ifdef HAVE_CXX17
+            std::execution::par_unseq,
+#endif
+            next_work_vec->begin(), next_work_vec->end(),
                 [&](shared_tracker_element a, shared_tracker_element b) -> bool {
                 shared_tracker_element fa;
                 shared_tracker_element fb;

@@ -28,6 +28,10 @@
 
 #include "kismet_algorithm.h"
 
+#ifdef HAVE_CXX17
+#include <execution>
+#endif
+
 #include <string>
 #include <sstream>
 
@@ -1486,7 +1490,11 @@ void device_tracker::timetracker_event(int eventid) {
         // zeroing out the immutable vec records
         tracker_element_vector sorted_vec(immutable_tracked_vec);
 
+#ifdef HAVE_CXX17
+        std::stable_sort(std::execution::par_unseq, sorted_vec.begin(), sorted_vec.end(), devicetracker_sort_lastseen);
+#else
         std::stable_sort(sorted_vec.begin(), sorted_vec.end(), devicetracker_sort_lastseen);
+#endif
 
         for (auto i = sorted_vec.begin() + max_num_devices; i != sorted_vec.end(); ++i) {
             auto d = std::static_pointer_cast<kis_tracked_device_base>(*i);
