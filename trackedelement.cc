@@ -435,189 +435,216 @@ template<> uint8_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint8);
 #endif
-    return std::static_pointer_cast<tracker_element_uint8>(e)->get();
+    // return std::static_pointer_cast<tracker_element_uint8>(e)->get();
+    return static_cast<tracker_element_uint8 *>(e.get())->get();
 }
 
 template<> int8_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int8);
 #endif
-    return std::static_pointer_cast<tracker_element_int8>(e)->get();
+    // return std::static_pointer_cast<tracker_element_int8>(e)->get();
+    return static_cast<tracker_element_int8 *>(e.get())->get();
 }
 
 template<> uint16_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint16);
 #endif
-    return std::static_pointer_cast<tracker_element_uint16>(e)->get();
+    // return std::static_pointer_cast<tracker_element_uint16>(e)->get();
+    return static_cast<tracker_element_uint16 *>(e.get())->get();
 }
 
 template<> int16_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int16);
 #endif
-    return std::static_pointer_cast<tracker_element_int16>(e)->get();
+    // return std::static_pointer_cast<tracker_element_int16>(e)->get();
+    return static_cast<tracker_element_int16 *>(e.get())->get();
 }
 
 template<> uint32_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint32);
 #endif
-    return std::static_pointer_cast<tracker_element_uint32>(e)->get();
+    // return std::static_pointer_cast<tracker_element_uint32>(e)->get();
+    return static_cast<tracker_element_uint32 *>(e.get())->get();
 }
 
 template<> int32_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int32);
 #endif
-    return std::static_pointer_cast<tracker_element_int32>(e)->get();
+    // return std::static_pointer_cast<tracker_element_int32>(e)->get();
+    return static_cast<tracker_element_int32 *>(e.get())->get();
 }
 
 template<> uint64_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint64);
 #endif
-    return std::static_pointer_cast<tracker_element_uint64>(e)->get();
+    // return std::static_pointer_cast<tracker_element_uint64>(e)->get();
+    return static_cast<tracker_element_uint64 *>(e.get())->get();
 }
 
 template<> int64_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int64);
 #endif
-    return std::static_pointer_cast<tracker_element_int64>(e)->get();
+    // return std::static_pointer_cast<tracker_element_int64>(e)->get();
+    return static_cast<tracker_element_int64 *>(e.get())->get();
 }
 
 template<> float get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_float);
 #endif
-    return std::static_pointer_cast<tracker_element_float>(e)->get();
+    // return std::static_pointer_cast<tracker_element_float>(e)->get();
+    return static_cast<tracker_element_float *>(e.get())->get();
 }
 
 template<> double get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_double);
 #endif
-    return std::static_pointer_cast<tracker_element_double>(e)->get();
+    // return std::static_pointer_cast<tracker_element_double>(e)->get();
+    return static_cast<tracker_element_double *>(e.get())->get();
 }
 
 template<> mac_addr get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_mac_addr);
 #endif
-    return std::static_pointer_cast<tracker_element_mac_addr>(e)->get();
+    // return std::static_pointer_cast<tracker_element_mac_addr>(e)->get();
+    return static_cast<tracker_element_mac_addr *>(e.get())->get();
 }
 
 template<> uuid get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uuid);
 #endif
-    return std::static_pointer_cast<tracker_element_uuid>(e)->get();
+    // return std::static_pointer_cast<tracker_element_uuid>(e)->get();
+    return static_cast<tracker_element_uuid *>(e.get())->get();
 }
 
 template<> device_key get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_key);
 #endif
-    return std::static_pointer_cast<tracker_element_device_key>(e)->get();
+    // return std::static_pointer_cast<tracker_element_device_key>(e)->get();
+    return static_cast<tracker_element_device_key *>(e.get())->get();
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const std::string& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_string, tracker_type::tracker_byte_array);
 #endif
-    std::static_pointer_cast<tracker_element_string>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_string>(e)->set(v);
+    static_cast<tracker_element_string *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const uint8_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint8);
 #endif
-    std::static_pointer_cast<tracker_element_uint8>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_uint8>(e)->set(v);
+    static_cast<tracker_element_uint8 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const int8_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int8);
 #endif
-    std::static_pointer_cast<tracker_element_int8>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_int8>(e)->set(v);
+    static_cast<tracker_element_int8 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const uint16_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint16);
 #endif
-    std::static_pointer_cast<tracker_element_uint16>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_uint16>(e)->set(v);
+    static_cast<tracker_element_uint16 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const int16_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int16);
 #endif
-    std::static_pointer_cast<tracker_element_int16>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_int16>(e)->set(v);
+    static_cast<tracker_element_int16 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const uint32_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint32);
 #endif
-    std::static_pointer_cast<tracker_element_uint32>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_uint32>(e)->set(v);
+    static_cast<tracker_element_uint32 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const int32_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int32);
 #endif
-    std::static_pointer_cast<tracker_element_int32>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_int32>(e)->set(v);
+    static_cast<tracker_element_int32 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const uint64_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint64);
 #endif
-    std::static_pointer_cast<tracker_element_uint64>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_uint64>(e)->set(v);
+    static_cast<tracker_element_uint64 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const int64_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int64);
 #endif
-    std::static_pointer_cast<tracker_element_int64>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_int64>(e)->set(v);
+    static_cast<tracker_element_int64 *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const float& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_float);
 #endif
-    std::static_pointer_cast<tracker_element_float>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_float>(e)->set(v);
+    static_cast<tracker_element_float *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const double& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_double);
 #endif
-    std::static_pointer_cast<tracker_element_double>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_double>(e)->set(v);
+    static_cast<tracker_element_double *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const mac_addr& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_mac_addr);
 #endif
-    std::static_pointer_cast<tracker_element_mac_addr>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_mac_addr>(e)->set(v);
+    static_cast<tracker_element_mac_addr *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const uuid& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uuid);
 #endif
-    std::static_pointer_cast<tracker_element_uuid>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_uuid>(e)->set(v);
+    static_cast<tracker_element_uuid *>(e.get())->set(v);
 }
 
 template<> void set_tracker_value(const shared_tracker_element& e, const device_key& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_key);
 #endif
-    std::static_pointer_cast<tracker_element_device_key>(e)->set(v);
+    // std::static_pointer_cast<tracker_element_device_key>(e)->set(v);
+    static_cast<tracker_element_device_key *>(e.get())->set(v);
 }
 
 void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& in_summary) {
