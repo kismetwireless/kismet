@@ -308,14 +308,14 @@ else
 fi
 AC_SUBST(ALLTARGETS)
 
-want_te_typesafety=yes
+want_te_typesafety=no
 AC_ARG_ENABLE([element-typesafety],
-    AS_HELP_STRING([--disable-element-typesafety], [Disable runtime type safety of the tracked element system]),
+    AS_HELP_STRING([--enable-element-typesafety], [Enable runtime type safety debugging of the tracked element system]),
     [case "${enableval}" in
       no) want_te_typesafety=no ;;
       *)  want_te_typesafety=yes ;;
   esac],
-  [want_te_typesafety=yes]
+  [want_te_typesafety=no]
 )
 if test "$want_te_typesafety"x == "yes"x; then
     AC_DEFINE(TE_TYPE_SAFETY, 1, Enforce runtime type safety)

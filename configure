@@ -1490,9 +1490,9 @@ Optional Features:
                           Disable naming of mutexes to help in debugging,
                           debugging will use slightly more RAM
   --enable-capture-tools-only  Configure and build for capture tools and remote only
-  --disable-element-typesafety
-                          Disable runtime type safety of the tracked element
-                          system
+  --enable-element-typesafety
+                          Enable runtime type safety debugging of the tracked
+                          element system
   --enable-protobuflite   Force building with protobuf-lite instead of full
                           protobuf
   --disable-python-tools  Disable building Python modules and Python-only data
@@ -7790,7 +7790,7 @@ else
 fi
 
 
-want_te_typesafety=yes
+want_te_typesafety=no
 # Check whether --enable-element-typesafety was given.
 if test "${enable_element_typesafety+set}" = set; then :
   enableval=$enable_element_typesafety; case "${enableval}" in
@@ -7798,7 +7798,7 @@ if test "${enable_element_typesafety+set}" = set; then :
       *)  want_te_typesafety=yes ;;
   esac
 else
-  want_te_typesafety=yes
+  want_te_typesafety=no
 
 fi
 
