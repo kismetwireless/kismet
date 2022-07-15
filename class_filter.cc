@@ -155,13 +155,13 @@ void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_ph
     // Build the tracked version of the record, building any containers we need along the way, this
     // always gets built even for unknown phys
     auto tracked_phy_key = filter_phy_block->find(in_phy);
-    std::shared_ptr<tracker_element_mac_map> tracked_mac_map;
+    std::shared_ptr<tracker_element_macfilter_map> tracked_mac_map;
 
     if (tracked_phy_key == filter_phy_block->end()) {
-        tracked_mac_map = std::make_shared<tracker_element_mac_map>(filter_sub_mac_id);
+        tracked_mac_map = std::make_shared<tracker_element_macfilter_map>(filter_sub_mac_id);
         filter_phy_block->insert(in_phy, tracked_mac_map);
     } else {
-        tracked_mac_map = tracker_element::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
+        tracked_mac_map = tracker_element::safe_cast_as<tracker_element_macfilter_map>(tracked_phy_key->second);
     }
 
     auto tracked_mac_key = tracked_mac_map->find(in_mac);
@@ -193,7 +193,7 @@ void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in
     // Remove it from the tracked version we display
     auto tracked_phy_key = filter_phy_block->find(in_phy);
     if (tracked_phy_key != filter_phy_block->end()) {
-        auto tracked_mac_map = tracker_element::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
+        auto tracked_mac_map = tracker_element::safe_cast_as<tracker_element_macfilter_map>(tracked_phy_key->second);
         auto tracked_mac_key = tracked_mac_map->find(in_mac);
 
         if (tracked_mac_key != tracked_mac_map->end())

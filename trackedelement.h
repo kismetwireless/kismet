@@ -198,6 +198,9 @@ enum class tracker_type {
 
     // Map of UUIDs
     tracker_uuid_map = 30,
+    
+    // Map of MAC addresses capable of handling masks / filtering
+    tracker_macfilter_map = 31
 };
 
 class tracker_element {
@@ -1449,8 +1452,10 @@ using tracker_element_hashkey_map = tracker_element_core_map<robin_hood::unorder
 // double::element
 using tracker_element_double_map = tracker_element_core_map<robin_hood::unordered_node_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>, tracker_type::tracker_double_map>;
 
-// mac::element, keyed as *standard map not unordered* to allow mask handling
-using tracker_element_mac_map = tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
+// mac::element, keyed as *unordered*, does not allow mask operations.  for generating mac maps which allow
+// masks, use tracker_element_macfilter_map
+using tracker_element_mac_map = tracker_element_core_map<robin_hood::unordered_node_map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
+using tracker_element_macfilter_map = tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
 
 // string::element
 using tracker_element_string_map = tracker_element_core_map<robin_hood::unordered_node_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>, tracker_type::tracker_string_map>;
@@ -1913,6 +1918,10 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         std::shared_ptr<tracker_element_serializer::rename_map>);
 
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_mac_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_macfilter_map>,
         const std::vector<std::shared_ptr<tracker_element_summary>>&,
         std::shared_ptr<tracker_element_serializer::rename_map>);
 

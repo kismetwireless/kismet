@@ -113,27 +113,27 @@ protected:
 
         filter_source_id =
             register_field("kismet.packetfilter.macaddr.source", 
-                    tracker_element_factory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_macfilter_map>(),
                     "Source address filters");
 
         filter_dest_id =
             register_field("kismet.packetfilter.macaddr.destination", 
-                    tracker_element_factory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_macfilter_map>(),
                     "Destination address filters");
 
         filter_network_id =
             register_field("kismet.packetfilter.macaddr.network", 
-                    tracker_element_factory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_macfilter_map>(),
                     "Network/BSSID address filters");
 
         filter_other_id =
             register_field("kismet.packetfilter.macaddr.other", 
-                    tracker_element_factory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_macfilter_map>(),
                     "Other address filters");
 
         filter_any_id =
             register_field("kismet.packetfilter.macaddr.any", 
-                    tracker_element_factory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_macfilter_map>(),
                     "Any matching address type");
     }
 

@@ -233,6 +233,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "devicekey";
         case tracker_type::tracker_mac_map:
             return "map[macaddr, x]";
+        case tracker_type::tracker_macfilter_map:
+            return "mapfilter[macaddr, x]";
         case tracker_type::tracker_string_map:
             return "map[string, x]";
         case tracker_type::tracker_double_map:
@@ -304,6 +306,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_key";
         case tracker_type::tracker_mac_map:
             return "tracker_mac_map";
+        case tracker_type::tracker_macfilter_map:
+            return "tracker_macfilter_map";
         case tracker_type::tracker_string_map:
             return "tracker_string_map";
         case tracker_type::tracker_double_map:
@@ -372,6 +376,8 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_key;
     if (s == "tracker_mac_map")
         return tracker_type::tracker_mac_map;
+    if (s == "tracker_macfilter_map")
+        return tracker_type::tracker_macfilter_map;
     if (s == "tracker_string_map")
         return tracker_type::tracker_string_map;
     if (s == "tracker_double_map")
@@ -1017,6 +1023,18 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 complex_fulfilled = true;
                 break;
+            } else if (type == tracker_type::tracker_macfilter_map) {
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
+
+                auto cn = std::static_pointer_cast<tracker_element_macfilter_map>(next_elem);
+
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
             } else if (type == tracker_type::tracker_double_map) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
@@ -1159,6 +1177,18 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 complex_fulfilled = true;
                 break;
+            } else if (type == tracker_type::tracker_macfilter_map) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                auto cn = std::static_pointer_cast<tracker_element_macfilter_map>(next_elem);
+
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
             } else if (type == tracker_type::tracker_double_map) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
@@ -1265,6 +1295,18 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     return ret;
 }
 
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_macfilter_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = Globalreg::new_from_pool<tracker_element_macfilter_map>();
+
+    for (const auto& i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_device_key_map> elem,
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
@@ -1327,6 +1369,9 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
                     in_summarization, rename_map);
         case tracker_type::tracker_mac_map:
             return summarize_tracker_element(std::static_pointer_cast<tracker_element_mac_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_macfilter_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_macfilter_map>(in),
                     in_summarization, rename_map);
         case tracker_type::tracker_key_map:
             return summarize_tracker_element(std::static_pointer_cast<tracker_element_device_key_map>(in),
@@ -1472,6 +1517,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_map:
         case tracker_type::tracker_int_map:
         case tracker_type::tracker_mac_map:
+        case tracker_type::tracker_macfilter_map:
         case tracker_type::tracker_string_map:
         case tracker_type::tracker_double_map:
         case tracker_type::tracker_key_map:
@@ -1530,6 +1576,7 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_map:
         case tracker_type::tracker_int_map:
         case tracker_type::tracker_mac_map:
+        case tracker_type::tracker_macfilter_map:
         case tracker_type::tracker_string_map:
         case tracker_type::tracker_double_map:
         case tracker_type::tracker_key_map:

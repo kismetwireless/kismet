@@ -111,7 +111,7 @@ protected:
 
         // Mac based map filter_sub_mac_id =
         register_field("kismet.classfilter.macaddr.filter_block",
-                tracker_element_factory<tracker_element_mac_map>(),
+                tracker_element_factory<tracker_element_macfilter_map>(),
                 "MAC address filters");
 
 		// Filter value

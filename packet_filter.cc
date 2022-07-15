@@ -196,7 +196,7 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
 	auto tracked_phy_key = filter_phy_blocks->find(in_phy);
 
 	std::shared_ptr<tracker_element_map> tracked_phy_map;
-    std::shared_ptr<tracker_element_mac_map> target_block_map;
+    std::shared_ptr<tracker_element_macfilter_map> target_block_map;
     int target_block_map_id;
 
     if (in_block == "source")
@@ -217,11 +217,11 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
         // Generate all the required blocks
         tracked_phy_map = std::make_shared<tracker_element_map>();
 
-        auto block_source = std::make_shared<tracker_element_mac_map>(filter_source_id);
-        auto block_dest = std::make_shared<tracker_element_mac_map>(filter_dest_id);
-        auto block_network = std::make_shared<tracker_element_mac_map>(filter_network_id);
-        auto block_other = std::make_shared<tracker_element_mac_map>(filter_other_id);
-        auto block_any = std::make_shared<tracker_element_mac_map>(filter_any_id);
+        auto block_source = std::make_shared<tracker_element_macfilter_map>(filter_source_id);
+        auto block_dest = std::make_shared<tracker_element_macfilter_map>(filter_dest_id);
+        auto block_network = std::make_shared<tracker_element_macfilter_map>(filter_network_id);
+        auto block_other = std::make_shared<tracker_element_macfilter_map>(filter_other_id);
+        auto block_any = std::make_shared<tracker_element_macfilter_map>(filter_any_id);
 
         tracked_phy_map->insert(block_source);
         tracked_phy_map->insert(block_dest);
@@ -235,7 +235,7 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
 	}
 
     // Find the target filter block
-    target_block_map = tracked_phy_map->get_sub_as<tracker_element_mac_map>(target_block_map_id);
+    target_block_map = tracked_phy_map->get_sub_as<tracker_element_macfilter_map>(target_block_map_id);
 
     // Find the actual filter
     auto tracked_mac_key = target_block_map->find(in_mac);
@@ -288,7 +288,7 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
 	auto tracked_phy_key = filter_phy_blocks->find(in_phy);
 
 	std::shared_ptr<tracker_element_map> tracked_phy_map;
-    std::shared_ptr<tracker_element_mac_map> target_block_map;
+    std::shared_ptr<tracker_element_macfilter_map> target_block_map;
     int target_block_map_id;
 
     if (in_block == "source") {
@@ -313,7 +313,7 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
 	}
 
     // Find the target filter block
-    target_block_map = tracked_phy_map->get_sub_as<tracker_element_mac_map>(target_block_map_id);
+    target_block_map = tracked_phy_map->get_sub_as<tracker_element_macfilter_map>(target_block_map_id);
 
     // Find the actual filter
 	auto tracked_mac_key = target_block_map->find(in_mac);

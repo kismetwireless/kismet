@@ -45,6 +45,7 @@ entry_tracker::entry_tracker() {
     Globalreg::enable_pool_type<tracker_element_hashkey_map>([](auto *h) { h->reset(); });
     Globalreg::enable_pool_type<tracker_element_double_map>([](auto *d) { d->reset(); });
     Globalreg::enable_pool_type<tracker_element_mac_map>([](auto *m) { m->reset(); });
+    Globalreg::enable_pool_type<tracker_element_macfilter_map>([](auto *m) { m->reset(); });
     Globalreg::enable_pool_type<tracker_element_string_map>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<tracker_element_device_key_map>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<tracker_element_uuid_map>([](auto *a) { a->reset(); });
