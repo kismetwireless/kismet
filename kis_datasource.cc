@@ -1455,10 +1455,14 @@ void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
         datachunk->dlt = report.dlt();
     }
 
-    if (report.has_cap_size())
-        packet->original_len = report.cap_size();
-    else
+    if (report.has_cap_size()) {
+        if (report.cap_size() == 0)
+            packet->original_len = report.data().length();
+        else
+            packet->original_len = report.cap_size();
+    } else {
         packet->original_len = report.data().length();
+    }
 
     packet->set_data(report.data());
     datachunk->set_data(packet->data);
