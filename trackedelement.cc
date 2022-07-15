@@ -159,7 +159,8 @@ void tracker_element_uuid::coercive_set(double in_num) {
 void tracker_element_uuid::coercive_set(const shared_tracker_element& e) {
     switch (e->get_type()) {
         case tracker_type::tracker_uuid:
-            coercive_set(std::static_pointer_cast<tracker_element_uuid>(e)->get().uuid_to_string());
+            // coercive_set(static_pointer_cast<tracker_element_uuid>(e)->get().uuid_to_string());
+            coercive_set(static_cast<tracker_element_uuid *>(e.get())->get().uuid_to_string());
             break;
         default:
             throw std::runtime_error(fmt::format("Could not coerce {} to {}",
@@ -183,7 +184,8 @@ void tracker_element_mac_addr::coercive_set(double in_num) {
 void tracker_element_mac_addr::coercive_set(const shared_tracker_element& e) {
     switch (e->get_type()) {
         case tracker_type::tracker_mac_addr:
-            coercive_set(std::static_pointer_cast<tracker_element_mac_addr>(e)->get().mac_to_string());
+            // coercive_set(std::static_pointer_cast<tracker_element_mac_addr>(e)->get().mac_to_string());
+            coercive_set(static_cast<tracker_element_mac_addr *>(e.get())->get().mac_to_string());
             break;
         default:
             throw std::runtime_error(fmt::format("Could not coerce {} to {}",

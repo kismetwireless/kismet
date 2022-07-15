@@ -131,7 +131,8 @@ shared_tracker_element tracker_component::get_child_path(const std::vector<std::
         } else if (next_elem->get_type() == tracker_type::tracker_map) {
             // Otherwise, find the next element of the path in the object in the chain
             // we're currently inspecting, assuming it's a map
-            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
+            // next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
+            next_elem = static_cast<tracker_element_map *>(next_elem.get())->get_sub(id);
         }
 
         // If we can't find it, bail
