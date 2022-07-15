@@ -1053,7 +1053,9 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             }
         }
 
-        int datasize = chunk->length() - packinfo->header_offset;
+        // Calculate the data size based on the original capture length, but use chunk length for
+        // all other operations since that's the size of the buffer
+        int datasize = in_pack->original_len - packinfo->header_offset;
         if (datasize > 0) {
             packinfo->datasize = datasize;
             common->datasize = datasize;
