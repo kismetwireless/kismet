@@ -342,7 +342,8 @@ std::unique_ptr<tracker_element> tracker_element_factory(const Args& ... args) {
 template<class C>
 constexpr17 C tracker_element_clone_adaptor(C p) {
     using c_t = typename std::remove_pointer<decltype(p.get())>::type;
-    return std::static_pointer_cast<c_t>(std::shared_ptr<tracker_element>(std::move(p->clone_type())));
+    return std::static_pointer_cast<c_t>(std::move(p->clone_type()));
+    // return std::static_pointer_cast<c_t>(std::shared_ptr<tracker_element>(std::move(p->clone_type())));
 }
 
 // Aliased element used to link one element to anothers name, for instance to
