@@ -500,7 +500,7 @@ public:
     // Simple management of last modified time
     __Proxy(mod_time, uint64_t, time_t, time_t, mod_time);
     void update_modtime() {
-        set_mod_time(time(0));
+        set_mod_time(Globalreg::globalreg->last_tv_sec);
     }
 
     __Proxy(packets, uint64_t, uint64_t, uint64_t, packets);

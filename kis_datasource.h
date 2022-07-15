@@ -521,7 +521,7 @@ protected:
         tracked_command(unsigned int in_trans, uint32_t in_seq, kis_datasource *in_src) {
             transaction = in_trans;
             command_seq = in_seq;
-            command_time = time(0);
+            command_time = Globalreg::globalreg->last_tv_sec;
 
             timetracker = 
                 Globalreg::fetch_mandatory_global_as<time_tracker>();

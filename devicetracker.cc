@@ -296,7 +296,7 @@ device_tracker::device_tracker() :
 		max_devices_timer = -1;
 	}
 
-    full_refresh_time = time(0);
+    full_refresh_time = Globalreg::globalreg->last_tv_sec;
 
     track_persource_history =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
@@ -386,7 +386,7 @@ device_tracker::device_tracker() :
                     time_t ts;
 
                     if (tv < 0) {
-                        ts = time(0) + tv;
+                        ts = Globalreg::globalreg->last_tv_sec + tv;
                     } else {
                         ts = tv;
                     }
@@ -725,7 +725,7 @@ device_tracker::device_tracker() :
                                                     }
                                                 }
 
-                                                last_tm = time(0);
+                                                last_tm = Globalreg::globalreg->last_tv_sec;
 
                                                 return 1;
                                             });
@@ -911,7 +911,7 @@ device_tracker::~device_tracker() {
 void device_tracker::macdevice_timer_event() {
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker macdevice_timer_event");
 
-    time_t now = time(0);
+    time_t now = Globalreg::globalreg->last_tv_sec;
 
     // Put the ones we still monitor into a new vector and swap
     // at the end
@@ -1030,7 +1030,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 }
 
 void device_tracker::update_full_refresh() {
-    full_refresh_time = time(0);
+    full_refresh_time = Globalreg::globalreg->last_tv_sec;
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
@@ -1083,7 +1083,7 @@ int device_tracker::common_tracker(std::shared_ptr<kis_packet> in_pack) {
     auto pack_common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     if (!ram_no_rrd)
-        packets_rrd->add_sample(1, time(0));
+        packets_rrd->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
     num_packets++;
 
@@ -1247,7 +1247,7 @@ std::shared_ptr<kis_tracked_device_base>
         device->inc_packets();
 
         if (!ram_no_rrd)
-            device->get_packets_rrd()->add_sample(1, time(0));
+            device->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
         if (pack_common != NULL) {
             if (pack_common->error)
@@ -1259,7 +1259,7 @@ std::shared_ptr<kis_tracked_device_base>
                 device->inc_datasize(pack_common->datasize);
 
                 if (!ram_no_rrd) {
-                    device->get_data_rrd()->add_sample(pack_common->datasize, time(0));
+                    device->get_data_rrd()->add_sample(pack_common->datasize, Globalreg::globalreg->last_tv_sec);
                 }
 
             } else if (pack_common->type == packet_basic_mgmt ||
@@ -1299,8 +1299,8 @@ std::shared_ptr<kis_tracked_device_base>
                 ( device_location_signal_threshold != 0 && pack_l1info != NULL &&
                   pack_l1info->signal_dbm >= device_location_signal_threshold))) {
 
-        if (device->get_location()->get_last_location_time() != time(0)) {
-            device->get_location()->set_last_location_time(time(0));
+        if (device->get_location()->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
+            device->get_location()->set_last_location_time(Globalreg::globalreg->last_tv_sec);
 
             device->get_location()->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
                     pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
@@ -1433,7 +1433,7 @@ void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
         kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
 
-        time_t ts_now = time(0);
+        time_t ts_now = Globalreg::globalreg->last_tv_sec;
         bool purged = false;
 
         // Reset the smart pointer of any devices we're dropping from the device list
@@ -1719,7 +1719,7 @@ void device_tracker::databaselog_write_devices() {
         });
 
     // Remember the time BEFORE we spend time looking at all the devices
-    auto log_time = time(0);
+    uint64_t log_time = Globalreg::globalreg->last_tv_sec;
 
     // Explicitly use the non-ro worker, because we're phasing out the RO version because of too much contention
     do_device_work(worker);

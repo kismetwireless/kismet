@@ -57,7 +57,7 @@ Systemmonitor::Systemmonitor() :
 #endif
 
     struct timeval trigger_tm;
-    trigger_tm.tv_sec = time(0) + 1;
+    trigger_tm.tv_sec = Globalreg::globalreg->last_tv_sec + 1;
     trigger_tm.tv_usec = 0;
 
     timer_id = timetracker->register_timer(0, &trigger_tm, 0, this);
@@ -67,7 +67,7 @@ Systemmonitor::Systemmonitor() :
     // status->insert(devicetracker->get_packets_rrd());
 
     // Set the startup time
-    status->set_timestamp_start_sec(time(0));
+    status->set_timestamp_start_sec(Globalreg::globalreg->last_tv_sec);
 
     // Get the userid
     char *pwbuf;
@@ -292,7 +292,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 
     // Grab the devices
     status->set_devices(num_devices);
-    status->get_devices_rrd()->add_sample(num_devices, time(0));
+    status->get_devices_rrd()->add_sample(num_devices, Globalreg::globalreg->last_tv_sec);
 
 #ifdef SYS_LINUX
     // Grab the memory from /proc
@@ -323,7 +323,7 @@ int Systemmonitor::timetracker_event(int eventid) {
                     m /= 1024;
 
                     status->set_memory(m);
-                    status->get_memory_rrd()->add_sample(m, time(0));
+                    status->get_memory_rrd()->add_sample(m, Globalreg::globalreg->last_tv_sec);
                 }
             }
         }
@@ -421,7 +421,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 
     // Reschedule
     struct timeval trigger_tm;
-    trigger_tm.tv_sec = time(0) + 1;
+    trigger_tm.tv_sec = Globalreg::globalreg->last_tv_sec + 1;
     trigger_tm.tv_usec = 0;
 
     timer_id = 

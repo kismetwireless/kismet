@@ -1392,13 +1392,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 if ((uint64_t) dot11info->bssid_dev->get_last_time() < 
                         in_pack->ts.tv_sec - bss_ts_wobble_s) {
                     if (dot11info->bssid_dot11->last_bss_invalid == 0) {
-                        dot11info->bssid_dot11->last_bss_invalid = time(0);
+                        dot11info->bssid_dot11->last_bss_invalid = Globalreg::globalreg->last_tv_sec;
                         dot11info->bssid_dot11->bss_invalid_count = 1;
-                    } else if (dot11info->bssid_dot11->last_bss_invalid - time(0) > 5) {
-                        dot11info->bssid_dot11->last_bss_invalid = time(0);
+                    } else if (dot11info->bssid_dot11->last_bss_invalid - Globalreg::globalreg->last_tv_sec > 5) {
+                        dot11info->bssid_dot11->last_bss_invalid = Globalreg::globalreg->last_tv_sec;
                         dot11info->bssid_dot11->bss_invalid_count = 1;
                     } else {
-                        dot11info->bssid_dot11->last_bss_invalid = time(0);
+                        dot11info->bssid_dot11->last_bss_invalid = Globalreg::globalreg->last_tv_sec;
                         dot11info->bssid_dot11->bss_invalid_count++;
                     }
 
@@ -1571,7 +1571,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 }
 
                 // if we're w/in time of the last one, update, otherwise clear
-                auto now = time(0);
+                uint64_t now = Globalreg::globalreg->last_tv_sec;
 
                 if (now - dot11info->bssid_dot11->get_client_disconnects_last() > 1)
                     dot11info->bssid_dot11->set_client_disconnects(1);
@@ -1925,7 +1925,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (wps) {
                 // if we're w/in time of the last one, update, otherwise clear
-                auto now = time(0);
+                uint64_t now = Globalreg::globalreg->last_tv_sec;
 
                 if (now - dot11info->source_dot11->get_wps_m3_last() > (60 * 5))
                     dot11info->source_dot11->set_wps_m3_count(1);
@@ -3171,8 +3171,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         auto loc = ssid->get_location();
 
-        if (loc->get_last_location_time() != time(0)) {
-            loc->set_last_location_time(time(0));
+        if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
+            loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
             loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
                     pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
                     pack_gpsinfo->heading);
@@ -3270,8 +3270,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
             auto loc = probessid->get_location();
 
-            if (loc->get_last_location_time() != time(0)) {
-                loc->set_last_location_time(time(0));
+            if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
+                loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
                 loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
                         pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
                         pack_gpsinfo->heading);
@@ -3575,8 +3575,8 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         // Update the GPS info
         if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
             auto loc = client_record->get_location();
-            if (loc->get_last_location_time() != time(0)) {
-                loc->set_last_location_time(time(0));
+            if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
+                loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
                 loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
                         pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
                         pack_gpsinfo->heading);
@@ -4095,7 +4095,7 @@ public:
 
                 ssid = std::static_pointer_cast<dot11_advertised_ssid>(itr->second);
 
-                if (time(0) - ssid->get_last_time() > timeout && device->get_packets() < packets) {
+                if (Globalreg::globalreg->last_tv_sec - ssid->get_last_time() > timeout && device->get_packets() < packets) {
                     if (dot11dev->get_last_adv_ssid() == ssid) {
                         dot11dev->set_last_adv_ssid(NULL);
                         dot11dev->set_last_adv_ie_csum(0);
@@ -4119,7 +4119,7 @@ public:
 
                 ssid = std::static_pointer_cast<dot11_advertised_ssid>(itr->second);
 
-                if (time(0) - ssid->get_last_time() > timeout && device->get_packets() < packets) {
+                if (Globalreg::globalreg->last_tv_sec - ssid->get_last_time() > timeout && device->get_packets() < packets) {
                     if (dot11dev->get_last_adv_ssid() == ssid) {
                         dot11dev->set_last_adv_ssid(NULL);
                         dot11dev->set_last_adv_ie_csum(0);
@@ -4143,7 +4143,7 @@ public:
 
                 pssid = std::static_pointer_cast<dot11_probed_ssid>(itr->second);
 
-                if (time(0) - pssid->get_last_time() > timeout && device->get_packets() < packets) {
+                if (Globalreg::globalreg->last_tv_sec - pssid->get_last_time() > timeout && device->get_packets() < packets) {
                     probe_map->erase(itr);
                     itr = probe_map->begin();
                     devicetracker->update_full_refresh();
@@ -4163,7 +4163,7 @@ public:
 
                 client = std::static_pointer_cast<dot11_client>(mac_itr->second);
 
-                if (time(0) - client->get_last_time() > timeout && device->get_packets() < packets) {
+                if (Globalreg::globalreg->last_tv_sec - client->get_last_time() > timeout && device->get_packets() < packets) {
                     client_map->erase(mac_itr);
                     mac_itr = client_map->begin();
                     devicetracker->update_full_refresh();

@@ -86,7 +86,7 @@ public:
         register_fields();
         reserve_fields(NULL);
 
-        set_stream_time(time(0));
+        set_stream_time(Globalreg::globalreg->last_tv_sec);
     }
 
     streaming_info_record(int in_id) :
@@ -94,7 +94,7 @@ public:
         register_fields();
         reserve_fields(NULL);
 
-        set_stream_time(time(0));
+        set_stream_time(Globalreg::globalreg->last_tv_sec);
     }
 
     streaming_info_record(int in_id, std::shared_ptr<tracker_element_map> e) : 
@@ -102,7 +102,7 @@ public:
         register_fields();
         reserve_fields(e);
 
-        set_stream_time(time(0));
+        set_stream_time(Globalreg::globalreg->last_tv_sec);
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() override {

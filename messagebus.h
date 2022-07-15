@@ -111,7 +111,7 @@ public:
     void set_from_message(std::string in_msg, int in_flags) {
         set_message(in_msg);
         set_flags(in_flags);
-        set_timestamp(time(0));
+        set_timestamp(Globalreg::globalreg->last_tv_sec);
     }
 
     bool operator<(const tracked_message& comp) const {
@@ -202,7 +202,7 @@ public:
         if ((flags & MSGFLAG_INFO) && throttle_info != 0 && n_info_sec > throttle_info)
             return;
 
-        auto tracked_msg = std::make_shared<tracked_message>(msg_proto.get(), msg, flags, time(0));
+        auto tracked_msg = std::make_shared<tracked_message>(msg_proto.get(), msg, flags, Globalreg::globalreg->last_tv_sec);
         auto evt = eventbus->get_eventbus_event(event_message());
         evt->get_event_content()->insert(event_message(), tracked_msg);
         eventbus->publish(evt);

@@ -147,6 +147,9 @@ public:
 	char **argv;
 	char **envp;
 
+    std::atomic<uint64_t> last_tv_sec;
+    std::atomic<uint64_t> last_tv_usec;
+
     std::shared_ptr<tracker_element_uuid> server_uuid;
     std::size_t server_uuid_hash;
 

@@ -79,7 +79,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
                 tracker_element_factory<kis_datasource_interface>(),
                 "automatically discovered available interface");
 
-    last_pong = time(0);
+    last_pong = Globalreg::globalreg->last_tv_sec;
 
     quiet_errors = 0;
 
@@ -309,7 +309,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     set_int_source_running(true);
 
-    last_pong = time(0);
+    last_pong = Globalreg::globalreg->last_tv_sec;
 
     // If we got here we're valid; start a PING timer
     timetracker->remove_timer(ping_timer_id);
@@ -487,7 +487,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     in_buf.consume(in_buf.size());
     out_bufs.clear();
 
-    last_pong = time(0);
+    last_pong = Globalreg::globalreg->last_tv_sec;
 
     timetracker->remove_timer(ping_timer_id);
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
@@ -498,7 +498,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
             return 0;
         }
 
-        if (time(0) - last_pong > 15) {
+        if (Globalreg::globalreg->last_tv_sec - last_pong > 15) {
             ping_timer_id = -1;
             trigger_error("did not get a ping response from the capture");
             return 0;
@@ -1461,7 +1461,7 @@ void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
     packet->set_data(report.data());
     datachunk->set_data(packet->data);
 
-    get_source_packet_size_rrd()->add_sample(report.data().length(), time(0));
+    get_source_packet_size_rrd()->add_sample(report.data().length(), Globalreg::globalreg->last_tv_sec);
 
     packet->insert(pack_comp_linkframe, datachunk);
 }
@@ -1490,7 +1490,7 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
     packet->insert(pack_comp_datasrc, datasrcinfo);
 
     inc_source_num_packets(1);
-    get_source_packet_rrd()->add_sample(1, time(0));
+    get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
     // Inject the packet into the packetchain if we have one
     packetchain->process_packet(packet);

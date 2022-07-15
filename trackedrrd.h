@@ -305,7 +305,7 @@ public:
         tracker_component::pre_serialize();
         M_Aggregator m_agg;
 
-        auto now = time(0);
+        uint64_t now = Globalreg::globalreg->last_tv_sec;
         set_serial_time(now);
 
         // Update the averages
@@ -542,7 +542,7 @@ public:
         tracker_component::pre_serialize();
         Aggregator agg;
 
-        auto now = time(0);
+        uint64_t now = Globalreg::globalreg->last_tv_sec;
 
         set_serial_time(now);
 

@@ -464,7 +464,7 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
             }
         }
 
-        auto now = time(0);
+        uint64_t now = Globalreg::globalreg->last_tv_sec;
 
         if (packet->error)
             packet_error_rrd->add_sample(1, now);
@@ -479,7 +479,7 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
 }
 
 int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
-    auto now = time(0);
+    uint64_t now = Globalreg::globalreg->last_tv_sec;
 
     // Total packet rate always gets added, even when we drop, so we can compare
     packet_rate_rrd->add_sample(1, now);

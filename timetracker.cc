@@ -86,6 +86,9 @@ void time_tracker::time_dispatcher() {
         struct timeval cur_tm;
         gettimeofday(&cur_tm, NULL);
 
+        Globalreg::globalreg->last_tv_sec = cur_tm.tv_sec;
+        Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
+
         // Sort and duplicate the vector to a safe list; we have to re-sort 
         // timers from recurring events
         lock.lock();
