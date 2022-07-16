@@ -240,7 +240,7 @@ public:
     virtual void post_serialize() { }
 
     template<typename CT>
-    static std::shared_ptr<CT> safe_cast_as(std::shared_ptr<tracker_element> e) {
+    static std::shared_ptr<CT> safe_cast_as(const std::shared_ptr<tracker_element>& e) {
         if (e == nullptr)
             throw std::runtime_error(fmt::format("null trackedelement can not be safely cast"));
 
@@ -328,7 +328,7 @@ protected:
 
 std::ostream& operator<<(std::ostream& os, const tracker_element& e);
 std::istream& operator>>(std::istream& is, tracker_element& e);
-std::ostream& operator<<(std::ostream& os, std::shared_ptr<tracker_element> se);
+std::ostream& operator<<(std::ostream& os, std::shared_ptr<tracker_element>& se);
 
 // Basic generator function for making various elements; objects may also prefer pooling allocation
 // to minimize malloc thrash
@@ -361,7 +361,7 @@ public:
         tracker_element(id),
         alias_element(e) { }
 
-    tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element> e) :
+    tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element>& e) :
         tracker_element(),
         alias_element{e},
         alias_name{al} { }
@@ -485,7 +485,7 @@ public:
         return value < rhs.value;
     }
 
-    inline bool operator<(const std::shared_ptr<tracker_element> rhs) const {
+    inline bool operator<(const std::shared_ptr<tracker_element>& rhs) const {
         if (get_type() != rhs->get_type())
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
@@ -498,12 +498,13 @@ public:
         return value < rhs.value;
     }
 
-    inline bool less_than(const std::shared_ptr<tracker_element> rhs) const {
+    inline bool less_than(const std::shared_ptr<tracker_element>& rhs) const {
         if (get_type() != rhs->get_type())
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
-        return value < safe_cast_as<tracker_element_core_scalar<P>>(rhs)->value;
+        // return value < safe_cast_as<tracker_element_core_scalar<P>>(rhs)->value;
+        return value < static_cast<tracker_element_core_scalar<P> *>(rhs.get())->value;
     }
 
 protected:
@@ -1128,12 +1129,13 @@ public:
         return value < rhs.value;
     }
 
-    inline bool less_than(const std::shared_ptr<tracker_element> rhs) const {
+    inline bool less_than(const std::shared_ptr<tracker_element>& rhs) const {
         if (get_type() != rhs->get_type())
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
-        return value < safe_cast_as<tracker_element_core_numeric<N, T, S>>(rhs)->value;
+        // return value < safe_cast_as<tracker_element_core_numeric<N, T, S>>(rhs)->value;
+        return value < static_cast<tracker_element_core_numeric<N, T, S> *>(rhs.get)->value;
     }
 
 protected:
