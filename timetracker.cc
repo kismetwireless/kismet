@@ -35,7 +35,12 @@ time_tracker::time_tracker() {
 
     timer_sort_required = true;
 
-    Globalreg::globalreg->start_time = time(0);
+    struct timeval cur_tm;
+    gettimeofday(&cur_tm, NULL);
+
+    Globalreg::globalreg->start_time = cur_tm.tv_sec;
+    Globalreg::globalreg->last_tv_sec = cur_tm.tv_sec;
+    Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
 
     shutdown = false;
 
