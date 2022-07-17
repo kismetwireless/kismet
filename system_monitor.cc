@@ -56,11 +56,7 @@ Systemmonitor::Systemmonitor() :
     mem_per_page = sysconf(_SC_PAGESIZE);
 #endif
 
-    struct timeval trigger_tm;
-    trigger_tm.tv_sec = Globalreg::globalreg->last_tv_sec + 1;
-    trigger_tm.tv_usec = 0;
-
-    timer_id = timetracker->register_timer(0, &trigger_tm, 0, this);
+    timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 
     // No longer include the link to the devicetracker rrd since it's not protected under our
     // mutex here
@@ -418,14 +414,6 @@ int Systemmonitor::timetracker_event(int eventid) {
     }
 
 #endif
-
-    // Reschedule
-    struct timeval trigger_tm;
-    trigger_tm.tv_sec = Globalreg::globalreg->last_tv_sec + 1;
-    trigger_tm.tv_usec = 0;
-
-    timer_id = 
-        Globalreg::globalreg->timetracker->register_timer(0, &trigger_tm, 0, this);
 
     return 1;
 }
