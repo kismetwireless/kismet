@@ -8580,7 +8580,7 @@ if test "$usedl" = 1; then
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
 fi
 
-# We need libz
+# We always need libz
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for deflate in -lz" >&5
 $as_echo_n "checking for deflate in -lz... " >&6; }
 if ${ac_cv_lib_z_deflate+:} false; then :
@@ -9388,6 +9388,44 @@ else
 
 fi
 
+
+if test "$caponly" == 0; then
+    # Do we need libtbb for parallel threading?
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -ltbb" >&5
+$as_echo_n "checking for main in -ltbb... " >&6; }
+if ${ac_cv_lib_tbb_main+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ltbb  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+return main ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_tbb_main=yes
+else
+  ac_cv_lib_tbb_main=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_tbb_main" >&5
+$as_echo "$ac_cv_lib_tbb_main" >&6; }
+if test "x$ac_cv_lib_tbb_main" = xyes; then :
+  CXXLIBS="$CXXLIBS -ltbb"
+fi
+
+fi
 
 # Dont' check pcre if we're only building datasources
 if test "$caponly" == 0; then

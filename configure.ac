@@ -598,7 +598,7 @@ if test "$usedl" = 1; then
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
 fi
 
-# We need libz
+# We always need libz
 AC_CHECK_LIB([z], [deflate],
              usez=1,
              AC_MSG_ERROR([libz is required and could not be found]))
@@ -923,6 +923,11 @@ AC_ARG_ENABLE(pcre,
 	 esac],
 	[wantpcre=yes]
 )
+
+if test "$caponly" == 0; then
+    # Do we need libtbb for parallel threading?
+    AC_CHECK_LIB([tbb], [main], CXXLIBS="$CXXLIBS -ltbb")
+fi
 
 # Dont' check pcre if we're only building datasources
 if test "$caponly" == 0; then
