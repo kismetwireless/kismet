@@ -7,8 +7,8 @@ if (typeof(KISMET_URI_PREFIX) !== 'undefined')
 
 /* Highlight ADSB devices */
 kismet_ui.AddDeviceRowHighlight({
-    name: "ADSB Devices",
-    description: "ADSB Sensor",
+    name: "ADSB Government",
+    description: "Government &amp; related ADSB-tagged vehicles",
     priority: 50,
     //defaultcolor: "#efe0c3",
     defaultcolor: "#ffb3b3",
@@ -32,61 +32,26 @@ kismet_ui.AddDeviceRowHighlight({
             'navy',
             'patrol',
             'sqdn',
-	    'city of',
+            'city of',
+            'sheriff',
         ];
 
-	var exclude_list = [
-	    'express',
-	    'air freight',
-	]
+        var exclude_list = [
+            'express',
+            'air freight',
+        ]
 
-	var icao_list = [
-	    'acf181',
-	    'a980fa',
-	    'a7fb8f',
-	    'ae4bd7',
-	    'a47604',
-            'a03bc8',
-            'a0b8d6',
-            'a0d9f2',
-            'a12d51',
-            'a15f1d',
-            'a169d7',
-            'a16c6d',
-            'a193c1',
-            'a32524',
-            'a328db',
-            'a32c92',
-            'a33049',
-            'a33dc3',
-            'a3c1be',
-            'a3c92c',
-            'a3e6e3',
-            'a3e6e4',
-            'a410bc',
-            'a4182a',
-            'a44360',
-            'a4724d',
-            'a483df',
-            'a4bc36',
-            'a4bfed',
-            'a51a10',
-            'a51dc7',
-            'a54b56',
-            'a54f0d',
-            'a552c4',
-            'a5ed09',
-            'a5f9f7',
-            'a64217',
-            'a645ce',
-            'a64985',
-            'a64d3c',
-            'a654aa',
-            'aac551',
-            'abaf9c',
-            'ac742b',
-            'ac7b99',
-	    ];
+        var icao_list = [
+            'acf181', 'a980fa', 'a7fb8f', 'ae4bd7', 'a47604',
+            'a03bc8', 'a0b8d6', 'a0d9f2', 'a12d51', 'a15f1d',
+            'a169d7', 'a16c6d', 'a193c1', 'a32524', 'a328db',
+            'a32c92', 'a33049', 'a33dc3', 'a3c1be', 'a3c92c',
+            'a3e6e3', 'a3e6e4', 'a410bc', 'a4182a', 'a44360',
+            'a4724d', 'a483df', 'a4bc36', 'a4bfed', 'a51a10',
+            'a51dc7', 'a54b56', 'a54f0d', 'a552c4', 'a5ed09',
+            'a5f9f7', 'a64217', 'a645ce', 'a64985', 'a64d3c',
+            'a654aa', 'aac551', 'abaf9c', 'ac742b', 'ac7b99',
+        ];
 
         if (data['kismet.device.base.phyname'] === 'ADSB') {
             for (var re of aircraft_info) {
