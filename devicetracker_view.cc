@@ -18,7 +18,7 @@
 
 #include "config.h"
 
-#ifdef HAVE_CXX17
+#ifdef HAVE_CPP17_PARALLEL
 #include <execution>
 #endif
 
@@ -750,7 +750,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
     if (in_order_column_num.length() && order_field.size() > 0) {
         std::stable_sort(
-#if defined(HAVE_CXX17) && !defined(__APPLE__)
+#if defined(HAVE_CPP17_PARALLEL)
             std::execution::par_unseq,
 #endif
             next_work_vec->begin(), next_work_vec->end(),

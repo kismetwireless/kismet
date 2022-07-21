@@ -28,7 +28,7 @@
 
 #include "kismet_algorithm.h"
 
-#ifdef HAVE_CXX17
+#ifdef HAVE_CPP17_PARALLEL
 #include <execution>
 #endif
 
@@ -1490,7 +1490,7 @@ void device_tracker::timetracker_event(int eventid) {
         // zeroing out the immutable vec records
         tracker_element_vector sorted_vec(immutable_tracked_vec);
 
-#if defined(HAVE_CXX17) && !defined(__APPLE__)
+#if defined(HAVE_CPP17_PARALLEL)
         std::stable_sort(std::execution::par_unseq, sorted_vec.begin(), sorted_vec.end(), devicetracker_sort_lastseen);
 #else
         std::stable_sort(sorted_vec.begin(), sorted_vec.end(), devicetracker_sort_lastseen);

@@ -925,8 +925,55 @@ AC_ARG_ENABLE(pcre,
 )
 
 if test "$caponly" == 0; then
+    if test "$HAVE_CXX17" = "1"; then
+	    AC_MSG_CHECKING([Checking C++17 parallel functions])
+
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                #include <execution>
+                #include <vector>
+	    		]], [[
+                std::vector<int> x{1, 2};
+                std::stable_sort(std::execution::par_unseq, x.begin(), x.end(), [&](int, int) -> bool { return false; });
+	    		return 0;
+	    		]])],
+                [
+                 AC_MSG_RESULT([ok])
+                 USE_CPP17_PARALLEL=1
+                 AC_DEFINE(HAVE_CPP17_PARALLEL, 1, CPP17 parallel functions work)
+                ],[
+                 AC_MSG_RESULT([fail])
+                 AC_MSG_WARN([Could not use basic C++17 parallel functions])
+                 USE_CPP17_PARALLEL=0
+                ])
+
+        if test "$USE_CPP17_PARALLEL" = "0"; then
+            OCXLIBS="$CXXLIBS"
+            CXXLIBS="$CXXLIBS -ltbb"
+
+	        AC_MSG_CHECKING([Checking C++17 parallel functions with libtbb])
+	        AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                    #include <execution>
+                    #include <vector>
+	        		]], [[
+                    std::vector<int> x{1, 2};
+                    std::stable_sort(std::execution::par_unseq, x.begin(), x.end(), [&](int, int) -> bool { return false; });
+	        		return 0;
+	        		]])],
+                    [
+                     AC_MSG_RESULT([ok])
+                     USE_CPP17_PARALLEL=1
+                     AC_DEFINE(HAVE_CPP17_PARALLEL, 1, CPP17 parallel functions work)
+                    ],[
+                     AC_MSG_RESULT([fail])
+                     AC_MSG_WARN([Could not use basic C++17 parallel functions with -ltbb])
+                     USE_CPP17_PARALLEL=0
+                     CXXLIBS = "$OCXLIBS"
+                    ])
+        fi
+    fi
+
     # Do we need libtbb for parallel threading?
-    AC_CHECK_LIB([tbb], [main], CXXLIBS="$CXXLIBS -ltbb")
+    # AC_CHECK_LIB([tbb], [main], CXXLIBS="$CXXLIBS -ltbb")
 fi
 
 # Dont' check pcre if we're only building datasources
