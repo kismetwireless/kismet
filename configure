@@ -9479,6 +9479,53 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
         fi
+
+        if test "$USE_CPP17_PARALLEL" = "0"; then
+            OCXLIBS="$CXXLIBS"
+            CXXLIBS="$CXXLIBS -ltbb2"
+
+	        { $as_echo "$as_me:${as_lineno-$LINENO}: checking Checking C++17 parallel functions with libtbb2" >&5
+$as_echo_n "checking Checking C++17 parallel functions with libtbb2... " >&6; }
+	        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+                    #include <execution>
+                    #include <vector>
+
+int
+main ()
+{
+
+                    std::vector<int> x{1, 2};
+                    std::stable_sort(std::execution::par_unseq, x.begin(), x.end(), [&](int, int) -> bool { return false; });
+	        		return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+
+                     { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
+$as_echo "ok" >&6; }
+                     USE_CPP17_PARALLEL=1
+
+$as_echo "#define HAVE_CPP17_PARALLEL 1" >>confdefs.h
+
+
+else
+
+                     { $as_echo "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+$as_echo "fail" >&6; }
+                     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Could not use basic C++17 parallel functions with -ltbb2" >&5
+$as_echo "$as_me: WARNING: Could not use basic C++17 parallel functions with -ltbb2" >&2;}
+                     USE_CPP17_PARALLEL=0
+                     CXXLIBS="$OCXLIBS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+        fi
     fi
 
     # Do we need libtbb for parallel threading?
