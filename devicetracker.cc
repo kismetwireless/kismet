@@ -296,7 +296,7 @@ device_tracker::device_tracker() :
 		max_devices_timer = -1;
 	}
 
-    full_refresh_time = Globalreg::globalreg->last_tv_sec;
+    full_refresh_time = (time_t) Globalreg::globalreg->last_tv_sec;
 
     track_persource_history =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
@@ -386,7 +386,7 @@ device_tracker::device_tracker() :
                     time_t ts;
 
                     if (tv < 0) {
-                        ts = Globalreg::globalreg->last_tv_sec + tv;
+                        ts = (time_t) Globalreg::globalreg->last_tv_sec + tv;
                     } else {
                         ts = tv;
                     }
@@ -725,7 +725,7 @@ device_tracker::device_tracker() :
                                                     }
                                                 }
 
-                                                last_tm = Globalreg::globalreg->last_tv_sec;
+                                                last_tm = (time_t) Globalreg::globalreg->last_tv_sec;
 
                                                 return 1;
                                             });
@@ -1030,7 +1030,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 }
 
 void device_tracker::update_full_refresh() {
-    full_refresh_time = Globalreg::globalreg->last_tv_sec;
+    full_refresh_time = (time_t) Globalreg::globalreg->last_tv_sec;
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
@@ -1299,10 +1299,12 @@ std::shared_ptr<kis_tracked_device_base>
                 ( device_location_signal_threshold != 0 && pack_l1info != NULL &&
                   pack_l1info->signal_dbm >= device_location_signal_threshold))) {
 
-        if (device->get_location()->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
-            device->get_location()->set_last_location_time(Globalreg::globalreg->last_tv_sec);
+        auto devloc = device->get_location();
 
-            device->get_location()->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
+        if ((devloc->get_last_location_time() != Globalreg::globalreg->last_tv_sec)) {
+            devloc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
+
+            devloc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
                     pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
                     pack_gpsinfo->heading);
 
@@ -1330,9 +1332,9 @@ std::shared_ptr<kis_tracked_device_base>
                 device->get_location_cloud()->add_sample(histloc);
             }
         } else {
-            device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            devloc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                            pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                            pack_gpsinfo->heading);
         }
 
     }
