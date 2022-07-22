@@ -9473,7 +9473,7 @@ $as_echo "fail" >&6; }
                      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Could not use basic C++17 parallel functions with -ltbb" >&5
 $as_echo "$as_me: WARNING: Could not use basic C++17 parallel functions with -ltbb" >&2;}
                      USE_CPP17_PARALLEL=0
-                     CXXLIBS = "$OCXLIBS"
+                     CXXLIBS="$OCXLIBS"
 
 fi
 rm -f core conftest.err conftest.$ac_objext \

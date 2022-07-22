@@ -967,7 +967,7 @@ if test "$caponly" == 0; then
                      AC_MSG_RESULT([fail])
                      AC_MSG_WARN([Could not use basic C++17 parallel functions with -ltbb])
                      USE_CPP17_PARALLEL=0
-                     CXXLIBS = "$OCXLIBS"
+                     CXXLIBS="$OCXLIBS"
                     ])
         fi
     fi
