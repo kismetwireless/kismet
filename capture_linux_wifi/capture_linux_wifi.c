@@ -1686,7 +1686,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
 
-        if (local_wifi->wardrive_filter || local->data_filter) {
+        if (local_wifi->wardrive_filter || local_wifi->data_filter) {
             snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt' or 'truncate_data' and 'filter_locals' or 'filter_interface' "
                      "please pick just one option.");
             return -1;
