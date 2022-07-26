@@ -377,8 +377,9 @@ typedef struct {
     int use_ht_channels;
     int use_vht_channels;
 
-    /* Do we filter traffic to mgmt+eapol? */
+    /* Do we filter traffic? */
     bool wardrive_filter;
+    bool data_filter;
 
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
@@ -1639,7 +1640,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    /* Do we ignore any other interfaces on this device? */
+    /* Do we filter packets for wardrive mode to mgmt only? */
     if ((placeholder_len = 
                 cf_find_flag(&placeholder, "filter_mgmt", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
@@ -1648,6 +1649,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local_wifi->wardrive_filter = true;
         }
     }
+
+    /* Do we truncate all data? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "truncate_data", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->data_filter = false;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->data_filter = true;
+        }
+    }
+    
 
     /* Do we ignore any other interfaces on this device? */
     if ((placeholder_len = 
@@ -1659,8 +1671,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    if (filter_locals && local_wifi->wardrive_filter) {
-        snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt' and 'filter_locals' or 'filter_interface' "
+    if (filter_locals && (local_wifi->wardrive_filter || local_wifi->data_filter)) {
+        snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt', 'truncate_data', and "
+                 "'filter_locals' or 'filter_interface' "
                  "please pick just one option.");
         return -1;
     }
@@ -1673,8 +1686,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
 
-        if (local_wifi->wardrive_filter) {
-            snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt' and 'filter_locals' or 'filter_interface' "
+        if (local_wifi->wardrive_filter || local->data_filter) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_mgmt' or 'truncate_data' and 'filter_locals' or 'filter_interface' "
                      "please pick just one option.");
             return -1;
         }
@@ -2637,7 +2650,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                      pcap_datalink_val_to_name(pcap_datalink(local_wifi->pd)));
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
         }
-
+    } else if (local_wifi->data_filter) {
+        if (pcap_datalink(local_wifi->pd) == DLT_IEEE802_11_RADIO) {
+            bpf.bf_len = rt_pgm_crop_data_len;
+            bpf.bf_insns = rt_pgm_crop_data;
+            if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to install data packet filter: %s",
+                         local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            }
+        } else {
+            snprintf(errstr, STATUS_MAX, "%s unable to install data filter on non-rtap link type %u/%s",
+                     local_wifi->name, pcap_datalink(local_wifi->pd), 
+                     pcap_datalink_val_to_name(pcap_datalink(local_wifi->pd)));
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        }
     } else if (filter_locals) {
         if ((ret = build_first_localdev_filter(&ignore_filter)) > 0) {
             if (ret > 8) {
@@ -2971,6 +2998,8 @@ int main(int argc, char *argv[]) {
         .up_before_mode = false,
         .use_ht_channels = 1,
         .use_vht_channels = 1,
+        .wardrive_filter = 0,
+        .data_filter = 0,
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
         .nexmon = NULL,
