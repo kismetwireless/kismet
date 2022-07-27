@@ -72,11 +72,6 @@ time_tracker::~time_tracker() {
 
     Globalreg::globalreg->remove_global("TIMETRACKER");
     Globalreg::globalreg->timetracker = NULL;
-
-    // Free the events
-    for (std::map<int, timer_event *>::iterator x = timer_map.begin();
-         x != timer_map.end(); ++x)
-        delete x->second;
 }
 
 void time_tracker::time_dispatcher() {
@@ -104,7 +99,7 @@ void time_tracker::time_dispatcher() {
         timer_sort_required = false;
 
         // Sort the timers
-        auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
+        auto action_timers = std::vector<std::shared_ptr<timer_event>>(sorted_timers.begin(), sorted_timers.end());
         lock.unlock();
 
         for (auto evt : action_timers) {
@@ -125,7 +120,7 @@ void time_tracker::time_dispatcher() {
                 // Call the function with the given parameters
                 int ret = 0;
                 if (evt->callback != NULL) {
-                    ret = (*evt->callback)(evt, evt->callback_parm, Globalreg::globalreg);
+                    ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
                 } else if (evt->event != NULL) {
                     ret = evt->event->timetracker_event(evt->timer_id);
                 } else if (evt->event_func != NULL) {
@@ -174,7 +169,6 @@ void time_tracker::time_dispatcher() {
                         }
                     }
 
-                    delete itr->second;
                     timer_map.erase(itr);
                 }
             }
@@ -200,7 +194,10 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
                                void *in_parm) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
-    timer_event *evt = new timer_event;
+    auto evt = std::make_shared<timer_event>();
+
+    evt->total_ms = 0;
+    evt->last_ms = 0;
 
     evt->timer_id = next_timer_id++;
     gettimeofday(&(evt->schedule_tm), NULL);
@@ -233,7 +230,10 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, time_tracker_event *in_event) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
-    timer_event *evt = new timer_event;
+    auto evt = std::make_shared<timer_event>();
+
+    evt->total_ms = 0;
+    evt->last_ms = 0;
 
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
@@ -277,7 +277,10 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, std::function<int (int)> in_event) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
-    timer_event *evt = new timer_event;
+    auto evt = std::make_shared<timer_event>();
+
+    evt->total_ms = 0;
+    evt->last_ms = 0;
 
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
@@ -324,7 +327,10 @@ int time_tracker::register_timer(const slice& in_timeslices,
                                void *in_parm) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
-    timer_event *evt = new timer_event;
+    auto evt = std::make_shared<timer_event>();
+
+    evt->total_ms = 0;
+    evt->last_ms = 0;
 
     evt->timer_id = next_timer_id++;
     gettimeofday(&(evt->schedule_tm), NULL);
@@ -356,7 +362,10 @@ int time_tracker::register_timer(const slice& in_timeslices,
         int in_recurring, std::function<int (int)> in_event) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
-    timer_event *evt = new timer_event;
+    auto evt = std::make_shared<timer_event>();
+
+    evt->total_ms = 0;
+    evt->last_ms = 0;
 
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
