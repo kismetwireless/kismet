@@ -1019,6 +1019,9 @@ int main(int argc, char *argv[], char *envp[]) {
     // Start the main timer thread
     timetracker->spawn_timetracker_thread();
 
+    // Start the packetchain
+    packetchain->start_processing();
+
     // Initiate the IO threads
     std::vector<std::thread> iov;
     iov.reserve(Globalreg::globalreg->n_io_threads);
@@ -1029,9 +1032,6 @@ int main(int argc, char *argv[], char *envp[]) {
                 });
     }
 
-
-    // Start the packetchain
-    packetchain->start_processing();
 
     while (true) {
         if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
