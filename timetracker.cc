@@ -127,10 +127,12 @@ void time_tracker::time_dispatcher() {
                     ret = evt->event_func(evt->timer_id);
                 }
 
-                struct timeval cur_tm;
-                gettimeofday(&cur_tm, NULL);
-
                 if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
+                    kis_lock_guard<kis_mutex> tl(time_mutex, "event rescheduler");
+
+                    struct timeval cur_tm;
+                    gettimeofday(&cur_tm, NULL);
+
                     evt->schedule_tm.tv_sec = cur_tm.tv_sec;
                     evt->schedule_tm.tv_usec = cur_tm.tv_usec;
                     evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
