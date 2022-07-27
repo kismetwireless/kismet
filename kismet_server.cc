@@ -593,18 +593,8 @@ int main(int argc, char *argv[], char *envp[]) {
                 tracker_element_factory<tracker_element_uuid>(),
                 "unique server UUID");
 
-    // Make the IO threads early
+    // Allocate the IO service
     boost::asio::io_service::work work(Globalreg::globalreg->io);
-
-
-    std::vector<std::thread> iov;
-    iov.reserve(Globalreg::globalreg->n_io_threads);
-    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([i] () {
-                thread_set_process_name(fmt::format("IO {}", i));
-                Globalreg::globalreg->io.run();
-                });
-    }
 
     // Make the timetracker
     auto timetracker = time_tracker::create_timetracker();
@@ -1026,8 +1016,19 @@ int main(int argc, char *argv[], char *envp[]) {
     // Throttle info messages after startup
     messagebus->set_info_throttle(25);
 
-    // Independent time and select threads, which has had problems with timing conflicts
+    // Start the main timer thread
     timetracker->spawn_timetracker_thread();
+
+    // Initiate the IO threads
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([i] () {
+                thread_set_process_name(fmt::format("IO {}", i));
+                Globalreg::globalreg->io.run();
+                });
+    }
+
 
     // Start the packetchain
     packetchain->start_processing();
