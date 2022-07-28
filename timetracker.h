@@ -50,6 +50,13 @@ public:
     struct timer_event {
         int timer_id;
 
+        // Event name
+        std::string name;
+
+        // Time running in ms
+        double total_ms;
+        double last_ms;
+
         // Is the timer cancelled?
         std::atomic<bool> timer_cancelled;
 
@@ -77,8 +84,8 @@ public:
     // Sort alerts by alert trigger time
     class sort_timer_events_trigger {
     public:
-        inline bool operator() (const time_tracker::timer_event *x, 
-								const time_tracker::timer_event *y) const {
+        inline bool operator() (std::shared_ptr<time_tracker::timer_event> x, 
+								std::shared_ptr<time_tracker::timer_event> y) const {
             if ((x->trigger_tm.tv_sec < y->trigger_tm.tv_sec) ||
                 ((x->trigger_tm.tv_sec == y->trigger_tm.tv_sec) && 
 				 (x->trigger_tm.tv_usec < y->trigger_tm.tv_usec)))
@@ -140,8 +147,8 @@ protected:
     // Next timer ID to be assigned
     std::atomic<int> next_timer_id;
 
-    std::map<int, timer_event *> timer_map;
-    std::vector<timer_event *> sorted_timers;
+    std::map<int, std::shared_ptr<timer_event>> timer_map;
+    std::vector<std::shared_ptr<timer_event>> sorted_timers;
 
     kis_mutex removed_id_mutex;
     std::vector<int> removed_timer_ids;

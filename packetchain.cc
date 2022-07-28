@@ -479,7 +479,10 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
 }
 
 int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
-    uint64_t now = Globalreg::globalreg->last_tv_sec;
+    if (in_pack == nullptr)
+        return 1;
+
+    time_t now = (time_t) Globalreg::globalreg->last_tv_sec;
 
     // Total packet rate always gets added, even when we drop, so we can compare
     packet_rate_rrd->add_sample(1, now);

@@ -79,7 +79,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
                 tracker_element_factory<kis_datasource_interface>(),
                 "automatically discovered available interface");
 
-    last_pong = Globalreg::globalreg->last_tv_sec;
+    last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
     quiet_errors = 0;
 
@@ -309,7 +309,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     set_int_source_running(true);
 
-    last_pong = Globalreg::globalreg->last_tv_sec;
+    last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
     // If we got here we're valid; start a PING timer
     timetracker->remove_timer(ping_timer_id);
@@ -487,7 +487,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     in_buf.consume(in_buf.size());
     out_bufs.clear();
 
-    last_pong = Globalreg::globalreg->last_tv_sec;
+    last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
     timetracker->remove_timer(ping_timer_id);
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {

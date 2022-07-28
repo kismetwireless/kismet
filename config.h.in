@@ -54,6 +54,9 @@
 /* kernel capability support */
 #undef HAVE_CAPABILITY
 
+/* CPP17 parallel functions work */
+#undef HAVE_CPP17_PARALLEL
+
 /* cpp11 available */
 #undef HAVE_CXX11
 

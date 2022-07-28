@@ -235,6 +235,9 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (commoninfo == nullptr || gps == nullptr || devs == nullptr)
         return 1;
 
+    if (gps->lat == 0 || gps->lon == 0)
+        return 1;
+
     int signal = 0;
 
     if (l1info != nullptr) {
