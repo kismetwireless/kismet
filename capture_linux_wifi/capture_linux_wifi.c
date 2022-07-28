@@ -422,7 +422,9 @@ typedef struct {
  * XXVHT80-YY   Channel/frequency XX, VHT 80MHz channel, upper pair specified
  * XXVHT160-YY  Channel/frequency XX, VHT 160MHz channel, upper pair specified
  *
- * 5, 10, HT, and VHT channels require mac80211 drivers; the old wireless IOCTLs do
+ * XX-6e 	Channel XX, WiFi 6e 6GHz band
+ *
+ * 5, 10, HT and VHT, and 6e channels require mac80211 drivers; the old wireless IOCTLs do
  * not support the needed attributes.
  */
 
@@ -561,7 +563,12 @@ unsigned int wifi_freq_to_chan(unsigned int in_freq) {
     if (in_freq < 2484)
         return (in_freq - 2407) / 5;
 
-    return in_freq / 5 - 1000;
+    /* handle up to 6e channels linearly */
+    if (in_freq < 5955)
+	    return in_freq / 5 - 1000;
+
+    /* handle 6ghz channels resetting to channel 1 */
+    return (in_freq / 5 - 1000) - 190;
 }
 
 /* Find an interface, based on mode, that shares a parent with the provided
@@ -647,6 +654,23 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     int r;
     unsigned int ci;
     char errstr[STATUS_MAX];
+
+    /* Match 6e channels */
+    if (strcasestr(chanstr, "6e") != NULL) {
+        r = sscanf(chanstr, "%u-6e", &parsechan);
+
+        if (r == 1) {
+            ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+            memset(ret_localchan, 0, sizeof(local_channel_t));
+
+            /* 6e channels are shifted up by 190 channels to match the normal frequency code */
+            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan + 190);
+
+            fprintf(stderr, "debug - localchan parse %s to %u\n", chanstr, ret_localchan->control_freq);
+
+            return ret_localchan;
+        }
+    }
 
     /* Match HT20 */
     if (strcasestr(chanstr, "HT20") != NULL) {
