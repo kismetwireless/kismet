@@ -139,6 +139,8 @@ public:
 protected:
     kis_mutex time_mutex;
 
+    std::vector<std::thread> time_workers;
+
     void time_dispatcher(void);
 
     // Do we have to re-sort the list of timers?
