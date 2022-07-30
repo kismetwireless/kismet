@@ -593,6 +593,9 @@ protected:
     // Do we track non-AP devices?
     bool filter_survey_only;
 
+    // Do we process 11d country vectors?
+    bool process_11d_country_list;
+
     // IE fingerprinting lists
     std::vector<ie_tag_tuple> beacon_ie_fingerprint_list;
     std::vector<ie_tag_tuple> probe_ie_fingerprint_list;

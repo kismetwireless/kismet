@@ -1586,16 +1586,19 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
                 packinfo->dot11d_country = munge_to_printable(dot11d.country_code());
 
-                for (auto c : *(dot11d.country_list())) {
-                    dot11_packinfo_dot11d_entry ri;
+                if (process_11d_country_list) {
+                    dot11d.parse_channels();
 
-                    ri.startchan = c->first_channel();
-                    ri.numchan = c->num_channels();
-                    ri.txpower = c->max_power();
+                    for (auto c : *(dot11d.country_list())) {
+                        dot11_packinfo_dot11d_entry ri;
 
-                    packinfo->dot11d_vec.push_back(ri);
+                        ri.startchan = c->first_channel();
+                        ri.numchan = c->num_channels();
+                        ri.txpower = c->max_power();
+
+                        packinfo->dot11d_vec.push_back(ri);
+                    }
                 }
-
             } catch (const std::exception& e) {
                 // Corrupt dot11 isn't a fatal condition
                 // fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
