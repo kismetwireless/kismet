@@ -127,7 +127,15 @@ void time_tracker::time_dispatcher() {
             // Find a usable worker slot; this is a fast-burn while loop for now
             // to see how it performs, if we need to add a sleep we will
             bool launched = false;
+            time_t started_looking = time(0);
             while (!launched) {
+                // Catch an unwinnable situation for timers; 5 seconds is actually excessively long for
+                // timers that could be executing at 10Hz.
+                if (started_looking - time(0) > 5) {
+                    throw std::runtime_error("Couldn't find a slot in the timer handlers in 5 seconds; something "
+                                             "has gone wrong, most likely thread deadlocks.");
+                }
+
                 for (unsigned int t = 0; t < time_workers.size(); t++) {
                     // Found a worker slot
                     if (time_workers[t].joinable()) {
