@@ -359,7 +359,8 @@ public:
         reserve_fields(e);
     }
 
-    dot11_tracked_ietag(const dot11_tracked_ietag *p) {
+    dot11_tracked_ietag(const dot11_tracked_ietag *p) :
+        tracker_component{p} {
         __ImportField(unique_tag_id, p);
         __ImportField(tag_number, p);
         __ImportField(tag_oui, p);
@@ -427,6 +428,7 @@ public:
             __ImportField(bssid, p);
             __ImportField(first_time, p);
             __ImportField(last_time, p);
+
             __ImportId(dot11r_mobility_id, p);
             __ImportId(dot11r_mobility_domain_id_id, p);
 
@@ -439,21 +441,13 @@ public:
             __ImportId(ie_tag_list_id, p);
 
             __ImportId(wps_version_id, p);
-
             __ImportId(wps_state_id, p);
-
             __ImportId(wps_config_methods_id, p);
-
             __ImportId(wps_manuf_id, p);
-
             __ImportId(wps_device_name_id, p);
-
             __ImportId(wps_model_name_id, p);
-
             __ImportId(wps_model_number_id, p);
-
             __ImportId(wps_serial_number_id, p);
-
             __ImportId(wps_uuid_e_id, p);
 
             reserve_fields(nullptr);
@@ -559,11 +553,11 @@ public:
         tracker_component{p} {
             __ImportField(ssid, p);
             __ImportField(ssid_len, p);
+
             __ImportField(ssid_hash, p);
 
             __ImportId(owe_ssid_id, p);
             __ImportId(owe_ssid_len_id, p);
-
             __ImportId(owe_bssid_id, p);
 
             __ImportField(ssid_beacon, p);
@@ -583,12 +577,12 @@ public:
             __ImportField(crypt_set, p);
             __ImportField(wpa_mfp_required, p);
             __ImportField(wpa_mfp_supported, p);
+            __ImportField(maxrate, p);
             __ImportField(beaconrate, p);
             __ImportField(beacons_sec, p);
             __ImportField(ietag_checksum, p);
 
             __ImportId(dot11d_country_id, p);
-
             __ImportId(dot11d_vec_id, p);
             __ImportId(dot11d_country_entry_id, p);
 
@@ -620,6 +614,7 @@ public:
             __ImportId(ie_tag_content_element_id, p);
 
 
+            __ImportId(meshid_id, p);
             __ImportId(mesh_gateway_id, p);
             __ImportId(mesh_peerings_id, p);
             __ImportId(mesh_forwarding_id, p);
@@ -869,6 +864,7 @@ public:
             __ImportField(rx_cryptset, p);
 
             __ImportId(eap_identity_id, p);
+
             __ImportId(cdp_device_id, p);
             __ImportId(cdp_port_id, p);
 
@@ -1117,15 +1113,14 @@ public:
             __ImportId(wpa_key_map_id, p);
             __ImportId(wpa_key_entry_id, p);
             __ImportId(wpa_nonce_vec_id, p);
-            __ImportId(wpa_nonce_entry_id, p);
             __ImportId(wpa_anonce_vec_id, p);
+            __ImportId(wpa_nonce_entry_id, p);
 
             __ImportId(ssid_beacon_packet_id, p);
             __ImportId(pmkid_packet_id, p);
 
             __ImportField(min_tx_power, p);
             __ImportField(max_tx_power, p);
-
 
             __ImportId(supported_channels_id, p);
 
