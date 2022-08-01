@@ -658,7 +658,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
     /* Match 6e channels */
     if (strcasestr(chanstr, "6e") != NULL) {
-        r = sscanf(chanstr, "%u-6e", &parsechan);
+        r = sscanf(chanstr, "%u-W6e", &parsechan);
 
         if (r == 1) {
             ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
@@ -667,7 +667,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
             /* 6e channels are shifted up by 190 channels to match the normal frequency code */
             (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan + 190);
 
-            fprintf(stderr, "debug - localchan parse %s to %u\n", chanstr, ret_localchan->control_freq);
+            // fprintf(stderr, "debug - localchan parse %s to %u\n", chanstr, ret_localchan->control_freq);
 
             return ret_localchan;
         }

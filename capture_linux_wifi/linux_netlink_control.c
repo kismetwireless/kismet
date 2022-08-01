@@ -116,7 +116,12 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
     if (in_freq < 2484)
         return (in_freq - 2407) / 5;
 
-    return in_freq / 5 - 1000;
+    /* handle up to 6e channels linearly */
+    if (in_freq < 5955)
+	return in_freq / 5 - 1000;
+
+    /* handle 6ghz channels resetting to channel 1 */
+    return (in_freq / 5 - 1000) - 190;
 }
 
 int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr) {
@@ -809,7 +814,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
         /* fprintf(stderr, "DEBUG - processing bands\n"); */
 
         nla_for_each_nested(nl_band, tb_msg[NL80211_ATTR_WIPHY_BANDS], rem_band) {
-            /* fprintf(stderr, "DEBUG - band %u\n", nl_band->nla_type + 1); */
+            /*fprintf(stderr, "DEBUG - band %u\n", nl_band->nla_type + 1);*/
 
             nla_parse(tb_band, NL80211_BAND_ATTR_MAX, nla_data(nl_band),
                     nla_len(nl_band), NULL);
@@ -855,7 +860,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
             }
 
             if (tb_band[NL80211_BAND_ATTR_FREQS]) {
-                /* fprintf(stderr, "DEBUG - freqs\n"); */
+                /*fprintf(stderr, "DEBUG - freqs\n");*/
 
                 nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
                     nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, nla_data(nl_freq),
@@ -869,21 +874,26 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     /* We've got at least one actual frequency */
                     freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
 
-                    /* fprintf(stderr, "DEBUG - freq %u\n", freq); */
+                    /* fprintf(stderr, "DEBUG - freq %u\n", freq);  */
 
+#if 0
                     if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED]) {
-                        /* fprintf(stderr, "DEBUG - freq disabled\n"); */
+                        /* fprintf(stderr, "DEBUG - freq %u disabled\n", freq);  */
                         continue;
                     }
+#endif
 
                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
 
                     /* Default to HT20 if we support HT and are always using it, otherwise default to 
                      * basic channels */
-                    if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20)
+		    if (freq >= 5955) {
+                        snprintf(channel_str, 32, "%u-W6e", mac80211_freq_to_chan(freq));
+		    } else if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20) {
                         snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
-                    else
+		    } else {
                         snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
+		    }
 
                     chan_list_new->channel = strdup(channel_str);
 
@@ -1116,6 +1126,8 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     while (chan_list_cur != NULL && num_freq < cblock.nfreqs) {
         /* Use the dup'd string directly */
         (*ret_chan_list)[num_freq++] = chan_list_cur->channel;
+
+	/*fprintf(stderr, "DEBUG - copying over channel %s\n", chan_list_cur->channel); */
 
         /* Shuffle the pointers */
         chan_list_old = chan_list_cur;
