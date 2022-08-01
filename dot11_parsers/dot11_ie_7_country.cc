@@ -22,13 +22,16 @@ void dot11_ie_7_country::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_country_code = p_io->read_bytes(2);
     m_environment = p_io->read_u1();
     m_country_list.reset(new shared_dot11d_country_triplet_vector());
-    while (!p_io->is_eof()) {
+}
+
+void dot11_ie_7_country::parse_channels() {
+    while (!p_io_c->is_eof()) {
         // Do our best to read all the channel codings; if we allow broken
         // country tags, read as far as we can and then stop, otherwise
         // pass the error upstream
         try {
             std::shared_ptr<dot11d_country_triplet> c(new dot11d_country_triplet());
-            c->parse(p_io);
+            c->parse(p_io_c);
             m_country_list->push_back(c);
         } catch (std::exception& e) {
             if (i_allow_fragments)

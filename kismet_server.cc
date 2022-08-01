@@ -944,18 +944,6 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
 
-    // Process plugins and activate them
-    if (plugintracker != nullptr) {
-        plugintracker->scan_plugins();
-        plugintracker->activate_plugins();
-
-        if (globalregistry->fatal_condition) {
-            _MSG_FATAL("Failure activating Kismet plugins, make sure that all your plugins "
-                    "are built against the same version of Kismet.");
-            SpindownKismet();
-        }
-    }
-
     // Create the GPS components
     gps_tracker::create_gpsmanager();
 
@@ -1030,6 +1018,18 @@ int main(int argc, char *argv[], char *envp[]) {
                 thread_set_process_name(fmt::format("IO {}", i));
                 Globalreg::globalreg->io.run();
                 });
+    }
+
+    // Activate plugins at the end
+    if (plugintracker != nullptr) {
+        plugintracker->scan_plugins();
+        plugintracker->activate_plugins();
+
+        if (globalregistry->fatal_condition) {
+            _MSG_FATAL("Failure activating Kismet plugins, make sure that all your plugins "
+                    "are built against the same version of Kismet.");
+            SpindownKismet();
+        }
     }
 
 

@@ -294,7 +294,6 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
     bool set_lat_lon = false;
     bool set_alt= false;
-    bool set_speed = false;
     bool set_fix = false;
     bool set_heading = false;
     bool set_magheading = false;
@@ -353,7 +352,8 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
                         new_location->lat = json["lat"].asDouble();
                         new_location->lon = json["lon"].asDouble();
 
-                        set_lat_lon = true;
+                        if (new_location->lat != 0 && new_location->lon != 0)
+                            set_lat_lon = true;
                     }
 
                     if (json.isMember("track")) {
@@ -374,7 +374,6 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                     if (json.isMember("speed")) {
                         new_location->speed = json["speed"].asDouble();
-                        set_speed = true;
 
                         // GPSD JSON reports in meters/second, convert to kph
                         new_location->speed *= 3.6;
@@ -520,10 +519,7 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
             set_alt = true;
 
         if (pollvec[3].substr(0, 2) == "V=" && sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1) {
-            set_speed = false;
         } else  {
-            set_speed = true;
-
             // Convert from knots to kph - unclear if truly knots still but lets hope; this is only in
             // an ancient gpsd
             new_location->speed *= 1.852;
@@ -575,11 +571,7 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
         else
             set_heading = true;
 
-        if (sscanf(ggavec[9].c_str(), "%lf", &(new_location->speed)) != 1) {
-            set_speed = false;
-        } else {
-            set_speed = true;
-
+        if (sscanf(ggavec[9].c_str(), "%lf", &(new_location->speed)) == 1) {
             // Convert from knots to kph
             new_location->speed *= 1.852;
         }
@@ -622,8 +614,6 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
         // Convert from knots to kph
         new_location->speed *= 1.852;
-
-        set_speed = true;
     } else if (poll_mode < 10 && si_raw && line.substr(0, 6) == "$GPGGA") {
         std::vector<std::string> gavec = str_tokenize(line, ",");
         int tint;
@@ -682,7 +672,11 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
     last_data_time = now_t;
 
-    if (set_alt || set_speed || set_lat_lon || set_fix || set_heading) {
+   //  if (set_lat_lon || (set_lat_lonset_alt || set_speed || set_lat_lon || set_fix || set_heading) {
+
+    // Only use set_lat_lon, we don't want to clobber locations with fragmented 
+    // reports with 0x0 as the location!
+    if (set_lat_lon) {
         set_int_gps_signal_time(last_data_time);
 
         gettimeofday(&(new_location->tv), NULL);

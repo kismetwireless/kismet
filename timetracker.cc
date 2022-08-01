@@ -44,6 +44,14 @@ time_tracker::time_tracker() {
 
     shutdown = false;
 
+    // Allocate workers and fill them with joinable threads
+    auto n_worker_threads = static_cast<unsigned int>(std::thread::hardware_concurrency());
+    time_workers.resize(n_worker_threads);
+
+    for (unsigned int x = 0; x < time_workers.size(); x++) {
+        time_workers[x] = std::thread([]() { });
+    }
+
     /*
     time_dispatch_t =
         std::thread([this]() {
@@ -116,42 +124,65 @@ void time_tracker::time_dispatcher() {
                 break;
             }
 
-            auto event_thd = std::thread([evt, this]() {
-                // Call the function with the given parameters
-                int ret = 0;
-                if (evt->callback != NULL) {
-                    ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
-                } else if (evt->event != NULL) {
-                    ret = evt->event->timetracker_event(evt->timer_id);
-                } else if (evt->event_func != NULL) {
-                    ret = evt->event_func(evt->timer_id);
+            // Find a usable worker slot; this is a fast-burn while loop for now
+            // to see how it performs, if we need to add a sleep we will
+            bool launched = false;
+            time_t started_looking = time(0);
+            while (!launched) {
+                // Catch an unwinnable situation for timers; 5 seconds is actually excessively long for
+                // timers that could be executing at 10Hz.
+                if (started_looking - time(0) > 5) {
+                    throw std::runtime_error("Couldn't find a slot in the timer handlers in 5 seconds; something "
+                                             "has gone wrong, most likely thread deadlocks.");
                 }
 
-                if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
-                    kis_lock_guard<kis_mutex> tl(time_mutex, "event rescheduler");
+                for (unsigned int t = 0; t < time_workers.size(); t++) {
+                    // Found a worker slot
+                    if (time_workers[t].joinable()) {
+                        time_workers[t].join();
 
-                    struct timeval cur_tm;
-                    gettimeofday(&cur_tm, NULL);
+                        time_workers[t] = std::thread([evt, this]() {
+                            thread_set_process_name("TIME_EVT");
 
-                    evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-                    evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-                    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
-                    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-                        ((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
+                            // Call the function with the given parameters
+                            int ret = 0;
+                            if (evt->callback != NULL) {
+                                ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
+                            } else if (evt->event != NULL) {
+                                ret = evt->event->timetracker_event(evt->timer_id);
+                            } else if (evt->event_func != NULL) {
+                                ret = evt->event_func(evt->timer_id);
+                            }
 
-                    if (evt->trigger_tm.tv_usec >= 999999L) {
-                        evt->trigger_tm.tv_sec++;
-                        evt->trigger_tm.tv_usec %= 1000000L;
+                            if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
+                                kis_lock_guard<kis_mutex> tl(time_mutex, "event rescheduler");
+
+                                struct timeval cur_tm;
+                                gettimeofday(&cur_tm, NULL);
+
+                                evt->schedule_tm.tv_sec = cur_tm.tv_sec;
+                                evt->schedule_tm.tv_usec = cur_tm.tv_usec;
+                                evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
+                                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+                                    ((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
+
+                                if (evt->trigger_tm.tv_usec >= 999999L) {
+                                    evt->trigger_tm.tv_sec++;
+                                    evt->trigger_tm.tv_usec %= 1000000L;
+                                }
+
+                                timer_sort_required = true;
+                            } else {
+                                kis_lock_guard<kis_mutex> rl(removed_id_mutex);
+                                removed_timer_ids.push_back(evt->timer_id);
+                            }
+                        });
+
+                        launched = true;
+                        break;
                     }
-
-                    timer_sort_required = true;
-                } else {
-                    kis_lock_guard<kis_mutex> rl(removed_id_mutex);
-                    removed_timer_ids.push_back(evt->timer_id);
                 }
-            });
-
-            event_thd.detach();
+            }
         }
 
         {

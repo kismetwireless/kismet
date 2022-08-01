@@ -817,6 +817,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     filter_survey_only =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_only_survey", false);
 
+    process_11d_country_list =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_11d_country_full", false);
+
     // access-point view
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
         ap_view = 
@@ -3078,7 +3081,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             dot11dmismatch = true;
         }
 
-        if (ssid->has_dot11d_vec()) {
+        if (process_11d_country_list && ssid->has_dot11d_vec()) {
             auto dot11dvec(ssid->get_dot11d_vec());
 
             if (dot11dvec->size() != dot11info->dot11d_vec.size()) {
@@ -3117,10 +3120,12 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         ssid->set_dot11d_country(dot11info->dot11d_country);
 
-        if (dot11info->dot11d_vec.size() > 0 && ssid->has_dot11d_vec())
-            ssid->set_dot11d_vec(dot11info->dot11d_vec);
-        else if (dot11info->dot11d_vec.size() == 0 && ssid->has_dot11d_vec())
-            ssid->clear_dot11d_vec();
+        if (process_11d_country_list) {
+            if (dot11info->dot11d_vec.size() > 0 && ssid->has_dot11d_vec())
+                ssid->set_dot11d_vec(dot11info->dot11d_vec);
+            else if (dot11info->dot11d_vec.size() == 0 && ssid->has_dot11d_vec())
+                ssid->clear_dot11d_vec();
+        }
     }
 
     if (ssid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
