@@ -1788,11 +1788,12 @@ public:
             return;
 
         for (auto first_chan : *initial_channels) {
+            auto first_chan_s = static_cast<tracker_element_string *>(first_chan.get());
             bool matched_cur_chan = false;
 
             for (auto comp_chan : *compare_channels) {
-                if (get_tracker_value<std::string>(first_chan) == 
-                        get_tracker_value<std::string>(comp_chan)) {
+                auto comp_chan_s = static_cast<tracker_element_string *>(comp_chan.get());
+                if (first_chan_s->get() == comp_chan_s->get()) {
                     matched_cur_chan = true;
                     break;
                 }
