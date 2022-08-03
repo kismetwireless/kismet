@@ -2231,6 +2231,17 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
             caph->lwsprotocol = lws_get_protocol(wsi);
             caph->lwsvhost = lws_get_vhost(wsi);
             ws_connect_attempt(caph);
+
+            pthread_mutex_lock(&caph->handler_lock);
+
+            if (caph->spindown) {
+                caph->lwsclientwsi = NULL;
+                caph->lwsestablished = 0;
+                caph->shutdown = 1;
+            }
+
+	    pthread_mutex_unlock(&caph->handler_lock);
+
             break;
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
             pthread_mutex_lock(&caph->handler_lock);
