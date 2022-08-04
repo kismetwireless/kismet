@@ -428,16 +428,16 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
         seenby_map->insert(source->get_source_key(), seenby);
 
     } else {
-        seenby = std::static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);
+        auto seenby_r = static_cast<kis_tracked_seenby_data *>(seenby_iter->second.get());
 
-        seenby->set_last_time(tv_sec);
-        seenby->inc_num_packets();
+        seenby_r->set_last_time(tv_sec);
+        seenby_r->inc_num_packets();
 
         if (frequency > 0)
-            seenby->inc_frequency_count(frequency);
+            seenby_r->inc_frequency_count(frequency);
 
         if (siginfo != NULL)
-            seenby->get_signal_data()->append_signal(*siginfo, update_rrd, tv_sec);
+            seenby_r->get_signal_data()->append_signal(*siginfo, update_rrd, tv_sec);
     }
 }
 
