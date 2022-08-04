@@ -546,7 +546,7 @@ void kis_tracked_device_base::add_related_device(const std::string& in_relations
         related_group->insert(in_key, nullptr);
         related_devices_map->insert(in_relationship, related_group);
     } else {
-        auto related_group = std::static_pointer_cast<tracker_element_device_key_map>(related_group_i->second);
+        auto related_group = static_cast<tracker_element_device_key_map *>(related_group_i->second.get());
         related_group->insert(in_key, nullptr);
     }
 }
