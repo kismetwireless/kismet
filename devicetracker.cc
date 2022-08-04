@@ -1427,8 +1427,8 @@ bool devicetracker_sort_lastseen(std::shared_ptr<tracker_element> a, std::shared
     if (b == nullptr)
         return true;
 
-    return std::static_pointer_cast<kis_tracked_device_base>(a)->get_last_time() <
-        std::static_pointer_cast<kis_tracked_device_base>(b)->get_last_time();
+    return static_cast<kis_tracked_device_base *>(a.get())->get_last_time() <
+        static_cast<kis_tracked_device_base *>(b.get())->get_last_time();
 }
 
 void device_tracker::timetracker_event(int eventid) {
@@ -1642,7 +1642,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        auto vi = static_cast<device_tracker_view *>(i.get());
         if (vi->get_view_id() == in_view->get_view_id()) 
             return false;
     }
@@ -1661,7 +1661,7 @@ void device_tracker::remove_view(const std::string& in_id) {
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
-        auto vi = std::static_pointer_cast<device_tracker_view>(*i);
+        auto vi = static_cast<device_tracker_view *>((*i).get());
         if (vi->get_view_id() == in_id) {
             view_vec->erase(i);
             return;
@@ -1673,7 +1673,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        auto vi = static_cast<device_tracker_view *>(i.get());
         vi->new_device(in_device);
     }
 }
@@ -1682,7 +1682,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        auto vi = static_cast<device_tracker_view *>(i.get());
         vi->update_device(in_device);
     }
 }
@@ -1691,7 +1691,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        auto vi = static_cast<device_tracker_view *>(i.get());
         vi->remove_device(in_device);
     }
 }
