@@ -128,7 +128,7 @@ bool tracker_element_regex_worker::match_element(std::shared_ptr<tracker_element
             else if (fi->get_type() == tracker_type::tracker_uuid)
                 val = get_tracker_value<uuid>(fi).uuid_to_string();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 
-                val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
+                val = static_cast<tracker_element_byte_array *>(fi.get())->get();
             else if (!Globalreg::globalreg->entrytracker->search_xform(fi, val)) 
                 continue;
             else
@@ -179,14 +179,12 @@ bool tracker_element_stringmatch_worker::match_element(std::shared_ptr<tracker_e
             matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
-            matched = 
-                std::static_pointer_cast<tracker_element_byte_array>(field)->get().find(query) != 
-                std::string::npos;
+            matched = static_cast<tracker_element_byte_array *>(field.get())->get().find(query) != std::string::npos;
         } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
-            matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+            matched = 
+                static_cast<tracker_element_mac_addr *>(field.get())->get().partial_search(mac_query_term_len, mac_query_term_len);
         } else {
             std::string val;
 
@@ -233,12 +231,11 @@ bool tracker_element_icasestringmatch_worker::match_element(std::shared_ptr<trac
             matched = icasesearch(get_tracker_value<std::string>(field), query);
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
-            matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);
+            matched = icasesearch(static_cast<tracker_element_byte_array *>(field.get())->get(), query);
         } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
-            matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+            matched = static_cast<tracker_element_mac_addr *>(field.get())->get().partial_search(mac_query_term, mac_query_term_len);
         } else {
             std::string val;
 
