@@ -876,12 +876,11 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     /* fprintf(stderr, "DEBUG - freq %u\n", freq);  */
 
-#if 0
+                    /* Don't list disabled channels */
                     if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED]) {
                         /* fprintf(stderr, "DEBUG - freq %u disabled\n", freq);  */
                         continue;
                     }
-#endif
 
                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
 

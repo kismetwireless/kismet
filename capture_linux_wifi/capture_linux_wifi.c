@@ -538,7 +538,7 @@ unsigned int wifi_chan_to_freq(unsigned int in_chan) {
     /* 802.11 channels to frequency; if it looks like a frequency, return as
      * pure frequency; derived from iwconfig */
 
-    if (in_chan > 250)
+    if (in_chan > 2400)
         return in_chan;
 
     if (in_chan == 14)
@@ -554,7 +554,7 @@ unsigned int wifi_chan_to_freq(unsigned int in_chan) {
 }
 
 unsigned int wifi_freq_to_chan(unsigned int in_freq) {
-    if (in_freq < 250)
+    if (in_freq < 2400)
         return in_freq;
 
     /* revamped from iw */
@@ -1020,6 +1020,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
              *
              * */
             if (local_wifi->seq_channel_failure < 10) {
+                /*
                 if (seqno == 0 && local_wifi->verbose_diagnostics) {
                     local_channel_to_str(channel, chanstr);
                     snprintf(msg, STATUS_MAX, "%s %s/%s could not set channel %s; ignoring error "
@@ -1028,17 +1029,20 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                             chanstr, errstr);
                     cf_send_message(caph, msg, MSGFLAG_ERROR);
                 }
+                */
+
                 return 0;
             } else {
                 local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
-                        chanstr, errstr);
+                snprintf(msg, STATUS_MAX, "%s %s/%s failed to set channel %s; skipping (%s)", 
+                                local_wifi->name, local_wifi->interface, local_wifi->cap_interface,
+                                chanstr, errstr);
 
                 if (seqno == 0) {
                     cf_send_error(caph, 0, msg);
                 }
 
-                return -1;
+                return 0;
             }
         } else {
             local_wifi->seq_channel_failure = 0;
@@ -1148,8 +1152,9 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
                 return 0;
             } else {
+                /* Never evict a channel, just skip */
                 local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "%s %s/%s failed to set channel %s: %s", 
+                snprintf(msg, STATUS_MAX, "%s %s/%s failed to set channel %s; skipping to next channel (%s)", 
                         local_wifi->name, local_wifi->interface, local_wifi->cap_interface, 
                         chanstr, errstr);
 
@@ -1157,7 +1162,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                     cf_send_error(caph, 0, msg);
                 }
 
-                return -1;
+                return 0;
             }
         } else {
             local_wifi->seq_channel_failure = 0;
