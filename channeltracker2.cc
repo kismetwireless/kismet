@@ -160,20 +160,20 @@ void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigne
     for (auto i : in_counts) {
         auto imi = frequency_map->find(i.first);
 
-        std::shared_ptr<channel_tracker_v2_channel> freq_channel;
-
         // Make a frequency
         if (imi == frequency_map->end()) {
-            freq_channel =
+            auto freq_channel =
                 entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(channel_entry_id);
             freq_channel->set_frequency(i.first);
             frequency_map->insert(i.first, freq_channel);
+
+            freq_channel->get_device_rrd()->add_sample(i.second, ts);
         } else {
-            freq_channel = std::static_pointer_cast<channel_tracker_v2_channel>(imi->second);
+            auto freq_channel = static_cast<channel_tracker_v2_channel *>(imi->second.get());
+
+            freq_channel->get_device_rrd()->add_sample(i.second, ts);
         }
 
-        // Update the device RRD for the count
-        freq_channel->get_device_rrd()->add_sample(i.second, ts);
     }
 }
 
@@ -189,20 +189,32 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
     if (l1info == nullptr)
         return 1;
 
-    std::shared_ptr<channel_tracker_v2_channel> freq_channel;
-    std::shared_ptr<channel_tracker_v2_channel> chan_channel;
-
     // Find or make a frequency record if we know our frequency
     if (l1info->freq_khz != 0) {
         auto imi = cv2->frequency_map->find(l1info->freq_khz);
 
         if (imi == cv2->frequency_map->end()) {
-            freq_channel =
+            auto freq_channel =
                 cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
             freq_channel->set_frequency(l1info->freq_khz);
             cv2->frequency_map->insert(l1info->freq_khz, freq_channel);
+
+            freq_channel->get_signal_data()->append_signal(*l1info, false, 0);
+            freq_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+            if (common != NULL) {
+                freq_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+            }
+
         } else {
-            freq_channel = std::static_pointer_cast<channel_tracker_v2_channel>(imi->second);
+            auto freq_channel = static_cast<channel_tracker_v2_channel *>(imi->second.get());
+
+            freq_channel->get_signal_data()->append_signal(*l1info, false, 0);
+            freq_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+            if (common != NULL) {
+                freq_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+            }
         }
     }
 
@@ -211,45 +223,32 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
             auto smi = cv2->channel_map->find(common->channel);
 
             if (smi == cv2->channel_map->end()) {
-                chan_channel =
+                auto chan_channel =
                     cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
 
                 chan_channel->set_channel(common->channel);
                 cv2->channel_map->insert(common->channel, chan_channel);
+
+                chan_channel->get_signal_data()->append_signal(*l1info, false, 0);
+                chan_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+                if (common != NULL) {
+                    chan_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+                }
+
             } else {
-                chan_channel = std::static_pointer_cast<channel_tracker_v2_channel>(smi->second);
+                auto chan_channel = static_cast<channel_tracker_v2_channel *>(smi->second.get());
+
+                chan_channel->get_signal_data()->append_signal(*l1info, false, 0);
+                chan_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+                if (common != NULL) {
+                    chan_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+                }
             }
         }
     }
 
-    // didn't find anything
-    if (freq_channel == NULL && chan_channel == NULL)
-        return 1;
-
-    time_t stime = time(0);
-
-    if (freq_channel) {
-        freq_channel->get_signal_data()->append_signal(*l1info, false, 0);
-        freq_channel->get_packets_rrd()->add_sample(1, stime);
-
-        if (common != NULL) {
-            freq_channel->get_data_rrd()->add_sample(common->datasize, stime);
-
-            /*
-            freq_channel->seen_device_map[common->device] = true;
-            */
-        }
-
-    }
-
-    if (chan_channel) {
-        chan_channel->get_signal_data()->append_signal(*l1info, false, 0);
-        chan_channel->get_packets_rrd()->add_sample(1, stime);
-
-        if (common != NULL) {
-            chan_channel->get_data_rrd()->add_sample(common->datasize, stime);
-        }
-    }
 
     return 1;
 }
