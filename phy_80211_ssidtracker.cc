@@ -324,7 +324,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     if (timestamp_min > 0) {
         auto worker = 
             tracker_element_function_worker([timestamp_min](std::shared_ptr<tracker_element> e) -> bool {
-            auto si = std::static_pointer_cast<dot11_tracked_ssid_group>(e);
+            auto si = static_cast<dot11_tracked_ssid_group *>(e.get());
 
             return (si->get_last_time() >= timestamp_min);
             });
@@ -443,7 +443,7 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
     } else {
-        auto tssid = std::static_pointer_cast<dot11_tracked_ssid_group>(mapdev->second);
+        auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_advertising_device(device);
     }
 }
@@ -469,7 +469,7 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
     } else {
-        auto tssid = std::static_pointer_cast<dot11_tracked_ssid_group>(mapdev->second);
+        auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_responding_device(device);
     }
 
@@ -496,7 +496,7 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
     } else {
-        auto tssid = std::static_pointer_cast<dot11_tracked_ssid_group>(mapdev->second);
+        auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_probing_device(device);
     }
 
