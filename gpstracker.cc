@@ -175,7 +175,7 @@ void gps_tracker::trigger_deferred_startup() {
                     auto ret = std::make_shared<tracker_element_uuid_map>();
                 
                     for (const auto& g : *gps_instances_vec) {
-                        auto gps = std::static_pointer_cast<kis_gps>(g);
+                        auto gps = static_cast<kis_gps *>(g.get());
                         auto loctrip = std::make_shared<kis_tracked_location_full>();
 
                         auto pi = gps->get_location();
@@ -277,7 +277,7 @@ void gps_tracker::log_snapshot_gps() {
 
     // Log each GPS
     for (auto d : *gps_instances_vec) {
-        auto dg = std::static_pointer_cast<kis_gps>(d);
+        auto dg = static_cast<kis_gps *>(d.get());
 
         struct timeval tv;
         gettimeofday(&tv, NULL);
@@ -368,8 +368,8 @@ std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
     // Sort running GPS by priority
     sort(gps_instances_vec->begin(), gps_instances_vec->end(), 
             [](const shared_tracker_element a, const shared_tracker_element b) -> bool {
-                shared_gps ga = std::static_pointer_cast<kis_gps>(a);
-                shared_gps gb = std::static_pointer_cast<kis_gps>(b);
+                auto ga = static_cast<kis_gps *>(a.get());
+                auto gb = static_cast<kis_gps *>(b.get());
 
                 return ga->get_gps_priority() < gb->get_gps_priority();
             });
@@ -382,7 +382,7 @@ std::string gps_tracker::find_next_name(const std::string& in_name) {
 
     auto found_name = [this](const std::string& name) -> bool {
         for (const auto& g : *gps_instances_vec) {
-            auto gps = std::static_pointer_cast<kis_gps>(g);
+            auto gps = static_cast<kis_gps *>(g.get());
             if (gps->get_gps_name() == name)
                 return true;
         }
@@ -414,7 +414,7 @@ bool gps_tracker::remove_gps(uuid in_uuid) {
         return false;
 
     for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
-        auto gps = std::static_pointer_cast<kis_gps>((*gps_instances_vec)[i]);
+        auto gps = static_cast<kis_gps *>((*gps_instances_vec)[i].get());
 
         if (gps->get_gps_uuid() == in_uuid) {
             gps_instances_vec->erase(gps_instances_vec->begin() + i);
@@ -467,7 +467,7 @@ std::shared_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
 
     // Iterate 
     for (const auto& d : *gps_instances_vec) {
-        auto gps = std::static_pointer_cast<kis_gps>(d);
+        auto gps = static_cast<kis_gps *>(d.get());
 
         if (gps->get_gps_data_only())
             continue;
