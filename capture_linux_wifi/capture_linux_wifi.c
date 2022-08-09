@@ -1150,7 +1150,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                     cf_send_message(caph, msg, MSGFLAG_ERROR);
                 }
 
-                return 0;
+                // Don't actually flag the channel
+                return 1;
             } else {
                 /* Never evict a channel, just skip */
                 local_channel_to_str(channel, chanstr);
@@ -1162,7 +1163,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                     cf_send_error(caph, 0, msg);
                 }
 
-                return 0;
+                // Don't actually flag the channel
+                return 1;
             }
         } else {
             local_wifi->seq_channel_failure = 0;
