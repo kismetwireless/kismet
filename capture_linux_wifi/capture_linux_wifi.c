@@ -2517,39 +2517,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    /* If we're using a vif we need to bring down the parent and bring up the vif;
-     * if we're not using a vif we just need to bring up the interface */
-    if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
-        int ign_primary = 0;
-        if ((placeholder_len = cf_find_flag(&placeholder, "ignoreprimary", 
-                        definition)) > 0) {
-            if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
-                snprintf(errstr, STATUS_MAX,
-                        "%s %s/%s ignoring state of primary interface and "
-                        "leaving it in an 'up' state; this may cause problems "
-                        "with channel hopping.", 
-                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
-                cf_send_message(caph, errstr, MSGFLAG_INFO);
-                ign_primary = 1;
-            }
-        }
-
-        if (!ign_primary) {
-            snprintf(errstr2, STATUS_MAX, "%s bringing down parent interface '%s'",
-                    local_wifi->name, local_wifi->interface);
-            cf_send_message(caph, errstr2, MSGFLAG_INFO);
-
-            if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-                release_flock(local_wifi);
-
-                snprintf(msg, STATUS_MAX, "%s could not bring down parent interface "
-                        "'%s' to capture using '%s': %s", 
-                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface, errstr);
-                return -1;
-            }
-        }
-    }
-
 #ifdef HAVE_LIBNM
     /* Now, if we have a reference to networkmanager, try to tell it to ignore
      * the monitor mode interface, too, in case it gets any ideas */
@@ -2589,7 +2556,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         g_object_unref(nmclient);
 #endif
 
-
     /* Bring up the cap interface no matter what */
     if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
         release_flock(local_wifi);
@@ -2598,6 +2564,38 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "check 'dmesg' for possible errors while loading firmware: %s",
                 local_wifi->name, local_wifi->cap_interface, errstr);
         return -1;
+    }
+
+    /* Bring down the parent interface if needed */
+    if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
+        int ign_primary = 0;
+        if ((placeholder_len = cf_find_flag(&placeholder, "ignoreprimary", 
+                        definition)) > 0) {
+            if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                snprintf(errstr, STATUS_MAX,
+                        "%s %s/%s ignoring state of primary interface and "
+                        "leaving it in an 'up' state; this may cause problems "
+                        "with channel hopping.", 
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+                ign_primary = 1;
+            }
+        }
+
+        if (!ign_primary) {
+            snprintf(errstr2, STATUS_MAX, "%s bringing down parent interface '%s'",
+                    local_wifi->name, local_wifi->interface);
+            cf_send_message(caph, errstr2, MSGFLAG_INFO);
+
+            if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                release_flock(local_wifi);
+
+                snprintf(msg, STATUS_MAX, "%s could not bring down parent interface "
+                        "'%s' to capture using '%s': %s", 
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface, errstr);
+                return -1;
+            }
+        }
     }
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
