@@ -429,6 +429,13 @@ typedef struct {
  * not support the needed attributes.
  */
 
+enum wifi_chan_band {
+    wifi_band_raw,
+    wifi_band_2ghz,
+    wifi_band_5ghz,
+    wifi_band_6ghz,
+};
+
 /* Local interpretation of a channel; this lets us parse the string definitions
  * into a faster non-parsed version, once. */
 typedef struct {
@@ -454,6 +461,7 @@ typedef struct {
     unsigned int unusual_center1;
     unsigned int center_freq1;
     unsigned int center_freq2;
+    enum wifi_chan_band chan_band;
 } local_channel_t;
 
 int acquire_interface_lock(local_wifi_t *local_wifi) {
@@ -534,42 +542,59 @@ long ns_measure_timer_stop(struct timespec start) {
     return diff;
 }
 
-unsigned int wifi_chan_to_freq(unsigned int in_chan) {
-    /* 802.11 channels to frequency; if it looks like a frequency, return as
-     * pure frequency; derived from iwconfig */
+unsigned int wifi_chan_to_freq(unsigned int in_chan, enum wifi_chan_band in_band) {
+    if (in_chan <= 0)
+        return 0;
 
-    if (in_chan > 2400)
-        return in_chan;
+    switch (in_band) {
+        case wifi_band_raw:
+            return in_chan;
 
-    if (in_chan == 14)
-        return 2484;
-    else if (in_chan < 14)
-        return 2407 + in_chan * 5;
-    else if (in_chan >= 182 && in_chan <= 196)
-        return 4000 + in_chan * 5;
-    else
-        return 5000 + in_chan * 5;
+        case wifi_band_2ghz:
+            if (in_chan == 14)
+                return 2484;
+            else if (in_chan < 14)
+                return 2407 + in_chan * 5;
+            break;
 
-    return in_chan;
+        case wifi_band_5ghz:
+            if (in_chan >= 182 && in_chan <= 196)
+                return 4000 + in_chan * 5;
+            else
+                return 5000 + in_chan * 5;
+            break;
+
+        case wifi_band_6ghz:
+            if (in_chan == 2)
+                return 5935;
+            if (in_chan <= 253)
+                return 5950 + in_chan * 5;
+            break;
+
+        default:
+            return 0;
+    }
+
+    return 0;
 }
 
 unsigned int wifi_freq_to_chan(unsigned int in_freq) {
-    if (in_freq < 2400)
-        return in_freq;
-
-    /* revamped from iw */
-    if (in_freq == 2484)
-        return 14;
-
-    if (in_freq < 2484)
-        return (in_freq - 2407) / 5;
-
-    /* handle up to 6e channels linearly */
-    if (in_freq < 5955)
-	    return in_freq / 5 - 1000;
-
-    /* handle 6ghz channels resetting to channel 1 */
-    return (in_freq / 5 - 1000) - 190;
+	if (in_freq == 2484)
+		return 14;
+	else if (in_freq == 5935)
+		return 2;
+	else if (in_freq < 2484)
+		return (in_freq - 2407) / 5;
+	else if (in_freq >= 4910 && in_freq <= 4980)
+		return (in_freq - 4000) / 5;
+	else if (in_freq < 5950)
+		return (in_freq - 5000) / 5;
+	else if (in_freq <= 45000) /* DMG band lower limit */
+		return (in_freq - 5950) / 5;
+	else if (in_freq >= 58320 && in_freq <= 70200)
+		return (in_freq - 56160) / 2160;
+	else
+		return 0;
 }
 
 /* Find an interface, based on mode, that shares a parent with the provided
@@ -656,6 +681,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     unsigned int ci;
     char errstr[STATUS_MAX];
 
+    /* Default to raw frequency */
+    enum wifi_chan_band band_guess = wifi_band_raw;
+
     /* Match 6e channels */
     if (strcasestr(chanstr, "6e") != NULL) {
         r = sscanf(chanstr, "%u-W6e", &parsechan);
@@ -664,8 +692,10 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
             ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
             memset(ret_localchan, 0, sizeof(local_channel_t));
 
+            ret_localchan->chan_band = wifi_band_6ghz;
+
             /* 6e channels are shifted up by 190 channels to match the normal frequency code */
-            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan + 190);
+            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan, wifi_band_6ghz);
 
             // fprintf(stderr, "debug - localchan parse %s to %u\n", chanstr, ret_localchan->control_freq);
 
@@ -677,11 +707,19 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     if (strcasestr(chanstr, "HT20") != NULL) {
         r = sscanf(chanstr, "%uHT20", &parsechan);
 
+        /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
+        if (parsechan < 14) {
+            band_guess = wifi_band_2ghz;
+        } else if (parsechan <= 196) {
+            band_guess = wifi_band_5ghz;
+        }
+
         if (r == 1) {
             ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
             memset(ret_localchan, 0, sizeof(local_channel_t));
 
-            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan);
+            ret_localchan->chan_band = band_guess;
+            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan, band_guess);
             (ret_localchan)->chan_type = NL80211_CHAN_HT20;
 
             return ret_localchan;
@@ -693,10 +731,19 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
         memset(ret_localchan, 0, sizeof(local_channel_t));
 
+        ret_localchan->chan_band = band_guess;
+
         r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
+        /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
+        if (parsechan < 14) {
+            band_guess = wifi_band_2ghz;
+        } else if (parsechan <= 196) {
+            band_guess = wifi_band_5ghz;
+        }
+
         if (r == 2) {
-            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan);
+            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan, band_guess);
 
             if (mod == '-') {
                 (ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
@@ -759,6 +806,15 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
     memset(ret_localchan, 0, sizeof(local_channel_t));
+
+    /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
+    if (parsechan < 14) {
+        band_guess = wifi_band_2ghz;
+    } else if (parsechan <= 196) {
+        band_guess = wifi_band_5ghz;
+    }
+
+    ret_localchan->chan_band = band_guess;
 
     if (r == 1) {
         (ret_localchan)->control_freq = parsechan;
@@ -866,8 +922,11 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
  * 'chanstr' should hold at least STATUS_MAX characters; we'll never use
  * that many but it lets us do some cheaty stuff and re-use errstrs */
 void local_channel_to_str(local_channel_t *chan, char *chanstr) {
-    /* Basic channel with no HT/VHT */
-    if (chan->chan_type == 0 && chan->chan_width == 0) {
+    if (chan->chan_band == wifi_band_6ghz) {
+        /* 6ghz */
+        snprintf(chanstr, STATUS_MAX, "%u-W6e", chan->control_freq);
+    } else if (chan->chan_type == 0 && chan->chan_width == 0) {
+        /* Basic channel with no HT/VHT */
         snprintf(chanstr, STATUS_MAX, "%u", chan->control_freq);
     } else if (chan->chan_type == NL80211_CHAN_HT20) {
         snprintf(chanstr, STATUS_MAX, "%uHT20", chan->control_freq);
