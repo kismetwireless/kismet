@@ -2448,7 +2448,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-VERSION=`cat VERSION`
+VERSION=$(grep VERSION_MAJOR version.h | cut -d'"' -f 2)-$(grep VERSION_MINOR version.h | cut -d'"' -f 2)-$(grep VERSION_TINY version.h | cut -d'"' -f 2)-$(git rev-parse --short HEAD 2>/dev/null || echo 'non-git-release')
 
 
 #m4_include([m4/acx_pthread.m4])

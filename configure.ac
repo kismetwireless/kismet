@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_INIT
 
-VERSION=`cat VERSION`
+VERSION=$(grep VERSION_MAJOR version.h | cut -d'"' -f 2)-$(grep VERSION_MINOR version.h | cut -d'"' -f 2)-$(grep VERSION_TINY version.h | cut -d'"' -f 2)-$(git rev-parse --short HEAD 2>/dev/null || echo 'non-git-release')
 AC_SUBST(VERSION)
 
 #m4_include([m4/acx_pthread.m4])
