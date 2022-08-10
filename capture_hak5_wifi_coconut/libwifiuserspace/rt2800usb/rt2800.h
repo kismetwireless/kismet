@@ -12,7 +12,7 @@
 #ifndef __RT2800_H__
 #define __RT2800_H__ 
 
-#include <libusb.h>
+#include <libusb-1.0/libusb.h>
 
 #include "userspace/userspace.h"
 

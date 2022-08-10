@@ -12,14 +12,14 @@ MONITOR_OBJS = \
 	wifi_coconut/wifi_coconut.c.o \
 	capture_hak5_coconut.c.o
 
-MONITOR_BIN = kismet_cap_hak5_coconut
+MONITOR_BIN = kismet_cap_hak5_wifi_coconut
 
 CFLAGS += ${USBCFLAGS} -Ilibwifiuserspace/ -DFIRMWAREDIR=\"${SHARE}/firmware/\"
 
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(WIFI_USERSPACE_OBJS) $(COCONUT_API_OBJS) ../libkismetdatasource.a $(USBLIBS) $(DATASOURCE_LIBS)
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(WIFI_USERSPACE_OBJS) $(COCONUT_API_OBJS) ../libkismetdatasource.a $(LIBUSBLIBS) $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)

@@ -20,10 +20,12 @@ typedef int16_t s16;
 typedef int32_t s32;
 typedef int64_t s64;
 
+#ifndef LIBWIFIUSERSPACE_EXCLUDE_TYPES
 typedef uint8_t __u8;
 typedef uint16_t __u16;
 typedef uint32_t __u32;
 typedef uint64_t __u64;
+#endif
 
 /* 
  * We lose the atomic stuff
@@ -40,6 +42,7 @@ typedef uint32_t __le32;
 
 typedef uint16_t __be16;
 typedef uint32_t __be32;
+
 
 /*
  * Not going to make a whole netdev defs file for one def

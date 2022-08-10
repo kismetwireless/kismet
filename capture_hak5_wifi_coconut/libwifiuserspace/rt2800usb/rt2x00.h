@@ -15,7 +15,7 @@
 #include <pthread.h>
 #include <stdio.h>
 
-#include <libusb.h>
+#include <libusb-1.0/libusb.h>
 
 #include "kernel/average.h"
 #include "kernel/types.h"

@@ -29,7 +29,7 @@
 #include "kernel/ieee80211.h"
 #include "kernel/ieee80211_radiotap.h"
 
-#include <libusb.h>
+#include <libusb-1.0/libusb.h>
 
 #include "userspace/userspace.h"
 

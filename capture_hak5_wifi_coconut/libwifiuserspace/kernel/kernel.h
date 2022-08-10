@@ -176,12 +176,14 @@
  * Rounds @x up to next multiple of @y. If @y will always be a power
  * of 2, consider using the faster round_up().
  */
+#ifndef roundup
 #define roundup(x, y) (					\
 {							\
 	typeof(y) __y = y;				\
 	(((x) + (__y - 1)) / __y) * __y;		\
 }							\
 )
+#endif
 /**
  * rounddown - round down to next specified multiple
  * @x: the value to round
@@ -190,12 +192,14 @@
  * Rounds @x down to next multiple of @y. If @y will always be a power
  * of 2, consider using the faster round_down().
  */
+#ifndef rounddown
 #define rounddown(x, y) (				\
 {							\
 	typeof(x) __x = (x);				\
 	__x - (__x % (y));				\
 }							\
 )
+#endif
 
 /*
  * Divide positive or negative dividend by positive or negative divisor

@@ -14,7 +14,7 @@
 #include <stdarg.h>
 
 
-#include <libusb.h>
+#include <libusb-1.0/libusb.h>
 
 #include "kernel/nl80211.h"
 #include "kernel/types.h"
