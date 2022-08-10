@@ -149,6 +149,9 @@ BUILD_CAPTURE_RZ_KILLERBEE = @BUILD_CAPTURE_RZ_KILLERBEE@
 CAPTURE_BLADERF_WIPHY = capture_bladerf_wiphy/kismet_cap_bladerf_wiphy
 BUILD_CAPTURE_BLADERF_WIPHY = @BUILD_CAPTURE_BLADERF_WLAN@
 
+CAPTURE_HAK5_COCONUT = capture_hak5_wifi_coconut/kismet_cap_hak5_wifi_coconut
+BUILD_CAPTURE_HAK5_COCONUT = @BUILD_CAPTURE_HAK5_COCONUT@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -381,6 +384,9 @@ $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 $(CAPTURE_BLADERF_WIPHY): FORCE
 	(cd capture_bladerf_wiphy && $(MAKE))
 
+$(CAPTURE_HAK5_COCONUT): FORCE
+	(cd capture_hak5_wifi_coconut && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -437,6 +443,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_BLADERF_WIPHY)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_BLADERF_WIPHY) $(BIN)/`basename $(CAPTURE_BLADERF_WIPHY)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_HAK5_COCONUT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)`; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -521,6 +531,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_BLADERF_WIPHY)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_BLADERF_WIPHY) $(BIN)/`basename $(CAPTURE_BLADERF_WIPHY)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_HAK5_COCONUT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
