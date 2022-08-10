@@ -446,7 +446,7 @@ binsuidinstall: $(DATASOURCE_BINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_HAK5_COCONUT)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)` ; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -534,7 +534,10 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_HAK5_COCONUT)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)` && \
+		mkdir -p $(SHARE)/firmware/ && \
+		cp capture_hak5_wifi_coconut/libwifiuserspace/firmware/LICENSE-ralink-mediatek.txt $(SHARE)/firmware && \
+		cp capture_hak5_wifi_coconut/libwifiuserspace/firmware/rt2870.bin $(SHARE)/firmware/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
