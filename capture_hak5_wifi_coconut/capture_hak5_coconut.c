@@ -49,7 +49,9 @@
 
 #include "../capture_framework.h"
 
+#ifdef SYS_LINUX
 #define LIBWIFIUSERSPACE_EXCLUDE_TYPES
+#endif
 #include "userspace/userspace.h"
 #include "wifi_coconut/wifi_coconut.h"
 #include "libwifiuserspace/kernel/ieee80211_radiotap.h"
