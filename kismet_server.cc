@@ -85,6 +85,7 @@
 #include "datasource_bladerf_wiphy.h"
 #include "datasource_adsbproxy.h"
 #include "datasource_bt_geiger.h"
+#include "datasource_hak5_wifi_coconut.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -910,6 +911,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_adsbproxy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bt_geiger_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_hak5_wifi_coconut_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();

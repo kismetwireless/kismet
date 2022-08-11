@@ -1,0 +1,47 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	libwifiuserspace/kernel/crc_ccit.c.o \
+	libwifiuserspace/kernel/cfg80211.c.o \
+	libwifiuserspace/rt2800usb/rt2x00mac.c.o \
+	libwifiuserspace/rt2800usb/rt2800lib.c.o \
+	libwifiuserspace/rt2800usb/rt2800usb.c.o \
+	libwifiuserspace/rt2800usb/rt2x00.c.o \
+	libwifiuserspace/rt2800usb/rt2x00usb.c.o \
+	libwifiuserspace/userspace/userspace.c.o \
+	wifi_coconut/wifi_coconut.c.o \
+	capture_hak5_coconut.c.o
+
+MONITOR_BIN = kismet_cap_hak5_wifi_coconut
+
+CFLAGS += ${USBCFLAGS} -Ilibwifiuserspace/ -DFIRMWAREDIR=\"${SHARE}/firmware/\"
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(WIFI_USERSPACE_OBJS) $(COCONUT_API_OBJS) ../libkismetdatasource.a $(LIBUSBLIBS) $(DATASOURCE_LIBS)
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+	@-rm -f libwifiuserspace/kernel/*.o
+	@-rm -f libwifiuserspace/kernel/*.d
+	@-rm -f libwifiuserspace/rt2800usb/*.o
+	@-rm -f libwifiuserspace/rt2800usb/*.d
+	@-rm -f libwifiuserspace/userspace/*.o
+	@-rm -f libwifiuserspace/userspace/*.d
+	@-rm -f wifi_coconut/*.o
+	@-rm -f wifi_coconut/*.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+

@@ -46,6 +46,7 @@ BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
+BUILD_CAPTURE_HAK5_COCONUT=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -1560,6 +1561,26 @@ AS_IF([test "x$want_usb" != "xno"], [
 AC_SUBST(LIBUSBLIBS)
 AC_SUBST(LIBUSBCFLAGS)
 
+want_coconut="no"
+AC_ARG_ENABLE([wifi-coconut],
+    AS_HELP_STRING([--enable-wifi-coconut], [Enable Hak5 WiFi Coconut userspace]),
+	[case "${enableval}" in
+	  no) want_coconut=no ;;
+	   *) want_coconut=yes ;;
+	 esac],
+	[want_coconut=yes]
+)
+
+BUILD_CAPTURE_HAK5_COCONUT=0
+if test x"$want_coconut" = x"yes"; then
+    if test x"$have_usb" != "xyes"; then
+        AC_MSG_ERROR([libusb-1.0 required for Hak5 WiFi Coconut support])
+    fi
+    BUILD_CAPTURE_HAK5_COCONUT=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WIFI_COCONUT)"
+fi
+
+
 want_ubertooth="yes"
 AC_ARG_ENABLE([ubertooth],
     AS_HELP_STRING([--disable-ubertooth], [Disable Ubertooth One support]),
@@ -1821,6 +1842,7 @@ AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
 AC_SUBST(BUILD_CAPTURE_PROXY_ADSB)
 AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_52840)
+AC_SUBST(BUILD_CAPTURE_HAK5_COCONUT)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1850,6 +1872,7 @@ AC_CONFIG_FILES([
     capture_bladerf_wiphy/Makefile
     capture_proxy_adsb/Makefile
     capture_nrf_52840/Makefile
+    capture_hak5_wifi_coconut/Makefile
     ])
 AC_OUTPUT
 
@@ -2048,6 +2071,13 @@ if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
 	echo "yes";
 else
 	echo "no (bladeRF support not enabled)";
+fi
+
+printf "     Hak5 WiFi Coconut: "
+if test "$BUILD_CAPTURE_HAK5_COCONUT" = 1; then
+	echo "yes";
+else
+	echo "no (Hak5 WiFi Coconut support not enabled)";
 fi
 
 printf " lm-sensors monitoring: "
