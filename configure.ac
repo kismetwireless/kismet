@@ -1577,7 +1577,7 @@ if test x"$want_coconut" = x"yes"; then
         AC_MSG_ERROR([libusb-1.0 required for Hak5 WiFi Coconut support])
     fi
     BUILD_CAPTURE_HAK5_COCONUT=1
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WIFI_COCONUT)"
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HAK5_COCONUT)"
 fi
 
 
