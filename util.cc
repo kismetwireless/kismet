@@ -1088,7 +1088,7 @@ void thread_set_process_name(const std::string& name) { }
 
 bool isUTF8(const std::string& subject) {
     unsigned int c = 0;
-    for (int i = 0; i < subject.size(); i++) {
+    for (size_t i = 0; i < subject.size(); i++) {
         int x = subject[i];
         if (!c) {
             if ((x >> 5) == 0b110) {
