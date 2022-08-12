@@ -544,5 +544,7 @@ protected:
     std::promise<bool> data_available_pm;
 };
 
+bool isUTF8(const std::string& subject);
+
 #endif
 
