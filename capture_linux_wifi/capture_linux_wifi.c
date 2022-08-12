@@ -243,7 +243,7 @@ struct bpf_insn rt_pgm_crop_data[] = {
 
     // 24 LD #0       a = 0
     BPF_STMT(BPF_LD + BPF_SRC(BPF_K), 0),
-    // 25 ST M[2]     m[2] = 0
+    // 25 ST M[2]     m[2] = a
     BPF_STMT(BPF_ST, 2),
 
     // 26 LDA m[1] .   a = m[1] (saved data offset length)
@@ -260,29 +260,34 @@ struct bpf_insn rt_pgm_crop_data[] = {
     // 31 LDA m[2] .   a = m[2] (saved flags)
     BPF_STMT(BPF_LD + BPF_MODE(BPF_MEM), 2),
     // 32 JEQ #0 .     a == 0x0 - truncate if it's a protected frame
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 4),
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x0, 0, 6),
 
     // 33 LDH [x + 0]  a = pkt[rtap + header + 0] - X hasn't been changed since we loaded it
     BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 0),
     // 34 JEQ 0xAAAA   a == 0xAAAA (SNAP header) or truncate
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0xAAAA, 0, 2),
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0xAAAA, 0, 4),
 
-    // 35 LDH [x + 0]  a = pkt[rtap + header + 6]
-    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_H), 6),
-    // 36 JEQ 0x888e   a == 0x888E eapol sig or truncate
-    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x888E, 0, 2),
+    // 35 LDB [x + 6]  a = pkt[rtap + header + 6]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 6),
+    // 36 JEQ 0x88   a == 0x88 eapol sig or truncate
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x88, 0, 2),
 
-    // truncate - x is still the total length of the header restored from m2
+    // 37 LDB [x + 7]  a = pkt[rtap + header + 7]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_IND) + BPF_SIZE(BPF_B), 7),
+    // 38 JEQ 0x8e   a == 0x8e eapol sig or truncate
+    BPF_JUMP(BPF_JMP + BPF_JEQ, 0x8E, 0, 2),
 
-    // 37 TXA          a = x
-    BPF_STMT(BPF_MISC + BPF_MISCOP(BPF_TXA), 0),
-    // 38 RET a        Return a (limit packet length to rtap+dot11+qos?)
+    // truncate - m1 holds the total length of the headers+qos
+
+    // 39 LDB mem[1]
+    BPF_STMT(BPF_LD + BPF_MODE(BPF_MEM), 1),
+    // 40 RET a        Return a (limit packet length to rtap+dot11+qos?)
     BPF_STMT(BPF_RET + BPF_RVAL(BPF_A), 0),
 
-    // 39 RET 0x0      return entire packet
+    // 41 RET 0x0      return entire packet
     BPF_STMT(BPF_RET, 0x40000),
 };
-unsigned int rt_pgm_crop_data_len = 40;
+unsigned int rt_pgm_crop_data_len = 42;
 
 // BPF program to parse raw 802.11 and pass management and eapol ONLY
 struct bpf_insn dot11_pgm[] = {
