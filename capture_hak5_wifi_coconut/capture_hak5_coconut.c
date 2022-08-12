@@ -450,12 +450,10 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     local_wifi->coconut_context = init_coconut_context();
     userspace_wifi_init(&local_wifi->coconut_context->context);
 
-    int ret;
-
     unsigned int i = 0;
 
     /* Do an open loop using the list callback and no wait */
-    ret = coconut_search_and_open(local_wifi->coconut_context, false,
+    coconut_search_and_open(local_wifi->coconut_context, false,
             local_wifi->coconut_context->coconut_number, 
             &coconut_list_callback, (void *) local_wifi);
 
