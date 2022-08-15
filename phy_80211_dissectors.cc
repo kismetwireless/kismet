@@ -2209,7 +2209,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
                         auto euuid = wpselem->sub_element_uuid_e();
                         if (euuid != nullptr) {
-                            packinfo->wps_uuid_e = euuid->str();
+                            packinfo->wps_uuid_e = munge_to_printable(euuid->str());
                             continue;
                         }
                     }
