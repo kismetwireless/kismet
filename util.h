@@ -64,9 +64,9 @@
 
 #include "fmt.h"
 
-// Munge a string to characters safe for calling in a shell
-std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm);
-std::string munge_to_printable(const std::string& in_str);
+// Munge a string to printable - printable assumed to be either a UTF8 string, or 
+// a pure ascii string if we can't confirm that it's UTF8
+std::string munge_to_printable(const std::string& in_str) noexcept;
 
 std::string str_lower(const std::string& in_str);
 std::string str_upper(const std::string& in_str);
@@ -544,7 +544,7 @@ protected:
     std::promise<bool> data_available_pm;
 };
 
-bool isUTF8(const std::string& subject);
+bool is_valid_utf8(const std::string& subject);
 
 #endif
 

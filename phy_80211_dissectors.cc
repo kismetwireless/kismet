@@ -1143,7 +1143,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                             memcpy(rawid, &(chunk->data()[offset + 5]), rawlen);
                             rawid[rawlen] = 0;
 
-                            datainfo->auxstring = munge_to_printable(rawid, rawlen, 1);
+                            datainfo->auxstring = munge_to_printable(std::string(rawid, rawlen));
                             delete[] rawid;
                         }
 

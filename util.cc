@@ -145,6 +145,10 @@ uint32_t adler32_checksum(const std::string& in_buf) {
     return adler32_checksum(in_buf.data(), in_buf.length());
 }
 
+#if 0 
+
+// Old munge-to-print code
+
 // Convert a byte to an octal escape
 std::string d2oa(uint8_t n) {
     std::string oa = "\\000";
@@ -190,8 +194,150 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 	return ret.str();
 }
 
-std::string munge_to_printable(const std::string& in_str) {
-	return munge_to_printable(in_str.c_str(), in_str.length(), 1);
+#endif
+
+/* sanitize_extra_space and sanitize_string taken from nlohmann's jsonhpp library,
+   Copyright 2013-2015 Niels Lohmann. and under the MIT license */
+std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
+    std::size_t result = 0;
+
+    for (size_t i = 0; i < s.size(); i++) {
+        u_char c = s[i];
+
+        switch (c & 0xFF) {
+            case '"':
+            case '\\':
+            case '\b':
+            case '\f':
+            case '\n':
+            case '\r':
+            case '\t':
+                {
+                    // from c (1 byte) to \x (2 bytes)
+                    result += 1;
+                    break;
+                }
+
+            default:
+                if (!utf8) {
+                    if (c >= 32 && c <= 126) {
+                        result += 1;
+                    } else {
+                        result += 3;
+                    }
+                } else {
+                    if (c >= 0x00 and c <= 0x1f) {
+                        // from c (1 byte) to \uxxxx (6 bytes)
+                        result += 5;
+                    }
+                }
+
+
+                break;
+        }
+    }
+
+    return result;
+}
+
+std::string munge_to_printable(const std::string& s) noexcept {
+    const auto utf8 = is_valid_utf8(s);
+    const auto space = munge_extra_space(s, utf8);
+    if (space == 0) {
+        return s;
+    }
+
+    // create a result string of necessary size
+    std::string result(s.size() + space, '\\');
+    std::size_t pos = 0;
+
+    for (size_t i = 0; i < s.size(); i++) {
+        u_char c = s[i];
+
+        switch (c) {
+            // quotation mark (0x22)
+            case '"':
+                {
+                    result[pos + 1] = '"';
+                    pos += 2;
+                    break;
+                }
+
+                // reverse solidus (0x5c)
+            case '\\':
+                {
+                    // nothing to change
+                    pos += 2;
+                    break;
+                }
+
+                // backspace (0x08)
+            case '\b':
+                {
+                    result[pos + 1] = 'b';
+                    pos += 2;
+                    break;
+                }
+
+                // formfeed (0x0c)
+            case '\f':
+                {
+                    result[pos + 1] = 'f';
+                    pos += 2;
+                    break;
+                }
+
+                // newline (0x0a)
+            case '\n':
+                {
+                    result[pos + 1] = 'n';
+                    pos += 2;
+                    break;
+                }
+
+                // carriage return (0x0d)
+            case '\r':
+                {
+                    result[pos + 1] = 'r';
+                    pos += 2;
+                    break;
+                }
+
+                // horizontal tab (0x09)
+            case '\t':
+                {
+                    result[pos + 1] = 't';
+                    pos += 2;
+                    break;
+                }
+
+            default:
+                if (!utf8) {
+                    if (c >= 32 && c <= 126) {
+                        result[pos++] = c;
+                    } else {
+                        sprintf(&result[pos], "x%02X", c);
+                        pos += 4;
+                    }
+                } else {
+
+                    if (c >= 0x00 and c <= 0x1f) {
+                        // print character c as \uxxxx
+                        sprintf(&result[pos + 1], "u%04x", int(c));
+                        pos += 6;
+                        // overwrite trailing null character
+                        result[pos] = '\\';
+                    } else {
+                        // all other characters are added as-is
+                        result[pos++] = c;
+                    }
+                }
+
+                break;
+        }
+    }
+
+    return result;
 }
 
 std::string str_lower(const std::string& in_str) {
@@ -1086,27 +1232,35 @@ void thread_set_process_name(const std::string& name) {
 void thread_set_process_name(const std::string& name) { }
 #endif
 
-bool isUTF8(const std::string& subject) {
-    unsigned int c = 0;
-    for (size_t i = 0; i < subject.size(); i++) {
-        int x = subject[i];
-        if (!c) {
-            if ((x >> 5) == 0b110) {
-                c = 1;
-            } else if ((x >> 4) == 0b1110) {
-                c = 2;
-            } else if ((x >> 3) == 0b11110) {
-                c = 3;
-            } else if ((x >> 7) != 0) 
-                return false;
+bool is_valid_utf8(const std::string& subject) {
+    int i, ix, nb, j;
+
+    for (i = 0, ix = subject.length(); i < ix; i++) {
+        auto c = (unsigned char) subject[i];
+
+        if (0x00 <= c && c <= 0x7f) {
+            nb = 0;
+        } else if ((c & 0xE0) == 0xC0) {
+            nb = 1;
+        } else if ( c==0xed && i < (ix - 1) && 
+                ((unsigned char) subject[i+1] & 0xa0) == 0xa0) {
+            return false; 
+        } else if ((c & 0xF0) == 0xE0) {
+            nb = 2;
+        } else if ((c & 0xF8) == 0xF0) {
+            nb = 3; 
         } else {
-            if ((x >> 6) != 0b10) 
+            return false;
+        }
+
+        for (j = 0; j < nb && i < ix; j++) { 
+            if ((++i == ix) || (((unsigned char) subject[i] & 0xC0) != 0x80)) {
                 return false;
-            c--;
+            }
         }
     }
 
-    return c == 0;
+    return true;
 }
 
 

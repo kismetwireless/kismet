@@ -426,7 +426,7 @@ exports.sanitizeObject = function(o) {
     }
 
     if (typeof(o) === 'string') {
-        return exports.sanitizeHTML(exports.deoctalize(o));
+        return exports.sanitizeHTML(o);
     }
 
     Object.keys(o).forEach(function(key) {

@@ -203,7 +203,7 @@ std::string MDNS_Fetchname(std::shared_ptr<kis_datachunk> chunk, unsigned int ba
 		}
 
 		std::string ret = 
-			munge_to_printable((char *) &(chunk->data()[offt]), len, 0);
+			munge_to_printable(std::string((char *) &(chunk->data()[offt]), len));
 
 		offt += len;
 
@@ -276,7 +276,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 				}
 
 				datainfo->cdp_dev_id = 
-					munge_to_printable((char *) &(chunk->data()[offset + 4]), elemlen - 4, 0);
+					munge_to_printable(std::string((char *) &(chunk->data()[offset + 4]), elemlen - 4));
 				gotinfo = 1;
 			} else if (elemtype == 0x03) {
 				if (elemlen < 4) {
@@ -285,7 +285,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 				}
 
 				datainfo->cdp_port_id = 
-					munge_to_printable((char *) &(chunk->data()[offset + 4]), elemlen - 4, 0);
+					munge_to_printable(std::string((char *) &(chunk->data()[offset + 4]), elemlen - 4));
 				gotinfo = 1;
 			}
 
