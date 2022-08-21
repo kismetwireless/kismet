@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+echo "Kismet and setuid"
+echo 
+echo "Enabling setuid-root mode on the Kismet capture "
+echo "tools (kismet_cap_osx_corewlan_wifi) allows Kismet itself to run "
+echo "with normal user permissions, with only the radio control code "
+echo "running as root.  This is the recommended installation, and offers a "
+echo "more proactive security stance. "
+echo 
+echo "To accomplish this, the kismet_cap_osx_corewlan_wifi binary needs to be "
+echo "set to be owned as root, and to execute as root no matter what user "
+echo "starts it."
+echo 
+
+if [ $(whoami) != "root" ]; then
+    echo "This script needs to be run as root; launch it with"
+    echo "sudo kismet_macos_enable_suid"
+    exit
+fi
+
+BIN=/opt/homebrew/bin/kismet_cap_osx_corewlan_wifi
+
+TARGET=$(readlink -f ${BIN})
+USER=$(stat -f '%u' ${TARGET})
+PERM=$(stat -f '%Mp' ${TARGET})
+
+if [ ${USER} = 0 -a ${PERM} = 4 ]; then
+    echo "${BIN} is already set to be suid root"
+    exit
+fi
+
+echo "${BIN} points to ${TARGET}"
+echo -n "Set ${TARGET} to suid-root? (y/N): "
+read p 
+
+if [ ${p}x != "yx" ]; then
+    echo "Cancelled"
+    exit
+fi
+
+echo "Changing ${TARGET} to be owned by root"
+chown root ${TARGET}
+
+echo "Changing ${TARGET} to be setuid-root"
+chmod 4555 ${TARGET}
+
+echo "Done!"
