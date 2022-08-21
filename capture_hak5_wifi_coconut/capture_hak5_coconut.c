@@ -348,6 +348,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     local_wifi->coconut_context = init_coconut_context();
+
+    /* Allow disabling LEDs */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "disable_leds", definition)) > 0) {
+        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->coconut_context->disable_leds = 1;
+            local_wifi->coconut_context->disable_blink = 1;
+        }
+    }
+
     userspace_wifi_init(&local_wifi->coconut_context->context);
     local_wifi->coconut_context->context->local_data = local_wifi;
 
