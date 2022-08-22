@@ -322,6 +322,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int ret;
 
+    if (getuid() && geteuid() != 0) {
+        snprintf(msg, STATUS_MAX, "Root required for opening raw USB devices, install as suid-root or run Kismet as root");
+        return -1;
+    }
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return -1;
