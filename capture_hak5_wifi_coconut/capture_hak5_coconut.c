@@ -508,7 +508,7 @@ int main(int argc, char *argv[]) {
         .caph = NULL,
     };
 
-    kis_capture_handler_t *caph = cf_handler_init("hak5_coconut");
+    kis_capture_handler_t *caph = cf_handler_init("hak5wificoconut");
 
     local_wifi.caph = caph;
 
