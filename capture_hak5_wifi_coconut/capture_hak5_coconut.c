@@ -186,6 +186,17 @@ int coconut_open_callback(struct wifi_coconut_context *coconut_context,
 
     if (state == WIFI_COCONUT_SEARCH_STATE_DONE) {
         local_wifi->coconut = coconut_context->coconut;
+
+        if (local_wifi->coconut_context->disable_leds) {
+            for (unsigned int i = 0; i < 14; i++) {
+                if (local_wifi->coconut->active_devices[i] == NULL)
+                    continue;
+
+                userspace_wifi_device_set_led(local_wifi->coconut_context->context, 
+                        local_wifi->coconut->active_devices[i], false);
+            }
+            
+        }
     }
 
     return 0;
