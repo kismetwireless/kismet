@@ -887,7 +887,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     /* Default to HT20 if we support HT and are always using it, otherwise default to 
                      * basic channels */
 		    if (freq >= 5955) {
-                        snprintf(channel_str, 32, "%u-W6e", mac80211_freq_to_chan(freq));
+                        snprintf(channel_str, 32, "%uW6e", mac80211_freq_to_chan(freq));
 		    } else if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20) {
                         snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
 		    } else {

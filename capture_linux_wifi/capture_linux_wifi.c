@@ -386,6 +386,12 @@ typedef struct {
     bool wardrive_filter;
     bool data_filter;
 
+    /* Are we restricted to specific bands? */
+    bool band_any;
+    bool band_2_4;
+    bool band_5;
+    bool band_6;
+
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
 
@@ -428,7 +434,7 @@ typedef struct {
  * XXVHT80-YY   Channel/frequency XX, VHT 80MHz channel, upper pair specified
  * XXVHT160-YY  Channel/frequency XX, VHT 160MHz channel, upper pair specified
  *
- * XX-6e 	Channel XX, WiFi 6e 6GHz band
+ * XXW6e 	    Channel XX, WiFi 6e 6GHz band
  *
  * 5, 10, HT and VHT, and 6e channels require mac80211 drivers; the old wireless IOCTLs do
  * not support the needed attributes.
@@ -602,6 +608,27 @@ unsigned int wifi_freq_to_chan(unsigned int in_freq) {
 		return 0;
 }
 
+enum wifi_chan_band wifi_freq_to_band(unsigned int in_freq) {
+    if (in_freq >= 2400 && in_freq <= 2484) {
+        return wifi_band_2ghz;
+    }
+
+    /* treat the weird 4ghz stuff as 5 */
+    if (in_freq >= 4915 && in_freq <= 4980) {
+        return wifi_band_5ghz;
+    }
+
+    if (in_freq >= 5180 && in_freq <= 5865) {
+        return wifi_band_5ghz;
+    }
+
+    if (in_freq >= 5955 && in_freq <= 7115) {
+        return wifi_band_6ghz;
+    }
+
+    return wifi_band_raw;
+}
+
 /* Find an interface, based on mode, that shares a parent with the provided
  * interface.  If somehow we're called with an existing monitor interface,
  * we'll find it as well.
@@ -691,7 +718,10 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
     /* Match 6e channels */
     if (strcasestr(chanstr, "6e") != NULL) {
-        r = sscanf(chanstr, "%u-W6e", &parsechan);
+        r = sscanf(chanstr, "%uW6e", &parsechan);
+
+        if (r != 1)
+            r = sscanf(chanstr, "%u-W6e", &parsechan);
 
         if (r == 1) {
             ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
@@ -713,7 +743,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         r = sscanf(chanstr, "%uHT20", &parsechan);
 
         /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
-        if (parsechan < 14) {
+        if (parsechan <= 14) {
             band_guess = wifi_band_2ghz;
         } else if (parsechan <= 196) {
             band_guess = wifi_band_5ghz;
@@ -741,7 +771,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
         /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
-        if (parsechan < 14) {
+        if (parsechan <= 14) {
             band_guess = wifi_band_2ghz;
         } else if (parsechan <= 196) {
             band_guess = wifi_band_5ghz;
@@ -813,7 +843,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     memset(ret_localchan, 0, sizeof(local_channel_t));
 
     /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
-    if (parsechan < 14) {
+    if (parsechan <= 14) {
         band_guess = wifi_band_2ghz;
     } else if (parsechan <= 196) {
         band_guess = wifi_band_5ghz;
@@ -929,7 +959,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     if (chan->chan_band == wifi_band_6ghz) {
         /* 6ghz */
-        snprintf(chanstr, STATUS_MAX, "%u-W6e", chan->control_freq);
+        snprintf(chanstr, STATUS_MAX, "%uW6e", chan->control_freq);
     } else if (chan->chan_type == 0 && chan->chan_width == 0) {
         /* Basic channel with no HT/VHT */
         snprintf(chanstr, STATUS_MAX, "%u", chan->control_freq);
@@ -978,11 +1008,14 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
     unsigned int *iw_chanlist;
-    size_t chan_sz;
-    unsigned int ci;
+    size_t chan_sz, mod_chan_sz;
+    unsigned int ci, cp;
     char conv_chan[16];
     unsigned int extended_flags = 0;
     char status[STATUS_MAX];
+
+    char **chanlist_fetch;
+    size_t chanlist_fetch_sz;
 
     if (local_wifi->use_ht_channels)
         extended_flags += MAC80211_GET_HT;
@@ -990,7 +1023,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         extended_flags += MAC80211_GET_VHT;
 
     /* Prefer mac80211 channel fetch */
-    ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, chanlist, chanlist_sz);
+    ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, &chanlist_fetch, &chanlist_fetch_sz);
 
     if (ret < 0 || chanlist_sz == 0) {
         snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink, falling "
@@ -1011,16 +1044,89 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
             return -1;
         }
 
-        *chanlist = (char **) malloc(sizeof(char *) * chan_sz);
+        /* If we're filtering bands, count the number of channels */
+        if (!local_wifi->band_any) {
+            mod_chan_sz = 0;
+
+            for (ci = 0; ci < chan_sz; ci++) {
+                enum wifi_chan_band band = wifi_freq_to_band(iw_chanlist[ci]);
+
+                if (band == wifi_band_2ghz && local_wifi->band_2_4)
+                    mod_chan_sz++;
+                if (band == wifi_band_5ghz && local_wifi->band_5)
+                    mod_chan_sz++;
+                if (band == wifi_band_6ghz && local_wifi->band_6)
+                    mod_chan_sz++;
+            }
+        } else {
+            mod_chan_sz = chan_sz;
+        }
+
+        *chanlist = (char **) malloc(sizeof(char *) * mod_chan_sz);
+
+        cp = 0;
 
         for (ci = 0; ci < chan_sz; ci++) {
+            if (!local_wifi->band_any) {
+                enum wifi_chan_band band = wifi_freq_to_band(iw_chanlist[ci]);
+
+                if (band == wifi_band_2ghz && !local_wifi->band_2_4)
+                    continue;
+
+                if (band == wifi_band_5ghz && !local_wifi->band_5)
+                    continue;
+
+                if (band == wifi_band_6ghz && !local_wifi->band_6)
+                    continue;
+            }
+
             snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
-            (*chanlist)[ci] = strdup(conv_chan);
+            (*chanlist)[cp] = strdup(conv_chan);
+            cp++;
         }
         
         free(iw_chanlist);
 
-        *chanlist_sz = chan_sz;
+        *chanlist_sz = mod_chan_sz;
+    } else {
+        /* No bands for filtering */
+        if (local_wifi->band_any) {
+            *chanlist = chanlist_fetch;
+            *chanlist_sz = chanlist_fetch_sz;
+            return 1;
+        }
+
+        /* Otherwise filter */
+        mod_chan_sz = 0;
+
+        for (ci = 0; ci < chanlist_fetch_sz; ci++) {
+            local_channel_t *lchan = chantranslate_callback(caph, chanlist_fetch[ci]);
+
+            if (lchan->chan_band == wifi_band_2ghz && local_wifi->band_2_4) {
+                mod_chan_sz++;
+            } else if (lchan->chan_band == wifi_band_5ghz && local_wifi->band_5) {
+                mod_chan_sz++;
+            } else if (lchan->chan_band == wifi_band_6ghz && local_wifi->band_6) {
+                mod_chan_sz++;
+            } else {
+                free(chanlist_fetch[ci]);
+                chanlist_fetch[ci] = NULL;
+            }
+        }
+
+        *chanlist = (char **) malloc(sizeof(char *) * mod_chan_sz);
+        *chanlist_sz = mod_chan_sz;
+
+        cp = 0;
+        for (ci = 0; ci < chanlist_fetch_sz; ci++) {
+            if (chanlist_fetch[ci] == NULL)
+                continue;
+
+            (*chanlist)[cp] = chanlist_fetch[ci];
+            cp++;
+        }
+
+        free(chanlist_fetch);
     }
 
     return 1;
@@ -1867,6 +1973,67 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
 
             filter_targets[i] = strndup(placeholder, placeholder_len);
+        }
+    }
+
+    /* Process the bands enabled on this device; if any band is set, the override 
+     * for 'any' is cleared and only that band is picked. */
+
+    unsigned int band_mask = 0;
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "band24ghz", definition)) > 0) {
+        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            band_mask |= (1 << 0);
+            band_mask |= (1 << 1);
+        }
+    }
+
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "band5ghz", definition)) > 0) {
+        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            band_mask |= (1 << 0);
+            band_mask |= (1 << 2);
+        }
+    }
+
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "band6ghz", definition)) > 0) {
+        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            band_mask |= (1 << 0);
+            band_mask |= (1 << 3);
+        }
+    }
+
+    if (band_mask == (1 << 0)) {
+        snprintf(errstr, STATUS_MAX, "%s has no enabled bands; defaulting to normal behavior and enabling all bands.", 
+                local_wifi->interface);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        band_mask = 0;
+    }
+
+    if (band_mask != 0) {
+        if (band_mask == 0xF) {
+            local_wifi->band_any = true;
+            local_wifi->band_2_4 = true;
+            local_wifi->band_5 = true;
+            local_wifi->band_6 = true;
+        } else {
+            local_wifi->band_any = false;
+
+            if (band_mask & (1 << 1))
+                local_wifi->band_2_4 = true;
+            else
+                local_wifi->band_2_4 = false;
+
+            if (band_mask & (1 << 2))
+                local_wifi->band_5 = true;
+            else
+                local_wifi->band_5 = false;
+
+            if (band_mask & (1 << 3))
+                local_wifi->band_6 = true;
+            else
+                local_wifi->band_6 = false;
         }
     }
 
@@ -3093,6 +3260,10 @@ int main(int argc, char *argv[]) {
         .use_vht_channels = 1,
         .wardrive_filter = 0,
         .data_filter = 0,
+        .band_any = true,
+        .band_2_4 = true,
+        .band_5 = true,
+        .band_6 = true,
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
         .nexmon = NULL,
