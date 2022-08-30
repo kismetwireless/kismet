@@ -1781,16 +1781,16 @@ public:
 
         bool match_list = true;
 
-        auto initial_channels = initial_ds->get_source_channels_vec();
-        auto compare_channels = in_src->get_source_channels_vec();
+        auto initial_channels = initial_ds->get_source_channels_vec_copy();
+        auto compare_channels = in_src->get_source_channels_vec_copy();
 
-        if (initial_channels->size() != compare_channels->size())
+        if (initial_channels.size() != compare_channels.size())
             return;
 
-        for (const auto& first_chan : *initial_channels) {
+        for (const auto& first_chan : initial_channels) {
             bool matched_cur_chan = false;
 
-            for (const auto& comp_chan : *compare_channels) {
+            for (const auto& comp_chan : compare_channels) {
                 if (first_chan == comp_chan) {
                     matched_cur_chan = true;
                     break;

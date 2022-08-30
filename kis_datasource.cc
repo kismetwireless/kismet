@@ -100,6 +100,18 @@ kis_datasource::~kis_datasource() {
     // be completed!
 }
 
+std::vector<std::string> kis_datasource::get_source_channels_vec_copy() {
+    std::vector<std::string> ret;
+
+    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource get channel vec copy");
+
+    for (const auto& i : *source_channels_vec) {
+        ret.push_back(i);
+    }
+
+    return ret;
+}
+
 void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource list_interfaces");
     lock.lock();

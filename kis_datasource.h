@@ -366,8 +366,9 @@ public:
 
     __ProxyGetM(source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
 
-    __ProxyTrackableM(source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
-
+    // Don't allow raw access to the vec, we have to copy it under ext_mutex
+    // __ProxyTrackableM(source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
+    std::vector<std::string> get_source_channels_vec_copy();
 
 
     // Any alert state passed from the driver we want to be able to consistently
