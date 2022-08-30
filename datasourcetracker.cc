@@ -703,7 +703,7 @@ void datasource_tracker::trigger_deferred_startup() {
                                 converted_channels.push_back(ch.asString());
                         } else {
                             for (const auto& c : *(ds->get_source_hop_vec()))
-                                converted_channels.push_back(get_tracker_value<std::string>(c));
+                                converted_channels.push_back(c);
                         }
 
                         double rate;
@@ -1787,13 +1787,11 @@ public:
         if (initial_channels->size() != compare_channels->size())
             return;
 
-        for (auto first_chan : *initial_channels) {
-            auto first_chan_s = static_cast<tracker_element_string *>(first_chan.get());
+        for (const auto& first_chan : *initial_channels) {
             bool matched_cur_chan = false;
 
-            for (auto comp_chan : *compare_channels) {
-                auto comp_chan_s = static_cast<tracker_element_string *>(comp_chan.get());
-                if (first_chan_s->get() == comp_chan_s->get()) {
+            for (const auto& comp_chan : *compare_channels) {
+                if (first_chan == comp_chan) {
                     matched_cur_chan = true;
                     break;
                 }

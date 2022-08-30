@@ -295,7 +295,7 @@ public:
             configure_callback_t in_cb);
     // Set the channel hop rate using a tracker_element vector object
     virtual void set_channel_hop(double in_rate, 
-            std::shared_ptr<tracker_element_vector> in_chans,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     // Set just the channel hop rate; internally this is the same as setting a 
@@ -366,7 +366,9 @@ public:
 
     __ProxyGetM(source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
 
-    __ProxyTrackableM(source_channels_vec, tracker_element_vector, source_channels_vec, data_mutex);
+    __ProxyTrackableM(source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
+
+
 
     // Any alert state passed from the driver we want to be able to consistently
     // report to the user
@@ -379,7 +381,7 @@ public:
     __ProxyGetM(source_hop_offset, uint32_t, uint32_t, source_hop_offset, data_mutex);
     __ProxyGetM(source_hop_shuffle, uint8_t, bool, source_hop_shuffle, data_mutex);
     __ProxyGetM(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, data_mutex);
-    __ProxyTrackableM(source_hop_vec, tracker_element_vector, source_hop_vec, data_mutex);
+    __ProxyTrackableM(source_hop_vec, tracker_element_vector_string, source_hop_vec, data_mutex);
 
     __ProxyGetM(source_running, uint8_t, bool, source_running, data_mutex);
 
@@ -589,7 +591,7 @@ protected:
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_configure_channel_hop(double in_rate,
-            std::shared_ptr<tracker_element_vector> in_chans,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
@@ -627,7 +629,7 @@ protected:
     __ProxySetM(int_source_cap_interface, std::string, std::string, source_cap_interface, data_mutex);
     __ProxySetM(int_source_hardware, std::string, std::string, source_hardware, data_mutex);
     __ProxySetM(int_source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
-    __ProxyTrackableM(int_source_channels_vec, tracker_element_vector, source_channels_vec, data_mutex);
+    __ProxyTrackableM(int_source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
 
     __ProxySetM(int_source_warning, std::string, std::string, source_warning, data_mutex);
 
@@ -638,7 +640,7 @@ protected:
     __ProxySetM(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle, data_mutex);
     __ProxySetM(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, data_mutex);
     __ProxySetM(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset, data_mutex);
-    __ProxyTrackableM(int_source_hop_vec, tracker_element_vector, source_hop_vec, data_mutex);
+    __ProxyTrackableM(int_source_hop_vec, tracker_element_vector_string, source_hop_vec, data_mutex);
 
     // Prototype object which created us, defines our overall capabilities
     std::shared_ptr<kis_datasource_builder> source_builder;
@@ -667,7 +669,7 @@ protected:
     int channel_entry_id;
 
     // Possible channels supported by this source
-    std::shared_ptr<tracker_element_vector> source_channels_vec;
+    std::shared_ptr<tracker_element_vector_string> source_channels_vec;
 
     // Warning to the user if something is funny in the source
     std::shared_ptr<tracker_element_string> source_warning;
@@ -680,7 +682,7 @@ protected:
 
     // Current hop rate and vector of channels we hop through, if we're hopping
     std::shared_ptr<tracker_element_double> source_hop_rate;
-    std::shared_ptr<tracker_element_vector> source_hop_vec;
+    std::shared_ptr<tracker_element_vector_string> source_hop_vec;
     int source_hop_vec_id;
 
     std::shared_ptr<tracker_element_uint8> source_hop_split;

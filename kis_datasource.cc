@@ -373,12 +373,10 @@ void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in
     }
 
     // Convert the std::vector to a channel vector
-    auto vec = std::make_shared<tracker_element_vector>(source_hop_vec_id);
+    auto vec = std::make_shared<tracker_element_vector_string>(source_hop_vec_id);
 
-    for (auto i : in_chans) {
-        auto c = std::make_shared<tracker_element_string>(channel_entry_id);
-        c->set(i);
-        vec->push_back(c);
+    for (const auto& i : in_chans) {
+        vec->push_back(i);
     }
 
     // Call the common function that takes a sharedtrackerelement of channels
@@ -386,7 +384,7 @@ void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in
 }
 
 void kis_datasource::set_channel_hop(double in_rate, 
-        std::shared_ptr<tracker_element_vector> in_chans,
+        std::shared_ptr<tracker_element_vector_string> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource set_channel_hop");
@@ -948,10 +946,7 @@ void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno,
         source_channels_vec->clear();
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
-            auto chanstr =
-                std::make_shared<tracker_element_string>(channel_entry_id);
-            chanstr->set(report.channels().channels(x));
-            source_channels_vec->push_back(chanstr);
+            source_channels_vec->push_back(report.channels().channels(x));
         }
     }
 
@@ -1026,11 +1021,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         source_channels_vec->clear();
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
-            auto chanstr = 
-                std::make_shared<tracker_element_string>(channel_entry_id);
-            chanstr->set(report.channels().channels(x));
-
-            source_channels_vec->push_back(chanstr);
+            source_channels_vec->push_back(report.channels().channels(x));
         }
     }
 
@@ -1088,16 +1079,15 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     std::string def_chan = get_definition_opt("channel");
     if (def_chan != "") {
         bool append = true;
-        for (auto sci : *source_hop_vec) {
-            if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+        for (const auto& sci : *source_hop_vec) {
+            if (strcasecmp(sci.c_str(), def_chan.c_str()) == 0) {
                 append = false;
                 break;
             }
         }
 
         if (append) {
-            auto dce = std::make_shared<tracker_element_string>(channel_entry_id, def_chan);
-            source_channels_vec->push_back(dce);
+            source_channels_vec->push_back(def_chan);
         }
     }
 
@@ -1109,28 +1099,27 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         // If we override the channels, use our supplied list entirely, and we don't
         // care about the blocked channels
         for (auto dc : def_vec) {
-            auto dce = std::make_shared<tracker_element_string>(channel_entry_id, dc);
-            source_hop_vec->push_back(dce);
+            source_hop_vec->push_back(dc);
 
             // Do we need to add the custom channels to the list of channels the
             // source supports?
             bool append = true;
-            for (auto sci : *source_channels_vec) {
-                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), dc.c_str()) == 0) {
+            for (const auto& sci : *source_channels_vec) {
+                if (strcasecmp(sci.c_str(), dc.c_str()) == 0) {
                     append = false;
                     break;
                 }
             }
 
             if (append) 
-                source_channels_vec->push_back(dce);
+                source_channels_vec->push_back(dc);
         }
     } else if (add_vec.size() != 0) {
         // Add all our existing channels, filtering for blocked channels
-        for (auto c : *source_channels_vec) {
+        for (const auto& c : *source_channels_vec) {
             bool skip = false;
-            for (auto bchan : block_vec) {
-                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
+            for (const auto& bchan : block_vec) {
+                if (str_lower(c) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -1143,26 +1132,25 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto ac : add_vec) {
             // Add any new channels from the add_vec, we don't filter blocked channels here
             bool append = true;
-            for (auto sci : *source_channels_vec) {
-                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), ac.c_str()) == 0) {
+            for (const auto& sci : *source_channels_vec) {
+                if (strcasecmp(sci.c_str(), ac.c_str()) == 0) {
                     append = false;
                     break;
                 }
             }
 
             if (append) {
-                auto ace = std::make_shared<tracker_element_string>(channel_entry_id, ac);
-                source_hop_vec->push_back(ace);
-                source_channels_vec->push_back(ace);
+                source_hop_vec->push_back(ac);
+                source_channels_vec->push_back(ac);
             }
         }
 
     } else {
         // Otherwise, or hop list is our channels list, filtering for blocks
-        for (auto c : *source_channels_vec) {
+        for (const auto& c : *source_channels_vec) {
             bool skip = false;
-            for (auto bchan : block_vec) {
-                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
+            for (const auto& bchan : block_vec) {
+                if (str_lower(c) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -1325,8 +1313,7 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno,
         source_hop_vec->clear();
 
         for (auto c : report.hopping().channels()) {
-            auto chanstr = std::make_shared<tracker_element_string>(channel_entry_id, c);
-            source_hop_vec->push_back(chanstr);
+            source_hop_vec->push_back(c);
         }
     }
 
@@ -1705,7 +1692,7 @@ unsigned int kis_datasource::send_configure_channel(std::string in_chan,
 }
 
 unsigned int kis_datasource::send_configure_channel_hop(double in_rate, 
-        std::shared_ptr<tracker_element_vector> in_chans,
+        std::shared_ptr<tracker_element_vector_string> in_chans,
         bool in_shuffle, unsigned int in_offt,
         unsigned int in_transaction,
         configure_callback_t in_cb) {
@@ -1724,8 +1711,8 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
     ch->set_shuffle(in_shuffle);
     ch->set_offset(in_offt);
 
-    for (auto chi : *in_chans)  {
-        ch->add_channels(get_tracker_value<std::string>(chi));
+    for (const auto& chi : *in_chans)  {
+        ch->add_channels(chi);
     }
 
     o.set_allocated_hopping(ch);
