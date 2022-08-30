@@ -263,7 +263,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     if (prettyprint)
                         stream << indent;
 
-                    stream << i;
+                    stream << "\"" << i << "\"";
                 }
                 stream << ppendl << indent << "]";
                 break;
