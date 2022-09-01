@@ -228,19 +228,17 @@ void kis_external_interface::start_ipc_read() {
                         if (ec.value() == boost::asio::error::operation_aborted) {
                             if (ipc_running) {
                                 handle_packet(in_buf);
-                                return trigger_error("IPC connection aborted");
                             }
 
-                            return close_external();
+                            return trigger_error("IPC connection aborted");
                         }
 
                         if (ec.value() == boost::asio::error::eof) {
                             if (ipc_running) {
                                 handle_packet(in_buf);
-                                return trigger_error("IPC connection closed");
                             }
 
-                            return close_external();
+                            return trigger_error("IPC connection closed");
                         }
 
                         return trigger_error(fmt::format("IPC connection error: {}", ec.message()));
@@ -269,19 +267,17 @@ void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interfa
                 if (ec.value() == boost::asio::error::operation_aborted) {
                     if (!stopped || !cancelled) {
                         handle_packet(in_buf);
-                        return trigger_error("TCP connection aborted");
                     }
 
-                    return close_external();
+                    return trigger_error("TCP connection aborted");
                 }
 
                 if (ec.value() == boost::asio::error::eof) {
                     if (!stopped || !cancelled) {
                         handle_packet(in_buf);
-                        return trigger_error("TCP connection closed");
                     }
 
-                    return close_external();
+                    return trigger_error("TCP connection closed");
                 }
 
                 return trigger_error(fmt::format("TCP connection error: {}", ec.message()));
