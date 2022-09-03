@@ -126,7 +126,9 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
 
     csvfile = nullptr;
 
-    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
+    devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
+
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
 
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
@@ -211,6 +213,12 @@ void kis_wiglecsv_logfile::close_log() {
 }
 
 int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
+    if (in_pack->filtered)
+        return 1;
+
+    if (in_pack->duplicate)
+        return 1;
+
     kis_wiglecsv_logfile *wigle = static_cast<kis_wiglecsv_logfile *>(auxdata);
 
     kis_lock_guard<kis_mutex> lk(wigle->log_mutex);
@@ -219,12 +227,6 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         return 1;
 
     if (wigle->stream_paused)
-        return 1;
-
-    if (in_pack->filtered)
-        return 1;
-
-    if (in_pack->duplicate)
         return 1;
 
     auto l1info = in_pack->fetch<kis_layer1_packinfo>(wigle->pack_comp_l1info);
@@ -265,6 +267,11 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         if (time(0) < time_k->second)
             return 1;
     }
+
+    // Lock the device tracker while we log this packet because we need to interact
+    // with the device internals
+
+    kis_lock_guard<kis_mutex> device_lk(wigle->devicetracker->get_devicelist_mutex());
 
     // Break into per-phy handling
     if (wigle->dot11_phy->device_is_a(dev)) {

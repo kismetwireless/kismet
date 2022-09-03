@@ -51,6 +51,7 @@ protected:
 
     std::unordered_map<device_key, time_t> timer_map;
 
+    std::shared_ptr<device_tracker> devicetracker;
     kis_80211_phy *dot11_phy;
     kis_bluetooth_phy *bt_phy;
     kis_btle_phy *btle_phy;
