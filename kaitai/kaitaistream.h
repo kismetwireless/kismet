@@ -2,19 +2,19 @@
 #define KAITAI_STREAM_H
 
 // Kaitai Struct runtime API version: x.y.z = 'xxxyyyzzz' decimal
-#define KAITAI_STRUCT_VERSION 7000L
+#define KAITAI_STRUCT_VERSION 10000L
 
 #include <istream>
-#include <fstream>
 #include <sstream>
 #include <stdint.h>
 #include <sys/types.h>
+#include <limits>
 
 namespace kaitai {
 
 /**
  * Kaitai Stream class (kaitai::kstream) is an implementation of
- * <a href="https://github.com/kaitai-io/kaitai_struct/wiki/Kaitai-Struct-stream-API">Kaitai Struct stream API</a>
+ * <a href="https://doc.kaitai.io/stream_api.html">Kaitai Struct stream API</a>
  * for C++/STL. It's implemented as a wrapper over generic STL std::istream.
  *
  * It provides a wide variety of simple methods to read (parse) binary
@@ -42,7 +42,7 @@ public:
      * buffer.
      * \param data data buffer to use for this Kaitai Stream
      */
-    kstream(std::string& data);
+    kstream(const std::string& data);
 
     void close();
 
@@ -149,14 +149,16 @@ public:
     //@{
 
     void align_to_byte();
+    uint64_t read_bits_int_be(int n);
     uint64_t read_bits_int(int n);
+    uint64_t read_bits_int_le(int n);
 
     //@}
 
     /** @name Byte arrays */
     //@{
 
-    std::string read_bytes(ssize_t len);
+    std::string read_bytes(std::streamsize len);
     std::string read_bytes_full();
     std::string read_bytes_term(char term, bool include, bool consume, bool eos_error);
     std::string ensure_fixed_contents(std::string expected);
@@ -199,6 +201,7 @@ public:
      */
     static std::string process_rotate_left(std::string data, int amount);
 
+#ifdef KS_ZLIB
     /**
      * Performs an unpacking ("inflation") of zlib-compressed data with usual zlib headers.
      * @param data data to unpack
@@ -206,6 +209,7 @@ public:
      * @throws IOException
      */
     static std::string process_zlib(std::string data);
+#endif
 
     //@}
 
@@ -221,7 +225,33 @@ public:
      * Should be used in place of std::to_string() (which is available only
      * since C++11) in older C++ implementations.
      */
-    static std::string to_string(int val);
+    template<typename I>
+// check for C++11 support - https://stackoverflow.com/a/40512515
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+    // https://stackoverflow.com/a/27913885
+    typename std::enable_if<
+            std::is_integral<I>::value &&
+            // check if we don't have something too large like GCC's `__int128_t`
+            std::numeric_limits<I>::max() >= 0 &&
+            std::numeric_limits<I>::max() <= std::numeric_limits<uint64_t>::max(),
+            std::string
+    >::type
+#else
+    std::string
+#endif
+    static to_string(I val) {
+        // in theory, `digits10 + 3` would be enough (minus sign + leading digit
+        // + null terminator), but let's add a little more to be safe
+        char buf[std::numeric_limits<I>::digits10 + 5];
+        if (val < 0) {
+            buf[0] = '-';
+            // get absolute value without undefined behavior (https://stackoverflow.com/a/12231604)
+            unsigned_to_decimal(-static_cast<uint64_t>(val), &buf[1]);
+        } else {
+            unsigned_to_decimal(val, buf);
+        }
+        return std::string(buf);
+    }
 
     /**
      * Reverses given string `val`, so that the first character becomes the
@@ -229,6 +259,22 @@ public:
      * the need of local variables at the caller.
      */
     static std::string reverse(std::string val);
+
+    /**
+     * Finds the minimal byte in a byte array, treating bytes as
+     * unsigned values.
+     * @param val byte array to scan
+     * @return minimal byte in byte array as integer
+     */
+    static uint8_t byte_array_min(const std::string val);
+
+    /**
+     * Finds the maximal byte in a byte array, treating bytes as
+     * unsigned values.
+     * @param val byte array to scan
+     * @return maximal byte in byte array as integer
+     */
+    static uint8_t byte_array_max(const std::string val);
 
 private:
     std::istream* m_io;
@@ -239,7 +285,7 @@ private:
     void init();
     void exceptions_enable() const;
 
-    static uint64_t get_mask_ones(int n);
+    static void unsigned_to_decimal(uint64_t number, char *buffer);
 
     static const int ZLIB_BUF_SIZE = 128 * 1024;
 };

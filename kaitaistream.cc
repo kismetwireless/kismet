@@ -26,12 +26,12 @@
 #include <vector>
 #include <stdexcept>
 
-kaitai::kstream::kstream(std::istream* io) {
+kaitai::kstream::kstream(std::istream *io) {
     m_io = io;
     init();
 }
 
-kaitai::kstream::kstream(std::string& data): m_io_str(data) {
+kaitai::kstream::kstream(const std::string &data) : m_io_str(data) {
     m_io = &m_io_str;
     init();
 }
@@ -62,9 +62,7 @@ bool kaitai::kstream::is_eof() const {
         return false;
     }
     char t;
-    m_io->exceptions(
-        std::istream::badbit
-    );
+    m_io->exceptions(std::istream::badbit);
     m_io->get(t);
     if (m_io->eof()) {
         m_io->clear();
@@ -255,7 +253,7 @@ float kaitai::kstream::read_f4be() {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     t = bswap_32(t);
 #endif
-    return reinterpret_cast<float&>(t);
+    return reinterpret_cast<float &>(t);
 }
 
 double kaitai::kstream::read_f8be() {
@@ -264,7 +262,7 @@ double kaitai::kstream::read_f8be() {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     t = bswap_64(t);
 #endif
-    return reinterpret_cast<double&>(t);
+    return reinterpret_cast<double &>(t);
 }
 
 // ........................................................................
@@ -277,7 +275,7 @@ float kaitai::kstream::read_f4le() {
 #if __BYTE_ORDER == __BIG_ENDIAN
     t = bswap_32(t);
 #endif
-    return reinterpret_cast<float&>(t);
+    return reinterpret_cast<float &>(t);
 }
 
 double kaitai::kstream::read_f8le() {
@@ -286,7 +284,7 @@ double kaitai::kstream::read_f8le() {
 #if __BYTE_ORDER == __BIG_ENDIAN
     t = bswap_64(t);
 #endif
-    return reinterpret_cast<double&>(t);
+    return reinterpret_cast<double &>(t);
 }
 
 // ========================================================================
@@ -298,46 +296,81 @@ void kaitai::kstream::align_to_byte() {
     m_bits = 0;
 }
 
-uint64_t kaitai::kstream::read_bits_int(int n) {
+uint64_t kaitai::kstream::read_bits_int_be(int n) {
+    uint64_t res = 0;
+
     int bits_needed = n - m_bits_left;
+    m_bits_left = -bits_needed & 7; // `-bits_needed mod 8`
+
     if (bits_needed > 0) {
         // 1 bit  => 1 byte
         // 8 bits => 1 byte
         // 9 bits => 2 bytes
-        int bytes_needed = ((bits_needed - 1) / 8) + 1;
+        int bytes_needed = ((bits_needed - 1) / 8) + 1; // `ceil(bits_needed / 8)`
         if (bytes_needed > 8)
-            throw std::runtime_error("read_bits_int: more than 8 bytes requested");
-        char buf[8];
-        m_io->read(buf, bytes_needed);
+            throw std::runtime_error("read_bits_int_be: more than 8 bytes requested");
+        uint8_t buf[8];
+        m_io->read(reinterpret_cast<char *>(buf), bytes_needed);
         for (int i = 0; i < bytes_needed; i++) {
-            uint8_t b = buf[i];
-            m_bits <<= 8;
-            m_bits |= b;
-            m_bits_left += 8;
+            res = res << 8 | buf[i];
         }
+
+        uint64_t new_bits = res;
+        res = res >> m_bits_left | (bits_needed < 64 ? m_bits << bits_needed : 0); // avoid undefined behavior of `x << 64`
+        m_bits = new_bits; // will be masked at the end of the function
+    } else {
+        res = m_bits >> -bits_needed; // shift unneeded bits out
     }
 
-    // raw mask with required number of 1s, starting from lowest bit
-    uint64_t mask = get_mask_ones(n);
-    // shift mask to align with highest bits available in @bits
-    int shift_bits = m_bits_left - n;
-    mask <<= shift_bits;
-    // derive reading result
-    uint64_t res = (m_bits & mask) >> shift_bits;
-    // clear top bits that we've just read => AND with 1s
-    m_bits_left -= n;
-    mask = get_mask_ones(m_bits_left);
+    uint64_t mask = (UINT64_C(1) << m_bits_left) - 1; // `m_bits_left` is in range 0..7, so `(1 << 64)` does not have to be considered
     m_bits &= mask;
 
     return res;
 }
 
-uint64_t kaitai::kstream::get_mask_ones(int n) {
-    if (n == 64) {
-        return 0xFFFFFFFFFFFFFFFF;
+// Deprecated, use read_bits_int_be() instead.
+uint64_t kaitai::kstream::read_bits_int(int n) {
+    return read_bits_int_be(n);
+}
+
+uint64_t kaitai::kstream::read_bits_int_le(int n) {
+    uint64_t res = 0;
+    int bits_needed = n - m_bits_left;
+
+    if (bits_needed > 0) {
+        // 1 bit  => 1 byte
+        // 8 bits => 1 byte
+        // 9 bits => 2 bytes
+        int bytes_needed = ((bits_needed - 1) / 8) + 1; // `ceil(bits_needed / 8)`
+        if (bytes_needed > 8)
+            throw std::runtime_error("read_bits_int_le: more than 8 bytes requested");
+        uint8_t buf[8];
+        m_io->read(reinterpret_cast<char *>(buf), bytes_needed);
+        for (int i = 0; i < bytes_needed; i++) {
+            res |= static_cast<uint64_t>(buf[i]) << (i * 8);
+        }
+
+        // NB: for bit shift operators in C++, "if the value of the right operand is
+        // negative or is greater or equal to the number of bits in the promoted left
+        // operand, the behavior is undefined." (see
+        // https://en.cppreference.com/w/cpp/language/operator_arithmetic#Bitwise_shift_operators)
+        // So we define our desired behavior here.
+        uint64_t new_bits = bits_needed < 64 ? res >> bits_needed : 0;
+        res = res << m_bits_left | m_bits;
+        m_bits = new_bits;
     } else {
-        return ((uint64_t) 1 << n) - 1;
+        res = m_bits;
+        m_bits >>= n;
     }
+
+    m_bits_left = -bits_needed & 7; // `-bits_needed mod 8`
+
+    if (n < 64) {
+        uint64_t mask = (UINT64_C(1) << n) - 1;
+        res &= mask;
+    }
+    // if `n == 64`, do nothing
+    return res;
 }
 
 // ========================================================================
@@ -399,7 +432,9 @@ std::string kaitai::kstream::ensure_fixed_contents(std::string expected) {
     std::string actual = read_bytes(expected.length());
 
     if (actual != expected) {
-        // NOTE: I think printing it outright is not best idea, it could contain non-ascii characters like backspace and beeps and whatnot. It would be better to print hexlified version, and also to redirect it to stderr.
+        // NOTE: I think printing it outright is not best idea, it could contain non-ASCII characters
+        // like backspace and beeps and whatnot. It would be better to print hexlified version, and
+        // also to redirect it to stderr.
         throw std::runtime_error("ensure_fixed_contents: actual data does not match expected data");
     }
 
@@ -476,7 +511,7 @@ std::string kaitai::kstream::process_rotate_left(std::string data, int amount) {
 std::string kaitai::kstream::process_zlib(std::string data) {
     int ret;
 
-    unsigned char *src_ptr = reinterpret_cast<unsigned char*>(&data[0]);
+    unsigned char *src_ptr = reinterpret_cast<unsigned char *>(&data[0]);
     std::stringstream dst_strm;
 
     z_stream strm;
@@ -496,16 +531,16 @@ std::string kaitai::kstream::process_zlib(std::string data) {
 
     // get the decompressed bytes blockwise using repeated calls to inflate
     do {
-        strm.next_out = reinterpret_cast<Bytef*>(outbuffer);
+        strm.next_out = reinterpret_cast<Bytef *>(outbuffer);
         strm.avail_out = sizeof(outbuffer);
 
         ret = inflate(&strm, 0);
 
         if (outstring.size() < strm.total_out)
-            outstring.append(reinterpret_cast<char*>(outbuffer), strm.total_out - outstring.size());
+            outstring.append(reinterpret_cast<char *>(outbuffer), strm.total_out - outstring.size());
     } while (ret == Z_OK);
 
-    if (ret != Z_STREAM_END) {          // an error occurred that was not EOF
+    if (ret != Z_STREAM_END) { // an error occurred that was not EOF
         std::ostringstream exc_msg;
         exc_msg << "process_zlib: error #" << ret << "): " << strm.msg;
         throw std::runtime_error(exc_msg.str());
@@ -531,27 +566,51 @@ int kaitai::kstream::mod(int a, int b) {
     return r;
 }
 
-#include <stdio.h>
-std::string kaitai::kstream::to_string(int val) {
-    // if int is 32 bits, "-2147483648" is the longest string representation
-    //   => 11 chars + zero => 12 chars
-    // if int is 64 bits, "-9223372036854775808" is the longest
-    //   => 20 chars + zero => 21 chars
-    char buf[25];
-    int got_len = snprintf(buf, sizeof(buf), "%d", val);
-
-    // should never happen, but check nonetheless
-    if (got_len > sizeof(buf))
-        throw std::invalid_argument("to_string: integer is longer than string buffer");
-
-    return std::string(buf);
+#include <algorithm>
+void kaitai::kstream::unsigned_to_decimal(uint64_t number, char *buffer) {
+    // Implementation from https://ideone.com/nrQfA8 by Alf P. Steinbach
+    // (see https://www.zverovich.net/2013/09/07/integer-to-string-conversion-in-cplusplus.html#comment-1033931478)
+    if (number == 0) {
+        *buffer++ = '0';
+    } else {
+        char *p_first = buffer;
+        while (number != 0) {
+            *buffer++ = static_cast<char>('0' + number % 10);
+            number /= 10;
+        }
+        std::reverse(p_first, buffer);
+    }
+    *buffer = '\0';
 }
 
-#include <algorithm>
 std::string kaitai::kstream::reverse(std::string val) {
     std::reverse(val.begin(), val.end());
 
     return val;
+}
+
+uint8_t kaitai::kstream::byte_array_min(const std::string val) {
+    uint8_t min = 0xff; // UINT8_MAX
+    std::string::const_iterator end = val.end();
+    for (std::string::const_iterator it = val.begin(); it != end; ++it) {
+        uint8_t cur = static_cast<uint8_t>(*it);
+        if (cur < min) {
+            min = cur;
+        }
+    }
+    return min;
+}
+
+uint8_t kaitai::kstream::byte_array_max(const std::string val) {
+    uint8_t max = 0; // UINT8_MIN
+    std::string::const_iterator end = val.end();
+    for (std::string::const_iterator it = val.begin(); it != end; ++it) {
+        uint8_t cur = static_cast<uint8_t>(*it);
+        if (cur > max) {
+            max = cur;
+        }
+    }
+    return max;
 }
 
 // ========================================================================
@@ -571,7 +630,7 @@ std::string kaitai::kstream::reverse(std::string val) {
 std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) {
     iconv_t cd = iconv_open(KS_STR_DEFAULT_ENCODING, src_enc.c_str());
 
-    if (cd == (iconv_t) -1) {
+    if (cd == (iconv_t)-1) {
         if (errno == EINVAL) {
             throw std::runtime_error("bytes_to_str: invalid encoding pair conversion requested");
         } else {
@@ -593,9 +652,9 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
     while (true) {
         size_t res = iconv(cd, &src_ptr, &src_left, &dst_ptr, &dst_left);
 
-        if (res == (size_t) -1) {
+        if (res == (size_t)-1) {
             if (errno == E2BIG) {
-                // dst buffer is not enough to accommodate whole string
+                // dst buffer is not enough to accomodate whole string
                 // enlarge the buffer and try again
                 size_t dst_used = dst_len - dst_left;
                 dst_left += dst_len;
