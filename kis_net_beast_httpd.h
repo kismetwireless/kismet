@@ -132,6 +132,7 @@ public:
     void store_auth();
 
     std::shared_ptr<kis_net_beast_auth> check_auth_token(const boost::beast::string_view& token);
+    std::shared_ptr<kis_net_beast_auth> check_jwt_token(const boost::beast::string_view& token);
     bool check_admin_login(const std::string& username, const std::string& password);
 
 
@@ -211,6 +212,10 @@ protected:
     // Yes, these are stored in ram.  yes, I'm ok with this.
     std::string admin_username, admin_password;
     bool global_login_config;
+
+    // Encryption token for JWT 
+    std::string jwt_auth_key;
+    std::string jwt_auth_issuer;
 
     void set_admin_login(const std::string& username, const std::string& password);
 

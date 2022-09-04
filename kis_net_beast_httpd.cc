@@ -24,6 +24,9 @@
 
 #include <stdio.h>
 
+#include "globalregistry.h"
+#include "jwt-cpp/jwt.h"
+
 #include "alertracker.h"
 #include "base64.h"
 #include "configfile.h"
@@ -184,6 +187,24 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     }
 
     load_auth();
+
+    jwt_auth_key = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_jwt_key", "");
+    if (jwt_auth_key.length() == 0) {
+        std::random_device rnd;
+        auto dist = std::uniform_int_distribution<uint8_t>(0, 0xFF);
+        char rdata[16];
+
+        for (auto i = 0; i < 16; i++)
+            rdata[i] = dist(rnd);
+
+        jwt_auth_key = std::string(rdata, 16);
+    } else if (jwt_auth_key.length() < 8) {
+        _MSG_FATAL("Invalid httpd_jwt_key value, expected at least 8 characters");
+        Globalreg::globalreg->fatal_condition = 1;
+        return;
+    }
+
+    jwt_auth_issuer = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_jwt_issuer", "kismet");
 
     allow_cors_ =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
@@ -842,6 +863,24 @@ std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const 
     for (const auto& a : auth_vec) {
         if (a->check_auth(token)) 
             return a;
+
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_jwt_token(const boost::beast::string_view& token) {
+    try {
+        auto decoded = jwt::decode(std::string(token));
+
+        auto verifier = jwt::verify()
+            .allow_algorithm(jwt::algorithm::hs256{jwt_auth_key})
+            .with_issuer(jwt_auth_issuer);
+
+        verifier.verify(decoded);
+
+    } catch (...) {
+        return nullptr;
     }
 
     return nullptr;
