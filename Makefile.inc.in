@@ -14,7 +14,7 @@ CCLD		= @CC@
 
 LDFLAGS		+= @LDFLAGS@
 CFLAGS		+= -Wall -Wno-unknown-warning-option -Wno-format-truncation -Wno-unused-function -g -I. -fPIE @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PROTOCCFLAGS@ @PCAPCFLAGS@ @LIBWSCFLAGS@
-CXXFLAGS 	+= -Wall -Wno-unknown-warning-option -Wno-deprecated-declarations -Wno-format-truncation -Wno-unused-local-typedefs -Wno-unused-function -Wno-infinite-recursion -g -I. -fPIE @CXXFLAGS@ @PROTOCFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@
+CXXFLAGS 	+= -Wall -Wno-unknown-warning-option -Wno-deprecated-declarations -Wno-format-truncation -Wno-unused-local-typedefs -Wno-unused-function -Wno-infinite-recursion -g -I. -fPIE @CXXFLAGS@ @PROTOCFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@ @OPENSSL_INCLUDES@
 CPPFLAGS 	+= @CPPFLAGS@ 
 
 INSTALL		= @INSTALL@
@@ -26,7 +26,7 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 CXXLIBS 	+= @CXXLIBS@
 
 LIBS		+= @LIBS@
-KSLIBS		+= @KSLIBS@ @PTHREAD_LIBS@ @PROTOLIBS@
+KSLIBS		+= @KSLIBS@ @PTHREAD_LIBS@ @PROTOLIBS@ @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 
 PTHREADLIBS = @PTHREAD_LIBS@
 CAPLIBS		= @caplibs@ @LIBWSLIBS@

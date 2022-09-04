@@ -1058,6 +1058,12 @@ if test "$caponly" == 0; then
 
 fi # caponly
 
+# don't check for openssl if we're only building datasources 
+if test "$caponly" == 0; then 
+    AX_CHECK_OPENSSL(AC_DEFINE(HAVE_OPENSSL, 1, openssl library present),
+                     AC_MSG_ERROR(Failed to find OpenSSL library))
+fi # caponly
+
 AC_ARG_ENABLE(prelude,
               AS_HELP_STRING([--enable-prelude],
                              [Enable Prelude SIEM as a target for alerts.]),

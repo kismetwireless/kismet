@@ -144,6 +144,9 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
+/* openssl library present */
+#undef HAVE_OPENSSL
+
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
 
