@@ -35,7 +35,7 @@
 #include "entrytracker.h"
 #include "future_chainbuf.h"
 #include "globalregistry.h"
-#include "json/json.h"
+#include "nlohmann/json.hpp"
 #include "kis_mutex.h"
 #include "messagebus.h"
 #include "trackedelement.h"

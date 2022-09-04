@@ -45,7 +45,7 @@
 #include "endian_magic.h"
 #include "fmt.h"
 #include "getopt.h"
-#include "json/json.h"
+#include "nlohmann/json.hpp"
 #include "packet_ieee80211.h"
 #include "pcapng.h"
 #include "sqlite3_cpp11.h"

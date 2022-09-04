@@ -40,7 +40,7 @@
 
 #include "fmt.h"
 #include "globalregistry.h"
-#include "json/json.h"
+#include "nlohmann/json.hpp"
 #include "kis_mutex.h"
 #include "macaddr.h"
 #include "robin_hood.h"

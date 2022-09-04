@@ -36,7 +36,7 @@
 #include "trackedelement.h"
 #include "entrytracker.h"
 #include "kis_mutex.h"
-#include "json/json.h"
+#include "nlohmann/json.hpp"
 
 
 // Complex trackable unit based on trackertype dataunion.

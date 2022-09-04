@@ -1980,7 +1980,7 @@ void kis_datasource::handle_source_error() {
 
                 _MSG("Attempting to re-open source " + get_source_name(), MSGFLAG_INFO);
 
-                // Call open on the same sourceline, no transaction, no cb
+                // Call open on the same sourceline, no transaction
                 open_interface(generate_source_definition(), 0, 
                         [this](int, bool success, std::string) {
                             if (!success)

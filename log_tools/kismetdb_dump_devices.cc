@@ -37,7 +37,7 @@
 #include "getopt.h"
 
 #include "fmt.h"
-#include "json/json.h"
+#include "nlohmann/json.hpp"
 #include "sqlite3_cpp11.h"
 
 void print_help(char *argv) {
