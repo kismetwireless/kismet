@@ -454,7 +454,7 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            Json::Value json;
+            nlohmann::json json;
             std::stringstream ss(sqlite3_column_as<std::string>(d, 6));
 
             try {
@@ -464,7 +464,7 @@ int main(int argc, char *argv[]) {
                     continue;
 
                 gpx_waypoint pl;
-                pl.name = json["kismet.device.base.commonname"].asString();
+                pl.name = json["kismet.device.base.commonname"].get<std::string>();
                 pl.lat = avg_lat;
                 pl.lon = avg_lon;
                 pl.alt = 0;
@@ -473,7 +473,7 @@ int main(int argc, char *argv[]) {
                 waypoint_vec.push_back(pl);
             } catch (const std::exception& e) {
                 std::cerr << 
-                    fmt::format("WARNING:  Could not process device info for '{}', skipping", json) << std::endl;
+                    fmt::format("WARNING:  Could not process device info for '{}', skipping", json.dump()) << std::endl;
             }
 
         }
@@ -493,7 +493,7 @@ int main(int argc, char *argv[]) {
 
             auto phyname = sqlite3_column_as<std::string>(d, 0);
             auto devmac = sqlite3_column_as<std::string>(d, 1);
-            Json::Value json;
+            nlohmann::json json;
 
             std::stringstream ss(sqlite3_column_as<std::string>(d, 2));
 
@@ -501,9 +501,9 @@ int main(int argc, char *argv[]) {
 
             try {
                 ss >> json;
-                pl.name = json["kismet.device.base.commonname"].asString();
+                pl.name = json["kismet.device.base.commonname"].get<std::string>();
             } catch (const std::exception& e) {
-                fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json);
+                fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json.dump());
                 continue;
             }
 

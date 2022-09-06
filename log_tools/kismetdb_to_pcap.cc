@@ -1316,34 +1316,35 @@ int main(int argc, char *argv[]) {
                 auto ts_usec = sqlite3_column_as<unsigned long>(*gps, 1);
 
                 if (pcapng && !split_interface) {
-                    Json::Value json;
+                    nlohmann::json json;
                     std::stringstream ss(sqlite3_column_as<std::string>(*gps, 2));
 
                     try {
                         ss >> json;
 
-                        auto alt = json["kismet.gps.last_location"]["kismet.common.location.alt"].asDouble();
-                        auto lat = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][1].asDouble();
-                        auto lon = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][0].asDouble();
+                        auto alt = json["kismet.gps.last_location"].value("kismet.common.location.alt", 0);
+                        auto lat = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][1].get<double>();
+                        auto lon = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][0].get<double>();
 
-                        try {
-                            if (single_log->file == nullptr) {
-                                auto fname = out_fname;
+                        if (lat != 0 && lon != 0) {
+                            try {
+                                if (single_log->file == nullptr) {
+                                    auto fname = out_fname;
 
-                                if (verbose)
-                                    fmt::print(stderr, "* Opening pcapng file {}\n", fname);
+                                    if (verbose)
+                                        fmt::print(stderr, "* Opening pcapng file {}\n", fname);
 
-                                single_log->name = fname;
-                                single_log->file = open_pcapng_file(fname, force);
+                                    single_log->name = fname;
+                                    single_log->file = open_pcapng_file(fname, force);
+                                }
+                            } catch (const std::runtime_error& e) {
+                                fmt::print(stderr, "ERROR: Couldn't open {} for writing ({})\n",
+                                        single_log->name, e.what());
+                                break;
                             }
-                        } catch (const std::runtime_error& e) {
-                            fmt::print(stderr, "ERROR: Couldn't open {} for writing ({})\n",
-                                       single_log->name, e.what());
-                            break;
+
+                            write_pcapng_gps(single_log->file, ts_sec, ts_usec, lat, lon, alt);
                         }
-
-                        write_pcapng_gps(single_log->file, ts_sec, ts_usec, lat, lon, alt);
-
                     } catch (const std::exception& e) {
                         fmt::print(stderr, "WARNING: Could not process GPS JSON, skipping ({})\n", e.what());
                     }

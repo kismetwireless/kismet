@@ -66,18 +66,18 @@ std::string multi_replace_all(const std::string& in, const std::string& match, c
     return work;
 }
 
-void transform_json(Json::Value &json) {
+void transform_json(nlohmann::json &json) {
     try {
-        for (auto k : json.getMemberNames()) {
-            auto repl = multi_replace_all(k, ".", "_");
+        for (auto k : json.items()) {
+            auto repl = multi_replace_all(k.key(), ".", "_");
 
-            json[repl] = json[k];
-            json.removeMember(k);
+            json[repl] = k.value();
+            json.erase(k);
         }
 
-        for (Json::Value& v : json)
+        for (auto v : json)
             transform_json(v);
-    } catch (const Json::Exception& e) {
+    } catch (...) {
         return;
     }
 }
@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
         try {
             std::stringstream ss(json);
 
-            Json::Value parsed_json;
+            nlohmann::json parsed_json;
 
             ss >> parsed_json;
 
@@ -290,7 +290,10 @@ int main(int argc, char *argv[]) {
             }
             newline = true;
 
-            fmt::print(ofile, "{}", parsed_json);
+            ss.str("");
+            ss << parsed_json;
+
+            fmt::print(ofile, "{}", ss.str());
         } catch (const std::exception& e) {
             fmt::print(stderr, "ERROR:  Could not process device JSON: {}", e.what());
             continue;

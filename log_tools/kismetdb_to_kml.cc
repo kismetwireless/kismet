@@ -509,7 +509,7 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            Json::Value json;
+            nlohmann::json json;
             std::stringstream ss(sqlite3_column_as<std::string>(d, 6));
 
             try {
@@ -521,10 +521,10 @@ int main(int argc, char *argv[]) {
                 p.alt = 0;
 
                 kml_placemark pl;
-                pl.name = json["kismet.device.base.commonname"].asString();
-                pl.phy_layer = json["kismet.device.base.phyname"].asString();
-                pl.channel = json["kismet.device.base.channel"].asString();
-                pl.crypt = json["kismet.device.base.crypt"].asString();
+                pl.name = json["kismet.device.base.commonname"].get<std::string>();
+                pl.phy_layer = json["kismet.device.base.phyname"].get<std::string>();
+                pl.channel = json["kismet.device.base.channel"].get<std::string>();
+                pl.crypt = json["kismet.device.base.crypt"].get<std::string>();
                 pl.point_vec.push_back(p);
 
                 if (group_in_folder) {
@@ -555,7 +555,7 @@ int main(int argc, char *argv[]) {
                 std::cerr << fmt::format(
                                  "WARNING:  Could not process device info for "
                                  "'{}', skipping",
-                                 json)
+                                 json.dump())
                           << std::endl;
             }
         }
@@ -575,7 +575,7 @@ int main(int argc, char *argv[]) {
 
             auto phyname = sqlite3_column_as<std::string>(d, 0);
             auto devmac = sqlite3_column_as<std::string>(d, 1);
-            Json::Value json;
+            nlohmann::json json;
 
             std::stringstream ss(sqlite3_column_as<std::string>(d, 2));
 
@@ -583,12 +583,12 @@ int main(int argc, char *argv[]) {
 
             try {
                 ss >> json;
-                pl.name = json["kismet.device.base.commonname"].asString();
-                pl.phy_layer = json["kismet.device.base.phyname"].asString();
-                pl.channel = json["kismet.device.base.channel"].asString();
-                pl.crypt = json["kismet.device.base.crypt"].asString();
+                pl.name = json["kismet.device.base.commonname"].get<std::string>();
+                pl.phy_layer = json["kismet.device.base.phyname"].get<std::string>();
+                pl.channel = json["kismet.device.base.channel"].get<std::string>();
+                pl.crypt = json["kismet.device.base.crypt"].get<std::string>();
             } catch (const std::exception& e) {
-                fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json);
+                fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json.dump());
                 continue;
             }
 

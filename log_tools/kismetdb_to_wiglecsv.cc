@@ -608,47 +608,47 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            Json::Value json;
+            nlohmann::json json;
             std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
 
             try {
                 ss >> json;
 
-                auto timestamp = json["kismet.device.base.first_time"].asUInt64();
+                auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
                 auto name = std::string{""};
                 auto crypt = std::string{""};
-                auto type = json["kismet.device.base.type"].asString();
+                auto type = json["kismet.device.base.type"].get<std::string>();
 
                 if (phy == "IEEE802.11") {
                     if (type != "Wi-Fi AP")
                         continue;
 
-                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].isString()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
-                    } else if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].isNull()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].asString());
+                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
+                    } else if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
                     } else {
                         name = "";
                     }
-                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].isString()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
-                    } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].isString()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].asString());
+                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
+                    } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].is_string()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
                     } else {
                         name = "";
                     }
 
                     // Handle the aliased ssid_record for modern info
-                    if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].isNull()) {
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.crypt_set"].asUInt64());
+                    if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.crypt_set"]);
                     } else {
                         auto last_ssid_key = 
-                            json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();
+                            json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].get<uint64_t>();
                         std::stringstream ss;
 
                         ss << last_ssid_key;
 
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()]["dot11.advertisedssid.crypt_set"].asUInt64());
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()]["dot11.advertisedssid.crypt_set"]);
                     }
 
                     crypt += "[ESS]";
@@ -786,15 +786,15 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            Json::Value json;
+            nlohmann::json json;
             std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
 
             try {
                 ss >> json;
 
-                auto timestamp = json["kismet.device.base.first_time"].asUInt64();
-                auto type = json["kismet.device.base.type"].asString();
-                auto name = MungeForCSV(json["kismet.device.base.commonname"].asString());
+                auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
+                auto type = json["kismet.device.base.type"].get<std::string>();
+                auto name = MungeForCSV(json["kismet.device.base.commonname"]);
 
                 if (name == sourcemac)
                     name = "";

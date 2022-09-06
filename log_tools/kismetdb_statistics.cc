@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     std::string in_fname;
     bool skipclean = false;
     bool outputjson = false;
-    Json::Value root;
+    nlohmann::json root;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -228,10 +228,10 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        Json::Value ds_vec;
+        nlohmann::json ds_vec;
 
         for (auto i = sources_q.begin(); i != sources_q.end(); ++i) {
-            Json::Value ds_root;
+            nlohmann::json ds_root;
 
             if (outputjson) {
                 ds_root["uuid"] = sqlite3_column_as<std::string>(*i, 0);
@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
                         sqlite3_column_as<std::string>(*i, 1));
             }
 
-            Json::Value json;
+            nlohmann::json json;
             std::stringstream ss(sqlite3_column_as<std::string>(*i, 5));
 
             ss >> json;
@@ -257,15 +257,15 @@ int main(int argc, char *argv[]) {
                 ds_root["hardware"] = json["kismet.datasource.hardware"];
                 ds_root["packets"] = json["kismet.datasource.num_packets"];
             } else {
-                fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].asString());
-                fmt::print("      Packets: {}\n", json["kismet.datasource.num_packets"].asDouble());
+                fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].get<std::string>());
+                fmt::print("      Packets: {}\n", json["kismet.datasource.num_packets"].get<double>());
             }
 
-            if (json["kismet.datasource.hopping"].asInt()) {
+            if (json["kismet.datasource.hopping"].get<int>()) {
                 if (outputjson) {
                     ds_root["hop_rate"] = json["kismet.datasource.hop_rate"];
                 } else {
-                    auto rate = json["kismet.datasource.hop_rate"].asDouble();
+                    auto rate = json["kismet.datasource.hop_rate"].get<double>();
                     if (rate >= 1) {
                         fmt::print("      Hop rate: {:f}/second\n", rate);
                     } else if (rate / 60.0f < 60) {
@@ -286,7 +286,7 @@ int main(int argc, char *argv[]) {
 
                         comma = true;
 
-                        chan_ss << c.asString();
+                        chan_ss << c.get<std::string>();
                     }
 
                     if (chan_ss.str().length()) {
@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else {
-                auto chan = json["kismet.datasource.channel"].asString();
+                auto chan = json["kismet.datasource.channel"].get<std::string>();
                 if (chan.length()) {
                     if (outputjson) {
                         ds_root["channel"] = chan;
@@ -304,7 +304,7 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            ds_vec.append(ds_root);
+            ds_vec.push_back(ds_root);
         }
 
         if (outputjson) {
@@ -338,12 +338,12 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        Json::Value tag_vec;
+        nlohmann::json tag_vec;
 
         if (outputjson) {
             for (auto ti : tag_map) {
-                Json::Value tag = ti.first;
-                tag_vec.append(tag);
+                auto tag = ti.first;
+                tag_vec.push_back(tag);
             }
 
             root["packettags"] = tag_vec;
@@ -452,8 +452,13 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    if (outputjson)
-        fmt::print("{}\n", root);
+    if (outputjson) {
+        std::stringstream os;
+
+        os << root;
+
+        fmt::print("{}\n", os.str());
+    }
 
     return 0;
 }
