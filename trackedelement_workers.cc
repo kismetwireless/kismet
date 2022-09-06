@@ -78,7 +78,7 @@ tracker_element_regex_worker::tracker_element_regex_worker(const std::vector<std
 #endif
 }
 
-tracker_element_regex_worker::tracker_element_regex_worker(const nlohmann::json& json) {
+tracker_element_regex_worker::tracker_element_regex_worker(nlohmann::json& json) {
 #ifdef HAVE_LIBPCRE
     for (const auto& i : json) {
         if (!i.is_array() || i.size() != 2)

@@ -52,7 +52,7 @@ protected:
 
     // Validation function; can either return 'false' for generic error, or throw a specific error
     // exception to be returned to the submitter
-    bool validate_report(const nlohmann::json& report) { return true; }
+    bool validate_report(nlohmann::json& report) { return true; }
 };
 
 #endif /* ifndef DATASOURCE_SCAN_H__ */

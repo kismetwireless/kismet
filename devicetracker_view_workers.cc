@@ -77,7 +77,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 #endif
 }
 
-device_tracker_view_regex_worker::device_tracker_view_regex_worker(const nlohmann::json& json) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(nlohmann::json& json) {
 #ifdef HAVE_LIBPCRE
     for (const auto& i : json) {
         if (!i.is_array())
