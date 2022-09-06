@@ -649,19 +649,19 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_pa
         }
 
         auto altitude_j = json["altitude"];
-        if (altitude_j.is_number_float()) {
+        if (altitude_j.is_number()) {
             adsbdev->alt = altitude_j.get<double>() * 0.3048;
             adsbdev->update_location = true;
         }
 
         auto speed_j = json["speed"];
-        if (speed_j.is_number_float()) {
+        if (speed_j.is_number()) {
             adsbdev->speed = speed_j.get<double>() * 1.60934;
             adsbdev->update_location = true;
         }
 
         auto heading_j = json["heading"];
-        if (heading_j.is_number_float()) {
+        if (heading_j.is_number()) {
             adsbdev->heading = heading_j.get<double>();
             adsbdev->update_location = true;
         }
