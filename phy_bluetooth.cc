@@ -134,15 +134,15 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
     try {
         std::stringstream newdevstr;
         std::stringstream ss(pack_json->json_string);
-        Json::Value json;
+        nlohmann::json json;
         ss >> json;
 
         auto btaddr_j = json["btaddr"];
 
-        if (btaddr_j.isNull()) 
+        if (btaddr_j.is_null()) 
             throw std::runtime_error("no btaddr in scan report");
 
-        auto btaddr_mac = mac_addr(btaddr_j.asString());
+        auto btaddr_mac = mac_addr(btaddr_j.get<std::string>());
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
@@ -185,11 +185,11 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         // Service data bytes, hex string, optional
         auto service_bytes_map_j = json["service_data"];
 
-        if (devname_j.isString())
-            btdev->set_devicename(munge_to_printable(devname_j.asString()));
+        if (devname_j.is_string())
+            btdev->set_devicename(munge_to_printable(devname_j));
 
-        if (devtype_j.isString())
-            btdev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype(munge_to_printable(devtype_j.asString())));
+        if (devtype_j.is_string())
+            btdev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype(munge_to_printable(devtype_j)));
 
         auto btdev_bluetooth =
             btdev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
@@ -200,7 +200,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             if (btdev->get_devicename().length() > 0)
                 newdevstr << " (" << btdev->get_devicename() << ")";
 
-            if (devtype_j.isString())
+            if (devtype_j.is_string())
                 newdevstr << " " << btdev->get_type_string();
 
             _MSG_INFO(newdevstr.str());
@@ -211,27 +211,27 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             btdev->insert(btdev_bluetooth);
         }
 
-        if (powerlevel_j.isNumeric())
-            btdev_bluetooth->set_txpower(powerlevel_j.asInt());
+        if (powerlevel_j.is_number())
+            btdev_bluetooth->set_txpower(powerlevel_j.get<int>());
 
-        if (pathloss_j.isNumeric())
-            btdev_bluetooth->set_pathloss(pathloss_j.asInt());
+        if (pathloss_j.is_number())
+            btdev_bluetooth->set_pathloss(pathloss_j.get<int>());
 
-        if (scan_bytes_j.isString())
-            btdev_bluetooth->set_scan_data_from_hex(scan_bytes_j.asString());
+        if (scan_bytes_j.is_string())
+            btdev_bluetooth->set_scan_data_from_hex(scan_bytes_j);
 
-        if (service_bytes_map_j.isObject()) {
-            for (const auto& u : service_bytes_map_j.getMemberNames()) {
-                auto v = service_bytes_map_j[u];
+        if (service_bytes_map_j.is_object()) {
+            for (const auto& u : service_bytes_map_j.items()) {
+                auto v = u.value();
 
-                if (!v.isString())
+                if (!v.is_string())
                     throw std::runtime_error("expected string in service_data map");
 
                 auto bytehex = 
                     std::make_shared<tracker_element_byte_array>();
-                bytehex->from_hex(v.asString());
+                bytehex->from_hex(v);
 
-                btdev_bluetooth->get_service_data_bytes()->insert(u, bytehex);
+                btdev_bluetooth->get_service_data_bytes()->insert(u.key(), bytehex);
             }
         }
 

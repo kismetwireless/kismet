@@ -162,27 +162,27 @@ LOGTOOL_KISMETDB_STRIP_O = \
 LOGTOOL_KISMETDB_WIGLE = log_tools/kismetdb_to_wiglecsv
 LOGTOOL_KISMETDB_WIGLE_O = \
 	log_tools/kismetdb_to_wiglecsv.cc.o \
-	sqlite3_cpp11.cc.o jsoncpp.cc.o
+	sqlite3_cpp11.cc.o 
 
 LOGTOOL_KISMETDB_JSON = log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
-	sqlite3_cpp11.cc.o jsoncpp.cc.o
+	sqlite3_cpp11.cc.o
 
 LOGTOOL_KISMETDB_STATS = log_tools/kismetdb_statistics
 LOGTOOL_KISMETDB_STATS_O = \
 	log_tools/kismetdb_statistics.cc.o \
-	sqlite3_cpp11.cc.o jsoncpp.cc.o
+	sqlite3_cpp11.cc.o 
 
 LOGTOOL_KISMETDB_KML = log_tools/kismetdb_to_kml
 LOGTOOL_KISMETDB_KML_O = \
 	log_tools/kismetdb_to_kml.cc.o \
-	sqlite3_cpp11.cc.o jsoncpp.cc.o
+	sqlite3_cpp11.cc.o 
 
 LOGTOOL_KISMETDB_GPX = log_tools/kismetdb_to_gpx
 LOGTOOL_KISMETDB_GPX_O = \
 	log_tools/kismetdb_to_gpx.cc.o \
-	sqlite3_cpp11.cc.o jsoncpp.cc.o
+	sqlite3_cpp11.cc.o 
 
 LOGTOOL_KISMETDB_CLEAN = log_tools/kismetdb_clean
 LOGTOOL_KISMETDB_CLEAN_O = \
@@ -192,7 +192,7 @@ LOGTOOL_KISMETDB_CLEAN_O = \
 LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
 LOGTOOL_KISMETDB_PCAP_O = \
 	log_tools/kismetdb_to_pcap.cc.o \
-	sqlite3_cpp11.cc.o jsoncpp.cc.o
+	sqlite3_cpp11.cc.o 
 
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \
@@ -232,7 +232,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	trackedlocation.cc.o devicetracker_component.cc.o \
 	devicetracker_view.cc.o devicetracker_view_workers.cc.o \
 	kis_server_announce.cc.o \
-	jsoncpp.cc.o json_adapter.cc.o \
+	json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_httpd.cc.o \
 	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o kis_dlt_btle_radio.cc.o \

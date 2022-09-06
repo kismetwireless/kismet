@@ -115,37 +115,36 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                         }
 
                         std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
-                        Json::Value json;
+                        nlohmann::json json;
 
                         unsigned int req_id;
 
                         try {
                             ss >> json;
 
-                            if (!json["cancel"].isNull()) {
-                                auto kt_v = key_timer_map.find(json["cancel"].asUInt());
+                            auto cancel_j = json["cancel"];
+                            if (cancel_j.is_number()) {
+                                auto kt_v = key_timer_map.find(cancel_j);
                                 if (kt_v != key_timer_map.end()) {
                                     timetracker->remove_timer(kt_v->second);
                                     key_timer_map.erase(kt_v);
                                 }
                             }
 
-                            if (!json["monitor"].isNull()) {
-                                req_id = json["request"].asUInt();
+                            auto monitor_j = json["monitor"];
+                            if (!monitor_j.is_null()) {
+                                req_id = json["request"];
 
-                                std::string format_t = "json";
+                                std::string format_t = json.value("format", "json");
 
-                                if (!json["format"].isNull())
-                                    format_t = json["format"].asString();
-                                    
-                                auto dev_r = json["monitor"].asString();
-                                auto dev_k = device_key(json["monitor"].asString());
-                                auto dev_m = mac_addr(json["monitor"].asString());
+                                std::string dev_r = json["monitor"];
+                                auto dev_k = device_key(json["monitor"]);
+                                auto dev_m = mac_addr(json["monitor"].get<std::string>());
                                 
                                 if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
-                                auto rate = json["rate"].asUInt();
+                                unsigned int rate = json["rate"];
 
                                 // Remove any existing request under this ID
                                 auto kt_v = key_timer_map.find(req_id);
@@ -501,7 +500,7 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
     auto next_work_vec = do_device_work(worker);
 
     // Apply a regex filter
-    if (!regex.isNull()) {
+    if (!regex.is_null()) {
         try {
             auto worker = 
                 device_tracker_view_regex_worker(regex);
@@ -563,23 +562,23 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
     try {
         // If the json has a 'fields' record, derive the fields simplification
-        auto fields = con->json().get("fields", Json::Value(Json::arrayValue));
+        auto fields = con->json().value("fields", nlohmann::json::array_t{});
 
         for (const auto& i : fields) {
-            if (i.isString()) {
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-            } else if (i.isArray()) {
+            if (i.is_string()) {
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
+            } else if (i.is_array()) {
                 if (i.size() != 2) 
                     throw std::runtime_error("Invalid field map, expected [field, rename]");
 
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(), i[1].get<std::string>()));
             } else {
                 throw std::runtime_error("Invalid field map, exected field or [field, rename]");
             }
         }
 
         // Capture timestamp and negative-offset timestamp
-        auto raw_ts = con->json().get("last_time", 0).asInt64();
+        uint64_t raw_ts = con->json().value("last_time", 0);
         if (raw_ts < 0)
             timestamp_min = time(0) + raw_ts;
         else
@@ -601,7 +600,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         // Extract the column number -> column fieldpath data
         auto column_number_map = con->json()["colmap"];
 
-        if (con->json().get("datatable", false).asBool()) {
+        if (con->json().value("datatable", false)) {
             // Extract from the raw postvars 
             auto start_k = con->http_variables().find("start");
             if (start_k != con->http_variables().end())
@@ -633,23 +632,23 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             // We can only sort by a column that makes sense
             auto column_index = column_number_map[in_order_column_num];
             auto orderdir_k = con->http_variables().find("order[0][dir]");
-            if (!column_index.isNull() && orderdir_k != con->http_variables().end()) {
+            if (!column_index.is_null() && orderdir_k != con->http_variables().end()) {
                 if (orderdir_k->second == "asc")
                     in_order_direction = 1;
                 else
                     in_order_direction = 0;
 
                 // Resolve the path, we only allow the first one
-                if (column_index.isArray() && column_index.size() > 0) {
-                    if (column_index[0].isArray()) {
+                if (column_index.is_array() && column_index.size() > 0) {
+                    if (column_index[0].is_array()) {
                         // We only allow the first field, but make sure we're not a nested array
                         if (column_index[0].size() > 0) {
-                            order_field = tracker_element_summary(column_index[0][0].asString()).resolved_path;
+                            order_field = tracker_element_summary(column_index[0][0].get<std::string>()).resolved_path;
                         }
                     } else {
                         // Otherwise get the first array
                         if (column_index.size() >= 1) {
-                            order_field = tracker_element_summary(column_index[0].asString()).resolved_path;
+                            order_field = tracker_element_summary(column_index[0].get<std::string>()).resolved_path;
                         }
                     }
                 }
@@ -713,7 +712,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     }
 
     // Apply a regex filter
-    if (!regex.isNull()) {
+    if (!regex.is_null()) {
         try {
             auto worker = 
                 device_tracker_view_regex_worker(regex);

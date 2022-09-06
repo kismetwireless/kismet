@@ -176,15 +176,15 @@ public:
 
 protected:
     // Convert a JSON record to a device key
-    mac_addr json_to_mac(Json::Value in_json);
+    mac_addr json_to_mac(nlohmann::json in_json);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool rtlamr_json_to_phy(Json::Value in_json, std::shared_ptr<kis_packet> packet);
+    bool rtlamr_json_to_phy(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
 
-    bool is_amr_meter(Json::Value json);
+    bool is_amr_meter(nlohmann::json json);
 
-    void add_amr_meter(Json::Value json, std::shared_ptr<kis_tracked_device_base> phyholder);
+    void add_amr_meter(nlohmann::json json, std::shared_ptr<kis_tracked_device_base> phyholder);
 
 protected:
     std::shared_ptr<packet_chain> packetchain;

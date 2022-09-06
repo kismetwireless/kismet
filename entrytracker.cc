@@ -305,7 +305,7 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
 }
 
 int entry_tracker::serialize_with_json_summary(const std::string& type, std::ostream& stream, 
-        shared_tracker_element elem, const Json::Value& json_summary) {
+        shared_tracker_element elem, const nlohmann::json& json_summary) {
     auto name_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
     auto sumelem = 

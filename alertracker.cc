@@ -750,10 +750,10 @@ alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connecti
 
 void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     try {
-        auto name = con->json()["name"].asString();
-        auto description = con->json()["description"].asString();
-        auto alertclass = con->json()["class"].asString();
-        auto severity = int_to_alert_severity(con->json()["severity"].asUInt());
+        std::string name = con->json()["name"];
+        std::string description = con->json()["description"];
+        std::string alertclass = con->json()["class"];
+        auto severity = int_to_alert_severity(con->json()["severity"]);
 
         alert_time_unit limit_unit;
         int limit_rate;
@@ -761,19 +761,19 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
         alert_time_unit burst_unit;
         int burst_rate;
 
-        if (parse_rate_unit(str_lower(con->json().get("throttle", "").asString()),
+        if (parse_rate_unit(str_lower(con->json().value("throttle", "")),
                     &limit_unit, &limit_rate) < 0) {
             throw std::runtime_error("could not parse throttle limits");
         }
 
-        if (parse_rate_unit(str_lower(con->json().get("burst", "").asString()),
+        if (parse_rate_unit(str_lower(con->json().value("burst", "")),
                     &burst_unit, &burst_rate) < 0) {
             throw std::runtime_error("could not parse burst limits");
         }
 
         int phyid = KIS_PHY_ANY;
 
-        auto phyname = con->json().get("phyname", "").asString();
+        auto phyname = con->json().value("phyname", "");
 
         if (phyname != "any" && phyname != "") {
             auto devicetracker = 
@@ -815,8 +815,8 @@ void alert_tracker::raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_con
     std::ostream os(&con->response_stream());
 
     try {
-        auto name = con->json()["name"].asString();
-        auto text = con->json()["text"].asString();
+        std::string name = con->json()["name"];
+        std::string text = con->json()["text"];
 
         auto aref = fetch_alert_ref(name);
 
@@ -826,11 +826,11 @@ void alert_tracker::raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_con
             return;
         }
 
-        auto bssid = con->json().get("bssid", "").asString();
-        auto source = con->json().get("source", "").asString();
-        auto dest = con->json().get("dest", "").asString();
-        auto other = con->json().get("other", "").asString();
-        auto channel = con->json().get("channel", "").asString();
+        std::string bssid = con->json().value("bssid", "");
+        std::string source = con->json().value("source", "");
+        std::string dest = con->json().value("dest", "");
+        std::string other = con->json().value("other", "");
+        std::string channel = con->json().value("channel", "");
 
         mac_addr bssid_mac, source_mac, dest_mac, other_mac;
 
@@ -890,17 +890,17 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     auto dt_draw_elem = std::make_shared<tracker_element_uint64>();
 
     try {
-        auto fields = con->json().get("fields", Json::Value(Json::arrayValue));
+        auto fields = con->json().value("fields", nlohmann::json::array_t{});
 
         for (const auto& i : fields) {
-            if (i.isString()) {
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-            } else if (i.isArray()) {
+            if (i.is_string()) {
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
+            } else if (i.is_array()) {
                 if (i.size() != 2)
                     throw std::runtime_error("Invalid field map, expected [field, rename]");
 
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(),
-                            i[1].asString()));
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(),
+                            i[1].get<std::string>()));
             }
         }
     } catch (const std::exception& e) {
@@ -918,7 +918,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     try {
         auto column_number_map = con->json()["colmap"];
 
-        if (con->json().get("datatable", false).asBool()) {
+        if (con->json().value("datatable", false)) {
             auto start_k = con->http_variables().find("start");
             if (start_k != con->http_variables().end()) 
                 in_window_start = string_to_n<unsigned int>(start_k->second);
@@ -945,23 +945,23 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
 
             auto column_index = column_number_map[in_order_column_num];
             auto orderdir_k = con->http_variables().find("order[0][dir]");
-            if (!column_index.isNull() && orderdir_k != con->http_variables().end()) {
+            if (!column_index.is_null() && orderdir_k != con->http_variables().end()) {
                 if (orderdir_k->second == "asc")
                     in_order_direction = 1;
                 else
                     in_order_direction = 0;
 
                 // Resolve the path, we only allow the first one
-                if (column_index.isArray() && column_index.size() > 0) {
-                    if (column_index[0].isArray()) {
+                if (column_index.is_array() && column_index.size() > 0) {
+                    if (column_index[0].is_array()) {
                         // We only allow the first field, but make sure we're not a nested array
                         if (column_index[0].size() > 0) {
-                            order_field = tracker_element_summary(column_index[0][0].asString()).resolved_path;
+                            order_field = tracker_element_summary(column_index[0][0].get<std::string>()).resolved_path;
                         }
                     } else {
                         // Otherwise get the first array
                         if (column_index.size() >= 1) {
-                            order_field = tracker_element_summary(column_index[0].asString()).resolved_path;
+                            order_field = tracker_element_summary(column_index[0].get<std::string>()).resolved_path;
                         }
                     }
                 }

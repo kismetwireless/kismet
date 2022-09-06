@@ -1539,7 +1539,7 @@ void kis_database_logfile::packet_drop_endpoint_handler(std::shared_ptr<kis_net_
     }
 
         auto drop_query = 
-            _DELETE(db, "packets", _WHERE("ts_sec", LE, con->json()["drop_before"].asUInt64()));
+            _DELETE(db, "packets", _WHERE("ts_sec", LE, con->json()["drop_before"].get<uint64_t>()));
 
     ostream << "Packets removed\n";
 }
@@ -1558,9 +1558,9 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
     if (gpstracker != nullptr) 
         loc = gpstracker->get_best_location();
 
-    if (!con->json()["note"].isNull()) {
+    if (!con->json()["note"].is_null()) {
         poi_data = "{\"note\": \"" +
-            json_adapter::sanitize_string(con->json()["note"].asString()) +
+            json_adapter::sanitize_string(con->json()["note"]) +
             "\"}";
     }
 

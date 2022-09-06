@@ -65,7 +65,7 @@ void packet_filter::default_set_endp_handler(std::shared_ptr<kis_net_beast_httpd
     std::ostream stream(&con->response_stream());
 
     try {
-        set_filter_default(filterstring_to_bool(con->json()["default"].asString()));
+        set_filter_default(filterstring_to_bool(con->json()["default"]));
         stream << "Default filter: " << get_filter_default() << "\n";
         return;
     } catch (const std::exception& e) {
@@ -378,19 +378,19 @@ void packet_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_htt
     
     auto filter = con->json()["filter"];
 
-    if (!filter.isObject()) {
+    if (!filter.is_object()) {
         con->set_status(500);
         stream << "Expected 'filter' to be a dictionary\n";
         return;
     }
 
-    for (const auto& i : filter.getMemberNames()) {
-        mac_addr m(i);
-        bool v = filter[i].asBool();
+    for (const auto& i : filter.items()) {
+        mac_addr m(i.key());
+        bool v = i.value();
 
         if (m.state.error) 
             throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                        con->escape_html(i)));
+                        con->escape_html(i.key())));
 
         set_filter(m, con->uri_params()[":phyname"], con->uri_params()[":block"], v);
     }
@@ -404,18 +404,18 @@ void packet_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_h
 
     auto filter = con->json()["filter"];
 
-    if (!filter.isArray()) {
+    if (!filter.is_array()) {
         con->set_status(500);
         stream << "Expected 'filter' to be an array\n";
         return;
     }
 
-    for (auto i : filter) {
-        mac_addr m{i.asString()};
+    for (const auto& i : filter) {
+        mac_addr m{i.get<std::string>()};
 
         if (m.state.error) 
             throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                        con->escape_html(i.asString())));
+                        con->escape_html(i)));
 
         remove_filter(m, con->uri_params()[":phyname"], con->uri_params()[":block"]);
     }

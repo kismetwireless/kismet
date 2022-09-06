@@ -100,8 +100,8 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 [this, httpd](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                     uuid src_uuid;
 
-                    if (!con->json()["uuid"].isNull()) {
-                        src_uuid = string_to_n<uuid>(con->json()["uuid"].asString());
+                    if (!con->json()["uuid"].is_null()) {
+                        src_uuid = string_to_n<uuid>(con->json()["uuid"].get<std::string>());
 
                         if (src_uuid.error)
                             throw std::runtime_error("invalid UUID");
@@ -116,8 +116,8 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
 
                     std::string src_name = "ADSB proxy";
 
-                    if (!con->json()["name"].isNull()) {
-                        src_name = con->json()["name"].asString();
+                    if (!con->json()["name"].is_null()) {
+                        src_name = con->json()["name"].get<std::string>();
                     }
 
                     auto virtual_builder = Globalreg::fetch_mandatory_global_as<datasource_virtual_builder>();
@@ -228,12 +228,12 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 return 0;
 
                             std::stringstream ss(json->json_string);
-                            Json::Value device_json;
+                            nlohmann::json device_json;
 
                             try {
                                 ss >> device_json;
 
-                                auto adsb_content = hex_to_bytes(device_json["adsb_raw_msg"].asString());
+                                auto adsb_content = hex_to_bytes(device_json["adsb_raw_msg"]);
 
                                 if (adsb_content.size() != 7 && adsb_content.size() != 14) {
                                     _MSG_DEBUG("unexpected content length {}", adsb_content.size());
@@ -313,13 +313,13 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 return 0;
 
                             std::stringstream ss(json->json_string);
-                            Json::Value device_json;
+                            nlohmann::json device_json;
 
                             try {
                                 ss >> device_json;
 
                                 auto adsb_content = 
-                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].asString());
+                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].get<std::string>());
 
                                 ws->write(adsb_content);
                             } catch (std::exception& e) {
@@ -382,13 +382,13 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 return 0;
 
                             std::stringstream ss(json->json_string);
-                            Json::Value device_json;
+                            nlohmann::json device_json;
 
                             try {
                                 ss >> device_json;
 
                                 auto adsb_content = 
-                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].asString());
+                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].get<std::string>());
 
                                 ws->write(adsb_content);
                             } catch (std::exception& e) {
@@ -416,7 +416,7 @@ kis_adsb_phy::~kis_adsb_phy() {
     packetchain->remove_handler(&packet_handler, CHAINPOS_CLASSIFIER);
 }
 
-mac_addr kis_adsb_phy::json_to_mac(Json::Value json) {
+mac_addr kis_adsb_phy::json_to_mac(nlohmann::json json) {
     // Derive a mac addr from the model and device id data
     //
     // We turn the model string into 4 bytes using the adler32 checksum,
@@ -430,28 +430,17 @@ mac_addr kis_adsb_phy::json_to_mac(Json::Value json) {
 
     memset(bytes, 0, 6);
 
-    std::string smodel = "unk";
-
-    if (json.isMember("icao")) {
-        Json::Value m = json["icao"];
-        if (m.isString()) {
-            smodel = m.asString();
-        }
-    }
-
-    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
-
     bool set_model = false;
 
-    if (json.isMember("icao")) {
-        Json::Value i = json["icao"];
-        if (i.isString()) {
-	    std::string icaotmp = i.asString();
-	    int icaoint = std::stoi(icaotmp, 0, 16);
-            *model = kis_hton16((uint16_t) icaoint);
-            set_model = true;
-        }
-    }
+    std::string smodel = "unk";
+
+    try {
+        smodel = json["icao"];
+        *model = kis_hton16(std::stoi(smodel, 0, 16));
+        set_model = true;
+    } catch (...) { }
+
+    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
   
     if (!set_model) {
         *model = 0x0000;
@@ -463,16 +452,13 @@ mac_addr kis_adsb_phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_adsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
+bool kis_adsb_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
-    if (json.isMember("crc_valid")) {
-        if (!json["crc_valid"].asBool()) {
-            return false;
-        }
-    }
-
+    auto crc_j = json["crc_valid"];
+    if (crc_j.is_boolean() && crc_j == false)
+        return false;
 
     // synth a mac out of it
     mac_addr rtlmac = json_to_mac(json);
@@ -487,15 +473,11 @@ bool kis_adsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> pac
     common->phyid = fetch_phy_id();
     common->datasize = 0;
 
-    // If this json record has a channel
-    if (json.isMember("channel")) {
-        Json::Value c = json["channel"];
-        if (c.isNumeric()) {
-            common->channel = int_to_string(c.asInt());
-        } else if (c.isString()) {
-            common->channel = munge_to_printable(c.asString());
-        }
-    }
+    auto channel_j = json["channel"];
+    if (channel_j.is_string())
+        common->channel = channel_j;
+    else if (channel_j.is_number())
+        common->channel = fmt::format("{}", channel_j.get<int>());
 
     common->freq_khz = 1090000;
     common->source = rtlmac;
@@ -513,10 +495,9 @@ bool kis_adsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> pac
 
     std::string dn = "Airplane";
 
-    auto icao_j = json["icao"];
-    if (icao_j.isString()) {
-        dn = icao_j.asString();
-    }
+    try {
+        dn = json["icao"];
+    } catch (...) { }
 
     basedev->set_manuf(rtl_manuf);
 
@@ -606,12 +587,12 @@ bool kis_adsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> pac
     return true;
 }
 
-bool kis_adsb_phy::is_adsb(Json::Value json) {
+bool kis_adsb_phy::is_adsb(nlohmann::json json) {
 
     //fprintf(stderr, "ADSB: checking to see if it is a adsb\n");
     auto icao_j = json["icao"];
 
-    if (!icao_j.isNull()) {
+    if (!icao_j.is_null()) {
         return true;
     }
 
@@ -619,12 +600,13 @@ bool kis_adsb_phy::is_adsb(Json::Value json) {
 }
 
 std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_packet> packet,
-        Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder) {
+        nlohmann::json json, std::shared_ptr<kis_tracked_device_base> rtlholder) {
+
     auto icao_j = json["icao"];
     bool new_adsb = false;
     std::stringstream new_ss;
 
-    if (!icao_j.isNull()) {
+    if (!icao_j.is_null()) {
         auto adsbdev = 
             rtlholder->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
 
@@ -634,31 +616,29 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_pa
             rtlholder->insert(adsbdev);
             new_adsb = true;
 
-            new_ss << "Detected new ADSB device ICAO " << icao_j.asString();
+            new_ss << "Detected new ADSB device ICAO " << icao_j;
         }
 
-        adsbdev->set_icao(icao_j.asString());
+        adsbdev->set_icao(icao_j);
 
-        auto icao_record = icaodb->lookup_icao(icao_j.asString());
+        auto icao_record = icaodb->lookup_icao(icao_j.get<std::string>());
         adsbdev->set_icao_record(icao_record);
 
-        if (json.isMember("callsign")) {
-            auto callsign_j = json["callsign"];
-            if (callsign_j.isString()) {
-                auto raw_cs = callsign_j.asString();
+        auto callsign_j = json["callsign"];
+        if (callsign_j.is_string()) {
+            auto raw_cs = callsign_j.get<std::string>();
 
-                std::string mangle_cs;
+            std::string mangle_cs;
 
-                for (size_t i = 0; i < raw_cs.length(); i++) {
-                    if (raw_cs[i] != '_') {
-                        mangle_cs += raw_cs[i];
-                    }
+            for (size_t i = 0; i < raw_cs.length(); i++) {
+                if (raw_cs[i] != '_') {
+                    mangle_cs += raw_cs[i];
                 }
-
-                adsbdev->set_callsign(mangle_cs);
-                if (adsbdev->get_callsign() != "")
-                    new_ss << adsbdev->get_callsign();
             }
+
+            adsbdev->set_callsign(mangle_cs);
+            if (adsbdev->get_callsign() != "")
+                new_ss << adsbdev->get_callsign();
         }
 
         if (icao_record != icaodb->get_unknown_icao()) {
@@ -668,42 +648,33 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_pa
             new_ss << " " << icao_record->get_atype()->get();
         }
 
-        if (json.isMember("altitude")) {
-            auto altitude_j = json["altitude"];
-            if (altitude_j.isDouble()) {
-                adsbdev->alt = altitude_j.asDouble() * 0.3048;
-                adsbdev->update_location = true;
-            }
+        auto altitude_j = json["altitude"];
+        if (altitude_j.is_number_float()) {
+            adsbdev->alt = altitude_j.get<double>() * 0.3048;
+            adsbdev->update_location = true;
         }
 
-        if (json.isMember("speed")) {
-            auto speed_j = json["speed"];
-            if (speed_j.isDouble()) {
-                adsbdev->speed = speed_j.asDouble() * 1.60934;
-                adsbdev->update_location = true;
-            }
+        auto speed_j = json["speed"];
+        if (speed_j.is_number_float()) {
+            adsbdev->speed = speed_j.get<double>() * 1.60934;
+            adsbdev->update_location = true;
         }
 
-        if (json.isMember("heading")) {
-            auto heading_j = json["heading"];
-            if (heading_j.isDouble()) {
-                adsbdev->heading = heading_j.asDouble();
-                adsbdev->update_location = true;
-            }
+        auto heading_j = json["heading"];
+        if (heading_j.is_number_float()) {
+            adsbdev->heading = heading_j.get<double>();
+            adsbdev->update_location = true;
         }
 
-        if (json.isMember("gsas")) {
-            auto gsas_j = json["gsas"];
-            if (gsas_j.isString()) {
-                adsbdev->set_gsas(gsas_j.asString());
-            }
+        auto gsas_j = json["gsas"];
+        if (gsas_j.is_string()) {
+            adsbdev->set_gsas(gsas_j);
         }
 
-        if (json.isMember("raw_lat") && json.isMember("raw_lon") &&
-                json.isMember("coordpair_even")) {
-            auto raw_lat = json["raw_lat"].asDouble();
-            auto raw_lon = json["raw_lon"].asDouble();
-            auto raw_even = json["coordpair_even"].asBool();
+        try {
+            auto raw_lat = json["raw_lat"].get<double>();
+            auto raw_lon = json["raw_lon"].get<double>();
+            auto raw_even = json["coordpair_even"].get<bool>();
             bool calc_coords = false;
 
             if (raw_even) {
@@ -725,7 +696,8 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_pa
 
             if (calc_coords)
                 decode_cpr(adsbdev, packet);
-        }
+
+        } catch (...) { }
 
         if (new_adsb) {
             _MSG_INFO("{}", new_ss.str());
@@ -756,7 +728,7 @@ int kis_adsb_phy::packet_handler(CHAINCALL_PARMS) {
         return 0;
 
     std::stringstream ss(json->json_string);
-    Json::Value device_json;
+    nlohmann::json device_json;
 
     try {
         ss >> device_json;

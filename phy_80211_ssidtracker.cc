@@ -199,23 +199,23 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     try {
         // If the structured component has a 'fields' record, derive the fields simplification; we need this to
         // compute the search path so we have to implement our own copy of the code
-        auto fields = con->json().get("fields", Json::Value(Json::arrayValue));
+        auto fields = con->json().value("fields", nlohmann::json::array_t{});
 
         for (const auto& i : fields) {
-            if (i.isString()) {
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-            } else if (i.isArray()) {
+            if (i.is_string()) {
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
+            } else if (i.is_array()) {
                 if (i.size() != 2) 
                     throw std::runtime_error("Invalid field map, expected [field, rename]");
 
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(), i[1].get<std::string>()));
             } else {
                 throw std::runtime_error("Invalid field map, exected field or [field, rename]");
             }
         }
 
         // Capture timestamp and negative-offset timestamp
-        auto raw_ts = con->json().get("last_time", 0).asInt64();
+        auto raw_ts = con->json().value("last_time", 0);
         if (raw_ts < 0)
             timestamp_min = time(0) + raw_ts;
         else
@@ -236,7 +236,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     // Extract the column number -> column fieldpath data
     auto column_number_map = con->json()["colmap"];
 
-    if (con->json().get("datatable", false).asBool()) {
+    if (con->json().value("datatable", false)) {
         // Extract from the raw postvars 
         if (con->http_variables().find("start") != con->http_variables().end())
             in_window_start = string_to_n<unsigned int>(con->http_variables()["start"]);
@@ -261,7 +261,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
             in_order_column_num = con->http_variables()["order[0][column]"];
 
         auto column_index = column_number_map[in_order_column_num];
-        if (!column_index.isNull() && 
+        if (!column_index.is_null() && 
                 con->http_variables().find("order[0][dir]") != con->http_variables().end()) {
             auto order = con->http_variables()["order[0][dir]"];
 
@@ -271,16 +271,16 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
                 in_order_direction = 0;
 
             // Resolve the path, we only allow the first one
-            if (column_index.isArray() && column_index.size() > 0) {
-                if (column_index[0].isArray()) {
+            if (column_index.is_array() && column_index.size() > 0) {
+                if (column_index[0].is_array()) {
                     // We only allow the first field, but make sure we're not a nested array
                     if (column_index[0].size() > 0) {
-                        order_field = tracker_element_summary(column_index[0][0].asString()).resolved_path;
+                        order_field = tracker_element_summary(column_index[0][0].get<std::string>()).resolved_path;
                     }
                 } else {
                     // Otherwise get the first array
                     if (column_index.size() >= 1) {
-                        order_field = tracker_element_summary(column_index[0].asString()).resolved_path;
+                        order_field = tracker_element_summary(column_index[0].get<std::string>()).resolved_path;
                     }
                 }
             }
@@ -340,7 +340,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     }
 
     // Apply a regex filter
-    if (!regex.isNull()) {
+    if (!regex.is_null()) {
         try {
             auto worker = 
                 tracker_element_regex_worker(regex);

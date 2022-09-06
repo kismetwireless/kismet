@@ -25,7 +25,6 @@
 #include <stdio.h>
 
 #include "globalregistry.h"
-#include "jwt-cpp/jwt.h"
 
 #include "alertracker.h"
 #include "base64.h"
@@ -314,9 +313,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     if (!allow_auth_creation)
                         throw std::runtime_error("auth creation is disabled in the kismet configuration");
 
-                    auto n_auth_name = con->json()["name"].asString();
-                    auto n_auth_role = con->json()["role"].asString();
-                    auto n_duration = con->json()["duration"].asUInt64();
+                    auto n_auth_name = con->json()["name"].get<std::string>();
+                    auto n_auth_role = con->json()["role"].get<std::string>();
+                    auto n_duration = con->json()["duration"].get<uint64_t>();
 
                     time_t expiration = 0;
 
@@ -337,7 +336,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     if (!allow_auth_creation)
                         throw std::runtime_error("auth creation/deletion is disabled in the kismet configuration");
 
-                    auto n_auth_name = con->json()["name"].asString();
+                    auto n_auth_name = con->json()["name"].get<std::string>();
 
                     if (n_auth_name == "web logon")
                         throw std::runtime_error("cannot remove autoprovisioned web logon");
@@ -879,6 +878,10 @@ std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_jwt_token(const b
 
         verifier.verify(decoded);
 
+        auto auth = std::make_shared<kis_net_beast_auth>(decoded);
+
+        return auth;
+
     } catch (...) {
         return nullptr;
     }
@@ -889,11 +892,11 @@ std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_jwt_token(const b
 void kis_net_beast_httpd::store_auth() {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd store_auth");
 
-    Json::Value vec(Json::arrayValue);
+    nlohmann::json::array_t vec;
 
     for (const auto& a : auth_vec) {
         if (a->is_valid())
-            vec.append(a->as_json());
+            vec.push_back(a->as_json());
     }
 
     /*
@@ -929,11 +932,13 @@ void kis_net_beast_httpd::load_auth() {
                 "%h/.kismet/session.db");
     auto sf = std::ifstream(sessiondb_file, std::ifstream::binary);
 
-    Json::Value json;
-    std::string errs;
+    nlohmann::json json;
 
-    if (!Json::parseFromStream(Json::CharReaderBuilder(), sf, &json, &errs)) {
-        _MSG_ERROR("(HTTPD) Could not read session data file, skipping loading saved sessions.");
+    try {
+        json = nlohmann::json::parse(sf);
+
+    } catch (const std::exception& e) {
+        _MSG_ERROR("(HTTPD) Could not read session dta file, skipping loading saved sessions.");
         return;
     }
 
@@ -1487,12 +1492,8 @@ bool kis_net_beast_httpd_connection::start() {
             }
         } else if (boost::beast::iequals(content_type, "application/json") ||
                 boost::beast::iequals(content_type, "application/json; charset=UTF-8")) {
-            Json::CharReaderBuilder cbuilder;
-            cbuilder["collectComments"] = false;
-            auto reader = cbuilder.newCharReader();
-            std::string errs;
 
-            reader->parse(http_post.data(), http_post.data() + http_post.length(), &json_, &errs);
+            json_ = nlohmann::json::parse(http_post.data());
         }
     }
 
@@ -1759,14 +1760,14 @@ void kis_net_beast_route::invoke(std::shared_ptr<kis_net_beast_httpd_connection>
 }
 
 
-kis_net_beast_auth::kis_net_beast_auth(const Json::Value& json)  {
+kis_net_beast_auth::kis_net_beast_auth(const nlohmann::json& json)  {
     try {
-        token_ = json["token"].asString();
-        name_ = json["name"].asString();
-        role_ = json["role"].asString();
-        time_created_ = static_cast<time_t>(json["created"].asUInt());
-        time_accessed_ = static_cast<time_t>(json["accessed"].asUInt());
-        time_expires_ = static_cast<time_t>(json["expires"].asUInt());
+        token_ = json["token"].get<std::string>();
+        name_ = json["name"].get<std::string>();
+        role_ = json["role"].get<std::string>();
+        time_created_ = static_cast<time_t>(json["created"].get<unsigned int>());
+        time_accessed_ = static_cast<time_t>(json["accessed"].get<unsigned int>());
+        time_expires_ = static_cast<time_t>(json["expires"].get<unsigned int>());
 
     } catch (const std::exception& e) {
         throw auth_construction_error();
@@ -1782,13 +1783,17 @@ kis_net_beast_auth::kis_net_beast_auth(const std::string& token, const std::stri
     time_accessed_{0},
     time_expires_{0} { }
 
+kis_net_beast_auth::kis_net_beast_auth(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& jwt) {
+
+}
+
 bool kis_net_beast_auth::check_auth(const boost::beast::string_view& token) const {
     constant_time_string_compare_ne compare;
     return !compare(token_, static_cast<std::string>(token));
 }
 
-Json::Value kis_net_beast_auth::as_json() {
-    Json::Value ret;
+nlohmann::json kis_net_beast_auth::as_json() {
+    nlohmann::json ret;
 
     ret["token"] = token_;
     ret["name"] = name_;

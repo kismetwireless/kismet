@@ -561,25 +561,25 @@ public:
 
 protected:
     // Convert a JSON record to a RTL-based device key
-    mac_addr json_to_mac(Json::Value in_json);
+    mac_addr json_to_mac(nlohmann::json in_json);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json, std::shared_ptr<kis_packet> packet);
+    bool json_to_rtl(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
 
-    bool is_weather_station(Json::Value json);
-    bool is_thermometer(Json::Value json);
-    bool is_tpms(Json::Value json);
-    bool is_switch(Json::Value json);
-    bool is_insteon(Json::Value json);
-    bool is_lightning(Json::Value json);
+    bool is_weather_station(nlohmann::json json);
+    bool is_thermometer(nlohmann::json json);
+    bool is_tpms(nlohmann::json json);
+    bool is_switch(nlohmann::json json);
+    bool is_insteon(nlohmann::json json);
+    bool is_lightning(nlohmann::json json);
 
-    void add_weather_station(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
-    void add_thermometer(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
-    void add_tpms(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
-    void add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
-    void add_insteon(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
-    void add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_weather_station(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_thermometer(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_tpms(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_switch(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_insteon(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_lightning(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
 

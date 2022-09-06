@@ -63,7 +63,7 @@ void class_filter::default_set_endp_handler(std::shared_ptr<kis_net_beast_httpd_
     std::ostream stream(&con->response_stream());
 
     try {
-        set_filter_default(filterstring_to_bool(con->json()["default"].asString()));
+        set_filter_default(filterstring_to_bool(con->json()["default"]));
         stream << "Default filter: " << get_filter_default() << "\n";
         return;
     } catch (const std::exception& e) {
@@ -264,18 +264,18 @@ void class_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_http
     try {
         auto filter = con->json()["filter"];
 
-        if (!filter.isObject()) {
+        if (!filter.is_object()) {
             con->set_status(500);
             stream << "Expected 'filter' as a dictionary\n";
             return;
         }
 
-        for (const auto& i : filter.getMemberNames()) {
-            mac_addr m(i);
-            bool v = filter[i].asBool();
+        for (const auto& i : filter.items()) {
+            mac_addr m(i.key());
+            bool v = i.value();
 
             if (m.state.error) 
-                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'", con->escape_html(i)));
+                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'", con->escape_html(i.key())));
 
             auto phy_k = con->uri_params().find(":phyname");
             set_filter(m, phy_k->second, v);
@@ -299,17 +299,17 @@ void class_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_ht
     try {
         auto filter = con->json()["filter"];
 
-        if (!filter.isArray()) {
+        if (!filter.is_array()) {
             con->set_status(500);
             stream << "Expected 'filter' as an array\n";
             return;
         }
 
         for (const auto& i : filter) {
-            mac_addr m(i.asString());
+            mac_addr m(i.get<std::string>());
 
             if (m.state.error) 
-                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'", con->escape_html(i.asString())));
+                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'", con->escape_html(i)));
 
             auto phy_k = con->uri_params().find(":phyname");
             remove_filter(m, phy_k->second);

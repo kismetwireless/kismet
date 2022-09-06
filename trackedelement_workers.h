@@ -90,7 +90,7 @@ public:
     };
 
     tracker_element_regex_worker(const std::vector<std::shared_ptr<tracker_element_regex_worker::pcre_filter>>& filter_vec); 
-    tracker_element_regex_worker(const Json::Value& json_pcre_vec);
+    tracker_element_regex_worker(const nlohmann::json& json_pcre_vec);
     tracker_element_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
     tracker_element_regex_worker(const tracker_element_regex_worker& w) {
         filter_vec = w.filter_vec;

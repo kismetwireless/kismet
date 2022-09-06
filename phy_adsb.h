@@ -157,16 +157,16 @@ protected:
     int pack_comp_gps;
 
     // Convert a JSON record to a RTL-based device key
-    mac_addr json_to_mac(Json::Value in_json);
+    mac_addr json_to_mac(nlohmann::json in_json);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json, std::shared_ptr<kis_packet> packet);
+    bool json_to_rtl(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
 
-    bool is_adsb(Json::Value json);
+    bool is_adsb(nlohmann::json json);
 
     std::shared_ptr<adsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
-            Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder);
+            nlohmann::json json, std::shared_ptr<kis_tracked_device_base> rtlholder);
 
     double f_to_c(double f);
 

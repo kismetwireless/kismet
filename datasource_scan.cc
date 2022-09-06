@@ -63,27 +63,20 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
     try {
         std::shared_ptr<kis_datasource> virtual_source;
 
-        auto uuid_s = con->json().get("source_uuid", "").asString();
-        uuid src_uuid;
-        auto name = con->json().get("source_name", "").asString();
+        auto uuid_s = con->json()["source_uuid"].get<std::string>();
+        uuid src_uuid{uuid_s};
 
-        if (uuid_s == "" || name == "") {
+        std::string name = con->json()["source_name"].get<std::string>();
+
+        if (src_uuid.error) {
             con->set_status(500);
-            stream << "{\"status\": \"source_uuid and source_name required\", \"success\": false}\n";
+            stream << "{\"status\": \"invalid source uuid\", \"success\": false}\n";
             return;
         }
 
-        if (uuid_s != "") {
-            src_uuid = uuid(uuid_s);
+        auto reports_j = con->json()["reports"];
 
-            if (src_uuid.error) {
-                con->set_status(500);
-                stream << "{\"status\": \"invalid source uuid\", \"success\": false}\n";
-                return;
-            }
-        }
-
-        if (!con->json()["reports"].isArray()) {
+        if (!reports_j.is_array()) {
             con->set_status(500);
             stream << "{\"status\": \"expected 'reports' array\", \"success\": false}\n";
         }
@@ -116,7 +109,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             }
 
             // TS is optional
-            uint64_t ts_s = r.get("timestamp", 0).asUInt64();
+            uint64_t ts_s = r.value("timestamp", 0);
 
             packet = packetchain->generate_packet();
 
@@ -138,10 +131,10 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             packet->insert(pack_comp_json, jsoninfo);
 
-            auto lat = r.get("lat", 0).asDouble();
-            auto lon = r.get("lon", 0).asDouble();
-            auto alt = r.get("alt", 0).asDouble();
-            auto speed = r.get("speed", 0).asDouble();
+            double lat = r.value("lat", 0);
+            double lon = r.value("lon", 0);
+            double alt = r.value("alt", 0);
+            double speed = r.value("speed", 0);
 
             if (lat != 0 && lon != 0) {
                 auto gpsinfo = std::make_shared<kis_gps_packinfo>();
@@ -162,26 +155,26 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             std::shared_ptr<kis_layer1_packinfo> l1info;
 
-            if (!r["signal"].isNull()) {
+            if (!r["signal"].is_null()) {
                 if (l1info == nullptr)
                     l1info = std::make_shared<kis_layer1_packinfo>();
 
-                l1info->signal_dbm = r["signal"].asInt();
+                l1info->signal_dbm = r["signal"];
                 l1info->signal_type = kis_l1_signal_type_dbm;
             }
 
-            if (!r["freqkhz"].isNull()) {
+            if (!r["freqkhz"].is_null()) {
                 if (l1info == nullptr)
                     l1info = std::make_shared<kis_layer1_packinfo>();
 
-                l1info->freq_khz = r["freqkhz"].asUInt();
+                l1info->freq_khz = r["freqkhz"];
             }
 
-            if (!r["channel"].isNull()) {
+            if (!r["channel"].is_null()) {
                 if (l1info == nullptr)
                     l1info = std::make_shared<kis_layer1_packinfo>();
 
-                l1info->channel = r["channel"].asString();
+                l1info->channel = r["channel"];
             }
 
             if (l1info != nullptr)

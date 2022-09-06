@@ -78,16 +78,13 @@ tracker_element_regex_worker::tracker_element_regex_worker(const std::vector<std
 #endif
 }
 
-tracker_element_regex_worker::tracker_element_regex_worker(const Json::Value& json) {
+tracker_element_regex_worker::tracker_element_regex_worker(const nlohmann::json& json) {
 #ifdef HAVE_LIBPCRE
-    for (auto i : json) {
-        if (!i.isArray() || i.size() != 2)
+    for (const auto& i : json) {
+        if (!i.is_array() || i.size() != 2)
             throw std::runtime_error("expected [field, regex] pair from incoming filter");
 
-        auto field = i[0].asString();
-        auto regex = i[1].asString();
-
-        auto worker_filter = std::make_shared<tracker_element_regex_worker::pcre_filter>(field, regex);
+        auto worker_filter = std::make_shared<tracker_element_regex_worker::pcre_filter>(i[0], i[1]);
 
         filter_vec.push_back(worker_filter);
     }

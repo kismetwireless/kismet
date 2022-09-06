@@ -301,16 +301,16 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     // We don't know what we're going to get from GPSD.  If it starts with 
     // { then it probably is json, try to parse it
     if (line[0] == '{') {
-        Json::Value json;
+        nlohmann::json json;
 
         try {
             std::stringstream ss(line);
             ss >> json;
 
-            std::string msg_class = json["class"].asString();
+            std::string msg_class = json["class"];
 
             if (msg_class == "VERSION") {
-                std::string version  = munge_to_printable(json["release"].asString());
+                std::string version  = munge_to_printable(json["release"]);
 
                 _MSG_INFO("(GPS) Connected to a JSON-enabled GPSD ({}), enabling JSON mode", version);
 
@@ -321,68 +321,42 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                 write_gpsd("?WATCH={\"json\":true};\n");
             } else if (msg_class == "TPV") {
-                if (json.isMember("mode")) {
-                    new_location->fix = json["mode"].asInt();
-                    set_fix = true;
-                }
+                new_location->fix = json.value("mode", 0);
+                set_fix = true;
 
                 // If we have a valid alt, use it
                 if (set_fix && new_location->fix > 2) {
-                    if (json.isMember("alt")) {
-                        new_location->alt = json["alt"].asDouble();
-                        set_alt = true;
-                    }
+                    new_location->alt = json.value("alt", 0);
+                    set_alt = true;
                 } 
 
-                if (json.isMember("epx")) {
-                    new_location->error_x = json["epx"].asDouble();
-                }
+                new_location->error_x = json.value("epx", 0);
+                new_location->error_y = json.value("epy", 0);
+                new_location->error_v = json.value("epv", 0);
 
-                if (json.isMember("epy")) {
-                    new_location->error_y = json["epy"].asDouble();
-                }
-
-                if (json.isMember("epv")) {
-                    new_location->error_v = json["epv"].asDouble();
-                }
 
                 if (set_fix && new_location->fix >= 2) {
-                    // If we have LAT and LON, use them
-                    if (json.isMember("lat") && json.isMember("lon")) {
-                        new_location->lat = json["lat"].asDouble();
-                        new_location->lon = json["lon"].asDouble();
+                    new_location->lat = json.value("lat", 0);
+                    new_location->lon = json.value("lon", 0);
 
-                        if (new_location->lat != 0 && new_location->lon != 0)
-                            set_lat_lon = true;
-                    }
+                    if (new_location->lat != 0 && new_location->lon != 0)
+                        set_lat_lon = true;
 
-                    if (json.isMember("track")) {
-                        auto t = json["track"].asDouble();
-                        if (t != 0) {
-                            new_location->heading = t;
-                            set_heading = true;
-                        }
-                    }
+                    new_location->heading = json.value("track", 0);
+                    if (new_location->heading != 0)
+                        set_heading = true;
 
-                    if (json.isMember("magtrack")) {
-                        auto t = json["magtrack"].asDouble();
-                        if (t != 0) {
-                            new_location->magheading = t;
-                            set_magheading = true;
-                        }
-                    }
+                    new_location->magheading = json.value("magtrack", 0);
+                    if (new_location->magheading != 0)
+                        set_magheading = true;
 
-                    if (json.isMember("speed")) {
-                        new_location->speed = json["speed"].asDouble();
-
-                        // GPSD JSON reports in meters/second, convert to kph
-                        new_location->speed *= 3.6;
-                    }
+                    new_location->speed = json.value("speed", 0) * 3.6;
                 }
             } else if (msg_class == "ATT") {
-                if (json.isMember("heading")) {
+                auto heading_j = json["heading"];
+                if (heading_j.is_number()) {
                     last_att_heading_time = time(0);
-                    last_att_heading = json["heading"].asDouble();
+                    last_att_heading = heading_j;
                 }
 #if 0
             } else if (msg_class == "SKY") {

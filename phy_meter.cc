@@ -66,7 +66,7 @@ kis_meter_phy::~kis_meter_phy() {
 }
 
 
-mac_addr kis_meter_phy::json_to_mac(Json::Value json) {
+mac_addr kis_meter_phy::json_to_mac(nlohmann::json json) {
     // Derive a mac addr from the model and device id data
     //
     // We turn the model string into 4 bytes using the adler32 checksum,
@@ -81,8 +81,8 @@ mac_addr kis_meter_phy::json_to_mac(Json::Value json) {
     memset(bytes, 0, 6);
 
     try {
-        *model = json["model"].asUInt();
-        *deviceid = json["meterid"].asUInt();
+        *model = json["model"];
+        *deviceid = json["meterid"];
     } catch (const std::exception& e) {
         mac_addr m;
         m.state.error = true;
@@ -95,13 +95,13 @@ mac_addr kis_meter_phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_meter_phy::rtlamr_json_to_phy(Json::Value json, std::shared_ptr<kis_packet> packet) {
+bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
     // If we're not valid from the capture engine, drop entirely
     try {
-        if (!json["valid"].asBool())
+        if (!json["valid"].get<bool>())
             return false;
     } catch (const std::exception& e) {
         return false;
@@ -114,7 +114,7 @@ bool kis_meter_phy::rtlamr_json_to_phy(Json::Value json, std::shared_ptr<kis_pac
     auto consumption_j = json["consumption"];
 
     // We need at least an id, type, and consumption
-    if (id_j.isNull() || type_j.isNull() || consumption_j.isNull())
+    if (id_j.is_null() || type_j.is_null() || consumption_j.is_null())
         return false;
 
     // synth a mac out of of the type and id
@@ -151,12 +151,12 @@ bool kis_meter_phy::rtlamr_json_to_phy(Json::Value json, std::shared_ptr<kis_pac
         basedev->set_manuf(meter_manuf);
 
         basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
-        basedev->set_devicename(fmt::format("{}", id_j.asUInt()));
+        basedev->set_devicename(fmt::format("{}", id_j.get<unsigned int>()));
 
         basedev->insert(meterdev);
 
-        meterdev->set_meter_id(id_j.asUInt());
-        meterdev->set_meter_type_code(type_j.asUInt());
+        meterdev->set_meter_id(id_j);
+        meterdev->set_meter_type_code(type_j);
 
         switch (meterdev->get_meter_type_code()) {
             case 4:
@@ -187,13 +187,13 @@ bool kis_meter_phy::rtlamr_json_to_phy(Json::Value json, std::shared_ptr<kis_pac
                 basedev->get_type_string(), meterdev->get_meter_id());
     }
 
-    if (!phy_j.isNull())
-        meterdev->set_phy_tamper_flags(phy_j.asUInt());
-    if (!end_j.isNull())
-        meterdev->set_endpoint_tamper_flags(end_j.asUInt());
+    if (!phy_j.is_null())
+        meterdev->set_phy_tamper_flags(phy_j);
+    if (!end_j.is_null())
+        meterdev->set_endpoint_tamper_flags(end_j);
 
-    meterdev->set_consumption(consumption_j.asUInt());
-    meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), time(0));
+    meterdev->set_consumption(consumption_j);
+    meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
 
     return true;
 }
@@ -211,7 +211,7 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
 
     if (json->type == "RTLamr") {
         std::stringstream ss(json->json_string);
-        Json::Value device_json;
+        nlohmann::json device_json;
 
         try {
             ss >> device_json;

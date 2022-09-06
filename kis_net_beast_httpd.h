@@ -32,10 +32,14 @@
 #include "boost/beast.hpp"
 #include "boost/optional.hpp"
 
+#include "jwt-cpp/jwt.h"
+
+#include "jwt-cpp/traits/kazuho-picojson/traits.h"
+#include "nlohmann/json.hpp"
+
 #include "entrytracker.h"
 #include "future_chainbuf.h"
 #include "globalregistry.h"
-#include "nlohmann/json.hpp"
 #include "kis_mutex.h"
 #include "messagebus.h"
 #include "trackedelement.h"
@@ -272,7 +276,7 @@ public:
     uri_param_t& uri_params() { return uri_params_; }
     kis_net_beast_httpd::http_var_map_t& http_variables() { return http_variables_; }
     kis_net_beast_httpd::http_cookie_map_t& cookies() { return cookies_; }
-    Json::Value& json() { return json_; }
+    nlohmann::json& json() { return json_; }
 
     // Optional closure callback to signal to an async operation that there's a problem (for example
     // long-running packet streams)
@@ -306,7 +310,7 @@ protected:
     std::string login_role_;
 
     kis_net_beast_httpd::http_var_map_t http_variables_;
-    Json::Value json_;
+    nlohmann::json json_;
     kis_net_beast_httpd::http_cookie_map_t cookies_;
     std::string auth_token_;
     boost::beast::string_view uri_;
@@ -384,18 +388,22 @@ public:
             std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
         auto summary_vec = std::vector<SharedElementSummary>{};
-        auto fields = json_.get("fields", Json::Value(Json::arrayValue));
 
-        for (const auto& i : fields) {
-            if (i.isString()) {
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-            } else if (i.isArray()) {
-                if (i.size() != 2)
-                    throw std::runtime_error("Invalid field mapping, expected [field, name]");
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
-            } else {
-                throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
+        auto fields = json_["fields"];
+
+        if (!fields.is_null() && fields.is_array()) {
+            for (const auto& i : fields) {
+                if (i.is_string()) {
+                    summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
+                } else if (i.is_array()) {
+                    if (i.size() != 2)
+                        throw std::runtime_error("Invalid field mapping, expected [field, name]");
+                    summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(), i[1].get<std::string>()));
+                } else {
+                    throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
+                }
             }
+
         }
 
         return summarize_tracker_element(in_data, summary_vec, rename_map);
@@ -638,9 +646,10 @@ struct auth_construction_error : public std::exception {
 // defined by the endpoints
 class kis_net_beast_auth {
 public:
-    kis_net_beast_auth(const Json::Value& json);
+    kis_net_beast_auth(const nlohmann::json& json);
     kis_net_beast_auth(const std::string& token, const std::string& name, 
             const std::string& role, time_t expires);
+    kis_net_beast_auth(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& jwt);
 
     bool check_auth(const boost::beast::string_view& token) const;
 
@@ -657,7 +666,7 @@ public:
     void set_expiration(time_t e) { time_expires_ = e; }
     void set_role(const std::string& r) { role_ = r; }
 
-    Json::Value as_json();
+    nlohmann::json as_json();
 
 protected:
     std::string token_;

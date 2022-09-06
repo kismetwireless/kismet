@@ -487,8 +487,7 @@ void datasource_tracker::trigger_deferred_startup() {
         unsigned int lograte =
             Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasource_rate", 30);
 
-        _MSG("Saving datasources to the Kismet database log every " + uint_to_string(lograte) + 
-                " seconds.", MSGFLAG_INFO);
+        _MSG_INFO("Saving datasources to the Kismet database log evert {} seconds", lograte);
 
         database_log_enabled = true;
         database_logging = false;
@@ -631,7 +630,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     std::string error_reason;
                     bool success;
 
-                    auto definition = con->json()["definition"].asString();
+                    auto definition = con->json()["definition"].get<std::string>();
 
                     auto create_promise = std::promise<void>();
                     auto create_ft = create_promise.get_future();
@@ -672,8 +671,8 @@ void datasource_tracker::trigger_deferred_startup() {
                     auto set_promise = std::promise<void>();
                     auto set_ft = set_promise.get_future();
 
-                    if (!con->json()["channel"].isNull()) {
-                        auto ch = con->json()["channel"].asString();
+                    if (!con->json()["channel"].is_null()) {
+                        auto ch = con->json()["channel"].get<std::string>();
 
                         _MSG_INFO("Source '{}' ({}) setting channel {}",
                                 ds->get_source_name(), ds->get_source_uuid(), ch);
@@ -695,12 +694,12 @@ void datasource_tracker::trigger_deferred_startup() {
                             con->set_status(500);
                             return std::make_shared<tracker_element_map>();
                         }
-                    } else if (!con->json()["channels"].isNull() || !con->json()["rate"].isNull()) {
+                    } else if (!con->json()["channels"].is_null() || !con->json()["rate"].is_null()) {
                         auto converted_channels = std::vector<std::string>();
 
-                        if (!con->json()["channels"].isNull()) {
+                        if (!con->json()["channels"].is_null()) {
                             for (const auto& ch : con->json()["channels"])
-                                converted_channels.push_back(ch.asString());
+                                converted_channels.push_back(ch.get<std::string>());
                         } else {
                             for (const auto& c : *(ds->get_source_hop_vec()))
                                 converted_channels.push_back(c);
@@ -709,15 +708,15 @@ void datasource_tracker::trigger_deferred_startup() {
                         double rate;
                         unsigned int shuffle;
 
-                        if (con->json()["rate"].isNull())
+                        if (con->json()["rate"].is_null())
                             rate = ds->get_source_hop_rate();
                         else 
-                            rate = con->json()["rate"].asDouble();
+                            rate = con->json()["rate"].get<double>();
 
-                        if (con->json()["shuffle"].isNull())
+                        if (con->json()["shuffle"].is_null())
                             shuffle = ds->get_source_hop_shuffle();
                         else
-                            shuffle = con->json()["shuffle"].asUInt();
+                            shuffle = con->json()["shuffle"].get<unsigned int>();
 
                         _MSG_INFO("Source '{}' ({}) setting channel list and hopping",
                                 ds->get_source_name(), ds->get_source_uuid());

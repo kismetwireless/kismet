@@ -200,7 +200,7 @@ void gps_tracker::trigger_deferred_startup() {
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                     std::shared_ptr<kis_gps> new_gps;
 
-                    auto definition = con->json()["definition"].asString();
+                    auto definition = con->json()["definition"].get<std::string>();
 
                     new_gps = create_gps(definition);
 

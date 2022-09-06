@@ -33,15 +33,15 @@ kis_httpd_registry::kis_httpd_registry() :
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     kis_lock_guard<kis_mutex> lk(reg_lock, "httpd_registry /dynamic.json");
 
-                    Json::Value root(Json::objectValue);
-                    Json::Value vec(Json::arrayValue);
+                    nlohmann::json::object_t root;
+                    nlohmann::json::array_t vec;
 
                     for (const auto& m : js_module_path_map) {
-                        Json::Value rec(Json::objectValue);
+                        nlohmann::json::object_t rec;
                         rec["module"] = m.first;
                         rec["js"] = m.second;
 
-                        vec.append(rec);
+                        vec.push_back(rec);
                     }
 
                     root["dynamicjs"] = vec;

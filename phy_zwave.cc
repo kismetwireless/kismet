@@ -70,7 +70,7 @@ mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
     return mac_addr(macstr.str());
 }
 
-bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
+bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     std::string tempstr;
     std::stringstream converter;
 
@@ -85,8 +85,8 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
   
     auto homeid_j = json["home_id"];
 
-    if (homeid_j.isString()) {
-        tempstr = homeid_j.asString();
+    if (homeid_j.is_string()) {
+        tempstr = homeid_j.get<std::string>();
     } else {
         return false;
     }
@@ -95,30 +95,30 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     converter >> std::hex >> homeid;
 
     auto source_j = json["source"];
-    if (source_j.isNumeric()) {
-        devid = source_j.asInt();
+    if (source_j.is_number()) {
+        devid = source_j;
     } else {
         return false;
     }
 
 
     auto dest_j = json["dest"];
-    if (dest_j.isNumeric()) {
-        dest_devid = dest_j.asDouble();
+    if (dest_j.is_number()) {
+        dest_devid = dest_j;
     } else {
         return false;
     }
 
     auto freq_j = json["freq_khz"];
-    if (freq_j.isNumeric()) {
-        frequency = freq_j.asDouble();
+    if (freq_j.is_number()) {
+        frequency = freq_j;
     } else {
         return false;
     }
 
     auto datasize_j = json["datasize"];
-    if (datasize_j.isNumeric()) {
-        datasize = datasize_j.asDouble();
+    if (datasize_j.is_number()) {
+        datasize = datasize_j;
     } else {
         return false;
     }

@@ -1902,7 +1902,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 // the final target object so we let that fall into the final handler
 
 std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element>, 
-        const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
+        const nlohmann::json& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_vector>,
         const std::vector<std::shared_ptr<tracker_element_summary>>&,

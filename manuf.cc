@@ -155,8 +155,8 @@ void kis_manuf::IndexOUI() {
         line++;
     }
 
-    _MSG("Completed indexing manufacturer db, " + int_to_string(line) + " lines " +
-         int_to_string(index_vec.size()) + " indexes", MSGFLAG_INFO);
+    _MSG_INFO("Completed indexing manufacturer db, {} lines and {} indexes.",
+            line, index_vec.size());
 }
 
 std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {

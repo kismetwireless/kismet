@@ -2163,7 +2163,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
     try {
         std::stringstream ss(pack_json->json_string);
-        Json::Value json;
+        nlohmann::json json;
         ss >> json;
 
         auto bssid_j = json["bssid"];
@@ -2174,13 +2174,13 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         auto centerfreq0_j = json["centerfreq0"];
         auto centerfreq1_j = json["centerfreq1"];
 
-        if (bssid_j.isNull()) {
+        if (bssid_j.is_null()) {
             _MSG_ERROR("Phy80211/Wi-Fi scan report with no BSSID, dropping.");
             in_pack->error = true;
             return 0;
         }
 
-        auto bssid_mac = mac_addr(bssid_j.asString());
+        auto bssid_mac = mac_addr(bssid_j.get<std::string>());
         if (bssid_mac.state.error) {
             _MSG_ERROR("Phy80211/Wi-Fi scan report with invalid BSSID, dropping.");
             in_pack->error = true;
@@ -2189,8 +2189,8 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto ssid_str = std::string();
 
-        if (!ssid_j.isNull())
-            ssid_str = munge_to_printable(ssid_j.asString());
+        if (!ssid_j.is_null())
+            ssid_str = munge_to_printable(ssid_j);
 
         auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
@@ -2254,8 +2254,8 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         uint64_t cryptset = 0;
 
-        if (!capabilities_j.isNull()) {
-            auto capabilities = capabilities_j.asString();
+        if (!capabilities_j.is_null()) {
+            auto capabilities = capabilities_j.get<std::string>();
 
             if (capabilities.find("IBSS") != std::string::npos) {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
@@ -2326,10 +2326,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         // Either calculate the actual checksums from the ietags or fake one from the capabilities
         uint32_t ietag_csum = 0;
 
-        if (!ietags_j.isNull()) 
-            ietag_csum = adler32_checksum(ietags_j.asString());
-        else if (!capabilities_j.isNull())
-            ietag_csum = adler32_checksum(ssid_str + capabilities_j.asString());
+        if (!ietags_j.is_null()) 
+            ietag_csum = adler32_checksum(ietags_j.get<std::string>());
+        else if (!capabilities_j.is_null())
+            ietag_csum = adler32_checksum(ssid_str + capabilities_j.get<std::string>());
 
 
         if (bssid_dot11->get_last_adv_ie_csum() == ietag_csum) {
@@ -2924,7 +2924,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             channel_from_ht = true;
 
             // Grab the primary channel from the HT data
-            ssid->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
+            ssid->set_channel(n_to_string<int>(dot11info->dot11ht->primary_channel()));
 
             if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80) {
                 ssid->set_ht_mode("HT80");
@@ -2965,7 +2965,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             ssid->set_ht_center_1(0);
             ssid->set_ht_center_2(0);
-            ssid->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
+            ssid->set_channel(n_to_string<int>(dot11info->dot11ht->primary_channel()));
         }
 
         // Update OWE
@@ -3158,8 +3158,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             std::string al = "IEEE80211 Access Point BSSID " +
                 basedev->get_macaddr().mac_to_string() + " SSID \"" +
                 ssid->get_ssid() + "\" changed beacon rate from " +
-                int_to_string(ssid->get_beaconrate()) + " to " + 
-                int_to_string(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
+                n_to_string<int>(ssid->get_beaconrate()) + " to " + 
+                n_to_string<int>(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
                 " which may indicate AP spoofing/impersonation";
 
             alertracker->raise_alert(alert_beaconrate_ref, in_pack, 

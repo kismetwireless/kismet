@@ -94,7 +94,7 @@ public:
     // Build a PCRE from a standard regex description on a POST.
     // The JSON object is expected to be a vector of [field, regex] pairs.
     // std::runtime_error may be thrown if there is a parsing failure
-    device_tracker_view_regex_worker(const Json::Value& json_pcre_vec);
+    device_tracker_view_regex_worker(const nlohmann::json& json_pcre_vec);
 
     // Build a PCRE from a vector of field:pcre pairs
     // std::runtime_error may be thrown if there is a parsing failure

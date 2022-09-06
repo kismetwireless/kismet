@@ -122,7 +122,7 @@ public:
             std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
     int serialize_with_json_summary(const std::string& type, std::ostream& stream, shared_tracker_element elem,
-            const Json::Value& json_summary);
+            const nlohmann::json& json_summary);
 
     // Optional per-field-id transforms for search functions, must use the search workers or be called
     // manually

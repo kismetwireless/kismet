@@ -732,7 +732,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
 
                     _ALERT(alert_disconinvalid_ref, in_pack, packinfo,
                            "Unknown disassociation code " +
-                           hex_int_to_string(packinfo->mgt_reason_code) + 
+                           n_to_string<unsigned int>(packinfo->mgt_reason_code, 0, 1) + 
                            " from network " + packinfo->bssid_mac.mac_to_string());
                 }
 
@@ -768,7 +768,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
 
                     _ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
                            "Unknown deauthentication code " +
-                           hex_int_to_string(packinfo->mgt_reason_code) + 
+                           n_to_string<unsigned int>(packinfo->mgt_reason_code, 0, 1) + 
                            " from network " + packinfo->bssid_mac.mac_to_string());
                 }
 

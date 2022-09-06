@@ -77,33 +77,20 @@ std::string multi_replace_all(const std::string& in, const std::string& match, c
 int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
-template<class t> class n_to_string {
-public:
-	n_to_string(t in_n, int in_precision = 0, int in_hex = 0) { 
-        std::ostringstream osstr;
+template<class t> 
+std::string n_to_string(t in_n, int in_precision = 0, int in_hex = 0) {
+    std::ostringstream osstr;
 
-		if (in_hex)
-			osstr << std::hex;
+    if (in_hex)
+        osstr << std::hex;
 
-		if (in_precision)
-			osstr << std::setprecision(in_precision) << std::fixed;
+    if (in_precision)
+        osstr << std::setprecision(in_precision) << std::fixed;
 
-		osstr << in_n;
+    osstr << in_n;
 
-		s = osstr.str();
-	}
-
-    std::string Str() { return s; }
-
-    std::string s;
-};
-
-#define int_to_string(I)			n_to_string<int>((I)).Str()
-#define uint_to_string(I)			n_to_string<unsigned int>((I)).Str()
-#define hex_int_to_string(I)		n_to_string<unsigned int>((I), 0, 1).Str()
-#define long_int_to_string(L)		n_to_string<long int>((L)).Str()
-#define ulong_int_to_string(L)		n_to_string<unsigned long int>((L)).Str()
-#define float_to_string(F)		n_to_string<float>((F)).Str()
+    return osstr.str();
+}
 
 int subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
         struct timeval *out_tv);

@@ -51,15 +51,15 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
     auto ret_devices = std::make_shared<tracker_element_vector>();
     auto macs = std::vector<mac_addr>{};
 
-    if (con->json()["devices"].isNull())
+    if (con->json()["devices"].is_null())
         throw std::runtime_error("Missing 'devices' key in command dictionary");
 
-    for (auto m : con->json()["devices"]) {
-        mac_addr ma{m.asString()};
+    for (const auto& m : con->json()["devices"]) {
+        mac_addr ma{m.get<std::string>()};
 
         if (ma.state.error) 
             throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                        con->escape_html(m.asString())));
+                        con->escape_html(m.get<std::string>())));
 
         macs.push_back(ma);
     }
@@ -119,15 +119,15 @@ std::shared_ptr<tracker_element> device_tracker::multikey_endp_handler(shared_co
     auto ret_devices_vec = std::make_shared<tracker_element_vector>();
     auto keys = std::vector<device_key>{};
 
-    if (con->json()["devices"].isNull())
+    if (con->json()["devices"].is_null())
         throw std::runtime_error("Missing 'devices' key in command dictionary");
 
-    for (auto k : con->json()["devices"]) {
-        device_key ka{k.asString()};
+    for (const auto& k : con->json()["devices"]) {
+        device_key ka{k.get<std::string>()};
 
         if (ka.get_error()) 
             throw std::runtime_error(fmt::format("Invalid device key '{}' in 'devices' list",
-                        con->escape_html(k.asString())));
+                        con->escape_html(k)));
 
         keys.push_back(ka);
     }

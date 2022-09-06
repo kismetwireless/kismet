@@ -54,33 +54,22 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                     std::ostream stream(&con->response_stream());
 
                     double lat = 0, lon = 0, alt = 0, spd = 0;
-                    bool set_alt = false, set_spd = false;
 
-                    lat = con->json()["lat"].asDouble();
-                    lon = con->json()["lon"].asDouble();
-                    
-                    if (!con->json()["alt"].isNull()) {
-                        alt = con->json()["alt"].asDouble();
-                        set_alt = true;
-                    }
-
-                    if (!con->json()["spd"].isNull()) {
-                        spd = con->json()["spd"].asDouble();
-                        set_spd = true;
-                    }
+                    lat = con->json().value("lat", 0);
+                    lon = con->json().value("lon", 0);
+                    alt = con->json().value("alt", 0);
+                    spd = con->json().value("spd", 0);
 
                     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
                     new_location->lat = lat;
                     new_location->lon = lon;
                     new_location->fix = 2;
+                    new_location->speed = spd;
 
-                    if (set_alt) {
+                    if (alt != 0) {
                         new_location->alt = alt;
                         new_location->fix = 3;
                     }
-
-                    if (set_spd) 
-                        new_location->speed = spd;
 
                     gettimeofday(&(new_location->tv), NULL);
                     new_location->gpsuuid = get_gps_uuid();
@@ -119,40 +108,29 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                                     std::stringstream stream;
 
                                     std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
-                                    Json::Value json;
+                                    nlohmann::json json;
 
                                     try {
                                         ss >> json;
 
                                         double lat = 0, lon = 0, alt = 0, spd = 0;
-                                        bool set_alt = false, set_spd = false;
 
-                                        lat = json["lat"].asDouble();
-                                        lon = json["lon"].asDouble();
-
-                                        if (!json["alt"].isNull()) {
-                                            alt = json["alt"].asDouble();
-                                            set_alt = true;
-                                        }
-
-                                        if (json["spd"].isNull()) {
-                                            spd = json["spd"].asDouble();
-                                            set_spd = true;
-                                        }
+                                        lat = json.value("lat", 0);
+                                        lon = json.value("lon", 0);
+                                        alt = json.value("alt", 0);
+                                        spd = json.value("spd", 0);
 
                                         auto new_location = 
                                             packetchain->new_packet_component<kis_gps_packinfo>();
                                         new_location->lat = lat;
                                         new_location->lon = lon;
                                         new_location->fix = 2;
+                                        new_location->speed = spd;
 
-                                        if (set_alt) {
+                                        if (alt != 0) {
                                             new_location->alt = alt;
                                             new_location->fix = 3;
                                         }
-
-                                        if (set_spd) 
-                                            new_location->speed = spd;
 
                                         gettimeofday(&(new_location->tv), NULL);
                                         new_location->gpsuuid = get_gps_uuid();

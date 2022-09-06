@@ -204,8 +204,7 @@ device_tracker::device_tracker() :
         unsigned int lograte = 
             Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
-        _MSG("Saving devices to the Kismet database log every " + uint_to_string(lograte) + 
-                " seconds.", MSGFLAG_INFO);
+        _MSG_INFO("Saving devices to the Kismet database log every {} seconds", lograte);
 
         databaselog_logging = false;
 
@@ -415,7 +414,7 @@ device_tracker::device_tracker() :
                     if (dev == nullptr)
                         throw std::runtime_error("no such device");
 
-                    auto name = con->json()["username"].asString();
+                    std::string name = con->json()["username"];
 
                     set_device_user_name(dev, name);
 
@@ -437,8 +436,8 @@ device_tracker::device_tracker() :
                     if (dev == nullptr)
                         throw std::runtime_error("no such device");
 
-                    auto tag = con->json()["tagname"].asString();
-                    auto content = con->json()["tagvalue"].asString();
+                    std::string tag = con->json()["tagname"];
+                    std::string content = con->json()["tagvalue"];
 
                     set_device_tag(dev, tag, content);
 
@@ -504,8 +503,9 @@ device_tracker::device_tracker() :
 
                     std::vector<mac_addr> mac_list;
 
-                    if (!con->json()["mac"].isNull()) {
-                        auto mac = mac_addr(con->json()["mac"].asString());
+
+                    if (!con->json()["mac"].is_null()) {
+                        auto mac = mac_addr(con->json()["mac"].get<std::string>());
 
                         if (mac.error())
                             throw std::runtime_error("invalid MAC address");
@@ -513,9 +513,9 @@ device_tracker::device_tracker() :
                         mac_list.push_back(mac);
                     }
 
-                    if (con->json()["macs"].isArray()) {
-                        for (auto jv : con->json()["macs"]) {
-                            auto mac = mac_addr(jv.asString());
+                    if (con->json()["macs"].is_array()) {
+                        for (const auto& jv : con->json()["macs"]) {
+                            auto mac = mac_addr(jv.get<std::string>());
 
                             if (mac.error())
                                 throw std::runtime_error("invalid MAC address in macs list");
@@ -554,8 +554,8 @@ device_tracker::device_tracker() :
 
                     std::vector<mac_addr> mac_list;
 
-                    if (!con->json()["mac"].isNull()) {
-                        auto mac = mac_addr(con->json()["mac"].asString());
+                    if (!con->json()["mac"].is_null()) {
+                        auto mac = mac_addr(con->json()["mac"].get<std::string>());
 
                         if (mac.error())
                             throw std::runtime_error("invalid MAC address");
@@ -563,9 +563,9 @@ device_tracker::device_tracker() :
                         mac_list.push_back(mac);
                     }
 
-                    if (con->json()["macs"].isArray()) {
-                        for (auto jv : con->json()["macs"]) {
-                            auto mac = mac_addr(jv.asString());
+                    if (con->json()["macs"].is_array()) {
+                        for (const auto& jv : con->json()["macs"]) {
+                            auto mac = mac_addr(jv.get<std::string>());
 
                             if (mac.error())
                                 throw std::runtime_error("invalid MAC address in macs list");
@@ -640,37 +640,37 @@ device_tracker::device_tracker() :
                         }
 
                         std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
-                        Json::Value json;
+                        nlohmann::json json;
 
                         unsigned int req_id;
 
                         try {
                             ss >> json;
 
-                            if (!json["cancel"].isNull()) {
-                                auto kt_v = key_timer_map.find(json["cancel"].asUInt());
+                            if (!json["cancel"].is_null()) {
+                                auto kt_v = key_timer_map.find(json["cancel"]);
                                 if (kt_v != key_timer_map.end()) {
                                     timetracker->remove_timer(kt_v->second);
                                     key_timer_map.erase(kt_v);
                                 }
                             }
 
-                            if (!json["monitor"].isNull()) {
-                                req_id = json["request"].asUInt();
+                            if (!json["monitor"].is_null()) {
+                                req_id = json["request"];
 
                                 std::string format_t = "json";
 
-                                if (!json["format"].isNull())
-                                    format_t = json["format"].asString();
+                                if (!json["format"].is_null())
+                                    format_t = json["format"];
                                     
-                                auto dev_r = json["monitor"].asString();
-                                auto dev_k = device_key(json["monitor"].asString());
-                                auto dev_m = mac_addr(json["monitor"].asString());
+                                auto dev_r = json["monitor"];
+                                auto dev_k = device_key(json["monitor"].get<std::string>());
+                                auto dev_m = mac_addr(json["monitor"].get<std::string>());
                                 
                                 if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
-                                auto rate = json["rate"].asUInt();
+                                auto rate = json["rate"];
 
                                 // Remove any existing request under this ID
                                 auto kt_v = key_timer_map.find(req_id);
@@ -1023,8 +1023,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
             std::make_shared<tracker_element_string>(strongphy->fetch_phy_name()));
     eventbus->publish(evt);
 
-	_MSG("Registered PHY handler '" + strongphy->fetch_phy_name() + "' as ID " +
-		 int_to_string(num), MSGFLAG_INFO);
+    _MSG_INFO("Registered PHY handler '{}' as ID {}", strongphy->fetch_phy_name(), num);
 
 	return num;
 }
@@ -1109,8 +1108,7 @@ int device_tracker::common_tracker(std::shared_ptr<kis_packet> in_pack) {
 
 	// Make sure our PHY is sane
 	if (phy_handler_map.find(pack_common->phyid) == phy_handler_map.end()) {
-		_MSG("Invalid phy id " + int_to_string(pack_common->phyid) + " in packet "
-			 "something is wrong.", MSGFLAG_ERROR);
+        _MSG_ERROR("Invalid phy id {} in packet: something is wrong", pack_common->phyid);
 		return 0;
 	}
 

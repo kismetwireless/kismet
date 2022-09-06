@@ -74,7 +74,7 @@ void event_bus::trigger_deferred_startup() {
                             }
 
                             std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
-                            Json::Value json;
+                            nlohmann::json json;
 
                             try {
                                 ss >> json;
@@ -84,15 +84,15 @@ void event_bus::trigger_deferred_startup() {
                                 return;
                             }
 
-                            if (!json["SUBSCRIBE"].isNull()) {
-                                auto e_k = reg_map.find(json["SUBSCRIBE"].asString());
+                            if (!json["SUBSCRIBE"].is_null()) {
+                                auto e_k = reg_map.find(json["SUBSCRIBE"].get<std::string>());
                                 if (e_k != reg_map.end()) {
                                     remove_listener(e_k->second);
                                     reg_map.erase(e_k);
                                 }
 
                                 auto id = 
-                                    register_listener(json["SUBSCRIBE"].asString(), 
+                                    register_listener(json["SUBSCRIBE"].get<std::string>(), 
                                             [ws, json](std::shared_ptr<eventbus_event> evt) {
                                                 std::stringstream os;
                                                 Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os, 
@@ -101,11 +101,11 @@ void event_bus::trigger_deferred_startup() {
                                                 ws->write(data);
                                             });
 
-                                reg_map[json["SUBSCRIBE"].asString()] = id;
+                                reg_map[json["SUBSCRIBE"].get<std::string>()] = id;
                             } 
 
-                            if (!json["UNSUBSCRIBE"].isNull()) {
-                                auto e_k = reg_map.find(json["UNSUBSCRIBE"].asString());
+                            if (!json["UNSUBSCRIBE"].is_null()) {
+                                auto e_k = reg_map.find(json["UNSUBSCRIBE"].get<std::string>());
                                 if (e_k != reg_map.end()) {
                                     remove_listener(e_k->second);
                                     reg_map.erase(e_k);

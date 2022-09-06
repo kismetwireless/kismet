@@ -1432,24 +1432,27 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 }
 
 std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element> data, 
-        const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+        const nlohmann::json& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
-    auto fields = json.get("fields", Json::Value(Json::arrayValue));
 
-    for (const auto& i : fields) {
-        if (i.isString()) {
-            auto sum = Globalreg::new_from_pool<tracker_element_summary>();
-            sum->assign(i.asString());
-            summary_vec.push_back(sum);
-        } else if (i.isArray()) {
-            if (i.size() != 2)
-                throw std::runtime_error("Invalid field mapping, expected [field, name]");
-            auto sum = Globalreg::new_from_pool<tracker_element_summary>();
-            sum->assign(i[0].asString(), i[1].asString());
-            summary_vec.push_back(sum);
-        } else {
-            throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
+    auto fields = json["fields"];
+
+    if (!fields.is_null() && fields.is_array()) {
+        for (const auto& i : fields) {
+            if (i.is_string()) {
+                auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+                sum->assign(i.get<std::string>());
+                summary_vec.push_back(sum);
+            } else if (i.is_array()) {
+                if (i.size() != 2)
+                    throw std::runtime_error("Invalid field mapping, expected [field, name]");
+                auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+                sum->assign(i[0].get<std::string>(), i[1].get<std::string>());
+                summary_vec.push_back(sum);
+            } else {
+                throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
+            }
         }
     }
 
