@@ -842,6 +842,22 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name,
     return create_auth_impl(name, role, expiry);
 }
 
+std::string kis_net_beast_httpd::create_jwt_auth(const std::string& name,
+        const std::string& role, time_t expiry) {
+
+    auto token = jwt::create()
+        .set_issuer(jwt_auth_issuer)
+        .set_type("JWS")
+        .set_payload_claim("name", jwt::claim(name))
+        .set_payload_claim("role", jwt::claim(role))
+        .set_payload_claim("created", picojson::value(Globalreg::globalreg->last_tv_sec))
+        .set_payload_claim("expires", picojson::value(expiry))
+        .sign(jwt::algorithm::hs256{jwt_auth_key});
+
+    return token;
+}
+
+
 bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd remove_auth");
 
@@ -858,6 +874,12 @@ bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
 
 std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const boost::beast::string_view& token) {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd check_auth_token");
+
+    // Step one: is it a JWT token? 
+    auto authtoken = check_jwt_token(token);
+
+    if (authtoken != nullptr) 
+        return authtoken;
 
     for (const auto& a : auth_vec) {
         if (a->check_auth(token)) 
@@ -1304,8 +1326,8 @@ bool kis_net_beast_httpd_connection::start() {
                             login_role_ = kis_net_beast_httpd::LOGON_ROLE;
 
                             // If we have a valid pw login and no, or an invalid, auth token, create one
-                            auth_token_ = 
-                                httpd->create_or_find_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                            // auth_token_ = httpd->create_or_find_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                            auth_token_ = httpd->create_jwt_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
                         }
                     }
                 }
@@ -1320,8 +1342,8 @@ bool kis_net_beast_httpd_connection::start() {
                 if (login_valid_) {
                     login_role_ = kis_net_beast_httpd::LOGON_ROLE;
 
-                    auth_token_ =
-                        httpd->create_or_find_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                    // auth_token_ = httpd->create_or_find_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                    auth_token_ = httpd->create_jwt_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
                 }
             }
         }
@@ -1784,6 +1806,15 @@ kis_net_beast_auth::kis_net_beast_auth(const std::string& token, const std::stri
     time_expires_{0} { }
 
 kis_net_beast_auth::kis_net_beast_auth(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& jwt) {
+    try {
+        token_ = "jwt";
+        name_ = jwt.get_payload_claim("name").as_string();
+        role_ = jwt.get_payload_claim("role").as_string();
+        time_created_ = static_cast<time_t>(jwt.get_payload_claim("created").as_number());
+        time_expires_ = static_cast<time_t>(jwt.get_payload_claim("expires").as_number());
+    } catch (...) {
+        throw auth_construction_error();
+    }
 
 }
 

@@ -124,11 +124,13 @@ public:
     // Create an auth entry & return it; if the auth exists in the system already, throw a runtime exception
     std::string create_auth(const std::string& name, const std::string& role, time_t expiry);
 
-    // Create or find an auth entity; if an auth exists for this name, return the existing token; used during
-    // http basic auth to prevent spamming the auth db with thousands of unique session keys if an API user or
-    // browser doesn't save the returned cookie
-    // If the auth exists but under a different role, throw a runtime exception
+    // Create or find an auth entity; if an API key exists for this name, return the existing token; 
+    // (legacy auth model code with a per-login-role token)
     std::string create_or_find_auth(const std::string& name, const std::string& role, time_t expiry);
+
+    // Create a JWT token
+    std::string create_jwt_auth(const std::string& name, const std::string& role, time_t expiry);
+
 
     // Remove an auth entry based on token
     bool remove_auth(const std::string& token);
