@@ -850,8 +850,8 @@ std::string kis_net_beast_httpd::create_jwt_auth(const std::string& name,
         .set_type("JWS")
         .set_payload_claim("name", jwt::claim(name))
         .set_payload_claim("role", jwt::claim(role))
-        .set_payload_claim("created", picojson::value(Globalreg::globalreg->last_tv_sec))
-        .set_payload_claim("expires", picojson::value(expiry))
+        .set_payload_claim("created", picojson::value(static_cast<double>(Globalreg::globalreg->last_tv_sec)))
+        .set_payload_claim("expires", picojson::value(static_cast<double>(expiry)))
         .sign(jwt::algorithm::hs256{jwt_auth_key});
 
     return token;
