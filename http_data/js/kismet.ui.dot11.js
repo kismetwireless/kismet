@@ -250,10 +250,10 @@ kismet_ui.AddDeviceRowHighlight({
     ],
     selector: function(data) {
         try {
-            for (const dev in data['dot11.device']['dot11.device.wpa_handshake_list']) {
+            for (const dev in data['dot11.device.wpa_handshake_list']) {
                 var pmask = 0;
                 
-                for (const p of data['dot11.device']['dot11.device.wpa_handshake_list'][dev]) {
+                for (const p of data['dot11.device.wpa_handshake_list'][dev]) {
                     pmask = pmask | (1 << p['dot11.eapol.message_num']);
 
                     if ((pmask & 0x06) == 0x06 || (pmask & 0x0C) == 0x0C)
