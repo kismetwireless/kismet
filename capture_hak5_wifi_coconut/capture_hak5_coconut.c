@@ -247,7 +247,7 @@ int coconut_rx_packet(struct userspace_wifi_context *context,
         return 1;
 
     if (!signal->crc_valid)
-        rtap_packet.hdr.flags |= IEEE80211_RADIOTAP_F_BADFCS;
+        return 1;
 
     if (signal->short_gi)
         rtap_packet.hdr.flags |= IEEE80211_RADIOTAP_F_SHORTGI;
