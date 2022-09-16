@@ -614,6 +614,9 @@ int main(int argc, char *argv[]) {
             try {
                 ss >> json;
 
+                if (json["kismet.device.base.first_time"].is_null())
+                    throw std::runtime_error("No first_time in record");
+
                 auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
                 auto name = std::string{""};
                 auto crypt = std::string{""};
@@ -630,6 +633,7 @@ int main(int argc, char *argv[]) {
                     } else {
                         name = "";
                     }
+
                     if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
                         name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
                     } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].is_string()) {
@@ -640,15 +644,18 @@ int main(int argc, char *argv[]) {
 
                     // Handle the aliased ssid_record for modern info
                     if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.crypt_set"]);
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_set", 0));
                     } else {
+                        if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null()) 
+                            throw std::runtime_error("No last beaconed checksum");
+
                         auto last_ssid_key = 
                             json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].get<uint64_t>();
                         std::stringstream ss;
 
                         ss << last_ssid_key;
 
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()]["dot11.advertisedssid.crypt_set"]);
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_set", 0));
                     }
 
                     crypt += "[ESS]";
@@ -681,7 +688,7 @@ int main(int argc, char *argv[]) {
 
             } catch (const std::exception& e) {
                 std::cerr << 
-                    fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
+                    fmt::format("WARNING:  Could not process device info for {}/{}, skipping: {}", sourcemac, phy, e.what()) << std::endl;
             }
         }
 
