@@ -1322,7 +1322,7 @@ int main(int argc, char *argv[]) {
                     try {
                         ss >> json;
 
-                        auto alt = json["kismet.gps.last_location"].value("kismet.common.location.alt", 0);
+                        auto alt = json["kismet.gps.last_location"].value("kismet.common.location.alt", (double) 0);
                         auto lat = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][1].get<double>();
                         auto lon = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][0].get<double>();
 

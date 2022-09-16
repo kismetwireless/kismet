@@ -55,10 +55,10 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
 
                     double lat = 0, lon = 0, alt = 0, spd = 0;
 
-                    lat = con->json().value("lat", 0);
-                    lon = con->json().value("lon", 0);
-                    alt = con->json().value("alt", 0);
-                    spd = con->json().value("spd", 0);
+                    lat = con->json().value("lat", (double) 0);
+                    lon = con->json().value("lon", (double) 0);
+                    alt = con->json().value("alt", (double) 0);
+                    spd = con->json().value("spd", (double) 0);
 
                     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
                     new_location->lat = lat;
@@ -115,10 +115,10 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
 
                                         double lat = 0, lon = 0, alt = 0, spd = 0;
 
-                                        lat = json.value("lat", 0);
-                                        lon = json.value("lon", 0);
-                                        alt = json.value("alt", 0);
-                                        spd = json.value("spd", 0);
+                                        lat = json.value("lat", (double) 0);
+                                        lon = json.value("lon", (double) 0);
+                                        alt = json.value("alt", (double) 0);
+                                        spd = json.value("spd", (double) 0);
 
                                         auto new_location = 
                                             packetchain->new_packet_component<kis_gps_packinfo>();

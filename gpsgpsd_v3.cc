@@ -326,31 +326,31 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                 // If we have a valid alt, use it
                 if (set_fix && new_location->fix > 2) {
-                    new_location->alt = json.value("alt", 0);
+                    new_location->alt = json.value("alt", (double) 0);
                     set_alt = true;
                 } 
 
-                new_location->error_x = json.value("epx", 0);
-                new_location->error_y = json.value("epy", 0);
-                new_location->error_v = json.value("epv", 0);
+                new_location->error_x = json.value("epx", (double) 0);
+                new_location->error_y = json.value("epy", (double) 0);
+                new_location->error_v = json.value("epv", (double) 0);
 
 
                 if (set_fix && new_location->fix >= 2) {
-                    new_location->lat = json.value("lat", 0);
-                    new_location->lon = json.value("lon", 0);
+                    new_location->lat = json.value("lat", (double) 0);
+                    new_location->lon = json.value("lon", (double) 0);
 
                     if (new_location->lat != 0 && new_location->lon != 0)
                         set_lat_lon = true;
 
-                    new_location->heading = json.value("track", 0);
+                    new_location->heading = json.value("track", (double) 0);
                     if (new_location->heading != 0)
                         set_heading = true;
 
-                    new_location->magheading = json.value("magtrack", 0);
+                    new_location->magheading = json.value("magtrack", (double) 0);
                     if (new_location->magheading != 0)
                         set_magheading = true;
 
-                    new_location->speed = json.value("speed", 0) * 3.6;
+                    new_location->speed = json.value("speed", (double) 0) * 3.6;
                 }
             } else if (msg_class == "ATT") {
                 auto heading_j = json["heading"];

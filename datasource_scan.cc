@@ -131,10 +131,10 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             packet->insert(pack_comp_json, jsoninfo);
 
-            double lat = r.value("lat", 0);
-            double lon = r.value("lon", 0);
-            double alt = r.value("alt", 0);
-            double speed = r.value("speed", 0);
+            double lat = r.value("lat", (double) 0);
+            double lon = r.value("lon", (double) 0);
+            double alt = r.value("alt", (double) 0);
+            double speed = r.value("speed", (double) 0);
 
             if (lat != 0 && lon != 0) {
                 auto gpsinfo = std::make_shared<kis_gps_packinfo>();
