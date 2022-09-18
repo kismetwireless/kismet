@@ -628,6 +628,11 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     }
 #endif
 
+    associate_by_bssts = Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_link_bssts", false);
+    if (associate_by_bssts) {
+        _MSG_INFO("PHY80211 will try to associate hardware via BSS timestamp.  This can have SIGNIFICANT performance implications in some environments!");
+    }
+
     signal_from_beacon = Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_signal_from_beacon", true);
     if (signal_from_beacon) {
         _MSG_INFO("PHY80211 will only process AP signal levels from beacons");
@@ -1338,7 +1343,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         // Do we have a worker we have to call later?  We must defer workers until we release the locks
         // on devices
-        // bool associate_bssts = false;
+        bool associate_bssts = false;
         bool handle_probed_ssid = false;
         std::function<void ()> handle_probed_ssid_f;
 
@@ -1379,12 +1384,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 auto bsts = dot11info->bssid_dot11->get_bss_timestamp();
                 dot11info->bssid_dot11->set_bss_timestamp(dot11info->timestamp);
 
-#if 0
                 // If we have a new device, look for related devices; use the apview to search other APs
-                if ((bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
+                if (d11phy->associate_by_bssts && (bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
                     associate_bssts = true;
                 }
-#endif
 
                 uint64_t diff = 0;
 
@@ -1620,7 +1623,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         }
 
-#if 0
         // BSSTS relationship worker
         if (associate_bssts) {
             auto bss_worker = 
@@ -1672,7 +1674,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 rdev->add_related_device("dot11_bssts_similar", dot11info->bssid_dev->get_key());
             }
         }
-#endif
 
         // Reap the async ssid probe outside of lock
         if (handle_probed_ssid)

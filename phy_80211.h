@@ -618,6 +618,9 @@ protected:
     // Do we only get signal from beacons?
     bool signal_from_beacon;
 
+    // Do we associate devices by bssts?
+    bool associate_by_bssts;
+
     std::shared_ptr<tracker_element_string> devtype_adhoc;
     std::shared_ptr<tracker_element_string> devtype_ap;
     std::shared_ptr<tracker_element_string> devtype_client;
