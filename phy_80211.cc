@@ -1477,8 +1477,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->bssid_dev != nullptr) {
                 dot11info->source_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
-            } else {
-                dot11info->source_dot11->set_last_bssid(mac_addr());
             }
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
@@ -1533,8 +1531,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            if (dot11info->bssid_dev != nullptr)
+            if (dot11info->bssid_dev != nullptr && dot11info->subtype != packet_sub_probe_resp) {
                 dot11info->dest_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
+            }
 
             // If it's receiving a management packet, it must be a wifi device
             dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
