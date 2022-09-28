@@ -1502,9 +1502,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of 
                 // some sort and not just bridged
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() { 
-                    return d11phy->devtype_client; 
+                    return d11phy->devtype_device;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
-                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+                dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_DEVICE);
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
@@ -1536,12 +1536,22 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->bssid_dev != nullptr)
                 dot11info->dest_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-            // If it's receiving a management packet, it must be a wifi device
-            dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
-                return d11phy->devtype_client;
-            }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
-            dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-            dot11info->dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+            // If it's receiving a management packet, it must be a wifi client
+            if (dot11info->subtype != packet_sub_probe_resp) {
+                dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
+                    return d11phy->devtype_client;
+                }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
+                dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_DEVICE);
+                dot11info->dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+            } else {
+                // but only make it a wifi device if dest of a probe response
+                dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
+                    return d11phy->devtype_device;
+                }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
+                dot11info->dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_DEVICE);
+            }
 
             d11phy->devicetracker->update_view_device(dot11info->dest_dev);
         }
@@ -1891,6 +1901,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->source_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_DEVICE);
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             } else if (dot11info->distrib == distrib_inter) {
                 // If it's from the ess, we're some sort of wired device; set the type
@@ -1913,8 +1924,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->set_type_string_ifnotany([d11phy]() {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
+                dot11info->source_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_DEVICE);
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-
             }
 
             dot11info->source_dot11->inc_datasize(dot11info->datasize);
