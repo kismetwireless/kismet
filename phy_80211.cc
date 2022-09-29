@@ -3752,7 +3752,7 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
 
                 ev->push_back(n);
             }
-        } else {
+        } else if (dupe_nonce && !dot11info->retry) {
             std::stringstream ss;
             std::string nonce = eapol->get_eapol_nonce_bytes();
 
@@ -3820,7 +3820,7 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
 
                 eav->push_back(n);
             }
-        } else {
+        } else if (dupe_nonce && !dot11info->retry){
             std::stringstream ss;
             std::string nonce = eapol->get_eapol_nonce_bytes();
 
