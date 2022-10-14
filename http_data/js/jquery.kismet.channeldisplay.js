@@ -186,15 +186,13 @@
                         options: {
                             maintainAspectRatio: false,
                             scales: {
-                                yAxes: [{
-                                    ticks: {
-                                        beginAtZero: true,
-                                    },
+                                y: {
+                                    beginAtZero: true,
                                     stacked: true,
-                                }],
-                                xAxes: [{
+                                },
+                                x: {
                                     stacked: true,
-                                }],
+                                },
                             },
                             legend: {
                                 labels: {
@@ -249,11 +247,9 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             scales: {
-                                yAxes: [{
-                                    ticks: {
-                                        beginAtZero: true,
-                                    }
-                                }],
+                                y: {
+                                    beginAtZero: true,
+                                },
                             },
                         },
                         data: {

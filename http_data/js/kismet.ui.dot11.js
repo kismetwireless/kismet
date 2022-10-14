@@ -583,9 +583,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     type: 'doughnut',
                                     data: barChartData,
                                     options: {
-                                        global: {
-                                            maintainAspectRatio: false,
-                                        },
+                                        maintainAspectRatio: false,
                                         animation: false,
                                         legend: {
                                             display: true,
@@ -595,7 +593,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                             display: false,
                                             text: 'Packet Types'
                                         },
-                                        height: '200px',
+                                        height: '200',
                                     }
                                 });
 
@@ -629,9 +627,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     type: 'doughnut',
                                     data: databarChartData,
                                     options: {
-                                        global: {
-                                            maintainAspectRatio: false,
-                                        },
+                                        maintainAspectRatio: false,
                                         animation: false,
                                         legend: {
                                             display: true,
@@ -641,7 +637,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                             display: false,
                                             text: 'Packet Types'
                                         },
-                                        height: '200px',
+                                        height: '200',
                                     }
                                 });
 
