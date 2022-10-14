@@ -944,9 +944,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                     type: 'doughnut',
                                     data: barChartData,
                                     options: {
-                                        global: {
-                                            maintainAspectRatio: false,
-                                        },
+                                        maintainAspectRatio: false,
                                         animation: false,
                                         legend: {
                                             display: true,
@@ -955,7 +953,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                             display: true,
                                             text: 'Packet Types'
                                         },
-                                        height: '200px',
+                                        height: '200',
                                     }
                                 });
 
@@ -1341,14 +1339,14 @@ function memorydisplay_refresh() {
             {
                 label: 'Memory (MB)',
                 fill: 'false',
-                // yAxisID: 'mem-axis',
+                yAxisID: 'mem_axis',
                 borderColor: 'black',
                 backgroundColor: 'transparent',
                 data: mem_linedata,
             },
             {
                 label: 'Devices',
-                fill: 'false',
+                fill: true,
                 // yAxisID: 'dev-axis',
                 borderColor: 'blue',
                 backgroundColor: 'rgba(100, 100, 255, 0.33)',
@@ -1362,26 +1360,14 @@ function memorydisplay_refresh() {
             memory_chart = new Chart(canvas, {
                 type: 'line',
                 options: {
+                    animation: false,
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        yAxes: [
-                            {
-                                position: "left",
-                                "id": "mem-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
-                            },
-/*                          {
-                                position: "right",
-                                "id": "dev-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
-                            }
-*/
-                        ]
+                        mem_axis: {
+                            beginAtZero: true,
+                            position: "left",
+                        },
                     },
                 },
                 data: {
@@ -1536,7 +1522,7 @@ function packetqueuedisplay_refresh() {
             },
             {
                 label: 'Incoming packets (peak)',
-                fill: 'false',
+                fill: true,
                 borderColor: 'black',
                 backgroundColor: 'rgba(100, 100, 100, 0.33)',
                 data: peak_linedata,
@@ -1590,18 +1576,14 @@ function packetqueuedisplay_refresh() {
             packetqueue_panel.packetqueue_chart = new Chart(canvas, {
                 type: 'line',
                 options: {
+                    animation: false,
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        yAxes: [
-                            {
-                                position: "left",
-                                "id": "mem-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
-                            },
-                        ]
+                        mem_axis: {
+                            position: "left",
+                            beginAtZero: true,
+                        },
                     },
                 },
                 data: {
@@ -1752,18 +1734,15 @@ function datasourcepackets_refresh() {
                 new Chart($('#dsg-canvas', packetqueue_panel.ds_content), {
                 "type": "line",
                 "options": {
+                    "animation": false,
                     "responsive": true,
                     "maintainAspectRatio": false,
                     "scales": {
-                        "yAxes": [
-                            {
-                                "position": "left",
-                                "id": "pkts-axis",
-                                "ticks": {
-                                    "beginAtZero": true,
-                                }
+                        "y": {
+                            "beginAtZero": true,
+                            "position": "left",
+                            "id": "pkts-axis",
                             },
-                        ],
                     },
                 },
                 "data": {
@@ -3021,12 +3000,10 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
                     maintainAspectRatio: false,
                     animation: false,
                     scales: {
-                        yAxes: [ {
-                            ticks: {
-                                beginAtZero: true,
-                                max: 100,
-                            }
-                        }],
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                        },
                     },
                 },
                 data: {

@@ -408,10 +408,11 @@ function channelcoverage_display_refresh() {
         channelhop_chart = new Chart(channelhop_canvas, {
             type: "bar",
             options: {
+                animation: false,
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    xAxes: [{ barPercentage: bp, }],
+                    x: { barPercentage: bp, },
                 },
             },
             data: {
@@ -438,35 +439,37 @@ function channelcoverage_display_refresh() {
                 legend: {
                     display: false,
                 },
+                animation: false,
                 responsive: true,
                 maintainAspectRatio: false,
+                clip: false,
                 scales: {
-                    xAxes: [{
+                    x: {
+                        min: 0,
+                        max: chantitles.length,
                         ticks: {
                             autoSkip: false,
                             stepSize: 1,
                             callback: function(value, index, values) {
                                 return chantitles[value];
                             },
-                            min: 0,
-                            max: chantitles.length,
                             position: 'bottom',
                             type: 'linear',
                         }
-                    }],
-                    yAxes: [{
+                    },
+                    y: {
+                        min: 0,
+                        max: sourcetitles.length,
                         ticks: {
                             autoSkip: false,
                             stepSize: 1,
                             callback: function(value, index, values) {
                                 return sourcetitles[value];
                             },
-                            min: 0,
-                            max: sourcetitles.length,
                             position: 'left',
                             type: 'linear',
                         },
-                    }],
+                    },
                 },
             },
             data: {
@@ -481,11 +484,11 @@ function channelcoverage_display_refresh() {
         channelcoverage_chart.data.labels = chantitles;
         channelcoverage_chart.data.yLabels = sourcetitles;
 
-        channelcoverage_chart.options.scales.xAxes[0].ticks.min = 0;
-        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length;
+        channelcoverage_chart.options.scales['x'].min = 0;
+        channelcoverage_chart.options.scales['x'].max = chantitles.length;
 
-        channelcoverage_chart.options.scales.yAxes[0].ticks.min = 0;
-        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length;
+        channelcoverage_chart.options.scales['y'].min = 0;
+        channelcoverage_chart.options.scales['y'].max = sourcetitles.length;
 
         channelcoverage_chart.update(0);
     }
