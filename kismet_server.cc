@@ -134,6 +134,8 @@ char *exec_name;
 // Daemonize?
 int daemonize = 0;
 
+bool wrapper = true;
+
 // Plugins?
 int plugins = 1;
 
@@ -217,6 +219,12 @@ void SpindownKismet() {
                 "\n");
 
         fprintf(stderr, "Kismet exiting.\n");
+
+        if (wrapper) {
+            // save cursor position, delete banner and restore cursor position
+            std::string clear_banner = "\u001b[s\u001b[H\u001b[2K\u001b[u";
+            printf("%s\n", clear_banner.c_str());
+        }
     }
 
     globalregistry->delete_lifetime_globals();
@@ -420,8 +428,6 @@ int main(int argc, char *argv[], char *envp[]) {
     optind = 0;
     option_idx = 0;
     opterr = 0;
-
-    bool wrapper = true;
 
     while (1) {
         int r = getopt_long(argc, argv, "-", wrapper_longopt, &option_idx);
