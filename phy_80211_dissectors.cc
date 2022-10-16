@@ -675,6 +675,11 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 }
 #endif
 
+                if (fixparm->wep) {
+                    packinfo->cryptset |= crypt_wep;
+                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                }
+
                 // Look for MSF opcode beacons before tag decode
                 if (packinfo->source_mac == msfopcode_mac) {
                     _ALERT(alert_msfbcomssid_ref, in_pack, packinfo,
