@@ -9,10 +9,10 @@ import requests
 manufs = []
 
 # Original IEEE URI
-# OUIURI = "http://standards-oui.ieee.org/oui.txt"
+OUIURI = "http://standards-oui.ieee.org/oui.txt"
 
 # Sanitized and cleaned up maintained version
-OUIURI = "http://linuxnet.ca/ieee/oui.txt"
+# OUIURI = "http://linuxnet.ca/ieee/oui.txt"
 
 with requests.get(OUIURI) as r:
     for rl in r.iter_lines():
