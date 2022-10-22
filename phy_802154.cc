@@ -254,12 +254,12 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             if ((pkt_ctr + 4) >= packdata->length())
                 return 0;
 
+	    dest_pan[1] = packdata->data()[pkt_ctr];
+            dest_pan[0] = packdata->data()[pkt_ctr + 1];
+            pkt_ctr += 2;
+		
             dest[1] = packdata->data()[pkt_ctr];
             dest[0] = packdata->data()[pkt_ctr + 1];
-            pkt_ctr += 2;
-
-            dest_pan[1] = packdata->data()[pkt_ctr];
-            dest_pan[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
             // We would go past the end to check this
@@ -267,8 +267,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 return 0;
 
             // Length means we actually have an extended dest
-            dest[1] = packdata->data()[pkt_ctr];
-            dest[0] = packdata->data()[pkt_ctr + 1];
+            dest_pan[1] = packdata->data()[pkt_ctr];
+            dest_pan[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
 
             // Extended dest which is what were are looking for
