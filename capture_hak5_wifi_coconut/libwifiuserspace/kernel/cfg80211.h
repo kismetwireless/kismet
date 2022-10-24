@@ -239,6 +239,11 @@ int ieee80211_channel_to_frequency(int chan, enum nl80211_band band);
  */
 int ieee80211_frequency_to_channel(int freq);
 
+/** 
+ * Extract header length from raw packet 
+ */
+unsigned int ieee80211_get_hdrlen_from_buf(const uint8_t *buf, size_t len);
+
 /**
  * enum ieee80211_rate_flags - rate flags
  *

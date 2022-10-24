@@ -1006,5 +1006,8 @@ static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
 
 #define DATA_FRAME_SIZE     2432
 
+#define RT2X00_L2PAD_SIZE   8
+#define L2PAD_SIZE(__hdrlen)	(-(__hdrlen) & 3)
+
 #endif /* ifndef RT2X00_H */
 
