@@ -21,9 +21,178 @@
 #ifndef __USERSPACE_IEEE80211_H__
 #define __USERSPACE_IEEE80211_H__ 
 
+#include <stdbool.h>
+
 #include "kernel/kernel.h"
 #include "kernel/nl80211.h"
 #include "kernel/types.h"
+#include "kernel/stddef.h"
+#include "kernel/if_ether.h"
+#include "kernel/endian.h"
+
+/*
+ * DS bit usage
+ *
+ * TA = transmitter address
+ * RA = receiver address
+ * DA = destination address
+ * SA = source address
+ *
+ * ToDS    FromDS  A1(RA)  A2(TA)  A3      A4      Use
+ * -----------------------------------------------------------------
+ *  0       0       DA      SA      BSSID   -       IBSS/DLS
+ *  0       1       DA      BSSID   SA      -       AP -> STA
+ *  1       0       BSSID   SA      DA      -       AP <- STA
+ *  1       1       RA      TA      DA      SA      unspecified (WDS)
+ */
+
+#define FCS_LEN 4
+
+#define IEEE80211_FCTL_VERS		0x0003
+#define IEEE80211_FCTL_FTYPE		0x000c
+#define IEEE80211_FCTL_STYPE		0x00f0
+#define IEEE80211_FCTL_TODS		0x0100
+#define IEEE80211_FCTL_FROMDS		0x0200
+#define IEEE80211_FCTL_MOREFRAGS	0x0400
+#define IEEE80211_FCTL_RETRY		0x0800
+#define IEEE80211_FCTL_PM		0x1000
+#define IEEE80211_FCTL_MOREDATA		0x2000
+#define IEEE80211_FCTL_PROTECTED	0x4000
+#define IEEE80211_FCTL_ORDER		0x8000
+#define IEEE80211_FCTL_CTL_EXT		0x0f00
+
+#define IEEE80211_SCTL_FRAG		0x000F
+#define IEEE80211_SCTL_SEQ		0xFFF0
+
+#define IEEE80211_FTYPE_MGMT		0x0000
+#define IEEE80211_FTYPE_CTL		0x0004
+#define IEEE80211_FTYPE_DATA		0x0008
+#define IEEE80211_FTYPE_EXT		0x000c
+
+/* management */
+#define IEEE80211_STYPE_ASSOC_REQ	0x0000
+#define IEEE80211_STYPE_ASSOC_RESP	0x0010
+#define IEEE80211_STYPE_REASSOC_REQ	0x0020
+#define IEEE80211_STYPE_REASSOC_RESP	0x0030
+#define IEEE80211_STYPE_PROBE_REQ	0x0040
+#define IEEE80211_STYPE_PROBE_RESP	0x0050
+#define IEEE80211_STYPE_BEACON		0x0080
+#define IEEE80211_STYPE_ATIM		0x0090
+#define IEEE80211_STYPE_DISASSOC	0x00A0
+#define IEEE80211_STYPE_AUTH		0x00B0
+#define IEEE80211_STYPE_DEAUTH		0x00C0
+#define IEEE80211_STYPE_ACTION		0x00D0
+
+/* control */
+#define IEEE80211_STYPE_TRIGGER		0x0020
+#define IEEE80211_STYPE_CTL_EXT		0x0060
+#define IEEE80211_STYPE_BACK_REQ	0x0080
+#define IEEE80211_STYPE_BACK		0x0090
+#define IEEE80211_STYPE_PSPOLL		0x00A0
+#define IEEE80211_STYPE_RTS		0x00B0
+#define IEEE80211_STYPE_CTS		0x00C0
+#define IEEE80211_STYPE_ACK		0x00D0
+#define IEEE80211_STYPE_CFEND		0x00E0
+#define IEEE80211_STYPE_CFENDACK	0x00F0
+
+/* data */
+#define IEEE80211_STYPE_DATA			0x0000
+#define IEEE80211_STYPE_DATA_CFACK		0x0010
+#define IEEE80211_STYPE_DATA_CFPOLL		0x0020
+#define IEEE80211_STYPE_DATA_CFACKPOLL		0x0030
+#define IEEE80211_STYPE_NULLFUNC		0x0040
+#define IEEE80211_STYPE_CFACK			0x0050
+#define IEEE80211_STYPE_CFPOLL			0x0060
+#define IEEE80211_STYPE_CFACKPOLL		0x0070
+#define IEEE80211_STYPE_QOS_DATA		0x0080
+#define IEEE80211_STYPE_QOS_DATA_CFACK		0x0090
+#define IEEE80211_STYPE_QOS_DATA_CFPOLL		0x00A0
+#define IEEE80211_STYPE_QOS_DATA_CFACKPOLL	0x00B0
+#define IEEE80211_STYPE_QOS_NULLFUNC		0x00C0
+#define IEEE80211_STYPE_QOS_CFACK		0x00D0
+#define IEEE80211_STYPE_QOS_CFPOLL		0x00E0
+#define IEEE80211_STYPE_QOS_CFACKPOLL		0x00F0
+
+/* extension, added by 802.11ad */
+#define IEEE80211_STYPE_DMG_BEACON		0x0000
+#define IEEE80211_STYPE_S1G_BEACON		0x0010
+
+/* bits unique to S1G beacon */
+#define IEEE80211_S1G_BCN_NEXT_TBTT	0x100
+
+/* see 802.11ah-2016 9.9 NDP CMAC frames */
+#define IEEE80211_S1G_1MHZ_NDP_BITS	25
+#define IEEE80211_S1G_1MHZ_NDP_BYTES	4
+#define IEEE80211_S1G_2MHZ_NDP_BITS	37
+#define IEEE80211_S1G_2MHZ_NDP_BYTES	5
+
+#define IEEE80211_NDP_FTYPE_CTS			0
+#define IEEE80211_NDP_FTYPE_CF_END		0
+#define IEEE80211_NDP_FTYPE_PS_POLL		1
+#define IEEE80211_NDP_FTYPE_ACK			2
+#define IEEE80211_NDP_FTYPE_PS_POLL_ACK		3
+#define IEEE80211_NDP_FTYPE_BA			4
+#define IEEE80211_NDP_FTYPE_BF_REPORT_POLL	5
+#define IEEE80211_NDP_FTYPE_PAGING		6
+#define IEEE80211_NDP_FTYPE_PREQ		7
+
+#define SM64(f, v)	((((u64)v) << f##_S) & f)
+
+/* NDP CMAC frame fields */
+#define IEEE80211_NDP_FTYPE                    0x0000000000000007
+#define IEEE80211_NDP_FTYPE_S                  0x0000000000000000
+
+/* 1M Probe Request 11ah 9.9.3.1.1 */
+#define IEEE80211_NDP_1M_PREQ_ANO      0x0000000000000008
+#define IEEE80211_NDP_1M_PREQ_ANO_S                     3
+#define IEEE80211_NDP_1M_PREQ_CSSID    0x00000000000FFFF0
+#define IEEE80211_NDP_1M_PREQ_CSSID_S                   4
+#define IEEE80211_NDP_1M_PREQ_RTYPE    0x0000000000100000
+#define IEEE80211_NDP_1M_PREQ_RTYPE_S                  20
+#define IEEE80211_NDP_1M_PREQ_RSV      0x0000000001E00000
+#define IEEE80211_NDP_1M_PREQ_RSV      0x0000000001E00000
+/* 2M Probe Request 11ah 9.9.3.1.2 */
+#define IEEE80211_NDP_2M_PREQ_ANO      0x0000000000000008
+#define IEEE80211_NDP_2M_PREQ_ANO_S                     3
+#define IEEE80211_NDP_2M_PREQ_CSSID    0x0000000FFFFFFFF0
+#define IEEE80211_NDP_2M_PREQ_CSSID_S                   4
+#define IEEE80211_NDP_2M_PREQ_RTYPE    0x0000001000000000
+#define IEEE80211_NDP_2M_PREQ_RTYPE_S                  36
+
+#define IEEE80211_ANO_NETTYPE_WILD              15
+
+/* bits unique to S1G beacon */
+#define IEEE80211_S1G_BCN_NEXT_TBTT    0x100
+
+/* control extension - for IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTL_EXT */
+#define IEEE80211_CTL_EXT_POLL		0x2000
+#define IEEE80211_CTL_EXT_SPR		0x3000
+#define IEEE80211_CTL_EXT_GRANT	0x4000
+#define IEEE80211_CTL_EXT_DMG_CTS	0x5000
+#define IEEE80211_CTL_EXT_DMG_DTS	0x6000
+#define IEEE80211_CTL_EXT_SSW		0x8000
+#define IEEE80211_CTL_EXT_SSW_FBACK	0x9000
+#define IEEE80211_CTL_EXT_SSW_ACK	0xa000
+
+
+#define IEEE80211_SN_MASK		((IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_MAX_SN		IEEE80211_SN_MASK
+#define IEEE80211_SN_MODULO		(IEEE80211_MAX_SN + 1)
+
+
+/* PV1 Layout 11ah 9.8.3.1 */
+#define IEEE80211_PV1_FCTL_VERS		0x0003
+#define IEEE80211_PV1_FCTL_FTYPE	0x001c
+#define IEEE80211_PV1_FCTL_STYPE	0x00e0
+#define IEEE80211_PV1_FCTL_TODS		0x0100
+#define IEEE80211_PV1_FCTL_MOREFRAGS	0x0200
+#define IEEE80211_PV1_FCTL_PM		0x0400
+#define IEEE80211_PV1_FCTL_MOREDATA	0x0800
+#define IEEE80211_PV1_FCTL_PROTECTED	0x1000
+#define IEEE80211_PV1_FCTL_END_SP       0x2000
+#define IEEE80211_PV1_FCTL_RELAYED      0x4000
+#define IEEE80211_PV1_FCTL_ACK_POLICY   0x8000
+#define IEEE80211_PV1_FCTL_CTL_EXT	0x0f00
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 #define WLAN_MEMBERSHIP_LEN 8
@@ -306,5 +475,502 @@ struct ieee80211_he_mcs_nss_supp {
 #define IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT		0x0010
 #define IEEE80211_HT_OP_MODE_CCFS2_SHIFT		5
 #define IEEE80211_HT_OP_MODE_CCFS2_MASK			0x1fe0
+
+struct ieee80211_hdr {
+	__le16 frame_control;
+	__le16 duration_id;
+	struct_group(addrs,
+		u8 addr1[ETH_ALEN];
+		u8 addr2[ETH_ALEN];
+		u8 addr3[ETH_ALEN];
+	);
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+} __packed __aligned(2);
+
+struct ieee80211_hdr_3addr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+} __packed __aligned(2);
+
+struct ieee80211_qos_hdr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	__le16 qos_ctrl;
+} __packed __aligned(2);
+
+struct ieee80211_trigger {
+	__le16 frame_control;
+	__le16 duration;
+	u8 ra[ETH_ALEN];
+	u8 ta[ETH_ALEN];
+	__le64 common_info;
+	u8 variable[];
+} __packed __aligned(2);
+
+/**
+ * ieee80211_has_tods - check if IEEE80211_FCTL_TODS is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_tods(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_TODS)) != 0;
+}
+
+/**
+ * ieee80211_has_fromds - check if IEEE80211_FCTL_FROMDS is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_fromds(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FROMDS)) != 0;
+}
+
+/**
+ * ieee80211_has_a4 - check if IEEE80211_FCTL_TODS and IEEE80211_FCTL_FROMDS are set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_a4(__le16 fc)
+{
+	__le16 tmp = cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
+	return (fc & tmp) == tmp;
+}
+
+/**
+ * ieee80211_has_morefrags - check if IEEE80211_FCTL_MOREFRAGS is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_morefrags(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)) != 0;
+}
+
+/**
+ * ieee80211_has_retry - check if IEEE80211_FCTL_RETRY is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_retry(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_RETRY)) != 0;
+}
+
+/**
+ * ieee80211_has_pm - check if IEEE80211_FCTL_PM is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_pm(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_PM)) != 0;
+}
+
+/**
+ * ieee80211_has_moredata - check if IEEE80211_FCTL_MOREDATA is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_moredata(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_MOREDATA)) != 0;
+}
+
+/**
+ * ieee80211_has_protected - check if IEEE80211_FCTL_PROTECTED is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_protected(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_PROTECTED)) != 0;
+}
+
+/**
+ * ieee80211_has_order - check if IEEE80211_FCTL_ORDER is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_has_order(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_ORDER)) != 0;
+}
+
+/**
+ * ieee80211_is_mgmt - check if type is IEEE80211_FTYPE_MGMT
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_mgmt(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT);
+}
+
+/**
+ * ieee80211_is_ctl - check if type is IEEE80211_FTYPE_CTL
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_ctl(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL);
+}
+
+/**
+ * ieee80211_is_data - check if type is IEEE80211_FTYPE_DATA
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_data(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA);
+}
+
+/**
+ * ieee80211_is_ext - check if type is IEEE80211_FTYPE_EXT
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_ext(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_EXT);
+}
+
+
+/**
+ * ieee80211_is_data_qos - check if type is IEEE80211_FTYPE_DATA and IEEE80211_STYPE_QOS_DATA is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_data_qos(__le16 fc)
+{
+	/*
+	 * mask with QOS_DATA rather than IEEE80211_FCTL_STYPE as we just need
+	 * to check the one bit
+	 */
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_STYPE_QOS_DATA)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA);
+}
+
+/**
+ * ieee80211_is_data_present - check if type is IEEE80211_FTYPE_DATA and has data
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_data_present(__le16 fc)
+{
+	/*
+	 * mask with 0x40 and test that that bit is clear to only return true
+	 * for the data-containing substypes.
+	 */
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | 0x40)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA);
+}
+
+/**
+ * ieee80211_is_assoc_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ASSOC_REQ
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_assoc_req(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ASSOC_REQ);
+}
+
+/**
+ * ieee80211_is_assoc_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ASSOC_RESP
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_assoc_resp(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ASSOC_RESP);
+}
+
+/**
+ * ieee80211_is_reassoc_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_REASSOC_REQ
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_reassoc_req(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_REASSOC_REQ);
+}
+
+/**
+ * ieee80211_is_reassoc_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_REASSOC_RESP
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_reassoc_resp(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_REASSOC_RESP);
+}
+
+/**
+ * ieee80211_is_probe_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_PROBE_REQ
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_probe_req(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ);
+}
+
+/**
+ * ieee80211_is_probe_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_PROBE_RESP
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_probe_resp(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
+}
+
+/**
+ * ieee80211_is_beacon - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_BEACON
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_beacon(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
+}
+
+/**
+ * ieee80211_is_s1g_beacon - check if IEEE80211_FTYPE_EXT &&
+ * IEEE80211_STYPE_S1G_BEACON
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_s1g_beacon(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE |
+				 IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON);
+}
+
+/**
+ * ieee80211_next_tbtt_present - check if IEEE80211_FTYPE_EXT &&
+ * IEEE80211_STYPE_S1G_BEACON && IEEE80211_S1G_BCN_NEXT_TBTT
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_next_tbtt_present(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON) &&
+	       fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT);
+}
+
+/**
+ * ieee80211_is_s1g_short_beacon - check if next tbtt present bit is set. Only
+ * true for S1G beacons when they're short.
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
+{
+	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
+}
+
+/**
+ * ieee80211_is_atim - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ATIM
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_atim(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ATIM);
+}
+
+/**
+ * ieee80211_is_disassoc - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_DISASSOC
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_disassoc(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DISASSOC);
+}
+
+/**
+ * ieee80211_is_auth - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_AUTH
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_auth(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH);
+}
+
+/**
+ * ieee80211_is_deauth - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_DEAUTH
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_deauth(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH);
+}
+
+/**
+ * ieee80211_is_action - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ACTION
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_action(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ACTION);
+}
+
+/**
+ * ieee80211_is_back_req - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_BACK_REQ
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_back_req(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
+}
+
+/**
+ * ieee80211_is_back - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_BACK
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_back(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK);
+}
+
+/**
+ * ieee80211_is_pspoll - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_PSPOLL
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_pspoll(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
+}
+
+/**
+ * ieee80211_is_rts - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_RTS
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_rts(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
+}
+
+/**
+ * ieee80211_is_cts - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CTS
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_cts(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
+}
+
+/**
+ * ieee80211_is_ack - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_ACK
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_ack(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_ACK);
+}
+
+/**
+ * ieee80211_is_cfend - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CFEND
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_cfend(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CFEND);
+}
+
+/**
+ * ieee80211_is_cfendack - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CFENDACK
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_cfendack(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CFENDACK);
+}
+
+/**
+ * ieee80211_is_nullfunc - check if frame is a regular (non-QoS) nullfunc frame
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_nullfunc(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC);
+}
+
+/**
+ * ieee80211_is_qos_nullfunc - check if frame is a QoS nullfunc frame
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_NULLFUNC);
+}
+
+/**
+ * ieee80211_is_trigger - check if frame is trigger frame
+ * @fc: frame control field in little-endian byteorder
+ */
+static inline bool ieee80211_is_trigger(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_TRIGGER);
+}
+
+/**
+ * ieee80211_is_any_nullfunc - check if frame is regular or QoS nullfunc frame
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_any_nullfunc(__le16 fc)
+{
+	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
+}
+
+/**
+ * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
+ * @fc: frame control field in little-endian byteorder
+ */
+static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
+{
+	/* IEEE 802.11-2012, definition of "bufferable management frame";
+	 * note that this ignores the IBSS special case. */
+	return ieee80211_is_mgmt(fc) &&
+	       (ieee80211_is_action(fc) ||
+		ieee80211_is_disassoc(fc) ||
+		ieee80211_is_deauth(fc));
+}
+
+/**
+ * ieee80211_is_first_frag - check if IEEE80211_SCTL_FRAG is not set
+ * @seq_ctrl: frame sequence control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
+{
+	return (seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0;
+}
+
+/**
+ * ieee80211_is_frag - check if a frame is a fragment
+ * @hdr: 802.11 header of the frame
+ */
+static inline bool ieee80211_is_frag(struct ieee80211_hdr *hdr)
+{
+	return ieee80211_has_morefrags(hdr->frame_control) ||
+	       hdr->seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG);
+}
 
 #endif /* ifndef USERSPACE_IEEE80211_H */

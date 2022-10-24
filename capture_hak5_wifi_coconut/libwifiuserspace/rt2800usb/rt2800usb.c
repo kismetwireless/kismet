@@ -1928,6 +1928,18 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 	return (int)max(rssi0, rssi2);
 }
 
+/* Function like the rt2x00 pull, but return the amount of data the caller
+ * needs to offset the buffer by */
+unsigned int rt2x00queue_remove_l2pad(uint8_t *buf, unsigned int buf_len, unsigned int hdr_len)
+{
+	unsigned int l2pad = (buf_len > hdr_len) ? L2PAD_SIZE(hdr_len) : 0;
+
+	if (!l2pad)
+		return buf_len;
+
+	memmove(buf + l2pad, buf, hdr_len);
+    return l2pad;
+}
 
 /* 
  * LibUSB usb transfer completion
@@ -1954,6 +1966,8 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
     unsigned int mpdu_sz;
 
     unsigned int pad = 0;
+
+    unsigned int header_len = 0;
 
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
         /* Timeout errors get re-submitted, other errors get bounced up */
@@ -2025,7 +2039,7 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
 	word = rt2x00_desc_read((__le32 *) rxd, 0);
 
 	if (rt2x00_get_field32(word, RXD_W0_L2PAD))
-        pad = 2;
+        pad = 1;
 
 	if (rt2x00_get_field32(word, RXD_W0_CRC_ERROR))
         rx_signal.crc_valid = false;
@@ -2039,8 +2053,8 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
 
     /*
      * Remove the padding from the end of the buffer
-     */
     workbuf_len -= pad;
+     */
 
     rxi = (__le32 *) workbuf;
 
@@ -2091,6 +2105,15 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
         if (dev->usb_transfer_active)
             libusb_submit_transfer(transfer);
         userspace_wifi_unlock(dev->context);
+    }
+
+    /*
+     * The 802.11 header needs to be padded to 4 bytes; make sure it is.
+     */
+    header_len = ieee80211_get_hdrlen_from_buf(workbuf, mpdu_sz);
+    if (header_len < workbuf_len && pad) {
+        pad = rt2x00queue_remove_l2pad(workbuf, workbuf_len, header_len);
+        workbuf = workbuf + pad;
     }
 
     /*
