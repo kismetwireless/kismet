@@ -2217,7 +2217,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                      UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-                    "Wi-Fi Device");
+                    "Wi-Fi AP");
 
         kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
                 "phy80211 json_classifier");
@@ -2249,7 +2249,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             }
         }
 
-        // TODO - handle raw IE tag data once we get some examples of that coming from
+        // TODO - handle raw IE kag data once we get some examples of that coming from
         // wpasupplicant scanning mode, ought to be able to reuse the beacon processing
         // system with some modifications, but for now just handle the android capabilities
 
@@ -2310,6 +2310,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                 }
             }
 
+        } else {
+            bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
+            bssid_dev->set_tracker_type_string(d11phy->devtype_ap);
         }
 
         // We can only get beaconing APs from scan results
@@ -2371,20 +2374,6 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
             _MSG_INFO("802.11 Wi-Fi device {} advertising SSID '{}'", 
                     bssid_dev->get_macaddr(), ssid_str);
-
-            if (d11phy->alertracker->potential_alert(d11phy->alert_airjackssid_ref) &&
-                    ssid->get_ssid() == "AirJack" ) {
-
-                std::string al = "IEEE80211 Access Point BSSID " +
-                    bssid_dev->get_macaddr().mac_to_string() + " broadcasting SSID "
-                    "\"AirJack\" which implies an attempt to disrupt "
-                    "networks.";
-
-                d11phy->alertracker->raise_alert(d11phy->alert_airjackssid_ref, in_pack, 
-                        commoninfo->network, commoninfo->source,
-                        commoninfo->dest, commoninfo->transmitter,
-                        commoninfo->channel, al);
-            }
 
             if (ssid->get_ssid() != "") {
                 bssid_dev->set_devicename(ssid->get_ssid());
