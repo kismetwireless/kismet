@@ -37,13 +37,13 @@ typedef int64_t atomic_t;
  * We lose the automagic endian checking and have to make sure
  * we do it ourselves properly.
  */
-typedef uint16_t __le16;
-typedef uint32_t __le32;
-typedef uint64_t __le64;
+typedef __u16 __le16;
+typedef __u32 __le32;
+typedef __u64 __le64;
 
-typedef uint16_t __be16;
-typedef uint32_t __be32;
-typedef uint64_t __be64;
+typedef __u16 __be16;
+typedef __u32 __be32;
+typedef __u64 __be64;
 
 
 /*
