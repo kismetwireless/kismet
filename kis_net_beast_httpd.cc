@@ -1515,7 +1515,11 @@ bool kis_net_beast_httpd_connection::start() {
         } else if (boost::beast::iequals(content_type, "application/json") ||
                 boost::beast::iequals(content_type, "application/json; charset=UTF-8")) {
 
-            json_ = nlohmann::json::parse(http_post.data());
+            try {
+                json_ = nlohmann::json::parse(http_post.data());
+            } catch (std::exception& e) {
+                ;
+            }
         }
     }
 
