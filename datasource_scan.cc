@@ -60,6 +60,12 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
     std::ostream stream(&con->response_stream());
     std::shared_ptr<kis_packet> packet;
 
+    if (con->json() == nullptr) { 
+        con->set_status(500);
+        stream << "{\"status\": \"invalid or missing JSON\", \"success\": false}\n";
+        return;
+    }
+
     try {
         std::shared_ptr<kis_datasource> virtual_source;
 

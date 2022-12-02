@@ -119,17 +119,16 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json == nullptr)
         return 0;
 
-    if (pack_json->type != "BLUETOOTHSCAN")
+    if (pack_json->type != "BLUETOOTHSCAN") { 
         return 0;
-
-    auto pack_l1info =
-        in_pack->fetch<kis_layer1_packinfo>(btphy->pack_comp_l1info);
+    }
 
     auto commoninfo =
         in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
 
-    if (commoninfo != nullptr || pack_l1info == nullptr)
+    if (commoninfo != nullptr) { 
         return 0;
+    }
 
     try {
         std::stringstream newdevstr;
@@ -155,6 +154,8 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         commoninfo->freq_khz = 2400000;
 
         in_pack->insert(btphy->pack_comp_common, commoninfo);
+
+        _MSG_DEBUG("Making a bt device {}", btaddr_mac);
 
         kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
                 "packet_bluetooth_scan_json_classifier");
