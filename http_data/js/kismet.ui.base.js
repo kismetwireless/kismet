@@ -262,7 +262,9 @@ kismet_ui.AddDeviceColumn('column_name', {
     description: 'Device name',
     width: "150px",
     renderfunc: function(d, t, r, m) {
-        return kismet.censorMAC(d);
+        d = kismet.censorMAC(d);
+        return kismet.censorString(d);
+        // return kismet.censorMAC(d);
         /*
         var dname = kismet.censorMAC(d);
         return (dname.length > 24) ? dname.substr(0, 23) + '&hellip;' : dname;
@@ -502,14 +504,21 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 help: "Device name, derived from device characteristics or set as a custom name by the user.",
                 draw: function(opts) {
                     var name = opts['data']['kismet.device.base.username'];
+
+                    if (typeof(name) != 'undefined' && name != "") { 
+                        name = kismet.censorString(name);
+                    }
                     
-                    if (typeof(name) == 'undefined' || name == "")
+                    if (typeof(name) == 'undefined' || name == "") { 
                         name = opts['data']['kismet.device.base.commonname'];
+                        name = kismet.censorString(name);
+                    }
 
-                    if (typeof(name) == 'undefined' || name == "")
+                    if (typeof(name) == 'undefined' || name == "") {
                         name = opts['data']['kismet.device.base.macaddr'];
+                        name = kismet.censorMAC(name);
+                    }
 
-                    name = kismet.censorMAC(name);
 
                     var nameobj = 
                         $('<a>', {
