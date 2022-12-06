@@ -88,6 +88,12 @@ class KismetRtl433(object):
         
         self.config = parser.parse_args()
 
+        try:
+            self.freq_khz = self.parse_human_frequency(self.opts['channel'])
+        except: 
+            print("Could not parse the supplied channel, make sure that your channel is of the form nnn.nnKHz, nnn.nnMHz, or nnn.nn for basic hz")
+            sys.exit(0)
+
         if not self.config.connect == None and self.config.source == None:
             print("You must specify a source with --source when connecting to a remote Kismet server")
             sys.exit(0)
@@ -279,6 +285,15 @@ class KismetRtl433(object):
 
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
 
+    def __parse_human_frequency(self, freq): 
+        if "mhz".casefold == freq[-3:].casefold():
+            return float(freq[:-3]) * 1000 
+        elif "khz".casefold == freq[-3:].casefold():
+            return float(freq[:-3])
+        else:
+            return float(freq) / 1000.0
+
+
     def __get_rtlsdr_uuid(self, intnum):
         # Get the USB info
         (manuf, product, serial) = self.get_rtl_usb_info(intnum)
@@ -435,9 +450,13 @@ class KismetRtl433(object):
             report.type = "RTL433"
             report.json = r
 
+            signal = kismetexternal.datasource_pb2.SubSignal()
+            signal.freq_khz = self.freq_khz 
+            signal.channel = self.opts['channel']
+
             # print("python sending json report", r);
 
-            self.kismet.send_datasource_data_report(full_json=report)
+            self.kismet.send_datasource_data_report(full_json=report, full_signal=signal)
         except ValueError as e:
             self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtl_433")
             return False
