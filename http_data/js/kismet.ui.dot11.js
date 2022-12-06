@@ -48,8 +48,8 @@ function hexstr_to_bytes(hex) {
         for (var i = 0; i < hex.length - 1; i += 2) {
             bytes.push(parseInt(hex.substr(i, 2), 16));
         }
-    } catch (error) {
-        ;
+    } catch (_error) {
+        // skip
     }
 
     return bytes;
@@ -1554,8 +1554,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    var lastssid = opts['value'][opts['index']]['dot11.advertisedssid.ssid'];
-                    var lastowessid = opts['value'][opts['index']]['dot11.advertisedssid.owe_ssid'];
+                    const lastssid = opts['value'][opts['index']]['dot11.advertisedssid.ssid'];
+                    const lastowessid = opts['value'][opts['index']]['dot11.advertisedssid.owe_ssid'];
 
                     if (lastssid === '') {
                         if ('dot11.advertisedssid.owe_ssid' in opts['value'][opts['index']] && lastowessid !== '') {
@@ -1608,7 +1608,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         .done(function(clidata) {
                             clidata = kismet.sanitizeObject(clidata);
 
-                            for (var cl of clidata) {
+                            for (const cl of clidata) {
                                 if (cl['kismet.device.base.phyname'] === 'IEEE802.11') {
                                     opts['container'].html(kismet.censorMAC(opts['value']) + ' <a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + cl['kismet.device.base.key'] + '\')">View AP Details</a>');
                                     return;
@@ -1838,10 +1838,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                     draw: function(opts) {
                         $('table#tagdump', opts['container']).empty();
-                        for (var ie in opts['value']) {
-                            var tag = opts['value'][ie];
+                        for (const ie in opts['value']) {
+                            const tag = opts['value'][ie];
 
-                            var pretty_tag = 
+                            const pretty_tag = 
                                 $('<tr>', {
                                     class: 'alternating'
                                 })
@@ -1862,7 +1862,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 );
 
                             if (tag['dot11.ietag.oui'] != 0) {
-                                var oui = ("000000" + tag['dot11.ietag.oui'].toString(16)).substr(-6).replace(/(..)/g, '$1:').slice(0, -1);
+                                let oui = ("000000" + tag['dot11.ietag.oui'].toString(16)).substr(-6).replace(/(..)/g, '$1:').slice(0, -1);
 
                                 if (tag['dot11.ietag.oui_manuf'].length != 0)
                                     oui = oui + " (" + tag['dot11.ietag.oui_manuf'] + ")";
@@ -1880,9 +1880,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 )
                             }
 
-                            var hexdumps = pretty_hexdump(hexstr_to_bytes(tag['dot11.ietag.data']));
+                            const hexdumps = pretty_hexdump(hexstr_to_bytes(tag['dot11.ietag.data']));
 
-                            for (var i in hexdumps) {
+                            for (const i in hexdumps) {
                                 $('#hexdump', pretty_tag).append(
                                     $('<div>')
                                     .append(
@@ -1929,7 +1929,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    const key = kismet.ObjectByString(opts['data'], opts['basekey']);
                     if (key != 0) {
                         return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Shared with ' + opts['data'] + '</a>';
                     }
@@ -1937,10 +1937,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Shared with ' + opts['data'] + '</a>';
                 },
                 draw: function(opts) {
-                    let tb = $('.expander', opts['cell']).simpleexpand();
+                    $('.expander', opts['cell']).simpleexpand();
 
-                    let key = kismet.ObjectByString(opts['data'], opts['basekey']);
-                    let alink = $('a#' + key, opts['cell']);
+                    const key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    const alink = $('a#' + key, opts['cell']);
                     $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                     .done(function(data) {
                         data = kismet.sanitizeObject(data);
@@ -1951,8 +1951,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         try {
                             ssid = kismet.CensorString(data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid']);
                             mac = kismet.censorMAC(data['kismet.device.base.macaddr']);
-                        } catch (error) {
-
+                        } catch (_error) {
+                            // skip
                         }
 
                         if (ssid == "" || typeof(data) === 'undefined')
@@ -1984,7 +1984,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_uuid_e']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -1998,7 +1998,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_uuid_e']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -2025,8 +2025,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                         try {
                             mac = kismet.censorMAC(data['kismet.device.base.macaddr']);
-                        } catch (error) {
-
+                        } catch (_error) {
+                            // skip
                         }
 
                         alink.html("Related to " + mac);
@@ -2055,7 +2055,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -2069,7 +2069,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -2248,7 +2248,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -2263,7 +2263,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -2655,8 +2655,8 @@ function ScheduleSsidSummary() {
             }, false);
         }
 
-    } catch (error) {
-        ;
+    } catch (_error) {
+        // skip
     }
     
     // Set our timer outside of the datatable callback so that we get called even
@@ -2689,8 +2689,8 @@ function InitializeSsidTable() {
                     ssid_status_element.html(`${json['recordsTotal']} SSIDs (${json['recordsFiltered']} shown after filter)`);
                 else
                     ssid_status_element.html(`${json['recordsTotal']} SSIDs`);
-            } catch (error) {
-                ;
+            } catch (_error) {
+                // skip
             }
         })
         .DataTable({
@@ -2736,8 +2736,8 @@ function InitializeSsidTable() {
 
                         try {
                             col.kismetdrawfunc(col, dt, this);
-                        } catch (error) {
-                            ;
+                        } catch (_error) {
+                            // skip
                         }
                     }
                 });
@@ -3071,7 +3071,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.ssidgroup.advertising_devices']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -3086,7 +3086,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.ssidgroup.advertising_devices']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -3121,7 +3121,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.ssidgroup.responding_devices']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -3136,7 +3136,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.ssidgroup.responding_devices']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -3171,7 +3171,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.ssidgroup.probing_devices']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
@@ -3186,7 +3186,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.ssidgroup.probing_devices']).length >= 1);
-                    } catch (error) {
+                    } catch (_error) {
                         return false;
                     }
                 },
