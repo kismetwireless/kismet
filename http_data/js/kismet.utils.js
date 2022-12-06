@@ -347,6 +347,23 @@ exports.censorLocation = function(t) {
     }
 }
 
+/* Censor a string by obscuring most of the contents */
+exports.censorString = function(t) { 
+    try { 
+        if (window['censor_macs']) { 
+            if (t.length < 6) { 
+                return new Array(t.length + 1).join('X');
+            } else { 
+                return t.substring(0, 2) + (new Array(t.length - 3).join('X')) + t.substring(t.length - 2, t.length);
+            }
+        } else { 
+            return t;
+        }
+    } catch (e) { 
+        return t;
+    }
+}
+
 /* Recurse over a complete object (such as from json), finding all strings,
  * and escaping them to be 'safe' */
 exports.sanitizeObject = function(o) {
