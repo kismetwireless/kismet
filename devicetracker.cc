@@ -160,6 +160,9 @@ device_tracker::device_tracker() :
 	pack_comp_datasrc = 
 		packetchain->register_packet_component("KISDATASRC");
 
+    pack_comp_devicetag = 
+        packetchain->register_packet_component("DEVICETAG");
+
 	// Common tracker, very early in the tracker chain
     packetchain_common_id = 
         packetchain->register_handler([this](std::shared_ptr<kis_packet> in_packet) -> int {
@@ -1156,6 +1159,7 @@ std::shared_ptr<kis_tracked_device_base>
     auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
     auto pack_datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
     auto common_info = in_pack->fetch<kis_common_info>(pack_comp_common);
+    auto pack_tags = in_pack->fetch<kis_devicetag_packetinfo>(pack_comp_devicetag);
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
@@ -1364,6 +1368,12 @@ std::shared_ptr<kis_tracked_device_base>
 
     if (pack_common != NULL)
         device->add_basic_crypt(pack_common->basic_crypt_set);
+
+    if (pack_tags != nullptr) { 
+        for (const auto& i : pack_tags->tagmap) { 
+            set_device_tag(device, i.first, i.second);
+        }
+    }
 
     if (new_device) {
         // Add the new device to the list
