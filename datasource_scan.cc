@@ -20,6 +20,7 @@
 #include "datasource_virtual.h"
 #include "datasource_scan.h"
 #include "json_adapter.h"
+#include "packet.h"
 
 datasource_scan_source::datasource_scan_source(const std::string& uri, const std::string& source_type,
         const std::string& json_component_type) :
@@ -111,7 +112,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             virtual_source->set_source_name(name);
         }
 
-        for (auto r : con->json()["reports"]) {
+        for (auto r : reports_j) {
             if (!validate_report(r)) {
                 throw std::runtime_error("invalid report");
             }
@@ -138,6 +139,18 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             jsoninfo->json_string = s.str();
 
             packet->insert(pack_comp_json, jsoninfo);
+
+            // Extract any tags
+            auto tags_j = r["tags"];
+            if (!tags_j.is_object()) {
+                auto tagsinfo = std::make_shared<kis_devicetag_packetinfo>();
+
+                for (const auto& i : tags_j.items()) {
+                    tagsinfo->tagmap[i.key()] = i.value();
+                }
+
+                packet->insert(pack_comp_devicetag, tagsinfo);
+            }
 
             double lat = r.value("lat", (double) 0);
             double lon = r.value("lon", (double) 0);
