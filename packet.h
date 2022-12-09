@@ -651,5 +651,17 @@ public:
     std::string buffer_string;
 };
 
+// Device tags added at capture time by the capture or scan engine 
+class kis_devicetag_packetinfo : public packet_component { 
+public: 
+    kis_devicetag_packetinfo() { }
+
+    void reset() { 
+        tagmap.clear();
+    }
+
+    std::map<std::string, std::string> tagmap;
+};
+
 #endif
 

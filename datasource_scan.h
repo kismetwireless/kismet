@@ -48,7 +48,7 @@ protected:
     void scan_result_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int pack_comp_common, pack_comp_json, pack_comp_datasrc, pack_comp_gps,
-        pack_comp_l1info;
+        pack_comp_l1info, pack_comp_devicetag;
 
     // Validation function; can either return 'false' for generic error, or throw a specific error
     // exception to be returned to the submitter
