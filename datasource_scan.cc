@@ -42,6 +42,8 @@ datasource_scan_source::datasource_scan_source(const std::string& uri, const std
         packetchain->register_packet_component("GPS");
     pack_comp_l1info = 
         packetchain->register_packet_component("RADIODATA");
+    pack_comp_devicetag = 
+        packetchain->register_packet_component("DEVICETAG");
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
