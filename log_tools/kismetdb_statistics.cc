@@ -299,7 +299,7 @@ int main(int argc, char *argv[]) {
                     if (outputjson) {
                         ds_root["channel"] = chan;
                     } else {
-                        fmt::print("      Channel: {}", chan);
+                        fmt::print("      Channel: {}\n", chan);
                     }
                 }
             }
