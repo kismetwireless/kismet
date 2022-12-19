@@ -904,7 +904,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     if (lastpssid.replace(/\s/g, '').length == 0) 
                         lastpssid = '<i>Empty (' + lastpssid.length + ' spaces)</i>'
 
-                    return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Probed SSID ' + kismet.sanitizeString(lastpssid) + '</a>';
+                    return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Probed SSID ' + kismet.censorString(lastpssid) + '</a>';
                 },
 
                 draw: function(opts) {
