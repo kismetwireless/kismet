@@ -89,7 +89,7 @@ class KismetRtl433(object):
         self.config = parser.parse_args()
 
         try:
-            self.freq_khz = self.parse_human_frequency(self.opts['channel'])
+            self.freq_khz = self.__parse_human_frequency(self.opts['channel'])
         except: 
             print("Could not parse the supplied channel, make sure that your channel is of the form nnn.nnKHz, nnn.nnMHz, or nnn.nn for basic hz")
             sys.exit(0)
@@ -286,9 +286,9 @@ class KismetRtl433(object):
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
 
     def __parse_human_frequency(self, freq): 
-        if "mhz".casefold == freq[-3:].casefold():
+        if "mhz".casefold() == freq[-3:].casefold():
             return float(freq[:-3]) * 1000 
-        elif "khz".casefold == freq[-3:].casefold():
+        elif "khz".casefold() == freq[-3:].casefold():
             return float(freq[:-3])
         else:
             return float(freq) / 1000.0
