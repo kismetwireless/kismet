@@ -23,6 +23,7 @@
     exports.sparkline_main = '#000';
 
     exports.graphBasicColor = 'rgba(160, 160, 160, 1)';
+    exports.graphBasicBackgroundColor = 'rgba(100, 100, 100, 0.33)',
 
     // document.documentElement.setAttribute('data-theme', 'light');
 
