@@ -159,6 +159,7 @@
 
                     // Build the dataset record
                     var ds = {
+                        stack: 'bar',
                         label:  label,
                         fill: true,
                         lineTension: 0.1,
@@ -216,7 +217,7 @@
                     state.timegraph_chart.data.datasets = datasets;
                     state.timegraph_chart.data.labels = pointtitles;
 
-                    state.timegraph_chart.update(0);
+                    state.timegraph_chart.update();
                 }
             } else {
                 // 'now', but default - if for some reason we didn't get a
@@ -261,7 +262,7 @@
                             datasets: [
                                 {
                                     label: "Devices per Channel",
-                                    backgroundColor: 'rgba(160, 160, 160, 1)',
+                                    backgroundColor: kismet_theme.graphBasicColor,
                                     data: devnums,
                                     borderWidth: 1,
                                 }

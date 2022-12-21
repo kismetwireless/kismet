@@ -1,11 +1,25 @@
+:root {
+    --layout-link-color: #000;
+    --layout-link-hover-color: #333;
+    --layout-input-text-color: #000;
+    --layout-offset-background-color: #FFF;
+	--layout-offset-background-light-color: #e9e9e9;
+}
+
+[data-theme="dark"] {
+    --layout-link-color: #FFF;
+    --layout-link-hover-color: #BBB;
+    --layout-input-text-color: #FFF;
+    --layout-offset-background-color: #777;
+	--layout-offset-background-light-color: #888;
+}
+
 /*
 -----------------------------------------------
 Grey Box Method - Layout CSS
 ----------------------------------------------- */
 
 body {
-	background: #eee;
-	color: #333;
 	font-size: 11px;
 	padding: 0;
 }
@@ -14,12 +28,18 @@ body {
 /* anchors
 ----------------------------------------------- */
 a {
-	color: #000;
+	color: var(--layout-link-color);
 	font-weight:bold;
 	text-decoration: none;
 }
 a:hover {
-	color:#333;
+	color: var(--layout-link-hover-color);
+}
+
+/* input
+----------------------------------------------- */
+input { 
+    color: var(--layout-input-text-color);
 }
 
 
@@ -27,7 +47,6 @@ a:hover {
 ----------------------------------------------- */
 .container_12,
 .container_16 {
-	background:#fff;
 }
 
 
@@ -185,14 +204,14 @@ ul.section li {
 	text-transform:uppercase;
 }
 ul.section li a {
-	background:#bbb;
+	xbackground:#bbb;
 }
 ul.section li a:hover {
-	background:#aaa;
+	xbackground:#aaa;
 }
 ul.section li a:active {
 	color:#fff;
-	background:#666;
+	xbackground:#666;
 }
 ul.section li li a {
 	background:#ddd;
@@ -203,24 +222,24 @@ ul.section li li a:hover {
 }
 ul.section li li a:active {
 	color:#000;
-	background:#fff;
+	xbackground:#fff;
 }
 ul.section ul li {
 	text-transform:none;
 }
 ul.section ul.current li a {
-	background:#eee;
+	xbackground:#eee;
 	border-bottom:1px solid #fff;
 }
 ul.section ul.current li a:hover {
-	background:#ddd;
+	xbackground:#ddd;
 }
 ul.section ul.current li a:active {
-	background:#fff;
+	xbackground:#fff;
 }
 ul.section li a.current {
 	color:#fff;
-	background:#666;
+	xbackground:#666;
 }
 ul.section li a.current:hover {
 	background:#555;
@@ -271,16 +290,16 @@ tbody th,
 tbody td {
 	border-top:1px solid #bbb;
 	border-bottom:1px solid #bbb;
-	background:#eee;
+	xbackground:#eee;
 }
 tbody tr.odd th,
 tbody tr.odd td {
-	background:#fff;
+	xbackground:#fff;
 }
 tfoot th,
 tfoot td {
 	border-top:2px solid #666;
-	background:#eee;
+	background:#555;
 }
 tfoot tr.total th,
 tfoot tr.total td {
@@ -304,13 +323,13 @@ fieldset {
 	border:1px solid #bbb;
 	padding:10px;
 	position:relative;
-	background:#e9e9e9;
+	background: var(--layout-offset-background-light-color);
 	margin-bottom:10px;
 }
 legend {
 	font-size:1.1em;
 	padding:.4em .8em;
-	background:#fff;
+	background: var(--layout-offset-background-color);
 	border:1px solid #bbb;
 }
 fieldset.login p {

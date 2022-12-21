@@ -556,6 +556,8 @@ exports.DetailWindow = function(key, title, options, window_cb, close_cb) {
     }
 
     var panel = $.jsPanel({
+        theme: 'dark',
+
         id: dialogid,
         headerTitle: title,
 
@@ -845,6 +847,7 @@ exports.HealthCheck = function() {
             .fail(function() {
                 if (exports.connection_error >= 3 && exports.connection_error_panel == null) {
                     exports.connection_error_panel = $.jsPanel({
+                        theme: 'dark',
                         id: "connection-alert",
                         headerTitle: 'Cannot Connect to Kismet',
                         headerControls: {

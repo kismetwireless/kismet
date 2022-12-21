@@ -249,9 +249,9 @@ exports.drawPackets = function(dyncolumn, table, row) {
         { type: "bar",
             width: "100px",
             height: 12,
-            barColor: '#000000',
-            nullColor: '#000000',
-            zeroColor: '#000000'
+            barColor: kismet_theme.sparkline_main,
+            nullColor: kismet_theme.sparkline_main,
+            zeroColor: kismet_theme.sparkline_main,
         });
 }
 
@@ -810,9 +810,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                         rrdiv.sparkline(moddata, { type: "bar",
                             height: 12,
-                            barColor: '#000000',
-                            nullColor: '#000000',
-                            zeroColor: '#000000'
+                            barColor: kismet_theme.sparkline_main,
+                            nullColor: kismet_theme.sparkline_main,
+                            zeroColor: kismet_theme.sparkline_main,
                         });
 
                     }
@@ -1109,23 +1109,23 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
 
             m.sparkline(mdata, { type: "bar",
                     height: 12,
-                    barColor: '#000000',
-                    nullColor: '#000000',
-                    zeroColor: '#000000'
+                barColor: kismet_theme.sparkline_main,
+                nullColor: kismet_theme.sparkline_main,
+                zeroColor: kismet_theme.sparkline_main,
                 });
             h.sparkline(hdata,
                 { type: "bar",
                     height: 12,
-                    barColor: '#000000',
-                    nullColor: '#000000',
-                    zeroColor: '#000000'
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
             d.sparkline(ddata,
                 { type: "bar",
                     height: 12,
-                    barColor: '#000000',
-                    nullColor: '#000000',
-                    zeroColor: '#000000'
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
         } else {
             m.html("<i>No packet data available</i>");
@@ -1142,23 +1142,23 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
         dm.sparkline(dmdata,
             { type: "bar",
                 height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
+                barColor: kismet_theme.sparkline_main,
+                nullColor: kismet_theme.sparkline_main,
+                zeroColor: kismet_theme.sparkline_main,
             });
         dh.sparkline(dhdata,
             { type: "bar",
                 height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
+                barColor: kismet_theme.sparkline_main,
+                nullColor: kismet_theme.sparkline_main,
+                zeroColor: kismet_theme.sparkline_main,
             });
         dd.sparkline(dddata,
             { type: "bar",
                 height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
+                barColor: kismet_theme.sparkline_main,
+                nullColor: kismet_theme.sparkline_main,
+                zeroColor: kismet_theme.sparkline_main,
             });
         }
 
@@ -1346,26 +1346,26 @@ function memorydisplay_refresh() {
         $('#k_mm_devs', memory_panel.content).html(`${dev_linedata[dev_linedata.length - 1]} devices`);
         $('#k_mm_ram', memory_panel.content).html(`${mem_linedata[mem_linedata.length - 1]} MB`);
 
-        var datasets = [
-            {
-                label: 'Memory (MB)',
-                fill: 'false',
-                // yAxisID: 'mem-axis',
-                borderColor: 'black',
-                backgroundColor: 'transparent',
-                data: mem_linedata,
-            },
-            {
-                label: 'Devices',
-                fill: 'false',
-                // yAxisID: 'dev-axis',
-                borderColor: 'blue',
-                backgroundColor: 'rgba(100, 100, 255, 0.33)',
-                data: dev_linedata,
-            }
-        ];
-
         if (memory_chart == null) {
+            var datasets = [
+                {
+                    label: 'Memory (MB)',
+                    fill: 'false',
+                    // yAxisID: 'mem-axis',
+                    borderColor: 'black',
+                    backgroundColor: 'transparent',
+                    data: mem_linedata,
+                },
+                {
+                    label: 'Devices',
+                    fill: 'false',
+                    // yAxisID: 'dev-axis',
+                    borderColor: 'blue',
+                    backgroundColor: 'rgba(100, 100, 255, 0.33)',
+                    data: dev_linedata,
+                }
+            ];
+
             var canvas = $('#k-mm-canvas', memory_panel.content);
 
             memory_chart = new Chart(canvas, {
@@ -1400,9 +1400,11 @@ function memorydisplay_refresh() {
             });
 
         } else {
-            memory_chart.data.datasets = datasets;
+            memory_chart.data.datasets[0].data = mem_linedata;
+            memory_chart.data.datasets[1].data = dev_linedata;
+            // memory_chart.data.datasets = datasets;
             memory_chart.data.labels = pointtitles;
-            memory_chart.update(0);
+            memory_chart.update();
         }
     })
     .always(function() {

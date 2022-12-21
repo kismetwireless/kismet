@@ -1,3 +1,12 @@
+:root {
+    --gps-dialog-header-color: #AAA;
+    --gps-dialog-footer-color: #CCC;
+    --gps-icon-base-color: #707070;
+}
+
+[data-theme="dark"] {
+}
+
 div.kg-top-icon {
     display: inline-block;
     font-size: 14px;
@@ -14,7 +23,7 @@ div.kg-dialog-content {
 }
 
 div.kg-dialog-header {
-    background-color: #AAAAAA;
+    background-color: var(--gps-dialog-header-color);
     height: 20px;
 }
 
@@ -24,12 +33,12 @@ div.kg-dialog-main {
 }
 
 div.kg-dialog-footer {
-    background-color: #CCCCCC;
+    background-color: var(--gps-dialog-footer-color);
     height: 20px;
 }
 
 i.kg-icon-base {
-    color: #707070;
+    color: var(--gps-icon-base-color);
     font-size: 18px;
 }
 

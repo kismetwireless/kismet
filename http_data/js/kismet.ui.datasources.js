@@ -845,9 +845,9 @@ function update_datasource2(data) {
                 type: "bar",
                 width: 100,
                 height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
+                barColor: kismet_theme.sparkline_main,
+                nullColor: kismet_theme.sparkline_main,
+                zeroColor: kismet_theme.sparkline_main,
                 });
         }
 
