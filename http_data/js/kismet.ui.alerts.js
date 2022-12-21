@@ -32,19 +32,36 @@ function severity_to_string(sev) {
 }
 
 function severity_to_color(sev) {
-    switch (sev) {
-        case 0:
-            return "#03e3fc";
-        case 5:
-            return "#fbff00";
-        case 10:
-            return "#fce303";
-        case 15:
-            return "#fcba03";
-        case 20:
-            return "#fc031c";
-        default:
-            return "UNKNOWN";
+    if (kismet_theme.theme === 'dark') { 
+        switch (sev) {
+            case 0:
+                return ["#015761", "#FFFFFF"];
+            case 5:
+                return ["#5f6100", "#FFFFFF"];
+            case 10:
+                return ["#706500", "#FFFFFF"];
+            case 15:
+                return ["#B9770E", "#FFFFFF"];
+            case 20:
+                return ["#5c010a", "#FFFFFF"];
+            default:
+                return ["UNKNOWN", "#FFFFFF"];
+        }
+    } else { 
+        switch (sev) {
+            case 0:
+                return ["#03e3fc", "#000000"];
+            case 5:
+                return ["#fbff00", "#000000"];
+            case 10:
+                return ["#fce303", "#000000"];
+            case 15:
+                return ["#fcba03", "#000000"];
+            case 20:
+                return ["#fc031c", "#000000"];
+            default:
+                return ["UNKNOWN", "#000000"];
+        }
     }
 
 }
@@ -355,7 +372,8 @@ function InitializeAlertTable() {
                         }
                     }
 
-                    $('td', this.node()).css('background-color', severity_to_color(this.data()['kismet.alert.severity']));
+                    $('td', this.node()).css('background-color', severity_to_color(this.data()['kismet.alert.severity'])[0]);
+                    $('td', this.node()).css('color', severity_to_color(this.data()['kismet.alert.severity'])[1]);
                 });
             },
         });
