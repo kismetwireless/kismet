@@ -6,7 +6,11 @@
   typeof exports === "object" ? function (m) { module.exports = m(); } :
   function(m){ this.kismet_theme = m(); }
 )(function () {
-"use strict";
+    "use strict";
+
+    $('head').append('<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css">');
+    $('head').append('<link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css">');
+    $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
 
     var exports = {};
 
@@ -18,7 +22,7 @@
 
     exports.graphBasicColor = 'rgba(160, 160, 160, 1)';
 
-    document.documentElement.setAttribute('data-theme', 'light');
+    // document.documentElement.setAttribute('data-theme', 'light');
 
-return exports;
+    return exports;
 });
