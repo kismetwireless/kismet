@@ -17,6 +17,8 @@
     exports.theme = 'light';
 
     exports.page_background = '#FFF';
+    exports.sparkline_multi_a = '#C70039';
+    exports.sparkline_multi_b = '#002EFF';
 
     exports.sparkline_main = '#000';
 

@@ -514,31 +514,47 @@
                 packetgraph.sparkline(combo_rrd, {
                     type: "bar", 
                     height: 12, 
+                    stackedBarColor: [kismet_theme.sparkline_multi_a, kismet_theme.sparkline_multi_b],
                 });
 
                 $('#rate', popup_content).sparkline(rate_rrd, {
                     type: "bar",
                     height: 12,
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
 
                 $('#error', popup_content).sparkline(error_rrd, {
                     type: "bar",
                     height: 12,
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
 
                 $('#dupe', popup_content).sparkline(dupe_rrd, {
                     type: "bar",
                     height: 12,
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
 
                 $('#queue', popup_content).sparkline(queue_rrd, {
                     type: "bar",
                     height: 12,
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
 
                 $('#drop', popup_content).sparkline(drop_rrd, {
                     type: "bar",
                     height: 12,
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
                 });
 
             } catch (error) {

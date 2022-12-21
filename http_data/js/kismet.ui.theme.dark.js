@@ -18,6 +18,8 @@
     exports.page_background = '#222';
 
     exports.sparkline_main = '#FFF';
+    exports.sparkline_multi_a = '#F7FF00';
+    exports.sparkline_multi_b = '#00FF00';
 
     Chart.defaults.backgroundColor = '#333';
     Chart.defaults.borderColor = '#555';
