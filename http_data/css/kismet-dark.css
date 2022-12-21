@@ -1,13 +1,21 @@
-:root {
-    --main-background-color: #FFF;
-    --main-text-color: #000;
+html {
+  scrollbar-face-color: #646464;
+  scrollbar-base-color: #646464;
+  scrollbar-3dlight-color: #646464;
+  scrollbar-highlight-color: #646464;
+  scrollbar-track-color: #000;
+  scrollbar-arrow-color: #000;
+  scrollbar-shadow-color: #646464;
+  scrollbar-dark-shadow-color: #646464;
 }
 
-[data-theme="dark"] {
-    --main-background-color: #222;
-    --main-text-color: #FFF;
-}
-
+::-webkit-scrollbar { width: 8px; height: 3px;}
+::-webkit-scrollbar-button {  background-color: #666; }
+::-webkit-scrollbar-track {  background-color: #646464;}
+::-webkit-scrollbar-track-piece { background-color: #000;}
+::-webkit-scrollbar-thumb { height: 50px; background-color: #666; border-radius: 3px;}
+::-webkit-scrollbar-corner { background-color: #646464;}}
+::-webkit-resizer { background-color: #666;}
 
 html, body {
     height: 100%
@@ -15,8 +23,8 @@ html, body {
 
 body {
     overflow: hidden;
-    background-color: --var(--main-background-color);
-    color: --var(--main-text-color);
+    background-color: #303030;
+    color: #FFF;
 }
 
 #mainholder {
@@ -63,7 +71,7 @@ body {
     bottom: 30px; 
     */
 
-    background-color: #ccc;
+    background-color: #333;
     font-size: 13px;
     height: 20px;
 }
@@ -88,7 +96,7 @@ body {
     position: relative;
     overflow: hidden !important;
     height: 40px;
-    background-color: #ccc;
+    background-color: #444;
     padding-left: 10px;
     padding-right: 10px;
 }
@@ -168,10 +176,10 @@ div.topright_holder {
     border: none; 
 } 
 .ui-tabs-nav .ui-state-default a { 
-    color: #808080; 
+    color: #A0A0A0; 
 } 
 .ui-tabs-nav .ui-state-active a { 
-    color: #303030; 
+    color: #DDDDDD; 
 }
 
 .kismet-highlight {
@@ -261,3 +269,17 @@ div.k-c-p-c-notes {
     padding-right: 1px;
 }
 
+.jsPanel-hdr { 
+    background-color: #888 !important;
+    color: #fff !important;
+}
+
+.jsPanel-content { 
+    background-color: #444 !important;
+    color: #fff !important;
+}
+
+.kismet-ui-layout-resizer { 
+    background-color: #444 !important;
+    color: #fff !important;
+}
