@@ -662,7 +662,11 @@ exports.AddAlertDetail("alert", "Alert", 0, {
                 {
                     field: 'kismet.alert.location/kismet.common.location.geopoint',
                     filter: function(opts) {
-                        return opts['data']['kismet.alert.location']['kismet.common.location.fix'] >= 2;
+                        try { 
+                            return opts['data']['kismet.alert.location']['kismet.common.location.fix'] >= 2;
+                        } catch (_error) {
+                            return false;
+                        }
                     },
                     title: 'Location',
                     draw: function(opts) {
