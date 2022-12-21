@@ -26,6 +26,7 @@
     Chart.defaults.color = '#FFF';
 
     exports.graphBasicColor = 'rgba(255, 255, 255, 1)';
+    exports.graphBasicBackgroundColor = 'rgba(200, 200, 200, 0.33)',
 
     document.documentElement.setAttribute('data-theme', 'dark');
 

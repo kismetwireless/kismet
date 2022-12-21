@@ -1548,8 +1548,8 @@ function packetqueuedisplay_refresh() {
             {
                 label: 'Incoming packets (peak)',
                 fill: 'false',
-                borderColor: 'black',
-                backgroundColor: 'rgba(100, 100, 100, 0.33)',
+                borderColor: kismet_theme.graphBasicColor,
+                backgroundColor: kismet_theme.graphBasicBackgroundColor,
                 data: peak_linedata,
             },
             {
