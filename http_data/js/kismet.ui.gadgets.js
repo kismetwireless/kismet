@@ -134,6 +134,7 @@ var renderGadgets = function(d, t, r, m) {
 
 }
 
+/*
 kismet_ui.AddDeviceColumn('column_gadget', {
     sTitle: ' ',
     field: 'kismet.device.base.name',
@@ -145,6 +146,7 @@ kismet_ui.AddDeviceColumn('column_gadget', {
     searchable: false,
     priority: -1000,
 });
+*/
         
 
 // We're done loading
