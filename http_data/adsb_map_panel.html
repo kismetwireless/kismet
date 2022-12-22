@@ -3,16 +3,18 @@
 <head>
     <title>live adsb map</title>
 
+    <script src="js/jquery-3.1.0.min.js"></script>
+    <script src="js/chart.umd.js"></script>
+    <script src="js/kismet.ui.theme.dark.js"></script>
+
     <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
     <link rel="stylesheet" href="css/leaflet.css" />
     <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
     <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
-    <link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/responsive.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/colReorder.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/Control.Loading.css" />
 
-    <script src="js/jquery-3.1.0.min.js"></script>
     <script src="js/leaflet.js"></script>
     <script src="js/Leaflet.MultiOptionsPolyline.min.js"></script>
     <script src="js/Control.Loading.js"></script>
@@ -30,6 +32,23 @@
     <script src="js/dataTables.responsive.min.js"></script>
 
     <style>
+        :root {
+            --adsb-sidebar-background: white;
+            --adsb-sidebar-background-offset: #f9f9f9;
+            --map-tiles-filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+        }
+
+        [data-theme="dark"] {
+            --adsb-sidebar-background: #222;
+            --adsb-sidebar-background-offset: #444;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .map-tiles {
+                filter:var(--map-tiles-filter, none);
+            }
+        }
+
         body {
             padding: 0;
             margin: 0;
@@ -56,7 +75,7 @@
             right: 10px;
             width: 20%;
             border: 1px solid black;
-            background: white;
+            background: var(--adsb-sidebar-background);
             z-index: 999;
             padding: 10px;
         }
@@ -68,7 +87,7 @@
             right: 25%;
             left: 25%;
             border: 1px solid black;
-            background: white;
+            background: var(--adsb-sidebar-background);
             z-index: 10000;
             padding: 10px;
         }
@@ -121,10 +140,10 @@
         .resize_wrapper {
             position: relative;
             box-sizing: border-box;
-            height: calc(100% - 105px);
+            height: calc(100% - 125px);
             padding: 0.5em 0.5em 1.5em 0.5em;
             border-radius: 0.5em;
-            background-color: #f9f9f9;
+            background: var(--adsb-sidebar-background-offset);
             overflow: hidden;
         }
 
@@ -350,7 +369,8 @@
                 map.fitBounds([[lat1, lon1], [lat2, lon2]])
                 L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
-                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    className: 'map-tiles',
                 }).addTo(map);
 
                 map_configured = true;
