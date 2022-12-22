@@ -722,12 +722,14 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                     options: {
                                         maintainAspectRatio: false,
                                         animation: false,
-                                        legend: {
-                                            display: false,
-                                        },
-                                        title: {
-                                            display: true,
-                                            text: 'Packet frequency distribution'
+                                        plugins: { 
+                                            legend: {
+                                                display: false,
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'Packet frequency distribution'
+                                            }
                                         }
                                     }
                                 });
@@ -1604,7 +1606,7 @@ function packetqueuedisplay_refresh() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        yAxes: [
+                        yAxis: [
                             {
                                 position: "left",
                                 "id": "mem-axis",
