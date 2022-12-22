@@ -10,7 +10,7 @@
 
 body
 {
-	font: 13px/1.5 Helvetica, Arial, 'Liberation Sans', FreeSans, sans-serif;
+	xfont: 13px/1.5 Helvetica, Arial, 'Liberation Sans', FreeSans, sans-serif;
 }
 
 a:focus
