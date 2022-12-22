@@ -20,6 +20,7 @@ Grey Box Method - Layout CSS
 ----------------------------------------------- */
 
 body {
+    font: 10pt "Helvetica Neue", Arial, Helvetica, sans-serif;
 	font-size: 11px;
 	padding: 0;
 }
@@ -148,7 +149,7 @@ p {
 	margin-bottom:1em;
 }
 blockquote {
-	font-family: Georgia, 'Times New Roman', serif;
+	xfont-family: Georgia, 'Times New Roman', serif;
 	font-size:1.2em;
 	padding-left:1em;
 	border-left:4px solid #ccc;
