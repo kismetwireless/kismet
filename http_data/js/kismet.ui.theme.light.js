@@ -8,8 +8,9 @@
 )(function () {
     "use strict";
 
+    $('head').append('<link rel="stylesheet" type="text/css" href="css/light.css">');
     $('head').append('<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css">');
-    $('head').append('<link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css">');
+    $('head').append('<link rel="stylesheet" type="text/css" href="css/datatables.min.css">');
     $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
 
     var exports = {};
@@ -23,7 +24,7 @@
     exports.sparkline_main = '#000';
 
     exports.graphBasicColor = 'rgba(160, 160, 160, 1)';
-    exports.graphBasicBackgroundColor = 'rgba(100, 100, 100, 0.33)',
+    exports.graphBasicBackgroundColor = 'rgba(100, 100, 100, 0.33)';
 
     // document.documentElement.setAttribute('data-theme', 'light');
 
