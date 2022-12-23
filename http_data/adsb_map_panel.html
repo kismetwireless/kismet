@@ -320,8 +320,8 @@
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '24px');
 
                 $('#plane-detail').html("<b>Flight:</b> " + markers[k]['callsign'] + "<br>" +
-                    "<b>Model:</b> " + markers[k]['model'] + "<br>" + 
-                    "<b>Operator: </b>" + markers[k]['operator'] + "<br>" + 
+                    "<b>Model:</b> " + markers[k]['model'].MiddleShorten(20) + "<br>" + 
+                    "<b>Operator: </b>" + markers[k]['operator'].MiddleShorten(20) + "<br>" + 
                     "<b>Altitude: </b>" + kismet_units.renderHeightDistance(markers[k]['altitude'], 0, true) + "<br>" + 
                     "<b>Speed: </b>" + kismet_units.renderSpeed(markers[k]['speed'], 0) + "<br>");
 
