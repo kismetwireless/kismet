@@ -397,6 +397,25 @@ String.prototype.convertNewlines = function() {
     return s;
 }
 
+String.prototype.MiddleShorten = function(len) { 
+    if (this.length > len) {
+        let epos = len / 2;
+        let lpos = this.length - (len / 2);
+
+        while (epos > 1 && this.substr(epos - 1, 1) == ' ') { 
+            epos = epos - 1;
+        }
+
+        while (lpos < len && this.substr(lpos, 1) == ' ') { 
+            lpos = lpos + 1;
+        }
+
+        return this.substr(0,epos) + '...' + this.substr(lpos, this.length);
+    }
+
+    return this;
+}
+
 return exports;
 
 });
