@@ -2736,22 +2736,12 @@ kismet_ui_tabpane.AddTab({
     expandable: false,
     createCallback: function(div) {
         div.append(
-            $('<div>', {
-                class: 'resize_wrapper',
-            })
-            .append(
                 $('<table>', {
                     id: 'devices',
-                    class: 'fixeddt stripe hover nowrap',
+                    class: 'fixeddt stripe hover nowrap pageResize',
                     'cell-spacing': 0,
                     width: '100%',
                 })
-            )
-        ).append(
-            $('<div>', {
-                id: 'devices_status',
-                style: 'padding-bottom: 10px;',
-            })
         );
 
         kismet_ui.CreateDeviceTable($('#devices', div));

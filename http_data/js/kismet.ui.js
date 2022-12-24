@@ -978,15 +978,27 @@ function ScheduleDeviceSummary() {
                 'top': $(dt.settings()[0].nScrollBody).scrollTop(),
                 'left': $(dt.settings()[0].nScrollBody).scrollLeft()
             };
+
+            // dt.stateRestore.state("AJAX").save();
+
+            var start = dt.scroller().pixelsToRow($('.dataTables_scrollBody').scrollTop());
+
+            console.log(start);
+
             dt.ajax.reload(function(d) {
+                // dt.stateRestore.state("AJAX").load(false);
+
+                // dt.row(start).scrollTo(false);
+                /*
                 // Restore our scroll position
                 $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
                 $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+                */
             }, false);
         }
 
     } catch (error) {
-        ;
+        console.log(error);
     }
     
     // Set our timer outside of the datatable callback so that we get called even
@@ -1003,7 +1015,7 @@ function CancelDeviceSummary() {
 /* Create the device table */
 exports.CreateDeviceTable = function(element) {
     devicetableElement = element;
-    var statuselement = $('#' + element.attr('id') + '_status');
+    // var statuselement = $('#' + element.attr('id') + '_status');
 
     var dt = exports.InitializeDeviceTable(element);
 
@@ -1014,7 +1026,7 @@ exports.CreateDeviceTable = function(element) {
 }
 
 exports.InitializeDeviceTable = function(element) {
-    var statuselement = $('#' + element.attr('id') + '_status');
+    // var statuselement = $('#' + element.attr('id') + '_status');
 
     /* Make the fields list json and set the wrapper object to aData to make the DT happy */
     var cols = exports.GetDeviceColumns();
@@ -1036,30 +1048,37 @@ exports.InitializeDeviceTable = function(element) {
         .on('xhr.dt', function (e, settings, json, xhr) {
             json = kismet.sanitizeObject(json);
 
+            /*
             if (json['recordsFiltered'] != json['recordsTotal'])
                 statuselement.html(json['recordsTotal'] + " devices (" + json['recordsFiltered'] + " shown after filter)");
             else
                 statuselement.html(json['recordsTotal'] + " devices");
+                */
         } )
         .DataTable( {
 
         destroy: true,
 
         scrollResize: true,
-        scrollY: 200,
+        // scrollY: 200,
         scrollX: "100%",
 
+        pageResize: true,
         serverSide: true,
         processing: true,
 
-        dom: '<"viewselector">ft',
+        // stateSave: true,
+
+        dom: '<"viewselector">ftip',
 
         deferRender: true,
         lengthChange: false,
 
+            /*
         scroller: {
             loadingIndicator: true,
         },
+        */
 
         // Create a complex post to get our summary fields only
         ajax: {
@@ -1138,6 +1157,10 @@ exports.InitializeDeviceTable = function(element) {
 
     device_dt = element.DataTable();
     // var dt_base_height = element.height();
+
+    try { 
+        device_dt.stateRestore.state.add("AJAX");
+    } catch (_err) { }
     
     // $('div.viewselector').html("View picker");
     exports.BuildDeviceViewSelector($('div.viewselector'));
