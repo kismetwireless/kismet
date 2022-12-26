@@ -9,8 +9,8 @@
 
     var exports = {};
 
-
     var storage = Storages.localStorage;
+
     if (!storage.isSet('kismet.ui.theme') || (storage.isSet('kismet.ui.theme') && 
         storage.get('kismet.ui.theme') == 'dark')) { 
 
@@ -53,6 +53,40 @@
 
         // document.documentElement.setAttribute('data-theme', 'light');
     }
+
+    (function ($) {
+        var element = null;
+        var ticon;
+
+        $.fn.thememode = function(_data, inopt) {
+            element = $(this);
+
+            ticon = $('i.icon', this);
+            if (ticon.length == 0) {
+                ticon = $('<i>', {
+                    class: "icon fa clickable kg-icon-base"
+                })
+                .on('click', () => { 
+                    if (exports.theme === 'dark') { 
+                        storage.set('kismet.ui.theme', 'light');
+                        location.reload();
+                    } else {
+                        storage.set('kismet.ui.theme', 'dark');
+                        location.reload();
+                    }
+                });
+
+                if (exports.theme === 'dark') { 
+                    ticon.addClass('fa-moon-o');
+                } else { 
+                    ticon.addClass('fa-lightbulb-o');
+                }
+            }
+
+            element.append(ticon);
+        };
+
+    }(jQuery));
 
     return exports;
 });

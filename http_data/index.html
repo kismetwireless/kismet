@@ -218,6 +218,14 @@ function load_main_ui() {
                 div.alert();
             },
         });
+
+        kismet_ui_iconbar.AddIconbarItem({
+            id: 'themepicker',
+            priority: 145,
+            createCallback: function(div) {
+                div.thememode();
+            }
+        });
     
         kismet_ui_iconbar.AddIconbarItem({
             id: 'battery',
