@@ -93,6 +93,14 @@ canvas.k-mm-canvas {
     cursor: pointer;
 }
 
+.clickable { 
+
+}
+
+.clickable:hover { 
+    cursor: pointer;
+}
+
 div.k-dsd-container {
     height: 100%;
     width: 100%;
