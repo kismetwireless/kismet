@@ -191,7 +191,7 @@ div.k-c-p-column {
     margin: 3px;
     border-style: solid;
     border-width: 1px;
-    background-color: #D0D0D0;
+    background-color: #444;
 }
 
 div.k-c-p-header {
@@ -202,7 +202,7 @@ div.k-c-p-header {
 }
 
 div.k-c-p-column:hover {
-    background-color: #B0B0B0;
+    background-color: #666;
 }
 
 i.k-c-p-c-mover {
