@@ -10,6 +10,7 @@
     --layout-link-color: #FFF;
     --layout-link-hover-color: #BBB;
     --layout-input-text-color: #FFF;
+    --layout-input-background-color: #444;
     --layout-offset-background-color: #444;
 	--layout-offset-background-light-color: #666;
 }
@@ -41,6 +42,7 @@ a:hover {
 ----------------------------------------------- */
 input { 
     color: var(--layout-input-text-color);
+    background-color: var(--layout-input-background-color);
 }
 
 
