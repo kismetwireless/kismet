@@ -226,16 +226,22 @@ kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
 
     if (in_freq == 2484)
         return 14;
+    else if (in_freq < 2400)
+        return `${in_freq}MHz`;
+    else if (in_freq == 5935)
+        return 2;
     else if (in_freq < 2484)
         return (in_freq - 2407) / 5;
     else if (in_freq >= 4910 && in_freq <= 4980)
         return (in_freq - 4000) / 5;
-    else if (in_freq <= 45000)
+    else if (in_freq < 5950)
         return (in_freq - 5000) / 5;
-    else if (in_freq >= 58320 && in_freq <= 64800)
+    else if (in_freq <= 45000) /* DMG band lower limit */
+        return (in_freq - 5950) / 5;
+    else if (in_freq >= 58320 && in_freq <= 70200)
         return (in_freq - 56160) / 2160;
     else
-        return kismet.HumanReadableFrequency(in_freq);
+        return in_freq;
 });
 
 /* Highlight WPA handshakes */
