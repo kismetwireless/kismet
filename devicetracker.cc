@@ -223,12 +223,14 @@ device_tracker::device_tracker() :
                         return 1;
                     }
 
-                    databaselog_logging = true;
+                    // Don't even attempt to log if we're not logging
+                    auto dbf = Globalreg::fetch_global_as<kis_database_logfile>();
+                    if (dbf == nullptr)
+                        return 1;
 
                     // Run the device storage in its own thread
                     std::thread t([this] {
                         databaselog_write_devices();
-                        databaselog_logging = false;
                     });
 
                     // Detach the thread, we don't care about it
@@ -1731,8 +1733,12 @@ void device_tracker::databaselog_write_devices() {
     // Remember the time BEFORE we spend time looking at all the devices
     uint64_t log_time = Globalreg::globalreg->last_tv_sec;
 
+    databaselog_logging = true;
+
     // Explicitly use the non-ro worker, because we're phasing out the RO version because of too much contention
     do_device_work(worker);
+
+    databaselog_logging = false;
 
     // Then update the log; we might catch a few high-change devices twice, but this is
     // safer by far
