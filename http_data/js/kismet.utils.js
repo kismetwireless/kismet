@@ -418,25 +418,25 @@ String.prototype.MiddleShorten = function(len) {
 
 exports.ExtractDeviceName = function(device) { 
     var ret = device['kismet.device.base.username'];
-    if (ret != '') { 
+    if (ret != null && ret != '') { 
+        console.log(ret);
         return exports.censorString(ret);
     }
 
-    ret = dev['kismet.device.base.name'];
-    if (ret != '') { 
+    ret = device['kismet.device.base.name'];
+    if (ret != null && ret != '') { 
+        console.log(ret);
         return exports.censorString(ret);
     }
 
-    ret = dev['kismet.device.base.commonname'];
-    if (ret != '') { 
+    ret = device['kismet.device.base.commonname'];
+    if (ret != null && ret != '') { 
+        console.log(ret);
         return exports.censorString(ret);
     }
 
-    ret = dev['kismet.device.base.macaddr'];
-    if (ret != '') { 
-        return exports.censorMAC(ret);
-    }
-
+    ret = device['kismet.device.base.macaddr'];
+    return exports.censorMAC(ret);
 }
 
 return exports;
