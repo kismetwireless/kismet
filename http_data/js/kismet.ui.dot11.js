@@ -2372,7 +2372,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 const dev = devs[v];
 
-                $(`#associated_client_expander_${v}`).html(`${kismet.ExtractName(dev)}`);
+                $(`#associated_client_expander_${v}`).html(`${kismet.ExtractDeviceName(dev)}`);
 
                 $(`#associated_client_content_${v}`).devicedata(dev, {
                     id: "clientData",
@@ -3274,7 +3274,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                     ;
                 }
 
-                var titlehtml = `${kismet.ExtractName(dev)} - ${dev['kismet.device.base.macaddr']}`;
+                var titlehtml = `${kismet.ExtractDeviceName(dev)} - ${dev['kismet.device.base.macaddr']}`;
 
                 if (crypttxt != null)
                     titlehtml = `${titlehtml} - ${crypttxt}`;
