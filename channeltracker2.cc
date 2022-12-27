@@ -32,7 +32,7 @@ channel_tracker_v2::channel_tracker_v2() :
 
     // Number of seconds we consider a device to be active on a frequency 
     // after the last time we see it
-    device_decay = 5;
+    device_decay = 30;
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
@@ -85,7 +85,6 @@ channel_tracker_v2::channel_tracker_v2() :
             [this](int evt_id) -> int {
                 return gather_devices_event(evt_id);
             });
-
 }
 
 channel_tracker_v2::~channel_tracker_v2() {
@@ -100,6 +99,10 @@ channel_tracker_v2::~channel_tracker_v2() {
         packetchain->remove_handler(&packet_chain_handler, CHAINPOS_LOGGING);
 
     Globalreg::globalreg->remove_global("CHANNEL_TRACKER");
+}
+
+void channel_tracker_v2::trigger_deferred_startup() {
+    gather_devices_event(0);
 }
 
 class channeltracker_v2_device_worker : public device_tracker_view_worker {

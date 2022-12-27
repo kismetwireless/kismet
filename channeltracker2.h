@@ -132,7 +132,7 @@ protected:
 
 };
 
-class channel_tracker_v2 : public lifetime_global {
+class channel_tracker_v2 : public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "CHANNEL_TRACKER"; }
 
@@ -140,6 +140,7 @@ public:
         std::shared_ptr<channel_tracker_v2> mon(new channel_tracker_v2());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         return mon;
     }
 
@@ -148,6 +149,8 @@ private:
 
 public:
     virtual ~channel_tracker_v2();
+
+    virtual void trigger_deferred_startup() override;
 
     // Update device counts - kept public so that the worker can access it
     int device_decay;
