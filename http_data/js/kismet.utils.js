@@ -419,19 +419,16 @@ String.prototype.MiddleShorten = function(len) {
 exports.ExtractDeviceName = function(device) { 
     var ret = device['kismet.device.base.username'];
     if (ret != null && ret != '') { 
-        console.log(ret);
         return exports.censorString(ret);
     }
 
     ret = device['kismet.device.base.name'];
     if (ret != null && ret != '') { 
-        console.log(ret);
         return exports.censorString(ret);
     }
 
     ret = device['kismet.device.base.commonname'];
     if (ret != null && ret != '') { 
-        console.log(ret);
         return exports.censorString(ret);
     }
 
