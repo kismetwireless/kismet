@@ -1949,8 +1949,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         let mac = "";
 
                         try {
-                            ssid = kismet.CensorString(data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid']);
                             mac = kismet.censorMAC(data['kismet.device.base.macaddr']);
+                        } catch (_error) {
+                            // skip
+                        }
+
+                        try {
+                            ssid = kismet.CensorString(data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid']);
                         } catch (_error) {
                             // skip
                         }
@@ -2367,7 +2372,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 const dev = devs[v];
 
-                $(`#associated_client_expander_${v}`).html(`${kismet.censorMAC(dev['kismet.device.base.commonname'])}`);
+                $(`#associated_client_expander_${v}`).html(`${kismet.ExtractName(dev)}`);
 
                 $(`#associated_client_content_${v}`).devicedata(dev, {
                     id: "clientData",
@@ -3269,7 +3274,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                     ;
                 }
 
-                var titlehtml = `${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`;
+                var titlehtml = `${kismet.ExtractName(dev)} - ${dev['kismet.device.base.macaddr']}`;
 
                 if (crypttxt != null)
                     titlehtml = `${titlehtml} - ${crypttxt}`;
