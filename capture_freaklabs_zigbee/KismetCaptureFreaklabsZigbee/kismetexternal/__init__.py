@@ -1,7 +1,7 @@
 # Python implementation of the simple API for communicating with Kismet
 # via the Kismet External API
 #
-# (c) 2018 Mike Kershaw / Dragorn
+# (c) 2020 Mike Kershaw / Dragorn
 # Licensed under GPL2 or above
 
 """
@@ -15,16 +15,22 @@ Datasources are expanded in KismetDatasource.py
 
 from __future__ import print_function
 
+import asyncio
 import errno
 import fcntl
+import json
 import os
+import pathlib
 import select
+import signal
 import socket
 import struct
+import ssl
 import sys
 import threading
 import traceback
 import time
+import websockets
 
 import google.protobuf
 
@@ -36,49 +42,42 @@ if not '__version__' in dir(google.protobuf) and sys.version_info > (3, 0):
 from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
+from . import eventbus_pb2
 
-__version__ = "2019.09.01"
+__version__ = "2020.10.01"
 
 class ExternalInterface(object):
-    """ 
+    """
     External interface super-class
     """
-    def __init__(self, infd=-1, outfd=-1, remote=None):
+    def __init__(self, config):
         """
-        Initialize the external interface; interfaces launched by Kismet are 
+        Initialize the external interface; interfaces launched by Kismet are
         mapped to a pipe passed via --in-fd and --out-fd arguments; remote
         interfaces are initialized with a host:port
 
-        :param infd: input FD, from --in-fd argument
-        :param outfd: output FD, from --out-fd argument
-        :param remote: remote host:port, from --connect argument
         :return: nothing
         """
 
-        self.infd = infd
-        self.outfd = outfd
-        self.remote = remote
-        self.remote_sock = None
+        self.set_config(config)
+
+        self.loop = asyncio.get_event_loop()
+
+        # Core task for forced cancelling
+        self.main_io_task = None
+
+        # Any additional tasks we cancel as we exit
+        self.additional_tasks = []
+
+        # Any additional functions we call as we exit
+        self.exit_callbacks = []
+
         self.cmdnum = 0
         self.iothread = None
 
         self.debug = False
 
-        if self.infd is not None and self.infd >= 0 and self.outfd is not None and self.outfd >= 0:
-            fl = fcntl.fcntl(infd, fcntl.F_GETFL)
-            fcntl.fcntl(infd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-
-            fl = fcntl.fcntl(outfd, fcntl.F_GETFL)
-            fcntl.fcntl(outfd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        elif remote is not None:
-            self.__connect_remote(remote)
-        else:
-            raise RuntimeError("Expected descriptor pair or remote connection")
-
-        self.wbuffer = bytearray()
         self.rbuffer = bytearray()
-
-        self.bufferlock = threading.RLock()
 
         self.graceful_spindown = False
         self.kill_ioloop = False
@@ -92,35 +91,125 @@ class ExternalInterface(object):
 
         self.errorcb = None
 
+        self.websocket = None
+
         self.handlers = {}
 
         self.add_handler("HTTPAUTH", self.__handle_http_auth)
         self.add_handler("HTTPREQUEST", self.__handle_http_request)
+        self.add_handler("EVENT", self.__handle_event)
         self.add_handler("PING", self.__handle_ping)
         self.add_handler("PONG", self.__handle_pong)
         self.add_handler("SHUTDOWN", self.__handle_shutdown)
 
         self.uri_handlers = {}
+        self.event_handlers = {}
 
         self.MSG_INFO = kismet_pb2.MsgbusMessage.INFO
         self.MSG_ERROR = kismet_pb2.MsgbusMessage.ERROR
         self.MSG_ALERT = kismet_pb2.MsgbusMessage.ALERT
         self.MSG_FATAL = kismet_pb2.MsgbusMessage.FATAL
 
-    def __connect_remote(self, remote):
-        eq = remote.find(":")
+    @staticmethod
+    def common_getopt(parser):
+        parser.add_argument('--in-fd', action="store", type=int, dest="infd", help="incoming fd pair (IPC mode only)")
+        parser.add_argument('--out-fd', action="store", type=int, dest="outfd", help="outgoing fd pair (IPC mode only)")
+        parser.add_argument('--connect', action="store", dest="connect", help="remote kismet server on host:port; by default this uses websocket mode, to use the legacy tcp mode, specify the --tcp argument")
+        parser.add_argument("--source", action="store", dest="source", help="capture source definition, required for remote capture")
+        parser.add_argument("--tcp", action="store_true", default=False, dest="tcp", help="enable legacy tcp mode")
+        parser.add_argument("--ssl", action="store_true", default=False, dest="ssl", help="enable SSL")
+        parser.add_argument("--ssl-certificate", action="store", dest="sslcertificate", help="provide a SSL CA certificate to validate server")
+        parser.add_argument("--user", action="store", dest="user", help="Kismet username for websockets-based remote capture")
+        parser.add_argument("--password", action="store", dest="password", help="Kismet password for websockets-based remote capture")
+        parser.add_argument("--apikey", action="store", dest="apikey", help="Kismet API key for websockets-based remote capture")
+        parser.add_argument("--endpoint", action="store", dest="endpoint", default="/datasource/remote/remotesource.ws", help="alternate endpoint for websockets remote capture")
+        parser.add_argument("--disable-retry", action="store", dest="endpoint", default=False, help="disable automatic reconnection")
+        parser.add_argument("--autodetect", action="store", nargs="?", help="look for a Kismet server in announce mode, optionally waiting for a specific server UUID")
 
-        if eq == -1:
-            raise RuntimeError("Expected host:port for remote")
+        return parser
 
-        self.remote_host = remote[:eq]
-        self.remote_port = int(remote[eq+1:])
+    def set_config(self, config):
+        self.config = config
 
-        self.remote_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.remote_sock.connect((self.remote_host, self.remote_port))
+    async def __async_open_fds(self):
+        try:
+            r_file = os.fdopen(self.config.infd, 'rb')
+            w_file = os.fdopen(self.config.outfd, 'wb')
 
-        fl = fcntl.fcntl(self.remote_sock, fcntl.F_GETFL)
-        fcntl.fcntl(self.remote_sock, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+            reader = asyncio.StreamReader(loop=self.loop)
+            r_protocol = asyncio.StreamReaderProtocol(reader)
+
+            await self.loop.connect_read_pipe(lambda: r_protocol, r_file)
+
+            w_transport, w_protocol = await self.loop.connect_write_pipe(asyncio.streams.FlowControlMixin, w_file)
+
+            writer = asyncio.StreamWriter(transport=w_transport, reader=None, loop=self.loop, protocol=w_protocol)
+
+            return reader, writer
+        except Exception as e:
+            print("Failed to open file descriptor pair:", e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.kill()
+
+    async def __async_open_tcp_remote(self):
+        reader, writer = await asyncio.open_connection(self.remote_host, self.remote_port)
+
+        if self.debug:
+            print("Remote connection established.")
+
+        return reader, writer
+
+    async def __async_open_ws_remote(self):
+        print("opening websocket")
+
+        if (not 'user' in self.config or not 'password' in self.config) and not 'apikey' in self.config:
+            raise "username and password or API key required"
+
+        if 'ssl' in self.config:
+            self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    
+            if 'sslcert' in self.config:
+                local_ca = pathlib.Path(__file__).with_name(self.config.sslcerts)
+                self.ssl_context.load_verify_locations(local_ca)
+
+            if 'user' in self.config and not self.config.user == None:
+                self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
+            else:
+                self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
+
+            self.websocket = await websockets.connect(self.uri, ssl=self.ssl_context)
+            return self.websocket, self.websocket
+
+            if 'user' in self.config and not self.config.user == None:
+                self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
+            else:
+                self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
+
+            return await websockets.connect(self.uri)
+
+    async def __async_open_remote(self):
+        try:
+            eq = self.config.connect.find(":")
+
+            if eq == -1:
+                raise RuntimeError("Expected host:port for remote")
+
+            self.remote_host = self.config.connect[:eq]
+            self.remote_port = int(self.config.connect[eq+1:])
+
+            if self.debug:
+                print("Opening connection to remote host {}:{}".format(self.remote_host, self.remote_port))
+
+            if self.config.tcp:
+                self.ext_reader, self.ext_writer = await self.__async_open_tcp_remote()
+            else:
+                self.websocket = await self.__async_open_ws_remote()
+
+        except Exception as e:
+            print("Failed to connect to remote host: ", e, file=sys.stderr)
+            # traceback.print_exc(file=sys.stderr)
+            self.kill()
+            raise RuntimeError("Unable to connect to remote host: {}".format(e))
 
     @staticmethod
     def adler32(data):
@@ -162,89 +251,49 @@ class ExternalInterface(object):
 
         return ((s1 & 0xFFFF) + (s2 << 16)) & 0xFFFFFFFF
 
-    def __io_loop(self):
+    async def __io_loop(self):
+        # A much simplified rx io loop using asyncio; we look to see if we're
+        # shutting down
         try:
             while not self.kill_ioloop:
                 if not self.last_pong == 0 and time.time() - self.last_pong > 5:
-                    raise RuntimeError("No PONG from remote system in 5 seconds")
+                    raise RuntimeError("No PONG from Kismet in 5 seconds")
 
-                if self.graceful_spindown and len(self.wbuffer) == 0:
+                try:
+                    if self.graceful_spindown:
+                        if not self.ext_writer == None:
+                            await self.ext_writer.drain()
+
+                        self.kill_ioloop = True
+                        return
+                except Exception as e:
                     self.kill_ioloop = True
                     return
 
-                if self.infd is not None and self.infd >= 0:
-                    in_fd_alias = self.infd
-                elif self.remote_sock is not None:
-                    in_fd_alias = self.remote_sock
+                # Read a chunk of data, append it to our buffer
+                if self.websocket == None:
+                    readdata = await self.ext_reader.read(4096)
                 else:
-                    raise RuntimeError("No valid input socket")
+                    readdata = await self.websocket.recv()
 
-                if self.outfd is not None and self.outfd >= 0:
-                    out_fd_alias = self.outfd
-                elif self.remote_sock is not None:
-                    out_fd_alias = self.remote_sock
-                else:
-                    raise RuntimeError("No valid input socket")
+                if len(readdata) == 0:
+                    raise BufferError("Kismet connection lost")
 
-                inputs = [in_fd_alias]
-                outputs = []
+                self.rbuffer.extend(readdata)
 
-                self.bufferlock.acquire()
-                try:
-                    if len(self.wbuffer):
-                        outputs = [out_fd_alias]
-                finally:
-                    self.bufferlock.release()
-
-                (readable, writable, exceptional) = select.select(inputs, outputs, inputs, 1)
-
-                if out_fd_alias in exceptional or in_fd_alias in exceptional:
-                    raise BufferError("Buffer error:  Socket closed")
-
-                if out_fd_alias in outputs:
-                    self.bufferlock.acquire()
-                    try:
-                        if out_fd_alias == self.remote_sock:
-                            written = self.remote_sock.send(self.wbuffer)
-                        else:
-                            written = os.write(out_fd_alias, self.wbuffer)
-
-                        if written == 0:
-                            raise BufferError("Output connection closed")
-
-                        self.wbuffer = self.wbuffer[written:]
-                    except OSError as e:
-                        if not e.errno == errno.EAGAIN:
-                            raise BufferError("Output buffer error: {}".format(e))
-                    finally:
-                        self.bufferlock.release()
-
-                if in_fd_alias in inputs:
-                    self.bufferlock.acquire()
-                    try:
-                        if in_fd_alias == self.remote_sock:
-                            readdata = self.remote_sock.recv(4096)
-                        else:
-                            readdata = os.read(in_fd_alias, 4096)
-
-                        if not readdata:
-                            raise BufferError("Input connection closed")
-
-                        self.rbuffer.extend(readdata)
-                        self.__recv_packet()
-                    except IOError as e:
-                        if not e.errno == errno.EWOULDBLOCK:
-                            raise BufferError("Input buffer error: {}".format(e))
-                    except OSError as e:
-                        if not e.errno == errno.EAGAIN:
-                            raise BufferError("Input buffer error: {}".format(e))
-                    finally:
-                        self.bufferlock.release()
-        except BufferError as e:
-            # Fail out
-            pass
+                # Process the packet buffer and see if we've read enough to
+                # form a full packet
+                self.__recv_packet()
+        except Exception as e:
+            print("FATAL:  Encountered an error receiving data from Kismet", e, file=sys.stderr)
+            self.running = False
+            self.kill()
+            raise
         finally:
             self.running = False
+            self.kill()
+
+        return
 
     def __recv_packet(self):
         if len(self.rbuffer) < 12:
@@ -294,18 +343,93 @@ class ExternalInterface(object):
 
         return ""
 
-    def start(self):
+    async def __asyncio_connect(self):
         """
-        Start the main service loop; this handles input/out from the Kismet server
-        and will call registered callbacks for functions.
+        Connect to the input and output generators/sinks
 
         :return: None
         """
 
-        self.running = True
-        self.iothread = threading.Thread(target=self.__io_loop)
-        self.iothread.daemon = True
-        self.iothread.start()
+        if self.config.infd is not None and self.config.infd >= 0 and self.config.outfd is not None and self.config.outfd >= 0:
+            if self.debug:
+                print("DEBUG:  Linking descriptors", self.config.infd, self.config.outfd, file=sys.stderr)
+            self.ext_reader, self.ext_writer = await self.__async_open_fds()
+            if self.debug:
+                print("DEBUG:  Linked descriptors", self.config.infd, self.config.outfd, self.ext_writer, file=sys.stderr)
+        elif self.config.connect is not None:
+            if self.debug:
+                print("asyncio building connection to remote", self.config.connect)
+
+            await self.__async_open_remote()
+
+        else:
+            raise RuntimeError("Expected descriptor pair or remote connection")
+
+    def run(self):
+        """
+        Enter a blocking loop until the IO exits
+        """
+
+        try:
+            # Bring up the IO loop task; it's the only task we absolutely care
+            # about.  Other tasks can come and go, if this one dies, we have
+            # to shut down.
+
+            # From this point onwards we exist inside this asyncio wait
+
+            self.loop.add_signal_handler(signal.SIGINT, self.kill)
+            self.loop.add_signal_handler(signal.SIGTERM, self.kill)
+            self.loop.add_signal_handler(signal.SIGQUIT, self.kill)
+
+            self.main_io_task = self.loop.create_task(self.__io_loop())
+
+            if self.debug:
+                print("kismetexternal api running async loop forever")
+
+            self.loop.run_forever()
+
+            self.running = False
+
+            self.kill()
+        except Exception as e:
+            if self.running:
+                self.kill()
+
+    def start(self):
+        """
+        Shim around async await
+        """
+
+        try:
+            self.loop.run_until_complete(self.__asyncio_connect())
+        except RuntimeError:
+            print("Failed to connect to remote host, exiting.")
+            return -1
+
+        return 0
+
+    def add_task(self, task, args = []):
+        """
+        Create a task from the provided async function, associating it
+        with the main loop and returning the task record.  The task will
+        be automatically cancelled when the external interface exits
+
+        :return: asyncio task
+        """
+        try:
+            t = self.loop.create_task(task(*args))
+            self.additional_tasks.append(t)
+            return t
+        except Exception as e:
+            print("Failed to add asyncio task:", e)
+            traceback.print_exc(file=sys.stderr)
+            self.kill()
+
+    def add_exit_callback(self, callback):
+        self.exit_callbacks.append(callback)
+
+    def get_loop(self):
+        return self.loop
 
     def add_handler(self, command, handler):
         """
@@ -320,7 +444,7 @@ class ExternalInterface(object):
 
     def add_uri_handler(self, method, uri, handler):
         """
-        Register a URI handler with Kismet; this will be called whenever that URI is 
+        Register a URI handler with Kismet; this will be called whenever that URI is
         triggered on the Kismet REST interface.  A URI should be a complete path, and
         include the file extension.
 
@@ -342,6 +466,41 @@ class ExternalInterface(object):
 
         self.write_ext_packet("HTTPREGISTERURI", reguri)
 
+    def add_event_handler(self, event, handler):
+        """
+        Register on the eventbus for an event, and call handler with it.
+
+        :param event: Event type UTF-8 string, or "*" for all events (may be verbose!)
+        :param handler: Handler function, called with (event, content_dictionary)
+        as parameters.
+        :return: None
+        """
+
+        if event not in self.event_handlers:
+            self.event_handlers[event] = handler
+
+        regevt = eventbus_pb2.EventbusRegisterListener()
+        regevt.event.extend(event)
+
+        self.write_ext_packet("EVENTBUSREGISTER", regevt)
+
+    def publish_event(self, event, content_json):
+        """
+        Publish an event on the eventbus; see the docs for additional info and
+        limitations on events coming from the external api eventbus interface.
+
+        :param event: Event type UTF-8 string; should not collide with internal Kismet
+        eventbus events.
+        :param content_json: UTF-8 string JSON content of eventbus event.
+        :return: None
+        """
+
+        pubevt = eventbus_pb2.EventbusPublishEvent()
+        pubevt.event_type = event
+        pubevt.event_content_json = content_json
+        
+        self.write_ext_packet("EVENTBUSPUBLISH", pubevt)
+
     def is_running(self):
         """
         Is the external interface service running?
@@ -356,11 +515,21 @@ class ExternalInterface(object):
 
         :return: None
         """
-        self.bufferlock.acquire()
+        self.kill_ioloop = True
+        self.running = False
+
+        [task.cancel() for task in self.additional_tasks]
+        [cb() for cb in self.exit_callbacks]
+
+        if not self.main_io_task == None:
+            self.main_io_task.cancel()
+
+        # Try to mask python 3.5 signal handling bugs, as per
+        # https://github.com/python/asyncio/issues/396
         try:
-            self.kill_ioloop = True
-        finally:
-            self.bufferlock.release()
+            self.loop.stop()
+        except TypeError:
+            pass
 
     def spindown(self):
         """
@@ -368,35 +537,59 @@ class ExternalInterface(object):
 
         :return: None
         """
-        self.bufferlock.acquire()
+        self.graceful_spindown = True
+
         try:
-            self.graceful_spindown = True
-        finally:
-            self.bufferlock.release()
+            if 'ext_writer' in vars(self):
+                task = self.loop.create_task(self.ext_writer.drain())
+                self.loop.run_until_complete(task)
+        except Exception as e:
+            # Silently ignore any errors draining, we just need to get out and die
+            pass
+
+        self.kill()
+
+    def inSpindown(self):
+        """
+        Are we coasting down?
+
+        :return: Boolean
+        """
+        return self.graceful_spindown
 
     def write_raw_packet(self, kedata):
         """
-        Wrap a raw piece of data in a Kismet external interface frame and write it; 
+        Wrap a raw piece of data in a Kismet external interface frame and write it;
         this data must be a serialized kismet_pb2.Command frame.
 
         :param kedata: Serialized kismet_pb2.Command data
 
         :return: None
         """
-        signature = 0xDECAFBAD
-        serial = bytearray(kedata.SerializeToString())
 
-        checksum = ExternalInterface.adler32(serial)
-        length = len(serial)
-
-        packet = bytearray(struct.pack("!III", signature, checksum, length))
-
-        self.bufferlock.acquire()
         try:
-            self.wbuffer.extend(packet)
-            self.wbuffer.extend(serial)
-        finally:
-            self.bufferlock.release()
+            if not 'ext_writer' in vars(self) and self.websocket == None:
+                raise RuntimeError("packet written before connection established")
+
+            signature = 0xDECAFBAD
+            serial = bytearray(kedata.SerializeToString())
+
+            checksum = ExternalInterface.adler32(serial)
+            length = len(serial)
+
+            packet = bytearray(struct.pack("!III", signature, checksum, length))
+
+            # Drop it on the asyncio writer and queue it to go out
+            if not self.websocket == None:
+                self.add_task(self.websocket.send, [packet + serial])
+            else:
+                self.ext_writer.write(packet + serial)
+                self.add_task(self.ext_writer.drain)
+
+        except Exception as e:
+            # If we failed a low-level write we're just screwed, exit
+            print("FATAL:  Encountered error writing to kismet: ", e, file=sys.stderr)
+            self.kill()
 
     def write_ext_packet(self, cmdtype, content):
         """
@@ -419,7 +612,7 @@ class ExternalInterface(object):
 
     def send_message(self, message, msgtype=kismet_pb2.MsgbusMessage.INFO):
         """
-        Send a message which will be displayed via the Kismet message bus and in the UI
+        Send a message which wil be displayed via the Kismet message bus and in the UI
 
         :param message: Message text
         :param msgtype: message type, one of MSG_INFO, _ERROR, _ALERT, _FATAL
@@ -481,7 +674,7 @@ class ExternalInterface(object):
             raise RuntimeError("No URI handler registered for request {} {}".format(request.method, request.uri))
         self.uri_handlers[request.method][request.uri](self, request)
 
-    def send_http_response(self, req_id, data="", resultcode=200, stream=False, finished=True):
+    def send_http_response(self, req_id, data=b'', resultcode=200, stream=False, finished=True):
         """
         Send a HTTP response; this populates a URI when triggered.
 
@@ -494,27 +687,25 @@ class ExternalInterface(object):
 
         :param req_id: HTTP request ID, provided in the HttpRequest message.  This must be sent with
         every response which is part of the same request.
-        :param data: HTTP data to be sent.  This may be broken up into multiple response objects
-        automatically.
+        :param data: HTTP data to be sent, as bytes.  This may be broken up into multiple 
+        response objects automatically.
         :param resultcode: HTTP result code; the result code in the final response (finished = True)
         is sent as the final HTTP code.
         :param stream: This response is one of many in a stream, the connection will be held open
         until a send_http_response with finished = False
         :param finished: This is the last response of many in a stream, the connection will be closed.
         """
-        resp = http_pb2.HttpResponse()
-
-        # Set the response
-        resp.req_id = req_id
 
         # Break the data into chunks and send each chunk as part of the response
         for block in range(0, len(data), 1024):
+            resp = http_pb2.HttpResponse()
+            resp.req_id = req_id
             resp.content = data[block:block+1024]
             self.write_ext_packet("HTTPRESPONSE", resp)
 
-        # Do we finish it up?
         if not stream or (stream and finished):
-            resp.content = ""
+            resp = http_pb2.HttpResponse()
+            resp.req_id = req_id
             resp.resultcode = resultcode
             resp.close_response = True
             self.write_ext_packet("HTTPRESPONSE", resp)
@@ -531,6 +722,19 @@ class ExternalInterface(object):
 
         self.last_pong = time.time()
 
+    def __handle_event(self, seqno, packet):
+        event = eventbus_pb2.EventbusEvent()
+        event.ParseFromString(packet)
+
+        event_json = json.loads(event.event_json)
+
+        event_type = event_json.get("kismet.eventbus.type", "UNKNOWN")
+
+        if "*" in self.event_handlers:
+            self.event_handlers["*"](event_type, event_json.get("kismet.eventbus.content", {}))
+        elif event_type in self.event_handlers:
+            self.event_handlers[event_type](event_type, event_json.get("kismet.eventbus.content", {}))
+
     def __handle_shutdown(self, seqno, packet):
         shutdown = kismet_pb2.ExternalShutdown()
         shutdown.ParseFromString(packet)
@@ -538,11 +742,13 @@ class ExternalInterface(object):
 
 
 class Datasource(ExternalInterface):
-    """ 
+    """
     Datasource implementation
     """
-    def __init__(self, infd=-1, outfd=-1, remote=None):
-        super(Datasource, self).__init__(infd=infd, outfd=outfd, remote=remote)
+    def __init__(self, config):
+        super(Datasource, self).__init__(config)
+
+        self.config = config
 
         self.listinterfaces = None
         self.probesource = None
@@ -617,31 +823,31 @@ class Datasource(ExternalInterface):
         :return: (source, options{} dictionary) as tuple
         """
         options = {}
-    
+
         colon = definition.find(':')
-    
+
         if colon == -1:
             return definition, {}
-    
+
         source = definition[:colon]
         right = definition[colon + 1:]
-    
+
         while len(right):
             eqpos = right.find('=')
             if eqpos == -1:
                 return None, None
-    
+
             key = right[:eqpos]
             right = right[eqpos + 1:]
-    
+
             # If we're quoted
             if right[0] == '"':
                 right = right[1:]
                 endq = right.find('"')
-    
+
                 if endq == -1:
                     return None, None
-    
+
                 val = right[:endq]
                 options[key] = val
                 right = right[endq + 1:]
@@ -650,11 +856,11 @@ class Datasource(ExternalInterface):
 
                 if endcomma == -1:
                     endcomma = len(right)
-    
+
                 val = right[:endcomma]
                 options[key] = val
                 right = right[endcomma + 1:]
-    
+
         return source, options
 
     def __handle_kds_configure(self, seqno, packet):
@@ -666,7 +872,7 @@ class Datasource(ExternalInterface):
                                                   message="helper does not support source configuration")
             self.spindown()
             return
-           
+
         try:
             opts = self.configuresource(seqno, conf)
         except Exception as e:
@@ -677,7 +883,7 @@ class Datasource(ExternalInterface):
             self.spindown()
             return
 
-        
+
         if opts is None:
             self.send_datasource_configure_report(seqno, success=False,
                                                   message="helper does not support source configuration")
@@ -703,7 +909,7 @@ class Datasource(ExternalInterface):
         except Exception as e:
             print("Unhandled exception in opensource callback", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-            self.send_datasource_oen_report(seqno, success=False,
+            self.send_datasource_open_report(seqno, success=False,
                     message="unhandled exception {} in opensource callback".format(e))
             self.spindown()
             return

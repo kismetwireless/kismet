@@ -172,13 +172,13 @@ class ExternalInterface(object):
                 local_ca = pathlib.Path(__file__).with_name(self.config.sslcerts)
                 self.ssl_context.load_verify_locations(local_ca)
 
-                if 'user' in self.config and not self.config.user == None:
-                    self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
-                else:
-                    self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
+            if 'user' in self.config and not self.config.user == None:
+                self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
+            else:
+                self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
 
-                self.websocket = await websockets.connect(self.uri, ssl=self.ssl_context)
-                return self.websocket, self.websocket
+            self.websocket = await websockets.connect(self.uri, ssl=self.ssl_context)
+            return self.websocket, self.websocket
 
             if 'user' in self.config and not self.config.user == None:
                 self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
@@ -256,7 +256,7 @@ class ExternalInterface(object):
         # shutting down
         try:
             while not self.kill_ioloop:
-                if not self.last_pong == 0 and time.time() - self.last_pont > 5:
+                if not self.last_pong == 0 and time.time() - self.last_pong > 5:
                     raise RuntimeError("No PONG from Kismet in 5 seconds")
 
                 try:
