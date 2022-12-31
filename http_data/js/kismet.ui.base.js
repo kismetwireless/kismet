@@ -1354,7 +1354,7 @@ function memorydisplay_refresh() {
                     label: 'Memory (MB)',
                     fill: 'false',
                     // yAxisID: 'mem-axis',
-                    borderColor: 'black',
+                    borderColor: kismet_theme.sparkline_multi_a,
                     backgroundColor: 'transparent',
                     data: mem_linedata,
                 },
@@ -1362,7 +1362,7 @@ function memorydisplay_refresh() {
                     label: 'Devices',
                     fill: 'false',
                     // yAxisID: 'dev-axis',
-                    borderColor: 'blue',
+                    borderColor: kismet_theme.sparkline_multi_b,
                     backgroundColor: 'rgba(100, 100, 255, 0.33)',
                     data: dev_linedata,
                 }
