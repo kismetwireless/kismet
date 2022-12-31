@@ -93,6 +93,10 @@ public:
 
     virtual int database_upgrade_db() override;
 
+    bool is_enabled() { 
+        return db_enabled;
+    }
+
     // Log a vector of multiple devices, replacing any old device records
     virtual int log_device(std::shared_ptr<kis_tracked_device_base> in_device);
 
