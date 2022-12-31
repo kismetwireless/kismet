@@ -228,6 +228,9 @@ device_tracker::device_tracker() :
                     if (dbf == nullptr)
                         return 1;
 
+                    if (!dbf->is_enabled())
+                        return 1;
+
                     // Run the device storage in its own thread
                     std::thread t([this] {
                         databaselog_write_devices();
@@ -1720,6 +1723,9 @@ void device_tracker::databaselog_write_devices() {
     auto dbf = Globalreg::fetch_global_as<kis_database_logfile>();
     
     if (dbf == nullptr)
+        return;
+
+    if (!dbf->is_enabled())
         return;
 
     device_tracker_view_function_worker worker([this, dbf](std::shared_ptr<kis_tracked_device_base> dev) -> bool {

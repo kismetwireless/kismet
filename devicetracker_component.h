@@ -428,6 +428,9 @@ public:
     __ProxyL(devicename, std::string, std::string, std::string, devicename, 
             [this](std::string i) -> bool {
 
+            if (i == "")
+                return true;
+
             // Override the common name if there's no username
             if (has_username()) {
                 if (get_username() == "")
