@@ -1624,7 +1624,13 @@ function packetqueuedisplay_refresh() {
             });
 
         } else {
-            packetqueue_panel.packetqueue_chart.data.datasets = datasets;
+            packetqueue_panel.packetqueue_chart.data.datasets[0].data = processing_linedata;
+            packetqueue_panel.packetqueue_chart.data.datasets[1].data = peak_linedata;
+            packetqueue_panel.packetqueue_chart.data.datasets[2].data = rate_linedata;
+            packetqueue_panel.packetqueue_chart.data.datasets[3].data = queue_linedata;
+            packetqueue_panel.packetqueue_chart.data.datasets[4].data = drop_linedata;
+            packetqueue_panel.packetqueue_chart.data.datasets[5].data = dupe_linedata;
+            // packetqueue_panel.packetqueue_chart.data.datasets = datasets;
             packetqueue_panel.packetqueue_chart.data.labels = pointtitles;
             packetqueue_panel.packetqueue_chart.update(0);
         }
