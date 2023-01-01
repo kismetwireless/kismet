@@ -261,7 +261,7 @@
                             labels: devtitles,
                             datasets: [
                                 {
-                                    label: "Devices per Channel",
+                                    label: "Active devices per channel",
                                     backgroundColor: kismet_theme.graphBasicColor,
                                     data: devnums,
                                     borderWidth: 1,
