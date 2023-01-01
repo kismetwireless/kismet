@@ -241,6 +241,7 @@ function load_main_ui() {
             id: 'packets',
             priority: 0,
             createCallback: function(div) {
+                div.addClass('hidden-mobile');
                 div.packetrate();
             }
         });
@@ -317,7 +318,7 @@ $(function() {
             <div class="ui-layout-north">
                 <div id="topbar">
                     <i id="pm_open" class="fa fa-bars k-sb-hamburger"></i>
-                    <div id="topbar_title">Kismet</div>
+                    <div class="hidden-mobile" id="topbar_title">Kismet</div>
                     <div class="topright_holder" id="iconbar"></div>
                 </div>
             </div>

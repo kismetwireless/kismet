@@ -15,6 +15,12 @@
 	--layout-offset-background-light-color: #666;
 }
 
+@media (max-width: 768px) {
+    .hidden-mobile { 
+        display: none !important;
+    }
+}
+
 /*
 -----------------------------------------------
 Grey Box Method - Layout CSS
