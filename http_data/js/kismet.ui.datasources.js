@@ -51,6 +51,10 @@ var channelcoverage_chart = null;
 var channelhop_chart = null;
 var cc_uuid_pos_map = {};
 
+
+let sourcetitles = [];
+let chantitles = [];
+
 export const ChannelCoverage = () => {
     var w = $(window).width() * 0.85;
     var h = $(window).height() * 0.75;
@@ -287,7 +291,8 @@ function channelcoverage_display_refresh() {
 
     // Create the channel index for the x-axis, used in both the hopping and the coverage
     // graphs
-    var chantitles = new Array();
+    chantitles = []; 
+    // var chantitles = new Array();
     for (var ci in total_channel_list) {
         chantitles.push(ci);
     }
@@ -332,7 +337,6 @@ function channelcoverage_display_refresh() {
     // Create the source list for the Y axis of the coverage graph; we make an intermediary
     // which is sorted by name but includes UUID, then assemble the final one
     var sourcetitles_tmp = new Array();
-    var sourcetitles = new Array();
 
     for (var ci in cc_uuid_pos_map) {
         sourcetitles_tmp.push({
@@ -346,7 +350,8 @@ function channelcoverage_display_refresh() {
     });
 
     // Build the titles
-    for (var si in sourcetitles_tmp) {
+    sourcetitles = [];
+    for (const si in sourcetitles_tmp) {
         sourcetitles.push(sourcetitles_tmp[si].name);
     }
 
@@ -360,9 +365,9 @@ function channelcoverage_display_refresh() {
 
         if (d.hopping) {
             for (var ci in d.channels) {
-                var c = d.channels[ci];
+                const c = d.channels[ci];
 
-                var cp = chantitles.indexOf(c);
+                const cp = chantitles.indexOf(c);
 
                 if (cp < 0)
                     continue;
@@ -374,7 +379,7 @@ function channelcoverage_display_refresh() {
                 });
             }
         } else {
-            var cp = chantitles.indexOf(d.channel);
+            const cp = chantitles.indexOf(d.channel);
             if (cp >= 0) {
                 ds.push({
                     x: cp,
@@ -384,7 +389,7 @@ function channelcoverage_display_refresh() {
             }
         }
 
-        var color = "hsl(" + parseInt(255 * (ndev / Object.keys(cc_uuid_pos_map).length)) + ", 100%, 50%)";
+        const color = "hsl(" + parseInt(255 * (ndev / Object.keys(cc_uuid_pos_map).length)) + ", 100%, 50%)";
 
         bubble_dataset.push({
             label: d.name,
@@ -400,7 +405,7 @@ function channelcoverage_display_refresh() {
     if (channelhop_canvas == null) {
         channelhop_canvas = $('#k-cc-canvas', channelcoverage_panel.content);
 
-        var bp = 5.0;
+        let bp = 5.0;
 
         if (chantitles.length < 14)
             bp = 2;
@@ -411,7 +416,20 @@ function channelcoverage_display_refresh() {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    xAxes: [{ barPercentage: bp, }],
+                    x: { barPercentage: bp, 
+                        ticks: { 
+                            autoSkip: false,
+                            stepSize: 1,
+                            callback: function(value, index, values) {
+                                return chantitles[value];
+                            },
+                            min: 0,
+                            max: chantitles.length,
+                            position: 'bottom',
+                            type: 'linear',
+                        }
+                    },
+                    y: { display: false, },
                 },
             },
             data: {
@@ -422,7 +440,7 @@ function channelcoverage_display_refresh() {
     } else {
         channelhop_chart.data.datasets = source_datasets;
         channelhop_chart.data.labels = chantitles;
-        channelhop_chart.update(0);
+        channelhop_chart.update('none');
     }
 
     if (channelcoverage_canvas == null && sourcetitles.length != 0) {
@@ -441,7 +459,7 @@ function channelcoverage_display_refresh() {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    xAxes: [{
+                    x: {
                         ticks: {
                             autoSkip: false,
                             stepSize: 1,
@@ -453,8 +471,8 @@ function channelcoverage_display_refresh() {
                             position: 'bottom',
                             type: 'linear',
                         }
-                    }],
-                    yAxes: [{
+                    },
+                    y: {
                         ticks: {
                             autoSkip: false,
                             stepSize: 1,
@@ -466,7 +484,7 @@ function channelcoverage_display_refresh() {
                             position: 'left',
                             type: 'linear',
                         },
-                    }],
+                    },
                 },
             },
             data: {
@@ -481,13 +499,13 @@ function channelcoverage_display_refresh() {
         channelcoverage_chart.data.labels = chantitles;
         channelcoverage_chart.data.yLabels = sourcetitles;
 
-        channelcoverage_chart.options.scales.xAxes[0].ticks.min = 0;
-        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length;
+        channelcoverage_chart.options.scales.x.ticks.min = 0;
+        channelcoverage_chart.options.scales.x.ticks.max = chantitles.length;
 
-        channelcoverage_chart.options.scales.yAxes[0].ticks.min = 0;
-        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length;
+        channelcoverage_chart.options.scales.y.ticks.min = 0;
+        channelcoverage_chart.options.scales.y.ticks.max = sourcetitles.length;
 
-        channelcoverage_chart.update(0);
+        channelcoverage_chart.update('none');
     }
 
     channelcoverage_display_tid = setTimeout(channelcoverage_display_refresh, 500);

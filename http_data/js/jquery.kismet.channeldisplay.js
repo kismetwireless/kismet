@@ -250,11 +250,11 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             scales: {
-                                yAxes: [{
+                                y: {
                                     ticks: {
                                         beginAtZero: true,
                                     }
-                                }],
+                                },
                             },
                         },
                         data: {
