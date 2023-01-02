@@ -678,11 +678,12 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     render: function(opts) {
                         var d = 
                             $('<div>', {
-                                style: 'width: 80%; height: 250px',
+                                style: 'display: flex; justify-content: center; align-items: center; height: 250px',
                             })
                             .append(
                                 $('<canvas>', {
                                     id: 'freqdist',
+                                    style: 'margin: 0 auto;'
                                 })
                             );
 
@@ -914,11 +915,12 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     render: function(opts) {
                         var d = 
                             $('<div>', {
-                                style: 'width: 80%; height: 250px; padding-bottom: 5px;',
+                                style: 'display: flex; justify-content: center; align-items: center; height: 250px',
                             })
                             .append(
                                 $('<canvas>', {
                                     id: 'packetdonut',
+                                    style: 'margin: 0 auto;'
                                 })
                             );
 

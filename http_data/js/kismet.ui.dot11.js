@@ -530,27 +530,39 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     span: true,
                     render: function(opts) {
                         const d = 
-                            $('<div>')
+                            $('<div>', {
+                                style: 'display: flex;'
+                            })
                             .append(
                                 $('<div>', {
-                                    style: 'width: 50%; height: 200px; padding-bottom: 5px; float: left;',
+                                    style: 'width: 50%; height: 200px; display: flex; justify-content: center; flex-direction: column; align-items: center; height: 250px',
+                                    //style: 'width: 50%; height: 200px; padding-bottom: 5px; float: left;',
                                 })
                                 .append('<div><b><center>Overall Packets</center></b></div>')
                                 .append(
-                                    $('<canvas>', {
-                                        id: 'overalldonut',
-                                    })
+                                    $('<div>')
+                                    .append(
+                                        $('<canvas>', {
+                                            id: 'overalldonut',
+                                            style: 'margin: 0 auto; width: 200px; height: 200px;'
+                                        })
+                                    )
                                 )
                             )
                             .append(
                                 $('<div>', {
-                                    style: 'width: 50%; height: 200px; padding-bottom: 5px; float: right;',
+                                    //style: 'width: 50%; height: 200px; padding-bottom: 5px; float: right;',
+                                    style: 'width: 50%; height: 200px; display: flex; justify-content: center; flex-direction: column; align-items: center; height: 250px',
                                 })
                                 .append('<div><b><center>Data Packets</center></b></div>')
                                 .append(
-                                    $('<canvas>', {
-                                        id: 'datadonut',
-                                    })
+                                    $('<div>')
+                                    .append(
+                                        $('<canvas>', {
+                                            id: 'datadonut',
+                                            style: 'margin: 0 auto; width: 200px; height: 200px;'
+                                        })
+                                    )
                                 )
                             );
 
@@ -601,7 +613,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                             display: false,
                                             text: 'Packet Types'
                                         },
-                                        height: '200px',
                                     }
                                 });
 
