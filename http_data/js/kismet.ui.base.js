@@ -714,7 +714,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         if ('freqchart' in window[storage]) {
                             window[storage].freqchart.data.labels = legend;
                             window[storage].freqchart.data.datasets[0].data = data;
-                            window[storage].freqchart.update();
+                            window[storage].freqchart.update('none');
                         } else {
                             window[storage].freqchart = 
                                 new Chart($('canvas', opts['container']), {
@@ -735,7 +735,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                     }
                                 });
 
-                            window[storage].freqchart.update();
+                            window[storage].freqchart.update('none');
                         }
                     }
                 },
@@ -950,7 +950,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                         if ('packetdonut' in window[storage]) {
                             window[storage].packetdonut.data.datasets[0].data = data;
-                            window[storage].packetdonut.update();
+                            window[storage].packetdonut.update('none');
                         } else {
                             window[storage].packetdonut = 
                                 new Chart($('canvas', opts['container']), {
@@ -1384,23 +1384,13 @@ function memorydisplay_refresh() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        yAxes: [
-                            {
-                                position: "left",
-                                "id": "mem-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
-                            },
-/*                          {
-                                position: "right",
-                                "id": "dev-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
+                        y: {
+                            position: "left",
+                            "id": "mem-axis",
+                            ticks: {
+                                beginAtZero: true,
                             }
-*/
-                        ]
+                        },
                     },
                 },
                 data: {
@@ -1414,7 +1404,7 @@ function memorydisplay_refresh() {
             memory_chart.data.datasets[1].data = dev_linedata;
             // memory_chart.data.datasets = datasets;
             memory_chart.data.labels = pointtitles;
-            memory_chart.update();
+            memory_chart.update('none');
         }
     })
     .always(function() {
@@ -1614,15 +1604,13 @@ function packetqueuedisplay_refresh() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        yAxis: [
-                            {
-                                position: "left",
-                                "id": "mem-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
-                            },
-                        ]
+                        y: {
+                            position: "left",
+                            "id": "mem-axis",
+                            ticks: {
+                                beginAtZero: true,
+                            }
+                        },
                     },
                 },
                 data: {
@@ -1640,7 +1628,7 @@ function packetqueuedisplay_refresh() {
             packetqueue_panel.packetqueue_chart.data.datasets[5].data = dupe_linedata;
             // packetqueue_panel.packetqueue_chart.data.datasets = datasets;
             packetqueue_panel.packetqueue_chart.data.labels = pointtitles;
-            packetqueue_panel.packetqueue_chart.update(0);
+            packetqueue_panel.packetqueue_chart.update('none');
         }
     })
     .always(function() {
@@ -1782,15 +1770,13 @@ function datasourcepackets_refresh() {
                     "responsive": true,
                     "maintainAspectRatio": false,
                     "scales": {
-                        "yAxes": [
-                            {
-                                "position": "left",
-                                "id": "pkts-axis",
-                                "ticks": {
-                                    "beginAtZero": true,
-                                }
-                            },
-                        ],
+                        y: {
+                            "position": "left",
+                            "id": "pkts-axis",
+                            "ticks": {
+                                "beginAtZero": true,
+                            }
+                        },
                     },
                 },
                 "data": {
@@ -1801,7 +1787,7 @@ function datasourcepackets_refresh() {
         } else {
             packetqueue_panel.datasource_chart.data.datasets = datasets;
             packetqueue_panel.datasource_chart.data.labels = pointtitles;
-            packetqueue_panel.datasource_chart.update(0);
+            packetqueue_panel.datasource_chart.update('none');
         }
     })
     .always(function() {
@@ -3038,12 +3024,12 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
                     maintainAspectRatio: false,
                     animation: false,
                     scales: {
-                        yAxes: [ {
+                        y: {
                             ticks: {
                                 beginAtZero: true,
                                 max: 100,
                             }
-                        }],
+                        },
                     },
                 },
                 data: {
@@ -3053,7 +3039,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
             });
         } else {
             devsignal_chart.data.datasets[0].data = moddata;
-            devsignal_chart.update();
+            devsignal_chart.update('none');
         }
 
 
