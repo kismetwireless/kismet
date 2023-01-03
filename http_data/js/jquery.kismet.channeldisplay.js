@@ -223,7 +223,11 @@
                 // 'now', but default - if for some reason we didn't get a
                 // value from the selector, this falls through to the bar graph
                 // which is what we probably really want
-                for (var fk in data['kismet.channeltracker.frequency_map']) {
+
+                var freqsort = Object.keys(data['kismet.channeltracker.frequency_map']).sort();
+
+                for (var fk of freqsort) {
+                    console.log(data['kismet.channeltracker.frequency_map'][fk]);
                     var slot_now =
                         (data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time']) % 60;
                     var dev_now = data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.minute_vec'][slot_now];
