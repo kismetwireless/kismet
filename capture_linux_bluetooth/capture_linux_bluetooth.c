@@ -662,10 +662,9 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     /* Look at the files in the sys dir and see if they're wi-fi */
     while ((devfile = readdir(devdir)) != NULL) {
-        /* AFAIK every hciX device in the /sys/class/bluetooth dir is a bluetooth
-         * controller */
-        unsigned int idx;
-        if (sscanf(devfile->d_name, "hci%u", &idx) == 1) {
+        /* Skip alaised bluetooth controllers with hcix:y */
+        unsigned int idx, idy;
+        if (sscanf(devfile->d_name, "hci%u:%u", &idx, &idy) == 1) {
             bt_list_t *d = (bt_list_t *) malloc(sizeof(bt_list_t));
             num_devs++;
             d->device = strdup(devfile->d_name);
