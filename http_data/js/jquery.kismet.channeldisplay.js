@@ -227,7 +227,6 @@
                 var freqsort = Object.keys(data['kismet.channeltracker.frequency_map']).sort();
 
                 for (var fk of freqsort) {
-                    console.log(data['kismet.channeltracker.frequency_map'][fk]);
                     var slot_now =
                         (data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time']) % 60;
                     var dev_now = data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.minute_vec'][slot_now];
@@ -313,8 +312,6 @@
     }
 
     var channels_resize = function(state) {
-        console.log('resize container ', state.devgraph_container.width(), state.devgraph_container.height());
-
         if (state.devgraph_canvas != null)
             state.devgraph_canvas
                 .prop('width', state.devgraph_container.width())
@@ -392,7 +389,6 @@
 				if ( newHeight !== height || newWidth !== width ) {
 					height = newHeight;
 					width = newWidth;
-                    console.log("triggered resizer", height, width);
                     channels_resize(state);
 				}
 			};
@@ -403,7 +399,6 @@
             .attr('data', 'about:blank');
 
         state.element.on('resize', function() {
-            console.log("element resize");
             channels_resize(state);
         });
 
