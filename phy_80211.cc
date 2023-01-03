@@ -1071,11 +1071,11 @@ const std::string kis_80211_phy::khz_to_channel(const double in_khz) {
 	else if (mhz < 5950)
 		return fmt::format("{}", (mhz - 5000) / 5);
 	else if (mhz <= 45000) /* DMG band lower limit */
-		return fmt::format("{}", (mhz - 5950) / 5);
+		return fmt::format("{}W6e", (mhz - 5950) / 5);
 	else if (mhz >= 58320 && mhz <= 70200)
 		return fmt::format("{}", (mhz - 56160) / 2160);
 	else
-        return fmt::format("{}", mhz);
+        return fmt::format("{}MHz", mhz);
 }
 
 int kis_80211_phy::load_wepkeys() {
