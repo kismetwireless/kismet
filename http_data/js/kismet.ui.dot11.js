@@ -237,7 +237,7 @@ kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
     else if (in_freq < 5950)
         return (in_freq - 5000) / 5;
     else if (in_freq <= 45000) /* DMG band lower limit */
-        return (in_freq - 5950) / 5;
+        return `${(in_freq - 5950) / 5}W6e`;
     else if (in_freq >= 58320 && in_freq <= 70200)
         return (in_freq - 56160) / 2160;
     else
