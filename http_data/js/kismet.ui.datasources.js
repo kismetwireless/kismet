@@ -415,6 +415,7 @@ function channelcoverage_display_refresh() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                barThickness: 15,
                 scales: {
                     x: { barPercentage: bp, 
                         ticks: { 
