@@ -304,7 +304,7 @@ public:
                 data_sz = kis_ntoh32(frame_v2->data_sz);
                 frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
-                if (frame_sz >= 8192) {
+                if (frame_sz >= 16384) {
                     _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                             "be processed ({}); either the frame is malformed or you are connecting to "
                             "a legacy Kismet remote capture drone; make sure you have updated to modern "
@@ -343,7 +343,7 @@ public:
                 frame_sz = data_sz + sizeof(kismet_external_frame);
 
                 // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-                if ((long int) frame_sz >= 8192) {
+                if ((long int) frame_sz >= 16384) {
                     _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                             "be processed ({}); either the frame is malformed or you are connecting to "
                             "a legacy Kismet remote capture drone; make sure you have updated to modern "
@@ -422,7 +422,7 @@ public:
             data_sz = kis_ntoh32(frame_v2->data_sz);
             frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
-            if (frame_sz >= 8192) {
+            if (frame_sz >= 16386) {
                 _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                            "be processed ({}); either the frame is malformed or you are connecting to "
                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
@@ -461,7 +461,7 @@ public:
             frame_sz = data_sz + sizeof(kismet_external_frame);
 
             // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-            if ((long int) frame_sz >= 8192) {
+            if ((long int) frame_sz >= 16384) {
                 _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                            "be processed ({}); either the frame is malformed or you are connecting to "
                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
