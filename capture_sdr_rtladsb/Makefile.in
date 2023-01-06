@@ -2,6 +2,8 @@ KIS_SRC_DIR ?= ..
 
 include $(KIS_SRC_DIR)/Makefile.inc
 
+DESTDIR ?= /
+
 DATASOURCE_NAME := $(shell $(PYTHON) setup.py --name)
 
 PROTOBUF_DIR = $(KIS_SRC_DIR)/protobuf_definitions
@@ -22,7 +24,7 @@ $(DATASOURCE_NAME)/kismetexternal/%_pb2.py: $(PROTOBUF_DIR)/%.proto
 	sed -i -E 's/^import kismet_/from . import kismet_/' $@
 
 install:
-	$(PYTHON) setup.py install --root="/$(DESTDIR)" --prefix="$(prefix)"
+	$(PYTHON) setup.py install --root="$(DESTDIR)" --prefix="$(prefix)"
 
 clean:
 	@-$(PYTHON) setup.py clean
