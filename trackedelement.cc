@@ -263,6 +263,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "map[uuid, x]";
         case tracker_type::tracker_placeholder_missing:
             return "placeholder";
+        case tracker_type::tracker_summary_mapvec:
+            return "vector-as-map";
     }
 
     return "unknown";
@@ -336,6 +338,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_placeholder_missing";
         case tracker_type::tracker_uuid_map:
             return "tracker_uuid_map";
+        case tracker_type::tracker_summary_mapvec:
+            return "tracker_summary_mapvec";
     }
 
     return "TrackerUnknown";
@@ -1535,6 +1539,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_alias:
         case tracker_type::tracker_pair_double:
         case tracker_type::tracker_placeholder_missing:
+        case tracker_type::tracker_summary_mapvec:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1609,6 +1614,7 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_alias:
         case tracker_type::tracker_pair_double:
         case tracker_type::tracker_placeholder_missing:
+        case tracker_type::tracker_summary_mapvec:
             return false;
     }
 
