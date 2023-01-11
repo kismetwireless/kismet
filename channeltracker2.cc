@@ -160,20 +160,19 @@ int channel_tracker_v2::gather_devices_event(int event_id __attribute__((unused)
 void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t ts) {
     kis_lock_guard<kis_mutex> lk(lock, "channel_tracker_v2 update_device_counts");
 
-    for (auto i : in_counts) {
+    for (const auto& i : in_counts) {
         auto imi = frequency_map->find(i.first);
+
+        // _MSG_DEBUG("Freq {} devices {}", i.first, i.second);
 
         // Make a frequency
         if (imi == frequency_map->end()) {
-            auto freq_channel =
-                entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(channel_entry_id);
-            freq_channel->set_frequency(i.first);
+            auto freq_channel = entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(channel_entry_id);
             frequency_map->insert(i.first, freq_channel);
-
+            freq_channel->set_frequency(i.first);
             freq_channel->get_device_rrd()->add_sample(i.second, ts);
         } else {
             auto freq_channel = static_cast<channel_tracker_v2_channel *>(imi->second.get());
-
             freq_channel->get_device_rrd()->add_sample(i.second, ts);
         }
 
