@@ -200,7 +200,12 @@ enum class tracker_type {
     tracker_uuid_map = 30,
     
     // Map of MAC addresses capable of handling masks / filtering
-    tracker_macfilter_map = 31
+    tracker_macfilter_map = 31, 
+
+    // Serialization "map" which is actually a vector so we can have duplicate instances 
+    // of items with the same ID 
+    tracker_summary_mapvec = 32
+
 };
 
 class tracker_element {
@@ -1766,6 +1771,8 @@ public:
 protected:
     std::string placeholder_name;
 };
+
+using tracker_element_mapvec = tracker_element_core_vector<std::shared_ptr<tracker_element>, tracker_type::tracker_summary_mapvec>;
 
 // Templated generic access functions
 

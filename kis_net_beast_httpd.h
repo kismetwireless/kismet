@@ -401,6 +401,7 @@ public:
                     if (i.size() != 2)
                         throw std::runtime_error("Invalid field mapping, expected [field, name]");
                     summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(), i[1].get<std::string>()));
+                    // _MSG_DEBUG("Assigning summary vec {} {}", i[0].get<std::string>(), i[1].get<std::string>());
                 } else {
                     throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
                 }

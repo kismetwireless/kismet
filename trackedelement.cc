@@ -31,6 +31,8 @@
 
 #include "alphanum.hpp"
 
+#include "messagebus.h"
+
 device_key::device_key() {
     spkey = 0;
     dkey = 0;
@@ -1333,7 +1335,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     // Always return a map
-    auto ret_elem = Globalreg::new_from_pool<tracker_element_map>();
+    auto ret_elem = Globalreg::new_from_pool<tracker_element_mapvec>();
 
     if (in == nullptr)
         return ret_elem;
@@ -1411,7 +1413,6 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
             }
         } 
 
-       
         // If we're renaming it or we're a path, we put the record in.  We need
         // to duplicate the summary object and make a reference to our parent
         // object so that when we serialize we can descend the path calling
@@ -1423,7 +1424,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
             (*rename_map)[f] = sum;
         }
 
-        std::static_pointer_cast<tracker_element_map>(ret_elem)->insert(f);
+        ret_elem->push_back(f);
     }
 
     in->post_serialize();
@@ -1451,6 +1452,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared
                     auto sum = Globalreg::new_from_pool<tracker_element_summary>();
                     sum->assign(i[0].get<std::string>(), i[1].get<std::string>());
                     summary_vec.push_back(sum);
+                    // _MSG_DEBUG("Assigning summary vec {} {}", i[0].get<std::string>(), i[1].get<std::string>());
                 } else {
                     throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
                 }
@@ -1459,7 +1461,6 @@ std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared
     }
 
     return summarize_tracker_element(data, summary_vec, rename_map);
-
 }
 
 bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 

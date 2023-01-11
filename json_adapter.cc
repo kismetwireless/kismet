@@ -670,6 +670,72 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     << ", " << 
                     dblstr.as_string(std::get<1>(static_cast<tracker_element_pair_double *>(e.get())->get()))
                     << "]"; 
+                break;
+            case tracker_type::tracker_summary_mapvec:
+                // _MSG_DEBUG("serializing mapvec {}", static_cast<tracker_element_mapvec*>(e.get())->size());
+                stream << ppendl << indent << "{" << ppendl;
+
+                prepend_comma = false;
+                for (auto i : *static_cast<tracker_element_mapvec*>(e.get())) {
+                    bool named = false;
+
+                    if (i == NULL) {
+                        _MSG_DEBUG("mapvec skipping null");
+                        continue;
+                    }
+
+                    if (prepend_comma) {
+                        stream << "," << ppendl;
+
+                        if (prettyprint)
+                            stream << ppendl;
+                    }
+
+                    prepend_comma = true;
+
+                    if (name_map != NULL) {
+                        tracker_element_serializer::rename_map::iterator nmi = name_map->find(i);
+                        if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
+                            tname = nmi->second->rename;
+                            named = true;
+                        }
+                    }
+
+                    if (!named) {
+                        if (i->get_type() == tracker_type::tracker_placeholder_missing) {
+                            tname = static_cast<tracker_element_placeholder *>(i.get())->get_name();
+                        } else if (i->get_type() == tracker_type::tracker_alias) {
+                            tname = static_cast<tracker_element_alias *>(i.get())->get_alias_name();
+                        } else {
+                            tname = Globalreg::globalreg->entrytracker->get_field_name(i->get_id());
+                        }
+
+                        // Default to the defined name if we got a blank
+                        if (tname == "")
+                            tname = Globalreg::globalreg->entrytracker->get_field_name(i->get_id());
+                    }
+
+                    tname = json_adapter::sanitize_string(name_permuter(tname));
+
+                    if (prettyprint) {
+                        stream << indent << "\"description." << tname << "\": ";
+                        stream << "\"";
+
+                        stream << sanitize_string(i->get_type_as_string());
+                        stream << ", ";
+
+                        stream << sanitize_string(Globalreg::globalreg->entrytracker->get_field_description(i->get_id()));
+                        stream << "\"," << ppendl;
+                    }
+
+                    stream << indent << "\"" << tname << "\": ";
+
+                    json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter);
+                }
+
+                stream << ppendl << indent << "}";
+
+                break;
             default:
                 break;
         }
