@@ -680,7 +680,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     bool named = false;
 
                     if (i == NULL) {
-                        _MSG_DEBUG("mapvec skipping null");
+                        // _MSG_DEBUG("mapvec skipping null");
                         continue;
                     }
 
