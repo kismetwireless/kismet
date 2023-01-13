@@ -3626,6 +3626,137 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
+
+/* Sidebar: Thermal display 
+ *
+ * Thermal and fan display 
+ */
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'thermal_sidebar',
+    listTitle: '<i class="fa fa-thermometer"></i> Thermals',
+    clickCallback: function() { 
+        exports.ThermalMonitor();
+    },
+});
+
+var thermal_panel = null;
+
+exports.ThermalMonitor = function() { 
+    var w = $(window).width() * 0.75;
+    var h = $(window).height() * 0.5;
+    var offty = 20;
+
+    if ($(window).width() < 450 || $(window).height() < 450) {
+        w = $(window).width() - 5;
+        h = $(window).height() - 5;
+        offty = 0;
+    }
+
+    var accordion = 
+            $('<div>', {
+                id: 'accordion',
+            });
+    accordion.accordion();
+
+    var content =
+        $('<div class="k-thermal-contentdiv">')
+        .append(
+            accordion
+        );
+
+    thermal_panel = $.jsPanel({
+        id: 'thermal',
+        headerTitle: '<i class="fa fa-thermometer"></i> Thermals',
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        content: content,
+        onclosed: function() {
+            clearTimeout(thermal_panel.thermalupdate_tid);
+        },
+        resizeable: { 
+            stop: function(event, ui) { 
+                $('div#accordion', ui.element).accordion('refresh');
+            },
+        },
+    }).resize({
+        width: w,
+        height: h,
+        callback: function(panel) { 
+            $('div#accordion', this.content).accordion('refresh');
+        }
+    }).reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: offty
+    });
+
+    thermal_panel.accordion = accordion;
+    thermal_refresh();
+
+}
+
+function thermal_refresh() { 
+    if (thermal_panel == null)
+        return; 
+
+    clearTimeout(thermal_panel.thermalupdate_tid);
+
+    $.get(local_uri_prefix + "system/status.json")
+    .done((data) => { 
+        if ('kismet.system.sensors.temp' in data && Object.keys(data['kismet.system.sensors.temp']).length > 0) {
+            var theader = $('h3#header_thermal', thermal_panel.accordion);
+            if (theader.length == 0) { 
+                theader = $('<h3>', {
+                    id: 'header_thermal',
+                }).html("Thermal");
+
+                thermal_panel.accordion.append(theader);
+            }
+
+            var tcontent = $('div#thermal', thermal_panel.accordion);
+            if (tcontent.length == 0) { 
+                tcontent = $('<div>', { 
+                    id: 'thermal',
+                });
+
+                thermal_panel.accordion.append(tcontent);
+            }
+
+            for (var t in data['kismet.system.sensors.temp']) { 
+                var tdiv = $(`#thermal_${kismet.sanitizeId(t)}`, tcontent);
+
+                if (tdiv.length == 0) { 
+                    tdiv = $('<div>', { 
+                        id: `thermal_${kismet.sanitizeId(t)}`,
+                        style: 'display: flex; flex-direction: row;',
+                    }).append(
+                        $('<div>', { 
+                            style: 'flex: 2',
+                        }).html(kismet.sanitizeHTML(t)),
+                        $('<div>', {
+                            id: `thermal_${kismet.sanitizeId(t)}_c`,
+                            style: 'flex: 1',
+                        }).html(`${Math.floor(data['kismet.system.sensors.temp'][t])}&#8451`)
+                    );
+
+                    tcontent.append(tdiv);
+                } else { 
+                    var tdif = $(`thermal_${kismet.sanitizeId(t)}_c`, tdiv);
+                    tdif.html(`${Math.floor(data['kismet.system.sensors.temp'][t])}&#8451`)
+                }
+
+            }
+
+        }
+        thermal_panel.accordion.accordion('refresh');
+    });
+
+    thermal_panel.thermalupdate_tid = setTimeout(thermal_refresh, 5000);
+}
+
 // We're done loading
 exports.load_complete = 1;
 
