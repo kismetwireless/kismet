@@ -3652,18 +3652,6 @@ exports.ThermalMonitor = function() {
         offty = 0;
     }
 
-    var accordion = 
-            $('<div>', {
-                id: 'accordion',
-            });
-    accordion.accordion();
-
-    var content =
-        $('<div class="k-thermal-contentdiv">')
-        .append(
-            accordion
-        );
-
     thermal_panel = $.jsPanel({
         id: 'thermal',
         headerTitle: '<i class="fa fa-thermometer"></i> Thermals',
@@ -3671,7 +3659,6 @@ exports.ThermalMonitor = function() {
             controls: 'closeonly',
             iconfont: 'jsglyph',
         },
-        content: content,
         onclosed: function() {
             clearTimeout(thermal_panel.thermalupdate_tid);
         },
@@ -3693,9 +3680,7 @@ exports.ThermalMonitor = function() {
         offsetY: offty
     });
 
-    thermal_panel.accordion = accordion;
     thermal_refresh();
-
 }
 
 function thermal_refresh() { 
@@ -3704,27 +3689,59 @@ function thermal_refresh() {
 
     clearTimeout(thermal_panel.thermalupdate_tid);
 
+    var accordion = $('div#accordion', thermal_panel.content);
+    var theader = $('h3#header_thermal', thermal_panel.content);
+    var tcontent = $('div#thermal', thermal_panel.content);
+    var fheader = $('h3#header_fan', thermal_panel.content);
+    var fcontent = $('div#fan', thermal_panel.content);
+
+    if (accordion.length == 0) { 
+        accordion = 
+            $('<div>', {
+                id: 'accordion',
+            });
+        thermal_panel.content.append(accordion);
+        thermal_panel.accordion = accordion;
+
+        if (theader.length == 0) { 
+            theader = $('<h3>', {
+                id: 'header_thermal',
+            }).html("Temperatures");
+
+            accordion.append(theader);
+        }
+
+        if (tcontent.length == 0) { 
+            tcontent = $('<div>', { 
+                id: 'thermal',
+            });
+
+            accordion.append(tcontent);
+        }
+
+        if (fheader.length == 0) { 
+            fheader = $('<h3>', {
+                id: 'header_fan',
+            }).html("Fans");
+
+            accordion.append(fheader);
+        }
+
+        if (fcontent.length == 0) { 
+            fcontent = $('<div>', { 
+                id: 'fan',
+            });
+
+            accordion.append(fcontent);
+        }
+
+
+        accordion.accordion({ heightStyle: 'fill' });
+    }
+
     $.get(local_uri_prefix + "system/status.json")
     .done((data) => { 
         if ('kismet.system.sensors.temp' in data && Object.keys(data['kismet.system.sensors.temp']).length > 0) {
-            var theader = $('h3#header_thermal', thermal_panel.accordion);
-            if (theader.length == 0) { 
-                theader = $('<h3>', {
-                    id: 'header_thermal',
-                }).html("Thermal");
-
-                thermal_panel.accordion.append(theader);
-            }
-
-            var tcontent = $('div#thermal', thermal_panel.accordion);
-            if (tcontent.length == 0) { 
-                tcontent = $('<div>', { 
-                    id: 'thermal',
-                });
-
-                thermal_panel.accordion.append(tcontent);
-            }
-
             for (var t in data['kismet.system.sensors.temp']) { 
                 var tdiv = $(`#thermal_${kismet.sanitizeId(t)}`, tcontent);
 
@@ -3746,6 +3763,33 @@ function thermal_refresh() {
                 } else { 
                     var tdif = $(`thermal_${kismet.sanitizeId(t)}_c`, tdiv);
                     tdif.html(`${Math.floor(data['kismet.system.sensors.temp'][t])}&#8451`)
+                }
+
+            }
+        }
+
+        if ('kismet.system.sensors.fan' in data && Object.keys(data['kismet.system.sensors.fan']).length > 0) {
+            for (var t in data['kismet.system.sensors.fan']) { 
+                var tdiv = $(`#fan_${kismet.sanitizeId(t)}`, fcontent);
+
+                if (tdiv.length == 0) { 
+                    tdiv = $('<div>', { 
+                        id: `fan_${kismet.sanitizeId(t)}`,
+                        style: 'display: flex; flex-direction: row;',
+                    }).append(
+                        $('<div>', { 
+                            style: 'flex: 2',
+                        }).html(kismet.sanitizeHTML(t)),
+                        $('<div>', {
+                            id: `fan_${kismet.sanitizeId(t)}_c`,
+                            style: 'flex: 1',
+                        }).html(`${Math.floor(data['kismet.system.sensors.fan'][t])}RPM`)
+                    );
+
+                    fcontent.append(tdiv);
+                } else { 
+                    var tdif = $(`fan_${kismet.sanitizeId(t)}_c`, tdiv);
+                    tdif.html(`${Math.floor(data['kismet.system.sensors.fan'][t])}RPM`)
                 }
 
             }
