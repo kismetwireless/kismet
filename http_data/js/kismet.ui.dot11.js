@@ -2449,7 +2449,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 });
 
 var ssid_element;
-var ssid_status_element;
 
 var SsidColumns  =[];
 
@@ -2703,31 +2702,21 @@ function InitializeSsidTable() {
     }
 
     ssid_element
-        .on('xhr.dt', function(e, settings, json, xhr) {
-            json = kismet.sanitizeObject(json);
-
-            try {
-                if (json['recordsFiltered'] != json['recordsTotal'])
-                    ssid_status_element.html(`${json['recordsTotal']} SSIDs (${json['recordsFiltered']} shown after filter)`);
-                else
-                    ssid_status_element.html(`${json['recordsTotal']} SSIDs`);
-            } catch (_error) {
-                // skip
-            }
-        })
         .DataTable({
             destroy: true,
+
             scrollResize: true,
-            scrollY: 200,
-            scrollX: "100%",
+            pageResize: true,
             serverSide: true,
             processing: true,
-            dom: 'ft',
+
+            scrollX: "100%",
+
+            dom: '<"viewselector">ftip',
+
             deferRender: true,
             lengthChange: false,
-            scroller: {
-                loadingIndicator: true,
-            },
+
             ajax: {
                 url: local_uri_prefix + "phy/phy80211/ssids/views/ssids.json",
                 data: {
@@ -2807,26 +2796,15 @@ kismet_ui_tabpane.AddTab({
     tabTitle: 'SSIDs',
     createCallback: function(div) {
         div.append(
-            $('<div>', {
-                class: 'resize_wrapper',
-            })
-            .append(
-                $('<table>', {
-                    id: 'ssids',
-                    class: 'stripe hover nowrap',
-                    'cell-spacing': 0,
-                    width: '100%',
-                })
-            )
-        ).append(
-            $('<div>', {
-                id: 'ssids_status',
-                style: 'padding-bottom: 10px;',
+            $('<table>', {
+                id: 'ssids',
+                class: 'fixeddt stripe hover nowrap pageResize',
+                'cell-spacing': 0,
+                width: '100%',
             })
         );
 
         ssid_element = $('#ssids', div);
-        ssid_status_element = $('#ssids_status', div);
 
         InitializeSsidTable();
         ScheduleSsidSummary();

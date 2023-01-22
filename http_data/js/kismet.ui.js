@@ -1004,8 +1004,6 @@ exports.CreateDeviceTable = function(element) {
 }
 
 exports.InitializeDeviceTable = function(element) {
-    // var statuselement = $('#' + element.attr('id') + '_status');
-
     /* Make the fields list json and set the wrapper object to aData to make the DT happy */
     var cols = exports.GetDeviceColumns();
     var colmap = exports.GetDeviceColumnMap(cols);
@@ -1023,22 +1021,11 @@ exports.InitializeDeviceTable = function(element) {
     }
 
     element
-        .on('xhr.dt', function (e, settings, json, xhr) {
-            json = kismet.sanitizeObject(json);
-
-            /*
-            if (json['recordsFiltered'] != json['recordsTotal'])
-                statuselement.html(json['recordsTotal'] + " devices (" + json['recordsFiltered'] + " shown after filter)");
-            else
-                statuselement.html(json['recordsTotal'] + " devices");
-                */
-        } )
         .DataTable( {
 
         destroy: true,
 
         scrollResize: true,
-        // scrollY: 200,
         scrollX: "100%",
 
         pageResize: true,
@@ -1051,12 +1038,6 @@ exports.InitializeDeviceTable = function(element) {
 
         deferRender: true,
         lengthChange: false,
-
-            /*
-        scroller: {
-            loadingIndicator: true,
-        },
-        */
 
         // Create a complex post to get our summary fields only
         ajax: {
