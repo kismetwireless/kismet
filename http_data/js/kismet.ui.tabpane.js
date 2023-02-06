@@ -57,6 +57,10 @@ exports.AddTab = function(options, group="south") {
         options.expandCallback = null;
     }
 
+    if (!('activateCallback' in options)) { 
+        options.activateCallback = null;
+    }
+
     options.expanded = false;
 
     if (group in tabholders) {
@@ -169,6 +173,13 @@ function populateList(div, group) {
         activate: function(e, ui) {
             var id = $('a', ui.newTab).attr('href');
             kismet.putStorage(`kismet.base.${group}.last_tab`, id);
+            for (var c of tabholders[group].TabItems) { 
+                if (`#${c.id}` == id) { 
+                    if (c.activateCallback != null) { 
+                        c.activateCallback();
+                    }
+                }
+            }
         }
     });
 

@@ -959,11 +959,12 @@ exports.renderTemperature = function(c, precision = 5) {
 
 var deviceTid;
 
+var devicetableHolder = null;
 var devicetableElement = null;
 
 function ScheduleDeviceSummary() {
     try {
-        if (exports.window_visible && devicetableElement.is(":visible")) {
+        if (devicetableElement != null && exports.window_visible && devicetableElement.is(":visible")) {
 
             var dt = devicetableElement.DataTable();
 
@@ -992,7 +993,7 @@ function CancelDeviceSummary() {
 
 /* Create the device table */
 exports.CreateDeviceTable = function(element) {
-    devicetableElement = element;
+    // devicetableElement = element;
     // var statuselement = $('#' + element.attr('id') + '_status');
 
     var dt = exports.InitializeDeviceTable(element);
@@ -1001,6 +1002,11 @@ exports.CreateDeviceTable = function(element) {
 
     // Start the auto-updating
     ScheduleDeviceSummary();
+}
+
+/* Activate the device table & do something */
+exports.ActivateDeviceTable = function() { 
+    exports.InitializeDeviceTable(devicetableHolder);
 }
 
 exports.InitializeDeviceTable = function(element) {
@@ -1015,12 +1021,27 @@ exports.InitializeDeviceTable = function(element) {
         datatable: true,
     };
 
-    if ($.fn.dataTable.isDataTable(element)) {
-        element.DataTable().destroy();
+    devicetableHolder = element;
+
+    if (devicetableElement != null && $.fn.dataTable.isDataTable(devicetableElement)) {
+        devicetableElement.DataTable().clear().destroy();
         element.empty();
     }
 
-    element
+    if ($('#devices', element).length == 0) { 
+        devicetableElement =
+            $('<table>', {
+                id: 'devices-table',
+                class: 'fixeddt stripe hover nowrap pageResize',
+                'cell-spacing': 0,
+                width: '100%',
+            });
+        element.append(devicetableElement);
+    }
+
+    console.log(devicetableElement);
+
+    var device_dt = devicetableElement
         .DataTable( {
 
         destroy: true,
@@ -1114,7 +1135,7 @@ exports.InitializeDeviceTable = function(element) {
 
     });
 
-    device_dt = element.DataTable();
+    // device_dt = element.DataTable();
     // var dt_base_height = element.height();
 
     try { 

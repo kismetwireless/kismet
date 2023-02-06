@@ -2735,16 +2735,10 @@ kismet_ui_tabpane.AddTab({
     tabTitle: 'Devices',
     expandable: false,
     createCallback: function(div) {
-        div.append(
-                $('<table>', {
-                    id: 'devices',
-                    class: 'fixeddt stripe hover nowrap pageResize',
-                    'cell-spacing': 0,
-                    width: '100%',
-                })
-        );
-
-        kismet_ui.CreateDeviceTable($('#devices', div));
+        kismet_ui.CreateDeviceTable(div);
+    },
+    activateCallback: function() { 
+        kismet_ui.ActivateDeviceTable();
     },
     priority: -1000000,
 }, 'center');
