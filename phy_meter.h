@@ -177,10 +177,12 @@ public:
 protected:
     // Convert a JSON record to a device key
     mac_addr json_to_mac(nlohmann::json in_json);
+    mac_addr synth_mac(std::string model, uint64_t id);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
     bool rtlamr_json_to_phy(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
+    bool rtl433_json_to_phy(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_amr_meter(nlohmann::json json);
 
