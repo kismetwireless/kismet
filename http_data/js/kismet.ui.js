@@ -1039,8 +1039,6 @@ exports.InitializeDeviceTable = function(element) {
         element.append(devicetableElement);
     }
 
-    console.log(devicetableElement);
-
     var device_dt = devicetableElement
         .DataTable( {
 
