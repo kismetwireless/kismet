@@ -2685,7 +2685,9 @@ function ScheduleSsidSummary() {
     ssidTid = setTimeout(ScheduleSsidSummary, 2000);
 }
 
-function InitializeSsidTable() {
+var ssidtableHolder = null;
+
+function InitializeSsidTable(element) {
     var cols = GetSsidColumns();
     var colmap = GetSsidColumnMap(cols);
     var fields = GetSsidFields();
@@ -2696,9 +2698,22 @@ function InitializeSsidTable() {
         datatable: true,
     };
 
-    if ($.fn.dataTable.isDataTable(ssid_element)) {
-        ssid_element.DataTable().destroy();
-        ssid_element.empty();
+    ssidtableHolder = element;
+
+    if (ssid_element != null && $.fn.dataTable.isDataTable(ssid_element)) { 
+        ssid_element.DataTable().clear().destroy();
+        element.empty();
+    }
+
+    if ($('#ssids', element).length == 0) { 
+        ssid_element = 
+            $('<table>', {
+                id: 'ssids',
+                class: 'fixeddt stripe hover nowrap pageResize',
+                'cell-spacing': 0,
+                width: '100%',
+            });
+        element.append(ssid_element);
     }
 
     ssid_element
@@ -2791,23 +2806,19 @@ function InitializeSsidTable() {
     return ssid_dt;
 }
 
+function ActivateSsidTable() { 
+    InitializeSsidTable(ssidtableHolder);
+}
+
 kismet_ui_tabpane.AddTab({
     id: 'dot11_ssids',
     tabTitle: 'SSIDs',
     createCallback: function(div) {
-        div.append(
-            $('<table>', {
-                id: 'ssids',
-                class: 'fixeddt stripe hover nowrap pageResize',
-                'cell-spacing': 0,
-                width: '100%',
-            })
-        );
-
-        ssid_element = $('#ssids', div);
-
-        InitializeSsidTable();
+        InitializeSsidTable(div);
         ScheduleSsidSummary();
+    },
+    activateCallback: function() { 
+        ActivateSsidTable();
     },
     priority: -1000,
 }, 'center');
