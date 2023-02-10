@@ -1197,9 +1197,7 @@ exports.ResizeDeviceTable = function(element) {
 
 exports.ResetDeviceTable = function(element) {
     CancelDeviceSummary();
-
     exports.InitializeDeviceTable(element);
-
     ScheduleDeviceSummary();
 }
 
@@ -1353,7 +1351,7 @@ kismet_ui_settings.AddSettingsPane({
         });
 
         kismet.putStorage('kismet.datatable.columns', col_defs);
-        exports.ResetDeviceTable(devicetableElement);
+        exports.ResetDeviceTable(devicetableHolder);
     },
 });
 
