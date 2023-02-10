@@ -2663,21 +2663,11 @@ function ScheduleSsidSummary() {
             kismet.putStorage('kismet.base.ssidtable.order', JSON.stringify(dt.order()));
             kismet.putStorage('kismet.base.ssidtable.search', JSON.stringify(dt.search()));
 
-            // Snapshot where we are, because the 'don't reset page' in ajax.reload
-            // DOES still reset the scroll position
-            var prev_pos = {
-                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
-                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
-            };
-            dt.ajax.reload(function(d) {
-                // Restore our scroll position
-                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
-                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
-            }, false);
+            dt.ajax.reload(function(d) { }, false);
         }
 
     } catch (_error) {
-        // skip
+        console.log(error);
     }
     
     // Set our timer outside of the datatable callback so that we get called even
@@ -2724,8 +2714,6 @@ function InitializeSsidTable(element) {
             pageResize: true,
             serverSide: true,
             processing: true,
-
-            scrollX: "100%",
 
             dom: '<"viewselector">ftip',
 

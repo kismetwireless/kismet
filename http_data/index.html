@@ -157,38 +157,6 @@ function load_main_ui() {
 
     $('#pm_menu').pushmenu({ button : "#pm_open" });
 
-    // Compute 30% height of window
-    var southsize = $(window).height() * 0.30;
-
-    // Load the framework
-    var layout = $('#panelcontainer').layout({
-        paneClass: 'kismet-ui-layout-pane',
-        resizerClass: 'kismet-ui-layout-resizer',
-        resizeWithWindowDelay:  250,
-        north: {
-            closable: false,
-            resizeable: false,
-            slidable: false,
-            togglerLength_open: 0,
-            togglerLength_closed: -1,
-            fxName: "none",
-            spacing_open: 1,
-        },
-        center: {
-            onresize: function() {
-                $('#centerpane-tabs').tabs("refresh");
-            },
-        },
-        south: {
-            // Default to computed percentage of total window
-            size: southsize,
-            onresize: function() {
-                $('#southpane-tabs').tabs("refresh");
-            },
-        },
-    });
-
-
     // Derive the proxy prefix, if any, from the headers.  We can't get this from our
     // own current request, we have to do a HEAD req and nest everything inside that.
     var jqxhr = $.ajax({
@@ -302,7 +270,7 @@ $(function() {
 
 </head>
 <body>
-    <div id="mainholder">
+    <div class="mainholder">
         <div id="pm_menu" class="pm_hide pm_initial kismet_sidebar">
             <div class="k-sb-header">
                 <h1>Kismet</h1>
@@ -312,38 +280,16 @@ $(function() {
             </div>
         </div>
 
-        <div id="panelcontainer">
+        <div id="topbar">
+            <i id="pm_open" class="fa fa-bars k-sb-hamburger"></i>
+            <div class="hidden-mobile" id="topbar_title">Kismet</div>
+            <div class="topright_holder" id="iconbar"></div>
+        </div>
 
-            <div class="ui-layout-north">
-                <div id="topbar">
-                    <i id="pm_open" class="fa fa-bars k-sb-hamburger"></i>
-                    <div class="hidden-mobile" id="topbar_title">Kismet</div>
-                    <div class="topright_holder" id="iconbar"></div>
-                </div>
-            </div>
+        <div id="panelcontainer" class="panelcontainer">
+            <div id="centerpane-tabs" class="tabs-min ui-layout-center"></div>
 
-            <!--
-                <div class="ui-layout-east">East</div>
-
-                <div class="ui-layout-west">West</div>
-            -->
-
-            <div class="ui-layout-center" id="main_center">
-                <div id="centerpane-tabs" class="tabs-min"></div>
-                <!--
-                <div id="resize_wrapper">
-                    <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
-                </div>
-                -->
-                <!-- Must be named foo_status 
-                <div id="devices_status" style="padding-bottom: 10px;"></div>
-                -->
-            </div>
-
-            <div class="ui-layout-south">
-                <div id="southpane-tabs" class="tabs-min"></div>
-            </div>
-
+            <div id="southpane-tabs" class="tabs-min ui-layout-south"></div>
         </div>
 
         <div id="creditbar">

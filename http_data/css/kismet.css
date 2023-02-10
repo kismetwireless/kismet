@@ -1,11 +1,19 @@
 :root {
     --main-background-color: #FFF;
     --main-text-color: #000;
+    --tabs-nav-default-color: #808080;
+    --tabs-nav-active-color: #303030;
+    --kcp-column-color: #D0D0D0;
+    --kcp-hover-color: #B0B0B0;
 }
 
 [data-theme="dark"] {
-    --main-background-color: #222;
+    --main-background-color: #303030;
     --main-text-color: #FFF;
+    --tabs-nav-default-color: #A0A0A0;
+    --tabs-nav-active-color: #DDDDDD;
+    --kcp-column-color: #444;
+    --kcp-hover-color: #666;
 }
 
 
@@ -19,12 +27,19 @@ body {
     color: --var(--main-text-color);
 }
 
-#mainholder {
+.mainholder {
     /*
     min-height: 100%;
     position: relative;
     */
 
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.panelcontainer {
     min-width: 100%;
     min-height: 100%;
     display: -webkit-box;
@@ -36,52 +51,24 @@ body {
     -moz-flex-direction: column;
     -webkit-flex-direction: column;
     flex-direction: column;
-
-}
-
-#panelcontainer {
-    /*padding-bottom: 30px;*/
-
-    -webkit-box-flex: 1; /* OLD - iOS 6-, Safari 3.1-6 */
-    -moz-box-flex: 1; /* OLD - Firefox 19- */
-    -webkit-flex: 1; /* Chrome */
-    -ms-flex: 1; /* IE 10 */
-    flex: 1; /* NEW, */
-}
-
-#golden {
-    width: 100%;
-    height: calc(100% - 60px);
+    flex: 1;
 }
 
 #creditbar {
-
-    /*
-    width:100%;
-    position: absolute;
-    left: 0;
-    bottom: 30px; 
-    */
-
     background-color: #ccc;
     font-size: 13px;
     height: 20px;
 }
 
-
-.ui-layout-pane-north {
+.ui-layout-south {
     padding: 0 !important;
-    border-bottom: none;
-    overflow: hidden !important;
+    border-top: none;
+    flex: 1;
 }
 
 .ui-layout-center {
     overflow: hidden !important;
-}
-
-.ui-layout-pane-south {
-    padding: 0 !important;
-    border-top: none;
+    flex: 3;
 }
 
 #topbar {
@@ -138,6 +125,7 @@ div.topright_holder {
 .tabs-min { 
     background: transparent; 
     border: none; 
+    height: 100%;
 } 
 
 .ui-tabs {
@@ -168,10 +156,10 @@ div.topright_holder {
     border: none; 
 } 
 .ui-tabs-nav .ui-state-default a { 
-    color: #808080; 
+    --var(--tabs-nav-default-color);
 } 
 .ui-tabs-nav .ui-state-active a { 
-    color: #303030; 
+    --var(--tabs-nav-active-color);
 }
 
 .kismet-highlight {
@@ -183,7 +171,7 @@ div.k-c-p-column {
     margin: 3px;
     border-style: solid;
     border-width: 1px;
-    background-color: #D0D0D0;
+    --var(--kcp-column-color);
 }
 
 div.k-c-p-header {
@@ -194,7 +182,7 @@ div.k-c-p-header {
 }
 
 div.k-c-p-column:hover {
-    background-color: #B0B0B0;
+    --var(--kcp-hover-color);
 }
 
 i.k-c-p-c-mover {

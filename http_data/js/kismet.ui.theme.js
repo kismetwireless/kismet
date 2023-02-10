@@ -14,6 +14,9 @@
     if (!storage.isSet('kismet.ui.theme') || (storage.isSet('kismet.ui.theme') && 
         storage.get('kismet.ui.theme') == 'dark')) { 
 
+        document.documentElement.setAttribute('data-theme', 'dark');
+
+        $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet-dark.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/dark.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/datatables-dark.css">');
@@ -31,10 +34,10 @@
         Chart.defaults.color = '#FFF';
 
         exports.graphBasicColor = 'rgba(255, 255, 255, 1)';
-        exports.graphBasicBackgroundColor = 'rgba(200, 200, 200, 0.33)',
+        exports.graphBasicBackgroundColor = 'rgba(200, 200, 200, 0.33)';
 
-        document.documentElement.setAttribute('data-theme', 'dark');
     } else { 
+        $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/light.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/datatables.min.css">');
