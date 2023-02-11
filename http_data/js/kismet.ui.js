@@ -92,11 +92,17 @@ exports.BuildDeviceViewSelector = function(element) {
         }
     }
 
-    var selector = 
-        $('<select>', {
+    var insert_selector = false;
+    var selector = $('select', element);
+    if (selector.length == 0) { 
+        selector = $('<select>', {
             name: 'devices_views_select',
             id: 'devices_views_select'
         });
+        insert_selector = true;
+    } else { 
+        selector.empty();
+    }
 
     for (var i in grouped_views) {
         if (!Array.isArray(grouped_views[i])) {
@@ -126,19 +132,28 @@ exports.BuildDeviceViewSelector = function(element) {
     var selected_option = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
     $('option[value="' + selected_option + '"]', selector).prop("selected", "selected");
 
-    selector.on("selectmenuselect", function(evt, elem) {
-        kismet.putStorage('kismet.ui.deviceview.selected', elem.item.value);
+    if (insert_selector) { 
+        element.append(selector);
+    }
 
-        if (device_dt != null) {
-            device_dt.ajax.url(local_uri_prefix + "devices/views/" + elem.item.value + "/devices.json");
-        }
-    });
+    try {
+        selector.selectmenu('refresh');
+    } catch (e) {
+        selector.selectmenu()
+            .selectmenu("menuWidget")
+            .addClass("selectoroverflow");
 
-    element.empty().append(selector);
+        selector.on("selectmenuselect", function(evt, elem) {
+            console.log("selected", elem.item.value);
+            kismet.putStorage('kismet.ui.deviceview.selected', elem.item.value);
 
-    selector.selectmenu()
-        .selectmenu("menuWidget")
-        .addClass("selectoroverflow");
+            if (device_dt != null) {
+                device_dt.ajax.url(local_uri_prefix + "devices/views/" + elem.item.value + "/devices.json");
+                ScheduleDeviceSummary();
+            }
+        });
+    }
+
 }
 
 // Local maps of views for phys and datasources we've already added
@@ -957,12 +972,15 @@ exports.renderTemperature = function(c, precision = 5) {
     }
 }
 
-var deviceTid;
+var deviceTid = -1;
 
 var devicetableHolder = null;
 var devicetableElement = null;
 
 function ScheduleDeviceSummary() {
+    if (deviceTid != -1)
+        clearTimeout(deviceTid);
+
     try {
         if (devicetableElement != null && exports.window_visible && devicetableElement.is(":visible")) {
 
@@ -1039,7 +1057,7 @@ exports.InitializeDeviceTable = function(element) {
         element.append(devicetableElement);
     }
 
-    var device_dt = devicetableElement
+    device_dt = devicetableElement
         .DataTable( {
 
         destroy: true,
