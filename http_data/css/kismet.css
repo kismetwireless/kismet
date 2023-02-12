@@ -5,6 +5,7 @@
     --tabs-nav-active-color: #303030;
     --kcp-column-color: #D0D0D0;
     --kcp-hover-color: #B0B0B0;
+    --topbar-background-color: #ccc;
 }
 
 [data-theme="dark"] {
@@ -14,6 +15,7 @@
     --tabs-nav-active-color: #DDDDDD;
     --kcp-column-color: #444;
     --kcp-hover-color: #666;
+    --topbar-background-color: #444;
 }
 
 
@@ -21,8 +23,8 @@ body {
     min-height: 100vh;
     margin: 0;
     overflow: hidden;
-    background-color: --var(--main-background-color);
-    color: --var(--main-text-color);
+    background-color: var(--main-background-color);
+    color: var(--main-text-color);
 }
 
 .panelcontainer {
@@ -51,7 +53,7 @@ body {
 
 .topbar {
     overflow: hidden !important;
-    background-color: #ccc;
+    background-color: var(--main-background-color);
     padding-left: 10px;
     padding-right: 10px;
     flex: 0 1 40px;
@@ -133,10 +135,10 @@ div.topright_holder {
     border: none; 
 } 
 .ui-tabs-nav .ui-state-default a { 
-    --var(--tabs-nav-default-color);
+    var(--tabs-nav-default-color);
 } 
 .ui-tabs-nav .ui-state-active a { 
-    --var(--tabs-nav-active-color);
+    var(--tabs-nav-active-color);
 }
 
 .kismet-highlight {
@@ -148,7 +150,7 @@ div.k-c-p-column {
     margin: 3px;
     border-style: solid;
     border-width: 1px;
-    --var(--kcp-column-color);
+    var(--kcp-column-color);
 }
 
 div.k-c-p-header {
@@ -159,7 +161,7 @@ div.k-c-p-header {
 }
 
 div.k-c-p-column:hover {
-    --var(--kcp-hover-color);
+    var(--kcp-hover-color);
 }
 
 i.k-c-p-c-mover {
