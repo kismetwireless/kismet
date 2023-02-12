@@ -15,7 +15,7 @@
     --tabs-nav-active-color: #DDDDDD;
     --kcp-column-color: #444;
     --kcp-hover-color: #666;
-    --topbar-background-color: #444;
+    --topbar-background-color: #222;
 }
 
 
@@ -34,7 +34,7 @@ body {
 }
 
 .creditbar {
-    background-color: #ccc;
+    background-color: var(--topbar-background-color);
     font-size: 13px;
     height: 20px;
     flex: 0 1 20px;
@@ -53,7 +53,7 @@ body {
 
 .topbar {
     overflow: hidden !important;
-    background-color: var(--main-background-color);
+    background-color: var(--topbar-background-color);
     padding-left: 10px;
     padding-right: 10px;
     flex: 0 1 40px;
