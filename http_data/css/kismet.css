@@ -17,67 +17,44 @@
 }
 
 
-html, body {
-    height: 100%
-}
-
 body {
+    min-height: 100vh;
+    margin: 0;
     overflow: hidden;
     background-color: --var(--main-background-color);
     color: --var(--main-text-color);
 }
 
-.mainholder {
-    /*
-    min-height: 100%;
-    position: relative;
-    */
-
-    min-width: 100%;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
 .panelcontainer {
-    min-width: 100%;
-    min-height: 100%;
-    display: -webkit-box;
-    display: -moz-box;
-    display: -ms-flexbox;
-    display: -webkit-flex;
     display: flex;
-    -ms-flex-direction: column;
-    -moz-flex-direction: column;
-    -webkit-flex-direction: column;
     flex-direction: column;
-    flex: 1;
+    min-height: 100vh;
 }
 
-#creditbar {
+.creditbar {
     background-color: #ccc;
     font-size: 13px;
     height: 20px;
+    flex: 0 1 20px;
 }
 
 .ui-layout-south {
     padding: 0 !important;
     border-top: none;
-    flex: 1;
+    flex: 0 1 30vh;
 }
 
 .ui-layout-center {
     overflow: hidden !important;
-    flex: 3;
+    flex: 1 1 50vh;
 }
 
-#topbar {
-    position: relative;
+.topbar {
     overflow: hidden !important;
-    height: 40px;
     background-color: #ccc;
     padding-left: 10px;
     padding-right: 10px;
+    flex: 0 1 40px;
 }
 
 /* Title text */
@@ -247,5 +224,15 @@ div.k-c-p-c-notes {
     text-overflow: clip;
     overflow: hidden;
     padding-right: 1px;
+}
+
+div.viewselector { 
+    min-height: 32px;
+    height: 32px;
+    padding-top: 3px;
+}
+
+div.dataTables_filter { 
+    padding-top: 4px;
 }
 
