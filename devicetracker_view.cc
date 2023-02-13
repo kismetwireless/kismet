@@ -46,6 +46,9 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     device_list = std::make_shared<tracker_element_vector>();
 
+    register_urls(in_id);
+
+#if 0
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
@@ -61,6 +64,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return device_time_endpoint(con);
                 }, devicetracker->get_devicelist_mutex()));
+#endif
 }
 
 device_tracker_view::device_tracker_view(const std::string& in_id, const std::string& in_description,
@@ -80,6 +84,20 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     device_list = std::make_shared<tracker_element_vector>();
 
+    register_urls(in_id);
+
+    if (in_aux_path.size() == 0)
+        return;
+
+    // Concatenate the alternate endpoints and register the same endpoint handlers
+    std::stringstream ss;
+    for (const auto& i : in_aux_path)
+        ss << i << "/";
+
+    register_urls(ss.str());
+}
+
+void device_tracker_view::register_urls(const std::string& in_id) { 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
@@ -228,28 +246,6 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                     timetracker->remove_timer(t.second);
 
                 }));
-
-    if (in_aux_path.size() == 0)
-        return;
-
-    // Concatenate the alternate endpoints and register the same endpoint handlers
-    std::stringstream ss;
-    for (const auto& i : in_aux_path)
-        ss << i << "/";
-
-    uri = fmt::format("/devices/views/{}devices", ss.str());
-    httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    return device_endpoint_handler(con);
-                }, devicetracker->get_devicelist_mutex()));
-
-    uri = fmt::format("/devices/views/{}last-time/:timestamp/devices", ss.str());
-    httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    return device_time_endpoint(con);
-                }, devicetracker->get_devicelist_mutex()));
 }
 
 void device_tracker_view::pre_serialize() {

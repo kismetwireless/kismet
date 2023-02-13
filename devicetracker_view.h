@@ -144,6 +144,9 @@ protected:
     void device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
+    // Build the URLs
+    void register_urls(const std::string& in_id);
+
     // device_tracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those
     friend class device_tracker;
