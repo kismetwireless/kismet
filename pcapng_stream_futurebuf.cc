@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include "kis_mutex.h"
 #include "pcapng_stream_futurebuf.h"
 
 pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
@@ -179,6 +180,22 @@ int pcapng_stream_futurebuf::pcapng_make_shb(const std::string& in_hw, const std
 }
 
 int pcapng_stream_futurebuf::pcapng_make_idb(kis_datasource *in_datasource, int in_dlt) {
+    kis_lock_guard<kis_mutex> kl(pcap_mutex, "make idb");
+
+    auto h1 = std::hash<unsigned int>{}(in_datasource->get_source_number());
+    auto h2 = std::hash<unsigned int>{}(in_dlt);
+    auto ds_index = h1 ^ (h2 << 1);
+
+    auto ds_id_rec = datasource_id_map.find(ds_index);
+
+    // Interface ID for multiple interfaces per file
+    int ng_interface_id;
+
+    if (ds_id_rec != datasource_id_map.end()) {
+        ng_interface_id = ds_id_rec->second;
+        return ng_interface_id;
+    }
+
     std::string ifname;
     ifname = in_datasource->get_source_name();
 
@@ -283,22 +300,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
     if (datasrcinfo == nullptr)
         return 0;
 
-    auto h1 = std::hash<unsigned int>{}(datasrcinfo->ref_source->get_source_number());
-    auto h2 = std::hash<unsigned int>{}(in_data->dlt);
-    auto ds_index = h1 ^ (h2 << 1);
-
-    auto ds_id_rec = datasource_id_map.find(ds_index);
-
-    // Interface ID for multiple interfaces per file
-    int ng_interface_id;
-
-    if (ds_id_rec == datasource_id_map.end()) {
-        if ((ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, in_data->dlt)) < 0) {
-            return -1;
-        }
-    } else {
-        ng_interface_id = ds_id_rec->second;
-    }
+    int ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, in_data->dlt);
 
     std::shared_ptr<char> buf;
 
