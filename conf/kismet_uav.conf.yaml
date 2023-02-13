@@ -204,3 +204,9 @@
     mac: 
         - A0:14:3D:00:00:00/FF:FF:FF:00:00:00
 
+- uav:
+    id: syma
+    name: GuangDong Syma
+    ssid: ^FPV_WIFI__[0-9A-F]{4}$
+    mac: 
+        - 58:04:54:00:00:00/FF:FF:FF:00:00:00
