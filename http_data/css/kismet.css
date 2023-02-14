@@ -57,16 +57,16 @@ body {
     padding-left: 10px;
     padding-right: 10px;
     flex: 0 1 40px;
+    position: relative;
 }
 
 /* Title text */
 #topbar_title {
-    float: left;
-
-    position: relative;
-    padding-left: 10px;
-
+    margin: 0;
+    position: absolute;
     top: 50%;
+    left: 35px;
+    -ms-transform: translateY(-50%);
     transform: translateY(-50%);
 
     font-style: bold;
@@ -75,25 +75,24 @@ body {
 
 /* Sidebar button */
 #pm_open {
+    position: absolute;
     top: 50%;
+    left: 10px;
+    -ms-transform: translateY(-50%);
     transform: translateY(-50%);
 
-    margin-left: 10px;
-    margin-right: 10px;
-
     float: left;
-
-    position: relative;
 
     font-size: 18px;
 }
 
 div.topright_holder {
-    float: right;
-    position: relative;
-    top: 50%;
-    transform: translateY(-50%);
     margin-right: 10px;
+    position: absolute;
+    top: 50%;
+    right: -10px;
+    -ms-transform: translateY(-50%);
+    transform: translateY(-50%);
 }
 
 #topbar_battery {
