@@ -82,16 +82,12 @@ kis_gps_tcp_v2::~kis_gps_tcp_v2() {
 }
 
 void kis_gps_tcp_v2::close() {
-    std::promise<void> pm;
-    auto ft = pm.get_future();
-
     kis_lock_guard<kis_mutex> lg(gps_mutex, "close");
 
-    boost::asio::post(strand_, 
-            [self = std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()), pm = std::move(pm)]() mutable {
+    auto ft = boost::asio::post(strand_, 
+            std::packaged_task<void()>([self = std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this())]() mutable {
                 self->close_impl();
-                pm.set_value();
-            });
+            }));
 
     ft.wait();
 }
