@@ -440,7 +440,7 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
 
 void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote, 
         bool in_tcp, configure_callback_t in_cb) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource connect_remote");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource connect_remote");
 
     stopped = false;
     cancelled = false;
@@ -486,14 +486,6 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         }
     }
    
-
-    if (in_tcp)  {
-        attach_tcp_socket(in_remote->tcpsocket);
-    } else {
-        write_cb = in_remote->move_write_cb();
-        closure_cb = in_remote->move_closure_cb();
-    }
-
     in_buf.consume(in_buf.size());
     out_bufs.clear();
 
@@ -517,6 +509,17 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         send_ping();
         return 1;
     });
+
+    // Unlock before attaching sockets
+    lk.unlock();
+
+    if (in_tcp)  {
+        attach_tcp_socket(in_remote->tcpsocket);
+    } else {
+        write_cb = in_remote->move_write_cb();
+        closure_cb = in_remote->move_closure_cb();
+    }
+
 
     // Send an opensource
     send_open_source(get_source_definition(), 0, in_cb);
