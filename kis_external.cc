@@ -19,6 +19,7 @@
 #include <memory>
 #include <sys/stat.h>
 
+#include "boost/asio/use_future.hpp"
 #include "configfile.h"
 
 #include "json_adapter.h"
@@ -60,19 +61,39 @@ kis_external_interface::~kis_external_interface() {
 }
 
 bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
+    // This is only called inside other IO loops which are themselves
+    // running stranded, so we should be able to directly call our 
+    // operations safely without waiting.
+            
+    if (ipc.pid > 0) {
+        _MSG_ERROR("Tried to attach a TCP socket to an external endpoint that already has "
+                "an IPC instance running.");
+        return false;
+    }
+
+    stopped = true;
+    in_buf.consume(in_buf.size());
+    out_bufs.clear();
+
+    tcpsocket = std::move(socket);
+
+    stopped = false;
+    cancelled = false;
+
+    start_tcp_read(shared_from_this());
+
+    return true;
+
+#if 0
     // Attach on a strand and wait for it to execute so that we don't interrupt any io in process
 
-    auto tcp_promise = std::promise<bool>();
-    auto tcp_ft = tcp_promise.get_future();
-
-    boost::asio::post(strand_, 
-            [this, tcp_promise = std::move(tcp_promise), &socket]() mutable {
+    auto tcp_ft = boost::asio::post(strand_, 
+            std::packaged_task<bool()>([this, &socket]() mutable -> bool {
 
             if (ipc.pid > 0) {
                 _MSG_ERROR("Tried to attach a TCP socket to an external endpoint that already has "
                         "an IPC instance running.");
-                tcp_promise.set_value(false);
-                return;
+                return false;
             }
 
             stopped = true;
@@ -81,8 +102,8 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
 
             tcpsocket = std::move(socket);
 
-            tcp_promise.set_value(true);
-            });
+            return true;
+            }));
 
     auto r = tcp_ft.get();
 
@@ -93,7 +114,8 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
         start_tcp_read(shared_from_this());
     }
 
-    return r;
+#endif
+
 }
 
 void kis_external_interface::close_external() {
