@@ -316,8 +316,14 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     if (error_timer_id > 0)
         timetracker->remove_timer(error_timer_id);
 
-    // Launch the IPC
-    launch_ipc();
+    // Launch the IPC, outside of lock 
+    lock.unlock();
+
+    if (!launch_ipc()) { 
+        return;
+    }
+
+    lock.lock();
 
     set_int_source_running(true);
 
