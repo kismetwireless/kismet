@@ -1,6 +1,6 @@
 https://www.kismetwireless.net
 
-The Kismet docs can be most easily found and read at [the Kismet website](https://www.kismetwireless.net/docs/readme/quickstart/)
+The Kismet docs can be most easily found and read at [the Kismet website](https://www.kismetwireless.net/docs/readme/intro/kismet/)
 
 
 The docs repository is at:
