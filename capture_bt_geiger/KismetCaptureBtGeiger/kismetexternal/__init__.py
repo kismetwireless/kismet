@@ -165,11 +165,11 @@ class ExternalInterface(object):
         if (not 'user' in self.config or not 'password' in self.config) and not 'apikey' in self.config:
             raise "username and password or API key required"
 
-        if 'ssl' in self.config:
+        if 'ssl' in self.config and self.config.ssl:
             self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     
-            if 'sslcert' in self.config:
-                local_ca = pathlib.Path(__file__).with_name(self.config.sslcerts)
+            if 'sslcertificate' in self.config and not self.config.sslcertificate == None:
+                local_ca = pathlib.Path(__file__).with_name(self.config.sslcertificate)
                 self.ssl_context.load_verify_locations(local_ca)
 
             if 'user' in self.config and not self.config.user == None:
@@ -177,15 +177,14 @@ class ExternalInterface(object):
             else:
                 self.uri = f"wss://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
 
-            self.websocket = await websockets.connect(self.uri, ssl=self.ssl_context)
-            return self.websocket, self.websocket
+            return await websockets.connect(self.uri, ssl=self.ssl_context)
+        else:
+          if 'user' in self.config and not self.config.user == None:
+              self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
+          else:
+              self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
 
-            if 'user' in self.config and not self.config.user == None:
-                self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?user={self.config.user}&password={self.config.password}"
-            else:
-                self.uri = f"ws://{self.remote_host}:{self.remote_port}{self.config.endpoint}?KISMET={self.config.apikey}"
-
-            return await websockets.connect(self.uri)
+          return await websockets.connect(self.uri)
 
     async def __async_open_remote(self):
         try:
