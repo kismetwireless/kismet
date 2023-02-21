@@ -4022,7 +4022,11 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
 
     ret->in_fd = inpair[1];
     ret->out_fd = outpair[0];
+
     ret->pid = child_pid; 
+
+    fcntl(ret->in_fd, F_SETFL, fcntl(ret->in_fd, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(ret->out_fd, F_SETFL, fcntl(ret->out_fd, F_GETFL, 0) | O_NONBLOCK);
 
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
@@ -4058,6 +4062,7 @@ void cf_ipc_free(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
         close(ipc->in_fd);
     if (ipc->out_fd >= 0)
         close(ipc->out_fd);
+
     free(ipc);
 }
 
