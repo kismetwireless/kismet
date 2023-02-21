@@ -74,6 +74,9 @@ typedef struct cf_params_list_interface cf_params_list_interface_t;
 struct cf_params_spectrum;
 typedef struct cf_params_spectrum cf_params_spectrum_t;
 
+struct cf_ipc;
+typedef struct cf_ipc cf_ipc_t;
+
 #ifdef HAVE_LIBWEBSOCKETS
 struct cf_ws_msg {
     char *payload;
@@ -308,6 +311,7 @@ struct kis_capture_handler {
     char *lwsuuid;
 #endif
 
+
     /* Announced UUID, if one is required */
     char *announced_uuid;
 
@@ -409,6 +413,10 @@ struct kis_capture_handler {
 
     /* Are we in remote/verbose mode */
     int verbose;
+
+
+    /* Any exec'd child processes we monitor */
+    cf_ipc_t *ipc_list;
 };
 
 
@@ -933,6 +941,72 @@ static int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason
 
 static void ws_destroy_msg(void *in_msg);
 #endif
+
+/* IPC RX callback
+ *
+ * Called when new data comes from an exec'd process
+ *
+ * Return values:
+ * -1   error occurred with processing data, kill ipc exec 
+ *  0   no error occurred, continue processing
+ */
+typedef int (*cf_callback_ipc_data)(kis_capture_handler_t *, cf_ipc_t *, uint32_t read_sz); 
+
+/* IPC termination callback 
+ *
+ * Called if a spawned process terminates 
+ */
+typedef void (*cf_callback_ipc_term)(kis_capture_handler_t *, cf_ipc_t *, int rc);
+
+/* fork-exec handlers */
+struct cf_ipc {
+    pid_t pid;
+
+    int in_fd;
+    int out_fd;
+
+    kis_simple_ringbuf_t *in_ringbuf;
+    kis_simple_ringbuf_t *out_ringbuf;
+
+    pthread_mutex_t out_ringbuf_lock;
+
+    cf_callback_ipc_data rx_callback;
+    cf_callback_ipc_term term_callback;
+
+    struct cf_ipc *next;
+};
+
+/* Launch an IPC process with file descriptors mapped to stdin/out 
+ * 
+ * Returns a populated struct of the child information.
+ * Caller is responsible for free()ing this data.
+ *
+ */
+cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *, int argc, char **argv);
+
+/* Free an IPC record 
+ */
+void cf_ipc_free(kis_capture_handler_t *, cf_ipc_t *);
+
+/* Kill (or signal) a process 
+ */
+void cf_ipc_signal(kis_capture_handler_t *, cf_ipc_t *, int signal);
+
+/* Set an IPC read handler 
+ */
+void cf_ipc_set_rx(kis_capture_handler_t *, cf_ipc_t *, cf_callback_ipc_data cb);
+
+/* Set an IPC termination handler 
+ */
+void cf_ipc_set_term(kis_capture_handler_t *, cf_ipc_t *, cf_callback_ipc_term cb);
+
+/* Add the IPC to the central tracking 
+ */
+void cf_ipc_add_process(kis_capture_handler_t *, cf_ipc_t *);
+
+/* Remove an IPC process from the central tracking 
+ */ 
+void cf_ipc_remove_process(kis_capture_handler_t *, cf_ipc_t *);
 
 #endif
 

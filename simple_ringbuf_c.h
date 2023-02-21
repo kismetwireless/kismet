@@ -93,6 +93,14 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
  */
 size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, size_t size);
 
+/* Reserve a writeable chunk, ensuring it is a zero-copy operation.  Only
+ * one chunk may be reserved at a time.  A reserved chunk must be written 
+ * with kis_simple_ringbuf_commit or discard with kis_simple_ringbuf_reserve_free
+ *
+ * Returns the contiguous zero-copy size available.
+ */
+size_t kis_simple_ringbuf_reserve_zcopy(kis_simple_ringbuf_t *ringbuf, void **data, size_t size);
+
 /* Commit a previously reserved chunk.  Commits the specified number of bytes.
  *
  * Returns the amount committed.

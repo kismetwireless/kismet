@@ -246,6 +246,43 @@ size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, si
     return 0;
 }
 
+size_t kis_simple_ringbuf_reserve_zcopy(kis_simple_ringbuf_t *ringbuf, void **data, size_t size) {
+    size_t copy_start;
+
+    if (ringbuf->mid_commit) {
+        fprintf(stderr, "ERROR: kis_simple_ringbuf_t mid-commit when reserve called\n");
+        return 0;
+    }
+
+    if (kis_simple_ringbuf_available(ringbuf) < size) {
+        return 0;
+    }
+
+    ringbuf->mid_commit = 1;
+
+    copy_start = 
+        (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
+
+#ifdef USE_MMAP_RBUF
+    ringbuf->mid_commit = 1;
+    ringbuf->free_commit = 0;
+    *data = ringbuf->buffer + copy_start;
+    return size;
+#else
+    ringbuf->free_commit = 0;
+    *data = ringbuf->buffer + copy_start;
+
+    /* Does the write op fit w/out looping? */
+    if (copy_start + size < ringbuf->buffer_sz) {
+        return size;
+    } else {
+        return (ringbuf->buffer_sz - copy_start - size);
+    }
+#endif
+
+    return 0;
+}
+
 size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size_t size) {
     if (!ringbuf->mid_commit) {
         fprintf(stderr, "ERROR: kis_simple_ringbuf_t not in a commit when commit called\n");

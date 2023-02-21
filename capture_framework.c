@@ -17,6 +17,8 @@
 */
 
 #include "config.h"
+#include "simple_ringbuf_c.h"
+#include <pthread.h>
 
 #ifdef SYS_LINUX
 #define _GNU_SOURCE 1
@@ -34,6 +36,7 @@
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #ifdef HAVE_CAPABILITY
 #include <sys/capability.h>
@@ -2334,6 +2337,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     int spindown;
     int ret;
     int rv = 0;
+    cf_ipc_t *ipc_iter = NULL;
 
     if (caph->use_tcp || caph->use_ipc) {
         if (caph->in_ringbuf == NULL) {
@@ -2395,9 +2399,31 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             /* Copy spindown state outside of lock */
             spindown = caph->spindown;
 
-            pthread_mutex_unlock(&(caph->handler_lock));
-
             max_fd = 0;
+
+            ipc_iter = caph->ipc_list;
+
+            while (ipc_iter != NULL) {
+                if (spindown == 0) { 
+                    FD_SET(ipc_iter->in_fd, &rset);
+                    if (max_fd < ipc_iter->in_fd)
+                        max_fd = ipc_iter->in_fd; 
+                }
+
+                pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
+
+                if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
+                    FD_SET(ipc_iter->out_fd, &wset);
+                    if (max_fd < ipc_iter->out_fd)
+                        max_fd = ipc_iter->out_fd;
+                }
+
+                pthread_mutex_unlock(&ipc_iter->out_ringbuf_lock);
+
+                ipc_iter = ipc_iter->next;
+            }
+
+            pthread_mutex_unlock(&(caph->handler_lock));
 
             /* Only set read sets if we're not spinning down */
             if (spindown == 0) {
@@ -2434,6 +2460,80 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             if (ret == 0)
                 continue;
+
+
+            pthread_mutex_lock(&caph->handler_lock);
+
+            ipc_iter = caph->ipc_list;
+
+            while (ipc_iter != NULL) {
+                /* Handle read ops into the buffer */
+                if (FD_ISSET(ipc_iter->in_fd, &rset)) {
+                    while (kis_simple_ringbuf_available(ipc_iter->in_ringbuf)) {
+                        ssize_t amt_read;
+                        size_t maxread = 0;
+                        uint8_t *buf;
+                        size_t buf_avail;
+
+                        buf_avail = kis_simple_ringbuf_available(ipc_iter->in_ringbuf);
+                        maxread = kis_simple_ringbuf_reserve_zcopy(ipc_iter->in_ringbuf, (void **) &buf, buf_avail);
+
+                        amt_read = read(ipc_iter->in_fd, buf, maxread);
+
+                        if (amt_read <= 0) { 
+                            kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, 0);
+
+                            if (errno != EINTR && errno != EAGAIN) {
+                                if (ipc_iter->term_callback != NULL) {
+                                    ipc_iter->term_callback(caph, ipc_iter, -1);
+                                }
+                            }
+                        } else { 
+                            kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, amt_read);
+                            amt_read = kis_simple_ringbuf_used(ipc_iter->in_ringbuf);
+
+                            if (ipc_iter->rx_callback != NULL) { 
+                                ipc_iter->rx_callback(caph, ipc_iter, amt_read);
+                            }
+                        }
+                    }
+                }
+
+                pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
+
+                if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
+                    ssize_t written_sz = 0;
+                    size_t peeked_sz = 0;
+                    uint8_t *peek_buf = NULL;
+
+                    peeked_sz = kis_simple_ringbuf_peek_zc(ipc_iter->out_ringbuf, (void **) &peek_buf, 0);
+
+                    /* Don't know how we'd get here... */
+                    if (peeked_sz == 0) {
+                        kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                    } else {
+                        written_sz = write(ipc_iter->out_fd, peek_buf, peeked_sz);
+
+                        if (written_sz < 0) {
+                            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                                kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                                if (ipc_iter->term_callback != NULL) {
+                                    ipc_iter->term_callback(caph, ipc_iter, -1);
+                                }
+                            }
+                        } else {
+                            kis_simple_ringbuf_read(ipc_iter->out_ringbuf, NULL, (size_t) written_sz);
+                            kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                        }
+                    }
+                }
+
+                pthread_mutex_unlock(&ipc_iter->out_ringbuf_lock);
+
+                ipc_iter = ipc_iter->next;
+            }
+
+            pthread_mutex_unlock(&caph->handler_lock);
 
             if (FD_ISSET(read_fd, &rset)) {
                 while (kis_simple_ringbuf_available(caph->in_ringbuf)) {
@@ -2527,7 +2627,6 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
                         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                         fprintf(stderr, "FATAL:  Error during write(): %s\n", strerror(errno));
-                        free(peek_buf);
                         rv = -1;
                         break;
                     }
@@ -3878,5 +3977,138 @@ int cf_wait_announcement(kis_capture_handler_t *caph) {
     }
 
 }
+
+cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) { 
+    cf_ipc_t *ret = NULL;
+    pthread_mutexattr_t mutexattr;
 
+    int inpair[2];
+    int outpair[2];
+    pid_t child_pid;
+
+    if (pipe(inpair) < 0) {
+        return NULL;
+    }
+
+    if (pipe(outpair) < 0) {
+        close(inpair[0]);
+        close(inpair[1]);
+        return NULL;
+    }
+
+    if ((child_pid = fork()) < 0) {
+        close(inpair[0]);
+        close(inpair[1]);
+        close(outpair[0]);
+        close(outpair[1]);
+        return NULL;
+    } else if (child_pid == 0) { 
+        sigset_t unblock_mask;
+
+        sigfillset(&unblock_mask);
+        pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
+
+        close(inpair[1]);
+        close(outpair[0]);
+
+        execvp(argv[0], argv);
+    }
+
+    close(inpair[0]);
+    close(outpair[1]);
+
+    ret = (cf_ipc_t *) malloc(sizeof(cf_ipc_t));
+    memset(ret, 0, sizeof(cf_ipc_t));
+
+    ret->in_fd = inpair[1];
+    ret->out_fd = outpair[0];
+    ret->pid = child_pid; 
+
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&(ret->out_ringbuf_lock), &mutexattr);
+
+    /* Ungracefully die if we're out of memory */
+    ret->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
+    if (ret->in_ringbuf == NULL) {
+        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer\n");
+        exit(1);
+    }
+
+    /* Ungracefully die if we're out of memory */
+    ret->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
+    if (ret->out_ringbuf == NULL) {
+        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer\n");
+        exit(1);
+    }
+
+    return ret;
+}
+
+void cf_ipc_free(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
+    kis_simple_ringbuf_free(ipc->in_ringbuf);
+
+    pthread_mutex_lock(&ipc->out_ringbuf_lock);
+    kis_simple_ringbuf_free(ipc->out_ringbuf);
+    pthread_mutex_unlock(&ipc->out_ringbuf_lock);
+
+    pthread_mutex_destroy(&ipc->out_ringbuf_lock);
+
+    if (ipc->in_fd >= 0)
+        close(ipc->in_fd);
+    if (ipc->out_fd >= 0)
+        close(ipc->out_fd);
+    free(ipc);
+}
+
+void cf_ipc_signal(kis_capture_handler_t *caph, cf_ipc_t *ipc, int signal) { 
+    kill(ipc->pid, signal);
+}
+
+void cf_ipc_set_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_data cb) { 
+    ipc->rx_callback = cb;
+}
+
+void cf_ipc_set_term(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_term cb) { 
+    ipc->term_callback = cb;
+}
+
+void cf_ipc_add_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) { 
+    pthread_mutex_lock(&(caph->handler_lock));
+
+    cf_ipc_t *first = caph->ipc_list;
+
+    ipc->next = first; 
+    caph->ipc_list = ipc;
+
+    pthread_mutex_unlock(&(caph->handler_lock));
+}
+
+void cf_ipc_remove_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
+    pthread_mutex_lock(&(caph->handler_lock));
+
+    cf_ipc_t *current = caph->ipc_list;
+    cf_ipc_t *prev = NULL;
+    int matched = 0;
+
+    while (current != NULL) {
+        if (current->pid == ipc->pid) {
+            matched = 1;
+            break;
+        }
+
+        prev = current;
+        current = current->next;
+    }
+
+    if (matched) {
+        if (prev == NULL) { 
+            caph->ipc_list = current->next;
+        } else { 
+            prev->next = current->next;
+        }
+    }
+
+    pthread_mutex_unlock(&(caph->handler_lock));
+}
 
