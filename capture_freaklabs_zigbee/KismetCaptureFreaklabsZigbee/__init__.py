@@ -254,11 +254,8 @@ class KismetFreaklabsZigbee(object):
 
         parser = argparse.ArgumentParser(description='Kismet datasource to capture from Freaklabs Zigbee hardware',
                 epilog='Requires Freaklabs hardware (or compatible SenSniff-based device)')
-        
-        parser.add_argument('--in-fd', action="store", type=int, dest="infd")
-        parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
-        parser.add_argument('--connect', action="store", dest="connect")
-        parser.add_argument("--source", action="store", dest="source")
+       
+        parser = kismetexternal.ExternalInterface.common_getopt(parser)
         
         self.config = parser.parse_args()
 
@@ -295,19 +292,25 @@ class KismetFreaklabsZigbee(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
-        self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
+    def run(self):
+        self.kismet = kismetexternal.Datasource(self.config)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)
         self.kismet.set_opensource_cb(self.datasource_opensource)
         self.kismet.set_probesource_cb(self.datasource_probesource)
 
+        r = self.kismet.start() 
+
+        if r < 0:
+            return
+
         # If we're connecting remote, kick a newsource
         if self.proberet:
             print("Registering remote source {} {}".format('freaklabszigbee', self.config.source))
             self.kismet.send_datasource_newsource(self.config.source, 'freaklabszigbee', self.proberet['uuid'])
 
-        self.kismet.start()
+        self.kismet.run()
 
     def is_running(self):
         return self.kismet.is_running()
