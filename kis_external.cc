@@ -348,24 +348,12 @@ bool kis_external_interface::run_ipc() {
 
     pid_t child_pid;
 
-    auto ipc_ft =
-        boost::asio::post(strand_, 
-                std::packaged_task<bool ()>(
-                    [self = shared_from_this()]() mutable -> bool {
+    stopped = true;
+    cancelled = true;
+    ipc_running = false;
 
-                        self->stopped = true;
-                        self->cancelled = true;
-                        self->ipc_running = false;
-
-                        self->in_buf.consume(self->in_buf.size());
-                        self->out_bufs.clear();
-
-                        return true;
-                    }));
-
-    // Wait for the strand to close us down
-    ipc_ft.get();
-
+    in_buf.consume(in_buf.size());
+    out_bufs.clear();
 
     struct stat fstat;
 
