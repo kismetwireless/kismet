@@ -29,10 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef SYS_LINUX
-// #define USE_MMAP_RBUF
-#endif
-
 struct kis_simple_ringbuf {
     uint8_t *buffer;
     size_t buffer_sz;

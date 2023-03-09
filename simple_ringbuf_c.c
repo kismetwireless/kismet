@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
+#include <errno.h>
 
 #ifdef USE_MMAP_RBUF
 #include <sys/mman.h>
@@ -225,7 +227,7 @@ size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, si
     return size;
 #else
     /* Does the write op fit w/out looping? */
-    if (copy_start + size < ringbuf->buffer_sz) {
+    if (copy_start + size <= ringbuf->buffer_sz) {
         ringbuf->free_commit = 0;
         *data = ringbuf->buffer + copy_start;
         return size;
@@ -273,10 +275,10 @@ size_t kis_simple_ringbuf_reserve_zcopy(kis_simple_ringbuf_t *ringbuf, void **da
     *data = ringbuf->buffer + copy_start;
 
     /* Does the write op fit w/out looping? */
-    if (copy_start + size < ringbuf->buffer_sz) {
+    if (copy_start + size <= ringbuf->buffer_sz) {
         return size;
     } else {
-        return (ringbuf->buffer_sz - copy_start - size);
+        return (ringbuf->buffer_sz - copy_start);
     }
 #endif
 
@@ -306,7 +308,7 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
         return size;
     } else {
         /* Does the write op fit w/out looping? */
-        if (copy_start + size < ringbuf->buffer_sz) {
+        if (copy_start + size <= ringbuf->buffer_sz) {
             memcpy(ringbuf->buffer + copy_start, data, size);
             ringbuf->length += size;
 
@@ -372,7 +374,7 @@ size_t kis_simple_ringbuf_read(kis_simple_ringbuf_t *ringbuf, void *ptr,
     return opsize;
 #else
     /* Simple contiguous read */
-    if (ringbuf->start_pos + opsize < ringbuf->buffer_sz) {
+    if (ringbuf->start_pos + opsize <= ringbuf->buffer_sz) {
         if (ptr != NULL)
             memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
         ringbuf->start_pos += opsize;
@@ -426,7 +428,7 @@ size_t kis_simple_ringbuf_peek(kis_simple_ringbuf_t *ringbuf, void *ptr,
     return opsize;
 #else
     /* Simple contiguous read */
-    if (ringbuf->start_pos + opsize < ringbuf->buffer_sz) {
+    if (ringbuf->start_pos + opsize <= ringbuf->buffer_sz) {
         memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
         return opsize;
     } else {
@@ -474,7 +476,7 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
     return opsize;
 #else
     /* Simple contiguous read */
-    if (ringbuf->start_pos + opsize < ringbuf->buffer_sz) {
+    if (ringbuf->start_pos + opsize <= ringbuf->buffer_sz) {
         ringbuf->free_peek = 0;
         *ptr = ringbuf->buffer + ringbuf->start_pos;
         return opsize;
