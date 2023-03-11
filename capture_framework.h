@@ -375,6 +375,9 @@ struct kis_capture_handler {
     int capture_running;
     pthread_t capturethread;
 
+    /* Signal reaping thread */
+    pthread_t signalthread;
+
     /* Non-hopping channel */
     char *channel;
 
@@ -976,6 +979,14 @@ struct cf_ipc {
     struct cf_ipc *next;
 };
 
+/* Find a program in $PATH 
+ *
+ * Search the $PATH environment for the given executable, and see if it IS executable. 
+ *
+ * Returns 1 (success) or 0 (failure) 
+ */
+int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program);
+
 /* Launch an IPC process with file descriptors mapped to stdin/out 
  * 
  * Returns a populated struct of the child information.
@@ -1004,7 +1015,8 @@ void cf_ipc_set_term(kis_capture_handler_t *, cf_ipc_t *, cf_callback_ipc_term c
  */
 void cf_ipc_add_process(kis_capture_handler_t *, cf_ipc_t *);
 
-/* Remove an IPC process from the central tracking 
+/* Remove an IPC process from the central tracking; this process should already 
+ * be killed.  This will close the file descriptors and free the buffers.
  */ 
 void cf_ipc_remove_process(kis_capture_handler_t *, cf_ipc_t *);
 

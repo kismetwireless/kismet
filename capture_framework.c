@@ -19,6 +19,7 @@
 #include "config.h"
 #include "simple_ringbuf_c.h"
 #include <pthread.h>
+#include <sys/select.h>
 
 #ifdef SYS_LINUX
 #define _GNU_SOURCE 1
@@ -537,8 +538,10 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 
     if (caph->hopping_running) {
         pthread_cancel(caph->hopthread);
+        pthread_cancel(caph->signalthread);
         caph->hopping_running = 0;
     }
+
 
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
@@ -1219,6 +1222,103 @@ void *cf_int_capture_thread(void *arg) {
     return NULL;
 }
 
+/*
+ * Catch any terminated processes and call any termination handlers they 
+ * have; remove them from the IPC list.
+ *
+ * IPC termination callback is responsible for freeing the IPC record, 
+ * if not tracked elsewhere.
+ */
+void cf_process_child_signals(kis_capture_handler_t *caph) {
+    while (1) {
+        int pid_status;
+        pid_t caught_pid;
+        cf_ipc_t *prev_ipc = NULL;
+        cf_ipc_t *ipc = NULL;
+
+        if ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
+            pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+            ipc = caph->ipc_list;
+
+            while (ipc != NULL) {
+                if (ipc->pid == caught_pid) {
+                    if (ipc == caph->ipc_list) {
+                        caph->ipc_list = ipc->next;
+                    } else {
+                        prev_ipc->next = ipc->next;
+                    }
+
+                    if (ipc->term_callback != NULL) {
+                        ipc->term_callback(caph, ipc, pid_status);
+                    }
+
+                    break;
+                }
+
+                prev_ipc = ipc;
+                ipc = ipc->next;
+            }
+
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        }
+    }
+}
+
+static sigset_t cf_core_signal_mask;
+void *cf_int_signal_thread(void *arg) {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
+
+    int sig_caught, r; 
+
+#if 0
+    /* Set a timer to wake up from sigwait and make sure we have nothing we need to deal with */
+    struct itimerval itval;
+
+    itval.it_value.tv_sec = 0;
+    itval.it_value.tv_usec = 100000;
+    itval.it_interval = itval.it_value;
+
+    setitimer(ITIMER_REAL, &itval, NULL);
+#endif
+
+    while (!caph->spindown && !caph->shutdown) { 
+        r = sigwait(&cf_core_signal_mask, &sig_caught);
+
+        if (r != 0)
+            continue;
+
+        switch (sig_caught) { 
+            case SIGINT:
+            case SIGTERM:
+            case SIGHUP:
+            case SIGQUIT:
+                pthread_mutex_lock(&(caph->out_ringbuf_lock));
+                if (caph->capture_running) {
+                    pthread_cancel(caph->capturethread);
+                    caph->capture_running = 0;
+                }
+                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+                /* Kill anything pending */
+                pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
+
+                break;
+
+            case SIGCHLD:
+                cf_process_child_signals(caph);
+                break;
+
+            case SIGALRM:
+                /* Do nothing with the timer, it just ticks us to break out of sigwait */
+                break;
+
+        }
+    }
+
+    return NULL;
+}
+
 /* Launch a capture thread after opening has been successful */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     /* Set the thread attributes - detached, cancelable */
@@ -1226,6 +1326,28 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+
+    sigemptyset(&cf_core_signal_mask);
+
+    sigaddset(&cf_core_signal_mask, SIGINT);
+    sigaddset(&cf_core_signal_mask, SIGQUIT);
+    sigaddset(&cf_core_signal_mask, SIGTERM);
+    sigaddset(&cf_core_signal_mask, SIGHUP);
+    sigaddset(&cf_core_signal_mask, SIGALRM);
+    sigaddset(&cf_core_signal_mask, SIGQUIT);
+    sigaddset(&cf_core_signal_mask, SIGCHLD);
+    sigaddset(&cf_core_signal_mask, SIGSEGV);
+    sigaddset(&cf_core_signal_mask, SIGPIPE);
+
+    /* Set thread mask for all new threads */
+    pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
+
+    /* Launch the signal handling thread */ 
+    if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) < 0) {
+        cf_send_error(caph, 0, "failed to launch signal thread");
+        cf_handler_spindown(caph);
+        return -1;
+    }
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->capture_running) {
@@ -3977,7 +4099,29 @@ int cf_wait_announcement(kis_capture_handler_t *caph) {
     }
 
 }
-
+
+int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program) {
+    char *PATH = strdup(getenv("PATH"));
+    char *orig = PATH;
+    char *token;
+    char binpath[512];
+    struct stat sb;
+
+    while ((token = strsep(&PATH, ":")) != NULL) {
+        snprintf(binpath, 512, "%s/%s", token, program);
+        stat(binpath, &sb);
+
+        if (sb.st_mode & S_IXUSR) {
+            return 1;
+            break;
+        }
+    }
+
+    free(orig);
+
+    return 0;
+}
+
 cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) { 
     cf_ipc_t *ret = NULL;
     pthread_mutexattr_t mutexattr;
