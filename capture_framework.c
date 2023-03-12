@@ -47,7 +47,7 @@
 #endif
 
 #ifdef SYS_LINUX
-#include <linux/sched.h>
+#include <sched.h>
 #include <sys/mount.h>
 #endif
 
@@ -425,6 +425,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->in_ringbuf = NULL;
     ch->out_ringbuf = NULL;
 
+    ch->ipc_list = NULL;
+
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&(ch->out_ringbuf_lock), &mutexattr);
@@ -585,11 +587,21 @@ void cf_params_spectrum_free(cf_params_spectrum_t *si) {
 }
 
 void cf_handler_shutdown(kis_capture_handler_t *caph) {
+    cf_ipc_t *ipc; 
+
     if (caph == NULL)
         return;
 
     pthread_mutex_lock(&(caph->handler_lock));
     caph->shutdown = 1;
+
+    /* Kill any IPC */
+    ipc = caph->ipc_list;
+
+    while (ipc != NULL) {
+        cf_ipc_signal(caph, ipc, SIGKILL);
+        cf_ipc_free(caph, ipc);
+    }
 
     /* Kill the capture thread */
     if (caph->capture_running) {
