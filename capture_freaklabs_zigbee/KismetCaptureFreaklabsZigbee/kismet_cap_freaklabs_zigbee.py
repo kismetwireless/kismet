@@ -7,7 +7,4 @@ def main():
 
     zig = KismetCaptureFreaklabsZigbee.KismetFreaklabsZigbee()
 
-    # Go into sleep mode
-    while zig.is_running():
-        time.sleep(1)
-
+    zig.run()
