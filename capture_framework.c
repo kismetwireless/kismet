@@ -48,6 +48,7 @@
 #endif
 
 #ifdef SYS_LINUX
+#include <linux/sched.h>
 #include <sched.h>
 #include <sys/mount.h>
 #endif
