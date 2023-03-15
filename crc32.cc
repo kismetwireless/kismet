@@ -26,7 +26,7 @@
   #define __BIG_ENDIAN    4321
 #endif
 
-// define endianess and some integer data types
+// define endianness and some integer data types
 #if defined(_MSC_VER) || defined(__MINGW32__)
   // Windows always little endian
   #define __BYTE_ORDER __LITTLE_ENDIAN
@@ -71,7 +71,7 @@ namespace
   const uint32_t Polynomial = 0xEDB88320;
 
 #if __BYTE_ORDER == __BIG_ENDIAN
-  /// swap endianess
+  /// swap endianness
   static inline uint32_t swap(uint32_t x)
   {
   #if defined(__GNUC__) || defined(__clang__)
