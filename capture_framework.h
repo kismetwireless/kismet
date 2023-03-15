@@ -971,6 +971,8 @@ struct cf_ipc {
     kis_simple_ringbuf_t *in_ringbuf;
     kis_simple_ringbuf_t *out_ringbuf;
 
+    int retry_rx;
+
     pthread_mutex_t out_ringbuf_lock;
 
     cf_callback_ipc_data rx_callback;

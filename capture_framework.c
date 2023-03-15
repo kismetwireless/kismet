@@ -2601,6 +2601,12 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             ipc_iter = caph->ipc_list;
 
             while (ipc_iter != NULL) {
+                /* If the IPC handler wants to be re-called, do it immediately 
+                 * regardless of incoming data */
+                if (ipc_iter->retry_rx && ipc_iter->rx_callback != NULL) {
+                    ipc_iter->rx_callback(caph, ipc_iter, 0);
+                }
+
                 /* Handle read ops into the buffer */
                 if (FD_ISSET(ipc_iter->in_fd, &rset)) {
                     while (kis_simple_ringbuf_available(ipc_iter->in_ringbuf)) {
@@ -2627,6 +2633,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                             amt_read = kis_simple_ringbuf_used(ipc_iter->in_ringbuf);
 
                             if (ipc_iter->rx_callback != NULL) { 
+                                ipc_iter->retry_rx = 0;
                                 ipc_iter->rx_callback(caph, ipc_iter, amt_read);
                             }
                         }
