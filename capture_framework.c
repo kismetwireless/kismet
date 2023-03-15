@@ -61,6 +61,8 @@
 #include "protobuf_c/kismet.pb-c.h"
 #include "protobuf_c/datasource.pb-c.h"
 
+int unshare(int);
+
 uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
     size_t i;
     uint32_t ls1 = cs & 0xFFFF;
