@@ -3,8 +3,8 @@
 
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
-    name: "RTL433 Devices",
-    description: "RTL433 Sensor",
+    name: "Sensor Devices",
+    description: "RF-based Sensors",
     priority: 100,
     defaultcolor: "#ffb3cc",
     defaultenable: true,
@@ -12,46 +12,46 @@ kismet_ui.AddDeviceRowHighlight({
         'kismet.device.base.phyname'
     ],
     selector: function(data) {
-        return data['kismet.device.base.phyname'] === "RTL433";
+        return data['kismet.device.base.phyname'] === "rfsensor";
     }
 });
 
-kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
+kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
     filter: function(data) {
-        return (data['kismet.device.base.phyname'] === "RTL433");
+        return (data['kismet.device.base.phyname'] === "rfsensor");
     },
     draw: function(data, target) {
         target.devicedata(data, {
-            "id": "rtl433Data",
+            "id": "sensorData",
             "fields": [
             {
-                field: "rtl433.device/rtl433.device.common/rtl433.device.model",
+                field: "sensor.device/sensor.device.common/sensor.device.model",
                 title: "Model",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtl433.device/rtl433.device.common/rtl433.device.id",
+                field: "sensor.device/sensor.device.common/sensor.device.id",
                 title: "Device ID",
-                empty: "<i>Unknown</i>"
+				filterOnEmpty: true,
             },
             {
-                field: "rtl433.device/rtl433.device.common/rtl433.device.rtlchannel",
-                title: "Channel",
+                field: "sensor.device/sensor.device.common/sensor.device.subchannel",
+                title: "Sub-Channel",
                 filterOnZero: true,
             },
             {
-                field: "rtl433.device/rtl433.device.common/rtl433.device.battery",
+                field: "sensor.device/sensor.device.common/sensor.device.battery",
                 title: "Battery",
                 filterOnEmpty: true,
             },
             {
-                field: "rtl433.device/rtl433.device.thermometer",
+                field: "sensor.device/sensor.device.thermometer",
                 groupTitle: "Thermometer",
                 id: "group_therm_data",
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.thermometer/rtl433.device.temperature",
+                    field: "sensor.device/sensor.device.thermometer/sensor.device.temperature",
                     title: "Temperature",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -59,7 +59,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.thermometer/rtl433.device.humidity",
+                    field: "sensor.device/sensor.device.thermometer/sensor.device.humidity",
                     title: "Humidity (%)",
                     filterOnEmpty: true,
                     filterOnZero: true,
@@ -70,13 +70,13 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 ]
             },
             {
-                field: "rtl433.device/rtl433.device.weatherstation",
+                field: "sensor.device/sensor.device.weatherstation",
                 groupTitle: "Weather",
                 id: "group_weather_data",
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.weatherstation/rtl433.device.wind_dir",
+                    field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_dir",
                     title: "Wind Direction",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -100,7 +100,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.weatherstation/rtl433.device.wind_speed",
+                    field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_speed",
                     title: "Wind Speed",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -108,7 +108,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.weatherstation/rtl433.device.wind_gust",
+                    field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_gust",
                     title: "Wind Gust",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -116,20 +116,20 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.weatherstation/rtl433.device.rain",
+                    field: "sensor.device/sensor.device.weatherstation/sensor.device.rain",
                     title: "Rain",
                     filterOnEmpty: true
                 },
                 ]
             },
             {
-                field: "rtl433.device/rtl433.device.tpms",
+                field: "sensor.device/sensor.device.tpms",
                 groupTitle: "Tire pressure",
                 id: "group_tpms_data",
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.tpms/rtl433.device.tpms.pressure_bar",
+                    field: "sensor.device/sensor.device.tpms/sensor.device.tpms.pressure_bar",
                     title: "Pressure",
                     filterOnZero: true,
                     render: function(opts) {
@@ -138,7 +138,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     help: "Reported TPMS pressure in bars",
                 },
                 {
-                    field: "rtl433.device/rtl433.device.tpms/rtl433.device.tpms.pressure_kpa",
+                    field: "sensor.device/sensor.device.tpms/sensor.device.tpms.pressure_kpa",
                     title: "Pressure",
                     filterOnZero: true,
                     render: function(opts) {
@@ -149,13 +149,13 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 ]
             },
             {
-                field: "rtl433.device/rtl433.device.switch",
+                field: "sensor.device/sensor.device.switch",
                 groupTitle: "Switch",
                 id: "group_switch_data",
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.1",
+                    field: "sensor.device/sensor.device.switch/sensor.device.switch.1",
                     title: "Switch 1",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -163,7 +163,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.2",
+                    field: "sensor.device/sensor.device.switch/sensor.device.switch.2",
                     title: "Switch 2",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -171,7 +171,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.3",
+                    field: "sensor.device/sensor.device.switch/sensor.device.switch.3",
                     title: "Switch 3",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -179,7 +179,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.4",
+                    field: "sensor.device/sensor.device.switch/sensor.device.switch.4",
                     title: "Switch 4",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -187,7 +187,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.5",
+                    field: "sensor.device/sensor.device.switch/sensor.device.switch.5",
                     title: "Switch 5",
                     filterOnEmpty: true,
                     render: function(opts) {
@@ -197,19 +197,19 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 ]
             },
             {
-                field: "rtl433.device/rtl433.device.lightningsensor",
+                field: "sensor.device/sensor.device.lightningsensor",
                 groupTitle: "Lightning Sensor",
                 id: "group_lightning_data",
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_strike_count",
+                    field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_strike_count",
                     title: "Strike Count",
                     filterOnEmpty: true,
                     help: "Last reported lighting strike count (may reset arbitrarily)"
                 },
                 {
-                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_storm_active",
+                    field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_storm_active",
                     title: "Storm Active",
                     filterOnEmpty: true,
                     help: "Storm currently active",
@@ -220,13 +220,13 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_rfi",
+                    field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_rfi",
                     title: "RFI",
                     filterOnEmpty: true,
                     help: "Radio Frequency Interference from lightning activity"
                 },
                 {
-                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_storm_distance",
+                    field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_storm_distance",
                     title: "Storm distance",
                     filterOnEmpty: true,
                     help: "Estimated storm distance (no distance units provided)"

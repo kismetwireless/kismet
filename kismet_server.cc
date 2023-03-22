@@ -109,7 +109,7 @@
 
 #include "devicetracker.h"
 #include "phy_80211.h"
-#include "phy_rtl433.h"
+#include "phy_sensor.h"
 #include "phy_meter.h"
 #include "phy_adsb.h"
 #include "phy_zwave.h"
@@ -882,7 +882,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Register the base PHYs
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_80211_phy()));
-    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_RTL433_Phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_sensor_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Zwave_Phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_bluetooth_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_UAV_Phy()));

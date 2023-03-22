@@ -227,12 +227,10 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 }
 
 /*
-{"time" : "2022-10-25 20:31:31", "model" : "SCMplus", "id" : 69474676, "ProtocolID" : "0x1E", "EndpointType" : "0x07", "EndpointID" : 69474676, "Consumption" : 4341297, "Tamper" : "0x0201", "PacketCRC" : "0x9DCF", "MeterType" : "Electric", "mic" : "CRC"}
-{"time" : "2022-10-25 20:32:05", "model" : "ERT-SCM", "id" : 4198071, "physical_tamper" : 0, "ert_type" : 5, "encoder_tamper" : 3, "consumption_data" : 5200778, "mic" : "CRC"}
-{"time" : "2022-10-25 20:43:09", "model" : "IDM", "PacketTypeID" : "0x1C", "PacketLength" : 92, "ApplicationVersion" : 4, "ERTType" : 23, "ERTSerialNumber" : 1551327421, "ConsumptionIntervalCount" : 48, "ModuleProgrammingState" : 188, "TamperCounters" : "0x0001000B0100", "AsynchronousCounters" : 0, "PowerOutageFlags" : "0x000000000000", "LastConsumptionCount" : 1391772, "DifferentialConsumptionIntervals" : [67, 25, 9, 17, 16, 18, 14, 10, 11, 16, 17, 23, 18, 34, 36, 31, 29, 16, 9, 10, 13, 9, 11, 11, 11, 9, 11, 11, 13, 14, 12, 12, 31, 33, 30, 39, 49, 46, 41, 15, 12, 9, 17, 49, 22, 10, 9], "TransmitTimeOffset" : 2001, "MeterIdCRC" : 25074, "PacketCRC" : 36257, "MeterType" : "Electric", "mic" : "CRC"}
-{"time" : "2022-10-25 20:43:09", "model" : "NETIDM", "PacketTypeID" : "0x1C", "PacketLength" : 92, "ApplicationVersion" : 4, "ERTType" : 23, "ERTSerialNumber" : 1551327421, "ConsumptionIntervalCount" : 48, "ModuleProgrammingState" : 188, "TamperCounters" : "0x0001000B0100", "Unknown_field_1" : "0x00000000000000", "LastGenerationCount" : 21, "Unknown_field_2" : "0x3C9C21", "LastConsumptionCount" : -2042552048, "DifferentialConsumptionIntervals" : [8210, 448, 10262, 1026, 2140, 2312, 8480, 7950, 8448, 4618, 416, 9238, 705, 6180, 1410, 12392, 3590, 192, 15905, 962, 7266, 2949, 2108, 1538, 4232, 12555, 160], "TransmitTimeOffset" : 2001, "MeterIdCRC" : 25074, "PacketCRC" : 36257, "MeterType" : "Electric", "mic" : "CRC"}
-{"time" : "2022-10-25 20:48:46", "model" : "IDM", "PacketTypeID" : "0x1C", "PacketLength" : 92, "ApplicationVersion" : 4, "ERTType" : 23, "ERTSerialNumber" : 22156702, "ConsumptionIntervalCount" : 152, "ModuleProgrammingState" : 188, "TamperCounters" : "0x020000330800", "AsynchronousCounters" : 0, "PowerOutageFlags" : "0x000000000000", "LastConsumptionCount" : 98702, "DifferentialConsumptionIntervals" : [3, 3, 3, 3, 4, 3, 3, 3, 3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, 3, 3, 4, 3, 2, 3, 3, 4, 3, 4, 3, 4, 3, 2, 3, 2, 3, 3, 3, 3, 3, 4, 3, 3, 2, 3, 2], "TransmitTimeOffset" : 2876, "MeterIdCRC" : 41940, "PacketCRC" : 29800, "MeterType" : "Electric", "mic" : "CRC"}
-*/
+ * DEBUG: JSON data RTL433 {"time": "2023-03-22 19:45:15", "model": "Acurite-6045M", "id": 169, "channel": "A", "battery_ok": 1, "temperature_F": 73.0, "humidity": 18, "strike_count": 15, "storm_dist": 0, "active": 0, "rfi": 0, "exception": 0, "raw_msg": "c0a96f12112287c064", "mod": "ASK", "freq": 433.949, "rssi": -0.121, "snr": 9.074, "noise": -9.195}                                     
+DEBUG: JSON data RTL433 {"time": "2023-03-22 19:45:15", "model": "Acurite-6045M", "id": 169, "channel": "A", "battery_ok": 1, "temperature_F": 73.0, "humidity": 18, "strike_count": 15, "storm_dist": 0, "active": 0, "rfi": 0, "exception": 0, "raw_msg": "c0a96f12112287c064", "mod": "ASK", "freq": 433.949, "rssi": -0.121, "snr": 9.074, "noise": -9.195}                                     
+
+DEBUG: JSON data RTL433 {"time": "2023-03-22 19:45:15", "model": "Acurite-6045M", "id": 169, "channel": "A", "battery_ok": 1, "temperature_F": 73.0, "humidity": 18, "strike_count": 15, "storm_dist": 0, "active": 0, "rfi": 0, "exception": 0, "raw_msg": "c0a96f12112287c064", "mod": "ASK", "freq": 433.949, "rssi": -0.121, "snr": 9.074, "noise": -9.195}                                     */
 
 bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) { 
     std::string err;
@@ -392,7 +390,21 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
             if (phy->rtlamr_json_to_phy(device_json, in_pack)) {
                 auto adata = in_pack->fetch_or_add<packet_metablob>(phy->pack_comp_meta);
                 adata->set_data("METER", json->json_string);
-            } else if (phy->rtl433_json_to_phy(device_json, in_pack)) { 
+            }
+        } catch (std::exception& e) {
+            fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
+            return 0;
+        }
+
+        return 1;
+    } else if (json->type == "RTL433") {
+        std::stringstream ss(json->json_string);
+        nlohmann::json device_json;
+
+        try {
+            ss >> device_json;
+
+            if (phy->rtl433_json_to_phy(device_json, in_pack)) { 
                 auto adata = in_pack->fetch_or_add<packet_metablob>(phy->pack_comp_meta);
                 adata->set_data("METER", json->json_string);
             }
@@ -402,7 +414,8 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
         }
 
         return 1;
-    }
+
+	}
 
     return 0;
 }
