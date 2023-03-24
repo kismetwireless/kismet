@@ -255,6 +255,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     auto type_j = json["MeterType"];
     auto endp_type_j = json["EndpointType"];
     auto ert_type_j = json["ERTType"];
+	auto ert_type_2_j = json["ert_type"];
     auto consumption_j = json["consumption"];
     auto consumption_2_j = json["Consumption"];
     auto consumption_data_j = json["consumption_data"];
@@ -304,30 +305,55 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 			decoded_type = 0;
 		}
     } else if (!model_j.is_null() && model_j.get<std::string>() == "ERT-SCM") { 
-		if (ert_type_j.is_null())
-			return false; 
+		if (!ert_type_j.is_null()) {
+			switch (ert_type_j.get<int>()) {
+				case 4:
+				case 5:
+				case 7:
+				case 8:
+				case 23:
+					decoded_type = 1;
+					break;
+				case 2:
+				case 9:
+				case 12:
+					decoded_type = 2;
+					break;
+				case 11:
+				case 13:
+					decoded_type = 3;
+					break;
+				default:
+					decoded_type = 0;
+					break;
+			}
+		} else if (!ert_type_2_j.is_null()) {
+			switch (ert_type_2_j.get<int>()) {
+				case 4:
+				case 5:
+				case 7:
+				case 8:
+				case 23:
+					decoded_type = 1;
+					break;
+				case 2:
+				case 9:
+				case 12:
+					decoded_type = 2;
+					break;
+				case 11:
+				case 13:
+					decoded_type = 3;
+					break;
+				default:
+					decoded_type = 0;
+					break;
+			}
 
-        switch (ert_type_j.get<int>()) {
-            case 4:
-            case 5:
-            case 7:
-            case 8:
-			case 23:
-                decoded_type = 1;
-                break;
-            case 2:
-            case 9:
-            case 12:
-                decoded_type = 2;
-                break;
-            case 11:
-            case 13:
-                decoded_type = 3;
-                break;
-            default:
-                decoded_type = 0;
-                break;
-        }
+		} else {
+			return false; 
+		}
+
     } else {
         return false;
     }

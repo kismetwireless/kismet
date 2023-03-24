@@ -196,8 +196,14 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     else if (channel_j.is_number()) 
         common->channel = fmt::format("{}", channel_j.get<int>());
 
-    // TODO extract l1info
+    auto freq_j = json["freq"];
+    if (freq_j.is_number()) {
+        common->freq_khz = freq_j.get<double>() * 1000;
+    }
+
+    // TODO extract l1info if no freq in json
     // common->freq_khz = packet->freq_khz;
+
     common->source = rtlmac;
     common->transmitter = rtlmac;
 
