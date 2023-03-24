@@ -227,10 +227,35 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 }
 
 /*
- * DEBUG: JSON data RTL433 {"time": "2023-03-22 19:45:15", "model": "Acurite-6045M", "id": 169, "channel": "A", "battery_ok": 1, "temperature_F": 73.0, "humidity": 18, "strike_count": 15, "storm_dist": 0, "active": 0, "rfi": 0, "exception": 0, "raw_msg": "c0a96f12112287c064", "mod": "ASK", "freq": 433.949, "rssi": -0.121, "snr": 9.074, "noise": -9.195}                                     
-DEBUG: JSON data RTL433 {"time": "2023-03-22 19:45:15", "model": "Acurite-6045M", "id": 169, "channel": "A", "battery_ok": 1, "temperature_F": 73.0, "humidity": 18, "strike_count": 15, "storm_dist": 0, "active": 0, "rfi": 0, "exception": 0, "raw_msg": "c0a96f12112287c064", "mod": "ASK", "freq": 433.949, "rssi": -0.121, "snr": 9.074, "noise": -9.195}                                     
 
-DEBUG: JSON data RTL433 {"time": "2023-03-22 19:45:15", "model": "Acurite-6045M", "id": 169, "channel": "A", "battery_ok": 1, "temperature_F": 73.0, "humidity": 18, "strike_count": 15, "storm_dist": 0, "active": 0, "rfi": 0, "exception": 0, "raw_msg": "c0a96f12112287c064", "mod": "ASK", "freq": 433.949, "rssi": -0.121, "snr": 9.074, "noise": -9.195}                                     */
+DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "IDM", "PacketTypeID": "0x1C", "
+PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "Consumpt
+ionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "Asynch
+ronousCounters": 0, "PowerOutageFlags": "0x000000000000", "LastConsumptionCount": 6823922, "Diffe
+rentialConsumptionIntervals": [11, 9, 8, 7, 40, 30, 4, 7, 7, 8, 8, 8, 7, 6, 5, 5, 5, 5, 5, 6, 5, 
+6, 6, 8, 7, 8, 6, 7, 7, 6, 5, 5, 6, 6, 5, 6, 7, 8, 8, 8, 6, 6, 8, 6, 9, 7, 6], "TransmitTimeOffse
+t": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": 
+"ASK", "freq": 915.365, "rssi": -0.454, "snr": 21.437, "noise": -21.891}                         
+debug - error processing rtl json [json.exception.type_error.302] type must be number, but is nul
+l                                                                                                
+DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "NETIDM", "PacketTypeID": "0x1C"
+, "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "Consu
+mptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "Unk
+nown_field_1": "0x00000000000000", "LastGenerationCount": 104, "Unknown_field_2": "0x1FF205", "La
+stConsumptionCount": -2109669263, "DifferentialConsumptionIntervals": [4126, 128, 7182, 513, 32, 
+897, 8232, 1282, 8272, 2566, 160, 6156, 512, 14368, 769, 12344, 1538, 8272, 3078, 160, 6158, 513,
+ 32, 769, 8256, 1540, 8304], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134,
+ "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21.
+437, "noise": -21.891}                                                                           
+debug - error processing rtl json [json.exception.type_error.302] type must be number, but is nul
+l                                                                                                
+DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "ERT-SCM", "id": 22156790, "phys
+ical_tamper": 2, "ert_type": 7, "encoder_tamper": 2, "consumption_data": 6823922, "mic": "CRC", "
+mod": "ASK", "freq": 915.358, "rssi": -0.571, "snr": 19.871, "noise": -20.442}                   
+debug - error processing rtl json [json.exception.type_error.302] type must be string, but is nul
+l
+
+*/
 
 bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) { 
     std::string err;
@@ -274,13 +299,18 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         return false;
     }
 
-    if (type_j.get<std::string>() == "Electric") {
-        decoded_type = 1;
-    } else if (type_j.get<std::string>() == "Gas") {
-        decoded_type = 2;
-    } else if (type_j.get<std::string>() == "Water") {
-        decoded_type = 3;
-    } else if (model_j.get<std::string>() == "ERT-SCM") { 
+	if (!type_j.is_null()) {
+		if (type_j.get<std::string>() == "Electric") {
+			decoded_type = 1;
+		} else if (type_j.get<std::string>() == "Gas") {
+			decoded_type = 2;
+		} else if (type_j.get<std::string>() == "Water") {
+			decoded_type = 3;
+		}
+    } else if (!model_j.is_null() && model_j.get<std::string>() == "ERT-SCM") { 
+		if (ert_type_j.is_null())
+			return false; 
+
         switch (ert_type_j.get<int>()) {
             case 4:
             case 5:
@@ -339,12 +369,12 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         basedev->set_manuf(meter_manuf);
 
         basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
-        basedev->set_devicename(fmt::format("{}", id_j.get<unsigned int>()));
+        basedev->set_devicename(fmt::format("{}", decoded_id));
 
         basedev->insert(meterdev);
 
-        meterdev->set_meter_id(id_j);
-        meterdev->set_meter_type_code(type_j);
+        meterdev->set_meter_id(decoded_id);
+        meterdev->set_meter_type_code(decoded_type);
 
         if (decoded_type == 1) { 
             meterdev->set_meter_type("Electric");
