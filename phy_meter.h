@@ -139,10 +139,10 @@ protected:
         register_field("meter.device.meter_type", "Meter type", &meter_type);
         register_field("meter.device.meter_type_code", "Meter type code", &meter_type_code);
         register_field("meter.device.phy_tamper_flags", "Physical tamper flags", &phy_tamper_flags);
-        register_field("amr.device.endpoint_tamper_flags", "Endpoint tamper flags", &endpoint_tamper_flags);
+        register_field("meter.device.endpoint_tamper_flags", "Endpoint tamper flags", &endpoint_tamper_flags);
 
-        register_field("amr.device.consumption", "Consumption", &consumption);
-        register_field("amr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+        register_field("meter.device.consumption", "Consumption", &consumption);
+        register_field("meter.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
     }
 
     std::shared_ptr<tracker_element_uint64> meter_id;
@@ -195,7 +195,7 @@ protected:
 
     int tracked_meter_id;
 
-    int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_radiodata;
+    int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_radiodata, pack_comp_device;
 
     std::shared_ptr<tracker_element_string> meter_manuf;
 

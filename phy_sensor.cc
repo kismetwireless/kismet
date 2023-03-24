@@ -316,7 +316,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         add_lightning(json, rtlholder);
 
     if (newrtl && commondev != NULL) {
-        std::string info = "Detected new sensor RF device '" + commondev->get_model() + "'";
+        std::string info = "Detected new RF sensor device '" + commondev->get_model() + "'";
 
         if (commondev->get_rtlid() != "") 
             info += " ID " + commondev->get_rtlid();

@@ -1494,6 +1494,8 @@ void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
     jsoninfo->type = report.type();
     jsoninfo->json_string = report.json();
 
+    // _MSG_DEBUG("JSON data {} {}", jsoninfo->type, jsoninfo->json_string);
+
     packet->insert(pack_comp_json, jsoninfo);
 }
 

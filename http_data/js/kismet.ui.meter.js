@@ -12,13 +12,13 @@ kismet_ui.AddDeviceRowHighlight({
         'kismet.device.base.phyname'
     ],
     selector: function(data) {
-        return data['kismet.device.base.phyname'] === "RF Meter";
+		return 'meter.device' in data;
     }
 });
 
 kismet_ui.AddDeviceDetail("rfmeter", "Meter (SDR)", 0, {
     filter: function(data) {
-        return (data['kismet.device.base.phyname'] === "RTLAMR");
+		return 'meter.device' in data;
     },
     draw: function(data, target) {
         target.devicedata(data, {
