@@ -174,6 +174,10 @@ public:
 
     static int PacketHandler(CHAINCALL_PARMS);
 
+	// Static, public function for other phys (like phy_sensor) to be able to 
+	// ignore devices that meter wants to classify
+	static bool is_meter(const nlohmann::json& json);
+
 protected:
     // Convert a JSON record to a device key
     mac_addr json_to_mac(nlohmann::json in_json);

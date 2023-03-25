@@ -19,6 +19,7 @@
 
 #include "config.h"
 
+#include "nlohmann/json.hpp"
 #include "phy_meter.h"
 #include "devicetracker.h"
 #include "endian_magic.h"
@@ -244,6 +245,24 @@ debug - error processing rtl json [json.exception.type_error.302] type must be s
 l
 
 */
+
+bool kis_meter_phy::is_meter(const nlohmann::json &json) { 
+	// This list will need to be updated as rtl_433 adds more meter types
+	auto model_j = json["model"];
+
+	if (model_j.is_string()) {
+		if (model_j == "IDM") 
+			return true;
+		if (model_j == "NETIDM")
+			return true; 
+		if (model_j == "ERT-SCM") 
+			return true; 
+		if (model_j == "SCMplus")
+			return true;
+	}
+
+	return false;
+}
 
 bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) { 
     std::string err;

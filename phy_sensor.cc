@@ -26,6 +26,7 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 #include "messagebus.h"
+#include "phy_meter.h"
 
 kis_sensor_phy::kis_sensor_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -710,6 +711,11 @@ int kis_sensor_phy::packet_handler(CHAINCALL_PARMS) {
 
     try {
         ss >> device_json;
+
+        // Manually exclude other phys that also use rtl433 data
+
+        if (kis_meter_phy::is_meter(device_json))
+            return 0;
 
         // Copy the JSON as the meta field for logging, if it's valid
         if (sensor->json_to_rtl(device_json, in_pack)) {
