@@ -26,12 +26,8 @@
 #include "devicetracker_component.h"
 #include "phyhandler.h"
 
-/* Similar to the extreme aggregator, a consumption aggregator which ignores empty
- * slots while aggregating and otherwise selects the most extreme value when a 
- * slot overlaps.  This fits a lot of generic situations in RTLAMR sensors which
- * only report a few times a second (if that).
- */
-class meter_empty_aggregator {
+/* A monotonicly increasing aggregator which always takes the highest value */
+class meter_monotonic_aggregator {
 public:
     // Select the most extreme value
     static int64_t combine_element(const int64_t a, const int64_t b) {
@@ -41,52 +37,36 @@ public:
         if (b == default_val())
             return a;
 
-        if (a < 0 && b < 0) {
-            if (a < b)
-                return a;
+		if (a < b)
+			return b;
 
-            return b;
-        } else if (a > 0 && b > 0) {
-            if (a > b)
-                return a;
-
-            return b;
-        } else if (a == 0) {
-            return b;
-        } else if (b == 0) {
-            return a;
-        } else if (a < b) {
-            return a;
-        }
-
-        return b;
+		return a;
     }
 
     // Simple average
     static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-        int64_t avg = 0;
-        int64_t avg_c = 0;
+		int64_t max = default_val();
 
         for (auto i : *e) {
-            if (i != default_val()) {
-                avg += i;
-                avg_c++;
-            }
+			if (i == default_val())
+				continue; 
+
+			if (i < max) 
+				continue; 
+
+			max = i;
+
         }
 
-        if (avg_c == 0)
-            return default_val();
-
-        return avg / avg_c;
+		return max;
     }
 
-    // Default 'empty' value, no legit signal would be 0
     static int64_t default_val() {
-        return (int64_t) -9999;
+        return (int64_t) -999999;
     }
 
     static std::string name() {
-        return "meter_empty";
+        return "meter_monotonic";
     }
 };
 
@@ -129,7 +109,7 @@ public:
     __Proxy(endpoint_tamper_flags, uint8_t, uint8_t, uint8_t, endpoint_tamper_flags);
     __Proxy(consumption, double, double, double, consumption);
 
-    typedef kis_tracked_rrd<meter_empty_aggregator> rrdt;
+    typedef kis_tracked_rrd<meter_monotonic_aggregator> rrdt;
     __ProxyTrackable(consumption_rrd, rrdt, consumption_rrd);
 
 protected:
@@ -155,7 +135,7 @@ protected:
 
     std::shared_ptr<tracker_element_double> consumption;
 
-    std::shared_ptr<kis_tracked_rrd<meter_empty_aggregator>> consumption_rrd;
+    std::shared_ptr<kis_tracked_rrd<meter_monotonic_aggregator>> consumption_rrd;
 };
 
 class kis_meter_phy : public kis_phy_handler {
