@@ -410,7 +410,6 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
 		if (freq_khz != 0) {
 			common->freq_khz = freq_khz;
-			common->channel = fmt::format("{}MHz", (double) ((double) freq_khz / 1000));
 		}
 
 		if (common->source == mac_addr(0))
