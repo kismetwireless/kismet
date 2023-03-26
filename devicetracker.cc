@@ -1278,7 +1278,15 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
 	if ((in_flags & UCD_UPDATE_FREQUENCIES)) {
-        if (pack_l1info != NULL) {
+        if (pack_common != NULL) {
+            if (pack_common->channel != "0" && pack_common->channel != "") {
+                device->set_channel(pack_common->channel);
+            }
+            if (pack_common->freq_khz != 0)
+                device->set_frequency(pack_common->freq_khz);
+            
+            device->inc_frequency_count((int) pack_common->freq_khz);
+        } else if (pack_l1info != NULL) {
             if (pack_l1info->channel != "0" && pack_l1info->channel != "") {
                 device->set_channel(pack_l1info->channel);
             }
@@ -1289,14 +1297,6 @@ std::shared_ptr<kis_tracked_device_base>
             device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
 
             device->inc_frequency_count((int) pack_l1info->freq_khz);
-        } else if (pack_common != NULL) {
-            if (pack_common->channel != "0" && pack_common->channel != "") {
-                device->set_channel(pack_common->channel);
-            }
-            if (pack_common->freq_khz != 0)
-                device->set_frequency(pack_common->freq_khz);
-            
-            device->inc_frequency_count((int) pack_common->freq_khz);
         }
 	}
 
