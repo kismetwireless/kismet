@@ -461,8 +461,10 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
                 basedev->get_type_string(), meterdev->get_meter_id());
     }
 
+	meterdev->get_model_vec()->insert(model_j, nullptr);
+
 	// Only set consumption if we're non-zero to trim out error readings
-	if (decoded_consumption != 0) {
+	if (decoded_consumption != 0 && decoded_consumption >= meterdev->get_consumption()) {
 		meterdev->set_consumption(decoded_consumption);
 		meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
 	}

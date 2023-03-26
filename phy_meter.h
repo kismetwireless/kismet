@@ -37,28 +37,28 @@ public:
         if (b == default_val())
             return a;
 
-		if (a < b)
-			return b;
+        if (a < b)
+            return b;
 
-		return a;
+        return a;
     }
 
     // Simple average
     static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-		int64_t max = default_val();
+        int64_t max = default_val();
 
         for (auto i : *e) {
-			if (i == default_val())
-				continue; 
+            if (i == default_val())
+                continue; 
 
-			if (i < max) 
-				continue; 
+            if (i < max) 
+                continue; 
 
-			max = i;
+            max = i;
 
         }
 
-		return max;
+        return max;
     }
 
     static int64_t default_val() {
@@ -112,6 +112,8 @@ public:
     typedef kis_tracked_rrd<meter_monotonic_aggregator> rrdt;
     __ProxyTrackable(consumption_rrd, rrdt, consumption_rrd);
 
+	__ProxyTrackable(model_vec, tracker_element_string_map, model_vec);
+
 protected:
     virtual void register_fields() override {
         register_field("meter.device.meter_id", "Meter ID", &meter_id);
@@ -123,12 +125,22 @@ protected:
 
         register_field("meter.device.consumption", "Consumption", &consumption);
         register_field("meter.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+
+		register_field("meter.device.model_vec", "List of meter models", &model_vec);
     }
+
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
+		tracker_component::reserve_fields(e); 
+
+		model_vec->set_as_key_vector(true);
+	}
 
     std::shared_ptr<tracker_element_uint64> meter_id;
 
     std::shared_ptr<tracker_element_string> meter_type;
     std::shared_ptr<tracker_element_uint16> meter_type_code;
+
+	std::shared_ptr<tracker_element_string_map> model_vec;
 
     std::shared_ptr<tracker_element_uint8> phy_tamper_flags;
     std::shared_ptr<tracker_element_uint8> endpoint_tamper_flags;
