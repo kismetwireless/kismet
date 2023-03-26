@@ -19,6 +19,7 @@
 
 #include "config.h"
 
+#include "fmt/core.h"
 #include "nlohmann/json.hpp"
 #include "phy_meter.h"
 #include "devicetracker.h"
@@ -69,22 +70,20 @@ kis_meter_phy::~kis_meter_phy() {
 }
 
 mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
-    // Derive a mac addr from the model and device id data
-    //
-    // We turn the model string into 4 bytes using the adler32 checksum,
-    // then we use the model as a (potentially) 16bit int
-    //
-    // Finally we set the locally assigned bit on the first octet
+	// Derive a MAC from the ID; previously we used the model as well but 
+	// rtl_433 decodes multiple meter models from a single signal so we 
+	// use the decoded ID only
 
     uint8_t bytes[6];
-    uint16_t *model = (uint16_t *) bytes;
+    // uint16_t *model = (uint16_t *) bytes;
     uint32_t *deviceid = (uint32_t *) (bytes + 2);
 
     memset(bytes, 0, 6);
 
     try {
-        *model = (uint16_t) id;
-        *deviceid = adler32_checksum(model_s);
+        // *model = (uint16_t) id;
+        // *deviceid = adler32_checksum(model_s);
+		*deviceid = (uint32_t) id;
     } catch (const std::exception& e) {
         mac_addr m;
         m.state.error = true;
@@ -285,7 +284,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         return false;
 
     uint64_t decoded_id = 0; 
-    uint64_t decoded_consumption = 0; 
+    int64_t decoded_consumption = 0; 
     // internal decoded type
     // 0 unknown 1 elec 2 gas 3 water
     int decoded_type = -1;
@@ -302,16 +301,21 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     }
 
     if (!consumption_j.is_null()) { 
-        decoded_consumption = consumption_j.get<uint64_t>();
+        decoded_consumption = consumption_j.get<int64_t>();
     } else if (!consumption_2_j.is_null()) { 
-        decoded_consumption = consumption_2_j.get<uint64_t>();
+        decoded_consumption = consumption_2_j.get<int64_t>();
     } else if (!consumption_data_j.is_null()) { 
-        decoded_consumption = consumption_data_j.get<uint64_t>();
+        decoded_consumption = consumption_data_j.get<int64_t>();
 	} else if (!last_consumption_j.is_null()) {
-		decoded_consumption = last_consumption_j.get<uint64_t>();
+		decoded_consumption = last_consumption_j.get<int64_t>();
     } else { 
         return false;
     }
+
+	// Some meters appear to decode improperly and get a negative consumption; set the 
+	// consumption to 0 if that happens but still log that the meter exists
+	if (decoded_consumption < 0)
+		decoded_consumption = 0;
 
 	if (!type_j.is_null()) {
 		if (type_j.get<std::string>() == "Electric") {
@@ -404,8 +408,10 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 		if (!freq_j.is_null())
 			freq_khz = freq_j.get<double>() * 1000;
 
-		if (common->freq_khz == 0)
+		if (freq_khz != 0) {
 			common->freq_khz = freq_khz;
+			common->channel = fmt::format("{}MHz", (double) ((double) freq_khz / 1000));
+		}
 
 		if (common->source == mac_addr(0))
 			common->source = mac;
@@ -454,8 +460,11 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
                 basedev->get_type_string(), meterdev->get_meter_id());
     }
 
-    meterdev->set_consumption(decoded_consumption);
-    meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
+	// Only set consumption if we're non-zero to trim out error readings
+	if (decoded_consumption != 0) {
+		meterdev->set_consumption(decoded_consumption);
+		meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
+	}
 
     return true;
 }

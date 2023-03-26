@@ -1423,6 +1423,7 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
     if (report->has_signal()) {
         auto siginfo = handle_sub_signal(report->signal());
         packet->insert(pack_comp_l1info, siginfo);
+        // _MSG_DEBUG("creating l1 chan {} freq {}", siginfo->channel, siginfo->freq_khz);
     }
 
     // GPS

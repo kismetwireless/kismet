@@ -19,7 +19,6 @@
 #include "config.h"
 #include "kis_datasource.h"
 #include "datasource_rtl433.h"
-#include "phy_rtl433.h"
 
 kis_datasource_rtl433::kis_datasource_rtl433(shared_datasource_builder in_builder) :
     kis_datasource(in_builder) {
