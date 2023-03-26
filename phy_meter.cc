@@ -258,6 +258,8 @@ bool kis_meter_phy::is_meter(const nlohmann::json &json) {
 			return true; 
 		if (model_j == "SCMplus")
 			return true;
+		if (model_j == "SCM+")
+			return true;
 	}
 
 	return false;
