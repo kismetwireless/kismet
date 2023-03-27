@@ -27,17 +27,33 @@ kismet_ui.AddDeviceDetail("rfmeter", "Meter (SDR)", 0, {
             {
                 field: "meter.device/meter.device.meter_id",
                 title: "Meter ID",
-                empty: "<i>Unknown</i>"
+                empty: "<i>Unknown</i>",
             },
             {
                 field: "meter.device/meter.device.meter_type",
                 title: "Meter Type",
-                empty: "<i>Unknown</i>"
+                empty: "<i>Unknown</i>",
+				help: "Type of meter (eletrical, gas, or water)",
+            },
+            {
+                field: "meter.device/meter.device.model_vec",
+                title: "Models",
+                empty: "<i>Unknown</i>",
+                help: "Meters may be decoded as multiple models.",
+                draw: function(opts) {
+                    var models = "";
+                    data['meter.device']['meter.device.model_vec'].forEach(m => {
+                        models = `${models}${m}<br>`
+                    });
+
+                    return models;
+                },
             },
             {
                 field: "meter.device/meter.device.consumption",
                 title: "Consumption",
-                empty: "<i>Unknown</i>"
+                empty: "<i>Unknown</i>",
+				help: "Consumption rate (units may vary per meter type)",
             },
             ],
         });
