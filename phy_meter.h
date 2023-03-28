@@ -126,14 +126,14 @@ protected:
         register_field("meter.device.consumption", "Consumption", &consumption);
         register_field("meter.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
 
-		register_field("meter.device.model_vec", "List of meter models", &model_vec);
+        register_field("meter.device.model_vec", "List of meter models", &model_vec);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
-		tracker_component::reserve_fields(e); 
+        tracker_component::reserve_fields(e); 
 
-		model_vec->set_as_key_vector(true);
-	}
+        model_vec->set_as_key_vector(true);
+    }
 
     std::shared_ptr<tracker_element_uint64> meter_id;
 
@@ -157,10 +157,10 @@ public:
     kis_meter_phy() :
         kis_phy_handler() { };
 
-	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
-		return new kis_meter_phy(in_phyid);
-	}
+    // Build a strong version of ourselves
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+        return new kis_meter_phy(in_phyid);
+    }
 
     kis_meter_phy(int in_phyid);
 

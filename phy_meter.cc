@@ -246,23 +246,23 @@ l
 */
 
 bool kis_meter_phy::is_meter(const nlohmann::json &json) { 
-	// This list will need to be updated as rtl_433 adds more meter types
-	auto model_j = json["model"];
+    // This list will need to be updated as rtl_433 adds more meter types
+    auto model_j = json["model"];
 
-	if (model_j.is_string()) {
-		if (model_j == "IDM") 
-			return true;
-		if (model_j == "NETIDM")
-			return true; 
-		if (model_j == "ERT-SCM") 
-			return true; 
-		if (model_j == "SCMplus")
-			return true;
-		if (model_j == "SCM+")
-			return true;
-	}
+    if (model_j.is_string()) {
+        if (model_j == "IDM") 
+            return true;
+        if (model_j == "NETIDM")
+            return true; 
+        if (model_j == "ERT-SCM") 
+            return true; 
+        if (model_j == "SCMplus")
+            return true;
+        if (model_j == "SCM+")
+            return true;
+    }
 
-	return false;
+    return false;
 }
 
 bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) { 
@@ -316,68 +316,68 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
 	// Some meters appear to decode improperly and get a negative consumption; set the 
 	// consumption to 0 if that happens but still log that the meter exists
-	if (decoded_consumption < 0)
-		decoded_consumption = 0;
+    if (decoded_consumption < 0)
+        decoded_consumption = 0;
 
-	if (!type_j.is_null()) {
-		if (type_j.get<std::string>() == "Electric") {
-			decoded_type = 1;
-		} else if (type_j.get<std::string>() == "Gas") {
-			decoded_type = 2;
-		} else if (type_j.get<std::string>() == "Water") {
-			decoded_type = 3;
-		} else {
-			decoded_type = 0;
-		}
+    if (!type_j.is_null()) {
+        if (type_j.get<std::string>() == "Electric") {
+            decoded_type = 1;
+        } else if (type_j.get<std::string>() == "Gas") {
+            decoded_type = 2;
+        } else if (type_j.get<std::string>() == "Water") {
+            decoded_type = 3;
+        } else {
+            decoded_type = 0;
+        }
     } else if (!model_j.is_null() && model_j.get<std::string>() == "ERT-SCM") { 
-		if (!ert_type_j.is_null()) {
-			switch (ert_type_j.get<int>()) {
-				case 4:
-				case 5:
-				case 7:
-				case 8:
-				case 23:
-					decoded_type = 1;
-					break;
-				case 2:
-				case 9:
-				case 12:
-					decoded_type = 2;
-					break;
-				case 11:
-				case 13:
-					decoded_type = 3;
-					break;
-				default:
-					decoded_type = 0;
-					break;
-			}
-		} else if (!ert_type_2_j.is_null()) {
-			switch (ert_type_2_j.get<int>()) {
-				case 4:
-				case 5:
-				case 7:
-				case 8:
-				case 23:
-					decoded_type = 1;
-					break;
-				case 2:
-				case 9:
-				case 12:
-					decoded_type = 2;
-					break;
-				case 11:
-				case 13:
-					decoded_type = 3;
-					break;
-				default:
-					decoded_type = 0;
-					break;
-			}
+        if (!ert_type_j.is_null()) {
+            switch (ert_type_j.get<int>()) {
+                case 4:
+                case 5:
+                case 7:
+                case 8:
+                case 23:
+                    decoded_type = 1;
+                    break;
+                case 2:
+                case 9:
+                case 12:
+                    decoded_type = 2;
+                    break;
+                case 11:
+                case 13:
+                    decoded_type = 3;
+                    break;
+                default:
+                    decoded_type = 0;
+                    break;
+            }
+        } else if (!ert_type_2_j.is_null()) {
+            switch (ert_type_2_j.get<int>()) {
+                case 4:
+                case 5:
+                case 7:
+                case 8:
+                case 23:
+                    decoded_type = 1;
+                    break;
+                case 2:
+                case 9:
+                case 12:
+                    decoded_type = 2;
+                    break;
+                case 11:
+                case 13:
+                    decoded_type = 3;
+                    break;
+                default:
+                    decoded_type = 0;
+                    break;
+            }
 
-		} else {
-			return false; 
-		}
+        } else {
+            return false; 
+        }
 
     } else {
         return false;
@@ -391,38 +391,38 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     }
 
     auto devinfo = packet->fetch<kis_tracked_device_info>(pack_comp_device);
-	std::shared_ptr<kis_tracked_device_base> basedev;
+    std::shared_ptr<kis_tracked_device_base> basedev;
 
-	if (devinfo != nullptr) {
-		// rf sensor packets should only create a single device, so we'll take a risk 
-		// here and assume the first one in the device list is what we want
-		if (devinfo->devrefs.size() > 0)
-			basedev = devinfo->devrefs.begin()->second;
-	}
+    if (devinfo != nullptr) {
+        // rf sensor packets should only create a single device, so we'll take a risk 
+        // here and assume the first one in the device list is what we want
+        if (devinfo->devrefs.size() > 0)
+            basedev = devinfo->devrefs.begin()->second;
+    }
 
-	auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
+    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
 
-	if (basedev == nullptr) {
-		common->type = packet_basic_data;
-		common->phyid = fetch_phy_id();
-		common->datasize = 0;
+    if (basedev == nullptr) {
+        common->type = packet_basic_data;
+        common->phyid = fetch_phy_id();
+        common->datasize = 0;
 
-		if (!freq_j.is_null())
-			freq_khz = freq_j.get<double>() * 1000;
+        if (!freq_j.is_null())
+            freq_khz = freq_j.get<double>() * 1000;
 
-		if (freq_khz != 0) {
-			common->freq_khz = freq_khz;
-		}
+        if (freq_khz != 0) {
+            common->freq_khz = freq_khz;
+        }
 
-		if (common->source == mac_addr(0))
-			common->source = mac;
-		if (common->transmitter == mac_addr(0))
-			common->transmitter = mac;
+        if (common->source == mac_addr(0))
+            common->source = mac;
+        if (common->transmitter == mac_addr(0))
+            common->transmitter = mac;
 
-		basedev = devicetracker->update_common_device(common, common->source, this, packet,
-				(UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-				 UCD_UPDATE_SEENBY), "AMR Meter");
-	}
+        basedev = devicetracker->update_common_device(common, common->source, this, packet,
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                 UCD_UPDATE_SEENBY), "AMR Meter");
+    }
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtlamr_json_to_phy");
 
@@ -461,13 +461,13 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
                 basedev->get_type_string(), meterdev->get_meter_id());
     }
 
-	meterdev->get_model_vec()->insert(model_j, nullptr);
+    meterdev->get_model_vec()->insert(model_j, nullptr);
 
-	// Only set consumption if we're non-zero to trim out error readings
-	if (decoded_consumption != 0 && decoded_consumption >= meterdev->get_consumption()) {
-		meterdev->set_consumption(decoded_consumption);
-		meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
-	}
+    // Only set consumption if we're non-zero to trim out error readings
+    if (decoded_consumption != 0 && decoded_consumption >= meterdev->get_consumption()) {
+        meterdev->set_consumption(decoded_consumption);
+        meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
+    }
 
     return true;
 }
