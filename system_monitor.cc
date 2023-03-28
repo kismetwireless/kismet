@@ -406,7 +406,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 
         if (fscanf(tempf, "%lf", &temp) == 1) {
             temp = temp / 1000;
-            status->get_sensors_fans()->insert(synth_name, std::make_shared<tracker_element_double>(0, temp));
+            status->get_sensors_temp()->insert(synth_name, std::make_shared<tracker_element_double>(0, temp));
         }
 
 
