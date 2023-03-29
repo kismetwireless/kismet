@@ -299,7 +299,9 @@ function ScheduleAlertSummary() {
     alertTid = setTimeout(ScheduleAlertSummary, 2000);
 }
 
-function InitializeAlertTable() {
+var alertTableHolder = null;
+
+function InitializeAlertTable(element) {
     var cols = exports.GetAlertColumns();
     var colmap = exports.GetAlertColumnMap(cols);
     var fields = exports.GetAlertFields();
@@ -310,36 +312,37 @@ function InitializeAlertTable() {
         datatable: true,
     };
 
-    if ($.fn.dataTable.isDataTable(alert_element)) {
-        alert_element.DataTable().destroy();
-        alert_element.empty();
+    alertTableHolder = element;
+
+    if (alert_element != null && $.fn.dataTable.isDataTable(alert_element)) {
+        alert_element.DataTable().clear().destroy();
+        element.empty();
+    }
+
+    if ($('#alerts', element).length == 0) {
+        alert_element = 
+            $('<table>', {
+                id: 'alerts',
+                class: 'fixeddt stripe hover nowrap pageResize',
+                'cell-spacing': 0,
+                width: '100%',
+            });
+        element.append(alert_element);
     }
 
     alert_element
-        .on('xhr.dt', function(e, settings, json, xhr) {
-            json = kismet.sanitizeObject(json);
-
-            try {
-                if (json['recordsFiltered'] != json['recordsTotal'])
-                    alert_status_element.html(`${json['recordsTotal']} alerts (${json['recordsFiltered']} shown after filter)`);
-                else
-                    alert_status_element.html(`${json['recordsTotal']} alerts`);
-            } catch (error) {
-                ;
-            }
-        })
         .DataTable({
             destroy: true,
+
             scrollResize: true,
-            scrollY: 200,
             serverSide: true,
             processing: true,
-            dom: 'ft',
+
+            dom: '<"viewselector">ftip',
+
             deferRender: true,
             lengthChange: false,
-            scroller: {
-                loadingIndicator: true,
-            },
+
             ajax: {
                 url: local_uri_prefix + "alerts/alerts_view.json",
                 data: {
@@ -414,34 +417,19 @@ function InitializeAlertTable() {
     return alert_dt;
 }
 
+function ActivateAlertTable() {
+    InitializeAlertTable(alertTableHolder);
+}
+
 kismet_ui_tabpane.AddTab({
     id: 'tab_alerts',
     tabTitle: 'Alerts',
     createCallback: function(div) {
-        div.append(
-            $('<div>', {
-                class: 'resize_wrapper',
-            })
-            .append(
-                $('<table>', {
-                    id: 'alerts_dt',
-                    class: 'stripe hover nowrap',
-                    'cell-spacing': 0,
-                    width: '100%',
-                })
-            )
-        ).append(
-            $('<div>', {
-                id: 'alerts_status',
-                style: 'padding-bottom: 10px;',
-            })
-        );
-
-        alert_element = $('#alerts_dt', div);
-        alert_status_element = $('#alerts_status', div);
-
-        InitializeAlertTable();
+        InitializeAlertTable(div);
         ScheduleAlertSummary();
+    },
+    activateCallback: function() {
+        ActivateAlertTable();
     },
     priority: -1001,
 }, 'center');
