@@ -72,8 +72,11 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
     }
 
     stopped = true;
+
+    /* Move to closing of connection
     in_buf.consume(in_buf.size());
     out_bufs.clear();
+    */
 
     tcpsocket = std::move(socket);
 
@@ -162,7 +165,9 @@ void kis_external_interface::close_external() {
     write_cb = nullptr;
     closure_cb = nullptr;
 
+    // Purge the in/out buffers in case we get recycled
     in_buf.consume(in_buf.size());
+    out_bufs.clear();
 };
 
 void kis_external_interface::ipc_soft_kill() {
@@ -352,8 +357,10 @@ bool kis_external_interface::run_ipc() {
     cancelled = true;
     ipc_running = false;
 
+    /* Move to closing of connection
     in_buf.consume(in_buf.size());
     out_bufs.clear();
+    */
 
     struct stat fstat;
 
