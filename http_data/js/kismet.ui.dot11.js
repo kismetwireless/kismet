@@ -2821,7 +2821,7 @@ AddSsidColumn('col_ssid', {
             return "<i>Cloaked or Empty SSID</i>";
         else if (/^ +$/.test(d))
             return "<i>Blank SSID</i>";
-        return d;
+        return kismet.censorString(d);
     },
 });
 
@@ -2935,7 +2935,7 @@ export const SsidDetailWindow = (key) => {
 
                             $('.loadoops', panel.content).hide();
 
-                            panel.headerTitle("SSID: " + fulldata['dot11.ssidgroup.ssid']);
+                            panel.headerTitle("SSID: " + kismet.censorString(fulldata['dot11.ssidgroup.ssid']));
 
                             var accordion = $('div#accordion', content);
 
@@ -3036,7 +3036,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                     if (opts['value'].replace(/\s/g, '').length == 0) 
                         return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
 
-                    return `${opts['value']} <i>(${data['dot11.ssidgroup.ssid_len']} characters)</i>`;
+                    return `${kismet.censorString(opts['value'])} <i>(${data['dot11.ssidgroup.ssid_len']} characters)</i>`;
                 },
                 help: "SSID advertised or probed by one or more devices",
             },
