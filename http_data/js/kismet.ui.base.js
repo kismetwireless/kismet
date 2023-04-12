@@ -442,7 +442,7 @@ kismet_ui.AddDeviceColumn('column_device_mac', {
     searchable: true,
     orderable: true,
     visible: false,
-    width: "70px",
+    width: "80px",
     renderfunc: function(d, t, r, m) {
         return exports.renderMac(d, t, r, m);
     },
