@@ -220,6 +220,15 @@ function load_main_ui() {
         // Finalize the tabs
         kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
         kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
+
+        var shrink = $('<p>', {
+            'id': 'shrink_shrink',
+            'class': 'shrinker pseudolink',
+        }).html("Minimize")
+        .on("click", () => {
+            shrinker();
+        });
+        kismet_ui_tabpane.AddElement(shrink, 'south');
     
         // Finalize the sidebar
         kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
@@ -253,7 +262,30 @@ $(function() {
         load_main_ui();
     });
 
+    shrink_main_ux = kismet.getStorage('kismet.base.ux.shrunk', false);
+    if (shrink_main_ux) {
+        south = $(".ui-layout-south");
+        south.addClass("ui-layout-south-collapsed");
+    } else {
+        $('#shrink_restore').hide();
+    }
+
 }); // onload
+
+function shrinker() {
+    shrink_main_ux = kismet.getStorage('kismet.base.ux.shrunk', false);
+
+    kismet.putStorage('kismet.base.ux.shrunk', !shrink_main_ux);
+
+    if (shrink_main_ux) {
+        $('#shrink_shrink').show();
+    } else {
+        $('#shrink_shrink').hide();
+    }
+
+    location.reload();
+}
+
 </script>
 
 </head>
@@ -278,7 +310,8 @@ $(function() {
         <div id="southpane-tabs" class="tabs-min ui-layout-south"></div>
 
         <div class="creditbar">
-            <p>Powered by many OSS components, see the <a href="credit.html" target="_new">credits page</a>
+            <p id="shrink_restore" onClick="shrinker();" class="pseudolink expander">Maximize</p> 
+            <p class="vertical-center">Powered by many OSS components, see the <a href="credit.html" target="_new">credits page</a>
         </div>
     </div>
 </body>

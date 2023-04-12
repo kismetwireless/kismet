@@ -36,14 +36,20 @@ body {
 .creditbar {
     background-color: var(--topbar-background-color);
     font-size: 13px;
-    height: 20px;
-    flex: 0 1 20px;
+    height: 24px;
+    flex: 0 1 24px;
+    position: relative;
 }
 
 .ui-layout-south {
     padding: 0 !important;
     border-top: none;
     flex: 0 1 30vh;
+    /* flex: 0 0; */
+}
+
+.ui-layout-south-collapsed {
+    display: none;
 }
 
 .ui-layout-center {
@@ -235,5 +241,27 @@ div.viewselector {
 
 div.dataTables_filter { 
     padding-top: 4px;
+}
+
+.shrinker {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+.expander {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    -ms-transform: translateY(-50%);
+    transform: translateY(-50%);
+}
+
+.vertical-center {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%);
 }
 

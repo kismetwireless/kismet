@@ -1219,6 +1219,10 @@ exports.ResetDeviceTable = function(element) {
     ScheduleDeviceSummary();
 }
 
+exports.ResetExistingDeviceTable = function() {
+    exports.ResetDeviceTable(devicetableHolder);
+}
+
 kismet_ui_settings.AddSettingsPane({
     id: 'core_devicelist_columns',
     listTitle: 'Device List Columns',

@@ -92,6 +92,18 @@ exports.RemoveTab = function(id, group="south") {
     }
 }
 
+exports.AddElement = function(element, group) {
+    if (group in tabholders) {
+        if ('AddedItems' in tabholders[group]) {
+            tabholders[group].AddedItems.push(element);
+        } else {
+            tabholders[group].AddedItems = [element];
+        }
+
+        tabholders[group].TabDiv.append(element);
+    }
+}
+
 function createListCallback(c) {
     return function() {
         c.createCallback();
@@ -102,6 +114,10 @@ function createExpanderCallback(c, group) {
     return function() {
         MoveToExpanded(c, group);
     }
+}
+
+function resize(div) {
+    div.resize();
 }
 
 function populateList(div, group) {
@@ -158,7 +174,8 @@ function populateList(div, group) {
 
         var td =
             $('<div>', {
-                id: c.id
+                'id': c.id,
+                'class': 'ui-tabcontent',
             });
 
         div.append(td);
