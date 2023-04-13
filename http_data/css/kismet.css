@@ -249,7 +249,7 @@ div.dataTables_filter {
     top: 10px;
 }
 
-.expander {
+.main-expander {
     position: absolute;
     right: 10px;
     top: 50%;
