@@ -590,22 +590,25 @@ unsigned int wifi_chan_to_freq(unsigned int in_chan, enum wifi_chan_band in_band
 }
 
 unsigned int wifi_freq_to_chan(unsigned int in_freq) {
-	if (in_freq == 2484)
-		return 14;
-	else if (in_freq == 5935)
-		return 2;
-	else if (in_freq < 2484)
-		return (in_freq - 2407) / 5;
-	else if (in_freq >= 4910 && in_freq <= 4980)
-		return (in_freq - 4000) / 5;
-	else if (in_freq < 5950)
-		return (in_freq - 5000) / 5;
-	else if (in_freq <= 45000) /* DMG band lower limit */
-		return (in_freq - 5950) / 5;
-	else if (in_freq >= 58320 && in_freq <= 70200)
-		return (in_freq - 56160) / 2160;
-	else
-		return 0;
+    if (in_freq < 2412)
+        return in_freq;
+
+    if (in_freq == 2484)
+        return 14;
+    else if (in_freq == 5935)
+        return 2;
+    else if (in_freq < 2484)
+        return (in_freq - 2407) / 5;
+    else if (in_freq >= 4910 && in_freq <= 4980)
+        return (in_freq - 4000) / 5;
+    else if (in_freq < 5950)
+        return (in_freq - 5000) / 5;
+    else if (in_freq <= 45000) /* DMG band lower limit */
+        return (in_freq - 5950) / 5;
+    else if (in_freq >= 58320 && in_freq <= 70200)
+        return (in_freq - 56160) / 2160;
+    else
+        return 0;
 }
 
 enum wifi_chan_band wifi_freq_to_band(unsigned int in_freq) {
