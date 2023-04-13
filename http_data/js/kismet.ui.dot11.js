@@ -226,7 +226,7 @@ kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
 
     if (in_freq == 2484)
         return 14;
-    else if (in_freq < 2400)
+    else if (in_freq < 2412)
         return `${in_freq}MHz`;
     else if (in_freq == 5935)
         return 2;
