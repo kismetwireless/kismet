@@ -31,6 +31,8 @@
 
 #include "boost/asio.hpp"
 
+#include "fmt_asio.h"
+
 using boost::asio::ip::tcp;
 
 // Raw NMEA over TCP, as served from many phone apps

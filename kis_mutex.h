@@ -37,6 +37,8 @@
 
 #define KIS_THREAD_TIMEOUT      30
 
+template <>struct fmt::formatter<std::thread::id> : fmt::ostream_formatter {};
+
 class kis_mutex : public std::recursive_timed_mutex {
 private:
     std::string name;

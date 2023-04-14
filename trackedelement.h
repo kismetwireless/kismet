@@ -105,6 +105,8 @@ bool operator ==(const device_key& x, const device_key& y);
 std::ostream& operator<<(std::ostream& os, const device_key& k);
 std::istream& operator>>(std::istream& is, device_key& k);
 
+template <>struct fmt::formatter<device_key> : fmt::ostream_formatter {};
+
 namespace std {
     template<> struct hash<device_key> {
         std::size_t operator()(device_key const& d) const noexcept {
@@ -334,6 +336,8 @@ protected:
 std::ostream& operator<<(std::ostream& os, const tracker_element& e);
 std::istream& operator>>(std::istream& is, tracker_element& e);
 std::ostream& operator<<(std::ostream& os, std::shared_ptr<tracker_element>& se);
+
+template <>struct fmt::formatter<tracker_element> : fmt::ostream_formatter {};
 
 // Basic generator function for making various elements; objects may also prefer pooling allocation
 // to minimize malloc thrash

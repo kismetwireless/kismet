@@ -323,6 +323,8 @@ try_again:
 std::ostream& operator<<(std::ostream& os, const uuid& u);
 std::istream& operator>>(std::istream &is, uuid& u);
 
+template <>struct fmt::formatter<uuid> : fmt::ostream_formatter {};
+
 namespace std {
     template<> struct hash<uuid> {
         std::size_t operator()(uuid const& u) const noexcept {

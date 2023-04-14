@@ -44,6 +44,11 @@
 #include "messagebus.h"
 #include "trackedelement.h"
 
+#include "fmt_asio.h"
+
+template <>struct fmt::formatter<boost::beast::http::verb> : fmt::ostream_formatter {};
+template <>struct fmt::formatter<boost::beast::string_view> : fmt::ostream_formatter {};
+
 class kis_net_beast_httpd_connection;
 class kis_net_beast_route;
 class kis_net_beast_auth;

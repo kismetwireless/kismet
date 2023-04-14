@@ -27,6 +27,8 @@
 #include "timetracker.h"
 #include "util.h"
 
+#include "fmt_asio.h"
+
 kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     resolver{Globalreg::globalreg->io},

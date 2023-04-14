@@ -480,6 +480,8 @@ struct mac_addr {
 std::ostream& operator<<(std::ostream& os, const mac_addr& m);
 std::istream& operator>>(std::istream& is, mac_addr& m);
 
+template <>struct fmt::formatter<mac_addr> : fmt::ostream_formatter {};
+
 // A hash algorithm which is unique by mask.
 //
 // This does NOT make a std::unordered_map suitable for masked comparisons!  For a data
