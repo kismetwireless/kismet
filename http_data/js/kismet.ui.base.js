@@ -287,10 +287,10 @@ kismet_ui.AddDeviceColumn('column_phy', {
 });
 
 kismet_ui.AddDeviceColumn('column_crypto', {
-    sTitle: 'Crypto',
+    sTitle: 'Encryption',
     field: 'kismet.device.base.crypt',
     description: 'Encryption',
-    width: "75px",
+    width: "85px",
     renderfunc: function(d, t, r, m) {
         if (d == "") {
             return "n/a";
