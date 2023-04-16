@@ -3750,13 +3750,13 @@ function thermal_refresh() {
                         $('<div>', {
                             id: `thermal_${kismet.sanitizeId(t)}_c`,
                             style: 'flex: 1',
-                        }).html(`${Math.floor(data['kismet.system.sensors.temp'][t])}&#8451`)
+                        }).html(kismet_ui.renderTemperature(data['kismet.system.sensors.temp'][t], 2))
                     );
 
                     tcontent.append(tdiv);
                 } else { 
                     var tdif = $(`thermal_${kismet.sanitizeId(t)}_c`, tdiv);
-                    tdif.html(`${Math.floor(data['kismet.system.sensors.temp'][t])}&#8451`)
+                    tdif.html(kismet_ui.renderTemperature(data['kismet.system.sensors.temp'][t], 2));
                 }
 
             }
