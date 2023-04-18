@@ -3301,7 +3301,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             liveupdate: true,
                             empty: "<i>None</i>",
                             draw: function(opts) {
-                                return kismet.censorMAC(opts['value']);
+                                return kismet.censorString(opts['value']);
                             },
                         },
                         {
@@ -3357,7 +3357,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                                 if (opts['value'].replace(/\s/g, '').length == 0) 
                                     return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
 
-                                return opts['value'];
+                                return kismet.censorString(opts['value']);
                             },
                         },
                     ]
