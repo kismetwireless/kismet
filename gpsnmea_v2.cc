@@ -94,7 +94,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
     set_fix = false;
 
     for (unsigned int x = 0; x < line.length(); x++) {
-        if (line[x] < 0x32 || line[x] > 0x7A) {
+        if ( (line[x] < 0x20 || line[x] > 0x7F) && line[x] != 0x0d) {
             if (!warned_about_binary) {
                 warned_about_binary = true;
                 _MSG_ERROR("NMEA GPS {} appears to be reporting binary data, not NMEA.  If this "
@@ -154,7 +154,48 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
             set_fix = true;
 
             // printf("debug - %f, %f alt %f\n", in_lat, in_lon, in_alt);
-        } else if (gpstoks[0] == "$GPRMC") {
+        // GNGGA is a multi-constellation GNSS fix
+	} else if (gpstoks[0] == "$GNGGA") {
+            int tint;
+            double tdouble;
+
+            if (gpstoks.size() < 15)
+                throw kis_gps_nmea_v2_soft_fail();
+
+            // Parse the basic coordinate string
+            // $GNGGA,time,lat,NS,lon,EW,quality,#sats,hdop,alt,M,geopos,M,dgps1,dgps2,checksum
+
+            if (sscanf(gpstoks[2].c_str(), "%2d%lf", &tint, &tdouble) != 2)
+                throw kis_gps_nmea_v2_soft_fail();
+
+            new_location->lat = (double) tint + (tdouble / 60);
+            if (gpstoks[3] == "S")
+                new_location->lat *= -1;
+
+            if (sscanf(gpstoks[4].c_str(), "%3d%lf", &tint, &tdouble) != 2)
+                throw kis_gps_nmea_v2_soft_fail();
+
+            new_location->lon = (double) tint + (tdouble / 60);
+            if (gpstoks[5] == "W")
+                new_location->lon *= -1;
+
+            set_lat_lon = true;
+            if (new_location->fix < 2)
+                new_location->fix = 2;
+
+            if (sscanf(gpstoks[9].c_str(), "%lf", &tdouble) != 1)
+                throw kis_gps_nmea_v2_soft_fail();
+
+            new_location->alt = tdouble;
+            set_alt = true;
+            if (new_location->fix < 3)
+                new_location->fix = 3;
+            set_fix = true;
+
+            // printf("debug - %f, %f alt %f\n", in_lat, in_lon, in_alt);
+        } 
+
+	else if (gpstoks[0] == "$GPRMC") {
             // recommended minimum
             // $GPRMC,time,valid,lat,lathemi,lon,lonhemi,speed-knots,bearing,utc,,checksum
             int tint;
