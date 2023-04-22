@@ -37,7 +37,7 @@ bool device_tracker_view_function_worker::match_device(std::shared_ptr<kis_track
     return filter(device);
 }
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
 device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in_target,
         const std::string& in_regex) {
 
@@ -67,10 +67,41 @@ device_tracker_view_regex_worker::pcre_filter::~pcre_filter() {
         pcre_free(study);
 }
 
+#elif defined(HAVE_LIBPCRE2)
+
+device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in_target,
+        const std::string& in_regex) {
+
+    PCRE2_SIZE erroroffset;
+    int errornumber;
+
+    re = NULL;
+    match_data = NULL;
+
+    target = in_target;
+
+    re = pcre2_compile((PCRE2_SPTR8) in_regex.c_str(),
+       PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, NULL);
+
+    if (re == nullptr) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+        throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
+                    (int) erroroffset, (char *) buffer));
+    }
+}
+
+device_tracker_view_regex_worker::pcre_filter::~pcre_filter() {
+    if (match_data != nullptr)
+        pcre2_match_data_free(match_data);
+    if (re != nullptr)
+        pcre2_code_free(re);
+}
+
 #endif
 
 device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>>& in_filter_vec) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     filter_vec = in_filter_vec;
 #else
     throw std::runtime_error("Kismet was not compiled with PCRE support");
@@ -78,7 +109,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 }
 
 device_tracker_view_regex_worker::device_tracker_view_regex_worker(nlohmann::json& json) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     for (const auto& i : json) {
         if (!i.is_array())
             throw std::runtime_error("expected array of [field, regex] pairs for regex filter");
@@ -97,7 +128,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(nlohmann::jso
 }
 
 device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     for (const auto& i : str_pcre_vec) {
         auto field = std::get<0>(i);
         auto regex = std::get<1>(i);
@@ -112,7 +143,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 }
 
 bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     bool matched = false;
 
     for (const auto& i : filter_vec) {
@@ -142,10 +173,17 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
             }
 
             int rc;
+
+#if defined(HAVE_LIBPCRE1)
             int ovector[128];
 
             rc = pcre_exec(i->re, i->study, val.c_str(), val.length(), 0, 0, ovector, 128);
+#else
 
+            rc = pcre2_match(i->re, (PCRE2_SPTR8) val.c_str(), val.length(), 
+                    0, 0, i->match_data, NULL);
+
+#endif
             // Stop matching as soon as we find a hit
             if (rc >= 0) {
                 matched = true;
@@ -153,6 +191,8 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
             }
 
         }
+
+
 
         if (matched)
             return true;

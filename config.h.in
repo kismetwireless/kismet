@@ -114,8 +114,11 @@
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
-/* libpcre regex support */
+/* libpcre1 regex support */
 #undef HAVE_LIBPCRE
+
+/* libpcre2 regex support */
+#undef HAVE_LIBPCRE2
 
 /* libsqlite3 database support */
 #undef HAVE_LIBSQLITE3
@@ -140,9 +143,6 @@
 
 /* local radiotap packet headers */
 #undef HAVE_LOCAL_RADIOTAP
-
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
 
 /* openssl library present */
 #undef HAVE_OPENSSL
@@ -173,6 +173,9 @@
 
 /* stdint.h is present */
 #undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
@@ -243,7 +246,9 @@
 /* Libprelude support enabled */
 #undef PRELUDE
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
 /* strerror_r return type */
@@ -283,11 +288,6 @@
 # ifndef WORDS_BIGENDIAN
 #  undef WORDS_BIGENDIAN
 # endif
-#endif
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
 #endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */

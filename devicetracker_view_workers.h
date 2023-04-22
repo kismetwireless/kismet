@@ -29,8 +29,13 @@
 #include "trackedcomponent.h"
 #include "devicetracker_component.h"
 
-#ifdef HAVE_LIBPCRE
+#ifdef HAVE_LIBPCRE1
 #include <pcre.h>
+#endif
+
+#ifdef HAVE_LIBPCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #endif
 
 class device_tracker_view_worker {
@@ -78,13 +83,21 @@ protected:
 class device_tracker_view_regex_worker : public device_tracker_view_worker {
 public:
     struct pcre_filter {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         pcre_filter(const std::string& target, const std::string& in_regex);
         ~pcre_filter();
 
         std::string target;
         pcre *re;
         pcre_extra *study;
+#elif defined(HAVE_LIBPCRE2)
+        pcre_filter(const std::string& target, const std::string& in_regex);
+        ~pcre_filter();
+
+        std::string target;
+
+        pcre2_code *re;
+        pcre2_match_data *match_data;
 #endif
     };
 

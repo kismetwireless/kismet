@@ -27,8 +27,13 @@
 
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 
-#ifdef HAVE_LIBPCRE
+#ifdef HAVE_LIBPCRE1
 #include <pcre.h>
+#endif
+
+#ifdef HAVE_LIBPCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #endif
 
 /* An abstract model of a UAV (drone/quadcopter/plane) device.
@@ -160,9 +165,12 @@ public:
     uav_manuf_match() :
         tracker_component() {
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         re = NULL;
         study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+        re = NULL;
+        match_data = NULL;
 #endif
 
         register_fields();
@@ -172,9 +180,12 @@ public:
     uav_manuf_match(int in_id) :
         tracker_component(in_id) {
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         re = NULL;
         study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+        re = NULL;
+        match_data = NULL;
 #endif
 
         register_fields();
@@ -184,9 +195,12 @@ public:
     uav_manuf_match(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         re = NULL;
         study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+        re = NULL;
+        match_data = NULL;
 #endif
 
         register_fields();
@@ -194,12 +208,16 @@ public:
     }
 
     virtual ~uav_manuf_match() { 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         if (re != NULL)
             pcre_free(re);
-
         if (study != NULL)
             pcre_free(study);
+#elif defined(HAVE_LIBPCRE2)
+        if (match_data != NULL)
+            pcre2_match_data_free(match_data);
+        if (re != NULL)
+            pcre2_code_free(re);
 #endif
     }
 
@@ -249,9 +267,12 @@ protected:
     std::shared_ptr<tracker_element_string> uav_manuf_ssid_regex;
     std::shared_ptr<tracker_element_uint8> uav_manuf_partial;
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
     pcre *re;
     pcre_extra *study;
+#elif defined(HAVE_LIBPCRE2)
+    pcre2_code *re;
+    pcre2_match_data *match_data;
 #endif
 };
 

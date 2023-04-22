@@ -30,8 +30,13 @@
 #include <utility>
 #include <vector>
 
-#ifdef HAVE_LIBPCRE
+#ifdef HAVE_LIBPCRE1
 #include <pcre.h>
+#endif
+
+#ifdef HAVE_LIBPCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #endif
 
 #include "devicetracker_component.h"
@@ -190,9 +195,12 @@ class dot11_tracked_ssid_alert : public tracker_component {
 public:
     dot11_tracked_ssid_alert() :
         tracker_component() {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         ssid_re = NULL;
         ssid_study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+        ssid_re = NULL;
+        ssid_match_data = NULL;
 #endif
 
         register_fields();
@@ -202,9 +210,12 @@ public:
     dot11_tracked_ssid_alert(int in_id) :
         tracker_component(in_id) {
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
             ssid_re = NULL;
             ssid_study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+            ssid_re = NULL;
+            ssid_match_data = NULL;
 #endif
 
             register_fields();
@@ -213,9 +224,12 @@ public:
 
     dot11_tracked_ssid_alert(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
-#ifdef HAVE_LIBCPRE
+#if defined(HAVE_LIBPCRE1)
         ssid_re = NULL;
         ssid_study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+        ssid_re = NULL;
+        ssid_match_data = NULL;
 #endif
 
         register_fields();
@@ -223,19 +237,27 @@ public:
     }
 
     virtual ~dot11_tracked_ssid_alert() {
-#ifdef HAVE_LIBCPRE
+#if defined(HAVE_LIBPCRE1)
         if (ssid_re != NULL)
             pcre_free(ssid_re);
         if (ssid_study != NULL)
             pcre_free(ssid_study);
+#elif defined(HAVE_LIBPCRE2)
+        if (ssid_match_data != NULL)
+            pcre2_match_data_free(ssid_match_data);
+        if (ssid_re != NULL)
+            pcre2_code_free(ssid_re);
 #endif
     }
 
     dot11_tracked_ssid_alert(const dot11_tracked_ssid_alert *p) :
         tracker_component{p} {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
             ssid_re = NULL;
             ssid_study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+            ssid_re = NULL;
+            ssid_match_data = NULL;
 #endif
             __ImportField(ssid_group_name, p);
             __ImportField(ssid_regex, p);
@@ -277,9 +299,12 @@ protected:
     std::shared_ptr<tracker_element_vector> allowed_macs_vec;
     int allowed_mac_id;
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
     pcre *ssid_re;
     pcre_extra *ssid_study;
+#elif defined(HAVE_LIBPCRE2)
+    pcre2_code *ssid_re;
+    pcre2_match_data *ssid_match_data;
 #endif
 };
 

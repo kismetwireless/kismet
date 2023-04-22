@@ -41,7 +41,7 @@ bool tracker_element_function_worker::match_element(std::shared_ptr<tracker_elem
     return filter(element);
 }
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
 tracker_element_regex_worker::pcre_filter::pcre_filter(const std::string& in_target, const std::string& in_regex) {
     const char *compile_error, *study_error;
     int err_offt;
@@ -68,10 +68,40 @@ tracker_element_regex_worker::pcre_filter::~pcre_filter() {
     if (study != NULL)
         pcre_free(study);
 }
+
+#elif defined(HAVE_LIBPCRE2)
+
+tracker_element_regex_worker::pcre_filter::pcre_filter(const std::string& in_target, const std::string& in_regex) {
+    PCRE2_SIZE erroroffset;
+    int errornumber;
+
+    re = NULL;
+    match_data = NULL;
+
+    target = in_target;
+
+    re = pcre2_compile((PCRE2_SPTR8) in_regex.c_str(),
+       PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, NULL);
+
+    if (re == nullptr) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+        throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
+                    (int) erroroffset, (char *) buffer));
+    }
+}
+
+tracker_element_regex_worker::pcre_filter::~pcre_filter() {
+    if (match_data != nullptr)
+        pcre2_match_data_free(match_data);
+    if (re != nullptr)
+        pcre2_code_free(re);
+}
+
 #endif
 
 tracker_element_regex_worker::tracker_element_regex_worker(const std::vector<std::shared_ptr<tracker_element_regex_worker::pcre_filter>>& in_filter_vec) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     filter_vec = in_filter_vec;
 #else
     throw std::runtime_error("Kismet was not compiled with PCRE support");
@@ -79,7 +109,7 @@ tracker_element_regex_worker::tracker_element_regex_worker(const std::vector<std
 }
 
 tracker_element_regex_worker::tracker_element_regex_worker(nlohmann::json& json) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     for (const auto& i : json) {
         if (!i.is_array() || i.size() != 2)
             throw std::runtime_error("expected [field, regex] pair from incoming filter");
@@ -94,7 +124,7 @@ tracker_element_regex_worker::tracker_element_regex_worker(nlohmann::json& json)
 }
 
 tracker_element_regex_worker::tracker_element_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     for (auto i : str_pcre_vec) {
         auto field = std::get<0>(i);
         auto regex = std::get<1>(i);
@@ -109,7 +139,7 @@ tracker_element_regex_worker::tracker_element_regex_worker(const std::vector<std
 }
 
 bool tracker_element_regex_worker::match_element(std::shared_ptr<tracker_element> element) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     bool matched = false;
 
     for (auto i : filter_vec) {
@@ -132,9 +162,15 @@ bool tracker_element_regex_worker::match_element(std::shared_ptr<tracker_element
                 continue;
 
             int rc;
+
+#if defined(HAVE_LIBPCRE1)
             int ovector[128];
 
             rc = pcre_exec(i->re, i->study, val.c_str(), val.length(), 0, 0, ovector, 128);
+#elif defined(HAVE_LIBPCRE2)
+            rc = pcre2_match(i->re, (PCRE2_SPTR8) val.c_str(), val.length(), 
+                    0, 0, i->match_data, NULL);
+#endif
 
             // Stop matching as soon as we find a hit
             if (rc >= 0) {

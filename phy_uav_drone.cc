@@ -26,7 +26,7 @@
 #include "messagebus.h"
 
 void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
     const char *compile_error, *study_error;
     int erroroffset;
     std::ostringstream errordesc;
@@ -46,6 +46,22 @@ void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
         errordesc << "Could not parse PCRE expression, optimization failure: " << study_error;
         throw std::runtime_error(errordesc.str());
     }
+#elif defined(HAVE_LIBPCRE2)
+    PCRE2_SIZE erroroffset;
+    int errornumber;
+
+    re = NULL;
+    match_data = NULL;
+
+    re = pcre2_compile((PCRE2_SPTR8) in_regexstr.c_str(),
+       PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, NULL);
+
+    if (re == nullptr) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+        throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
+                    (int) erroroffset, (char *) buffer));
+    }
 #else
     throw std::runtime_error("Cannot set PCRE match for SSID; Kismet was not compiled with PCRE "
             "support");
@@ -64,11 +80,16 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
         }
     }
 
-#ifdef HAVE_LIBPCRE
-    int ovector[128];
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
     int r;
+#if defined(HAVE_LIBPCRE1)
+    int ovector[128];
 
     r = pcre_exec(re, study, in_ssid.c_str(), in_ssid.length(), 0, 0, ovector, 128);
+#elif defined(HAVE_LIBPCRE2)
+    r = pcre2_match(re, (PCRE2_SPTR8) in_ssid.c_str(), in_ssid.length(), 
+            0, 0, match_data, NULL);
+#endif
 
     if (r >= 0)
         return true;

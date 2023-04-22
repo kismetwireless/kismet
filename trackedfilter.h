@@ -78,8 +78,13 @@
 #include <memory>
 #include <vector>
 
-#ifdef HAVE_LIBPCRE
+#ifdef HAVE_LIBPCRE1
 #include <pcre.h>
+#endif
+
+#ifdef HAVE_LIBPCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #endif
 
 #include "json/json.h"
@@ -125,9 +130,12 @@ protected:
     // Numerical used for all number-like formats; ints, unsigned, double, float, bitwise ops, etc
     double m_num_match;
 
-#ifdef HAV_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
     pcre *m_re;
     pcre_extra *m_study;
+#elif defined(HAVE_LIBPCRE2)
+    pcre2_code *m_re;
+    pcre2_match_data *m_match_data;
 #endif
 
 };

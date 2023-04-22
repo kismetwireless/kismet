@@ -31,10 +31,6 @@
 #include <iostream>
 #include <limits.h>
 
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
-
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -85,10 +81,6 @@
 #include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
 #include "dot11_parsers/dot11_ie_221_wfa.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
-
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
 
 // static std::atomic<int> packetnum {0};
 

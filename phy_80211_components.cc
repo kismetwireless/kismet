@@ -52,7 +52,7 @@ void dot11_tracked_ssid_alert::register_fields() {
 }
 
 void dot11_tracked_ssid_alert::set_regex(std::string s) {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
     kis_lock_guard<kis_mutex> lk(ssid_mutex);
 
     const char *compile_error, *study_error;
@@ -80,6 +80,30 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
         errordesc << "Could not parse PCRE, optimization failure: " << study_error;
         throw std::runtime_error(errordesc.str());
     } 
+
+#elif defined(HAVE_LIBPCRE2)
+
+    kis_lock_guard<kis_mutex> lk(ssid_mutex);
+
+    PCRE2_SIZE erroroffset;
+    int errornumber;
+
+    if (ssid_match_data)
+        pcre2_match_data_free(ssid_match_data);
+    if (ssid_re)
+        pcre2_code_free(ssid_re);
+
+    ssid_regex->set(s);
+
+    ssid_re = pcre2_compile((PCRE2_SPTR8) s.c_str(),
+       PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, NULL);
+
+    if (ssid_re == nullptr) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+        throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
+                    (int) erroroffset, (char *) buffer));
+    }
 #endif
 }
 
@@ -98,11 +122,17 @@ void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
 bool dot11_tracked_ssid_alert::compare_ssid(const std::string& ssid, mac_addr mac) {
     kis_lock_guard<kis_mutex> lk(ssid_mutex);
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
+
     int rc;
+#if defined(HAVE_LIBPCRE1)
     int ovector[128];
 
     rc = pcre_exec(ssid_re, ssid_study, ssid.c_str(), ssid.length(), 0, 0, ovector, 128);
+#elif defined(HAVE_LIBPCRE2)
+    rc = pcre2_match(ssid_re, (PCRE2_SPTR8) ssid.c_str(), ssid.length(),
+            0, 0, ssid_match_data, NULL);
+#endif
 
     if (rc > 0) {
         bool valid = false;
@@ -117,6 +147,7 @@ bool dot11_tracked_ssid_alert::compare_ssid(const std::string& ssid, mac_addr ma
         if (!valid)
             return true;
     }
+
 #endif
 
     return false;

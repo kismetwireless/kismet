@@ -34,6 +34,15 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifdef HAVE_LIBPCRE1
+#include <pcre.h>
+#endif
+
+#ifdef HAVE_LIBPCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+#endif
+
 #include "boost_like_hash.h"
 #include "globalregistry.h"
 #include "packetchain.h"
@@ -342,16 +351,38 @@ class dot11_packinfo : public packet_component {
 class dot11_ssid_alert {
     public:
         dot11_ssid_alert() {
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
             ssid_re = NULL;
             ssid_study = NULL;
+#elif defined(HAVE_LIBPCRE2)
+            ssid_re = NULL;
+            ssid_match_data = NULL;
 #endif
         }
+
+        ~dot11_ssid_alert() {
+#if defined(HAVE_LIBPCRE1)
+            if (ssid_re != NULL)
+                pcre_free(ssid_re);
+            if (ssid_study != NULL)
+                pcre_free(study);
+#elif defined(HAVE_LIBPCRE2)
+            if (ssid_match_data != NULL)
+                pcre2_match_data_free(ssid_match_data);
+            if (ssid_re != NULL)
+                pcre2_code_free(ssid_re);
+#endif
+        }
+
         std::string name;
 
-#ifdef HAVE_LIBPCRE
+#if defined(HAVE_LIBPCRE1)
         pcre *ssid_re;
         pcre_extra *ssid_study;
+        std::string filter;
+#elif defined(HAVE_LIBPCRE2)
+        pcre2_code *ssid_re;
+        pcre2_match_data *ssid_match_data;
         std::string filter;
 #endif
         std::string ssid;

@@ -1005,29 +1005,50 @@ fi
 # Dont' check pcre if we're only building datasources
 if test "$caponly" == 0; then
     if test "$wantpcre" = "yes"; then
-    	# Check for pcre
-    	pcrel=no
-    	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
-    
-    	if test "$pcrel" != "yes"; then
-    		AC_MSG_WARN(Failed to find libpcre)
-    		wantpcre=no
-    	fi
-    
-    	if test "$wantpcre" = "yes"; then
-    	pcreh=no
-    	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
-    
-    	if test "$pcreh" != "yes"; then
-    		AC_MSG_WARN(Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages)
-    		wantpcre=no
-    	fi
-    	fi # wantpcre
-    
-    	if test "$wantpcre" = "yes"; then
-    	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
-    	LIBS="$LIBS -lpcre"
-    	fi # pcre
+        # Check for pcre2 first
+        
+        pcre2=no
+        pcre1=no
+
+        OLIBS="$LIBS"
+        LIBS="$LIBS -lpcre2-8"
+
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #define PCRE2_CODE_UNIT_WIDTH 8
+            #include <pcre2.h>
+			]], [[
+            
+            pcre2_compile(NULL, PCRE2_ZERO_TERMINATED,
+                          0, NULL, NULL, NULL);
+
+			return 0;
+			]])],
+            [
+                pcre2=yes
+            ],[
+                pcre2=no
+            ])
+
+        LIBS="$OLIBS"
+
+        if test "$pcre2" != "yes"; then
+    	    AC_CHECK_LIB([pcre], [pcre_compile], pcre1=yes, pcre1=no)
+
+            if test "$pcre1" == "yes"; then
+    	        AC_CHECK_HEADER([pcre.h], pcre1=yes, pcre1=no)
+            fi
+
+        fi
+
+        if test "$pcre2" == "yes"; then
+            AC_DEFINE(HAVE_LIBPCRE2, 1, libpcre2 regex support)
+            LIBS="$LIBS -lpcre2-8"
+        elif test "$pcre1" == "yes"; then
+            AC_DEFINE(HAVE_LIBPCRE, 1, libpcre1 regex support)
+            LIBS="$LIBS -lpcre"
+        else
+            AC_MSG_WARN([Failed to find libpcre or libpcre2 library and headers, make sure that pcre2-dev is installed])
+        fi
     fi
 fi
 
@@ -1899,8 +1920,10 @@ fi
 printf "        Prelude  SIEM : $wantprelude\n"
 
 printf "            PCRE regex: "
-if test "$wantpcre" = "yes"; then
-	echo "yes"
+if test "$pcre1" = "yes"; then
+    echo "libpcre1"
+elif test "$pcre2" = "yes"; then
+    echo "libpcre2"
 else
 	echo "no"
 fi
