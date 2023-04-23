@@ -155,7 +155,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
 
             // printf("debug - %f, %f alt %f\n", in_lat, in_lon, in_alt);
         // GNGGA is a multi-constellation GNSS fix
-	} else if (gpstoks[0] == "$GNGGA") {
+        } else if (gpstoks[0] == "$GNGGA") {
             int tint;
             double tdouble;
 
@@ -193,9 +193,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
             set_fix = true;
 
             // printf("debug - %f, %f alt %f\n", in_lat, in_lon, in_alt);
-        } 
-
-	else if (gpstoks[0] == "$GPRMC") {
+        } else if (gpstoks[0] == "$GPRMC") {
             // recommended minimum
             // $GPRMC,time,valid,lat,lathemi,lon,lonhemi,speed-knots,bearing,utc,,checksum
             int tint;
