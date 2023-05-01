@@ -57,7 +57,12 @@ kis_external_interface::kis_external_interface() :
 }
 
 kis_external_interface::~kis_external_interface() {
-    close_external();
+    auto ft = 
+        boost::asio::post(strand_,
+            std::packaged_task<void()>([this]() mutable {
+                close_external();
+            }));
+    ft.wait();
 }
 
 bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
