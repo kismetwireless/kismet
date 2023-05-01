@@ -26,6 +26,7 @@
 #include "alertracker.h"
 #include "packetchain.h"
 #include "timetracker.h"
+#include <future>
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
@@ -91,9 +92,17 @@ kis_datasource::~kis_datasource() {
     timetracker->remove_timer(error_timer_id);
     timetracker->remove_timer(ping_timer_id);
 
-    cancel_all_commands("source deleted");
-
-    command_ack_map.clear();
+    if (strand_.running_in_this_thread()) {
+        cancel_all_commands("source deleted");
+        command_ack_map.clear();
+    } else {
+        auto ft = boost::asio::post(strand_,
+                std::packaged_task<void()>([this]() mutable {
+                    cancel_all_commands("source deleted");
+                    command_ack_map.clear();
+                    }));
+        ft.wait();
+    }
 
     // We don't call a normal close here because we can't risk double-free
     // or going through commands again - if the source is being deleted, it should
@@ -1982,10 +1991,10 @@ void kis_datasource::handle_source_error() {
         _MSG(alrt, MSGFLAG_ERROR);
 
         // Set a new event to try to re-open the interface
-        error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int) -> int {
+        error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int tid) -> int {
                 kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource error_timer lambda");
 
-                error_timer_id = -1;
+                // _MSG_DEBUG("Reopen timer tid {} pid {}", tid, getpid());
 
                 if (get_source_retry() == false)
                     return 0;
@@ -2022,6 +2031,8 @@ void kis_datasource::handle_source_error() {
                             }
 
                         });
+
+                    error_timer_id = -1;
 
                     return 0;
                 });
