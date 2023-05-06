@@ -116,7 +116,7 @@ public:
         return ret;
     }
 
-    // close the external interface
+    // close the external interface, opportunistically wraps in strand
     virtual void close_external();
 
     // We use the raw http server APIs instead of the newer endpoint handlers because we
@@ -126,6 +126,9 @@ public:
     virtual void trigger_error(const std::string& in_error);
 
 protected:
+    // Internal implementation of closing
+    virtual void close_external_impl();
+
     std::function<void (void)> closure_cb;
     std::function<int (const char *, size_t, std::function<void (int, std::size_t)>)> write_cb;
 

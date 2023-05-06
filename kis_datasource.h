@@ -486,6 +486,7 @@ protected:
 
 
     virtual void close_external() override;
+    virtual void close_external_impl() override;
 
 
     // Common interface parsing to set our name/uuid/interface and interface

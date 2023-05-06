@@ -57,15 +57,7 @@ kis_external_interface::kis_external_interface() :
 }
 
 kis_external_interface::~kis_external_interface() {
-    if (strand_.running_in_this_thread()) {
-        close_external();
-    } else {
-        auto ft = boost::asio::post(strand_, 
-                std::packaged_task<void()>([this]() mutable {
-                    close_external();
-                }));
-        ft.wait();
-    }
+    close_external();
 }
 
 bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
@@ -81,11 +73,6 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
 
     stopped = true;
 
-    /* Move to closing of connection
-    in_buf.consume(in_buf.size());
-    out_bufs.clear();
-    */
-
     tcpsocket = std::move(socket);
 
     stopped = false;
@@ -94,45 +81,23 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
     start_tcp_read(shared_from_this());
 
     return true;
-
-#if 0
-    // Attach on a strand and wait for it to execute so that we don't interrupt any io in process
-
-    auto tcp_ft = boost::asio::post(strand_, 
-            std::packaged_task<bool()>([this, &socket]() mutable -> bool {
-
-            if (ipc.pid > 0) {
-                _MSG_ERROR("Tried to attach a TCP socket to an external endpoint that already has "
-                        "an IPC instance running.");
-                return false;
-            }
-
-            stopped = true;
-            in_buf.consume(in_buf.size());
-            out_bufs.clear();
-
-            tcpsocket = std::move(socket);
-
-            return true;
-            }));
-
-    auto r = tcp_ft.get();
-
-    if (r) {
-        stopped = false;
-        cancelled = false;
-
-        start_tcp_read(shared_from_this());
-    }
-
-#endif
-
 }
 
 void kis_external_interface::close_external() {
-    // This should be safe to do outside a strand b/c inside the strands we handle the states of finding
-    // ourselves stopped, cancelled, or the sockets closed
+    if (strand_.running_in_this_thread()) {
+        close_external_impl();
+    } else {
+        auto ft = boost::asio::post(strand_, 
+                std::packaged_task<void()>([this]() mutable {
+                    close_external_impl();
+                }));
+        ft.wait();
+    }
+}
 
+void kis_external_interface::close_external_impl() {
+    // Internal implementation of closing the external interface, called
+    // inside a strand by the close_external wrapper
     stopped = true;
     cancelled = true;
 
@@ -553,17 +518,14 @@ void kis_external_interface::start_write(const char *data, size_t len) {
     auto buf = std::make_shared<std::string>(data, len);
 
     boost::asio::post(strand_, 
-            [this, buf]() {
+            [this, buf]() mutable {
             out_bufs.push_back(buf);
 
             if (out_bufs.size() > 1) {
-                // _MSG_DEBUG("external interface writing len {}, bufs queue {} deep", len, out_bufs.size());
                 return;
             }
 
-            // _MSG_DEBUG("external interface triggering writ_impl for len {} bufs depth {}", len, out_bufs.size());
             write_impl();
-
             });
 }
 

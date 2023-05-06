@@ -92,21 +92,9 @@ kis_datasource::~kis_datasource() {
     timetracker->remove_timer(error_timer_id);
     timetracker->remove_timer(ping_timer_id);
 
-    if (strand_.running_in_this_thread()) {
-        cancel_all_commands("source deleted");
-        command_ack_map.clear();
-    } else {
-        auto ft = boost::asio::post(strand_,
-                std::packaged_task<void()>([this]() mutable {
-                    cancel_all_commands("source deleted");
-                    command_ack_map.clear();
-                    }));
-        ft.wait();
-    }
-
-    // We don't call a normal close here because we can't risk double-free
-    // or going through commands again - if the source is being deleted, it should
-    // be completed!
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "~kisdatasource");
+    cancel_all_commands("source deleted");
+    command_ack_map.clear();
 }
 
 std::vector<std::string> kis_datasource::get_source_channels_vec_copy() {
@@ -611,6 +599,18 @@ void kis_datasource::close_source() {
 }
 
 void kis_datasource::close_external() {
+    if (strand_.running_in_this_thread()) {
+        close_external_impl();
+    } else {
+        auto ft = boost::asio::post(strand_, 
+                std::packaged_task<void()>([this]() mutable {
+                    close_external_impl();
+                }));
+        ft.wait();
+    }
+}
+
+void kis_datasource::close_external_impl() {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource close_external");
 
     if (ping_timer_id > 0) {
@@ -626,7 +626,7 @@ void kis_datasource::close_external() {
 
     lk.unlock();
     cancel_all_commands("source closed");
-    kis_external_interface::close_external();
+    kis_external_interface::close_external_impl();
 }
 
 void kis_datasource::set_device_gps(std::shared_ptr<kis_gps> in_gps) {
@@ -831,6 +831,7 @@ std::map<std::string, std::string> kis_datasource::get_config_overrides(const st
 }
 
 std::shared_ptr<kis_datasource::tracked_command> kis_datasource::get_command(uint32_t in_transaction) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource get_command");
     auto i = command_ack_map.find(in_transaction);
 
     if (i == command_ack_map.end())
