@@ -29,6 +29,7 @@
 #include "globalregistry.h"
 #include "kis_databaselogfile.h"
 #include "kis_httpd_registry.h"
+#include "kis_mutex.h"
 #include "messagebus.h"
 #include "pcapng_stream_futurebuf.h"
 #include "streamtracker.h"
@@ -43,7 +44,7 @@ datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_
     cancelled {false} { }
 
 datasource_tracker_source_probe::~datasource_tracker_source_probe() {
-    kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe cancel complete");
+    kis_unique_lock<kis_mutex> lk(probe_lock, "~dstprobe");
     probe_cb = nullptr;
     lk.unlock();
 
@@ -51,13 +52,21 @@ datasource_tracker_source_probe::~datasource_tracker_source_probe() {
 }
 
 void datasource_tracker_source_probe::cancel() {
-    kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe cancel");
+    kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe cancel");
+
+    if (cancelled)
+        return;
 
     cancelled = true;
 
     // Cancel any timers
     for (auto i : cancel_timer_vec)
         timetracker->remove_timer(i);
+
+    if (ipc_probe_map.size() == 0 && probe_cb) {
+        lk.unlock();
+        probe_cb(source_builder);
+    }
 
     // Cancel any other competing probing sources; this may trigger the callbacks
     // which will call the completion function, but we'll ignore them because
@@ -181,9 +190,9 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         // Set up the cancellation timer
         int cancel_timer = 
             timetracker->register_timer(std::chrono::seconds(10), false, 
-                    [this] (int) -> int {
-                        _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
-                        cancel();
+                    [self = shared_from_this()] (int) -> int {
+                        _MSG_ERROR("Datasource {} cancelling source probe due to timeout", self->definition);
+                        self->cancel();
                         return 0;
                     });
 
@@ -216,34 +225,51 @@ datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<t
     cancelled {false} { }
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
-    cancelled = true;
+    kis_unique_lock<kis_mutex> lk(list_lock, "~dstlist");
 
-    timetracker->remove_timer(cancel_event_id);
+    list_cb = nullptr;
 
-    // Cancel any probing sources and delete them
-    for (auto s : list_vec)
-        s->close_source();
+    lk.unlock();
 
-    for (auto s : complete_vec)
-        s->close_source();
+    cancel();
 }
 
 void datasource_tracker_source_list::cancel() {
-    kis_lock_guard<kis_mutex> lk(list_lock, "dstlist cancel");
+    kis_unique_lock<kis_mutex> lk(list_lock, "dstlist cancel");
 
     if (cancelled)
         return;
 
     cancelled = true;
 
-    // Abort anything already underway
-    for (auto i : ipc_list_map) {
-        i.second->close_source();
+    timetracker->remove_timer(cancel_event_id);
+
+    if (ipc_list_map.size() == 0 && list_cb) {
+        lk.unlock();
+        list_cb(listed_sources);
     }
 
-    // Trigger the callback
-    if (list_cb) 
+    // Abort anything already underway
+    for (auto i : ipc_list_map) {
+        i.second->close_source_async([self = shared_from_this(), sid=i.first]() -> void {
+                self->list_cancel_complete(sid);
+            });
+    }
+}
+
+void datasource_tracker_source_list::list_cancel_complete(unsigned int sid) {
+    kis_unique_lock<kis_mutex> lk(list_lock, "dstlist cancel complete");
+
+    auto mk = ipc_list_map.find(sid);
+    if (mk != ipc_list_map.end()) {
+        complete_vec.push_back(mk->second);
+        ipc_list_map.erase(mk);
+    }
+
+    if (ipc_list_map.size() == 0 && list_cb) {
+        lk.unlock();
         list_cb(listed_sources);
+    }
 }
 
 void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasource> source,
@@ -271,7 +297,7 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
         ipc_list_map.erase(v);
     }
 
-    source->close_source();
+    source->close_source_async([]() {});
 
     // If we've emptied the vec, end
     if (ipc_list_map.size() == 0) {
@@ -288,8 +314,6 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
     std::vector<shared_datasource_builder> remote_builders;
 
     bool created_ipc = false;
-
-    auto self_ref = shared_from_this();
 
     for (auto i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -310,9 +334,9 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
         }
 
         pds->list_interfaces(transaction, 
-            [this, self_ref] (std::shared_ptr<kis_datasource> src, unsigned int transaction, 
+            [self = shared_from_this()] (std::shared_ptr<kis_datasource> src, unsigned int transaction, 
                 std::vector<shared_interface> interfaces) mutable {
-                complete_list(src, interfaces, transaction);
+                self->complete_list(src, interfaces, transaction);
             });
     }
 
@@ -322,11 +346,11 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
     cancel_event_id = 
         timetracker->register_timer(std::chrono::seconds(10), false, 
-            [this, self_ref] (int) mutable -> int {
-                if (cancelled)
+            [self = shared_from_this()] (int) mutable -> int {
+                if (self->cancelled)
                     return 0;
 
-                cancel();
+                self->cancel();
 
                 return 0;
             });

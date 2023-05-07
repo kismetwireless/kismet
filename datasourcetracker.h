@@ -191,6 +191,9 @@ protected:
     // Transaction ID
     unsigned int transaction_id;
 
+    // Finish completing a source
+    void list_cancel_complete(unsigned int sid);
+
     std::string definition;
 
     std::function<void (std::vector<shared_interface>)> list_cb;
