@@ -598,6 +598,20 @@ void kis_datasource::close_source() {
     return close_external();
 }
 
+void kis_datasource::close_source_async(std::function<void (void)> in_callback) {
+    if (strand_.running_in_this_thread()) {
+        close_external_impl();
+        in_callback();
+    } else {
+        boost::asio::post(strand_, 
+                std::packaged_task<void()>([this, in_callback]() mutable {
+                    close_external_impl();
+                    in_callback();
+                }));
+    }
+
+}
+
 void kis_datasource::close_external() {
     if (strand_.running_in_this_thread()) {
         close_external_impl();
@@ -618,14 +632,16 @@ void kis_datasource::close_external_impl() {
         ping_timer_id = -1;
     }
 
+    set_int_source_running(false);
+
+    lk.unlock();
+
     auto evt = eventbus->get_eventbus_event(event_datasource_closed());
     evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
     eventbus->publish(evt);
 
-    set_int_source_running(false);
-
-    lk.unlock();
     cancel_all_commands("source closed");
+
     kis_external_interface::close_external_impl();
 }
 

@@ -562,7 +562,8 @@ void kis_external_interface::write_impl() {
     } else if (ipc_out.is_open()) {
         boost::asio::async_write(ipc_out, boost::asio::buffer(buf->data(), buf->size()),
                 boost::asio::bind_executor(strand_, [this](const boost::system::error_code& ec, std::size_t) {
-                    out_bufs.pop_front();
+                    if (out_bufs.size())
+                        out_bufs.pop_front();
 
                     if (ec) {
                         handle_packet(in_buf);
@@ -584,7 +585,8 @@ void kis_external_interface::write_impl() {
     } else if (tcpsocket.is_open()) {
         boost::asio::async_write(tcpsocket, boost::asio::buffer(buf->data(), buf->size()),
                 boost::asio::bind_executor(strand_, [this](const boost::system::error_code& ec, std::size_t) {
-                    out_bufs.pop_front();
+                    if (out_bufs.size())
+                        out_bufs.pop_front();
 
                     if (ec) {
                         handle_packet(in_buf);

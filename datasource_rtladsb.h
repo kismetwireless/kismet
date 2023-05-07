@@ -65,7 +65,7 @@ public:
     virtual ~datasource_rtladsb_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this));
+        return std::make_shared<kis_datasource_rtladsb>(in_sh_this);
     }
 
     virtual void initialize() override {

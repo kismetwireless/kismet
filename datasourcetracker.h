@@ -95,7 +95,7 @@ public:
 // probes are cancelled.
 //
 // After 5 seconds, probing is cancelled.
-class datasource_tracker_source_probe {
+class datasource_tracker_source_probe : public std::enable_shared_from_this<datasource_tracker_source_probe> {
 public:
     datasource_tracker_source_probe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~datasource_tracker_source_probe();
@@ -109,6 +109,8 @@ public:
     // Complete a probe - when the last one completes we're done
     void complete_probe(bool in_success, unsigned int in_transaction, std::string in_reason);
 
+    // Cancel all pending probes, ultimately calls the callback from
+    // probe_sources when complete
     void cancel();
 
 protected:
@@ -132,6 +134,9 @@ protected:
 
     // Transaction ID
     std::atomic<unsigned int> transaction_id;
+
+    // Finish cancelling a source
+    void probe_cancel_complete(unsigned int sid);
 
     std::string definition;
 

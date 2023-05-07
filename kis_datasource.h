@@ -313,8 +313,13 @@ public:
     virtual void connect_remote(std::string in_definition, kis_datasource* in_remote, 
             bool in_tcp, configure_callback_t in_cb);
 
-
     // close the source
+    // This must be called from either our own strand async functions, or fully 
+    // outside of ANY strand.
+    //
+    // See close_source_async for closing a source safely from another strand, like
+    // datasourcetracker probing
+    //
     // Cancels any current activity (probe, open, pending commands) and sends a
     // terminate command to the capture binary.
     // Closing sends a failure result to any pending async commands
@@ -322,6 +327,11 @@ public:
     // process in case of an error.  Closed sources may automatically re-open if
     // the retry option is configured.
     virtual void close_source();
+
+    // Perform an adync close of a source and perform a callback when done.  This can be
+    // called from another strand, it will not block & will initiate a stranded event
+    // which calls the provided cb at completion.
+    virtual void close_source_async(std::function<void (void)> cb);
 
 
     // Disables a source

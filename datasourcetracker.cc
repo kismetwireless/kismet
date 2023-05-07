@@ -43,37 +43,46 @@ datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_
     cancelled {false} { }
 
 datasource_tracker_source_probe::~datasource_tracker_source_probe() {
+    kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe cancel complete");
+    probe_cb = nullptr;
+    lk.unlock();
+
+    cancel();
+}
+
+void datasource_tracker_source_probe::cancel() {
+    kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe cancel");
+
+    cancelled = true;
+
     // Cancel any timers
     for (auto i : cancel_timer_vec)
         timetracker->remove_timer(i);
 
-    // Cancel any existing transactions
-    for (auto i : ipc_probe_map)
-        i.second->close_source();
+    // Cancel any other competing probing sources; this may trigger the callbacks
+    // which will call the completion function, but we'll ignore them because
+    // we're already cancelled
+    for (auto i : ipc_probe_map) {
+        i.second->close_source_async([self = shared_from_this(), sid=i.first]() -> void {
+                self->probe_cancel_complete(sid);
+                });
+    }
 }
 
-void datasource_tracker_source_probe::cancel() {
-    {
-        kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe cancel");
+void datasource_tracker_source_probe::probe_cancel_complete(unsigned int sid) {
+    kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe cancel complete");
 
-        cancelled = true;
-
-        // Cancel any timers
-        for (auto i : cancel_timer_vec)
-            timetracker->remove_timer(i);
-
-        // Cancel any other competing probing sources; this may trigger the callbacks
-        // which will call the completion function, but we'll ignore them because
-        // we're already cancelled
-        for (auto i : ipc_probe_map)
-            i.second->close_source();
-
-        // Defer deleting sources until the probe map is cleared
+    auto mk = ipc_probe_map.find(sid);
+    if (mk != ipc_probe_map.end()) {
+        // Move them to the completed vec
+        complete_vec.push_back(mk->second);
+        ipc_probe_map.erase(mk);
     }
 
-    // Call outside the locked context
-    if (probe_cb) 
+    if (ipc_probe_map.size() == 0 && probe_cb) {
+        lk.unlock();
         probe_cb(source_builder);
+    }
 }
 
 shared_datasource_builder datasource_tracker_source_probe::get_proto() {
@@ -185,9 +194,9 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         }
 
         i.second->probe_interface(definition, i.first, 
-                [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
-                    timetracker->remove_timer(cancel_timer);
-                    complete_probe(success, transaction, reason);
+                [cancel_timer, self=shared_from_this()](unsigned int transaction, bool success, std::string reason) {
+                    self->timetracker->remove_timer(cancel_timer);
+                    self->complete_probe(success, transaction, reason);
                 });
     }
 
@@ -1384,7 +1393,8 @@ void datasource_tracker::open_datasource(const std::string& in_source,
             filtered_proto_vec->push_back(p);
     }
 
-    shared_dst_source_probe dst_probe(new datasource_tracker_source_probe(in_source, filtered_proto_vec));
+    auto dst_probe = std::make_shared<datasource_tracker_source_probe>(in_source, filtered_proto_vec);
+
     unsigned int probeid = ++next_probe_id;
 
     // Record and initiate it
