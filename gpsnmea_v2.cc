@@ -112,10 +112,9 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
 
     std::vector<std::string> gpstoks = str_tokenize(line, ",");
     try {
-        if (gpstoks.size() == 0)
+        if (gpstoks.size() == 0) {
             throw kis_gps_nmea_v2_soft_fail();
-        else
-        {
+        } else {
             // The NMEA sentence should be the last 3 characters of the first string in gpstoks
             // NMEA sentences can be rerferenced at: https://gpsd.io/NMEA.html
             std::string nmea_sentence = gpstoks[0].substr(3);
@@ -154,44 +153,45 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
                     15. Checksum
                     The number of digits past the decimal point for Time, Latitude and Longitude is model dependent.
             */
-            int tint;
-            double tdouble;
+                int tint;
+                double tdouble;
 
-            // GGA does not set speed or heading directly, so inherit it from previous data
-            if (gps_location != nullptr) {
-                new_location->speed = gps_location->speed;
-                new_location->heading = gps_location->heading;
-            }
-            
-            if (gpstoks.size() < 15)
-                throw kis_gps_nmea_v2_soft_fail();
+                // GGA does not set speed or heading directly, so inherit it from previous data
+                if (gps_location != nullptr) {
+                    new_location->speed = gps_location->speed;
+                    new_location->heading = gps_location->heading;
+                }
 
-            if (sscanf(gpstoks[2].c_str(), "%2d%lf", &tint, &tdouble) != 2)
-                throw kis_gps_nmea_v2_soft_fail();
+                if (gpstoks.size() < 15)
+                    throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->lat = (double) tint + (tdouble / 60);
-            if (gpstoks[3] == "S")
-                new_location->lat *= -1;
+                if (sscanf(gpstoks[2].c_str(), "%2d%lf", &tint, &tdouble) != 2)
+                    throw kis_gps_nmea_v2_soft_fail();
 
-            if (sscanf(gpstoks[4].c_str(), "%3d%lf", &tint, &tdouble) != 2)
-                throw kis_gps_nmea_v2_soft_fail();
+                new_location->lat = (double) tint + (tdouble / 60);
+                if (gpstoks[3] == "S")
+                    new_location->lat *= -1;
 
-            new_location->lon = (double) tint + (tdouble / 60);
-            if (gpstoks[5] == "W")
-                new_location->lon *= -1;
+                if (sscanf(gpstoks[4].c_str(), "%3d%lf", &tint, &tdouble) != 2)
+                    throw kis_gps_nmea_v2_soft_fail();
 
-            set_lat_lon = true;
-            if (new_location->fix < 2)
-                new_location->fix = 2;
+                new_location->lon = (double) tint + (tdouble / 60);
+                if (gpstoks[5] == "W")
+                    new_location->lon *= -1;
 
-            if (sscanf(gpstoks[9].c_str(), "%lf", &tdouble) != 1)
-                throw kis_gps_nmea_v2_soft_fail();
+                set_lat_lon = true;
+                if (new_location->fix < 2)
+                    new_location->fix = 2;
 
-            new_location->alt = tdouble;
-            set_alt = true;
-            if (new_location->fix < 3)
-                new_location->fix = 3;
-            set_fix = true;
+                if (sscanf(gpstoks[9].c_str(), "%lf", &tdouble) != 1)
+                    throw kis_gps_nmea_v2_soft_fail();
+
+                new_location->alt = tdouble;
+                set_alt = true;
+
+                if (new_location->fix < 3)
+                    new_location->fix = 3;
+                set_fix = true;
 
             } else if (nmea_sentence == "RMC") {
             /*
@@ -219,54 +219,54 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
                     13. Nav Status (NMEA 4.1 and later) A=autonomous, D=differential, E=Estimated, M=Manual input mode N=not valid, S=Simulator, V = Valid
                     14. Checksum
             */
-            int tint;
-            double tdouble;
+                int tint;
+                double tdouble;
 
-            // RMC does not set heading directly, so we will inheret the current heading
-            if (gps_location != nullptr) {
-                new_location->heading = gps_location->heading;
-            }
+                // RMC does not set heading directly, so we will inherit the current heading
+                if (gps_location != nullptr) {
+                    new_location->heading = gps_location->heading;
+                }
 
-            if (gpstoks.size() < 12)
-                throw kis_gps_nmea_v2_soft_fail();
+                if (gpstoks.size() < 12)
+                    throw kis_gps_nmea_v2_soft_fail();
 
-            if (gpstoks[2] == "A") {
-                // Kluge - if we have a 3d fix, we're getting another sentence
-                // which contains better information, so we don't override it. 
-                // If we < a 2d fix, we up it to 2d.
+                if (gpstoks[2] == "A") {
+                    // Kluge - if we have a 3d fix, we're getting another sentence
+                    // which contains better information, so we don't override it. 
+                    // If we < a 2d fix, we up it to 2d.
+                    if (new_location->fix < 2)
+                        new_location->fix = 2;
+                    set_fix = true;
+                } else {
+                    throw kis_gps_nmea_v2_soft_fail();
+                }
+
+                if (sscanf(gpstoks[3].c_str(), "%2d%lf", &tint, &tdouble) != 2)
+                    throw kis_gps_nmea_v2_soft_fail();
+
+                new_location->lat = (double) tint + (tdouble / 60);
+                if (gpstoks[4] == "S")
+                    new_location->lat *= -1;
+
+                if (sscanf(gpstoks[5].c_str(), "%3d%lf", &tint, &tdouble) != 2)
+                    throw kis_gps_nmea_v2_soft_fail();
+
+                new_location->lon = (double) tint + (tdouble / 60);
+                if (gpstoks[6] == "W")
+                    new_location->lon *= -1;
+
                 if (new_location->fix < 2)
                     new_location->fix = 2;
                 set_fix = true;
-            } else {
-                throw kis_gps_nmea_v2_soft_fail();
-            }
 
-            if (sscanf(gpstoks[3].c_str(), "%2d%lf", &tint, &tdouble) != 2)
-                throw kis_gps_nmea_v2_soft_fail();
+                if (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) != 1) 
+                    throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->lat = (double) tint + (tdouble / 60);
-            if (gpstoks[4] == "S")
-                new_location->lat *= -1;
+                new_location->speed = tdouble;
+                set_speed = true;
 
-            if (sscanf(gpstoks[5].c_str(), "%3d%lf", &tint, &tdouble) != 2)
-                throw kis_gps_nmea_v2_soft_fail();
-
-            new_location->lon = (double) tint + (tdouble / 60);
-            if (gpstoks[6] == "W")
-                new_location->lon *= -1;
-
-            if (new_location->fix < 2)
-                new_location->fix = 2;
-            set_fix = true;
-
-            if (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) != 1) 
-                throw kis_gps_nmea_v2_soft_fail();
-
-            new_location->speed = tdouble;
-            set_speed = true;
-
-            // This sentence doesn't have altitude, so don't set it.  If another
-            // sentence in this same block sets it we'll use that.
+                // This sentence doesn't have altitude, so don't set it.  If another
+                // sentence in this same block sets it we'll use that.
             } else if (nmea_sentence == "VTG") {
                 /*
                     NMEA VTG standard referenced from: https://gpsd.io/NMEA.html#_vtg_track_made_good_and_ground_speed
@@ -288,39 +288,39 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
                         10. Checksum
                 */
 
-            // Copy the previous location data to this location because VTG does not contain lat/lon/alt
-            // Otherwise update_location() will overwrite the lat/lon values with 0
-            if (gps_location != nullptr) {
-                new_location->set(gps_location);
-                /*
-                new_location->lat = gps_location->lat;
-                new_location->lon = gps_location->lon;
-                new_location->alt = gps_location->alt;
-                */
-            }
+                // Copy the previous location data to this location because VTG does not contain lat/lon/alt
+                // Otherwise update_location() will overwrite the lat/lon values with 0
+                if (gps_location != nullptr) {
+                    new_location->set(gps_location);
+                    /*
+                       new_location->lat = gps_location->lat;
+                       new_location->lon = gps_location->lon;
+                       new_location->alt = gps_location->alt;
+                       */
+                }
 
-            double tdouble;
+                double tdouble;
 
-            if (gpstoks.size() < 10) 
-                throw kis_gps_nmea_v2_soft_fail();
+                if (gpstoks.size() < 10) 
+                    throw kis_gps_nmea_v2_soft_fail();
 
-            // Only use VTG if we didn't get our speed from another sentence in this series
-            if (set_speed == false && (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) == 1) ) {
-                new_location->speed = tdouble;
-                set_speed = true;
-            }
+                // Only use VTG if we didn't get our speed from another sentence in this series
+                if (set_speed == false && (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) == 1) ) {
+                    new_location->speed = tdouble;
+                    set_speed = true;
+                }
 
-            // Set the true and mag heading from the VTG sentence if it is available, otherwise it will be calculated
-            if ((sscanf(gpstoks[1].c_str(), "%lf", &tdouble) == 1 )) {
-                new_location->heading = tdouble;
-                last_heading_time = new_location->tv.tv_sec;
-                set_heading = true;
-            }
-            if ((sscanf(gpstoks[3].c_str(), "%lf", &tdouble) == 1 )) {
-                new_location->magheading = tdouble;
-                last_heading_time = new_location->tv.tv_sec;
-                set_heading = true;
-            }
+                // Set the true and mag heading from the VTG sentence if it is available, otherwise it will be calculated
+                if ((sscanf(gpstoks[1].c_str(), "%lf", &tdouble) == 1 )) {
+                    new_location->heading = tdouble;
+                    last_heading_time = new_location->tv.tv_sec;
+                    set_heading = true;
+                }
+                if ((sscanf(gpstoks[3].c_str(), "%lf", &tdouble) == 1 )) {
+                    new_location->magheading = tdouble;
+                    last_heading_time = new_location->tv.tv_sec;
+                    set_heading = true;
+                }
 
             } else if (nmea_sentence == "GSV") {
             /*
@@ -344,39 +344,11 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
                     7.  SNR in dB (00-99) (leading zeros sent) more satellite info quadruples like 4-7 n-1) Signal ID (NMEA 4.11) n) checksum
             */
 
-            // TODO figure out if we can use this data and so something smarter with it
+                // Not currently handled, in the future could be used for a graphical plot of
+                // the satellite position
+
             }
 
-#if 0
-            vector<string> svvec = str_tokenize(inptok[it], ",");
-            GPSCore::sat_pos sp;
-
-            gps_connected = 1;
-
-            if (svvec.size() < 6) {
-                continue;
-            }
-
-            // If we're on the last sentence, move the new vec to the transmitted one
-            if (svvec[1] == svvec[2]) {
-                sat_pos_map = sat_pos_map_tmp;
-                sat_pos_map_tmp.clear();
-            }
-
-            unsigned int pos = 4;
-            while (pos + 4 < svvec.size()) {
-                if (sscanf(svvec[pos++].c_str(), "%d", &sp.prn) != 1) 
-                    break;
-                if (sscanf(svvec[pos++].c_str(), "%d", &sp.elevation) != 1)
-                    break;
-                if (sscanf(svvec[pos++].c_str(), "%d", &sp.azimuth) != 1)
-                    break;
-                if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
-                    sp.snr = 0;
-
-                sat_pos_map_tmp[sp.prn] = sp;
-            }
-#endif
         }
     } catch (const kis_gps_nmea_v2_soft_fail& e) {
         boost::asio::dispatch(strand_,
@@ -403,11 +375,11 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
         if (time(0) - last_heading_time > 5 &&
                 gps_location != nullptr && gps_location->fix >= 2 
                 && set_heading == false) {
-                    new_location->heading = 
-                    gps_calc_heading(new_location->lat, new_location->lon, 
-                            gps_location->lat, gps_location->lon);
-                    last_heading_time = new_location->tv.tv_sec;
-            }        
+            new_location->heading = 
+                gps_calc_heading(new_location->lat, new_location->lon, 
+                        gps_location->lat, gps_location->lon);
+            last_heading_time = new_location->tv.tv_sec;
+        }        
 
         gps_last_location = gps_location;
         gps_location = new_location;
