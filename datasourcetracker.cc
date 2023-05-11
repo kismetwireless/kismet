@@ -485,19 +485,25 @@ void datasource_tracker::trigger_deferred_startup() {
         config_defaults->set_retry_on_error(true);
     }
 
-    remotecap_listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
-    remotecap_port = 
-        Globalreg::globalreg->kismet_config->fetch_opt_uint("remote_capture_port", 0);
+    auto remotecap_enable = Globalreg::globalreg->kismet_config->fetch_opt_bool("remote_capture_enabled", true);
 
-    if (remotecap_listen.length() == 0) {
-        _MSG("No remote_capture_listen= found in kismet.conf; no remote "
-                "capture will be enabled.", MSGFLAG_INFO);
-        remotecap_enabled = false;
-    }
+    if (remotecap_enable) {
+        remotecap_listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
+        remotecap_port = 
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("remote_capture_port", 0);
 
-    if (remotecap_port == 0) {
-        _MSG("No remote_capture_port= line in kismet.conf; no remote capture will be enabled.", MSGFLAG_INFO);
-        remotecap_enabled = false;
+        if (remotecap_listen.length() == 0) {
+            _MSG("No remote_capture_listen= found in kismet.conf; no remote "
+                    "capture will be enabled.", MSGFLAG_INFO);
+            remotecap_enabled = false;
+        }
+
+        if (remotecap_port == 0) {
+            _MSG("No remote_capture_port= line in kismet.conf; no remote capture will be enabled.", MSGFLAG_INFO);
+            remotecap_enabled = false;
+        }
+    } else {
+        _MSG("Remote capture disabled via remote_capture_enabled; no remote capture will be enabled.", MSGFLAG_INFO);
     }
 
     config_defaults->set_remote_cap_listen(remotecap_listen);
