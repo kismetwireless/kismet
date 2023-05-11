@@ -97,10 +97,10 @@ public:
 // After 5 seconds, probing is cancelled.
 class datasource_tracker_source_probe : public std::enable_shared_from_this<datasource_tracker_source_probe> {
 public:
-    datasource_tracker_source_probe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
+    datasource_tracker_source_probe(unsigned long probeid, std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~datasource_tracker_source_probe();
 
-    void probe_sources(std::function<void (shared_datasource_builder)> in_cb);
+    void probe_sources(std::function<void (unsigned long, shared_datasource_builder)> in_cb);
 
     std::string get_definition() { return definition; }
 
@@ -140,8 +140,10 @@ protected:
 
     std::string definition;
 
-    std::function<void (shared_datasource_builder)> probe_cb;
+    std::function<void (unsigned long, shared_datasource_builder)> probe_cb;
     std::atomic<bool> cancelled;
+
+    unsigned long probe_id;
 };
 
 typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe;

@@ -529,7 +529,7 @@ public:
     kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
         kis_net_web_endpoint{},
         ws_{con->release_stream()},
-		strand_{Globalreg::globalreg->io.get_executor()},
+		strand_{Globalreg::globalreg->io},
         handler_cb{handler_func} { }
 
     virtual ~kis_net_web_websocket_endpoint() { }
@@ -558,6 +558,8 @@ public:
 		ws_.text(true);
 	}
 
+	boost::asio::io_service::strand &strand() { return strand_; };
+
 protected:
     virtual void close_impl();
 
@@ -570,7 +572,7 @@ protected:
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
     boost::beast::flat_buffer buffer_;
-	boost::asio::strand<boost::asio::io_context::executor_type> strand_;
+	boost::asio::io_service::strand strand_;
 
 	std::queue<std::string, std::deque<std::string>> ws_write_queue_;
 

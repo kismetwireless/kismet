@@ -62,6 +62,157 @@ struct kis_external_http_session {
     std::shared_ptr<conditional_locker<int> > locker;
 };
 
+class kis_external_interface;
+
+class kis_external_io : public std::enable_shared_from_this<kis_external_io> {
+public:
+    template <class d>
+    std::shared_ptr<d> shared_from_base() {
+        return std::static_pointer_cast<d>(shared_from_this());
+    }
+
+    kis_external_io(std::shared_ptr<kis_external_interface> ext) :
+        stopped_{false},
+        interface_{ext},
+        strand_{Globalreg::globalreg->io} { }
+    
+    virtual ~kis_external_io() {
+        close();
+    }
+
+    virtual void attach_interface(std::shared_ptr<kis_external_interface> ext) {
+        boost::asio::post(strand(), 
+                [self = shared_from_this(), ext]() mutable {
+            self->interface_ = ext;
+        });
+    }
+
+    virtual void start_read() = 0;
+
+    virtual void write(const char *data, size_t len) {
+        if (stopped_)
+            return;
+
+        auto buf = std::make_shared<std::string>(data, len);
+
+        boost::asio::post(strand(), 
+                [self = shared_from_this(), buf]() mutable {
+
+                self->out_bufs_.push_back(buf);
+
+                if (self->out_bufs_.size() > 1) {
+                return;
+                }
+
+                self->write_impl();
+                });
+    }
+
+    virtual void write_impl() = 0;
+
+    virtual bool connected() { return false; }
+
+    virtual boost::asio::io_service::strand &strand() { return strand_; }
+
+    virtual void close() { 
+        stopped_ = true;
+    };
+
+    virtual bool stopped() {
+        return stopped_;
+    }
+
+    std::atomic<bool> stopped_;
+
+    std::shared_ptr<kis_external_interface> interface_;
+    boost::asio::io_service::strand strand_;
+
+    boost::asio::streambuf in_buf_;
+    std::list<std::shared_ptr<std::string>> out_bufs_;
+};
+
+class kis_external_ipc : public kis_external_io {
+public:
+    kis_external_ipc(std::shared_ptr<kis_external_interface> iface,
+            kis_ipc_record& ipc,
+            boost::asio::posix::stream_descriptor &ipc_in, 
+            boost::asio::posix::stream_descriptor &ipc_out) :
+        kis_external_io{iface},
+        ipc_in_{std::move(ipc_in)},
+        ipc_out_{std::move(ipc_out)},
+        ipc_{ipc},
+        ipctracker_{Globalreg::fetch_mandatory_global_as<ipc_tracker_v2>()} { }
+
+    virtual ~kis_external_ipc() override;
+
+    virtual void start_read() override;
+
+    virtual bool connected() override {
+        return (ipc_in_.is_open() && ipc_out_.is_open());
+    }
+
+    virtual void write_impl() override;
+
+    virtual void close() override;
+
+    boost::asio::posix::stream_descriptor ipc_in_, ipc_out_;
+
+    kis_ipc_record &ipc_;
+
+    std::shared_ptr<ipc_tracker_v2> ipctracker_;
+};
+
+class kis_external_tcp : public kis_external_io {
+public:
+    kis_external_tcp(std::shared_ptr<kis_external_interface> iface,
+            tcp::socket& socket) :
+        kis_external_io{iface},
+        tcpsocket_{std::move(socket)} { }
+
+    virtual void start_read() override;
+
+    virtual bool connected() override {
+        return tcpsocket_.is_open();
+    }
+
+    virtual void write_impl() override;
+
+    virtual void close() override;
+
+    tcp::socket tcpsocket_;
+};
+
+class kis_external_ws : public kis_external_io {
+public:
+    using cb_func_t = std::function<int (const char *, size_t, std::function<void (int, std::size_t)>)>;
+
+    kis_external_ws(std::shared_ptr<kis_external_interface> iface,
+            std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+            cb_func_t write_cb) :
+        kis_external_io(iface),
+        ws_{ws},
+        ws_strand_{ws->strand()},
+        write_cb_{write_cb} { }
+
+    virtual boost::asio::io_service::strand &strand() override {
+        return ws_strand_;
+    }
+
+    virtual void start_read() override { };
+
+    virtual void write_impl() override;
+
+    virtual bool connected() override {
+        return true;
+    }
+
+    virtual void close() override;
+
+
+    std::shared_ptr<kis_net_web_websocket_endpoint> ws_;
+    boost::asio::io_service::strand ws_strand_;
+    cb_func_t write_cb_;
+};
 
 // External interface API bridge;
 class kis_external_interface : public std::enable_shared_from_this<kis_external_interface> {
@@ -81,6 +232,11 @@ public:
     // Attach a tcp socket
     virtual bool attach_tcp_socket(tcp::socket& socket);
 
+    // Attach an IO handler
+    virtual void attach_io(std::shared_ptr<kis_external_io> io) {
+        io_ = io;
+        io_->start_read();
+    }
 
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);
@@ -99,23 +255,6 @@ public:
         return ret;
     }
 
-    // Set a write callback, which is called instead of an asio async write, for use for 
-    // instance when being driven from a websocket connection and we need to proxy it
-    // to the ws
-    virtual void set_write_cb(std::function<int (const char *, size_t, 
-                std::function<void (int, std::size_t)>)> cb) {
-        kis_lock_guard<kis_mutex> lk(ext_mutex, "external set_write_cb");
-        write_cb = cb;
-    }
-
-    virtual std::function<int (const char *, size_t, 
-            std::function<void (int, std::size_t)>)> move_write_cb() {
-        kis_lock_guard<kis_mutex> lk(ext_mutex, "external move_write_cb");
-        auto ret = write_cb;
-        write_cb = nullptr;
-        return ret;
-    }
-
     // close the external interface, opportunistically wraps in strand
     virtual void close_external();
 
@@ -125,12 +264,19 @@ public:
     // Trigger an error
     virtual void trigger_error(const std::string& in_error);
 
+    // Get the IO handler
+    virtual std::shared_ptr<kis_external_io> move_io(std::shared_ptr<kis_external_interface> newif) {
+        auto io_ref = io_;
+        io_ = nullptr;
+        io_ref->attach_interface(newif);
+        return io_ref;
+    }
+
 protected:
     // Internal implementation of closing
     virtual void close_external_impl();
 
     std::function<void (void)> closure_cb;
-    std::function<int (const char *, size_t, std::function<void (int, std::size_t)>)> write_cb;
 
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
@@ -142,7 +288,7 @@ protected:
     // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
     template<class T>
     unsigned int send_packet_v2(const std::string& command, uint32_t in_seqno, const T& content) {
-        if (stopped || cancelled) {
+        if ((io_ != nullptr && io_->stopped()) || cancelled) {
             _MSG_DEBUG("Attempt to send {} on closed external interface", command);
             return 0;
         }
@@ -199,7 +345,6 @@ protected:
     unsigned int send_pong(uint32_t ping_seqno);
     unsigned int send_shutdown(std::string reason);
 
-    std::atomic<bool> stopped;
     std::atomic<bool> cancelled;
 
     kis_mutex ext_mutex;
@@ -212,38 +357,18 @@ protected:
 
     int ping_timer_id;
 
-    // Async input
-    boost::asio::streambuf in_buf;
-
-    std::list<std::shared_ptr<std::string>> out_bufs;
-
     void start_write(const char *data, size_t len);
-    void write_impl();
 
-    // Common strand
-    boost::asio::io_service::strand strand_;
+    std::shared_ptr<kis_external_io> io_;
+
 
     // Pipe IPC
     std::string external_binary;
     std::vector<std::string> external_binary_args;
 
     kis_ipc_record ipc;
-    boost::asio::posix::stream_descriptor ipc_in, ipc_out;
-
-    std::atomic<bool> ipc_running;
 
     std::atomic<unsigned int> protocol_version;
-
-    void start_ipc_read();
-
-    void ipc_soft_kill();
-    void ipc_hard_kill();
-
-    // TCP socket
-    tcp::socket tcpsocket;
-
-    void start_tcp_read(std::shared_ptr<kis_external_interface> ref);
-
 
     // Eventbus proxy code
     std::shared_ptr<event_bus> eventbus;

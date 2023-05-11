@@ -35,13 +35,14 @@
 #include "streamtracker.h"
 #include "timetracker.h"
 
-datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_definition, 
-        std::shared_ptr<tracker_element_vector> in_protovec) :
+datasource_tracker_source_probe::datasource_tracker_source_probe(unsigned long probeid, 
+        std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec) :
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
     definition {in_definition},
-    cancelled {false} { }
+    cancelled {false},
+    probe_id{probeid} { }
 
 datasource_tracker_source_probe::~datasource_tracker_source_probe() {
     kis_unique_lock<kis_mutex> lk(probe_lock, "~dstprobe");
@@ -65,7 +66,7 @@ void datasource_tracker_source_probe::cancel() {
 
     if (ipc_probe_map.size() == 0 && probe_cb) {
         lk.unlock();
-        probe_cb(source_builder);
+        probe_cb(probe_id, source_builder);
     }
 
     // Cancel any other competing probing sources; this may trigger the callbacks
@@ -86,11 +87,6 @@ void datasource_tracker_source_probe::probe_cancel_complete(unsigned int sid) {
         // Move them to the completed vec
         complete_vec.push_back(mk->second);
         ipc_probe_map.erase(mk);
-    }
-
-    if (ipc_probe_map.size() == 0 && probe_cb) {
-        lk.unlock();
-        probe_cb(source_builder);
     }
 }
 
@@ -113,6 +109,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
 
     if (v != ipc_probe_map.end()) {
         if (in_success) {
+            _MSG_DEBUG("successful probe response");
             source_builder = v->second->get_source_builder();
         }
 
@@ -141,7 +138,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
     }
 }
 
-void datasource_tracker_source_probe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
+void datasource_tracker_source_probe::probe_sources(std::function<void (unsigned long, shared_datasource_builder)> in_cb) {
     {
         kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe probe_sources");
         probe_cb = in_cb;
@@ -1040,6 +1037,8 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         });
 
+                ws->binary();
+
                 // _MSG_DEBUG("Making incoming remote bridge");
                 ds_bridge->bridged_ds = 
                     std::make_shared<dst_incoming_remote>(
@@ -1077,13 +1076,6 @@ void datasource_tracker::trigger_deferred_startup() {
                         // Shim with both sizes for now since async always accepts all
                         comp(sz, sz);
 
-#if 0
-                        // Async write means it just goes, now
-                        auto ret = ws->write(data, sz, false);
-
-                        comp(ret, sz);
-#endif
-
                         return sz;
                     };
 
@@ -1092,23 +1084,21 @@ void datasource_tracker::trigger_deferred_startup() {
                         ws->close();
                     };
 
-                ds_bridge->bridged_ds->set_write_cb(write_cb);
+                auto ws_io = std::make_shared<kis_external_ws>(ds_bridge->bridged_ds, ws, write_cb);
+
                 ds_bridge->bridged_ds->set_closure_cb(closure_cb);
 
-                ws->binary();
+                ds_bridge->bridged_ds->attach_io(ws_io);
 
                 // Blind-catch all errors b/c we must release our listeners at the end
                 try {
                     ws->handle_request(con);
-                } catch (const std::exception& e) {
-                    ;
-                }
+                } catch (...) { }
 
                 if (ds_bridge->bridged_ds != nullptr) {
                     kis_lock_guard<kis_mutex> lk(ds_bridge->mutex, "dst websocket bridge teardown");
                     if (ds_bridge->bridged_ds->get_source_running()) {
                         ds_bridge->bridged_ds->handle_error("websocket connection closed");
-                        ds_bridge->bridged_ds->close_source();
                     }
                 }
                 }));
@@ -1417,18 +1407,16 @@ void datasource_tracker::open_datasource(const std::string& in_source,
             filtered_proto_vec->push_back(p);
     }
 
-    auto dst_probe = std::make_shared<datasource_tracker_source_probe>(in_source, filtered_proto_vec);
 
+    // Lock while we initialize the probe
+    kis_unique_lock<kis_mutex> lock(dst_lock, "dst probe_sources");
     unsigned int probeid = ++next_probe_id;
+    auto dst_probe = std::make_shared<datasource_tracker_source_probe>(probeid, in_source, filtered_proto_vec);
+    probing_map[probeid] = dst_probe;
+    lock.unlock();
 
-    // Record and initiate it
-    {
-        kis_lock_guard<kis_mutex> lk(dst_lock, "dst open_datasource probing_map");
-        probing_map[probeid] = dst_probe;
-    }
-
-    // Initiate the probe
-    dst_probe->probe_sources([this, probeid, in_cb](shared_datasource_builder builder) {
+    // Initiate the probe with callback
+    dst_probe->probe_sources([this, in_cb](unsigned long probeid, shared_datasource_builder builder) mutable {
         // Lock on completion
         kis_unique_lock<kis_mutex> lock(dst_lock, std::defer_lock, "dst probe_sources lambda");
         lock.lock();
@@ -1461,7 +1449,11 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 
                 // Initiate an open w/ a known builder, associate the prototype definition with it
                 open_datasource(probe_ref->get_definition(), builder, in_cb);
+
+                lock.lock();
             }
+
+            _MSG_DEBUG("removing probing event {} from probing map, count {}", probeid, probe_ref.use_count());
 
             // Remove us from the active vec
             probing_map.erase(i);

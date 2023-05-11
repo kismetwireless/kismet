@@ -31,7 +31,7 @@
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
 kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
-    tracker_component(),
+    tracker_component(0),
     kis_external_interface() {
 
     next_transaction = 1;
@@ -445,7 +445,6 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         bool in_tcp, configure_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource connect_remote");
 
-    stopped = false;
     cancelled = false;
 
     // We can't reconnect failed interfaces that are remote
@@ -489,9 +488,6 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         }
     }
    
-    in_buf.consume(in_buf.size());
-    out_bufs.clear();
-
     last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
     timetracker->remove_timer(ping_timer_id);
@@ -516,13 +512,11 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     // Unlock before attaching sockets
     lk.unlock();
 
-    if (in_tcp)  {
-        attach_tcp_socket(in_remote->tcpsocket);
-    } else {
-        write_cb = in_remote->move_write_cb();
-        closure_cb = in_remote->move_closure_cb();
-    }
+    // Inherit the incoming io mode
+    io_ = in_remote->move_io(shared_from_this());
 
+    // Inherit the incoming closure
+    closure_cb = in_remote->move_closure_cb();
 
     // Send an opensource
     send_open_source(get_source_definition(), 0, in_cb);
@@ -599,11 +593,11 @@ void kis_datasource::close_source() {
 }
 
 void kis_datasource::close_source_async(std::function<void (void)> in_callback) {
-    if (strand_.running_in_this_thread()) {
+    if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
         close_external_impl();
         in_callback();
     } else {
-        boost::asio::post(strand_, 
+        boost::asio::post(io_->strand(), 
                 std::packaged_task<void()>([this, in_callback]() mutable {
                     close_external_impl();
                     in_callback();
@@ -613,14 +607,14 @@ void kis_datasource::close_source_async(std::function<void (void)> in_callback) 
 }
 
 void kis_datasource::close_external() {
-    if (strand_.running_in_this_thread()) {
+    if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
         close_external_impl();
     } else {
-        auto ft = boost::asio::post(strand_, 
+        auto ft = boost::asio::post(io_->strand(), 
                 std::packaged_task<void()>([this]() mutable {
                     close_external_impl();
                 }));
-        ft.wait();
+        // ft.wait();
     }
 }
 
@@ -2064,11 +2058,14 @@ bool kis_datasource::launch_ipc() {
         return false;
     }
 
-    ipc_soft_kill();
+    if (io_ != nullptr)
+        io_->close();
 
     set_int_source_ipc_pid(-1);
 
     external_binary = get_source_ipc_binary();
+
+    _MSG_DEBUG("probe running ipc {}", external_binary);
 
     if (run_ipc()) {
         set_int_source_ipc_pid(ipc.pid);
