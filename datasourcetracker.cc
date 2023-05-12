@@ -64,7 +64,7 @@ void datasource_tracker_source_probe::cancel() {
     for (auto i : cancel_timer_vec)
         timetracker->remove_timer(i);
 
-    if (ipc_probe_map.size() == 0 && probe_cb) {
+    if (probe_cb) {
         lk.unlock();
         probe_cb(probe_id, source_builder);
     }
@@ -109,7 +109,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
 
     if (v != ipc_probe_map.end()) {
         if (in_success) {
-            _MSG_DEBUG("successful probe response");
+            // _MSG_DEBUG("successful probe response");
             source_builder = v->second->get_source_builder();
         }
 
@@ -125,6 +125,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
     // If we've succeeded, cancel any others, cancel will take care of our
     // callback for completion
     if (in_success) {
+        // _MSG_DEBUG("complete_probe calling cancel() for {}", probe_id);
         lk.unlock();
         cancel();
         return;
@@ -1143,6 +1144,7 @@ void datasource_tracker::trigger_deferred_startup() {
         Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_delay", 10);
 
     auto launch_func = [](datasource_tracker *dst, std::string src) {
+            // _MSG_DEBUG("launching ds {}", src);
             dst->open_datasource(src, 
                     [src](bool success, std::string reason, shared_datasource) {
                 if (success) {
@@ -1459,7 +1461,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 lock.lock();
             }
 
-            _MSG_DEBUG("removing probing event {} from probing map, count {}", probeid, probe_ref.use_count());
+            // _MSG_DEBUG("removing probing event {} from probing map, count {}", probeid, probe_ref.use_count());
 
             // Remove us from the active vec
             probing_map.erase(i);
@@ -1467,6 +1469,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
             // Schedule a cleanup 
             schedule_cleanup();
         } else {
+            // _MSG_DEBUG("probe returned unknown probeid {}", probeid);
             // fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
         }
     });

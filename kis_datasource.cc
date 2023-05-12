@@ -2065,7 +2065,7 @@ bool kis_datasource::launch_ipc() {
 
     external_binary = get_source_ipc_binary();
 
-    _MSG_DEBUG("probe running ipc {}", external_binary);
+    // _MSG_DEBUG("probe running ipc {}", external_binary);
 
     if (run_ipc()) {
         set_int_source_ipc_pid(ipc.pid);
