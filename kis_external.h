@@ -155,6 +155,8 @@ public:
 
     virtual void close() override;
 
+    void close_impl();
+
     boost::asio::posix::stream_descriptor ipc_in_, ipc_out_;
 
     kis_ipc_record &ipc_;
@@ -169,6 +171,8 @@ public:
         kis_external_io{iface},
         tcpsocket_{std::move(socket)} { }
 
+    virtual ~kis_external_tcp() override;
+
     virtual void start_read() override;
 
     virtual bool connected() override {
@@ -178,6 +182,7 @@ public:
     virtual void write_impl() override;
 
     virtual void close() override;
+    void close_impl();
 
     tcp::socket tcpsocket_;
 };

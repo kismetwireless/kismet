@@ -37,7 +37,7 @@
 #include "protobuf_cpp/eventbus.pb.h"
 
 kis_external_ipc::~kis_external_ipc() {
-    close();
+    close_impl();
 
     if (ipc_.pid > 0) {
         kill(ipc_.pid, SIGKILL);
@@ -120,28 +120,36 @@ void kis_external_ipc::write_impl() {
 void kis_external_ipc::close() {
     boost::asio::post(strand(),
             [self = shared_from_base<kis_external_ipc>()]() mutable {
-            self->stopped_ = true;
-
-            if (self->ipc_in_.is_open()) {
-                try {
-                    self->ipc_in_.cancel();
-                    self->ipc_in_.close();
-                } catch (...) { }
-            }
-
-            if (self->ipc_out_.is_open()) {
-                try {
-                    self->ipc_out_.cancel();
-                    self->ipc_out_.close();
-                } catch (...) { ;
-                }
-            }
-
-            if (self->ipc_.pid > 0) {
-                self->ipctracker_->remove_ipc(self->ipc_.pid);
-                kill(self->ipc_.pid, SIGTERM);
-            }
+            self->close_impl();
         });
+}
+
+void kis_external_ipc::close_impl() {
+    stopped_ = true;
+
+    if (ipc_in_.is_open()) {
+        try {
+            ipc_in_.cancel();
+            ipc_in_.close();
+        } catch (...) { }
+    }
+
+    if (ipc_out_.is_open()) {
+        try {
+            ipc_out_.cancel();
+            ipc_out_.close();
+        } catch (...) { ;
+        }
+    }
+
+    if (ipc_.pid > 0) {
+        ipctracker_->remove_ipc(ipc_.pid);
+        kill(ipc_.pid, SIGTERM);
+    }
+}
+
+kis_external_tcp::~kis_external_tcp() {
+    close_impl();
 }
 
 void kis_external_tcp::start_read() {
@@ -186,17 +194,21 @@ void kis_external_tcp::start_read() {
 void kis_external_tcp::close() {
     boost::asio::post(strand(),
             [self = shared_from_base<kis_external_tcp>()]() mutable {
-            self->stopped_ = true;
-
-            if (self->tcpsocket_.is_open()) {
-                try {
-                    self->tcpsocket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-                    self->tcpsocket_.close();
-                } catch (...) { }
-
-            }
+            self->close_impl();
     });
 
+}
+
+void kis_external_tcp::close_impl() {
+    stopped_ = true;
+
+    if (tcpsocket_.is_open()) {
+        try {
+            tcpsocket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+            tcpsocket_.close();
+        } catch (...) { }
+
+    }
 }
 
 void kis_external_tcp::write_impl() {
