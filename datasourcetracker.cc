@@ -1688,12 +1688,6 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
     for (auto p : *datasource_vec) {
         shared_datasource d = std::static_pointer_cast<kis_datasource>(p);
 
-        /* Throw errors for UUID collisions between remote and local even if they're
-         * not remote capable
-        if (!d->get_source_builder()->get_remote_capable())
-            continue;
-            */
-
         if (d->get_source_uuid() == in_uuid) {
             merge_target_device = d;
             break;
@@ -1733,15 +1727,6 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
                                 merge_target_device->get_source_uuid(), msg);
                     }
                 });
-
-        /*
-        // Merge the socket into the new device
-        incoming->handshake_rb(std::thread(
-                    [this, merge_target_device, incoming, dup_definition, connect_tcp]  {
-                    merge_target_device->connect_remote(dup_definition, incoming, connect_tcp, NULL);
-                    calculate_source_hopping(merge_target_device);
-                    }));
-                    */
 
         return merge_target_device;
     }
@@ -1960,7 +1945,7 @@ dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
     cb = in_cb;
 
     timerid =
-        timetracker->register_timer(std::chrono::seconds(10), 0,
+        timetracker->register_timer(std::chrono::seconds(5), 0,
             [this] (int) -> int {
             _MSG_ERROR("Incoming connection on remote capture socket, but remote side did "
                     "not initiate a datasource connection.");

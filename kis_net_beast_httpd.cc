@@ -489,7 +489,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
 	// Spin each connection into its own thread
     if (!ec) {
         std::thread conthread([this, tcp_socket = boost::beast::tcp_stream(std::move(socket))]() mutable {
-                thread_set_process_name("beast connection");
+                thread_set_process_name("BEAST");
 
                 while (tcp_socket.socket().is_open()) {
 					// Reset the timeout every loop through; each request in this 
@@ -1537,7 +1537,7 @@ bool kis_net_beast_httpd_connection::start() {
 
     std::thread tr([this, route, generator_launched = std::move(generator_launched),
             self = shared_from_this()]() mutable {
-        thread_set_process_name("beast generator");
+        thread_set_process_name("BEAST-WAIT");
 
         generator_launched.set_value();
 
@@ -1923,16 +1923,9 @@ void kis_net_web_websocket_endpoint::close() {
 void kis_net_web_websocket_endpoint::close_impl() {
     running = false;
 
-    /* Non-dynamic memory, should be able to just destroy the pending write queue
-    while (!ws_write_queue_.empty())
-        ws_write_queue_.pop();
-        */
-
     try {
         ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-    } catch (...) {
-        ;
-    } 
+    } catch (...) { } 
 
     try {
         running_promise.set_value();
@@ -2027,8 +2020,7 @@ void kis_net_web_websocket_endpoint::handle_write() {
 
 void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     // _MSG_DEBUG("websocket {} - {}", fmt::ptr(this), con->uri());
-    auto name = fmt::format("websocket - {}", con->uri());
-    thread_set_process_name(name);
+    thread_set_process_name("BEAST-WS");
 
     // Set the default timeouts
     ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
