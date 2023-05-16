@@ -2058,8 +2058,11 @@ bool kis_datasource::launch_ipc() {
         return false;
     }
 
-    if (io_ != nullptr)
+    if (io_ != nullptr) {
+        io_->stop();
         io_->close();
+        io_.reset();
+    }
 
     set_int_source_ipc_pid(-1);
 

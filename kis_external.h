@@ -116,7 +116,11 @@ public:
 
     virtual void close() { 
         stopped_ = true;
-    };
+    }
+
+    virtual void stop() {
+        stopped_ = true;
+    }
 
     virtual bool stopped() {
         return stopped_;

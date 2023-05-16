@@ -58,17 +58,20 @@ void kis_external_ipc::start_read() {
                         if (ec.value() == boost::asio::error::operation_aborted) {
                             if (!self->stopped_) {
                                 self->interface_->handle_packet(self->in_buf_);
+                                return self->interface_->trigger_error("IPC connection aborted");
                             }
 
-                            return self->interface_->trigger_error("IPC connection aborted");
+                            return;
                         }
 
                         if (ec.value() == boost::asio::error::eof) {
                             if (!self->stopped_) {
                                 self->interface_->handle_packet(self->in_buf_);
+                                self->stopped_ = true;
+                                return self->interface_->trigger_error("IPC connection closed");
                             }
 
-                            return self->interface_->trigger_error("IPC connection closed");
+                            return;
                         }
 
                         return self->interface_->trigger_error(fmt::format("IPC connection error: {}", ec.message()));
@@ -101,7 +104,7 @@ void kis_external_ipc::write_impl() {
                 if (ec) {
                     self->interface_->handle_packet(self->in_buf_);
 
-                    if (ec.value() == boost::asio::error::operation_aborted) {
+                    if (self->stopped() || ec.value() == boost::asio::error::operation_aborted) {
                         return;
                     }
 
@@ -127,6 +130,10 @@ void kis_external_ipc::close() {
 void kis_external_ipc::close_impl() {
     stopped_ = true;
 
+    if (ipc_.pid > 0) {
+        ipctracker_->remove_ipc(ipc_.pid);
+    }
+
     if (ipc_in_.is_open()) {
         try {
             ipc_in_.cancel();
@@ -143,7 +150,6 @@ void kis_external_ipc::close_impl() {
     }
 
     if (ipc_.pid > 0) {
-        ipctracker_->remove_ipc(ipc_.pid);
         kill(ipc_.pid, SIGTERM);
     }
 }
@@ -164,19 +170,22 @@ void kis_external_tcp::start_read() {
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
-                            if (!self->stopped_) {
+                            if (!self->stopped()) {
                                 self->interface_->handle_packet(self->in_buf_);
+                                return self->interface_->trigger_error("TCP connection aborted");
                             }
 
-                            return self->interface_->trigger_error("TCP connection aborted");
+                            return;
                         }
 
                         if (ec.value() == boost::asio::error::eof) {
-                            if (!self->stopped_) {
+                            if (!self->stopped()) {
                                 self->interface_->handle_packet(self->in_buf_);
+                                self->stopped_ = true;
+                                return self->interface_->trigger_error("TCP connection closed");
                             }
 
-                            return self->interface_->trigger_error("TCP connection closed");
+                            return;
                         }
 
                         return self->interface_->trigger_error(fmt::format("TCP connection error: {}", ec.message()));
@@ -229,7 +238,7 @@ void kis_external_tcp::write_impl() {
                 if (ec) {
                     self->interface_->handle_packet(self->in_buf_);
 
-                    if (ec.value() == boost::asio::error::operation_aborted) {
+                    if (self->stopped() || ec.value() == boost::asio::error::operation_aborted) {
                         return;
                     }
 
