@@ -85,6 +85,9 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     quiet_errors = 0;
 
     set_int_source_running(false);
+
+    get_source_packet_rrd()->add_sample(0, Globalreg::globalreg->last_tv_sec);
+    get_source_packet_size_rrd()->add_sample(0, Globalreg::globalreg->last_tv_sec);
 }
 
 kis_datasource::~kis_datasource() {
