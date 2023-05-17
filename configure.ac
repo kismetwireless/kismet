@@ -883,7 +883,6 @@ if test "$wantwext" = "yes"; then
 
 fi # want headers
 
-fi # linux
 
 # Look for capability support
 AC_ARG_ENABLE(libcap,
@@ -895,7 +894,7 @@ AC_ARG_ENABLE(libcap,
 	[wantlibcap=yes]
 )
 
-if test "$wantcap" = "yes"; then
+if test "$wantlibcap" = "yes"; then
     havecap="yes"
     AC_CHECK_LIB([cap], [cap_init],,havecap=no)
     AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
@@ -907,6 +906,8 @@ if test "$wantcap" = "yes"; then
     AC_SUBST(caplibs)
     fi
 fi
+
+fi # linux
 
 AC_ARG_WITH(pcreheaders,
 	[  --with-pcreheaders[=DIR]      Custom location of the PCRE library headers ],

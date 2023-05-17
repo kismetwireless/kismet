@@ -9801,7 +9801,6 @@ printf "%s\n" "#define HAVE_LINUX_IWFREQFLAG 1" >>confdefs.h
 
 fi # want headers
 
-fi # linux
 
 # Look for capability support
 # Check whether --enable-libcap was given.
@@ -9817,7 +9816,7 @@ else $as_nop
 fi
 
 
-if test "$wantcap" = "yes"; then
+if test "$wantlibcap" = "yes"; then
     havecap="yes"
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcap" >&5
 printf %s "checking for cap_init in -lcap... " >&6; }
@@ -9888,6 +9887,8 @@ printf "%s\n" "#define HAVE_CAPABILITY 1" >>confdefs.h
 
     fi
 fi
+
+fi # linux
 
 
 # Check whether --with-pcreheaders was given.
