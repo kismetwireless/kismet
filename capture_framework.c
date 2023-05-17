@@ -3857,6 +3857,7 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
         return 0;
 
 #ifdef HAVE_CAPABILITY
+    char errstr[STATUS_MAX];
 	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
 	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
 	cap_t caps = cap_init(); 
