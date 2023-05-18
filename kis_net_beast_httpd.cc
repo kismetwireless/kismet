@@ -958,9 +958,8 @@ void kis_net_beast_httpd::load_auth() {
 
     try {
         json = nlohmann::json::parse(sf);
-
     } catch (const std::exception& e) {
-        _MSG_ERROR("(HTTPD) Could not read session dta file, skipping loading saved sessions.");
+        _MSG_INFO("(HTTPD) Could not read session data file, skipping loading saved sessions.");
         return;
     }
 
