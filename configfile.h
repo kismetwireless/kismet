@@ -48,6 +48,15 @@ public:
         return parse_config(in_fname.c_str());
     }
 
+    int parse_config_silent(const char *in_fname) {
+        silent = true;
+        return parse_config(in_fname);
+    }
+
+    int parse_config_silent(const std::string& in_fname) {
+        return parse_config_silent(in_fname.c_str());
+    }
+
 	int save_config(const char *in_fname);
     int save_config(const std::string& in_fname) {
         return save_config(in_fname.c_str());
@@ -130,6 +139,8 @@ public:
 	uint32_t fetch_file_checksum();
 
 protected:
+    bool silent;
+
     class config_entity {
     public:
         config_entity(std::string v, std::string sf) {

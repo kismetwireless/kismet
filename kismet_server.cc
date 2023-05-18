@@ -342,7 +342,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     auto uuidconfpath = fmt::format("{}/kismet_server_id.conf", config_dir_path);
 
     config_file uuidconf;
-    uuidconf.parse_config(uuidconfpath.c_str());
+    uuidconf.parse_config_silent(uuidconfpath.c_str());
 
     // Look for a saved uuid
     confuuid = uuid(uuidconf.fetch_opt("server_uuid"));

@@ -46,6 +46,7 @@
 config_file::config_file() {
     config_locker.set_name("configfile_locker");
     checksum = 0;
+    silent = false;
 }
 
 config_file::~config_file() {
@@ -87,9 +88,11 @@ int config_file::parse_config(const char *in_fname,
 
     if ((configf = fopen(in_fname, "r")) == NULL) {
 
-        sstream << "Error reading config file '" << in_fname <<
-            "': " << kis_strerror_r(errno);
-        _MSG(sstream.str(), MSGFLAG_ERROR);
+        if (!silent) {
+            _MSG_ERROR("Error reading config file '{}': {}", in_fname, 
+                    kis_strerror_r(errno));
+        }
+
         return -1;
     }
 
