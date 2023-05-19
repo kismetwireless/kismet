@@ -544,6 +544,10 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                     return 0;
                 }
 
+                if (chunk->data() == nullptr) {
+                    return 0;
+                }
+
                 fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
                 packinfo->header_offset = 24 + 4;
 
@@ -563,6 +567,10 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 if (chunk->length() < 36) {
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                if (chunk->data() == nullptr) {
                     return 0;
                 }
 
@@ -588,6 +596,11 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                     return 0;
                 }
 
+                if (chunk->data() == nullptr) {
+                    return 0;
+                }
+                    
+
                 fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
                 packinfo->header_offset = 24 + 10;
 
@@ -612,6 +625,9 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 break;
 
             case 4:
+                if (chunk->data() == nullptr)
+                    return 0;
+
                 packinfo->subtype = packet_sub_probe_req;
 
                 packinfo->distrib = distrib_to;
@@ -633,6 +649,10 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 if (chunk->length() < 36) {
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
+                if (chunk->data() == nullptr) {
                     return 0;
                 }
 
@@ -658,6 +678,10 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                     return 0;
                 }
 
+                if (chunk->data() == nullptr) {
+                    return 0;
+                }
+
                 fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
                 packinfo->header_offset = 24 + 12;
 
@@ -666,14 +690,6 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-#if 0
-                // If beacons aren't do a broadcast destination, consider them corrupt.
-                if (packinfo->dest_mac != Globalreg::globalreg->broadcast_mac) {
-                    // fprintf(stderr, "debug - dest mac not broadcast\n");
-                    packinfo->corrupt = 1;
-                }
-#endif
 
                 if (fixparm->wep) {
                     packinfo->cryptset |= crypt_wep;

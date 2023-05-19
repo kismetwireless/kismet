@@ -190,6 +190,9 @@ packet_chain::packet_chain() {
         if (chunk == nullptr)
             return 1;
 
+        if (chunk->data() == nullptr)
+            return 1;
+
         if (chunk->length() == 0)
             return 1;
 

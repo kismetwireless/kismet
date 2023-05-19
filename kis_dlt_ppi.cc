@@ -293,23 +293,6 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         datasrc->ref_source->checksum_packet(in_pack);
     }
 
-#if 0
-    if (capsrc != NULL && capsrc->ref_source->FetchValidateCRC() && fcschunk != NULL) {
-        // Compare it and flag the packet
-        uint32_t calc_crc =
-            crc32_le_80211(globalreg->crc32_table, decapchunk->data, 
-                    decapchunk->length);
-
-        if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4)) {
-            in_pack->error = 1;
-            fcschunk->checksum_valid = 0;
-        } else {
-            fcschunk->checksum_valid = 1;
-        }
-    }
-#endif
-
-
     return 1;
 }
 
