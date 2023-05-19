@@ -55,8 +55,6 @@ datasource_tracker_source_probe::~datasource_tracker_source_probe() {
 void datasource_tracker_source_probe::cancel() {
     kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe cancel");
 
-    _MSG_DEBUG("dstprobe cancel {}", probe_id);
-
     if (cancelled)
         return;
 
