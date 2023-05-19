@@ -57,6 +57,7 @@ void kis_external_ipc::start_read() {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
                             if (!self->stopped_) {
+                                self->close();
                                 self->interface_->handle_packet(self->in_buf_);
                                 return self->interface_->trigger_error("IPC connection aborted");
                             }
@@ -66,6 +67,7 @@ void kis_external_ipc::start_read() {
 
                         if (ec.value() == boost::asio::error::eof) {
                             if (!self->stopped_) {
+                                self->close();
                                 self->interface_->handle_packet(self->in_buf_);
                                 self->stopped_ = true;
                                 return self->interface_->trigger_error("IPC connection closed");
@@ -74,13 +76,17 @@ void kis_external_ipc::start_read() {
                             return;
                         }
 
+                        self->close();
+
                         return self->interface_->trigger_error(fmt::format("IPC connection error: {}", ec.message()));
                     } 
 
                     auto r = self->interface_->handle_packet(self->in_buf_);
 
-                    if (r < 0)
+                    if (r < 0) {
+                        self->close();
                         return self->interface_->trigger_error("IPC read processing error");
+                    }
 
                     return self->start_read();
                 }));
@@ -108,8 +114,11 @@ void kis_external_ipc::write_impl() {
                         return;
                     }
 
+                    self->close();
+
                     _MSG_ERROR("Kismet external interface got an error writing to external IPC: {}", ec.message());
                     self->interface_->trigger_error("write failure");
+
                     return;
                 }
 
@@ -175,6 +184,7 @@ void kis_external_tcp::start_read() {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
                             if (!self->stopped()) {
+                                self->close();
                                 self->interface_->handle_packet(self->in_buf_);
                                 return self->interface_->trigger_error("TCP connection aborted");
                             }
@@ -184,6 +194,7 @@ void kis_external_tcp::start_read() {
 
                         if (ec.value() == boost::asio::error::eof) {
                             if (!self->stopped()) {
+                                self->close();
                                 self->interface_->handle_packet(self->in_buf_);
                                 self->stopped_ = true;
                                 return self->interface_->trigger_error("TCP connection closed");
@@ -197,8 +208,10 @@ void kis_external_tcp::start_read() {
 
                     auto r = self->interface_->handle_packet(self->in_buf_);
 
-                    if (r < 0)
+                    if (r < 0) {
+                        self->close();
                         return self->interface_->trigger_error("TCP read processing error");
+                    }
 
                     return self->start_read();
                 }));
@@ -249,6 +262,8 @@ void kis_external_tcp::write_impl() {
                         return;
                     }
 
+                    self->close();
+
                     _MSG_ERROR("Kismet external interface got an error writing to external TCP: {}", ec.message());
                     self->interface_->trigger_error("write failure");
                     return;
@@ -283,6 +298,8 @@ void kis_external_ws::write_impl() {
                 self->out_bufs_.pop_front();
 
                 if (errc) {
+                    self->close();
+
                     self->interface_->handle_packet(self->in_buf_);
 
                     _MSG_ERROR("Kismet external interface got an error writing to callback: {}", errc.message());
