@@ -55,6 +55,8 @@ datasource_tracker_source_probe::~datasource_tracker_source_probe() {
 void datasource_tracker_source_probe::cancel() {
     kis_unique_lock<kis_mutex> lk(probe_lock, "dstprobe cancel");
 
+    _MSG_DEBUG("dstprobe cancel {}", probe_id);
+
     if (cancelled)
         return;
 
@@ -67,6 +69,7 @@ void datasource_tracker_source_probe::cancel() {
     if (probe_cb) {
         lk.unlock();
         probe_cb(probe_id, source_builder);
+        lk.lock();
     }
 
     // Cancel any other competing probing sources; this may trigger the callbacks
@@ -77,6 +80,8 @@ void datasource_tracker_source_probe::cancel() {
                 self->probe_cancel_complete(sid);
                 });
     }
+
+    ipc_probe_map.clear();
 }
 
 void datasource_tracker_source_probe::probe_cancel_complete(unsigned int sid) {
@@ -86,7 +91,6 @@ void datasource_tracker_source_probe::probe_cancel_complete(unsigned int sid) {
     if (mk != ipc_probe_map.end()) {
         // Move them to the completed vec
         complete_vec.push_back(mk->second);
-        ipc_probe_map.erase(mk);
     }
 }
 
@@ -140,10 +144,9 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
 }
 
 void datasource_tracker_source_probe::probe_sources(std::function<void (unsigned long, shared_datasource_builder)> in_cb) {
-    {
-        kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe probe_sources");
-        probe_cb = in_cb;
-    }
+    kis_unique_lock<kis_mutex> lk(probe_lock, "dst probe_sources");
+
+    probe_cb = in_cb;
 
     std::vector<shared_datasource_builder> remote_builders;
 
@@ -245,6 +248,7 @@ void datasource_tracker_source_list::cancel() {
     if (ipc_list_map.size() == 0 && list_cb) {
         lk.unlock();
         list_cb(listed_sources);
+        lk.lock();
     }
 
     // Abort anything already underway
@@ -253,6 +257,8 @@ void datasource_tracker_source_list::cancel() {
                 self->list_cancel_complete(sid);
             });
     }
+
+    ipc_list_map.clear();
 }
 
 void datasource_tracker_source_list::list_cancel_complete(unsigned int sid) {
@@ -261,12 +267,6 @@ void datasource_tracker_source_list::list_cancel_complete(unsigned int sid) {
     auto mk = ipc_list_map.find(sid);
     if (mk != ipc_list_map.end()) {
         complete_vec.push_back(mk->second);
-        ipc_list_map.erase(mk);
-    }
-
-    if (ipc_list_map.size() == 0 && list_cb) {
-        lk.unlock();
-        list_cb(listed_sources);
     }
 }
 
@@ -307,6 +307,8 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
 void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tracker_source_list> ref,
         std::function<void (std::vector<shared_interface>)> in_cb) {
 
+    kis_unique_lock<kis_mutex> lk(list_lock, "dst list_sources");
+
     list_cb = in_cb;
 
     std::vector<shared_datasource_builder> remote_builders;
@@ -343,11 +345,8 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
         cancel();
 
     cancel_event_id = 
-        timetracker->register_timer(std::chrono::seconds(10), false, 
+        timetracker->register_timer(std::chrono::seconds(5), false, 
             [self = shared_from_this()] (int) mutable -> int {
-                if (self->cancelled)
-                    return 0;
-
                 self->cancel();
 
                 return 0;
@@ -1424,7 +1423,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     lock.unlock();
 
     // Initiate the probe with callback
-    dst_probe->probe_sources([this, in_cb](unsigned long probeid, shared_datasource_builder builder) mutable {
+    dst_probe->probe_sources([this, dst_probe, in_cb](unsigned long probeid, shared_datasource_builder builder) mutable {
         // Lock on completion
         kis_unique_lock<kis_mutex> lock(dst_lock, std::defer_lock, "dst probe_sources lambda");
         lock.lock();
@@ -1601,8 +1600,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 
     // Initiate the probe
     dst_list->list_sources(dst_list, [this, listid, in_cb, dst_list](std::vector<shared_interface> interfaces) {
-        kis_unique_lock<kis_mutex> lock(dst_lock, std::defer_lock, "dst list_sources cancel lambda");
-        lock.lock();
+        kis_unique_lock<kis_mutex> lock(dst_lock, "dst list_sources cancel lambda");
 
         // Figure out what interfaces are in use by active sources and amend their
         // UUID records in the listing
@@ -1633,8 +1631,6 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
             listing_complete_vec.push_back(i->second);
             listing_map.erase(i);
             schedule_cleanup();
-        } else {
-            // fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
         }
     });
 }

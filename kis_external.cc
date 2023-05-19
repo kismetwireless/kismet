@@ -121,10 +121,14 @@ void kis_external_ipc::write_impl() {
 }
 
 void kis_external_ipc::close() {
-    boost::asio::post(strand(),
-            [self = shared_from_base<kis_external_ipc>()]() mutable {
-            self->close_impl();
-        });
+    if (strand().running_in_this_thread()) {
+        close_impl();
+    } else {
+        boost::asio::post(strand(),
+                [self = shared_from_base<kis_external_ipc>()]() mutable {
+                self->close_impl();
+                });
+    }
 }
 
 void kis_external_ipc::close_impl() {
@@ -201,11 +205,14 @@ void kis_external_tcp::start_read() {
 }
 
 void kis_external_tcp::close() {
-    boost::asio::post(strand(),
-            [self = shared_from_base<kis_external_tcp>()]() mutable {
-            self->close_impl();
-    });
-
+    if (strand().running_in_this_thread()) {
+        close_impl();
+    } else {
+        boost::asio::post(strand(),
+                [self = shared_from_base<kis_external_ipc>()]() mutable {
+                self->close_impl();
+                });
+    }
 }
 
 void kis_external_tcp::close_impl() {
@@ -368,8 +375,10 @@ void kis_external_interface::close_external_impl() {
 
     timetracker->remove_timer(ping_timer_id);
 
-    if (io_ != nullptr)
+    if (io_ != nullptr) {
         io_->close();
+        io_.reset();
+    }
 
     if (closure_cb != nullptr) {
         lk.unlock();
