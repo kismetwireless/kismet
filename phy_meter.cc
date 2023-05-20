@@ -294,21 +294,21 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 	double freq_khz = 0;
 
     // Look for the ID, consumption records, and type for the different variant types
-    if (!id_j.is_null()) { 
+    if (!id_j.is_null() && id_j.is_number()) { 
         decoded_id = id_j.get<uint64_t>();
-    } else if (!ert_serial_j.is_null()) { 
+    } else if (!ert_serial_j.is_null() && ert_serial_j.is_number()) { 
         decoded_id = ert_serial_j.get<uint64_t>();
     } else { 
         return false;
     }
 
-    if (!consumption_j.is_null()) { 
+    if (!consumption_j.is_null() && consumption_j.is_number()) { 
         decoded_consumption = consumption_j.get<int64_t>();
-    } else if (!consumption_2_j.is_null()) { 
+    } else if (!consumption_2_j.is_null() && consumption_2_j.is_number()) { 
         decoded_consumption = consumption_2_j.get<int64_t>();
-    } else if (!consumption_data_j.is_null()) { 
+    } else if (!consumption_data_j.is_null() && consumption_data_j.is_number()) { 
         decoded_consumption = consumption_data_j.get<int64_t>();
-	} else if (!last_consumption_j.is_null()) {
+	} else if (!last_consumption_j.is_null() && last_consumption_j.is_number()) {
 		decoded_consumption = last_consumption_j.get<int64_t>();
     } else { 
         return false;
@@ -330,7 +330,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
             decoded_type = 0;
         }
     } else if (!model_j.is_null() && model_j.get<std::string>() == "ERT-SCM") { 
-        if (!ert_type_j.is_null()) {
+        if (!ert_type_j.is_null() && ert_type_j.is_number()) {
             switch (ert_type_j.get<int>()) {
                 case 4:
                 case 5:
@@ -352,7 +352,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
                     decoded_type = 0;
                     break;
             }
-        } else if (!ert_type_2_j.is_null()) {
+        } else if (!ert_type_2_j.is_null() && ert_type_2_j.is_number()) {
             switch (ert_type_2_j.get<int>()) {
                 case 4:
                 case 5:
