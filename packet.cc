@@ -45,6 +45,8 @@ kis_packet::kis_packet() {
     duplicate = 0;
     hash = 0;
 
+    assignment_id = 0;
+
     raw_data = "";
     raw_data.reserve(MAX_PACKET_LEN);
     data = nonstd::string_view(raw_data);

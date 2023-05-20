@@ -185,8 +185,8 @@ packet_chain::packet_chain() {
     // after any phy demangling and DLT demangling; lock the packet for the rest of the 
     // packet chain
     register_handler([this](std::shared_ptr<kis_packet> in_pack) -> int {
-        // Lock every packet at the beginning of the dupe check
-        in_pack->mutex.lock();
+        // Lock the hash list, gating all hash comparisons 
+        kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
 
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
@@ -199,9 +199,11 @@ packet_chain::packet_chain() {
         if (chunk->length() == 0)
             return 1;
 
-        in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
+        // Lock the individual packet to make sure no competing processing threads
+        // manipulate it while we're processing
+        in_pack->mutex.lock();
 
-        kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
+        in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
 
         for (unsigned int i = 0; i < 1024; i++) {
             if (dedupe_list[i].hash == in_pack->hash) {
@@ -230,7 +232,6 @@ packet_chain::packet_chain() {
                     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
                     radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
                 }
-
             }
         }
 
@@ -244,7 +245,7 @@ packet_chain::packet_chain() {
         }
 
         return 1;
-    }, CHAINPOS_LLCDISSECT, 10000);
+    }, CHAINPOS_LLCDISSECT, -100000);
 
     // Unlock at the end of logging
     register_handler([](std::shared_ptr<kis_packet> in_pack) -> int {
@@ -506,10 +507,16 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
     // If there is no assignment id, randomly assign the packet to a thread.
     // Otherwise transform the assignment id to a consistent thread.
-    if (in_pack->assignment_id == 0)
-        processing_id = rand() % n_packet_threads;
-    else
+    // If the packet is a duplicate, assign it to the same thread as the original.
+    if (in_pack->assignment_id == 0) {
+        if (in_pack->original != nullptr) {
+            processing_id = in_pack->original->assignment_id % n_packet_threads;
+        } else {
+            processing_id = rand() % n_packet_threads;
+        }
+    } else {
         processing_id = in_pack->assignment_id % n_packet_threads;
+    }
 
     auto qsize = packet_threads[processing_id]->packet_queue.size_approx();
 
