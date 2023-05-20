@@ -308,13 +308,16 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
         return 0;
     }
 
-    if (in_pack->duplicate) {
+    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
+    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
+
+    // If we're a duplicate packet and haven't processed the dot11 content yet,
+    // we have to process.  This prevents a desync between the postcap thread and
+    // the bulk packet processing threads.
+    if (in_pack->duplicate && packinfo != nullptr) {
         return 0;
     }
 
-    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
-
-    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
         common = packetchain->new_packet_component<kis_common_info>();

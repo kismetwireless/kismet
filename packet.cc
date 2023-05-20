@@ -45,6 +45,7 @@ kis_packet::kis_packet() {
     duplicate = 0;
     hash = 0;
 
+    raw_data = "";
     raw_data.reserve(MAX_PACKET_LEN);
     data = nonstd::string_view(raw_data);
 }
@@ -64,6 +65,10 @@ void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_compone
                     "index is corrupt.", index, MAX_PACKET_COMPONENTS));
 
 	content_vec[index] = data;
+
+    if (original != nullptr) {
+        original->insert(index, data);
+    }
 }
 
 std::shared_ptr<packet_component> kis_packet::fetch(const unsigned int index) const {

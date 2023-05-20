@@ -185,6 +185,9 @@ packet_chain::packet_chain() {
     // after any phy demangling and DLT demangling; lock the packet for the rest of the 
     // packet chain
     register_handler([this](std::shared_ptr<kis_packet> in_pack) -> int {
+        // Lock every packet at the beginning of the dupe check
+        in_pack->mutex.lock();
+
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
         if (chunk == nullptr)
@@ -196,12 +199,9 @@ packet_chain::packet_chain() {
         if (chunk->length() == 0)
             return 1;
 
-        // Lock every packet at the beginning of the dupe check
-        in_pack->mutex.lock();
+        in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
 
         kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
-
-        in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
 
         for (unsigned int i = 0; i < 1024; i++) {
             if (dedupe_list[i].hash == in_pack->hash) {
@@ -407,65 +407,64 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         if (packet == nullptr)
             break;
 
-        {
-            // Lock the chain mutexes until we're done processing this packet
-            std::shared_lock<kis_shared_mutex> lk(packetchain_mutex);
+        kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
 
-            // These can only be perturbed inside a sync, which can only occur when
-            // the worker thread is in the sync block above, so we shouldn't
-            // need to worry about the integrity of these vectors while running
+        // These can only be perturbed inside a sync, which can only occur when
+        // the worker thread is in the sync block above, so we shouldn't
+        // need to worry about the integrity of these vectors while running
 
-            /* Postcap is now handled before it gets into the per-thread chain
-            for (const auto& pcl : postcap_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
-            */
+        /* Postcap is now handled before it gets into the per-thread chain
+           for (const auto& pcl : postcap_chain) {
+           if (pcl->callback != nullptr)
+           pcl->callback(pcl->auxdata, packet);
+           else if (pcl->l_callback != nullptr)
+           pcl->l_callback(packet);
+           }
+           */
 
-            for (const auto& pcl : llcdissect_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
-
-            for (const auto& pcl : decrypt_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
-
-            for (const auto& pcl : datadissect_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
-
-            for (const auto& pcl : classifier_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
-
-            for (const auto& pcl : tracker_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
-
-            for (const auto& pcl : logging_chain) {
-                if (pcl->callback != nullptr)
-                    pcl->callback(pcl->auxdata, packet);
-                else if (pcl->l_callback != nullptr)
-                    pcl->l_callback(packet);
-            }
+        for (const auto& pcl : llcdissect_chain) {
+            if (pcl->callback != nullptr)
+                pcl->callback(pcl->auxdata, packet);
+            else if (pcl->l_callback != nullptr)
+                pcl->l_callback(packet);
         }
+
+        for (const auto& pcl : decrypt_chain) {
+            if (pcl->callback != nullptr)
+                pcl->callback(pcl->auxdata, packet);
+            else if (pcl->l_callback != nullptr)
+                pcl->l_callback(packet);
+        }
+
+        for (const auto& pcl : datadissect_chain) {
+            if (pcl->callback != nullptr)
+                pcl->callback(pcl->auxdata, packet);
+            else if (pcl->l_callback != nullptr)
+                pcl->l_callback(packet);
+        }
+
+        for (const auto& pcl : classifier_chain) {
+            if (pcl->callback != nullptr)
+                pcl->callback(pcl->auxdata, packet);
+            else if (pcl->l_callback != nullptr)
+                pcl->l_callback(packet);
+        }
+
+        for (const auto& pcl : tracker_chain) {
+            if (pcl->callback != nullptr)
+                pcl->callback(pcl->auxdata, packet);
+            else if (pcl->l_callback != nullptr)
+                pcl->l_callback(packet);
+        }
+
+        for (const auto& pcl : logging_chain) {
+            if (pcl->callback != nullptr)
+                pcl->callback(pcl->auxdata, packet);
+            else if (pcl->l_callback != nullptr)
+                pcl->l_callback(packet);
+        }
+
+        lk.unlock();
 
         uint64_t now = Globalreg::globalreg->last_tv_sec;
 

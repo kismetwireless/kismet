@@ -503,11 +503,6 @@ protected:
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<stream_tracker> streamtracker;
 
-    // Checksum of recent packets for duplication filtering
-    std::atomic<uint32_t> *recent_packet_checksums;
-    size_t recent_packet_checksums_sz;
-    std::atomic<unsigned int> recent_packet_checksum_pos;
-
     // Handle advertised SSIDs
     void handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,

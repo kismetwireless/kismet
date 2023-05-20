@@ -676,15 +676,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
     ssidtracker = phy_80211_ssid_tracker::create_dot11_ssidtracker();
 
-    // Set up the de-duplication list
-    recent_packet_checksums_sz = 
-        Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_dedup_size", 2048);
-    recent_packet_checksums = new std::atomic<uint32_t>[recent_packet_checksums_sz];
-    for (unsigned int x = 0; x < recent_packet_checksums_sz; x++) {
-        recent_packet_checksums[x] = 0;
-    }
-    recent_packet_checksum_pos = 0;
-
     // Parse the ssid regex options
     auto apspoof_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("apspoof");
 
@@ -1042,8 +1033,6 @@ kis_80211_phy::~kis_80211_phy() {
 	packetchain->remove_handler(&packet_dot11_common_classifier, CHAINPOS_CLASSIFIER);
 
     timetracker->remove_timer(device_idle_timer);
-
-    delete[] recent_packet_checksums;
 }
 
 const std::string kis_80211_phy::khz_to_channel(const double in_khz) {

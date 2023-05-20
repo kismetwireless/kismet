@@ -141,6 +141,10 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 		return 1;
 	}
 
+    if (linkchunk->length() == 0) {
+        return 1;
+    }
+
     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
     // Everything needs a data source so we know how to checksum
