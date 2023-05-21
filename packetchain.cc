@@ -251,12 +251,6 @@ packet_chain::packet_chain() {
         return 1;
     }, CHAINPOS_LLCDISSECT, -100000);
 
-    // Unlock at the end of logging
-    register_handler([](std::shared_ptr<kis_packet> in_pack) -> int {
-        in_pack->mutex.unlock();
-        return 1;
-    }, CHAINPOS_LOGGING, 1000000);
-
 }
 
 packet_chain::~packet_chain() {
@@ -500,6 +494,8 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
             else if (pcl->l_callback != nullptr)
                 pcl->l_callback(packet);
         }
+
+        packet->mutex.unlock();
 
         uint64_t now = Globalreg::globalreg->last_tv_sec;
 

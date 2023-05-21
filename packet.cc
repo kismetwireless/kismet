@@ -69,6 +69,7 @@ void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_compone
 	content_vec[index] = data;
 
     if (original != nullptr) {
+        kis_lock_guard<kis_mutex> lg(original->mutex);
         original->insert(index, data);
     }
 }
