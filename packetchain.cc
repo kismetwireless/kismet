@@ -39,8 +39,8 @@
 
 class SortLinkPriority {
 public:
-    inline bool operator() (const packet_chain::pc_link *x, 
-                            const packet_chain::pc_link *y) const {
+    inline bool operator() (const std::shared_ptr<packet_chain::pc_link> x, 
+                            const std::shared_ptr<packet_chain::pc_link> y) const {
         if (x->priority < y->priority)
             return 1;
         return 0;
@@ -181,6 +181,14 @@ packet_chain::packet_chain() {
     pack_comp_l1_agg = register_packet_component("RADIODATA_AGG");
 	pack_comp_datasource = register_packet_component("KISDATASRC");
 
+    postcap_chain_update = false;
+    llcdissect_chain_update = false;
+    decrypt_chain_update = false;
+    datadissect_chain_update = false;
+    classifier_chain_update = false;
+    tracker_chain_update = false;
+    logging_chain_update = false;
+
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
     // after any phy demangling and DLT demangling; lock the packet for the rest of the 
     // packet chain
@@ -198,10 +206,6 @@ packet_chain::packet_chain() {
 
         if (chunk->length() == 0)
             return 1;
-
-        // Lock the individual packet to make sure no competing processing threads
-        // manipulate it while we're processing
-        in_pack->mutex.lock();
 
         in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
 
@@ -289,32 +293,12 @@ packet_chain::~packet_chain() {
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
 
-        for (auto i : postcap_chain)
-            delete(i);
         postcap_chain.clear();
-
-        for (auto i : llcdissect_chain)
-            delete(i);
         llcdissect_chain.clear();
-
-        for (auto i : decrypt_chain)
-            delete(i);
         decrypt_chain.clear();
-
-        for (auto i : datadissect_chain)
-            delete(i);
         datadissect_chain.clear();
-
-        for (auto i : classifier_chain)
-            delete(i);
         classifier_chain.clear();
-
-        for (auto i : tracker_chain)
-            delete(i);
         tracker_chain.clear();
-
-        for (auto i : logging_chain)
-            delete(i);
         logging_chain.clear();
 
     }
@@ -408,7 +392,55 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         if (packet == nullptr)
             break;
 
+
+        // Lock the packet chain and update any processing queues by replacing
+        // the old queue with the new one.
+
         kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
+
+        if (postcap_chain_update) {
+            postcap_chain = postcap_chain_new;
+            postcap_chain_new.clear();
+            postcap_chain_update = false;
+        }
+
+        if (llcdissect_chain_update) {
+            llcdissect_chain = llcdissect_chain_new;
+            llcdissect_chain_new.clear();
+            llcdissect_chain_update = false;
+        }
+
+        if (decrypt_chain_update) {
+            decrypt_chain = decrypt_chain_new;
+            decrypt_chain_new.clear();
+            decrypt_chain_update = false;
+        }
+
+        if (datadissect_chain_update) {
+            datadissect_chain = datadissect_chain_new;
+            datadissect_chain_new.clear();
+            datadissect_chain_update = false;
+        }
+
+        if (classifier_chain_update) {
+            classifier_chain = classifier_chain_new;
+            classifier_chain_new.clear();
+            classifier_chain_update = false;
+        }
+
+        if (tracker_chain_update) {
+            tracker_chain = tracker_chain_new;
+            tracker_chain_new.clear();
+            tracker_chain_update = false;
+        }
+
+        if (logging_chain_update) {
+            logging_chain = logging_chain_new;
+            logging_chain_new.clear();
+            logging_chain_update = false;
+        }
+
+        lk.unlock();
 
         // These can only be perturbed inside a sync, which can only occur when
         // the worker thread is in the sync block above, so we shouldn't
@@ -422,6 +454,10 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
            pcl->l_callback(packet);
            }
            */
+
+        // Lock the individual packet to make sure no competing processing threads
+        // manipulate it while we're processing
+        packet->mutex.lock();
 
         for (const auto& pcl : llcdissect_chain) {
             if (pcl->callback != nullptr)
@@ -464,8 +500,6 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
             else if (pcl->l_callback != nullptr)
                 pcl->l_callback(packet);
         }
-
-        lk.unlock();
 
         uint64_t now = Globalreg::globalreg->last_tv_sec;
 
@@ -573,10 +607,9 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
 
     kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
 
-    pc_link *link = NULL;
+    auto link = std::make_shared<pc_link>();
 
     // Generate packet, we'll nuke it if it's invalid later
-    link = new pc_link;
     link->priority = in_prio;
     link->callback = in_cb;
     link->l_callback = in_l_cb;
@@ -585,49 +618,83 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
 
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
-            postcap_chain.push_back(link);
-            stable_sort(postcap_chain.begin(), postcap_chain.end(), 
+            if (!postcap_chain_update) {
+                postcap_chain_update = true;
+                postcap_chain_new = postcap_chain;
+            }
+
+            postcap_chain_new.push_back(link);
+            stable_sort(postcap_chain_new.begin(), postcap_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         case CHAINPOS_LLCDISSECT:
-            llcdissect_chain.push_back(link);
-            stable_sort(llcdissect_chain.begin(), llcdissect_chain.end(), 
+            if (!llcdissect_chain_update) {
+                llcdissect_chain_update = true;
+                llcdissect_chain_new = llcdissect_chain;
+            }
+
+            llcdissect_chain_new.push_back(link);
+            stable_sort(llcdissect_chain_new.begin(), llcdissect_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         case CHAINPOS_DECRYPT:
-            decrypt_chain.push_back(link);
-            stable_sort(decrypt_chain.begin(), decrypt_chain.end(), 
+            if (!decrypt_chain_update) {
+                decrypt_chain_update = true;
+                decrypt_chain_new = decrypt_chain;
+            }
+
+            decrypt_chain_new.push_back(link);
+            stable_sort(decrypt_chain_new.begin(), decrypt_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         case CHAINPOS_DATADISSECT:
-            datadissect_chain.push_back(link);
-            stable_sort(datadissect_chain.begin(), datadissect_chain.end(), 
+            if (!datadissect_chain_update) {
+                datadissect_chain_update = true;
+                datadissect_chain_new = datadissect_chain;
+            }
+
+            datadissect_chain_new.push_back(link);
+            stable_sort(datadissect_chain_new.begin(), datadissect_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         case CHAINPOS_CLASSIFIER:
-            classifier_chain.push_back(link);
-            stable_sort(classifier_chain.begin(), classifier_chain.end(), 
+            if (!classifier_chain_update) {
+                classifier_chain_update = true;
+                classifier_chain_new = classifier_chain;
+            }
+
+            classifier_chain_new.push_back(link);
+            stable_sort(classifier_chain_new.begin(), classifier_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         case CHAINPOS_TRACKER:
-            tracker_chain.push_back(link);
-            stable_sort(tracker_chain.begin(), tracker_chain.end(), 
+            if (!tracker_chain_update) {
+                tracker_chain_update = true;
+                tracker_chain_new = tracker_chain;
+            }
+
+            tracker_chain_new.push_back(link);
+            stable_sort(tracker_chain_new.begin(), tracker_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         case CHAINPOS_LOGGING:
-            logging_chain.push_back(link);
-            stable_sort(logging_chain.begin(), logging_chain.end(), 
+            if (!logging_chain_update) {
+                logging_chain_update = true;
+                logging_chain_new = logging_chain;
+            }
+
+            logging_chain_new.push_back(link);
+            stable_sort(logging_chain_new.begin(), logging_chain_new.end(), 
                     SortLinkPriority());
             break;
 
         default:
-            delete link;
             _MSG("packet_chain::register_handler requested unknown chain", MSGFLAG_ERROR);
             return -1;
     }
@@ -650,57 +717,92 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
-            for (x = 0; x < postcap_chain.size(); x++) {
-                if (postcap_chain[x]->id == in_id) {
-                    postcap_chain.erase(postcap_chain.begin() + x);
+            if (!postcap_chain_update) {
+                postcap_chain_update = true;
+                postcap_chain_new = postcap_chain;
+            }
+
+            for (x = 0; x < postcap_chain_new.size(); x++) {
+                if (postcap_chain_new[x]->id == in_id) {
+                    postcap_chain_new.erase(postcap_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_LLCDISSECT:
-            for (x = 0; x < llcdissect_chain.size(); x++) {
-                if (llcdissect_chain[x]->id == in_id) {
-                    llcdissect_chain.erase(llcdissect_chain.begin() + x);
+            if (!llcdissect_chain_update) {
+                llcdissect_chain_update = true;
+                llcdissect_chain_new = llcdissect_chain;
+            }
+
+            for (x = 0; x < llcdissect_chain_new.size(); x++) {
+                if (llcdissect_chain_new[x]->id == in_id) {
+                    llcdissect_chain_new.erase(llcdissect_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_DECRYPT:
-            for (x = 0; x < decrypt_chain.size(); x++) {
-                if (decrypt_chain[x]->id == in_id) {
-                    decrypt_chain.erase(decrypt_chain.begin() + x);
+            if (!decrypt_chain_update) {
+                decrypt_chain_update = true;
+                decrypt_chain_new = decrypt_chain;
+            }
+
+            for (x = 0; x < decrypt_chain_new.size(); x++) {
+                if (decrypt_chain_new[x]->id == in_id) {
+                    decrypt_chain_new.erase(decrypt_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_DATADISSECT:
-            for (x = 0; x < datadissect_chain.size(); x++) {
-                if (datadissect_chain[x]->id == in_id) {
-                    datadissect_chain.erase(datadissect_chain.begin() + x);
+            if (!datadissect_chain_update) {
+                datadissect_chain_update = true;
+                datadissect_chain_new = datadissect_chain;
+            }
+
+            for (x = 0; x < datadissect_chain_new.size(); x++) {
+                if (datadissect_chain_new[x]->id == in_id) {
+                    datadissect_chain_new.erase(datadissect_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_CLASSIFIER:
-            for (x = 0; x < classifier_chain.size(); x++) {
-                if (classifier_chain[x]->id == in_id) {
-                    classifier_chain.erase(classifier_chain.begin() + x);
+            if (!classifier_chain_update) {
+                classifier_chain_update = true;
+                classifier_chain_new = classifier_chain;
+            }
+
+            for (x = 0; x < classifier_chain_new.size(); x++) {
+                if (classifier_chain_new[x]->id == in_id) {
+                    classifier_chain_new.erase(classifier_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_TRACKER:
-            for (x = 0; x < tracker_chain.size(); x++) {
-                if (tracker_chain[x]->id == in_id) {
-                    tracker_chain.erase(tracker_chain.begin() + x);
+            if (!tracker_chain_update) {
+                tracker_chain_update = true;
+                tracker_chain_new = tracker_chain;
+            }
+
+            for (x = 0; x < tracker_chain_new.size(); x++) {
+                if (tracker_chain_new[x]->id == in_id) {
+                    tracker_chain_new.erase(tracker_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_LOGGING:
-            for (x = 0; x < logging_chain.size(); x++) {
-                if (logging_chain[x]->id == in_id) {
-                    logging_chain.erase(logging_chain.begin() + x);
+            if (!logging_chain_update) {
+                logging_chain_update = true;
+                logging_chain_new = logging_chain;
+            }
+
+            for (x = 0; x < logging_chain_new.size(); x++) {
+                if (logging_chain_new[x]->id == in_id) {
+                    logging_chain_new.erase(logging_chain_new.begin() + x);
                 }
             }
             break;
@@ -721,57 +823,92 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
-            for (x = 0; x < postcap_chain.size(); x++) {
-                if (postcap_chain[x]->callback == in_cb) {
-                    postcap_chain.erase(postcap_chain.begin() + x);
+            if (!postcap_chain_update) {
+                postcap_chain_update = true;
+                postcap_chain_new = postcap_chain;
+            }
+
+            for (x = 0; x < postcap_chain_new.size(); x++) {
+                if (postcap_chain_new[x]->callback == in_cb) {
+                    postcap_chain_new.erase(postcap_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_LLCDISSECT:
-            for (x = 0; x < llcdissect_chain.size(); x++) {
-                if (llcdissect_chain[x]->callback == in_cb) {
-                    llcdissect_chain.erase(llcdissect_chain.begin() + x);
+            if (!llcdissect_chain_update) {
+                llcdissect_chain_update = true;
+                llcdissect_chain_new = llcdissect_chain;
+            }
+
+            for (x = 0; x < llcdissect_chain_new.size(); x++) {
+                if (llcdissect_chain_new[x]->callback == in_cb) {
+                    llcdissect_chain_new.erase(llcdissect_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_DECRYPT:
-            for (x = 0; x < decrypt_chain.size(); x++) {
-                if (decrypt_chain[x]->callback == in_cb) {
-                    decrypt_chain.erase(decrypt_chain.begin() + x);
+            if (!decrypt_chain_update) {
+                decrypt_chain_update = true;
+                decrypt_chain_new = decrypt_chain;
+            }
+
+            for (x = 0; x < decrypt_chain_new.size(); x++) {
+                if (decrypt_chain_new[x]->callback == in_cb) {
+                    decrypt_chain_new.erase(decrypt_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_DATADISSECT:
-            for (x = 0; x < datadissect_chain.size(); x++) {
-                if (datadissect_chain[x]->callback == in_cb) {
-                    datadissect_chain.erase(datadissect_chain.begin() + x);
+            if (!datadissect_chain_update) {
+                datadissect_chain_update = true;
+                datadissect_chain_new = datadissect_chain;
+            }
+
+            for (x = 0; x < datadissect_chain_new.size(); x++) {
+                if (datadissect_chain_new[x]->callback == in_cb) {
+                    datadissect_chain_new.erase(datadissect_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_CLASSIFIER:
-            for (x = 0; x < classifier_chain.size(); x++) {
-                if (classifier_chain[x]->callback == in_cb) {
-                    classifier_chain.erase(classifier_chain.begin() + x);
+            if (!classifier_chain_update) {
+                classifier_chain_update = true;
+                classifier_chain_new = classifier_chain;
+            }
+
+            for (x = 0; x < classifier_chain_new.size(); x++) {
+                if (classifier_chain_new[x]->callback == in_cb) {
+                    classifier_chain_new.erase(classifier_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_TRACKER:
-            for (x = 0; x < tracker_chain.size(); x++) {
-                if (tracker_chain[x]->callback == in_cb) {
-                    tracker_chain.erase(tracker_chain.begin() + x);
+            if (!tracker_chain_update) {
+                tracker_chain_update = true;
+                tracker_chain_new = tracker_chain;
+            }
+
+            for (x = 0; x < tracker_chain_new.size(); x++) {
+                if (tracker_chain_new[x]->callback == in_cb) {
+                    tracker_chain_new.erase(tracker_chain_new.begin() + x);
                 }
             }
             break;
 
         case CHAINPOS_LOGGING:
-            for (x = 0; x < logging_chain.size(); x++) {
-                if (logging_chain[x]->callback == in_cb) {
-                    logging_chain.erase(logging_chain.begin() + x);
+            if (!logging_chain_update) {
+                logging_chain_update = true;
+                logging_chain_new = logging_chain;
+            }
+
+            for (x = 0; x < logging_chain_new.size(); x++) {
+                if (logging_chain_new[x]->callback == in_cb) {
+                    logging_chain_new.erase(logging_chain_new.begin() + x);
                 }
             }
             break;
