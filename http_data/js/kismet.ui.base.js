@@ -913,47 +913,78 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     span: true,
                     liveupdate: true,
                     render: function(opts) {
-                        var d = 
+                        const d = 
                             $('<div>', {
-                                style: 'display: flex; justify-content: center; align-items: center; height: 250px',
+                                style: 'display: flex;'
                             })
                             .append(
-                                $('<canvas>', {
-                                    id: 'packetdonut',
-                                    style: 'margin: 0 auto;'
+                                $('<div>', {
+                                    style: 'width: 50%; height: 200px; display: flex; justify-content: center; flex-direction: column; align-items: center; height: 250px',
                                 })
+                                .append('<div><b><center>Packet Types</center></b></div>')
+                                .append(
+                                    $('<div>')
+                                    .append(
+                                        $('<canvas>', {
+                                            id: 'packetdonut',
+                                            style: 'margin: 0 auto; width: 200px; height: 200px;'
+                                        })
+                                    )
+                                )
+                            )
+                            .append(
+                                $('<div>', {
+                                    style: 'width: 50%; height: 200px; display: flex; justify-content: center; flex-direction: column; align-items: center; height: 250px',
+                                })
+                                .append('<div><b><center>Direction</center></b></div>')
+                                .append(
+                                    $('<div>')
+                                    .append(
+                                        $('<canvas>', {
+                                            id: 'txrxdonut',
+                                            style: 'margin: 0 auto; width: 200px; height: 200px;'
+                                        })
+                                    )
+                                )
                             );
+
 
                         return d;
                     },
                     draw: function(opts) {
-                        var legend = ['LLC/Management', 'Data'];
                         var data = [
                             opts['data']['kismet.device.base.packets.llc'],
                             opts['data']['kismet.device.base.packets.data'],
                         ];
-                        var colors = [
-                            'rgba(46, 99, 162, 1)',
-                            'rgba(96, 149, 212, 1)',
+
+                        var txrxdata = [
+                            opts['data']['kismet.device.base.packets.tx_total'],
+                            opts['data']['kismet.device.base.packets.rx_total'],
                         ];
-
-                        var barChartData = {
-                            labels: legend,
-
-                            datasets: [{
-                                label: 'Dataset 1',
-                                backgroundColor: colors,
-                                borderWidth: 0,
-                                data: data,
-                            }],
-                        };
 
                         if ('packetdonut' in window[storage]) {
                             window[storage].packetdonut.data.datasets[0].data = data;
                             window[storage].packetdonut.update('none');
                         } else {
+                            var legend = ['LLC/Management', 'Data'];
+                            var colors = [
+                                'rgba(46, 99, 162, 1)',
+                                'rgba(96, 149, 212, 1)',
+                            ];
+
+                            var barChartData = {
+                                labels: legend,
+
+                                datasets: [{
+                                    label: 'Dataset 1',
+                                    backgroundColor: colors,
+                                    borderWidth: 0,
+                                    data: data,
+                                }],
+                            };
+
                             window[storage].packetdonut = 
-                                new Chart($('canvas', opts['container']), {
+                                new Chart($('#packetdonut', opts['container']), {
                                     type: 'doughnut',
                                     data: barChartData,
                                     options: {
@@ -974,6 +1005,50 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                             window[storage].packetdonut.render();
                         }
+
+                        if ('txrxdonut' in window[storage]) {
+                            window[storage].txrxdonut.data.datasets[0].data = txrxdata;
+                            window[storage].txrxdonut.update('none');
+                        } else {
+                            var txrxlegend = ['Transmit', 'Receive'];
+                            var txrxcolors = [
+                                'rgba(46, 99, 162, 1)',
+                                'rgba(96, 149, 212, 1)',
+                            ];
+
+                            var txrxbarChartData = {
+                                labels: txrxlegend,
+
+                                datasets: [{
+                                    label: 'Dataset 1',
+                                    backgroundColor: txrxcolors,
+                                    borderWidth: 0,
+                                    data: txrxdata,
+                                }],
+                            };
+
+                            window[storage].txrxdonut = 
+                                new Chart($('#txrxdonut', opts['container']), {
+                                    type: 'doughnut',
+                                    data: txrxbarChartData,
+                                    options: {
+                                        global: {
+                                            maintainAspectRatio: false,
+                                        },
+                                        animation: false,
+                                        legend: {
+                                            display: true,
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Tx/Rx'
+                                        },
+                                        height: '200px',
+                                    }
+                                });
+
+                            window[storage].txrxdonut.render();
+                        }
                     },
                 },
                 {
@@ -981,6 +1056,18 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     liveupdate: true,
                     title: "Total Packets",
                     help: "Count of all packets of all types",
+                },
+                {
+                    field: "kismet.device.base.packets.rx_total",
+                    liveupdate: true,
+                    title: "Rx Packets",
+                    help: "Count of all packets of all types addressed to this device",
+                },
+                {
+                    field: "kismet.device.base.packets.tx_total",
+                    liveupdate: true,
+                    title: "Tx Packets",
+                    help: "Count of all packets of all types sent from this device",
                 },
                 {
                     field: "kismet.device.base.packets.llc",

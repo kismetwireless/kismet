@@ -464,6 +464,8 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.mod_time", 
             "timestamp of last seen time (local clock)", &mod_time);
     register_field("kismet.device.base.packets.total", "total packets seen of all types", &packets);
+    register_field("kismet.device.base.packets.rx_total", "total transmitted packets seen of all types", &rx_packets);
+    register_field("kismet.device.base.packets.tx_total", "total received packets (addressed to this device) seen of all types", &tx_packets);
     register_field("kismet.device.base.packets.llc", "observed protocol control packets", &llc_packets);
     register_field("kismet.device.base.packets.error", "corrupt/error packets", &error_packets);
     register_field("kismet.device.base.packets.data", "data packets", &data_packets);
@@ -475,6 +477,10 @@ void kis_tracked_device_base::register_fields() {
         register_dynamic_field<kis_tracked_rrd<>>("kismet.device.base.packets.rrd", "packet rate rrd");
     data_rrd_id =
         register_dynamic_field<kis_tracked_rrd<>>("kismet.device.base.datasize.rrd", "packet size rrd");
+    packets_rx_rrd_id =
+        register_dynamic_field<kis_tracked_rrd<>>("kismet.device.base.rx_packets.rrd", "received packet rate rrd");
+    packets_tx_rrd_id =
+        register_dynamic_field<kis_tracked_rrd<>>("kismet.device.base.tx_packets.rrd", "transmitted packet rate rrd");
 
     signal_data_id =
         register_dynamic_field("kismet.device.base.signal", "signal data", &signal_data);

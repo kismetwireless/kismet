@@ -1253,8 +1253,23 @@ std::shared_ptr<kis_tracked_device_base>
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();
 
-        if (!ram_no_rrd)
+        if (pack_common != nullptr) {
+            if (pack_common->source == in_mac || pack_common->transmitter == in_mac) {
+                device->inc_tx_packets();
+
+                if (!ram_no_rrd)
+                    device->get_tx_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+            } else if (pack_common->dest == in_mac) {
+                device->inc_rx_packets();
+
+                if (!ram_no_rrd)
+                    device->get_rx_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+            }
+        }
+
+        if (!ram_no_rrd) {
             device->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+        }
 
         if (pack_common != NULL) {
             if (pack_common->error)

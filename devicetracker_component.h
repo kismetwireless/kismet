@@ -345,6 +345,8 @@ public:
             __ImportField(mod_time, p);
 
             __ImportField(packets, p);
+            __ImportField(rx_packets, p);
+            __ImportField(tx_packets, p);
             __ImportField(llc_packets, p);
             __ImportField(error_packets, p);
             __ImportField(data_packets, p);
@@ -356,6 +358,9 @@ public:
 
             __ImportId(packets_rrd_id, p);
             __ImportId(data_rrd_id, p);
+
+            __ImportId(packets_tx_rrd_id, p);
+            __ImportId(packets_rx_rrd_id, p);
 
             __ImportField(channel, p);
             __ImportField(frequency, p);
@@ -509,6 +514,12 @@ public:
     __Proxy(packets, uint64_t, uint64_t, uint64_t, packets);
     __ProxyIncDec(packets, uint64_t, uint64_t, packets);
 
+    __Proxy(tx_packets, uint64_t, uint64_t, uint64_t, tx_packets);
+    __ProxyIncDec(tx_packets, uint64_t, uint64_t, tx_packets);
+
+    __Proxy(rx_packets, uint64_t, uint64_t, uint64_t, rx_packets);
+    __ProxyIncDec(rx_packets, uint64_t, uint64_t, rx_packets);
+
     __Proxy(llc_packets, uint64_t, uint64_t, uint64_t, llc_packets);
     __ProxyIncDec(llc_packets, uint64_t, uint64_t, llc_packets);
 
@@ -529,6 +540,8 @@ public:
 
     typedef kis_tracked_rrd<> rrdt;
     __ProxyFullyDynamicTrackable(packets_rrd, kis_tracked_rrd<>, packets_rrd_id);
+    __ProxyFullyDynamicTrackable(tx_packets_rrd, kis_tracked_rrd<>, packets_tx_rrd_id);
+    __ProxyFullyDynamicTrackable(rx_packets_rrd, kis_tracked_rrd<>, packets_rx_rrd_id);
 
     __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
     __ProxyFullyDynamicTrackable(data_rrd, rrdt, data_rrd_id);
@@ -627,6 +640,8 @@ protected:
 
     // Packet counts
     std::shared_ptr<tracker_element_uint64> packets;
+    std::shared_ptr<tracker_element_uint64> rx_packets;
+    std::shared_ptr<tracker_element_uint64> tx_packets;
     std::shared_ptr<tracker_element_uint64> llc_packets;
     std::shared_ptr<tracker_element_uint64> error_packets;
     std::shared_ptr<tracker_element_uint64> data_packets;
@@ -638,6 +653,9 @@ protected:
     // Packets and data RRDs
     uint16_t packets_rrd_id;
     uint16_t data_rrd_id;
+
+    uint16_t packets_rx_rrd_id;
+    uint16_t packets_tx_rrd_id;
 
 	// Channel and frequency as per PHY type
     std::shared_ptr<tracker_element_string> channel;
