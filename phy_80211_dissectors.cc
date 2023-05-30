@@ -561,8 +561,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 packinfo->ietag_csum =
-                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
-                                           chunk->length() - packinfo->header_offset);
+                    crc32_fast(chunk->data() + packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset);
 
                 break;
 
@@ -587,8 +587,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 packinfo->ietag_csum =
-                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
-                                           chunk->length() - packinfo->header_offset);
+                    crc32_fast(chunk->data() + packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset);
 
                 break;
 
@@ -614,8 +614,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 packinfo->ietag_csum =
-                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
-                                           chunk->length() - packinfo->header_offset);
+                    crc32_fast(chunk->data() + packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset);
 
                 break;
 
@@ -643,8 +643,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 packinfo->ietag_csum =
-                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
-                                           chunk->length() - packinfo->header_offset);
+                    crc32_fast(chunk->data() + packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset);
 
                 break;
 
@@ -669,7 +669,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 packinfo->ietag_csum =
-                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
+                    crc32_fast(chunk->data() + packinfo->header_offset,
                                            chunk->length() - packinfo->header_offset);
 
                 break;
@@ -715,8 +715,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
 
                 packinfo->ietag_csum =
-                    crc32_16bytes_prefetch(chunk->data() + packinfo->header_offset,
-                                           chunk->length() - packinfo->header_offset);
+                    crc32_fast(chunk->data() + packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset);
 
                 break;
 

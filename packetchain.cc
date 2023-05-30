@@ -207,7 +207,7 @@ packet_chain::packet_chain() {
         if (chunk->length() == 0)
             return 1;
 
-        in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
+        in_pack->hash = crc32_fast(chunk->data(), chunk->length(), 0);
 
         for (unsigned int i = 0; i < 1024; i++) {
             if (dedupe_list[i].hash == in_pack->hash) {
