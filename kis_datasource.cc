@@ -1477,6 +1477,11 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
 void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
         const KismetDatasource::SubPacket& report) {
 
+    // If we have a packet report, but somehow we don't have data in the 
+    // packet report, get out.
+    if (!report.has_data())
+        return;
+
     auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
     if (clobber_timestamp && get_source_remote()) {
