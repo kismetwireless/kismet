@@ -147,7 +147,7 @@ public:
         hash = 0;
 
         // Reset and re-reserve in case we were resized somehow
-        raw_data = "";
+        raw_data.clear();
         raw_data.reserve(MAX_PACKET_LEN);
 
         process_complete_events.clear();
@@ -322,7 +322,7 @@ public:
     virtual ~kis_datachunk() { }
 
     virtual void reset() {
-        raw_data_ = "";
+        raw_data_.clear();
         nonstd::string_view::operator=(raw_data_);
     }
 
@@ -368,8 +368,8 @@ public:
     }
 
     void reset() {
-        meta_type = "";
-        meta_data = "";
+        meta_type.clear();
+        meta_data.clear();
     }
 };
 
@@ -628,8 +628,8 @@ public:
     kis_json_packinfo() { }
 
     void reset() {
-        type = "";
-        json_string = "";
+        type.clear();
+        json_string.clear();
     }
 
     std::string type;
@@ -643,8 +643,8 @@ public:
     kis_protobuf_packinfo() { }
 
     void reset() {
-        type = "";
-        buffer_string = "";
+        type.clear();
+        buffer_string.clear();
     }
 
     std::string type;
