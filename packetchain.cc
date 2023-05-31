@@ -392,12 +392,6 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
 
         kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
 
-        if (postcap_chain_update) {
-            postcap_chain = postcap_chain_new;
-            postcap_chain_new.clear();
-            postcap_chain_update = false;
-        }
-
         if (llcdissect_chain_update) {
             llcdissect_chain = llcdissect_chain_new;
             llcdissect_chain_new.clear();
@@ -521,8 +515,14 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     packet_rate_rrd->add_sample(1, now);
     packet_peak_rrd->add_sample(1, now);
 
-    // Lock the chain mutexes until we're done processing this packet
-    std::shared_lock<kis_shared_mutex> lk(packetchain_mutex);
+    // Import the new postcap chain, if it has been modified
+    kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "process_packet");
+    if (postcap_chain_update) {
+        postcap_chain = postcap_chain_new;
+        postcap_chain_new.clear();
+        postcap_chain_update = false;
+    }
+    lk.unlock();
 
     // Run the post-capture processing
     for (const auto& pcl : postcap_chain) {
