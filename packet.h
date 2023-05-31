@@ -149,6 +149,7 @@ public:
         // Reset and re-reserve in case we were resized somehow
         raw_data.clear();
         raw_data.reserve(MAX_PACKET_LEN);
+        data = nonstd::string_view{raw_data};
 
         process_complete_events.clear();
 
