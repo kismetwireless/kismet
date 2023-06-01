@@ -337,7 +337,7 @@ public:
 
     virtual void copy_raw_data(const std::string& sdata) {
         raw_data_ = sdata;
-        nonstd::string_view::operator=(sdata);
+        nonstd::string_view::operator=(raw_data_);
     }
 
     template<typename T>
