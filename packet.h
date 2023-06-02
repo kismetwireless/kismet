@@ -117,23 +117,6 @@ public:
     kis_packet();
     ~kis_packet();
 
-    kis_packet(kis_packet&& p) {
-        assignment_id = p.assignment_id;
-        packet_no = p.packet_no;
-        error = p.error;
-        crc_ok = p.crc_ok;
-        filtered = p.filtered;
-        duplicate = p.duplicate;
-        original = p.original;
-        hash = p.hash;
-        process_complete_events = std::move(p.process_complete_events);
-        raw_data = std::move(p.raw_data);
-        data = std::move(p.data);
-
-        for (int c = 0; c < MAX_PACKET_COMPONENTS; c++)
-            content_vec[c] = p.content_vec[c];
-    }
-
     void reset() {
         assignment_id = 0;
         packet_no = 0;
