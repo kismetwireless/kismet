@@ -29,6 +29,7 @@
 
 #include "endian_magic.h"
 
+#include "kis_mutex.h"
 #include "timetracker.h"
 #include "messagebus.h"
 
@@ -158,8 +159,7 @@ void kis_external_ipc::close_impl() {
         try {
             ipc_out_.cancel();
             ipc_out_.close();
-        } catch (...) { ;
-        }
+        } catch (...) { }
     }
 
     if (ipc_.pid > 0) {
@@ -222,7 +222,7 @@ void kis_external_tcp::close() {
         close_impl();
     } else {
         boost::asio::post(strand(),
-                [self = shared_from_base<kis_external_ipc>()]() mutable {
+                [self = shared_from_base<kis_external_tcp>()]() mutable {
                 self->close_impl();
                 });
     }
