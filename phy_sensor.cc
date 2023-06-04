@@ -31,7 +31,7 @@
 kis_sensor_phy::kis_sensor_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
-    set_phy_name("rfsensor");
+    set_phy_name("RFSENSOR");
 
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
