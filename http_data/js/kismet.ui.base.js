@@ -1274,7 +1274,7 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
             { type: "bar",
                 height: 18,
                 barWidth: 7,
-                barColor: kismet_theme.sparkline_main,
+                barColor: 'rgba(46, 99, 162, 1)',
                 nullColor: kismet_theme.sparkline_main,
                 zeroColor: kismet_theme.sparkline_main,
             });
@@ -1282,7 +1282,7 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
             { type: "bar",
                 height: 18,
                 barWidth: 7,
-                barColor: kismet_theme.sparkline_main,
+                barColor: 'rgba(46, 99, 162, 1)',
                 nullColor: kismet_theme.sparkline_main,
                 zeroColor: kismet_theme.sparkline_main,
             });
@@ -1290,7 +1290,7 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
             { type: "bar",
                 height: 18,
                 barWidth: 7,
-                barColor: kismet_theme.sparkline_main,
+                barColor: 'rgba(46, 99, 162, 1)',
                 nullColor: kismet_theme.sparkline_main,
                 zeroColor: kismet_theme.sparkline_main,
             });
