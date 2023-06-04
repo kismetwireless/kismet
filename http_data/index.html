@@ -256,8 +256,10 @@ $(function() {
             withCredentials: true
         }
     });
+}); // onload
 
-
+// Page show complete
+$(window).on('pageshow', function() { 
     kismet_ui_base.FirstLoginCheck(function() {
         load_main_ui();
     });
@@ -269,8 +271,7 @@ $(function() {
     } else {
         $('#shrink_restore').hide();
     }
-
-}); // onload
+});
 
 function shrinker() {
     shrink_main_ux = kismet.getStorage('kismet.base.ux.shrunk', false);
