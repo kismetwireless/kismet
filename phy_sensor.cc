@@ -88,7 +88,7 @@ kis_sensor_phy::kis_sensor_phy(int in_phyid) :
                 "sensor lightning sensor");
 
     // Make the manuf string
-    sensor_manuf = Globalreg::globalreg->manufdb->make_manuf("sensor");
+    sensor_manuf = Globalreg::globalreg->manufdb->make_manuf("RF Sensor");
 
     // Register js module for UI
     auto httpregistry =
