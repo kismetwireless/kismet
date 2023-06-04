@@ -1168,9 +1168,9 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
         // Make 3 divs for s, m, h RRD
         var ret = 
             '<b>Packet Rates</b><br /><br />' +
-            'Packets per second (last minute)<br /><div /><br />' +
-            'Packets per minute (last hour)<br /><div /><br />' +
-            'Packets per hour (last day)<br /><div />';
+            'Packets per second (last minute) (Tx/Rx)<br /><div /><br />' +
+            'Packets per minute (last hour) (Tx/Rx)<br /><div /><br />' +
+            'Packets per hour (last day) (Tx/Rx)<br /><div />';
 
         if ('kismet.device.base.datasize.rrd' in data)
             ret += '<br /><b>Data</b><br /><br />' +
@@ -1189,37 +1189,74 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
         var dh = $('div:eq(4)', target);
         var dd = $('div:eq(5)', target);
 
-        var mdata = [];
-        var hdata = [];
-        var ddata = [];
+        var mdata_tx = [];
+        var hdata_tx = [];
+        var ddata_tx = [];
+        var mdata_rx = [];
+        var hdata_rx = [];
+        var ddata_rx = [];
+
+        var mdata_combo = [];
+        var hdata_combo = [];
+        var ddata_combo = [];
 
         if (('kismet.device.base.packets.rrd' in data)) {
-            mdata = kismet.RecalcRrdData2(data['kismet.device.base.packets.rrd'], kismet.RRD_SECOND);
-            hdata = kismet.RecalcRrdData2(data['kismet.device.base.packets.rrd'], kismet.RRD_MINUTE);
-            ddata = kismet.RecalcRrdData2(data['kismet.device.base.packets.rrd'], kismet.RRD_HOUR);
+            mdata_tx = kismet.RecalcRrdData2(data['kismet.device.base.tx_packets.rrd'], kismet.RRD_SECOND);
+            hdata_tx = kismet.RecalcRrdData2(data['kismet.device.base.tx_packets.rrd'], kismet.RRD_MINUTE);
+            ddata_tx = kismet.RecalcRrdData2(data['kismet.device.base.tx_packets.rrd'], kismet.RRD_HOUR);
 
-            m.sparkline(mdata, { type: "bar",
-                height: 18,
-                barWidth: 7,
-                barColor: kismet_theme.sparkline_main,
-                nullColor: kismet_theme.sparkline_main,
-                zeroColor: kismet_theme.sparkline_main,
-                });
-            h.sparkline(hdata,
+            mdata_rx = kismet.RecalcRrdData2(data['kismet.device.base.rx_packets.rrd'], kismet.RRD_SECOND);
+            hdata_rx = kismet.RecalcRrdData2(data['kismet.device.base.rx_packets.rrd'], kismet.RRD_MINUTE);
+            ddata_rx = kismet.RecalcRrdData2(data['kismet.device.base.rx_packets.rrd'], kismet.RRD_HOUR);
+
+            for (var i = 0; i < mdata_tx.length; i++) {
+                mdata_combo.push([mdata_tx[i], mdata_rx[i] * -1]);
+            }
+
+            for (var i = 0; i < hdata_tx.length; i++) {
+                hdata_combo.push([hdata_tx[i], hdata_rx[i] * -1]);
+            }
+
+            for (var i = 0; i < ddata_tx.length; i++) {
+                ddata_combo.push([ddata_tx[i], ddata_rx[i] * -1]);
+            }
+
+
+            m.sparkline(mdata_combo, 
                 { type: "bar",
                     height: 18,
                     barWidth: 7,
                     barColor: kismet_theme.sparkline_main,
                     nullColor: kismet_theme.sparkline_main,
                     zeroColor: kismet_theme.sparkline_main,
+                    stackedBarColor: [
+                        'rgba(46, 99, 162, 1)',
+                        'rgba(96, 149, 212, 1)',
+                    ],
                 });
-            d.sparkline(ddata,
+            h.sparkline(hdata_combo,
                 { type: "bar",
                     height: 18,
                     barWidth: 7,
                     barColor: kismet_theme.sparkline_main,
                     nullColor: kismet_theme.sparkline_main,
                     zeroColor: kismet_theme.sparkline_main,
+                    stackedBarColor: [
+                        'rgba(46, 99, 162, 1)',
+                        'rgba(96, 149, 212, 1)',
+                    ],
+                });
+            d.sparkline(ddata_combo,
+                { type: "bar",
+                    height: 18,
+                    barWidth: 7,
+                    barColor: kismet_theme.sparkline_main,
+                    nullColor: kismet_theme.sparkline_main,
+                    zeroColor: kismet_theme.sparkline_main,
+                    stackedBarColor: [
+                        'rgba(46, 99, 162, 1)',
+                        'rgba(96, 149, 212, 1)',
+                    ],
                 });
         } else {
             m.html("<i>No packet data available</i>");
