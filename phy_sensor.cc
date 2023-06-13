@@ -548,6 +548,8 @@ void kis_sensor_phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
 }
 
 void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder) {
+    //{"time" : "2023-06-12 11:16:48", "model" : "Schrader-EG53MA4", "type" : "TPMS", "flags" : "4d930078", "id" : "891932", "pressure_kPa" : 220.000, "temperature_F" : 103.000, "mic" : "CHECKSUM", "mod" : "ASK", "freq" : 314.931, "rssi" : -2.296, "snr" : 6.350, "noise" : -8.646}
+    //{"time" : "2023-06-12 20:30:58", "model" : "Toyota", "type" : "TPMS", "id" : "da22b333", "status" : 128, "pressure_PSI" : 30.250, "temperature_C" : 20.000, "mic" : "CRC", "mod" : "FSK", "freq1" : 315.009, "freq2" : 314.962, "rssi" : -6.950, "snr" : 26.163, "noise" : -33.113} 
     auto tpmsdev = 
         rtlholder->get_sub_as<sensor_tracked_tpms>(sensor_tpms_id);
 
@@ -556,6 +558,30 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
             std::make_shared<sensor_tracked_tpms>(sensor_tpms_id);
         rtlholder->insert(tpmsdev);
     }
+
+    try {
+        tpmsdev->set_freq(json["freq"]);
+    } catch (...) { }
+
+    try {
+        tpmsdev->set_freq(json["freq1"]);
+    } catch (...) { }
+
+    try {
+        tpmsdev->set_freq(json["freq2"]);
+    } catch (...) { }
+
+    try {
+        tpmsdev->set_temperature_f(json["temperature_F"]);
+    } catch (...) { }
+
+    try {
+        tpmsdev->set_temperature_c(json["temperature_C"]);
+    } catch (...) { }
+
+    try {
+        tpmsdev->set_pressure_psi(json["pressure_PSI"]);
+    } catch (...) { }
 
     try {
         tpmsdev->set_pressure_bar(json["pressure_bar"]);

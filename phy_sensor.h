@@ -397,7 +397,11 @@ public:
         return r;
     }
 
+    __Proxy(freq, double, double, double, freq);
+    __Proxy(temperature_f, double, double, double, temperature_f);
+    __Proxy(temperature_c, double, double, double, temperature_c);
     __Proxy(pressure_bar, double, double, double, pressure_bar);
+    __Proxy(pressure_psi, double, double, double, pressure_psi)
     __Proxy(pressure_kpa, double, double, double, pressure_kpa);
     __Proxy(flags, std::string, std::string, std::string, flags);
     __Proxy(state, std::string, std::string, std::string, state);
@@ -406,7 +410,11 @@ public:
 
 protected:
     virtual void register_fields() override {
+        register_field("sensor.device.tpms.freq", "Freq (as detected)", &freq);
+        register_field("sensor.device.tpms.temperature_f", "Temperature, in F", &temperature_f);
+        register_field("sensor.device.tpms.temperature_c", "Temperature, in C", &temperature_c);
         register_field("sensor.device.tpms.pressure_bar", "Pressure, in bars", &pressure_bar);
+        register_field("sensor.device.tpms.pressure_psi", "Pressure, in PSI", &pressure_psi);
         register_field("sensor.device.tpms.pressure_kpa", "Pressure, in kPa", &pressure_kpa);
         register_field("sensor.device.tpms.flags", "TPMS flags", &flags);
         register_field("sensor.device.tpms.state", "TPMS state", &state);
@@ -414,6 +422,10 @@ protected:
         register_field("sensor.device.tpms.code", "TPMS code", &code);
     }
 
+    std::shared_ptr<tracker_element_double> freq;
+    std::shared_ptr<tracker_element_double> temperature_f;
+    std::shared_ptr<tracker_element_double> temperature_c;
+    std::shared_ptr<tracker_element_double> pressure_psi;
     std::shared_ptr<tracker_element_double> pressure_bar;
     std::shared_ptr<tracker_element_double> pressure_kpa;
     std::shared_ptr<tracker_element_string> flags;
