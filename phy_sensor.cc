@@ -638,7 +638,7 @@ void kis_sensor_phy::add_switch(nlohmann::json json, std::shared_ptr<tracker_ele
     } catch (...) { }
 
     try {
-        switchdev->set_switch1(munge_to_printable(json["switch5"]));
+        switchdev->set_switch5(munge_to_printable(json["switch5"]));
     } catch (...) { }
 
     /*
