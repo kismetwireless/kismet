@@ -160,6 +160,8 @@ int channel_tracker_v2::gather_devices_event(int event_id __attribute__((unused)
 void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t ts) {
     kis_lock_guard<kis_mutex> lk(lock, "channel_tracker_v2 update_device_counts");
 
+    frequency_map->clear();
+
     for (const auto& i : in_counts) {
         auto imi = frequency_map->find(i.first);
 
