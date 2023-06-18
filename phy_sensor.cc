@@ -60,32 +60,37 @@ kis_sensor_phy::kis_sensor_phy(int in_phyid) :
     sensor_thermometer_id =
         Globalreg::globalreg->entrytracker->register_field("sensor.device.thermometer",
                 tracker_element_factory<sensor_tracked_thermometer>(),
-                "sensor thermometer");
+                "sensor - thermometer");
 
     sensor_tpms_id =
         Globalreg::globalreg->entrytracker->register_field("sensor.device.tpms",
                 tracker_element_factory<sensor_tracked_tpms>(),
-                "sensor TPMS tire pressure");
+                "sensor - TPMS tire pressure");
     
     sensor_weatherstation_id =
         Globalreg::globalreg->entrytracker->register_field("sensor.device.weatherstation",
                 tracker_element_factory<sensor_tracked_weatherstation>(),
-                "sensor weather station");
+                "sensor - weather station");
 
     sensor_switch_id =
         Globalreg::globalreg->entrytracker->register_field("sensor.device.switch",
                 tracker_element_factory<sensor_tracked_switch>(),
-                "sensor power switch");
+                "sensor - power switch");
 
     sensor_insteon_id =
         Globalreg::globalreg->entrytracker->register_field("sensor.device.insteon",
                 tracker_element_factory<sensor_tracked_insteon>(),
-                "sensor Insteon Device");
+                "sensor - Insteon Device");
 
     sensor_lightning_id =
         Globalreg::globalreg->entrytracker->register_field("sensor.device.lightningsensor",
                 tracker_element_factory<sensor_tracked_lightningsensor>(),
-                "sensor lightning sensor");
+                "sensor - lightning sensor");
+
+    sensor_moisture_id =
+        Globalreg::globalreg->entrytracker->register_field("sensor.device.moisturesensor",
+                tracker_element_factory<sensor_tracked_moisture>(),
+                "sensor - moisture");
 
     // Make the manuf string
     sensor_manuf = Globalreg::globalreg->manufdb->make_manuf("RF Sensor");
