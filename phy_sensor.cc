@@ -217,8 +217,15 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     std::string dn = "Sensor";
 
-    if (!json["model"].is_null()) {
-        dn = munge_to_printable(json["model"]);
+    if (json["model"].is_string()) {
+        if (json["id"].is_string()) {
+            dn = fmt::format("{}-{}", munge_to_printable(json["model"]), 
+                    munge_to_printable(json["id"]));
+        } else {
+            dn = munge_to_printable(json["model"]);
+        }
+    } else if (json["id"].is_string()) {
+        dn = munge_to_printable(json["id"]);
     }
 
     basedev->set_manuf(sensor_manuf);
