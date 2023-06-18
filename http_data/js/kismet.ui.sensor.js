@@ -54,7 +54,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.thermometer/sensor.device.temperature",
                     title: "Temperature",
                     filterOnEmpty: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return kismet_ui.renderTemperature(opts['value'], 2);
                     }
                 },
@@ -63,8 +63,8 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     title: "Humidity (%)",
                     filterOnEmpty: true,
                     filterOnZero: true,
-                    render: function(opts) {
-                        return opts['value'] + "%";
+                    draw: function(opts) {
+                        return `${opts['value']}%`;
                     }
                 },
                 ]
@@ -79,8 +79,8 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.moisture/sensor.device.moisture",
                     title: "Moisture (%)",
                     filterOnEmpty: true,
-                    render: function(opts) {
-                        return opts['value'] + "%";
+                    draw: function(opts) {
+                        return `${opts['value']}%`;
                     }
                 },
                 ]
@@ -95,7 +95,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_dir",
                     title: "Wind Direction",
                     filterOnEmpty: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         var rv = opts['value'] + "&deg; (" + 
                             kismet_ui.DegToDir(opts['value']) + ")";
 
@@ -119,7 +119,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_speed",
                     title: "Wind Speed",
                     filterOnEmpty: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return kismet_ui.renderSpeed(opts['value'], 2);
                     }
                 },
@@ -127,7 +127,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_gust",
                     title: "Wind Gust",
                     filterOnEmpty: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return kismet_ui.renderSpeed(opts['value'], 2);
                     }
                 },
@@ -148,7 +148,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.tpms/sensor.device.tpms.pressure_bar",
                     title: "Pressure",
                     filterOnZero: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " bar";
                     },
                     help: "Reported TPMS pressure in bars",
@@ -157,7 +157,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.tpms/sensor.device.tpms.pressure_kpa",
                     title: "Pressure",
                     filterOnZero: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " kPa";
                     },
                     help: "Reported TPMS pressure in kPa",
@@ -174,41 +174,26 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.switch/sensor.device.switch.1",
                     title: "Switch 1",
                     filterOnEmpty: true,
-                    render: function(opts) {
-                        return opts['value'];
-                    }
                 },
                 {
                     field: "sensor.device/sensor.device.switch/sensor.device.switch.2",
                     title: "Switch 2",
                     filterOnEmpty: true,
-                    render: function(opts) {
-                        return opts['value'];
-                    }
                 },
                 {
                     field: "sensor.device/sensor.device.switch/sensor.device.switch.3",
                     title: "Switch 3",
                     filterOnEmpty: true,
-                    render: function(opts) {
-                        return opts['value'];
-                    }
                 },
                 {
                     field: "sensor.device/sensor.device.switch/sensor.device.switch.4",
                     title: "Switch 4",
                     filterOnEmpty: true,
-                    render: function(opts) {
-                        return opts['value'];
-                    }
                 },
                 {
                     field: "sensor.device/sensor.device.switch/sensor.device.switch.5",
                     title: "Switch 5",
                     filterOnEmpty: true,
-                    render: function(opts) {
-                        return opts['value'];
-                    }
                 },
                 ]
             },
@@ -229,7 +214,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     title: "Storm Active",
                     filterOnEmpty: true,
                     help: "Storm currently active",
-                    render: function(opts) {
+                    draw: function(opts) {
                         if (opts['value'])
                             return "Active";
                         return "Inactive";

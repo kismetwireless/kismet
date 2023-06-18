@@ -381,12 +381,6 @@ bool kis_sensor_phy::is_weather_station(nlohmann::json json) {
 }
 
 bool kis_sensor_phy::is_thermometer(nlohmann::json json) {
-    if (!json["humidity"].is_null())
-        return true;
-
-    if (!json["moisture"].is_null())
-        return true;
-
     if (!json["temperature_F"].is_null())
         return true;
 
@@ -477,6 +471,9 @@ bool kis_sensor_phy::is_moisture(nlohmann::json json) {
     if (!json["moisture"].is_null())
         return true;
 
+    if (!json["humidity"].is_null())
+        return true;
+
     return false;
 }
 
@@ -560,7 +557,7 @@ void kis_sensor_phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
     } catch (...) { }
 
     try {
-        thermdev->set_temperature(json["temperature_F"]);
+        thermdev->set_temperature(f_to_c(json["temperature_F"]));
     } catch (...) { }
 
     try {
@@ -594,11 +591,11 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
     } catch (...) { }
 
     try {
-        tpmsdev->set_temperature_f(json["temperature_F"]);
+        tpmsdev->set_temperature(f_to_c(json["temperature_F"]));
     } catch (...) { }
 
     try {
-        tpmsdev->set_temperature_c(json["temperature_C"]);
+        tpmsdev->set_temperature(json["temperature_C"]);
     } catch (...) { }
 
     try {
@@ -751,10 +748,19 @@ void kis_sensor_phy::add_moisture(nlohmann::json json, std::shared_ptr<tracker_e
         rtlholder->insert(mdev);
     }
 
-    try {
-        mdev->set_moisture(json["moisture"]);
-        mdev->get_moisture_rrd()->add_sample(json["moisture"], Globalreg::globalreg->last_tv_sec);
-    } catch (...) { }
+    if (json["moisture"].is_number()) {
+        try {
+            mdev->set_moisture(json["moisture"]);
+            mdev->get_moisture_rrd()->add_sample(json["moisture"], Globalreg::globalreg->last_tv_sec);
+        } catch (...) { }
+    }
+
+    if (json["humidity"].is_number()) {
+        try {
+            mdev->set_moisture(json["humidity"]);
+            mdev->get_moisture_rrd()->add_sample(json["humidity"], Globalreg::globalreg->last_tv_sec);
+        } catch (...) { }
+    }
 
 }
 
@@ -778,9 +784,10 @@ int kis_sensor_phy::packet_handler(CHAINCALL_PARMS) {
         ss >> device_json;
 
         // Manually exclude other phys that also use rtl433 data
-
         if (kis_meter_phy::is_meter(device_json))
             return 0;
+
+        // _MSG_DEBUG("RTL433 data: {}", json->json_string);
 
         // Copy the JSON as the meta field for logging, if it's valid
         if (sensor->json_to_rtl(device_json, in_pack)) {
