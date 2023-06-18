@@ -12,13 +12,13 @@ kismet_ui.AddDeviceRowHighlight({
         'kismet.device.base.phyname'
     ],
     selector: function(data) {
-        return data['kismet.device.base.phyname'] === "rfsensor";
+        return data['kismet.device.base.phyname'] === "RFSENSOR";
     }
 });
 
 kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
     filter: function(data) {
-        return (data['kismet.device.base.phyname'] === "rfsensor");
+        return (data['kismet.device.base.phyname'] === "RFSENSOR");
     },
     draw: function(data, target) {
         target.devicedata(data, {
@@ -63,6 +63,22 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     title: "Humidity (%)",
                     filterOnEmpty: true,
                     filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + "%";
+                    }
+                },
+                ]
+            },
+            {
+                field: "sensor.device/sensor.device.moisture",
+                groupTitle: "Moisture",
+                id: "group_moisture_data",
+                filterOnEmpty: true,
+                fields: [
+                {
+                    field: "sensor.device/sensor.device.moisture/sensor.device.moisture",
+                    title: "Moisture (%)",
+                    filterOnEmpty: true,
                     render: function(opts) {
                         return opts['value'] + "%";
                     }

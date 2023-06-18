@@ -558,6 +558,53 @@ protected:
     std::shared_ptr<tracker_element_string> hopsleft;
 };
 
+class sensor_tracked_moisture : public tracker_component {
+public:
+    sensor_tracked_moisture() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    sensor_tracked_moisture(int in_id) :
+       tracker_component(in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    sensor_tracked_moisture(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("sensor_tracked_moisture");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(moisture, int32_t, int32_t, int32_t, moisture);
+
+    typedef kis_tracked_rrd<sensor_empty_aggregator> rrdt;
+    __ProxyTrackable(moisture_rrd, rrdt, moisture_rrd);
+
+protected:
+    virtual void register_fields() override {
+        register_field("sensor.device.moisture", "Moisture", &moisture);
+        register_field("sensor.device.moisture_rrd", "Moisture RRD", &moisture_rrd);
+    }
+
+    std::shared_ptr<tracker_element_int32> moisture;
+    std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> moisture_rrd;
+};
+
+
 class kis_sensor_phy : public kis_phy_handler {
 public:
     virtual ~kis_sensor_phy();
@@ -588,6 +635,7 @@ protected:
     bool is_switch(nlohmann::json json);
     bool is_insteon(nlohmann::json json);
     bool is_lightning(nlohmann::json json);
+    bool is_moisture(nlohmann::json json);
 
     void add_weather_station(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
     void add_thermometer(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
@@ -595,6 +643,7 @@ protected:
     void add_switch(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
     void add_insteon(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
     void add_lightning(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
+    void add_moisture(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
 
     double f_to_c(double f);
 
@@ -606,7 +655,7 @@ protected:
 
     int sensor_holder_id, sensor_common_id, sensor_thermometer_id, 
         sensor_weatherstation_id, sensor_tpms_id, sensor_switch_id,
-        sensor_insteon_id, sensor_lightning_id;
+        sensor_insteon_id, sensor_lightning_id, sensor_moisture_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 

@@ -221,11 +221,16 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         if (json["id"].is_string()) {
             dn = fmt::format("{}-{}", munge_to_printable(json["model"]), 
                     munge_to_printable(json["id"]));
+        } else if (json["id"].is_number()) {
+            dn = fmt::format("{}-{}", munge_to_printable(json["model"]), 
+                    json["id"].get<unsigned int>());
         } else {
             dn = munge_to_printable(json["model"]);
         }
     } else if (json["id"].is_string()) {
         dn = munge_to_printable(json["id"]);
+    } else if (json["id"].is_number()) {
+        dn = fmt::format("{}", json["id"].get<unsigned int>());
     }
 
     basedev->set_manuf(sensor_manuf);
@@ -328,6 +333,9 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     if (is_lightning(json))
         add_lightning(json, rtlholder);
+
+    if (is_moisture(json))
+        add_moisture(json, rtlholder);
 
     if (newrtl && commondev != NULL) {
         std::string info = "Detected new RF sensor device '" + commondev->get_model() + "'";
@@ -460,6 +468,13 @@ bool kis_sensor_phy::is_lightning(nlohmann::json json) {
         return true;
 
     if (!json["rfi"].is_null())
+        return true;
+
+    return false;
+}
+
+bool kis_sensor_phy::is_moisture(nlohmann::json json) {
+    if (!json["moisture"].is_null())
         return true;
 
     return false;
@@ -726,6 +741,23 @@ void kis_sensor_phy::add_lightning(nlohmann::json json, std::shared_ptr<tracker_
 
 }
 
+void kis_sensor_phy::add_moisture(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder) {
+    auto mdev = 
+        rtlholder->get_sub_as<sensor_tracked_moisture>(sensor_moisture_id);
+
+    if (mdev == nullptr) {
+        mdev = 
+            std::make_shared<sensor_tracked_moisture>(sensor_moisture_id);
+        rtlholder->insert(mdev);
+    }
+
+    try {
+        mdev->set_moisture(json["moisture"]);
+        mdev->get_moisture_rrd()->add_sample(json["moisture"], Globalreg::globalreg->last_tv_sec);
+    } catch (...) { }
+
+}
+
 int kis_sensor_phy::packet_handler(CHAINCALL_PARMS) {
     kis_sensor_phy *sensor = (kis_sensor_phy *) auxdata;
 
@@ -759,6 +791,7 @@ int kis_sensor_phy::packet_handler(CHAINCALL_PARMS) {
             }
         }
     } catch (std::exception& e) {
+        _MSG_DEBUG("RTL json error: {}", e.what());
         // fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
         return 0;
     }
