@@ -70,13 +70,13 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                 ]
             },
             {
-                field: "sensor.device/sensor.device.moisture",
+                field: "sensor.device/sensor.device.moisturesensor",
                 groupTitle: "Moisture",
                 id: "group_moisture_data",
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "sensor.device/sensor.device.moisture/sensor.device.moisture",
+                    field: "sensor.device/sensor.device.moisturesensor/sensor.device.moisture",
                     title: "Moisture (%)",
                     filterOnEmpty: true,
                     draw: function(opts) {
