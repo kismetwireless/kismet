@@ -203,7 +203,14 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         common->channel = fmt::format("{}", channel_j.get<int>());
 
     auto freq_j = json["freq"];
-    if (freq_j.is_number()) {
+
+    if (!freq_j.is_number())
+        freq_j = json["freq1"];
+
+    if (!freq_j.is_number())
+        freq_j = json["freq2"];
+
+    if (freq_j.is_number() && freq_j.get<double>() != 0) {
         common->freq_khz = freq_j.get<double>() * 1000;
     }
 
@@ -216,7 +223,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY), "sensor Sensor");
+                 UCD_UPDATE_SEENBY), "RF Sensor");
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "sensor_json_to_rtl");
 
@@ -324,6 +331,9 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     if (is_thermometer(json))
         add_thermometer(json, rtlholder);
 
+    if (is_moisture(json))
+        add_moisture(json, rtlholder);
+
     if (is_weather_station(json))
         add_weather_station(json, rtlholder);
 
@@ -338,9 +348,6 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     if (is_lightning(json))
         add_lightning(json, rtlholder);
-
-    if (is_moisture(json))
-        add_moisture(json, rtlholder);
 
     if (newrtl && commondev != NULL) {
         std::string info = "Detected new RF sensor device '" + commondev->get_model() + "'";
@@ -554,14 +561,6 @@ void kis_sensor_phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
     }
 
     try {
-        thermdev->set_humidity(json["humidity"]);
-    } catch (...) { }
-
-    try {
-        thermdev->set_humidity(json["moisture"]);
-    } catch (...) { }
-
-    try {
         thermdev->set_temperature(f_to_c(json["temperature_F"]));
     } catch (...) { }
 
@@ -583,6 +582,7 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
         rtlholder->insert(tpmsdev);
     }
 
+    /* handled in common 
     try {
         tpmsdev->set_freq(json["freq"]);
     } catch (...) { }
@@ -594,6 +594,7 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
     try {
         tpmsdev->set_freq(json["freq2"]);
     } catch (...) { }
+    */
 
     try {
         tpmsdev->set_temperature(f_to_c(json["temperature_F"]));

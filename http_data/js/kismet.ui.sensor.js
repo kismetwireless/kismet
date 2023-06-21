@@ -27,22 +27,47 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
             {
                 field: "sensor.device/sensor.device.common/sensor.device.model",
                 title: "Model",
-                empty: "<i>Unknown</i>"
+                empty: "<i>Unknown</i>",
+                help: "Device model as reported by rtl_433.",
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.id",
                 title: "Device ID",
 				filterOnEmpty: true,
+                help: "Device ID as reported in the RF protocol, if known.",
+            },
+            {
+                field: "sensor.device/sensor.device.common/sensor.device.snr",
+                title: "SNR",
+				filterOnEmpty: true,
+				filterOnZero: true,
+                help: "Reported signal-to-noise ratio of device when dBm is not known",
+            },
+            {
+                field: "sensor.device/sensor.device.common/sensor.device.rssi",
+                title: "RSSI",
+				filterOnEmpty: true,
+				filterOnZero: true,
+                help: "Reported RSSI signal level of device, when signal units not known.",
+            },
+            {
+                field: "sensor.device/sensor.device.common/sensor.device.noise",
+                title: "Noise",
+				filterOnEmpty: true,
+				filterOnZero: true,
+                help: "Reported noise level of device, when signal units not known.",
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.subchannel",
                 title: "Sub-Channel",
                 filterOnZero: true,
+                help: "Some RF devices report an additional sub-channel for identification purposes.",
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.battery",
                 title: "Battery",
                 filterOnEmpty: true,
+                help: "Sensor batery level, if known.",
             },
             {
                 field: "sensor.device/sensor.device.thermometer",
@@ -56,15 +81,6 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     filterOnEmpty: true,
                     draw: function(opts) {
                         return kismet_ui.renderTemperature(opts['value'], 2);
-                    }
-                },
-                {
-                    field: "sensor.device/sensor.device.thermometer/sensor.device.humidity",
-                    title: "Humidity (%)",
-                    filterOnEmpty: true,
-                    filterOnZero: true,
-                    draw: function(opts) {
-                        return `${opts['value']}%`;
                     }
                 },
                 ]

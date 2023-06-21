@@ -197,28 +197,20 @@ public:
     }
 
     __Proxy(temperature, double, double, double, temperature);
-    __Proxy(humidity, int32_t, int32_t, int32_t, humidity);
 
     typedef kis_tracked_rrd<sensor_empty_aggregator> rrdt;
     __ProxyTrackable(temperature_rrd, rrdt, temperature_rrd);
-    __ProxyTrackable(humidity_rrd, rrdt, humidity_rrd);
 
 protected:
     virtual void register_fields() override {
         register_field("sensor.device.temperature", "Temperature (C)", &temperature);
         register_field("sensor.device.temperature_rrd", "Temperature history RRD", &temperature_rrd);
-        register_field("sensor.device.humidity", "Humidity (percent)", &humidity);
-        register_field("sensor.device.humidity_rrd", "Humidity history RRD", &humidity_rrd);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
     // for some types of sensors
     std::shared_ptr<tracker_element_double> temperature;
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> temperature_rrd;
-
-    // Basic humidity in percentage, from multiple sensors
-    std::shared_ptr<tracker_element_int32> humidity;
-    std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> humidity_rrd;
 };
 
 // Weather station type data
