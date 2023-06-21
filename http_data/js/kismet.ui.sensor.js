@@ -250,6 +250,12 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                 },
                 ]
             },
+            {
+                field: "sensor.device/sensor.device.common/sensor.device.last_record",
+                title: "Last record",
+                filterOnEmpty: true,
+                help: "Last JSON record (for debug/devel purposes)",
+            },
 
             ],
         });

@@ -135,6 +135,8 @@ public:
     __Proxy(snr, std::string, std::string, std::string, snr);
     __Proxy(noise, std::string, std::string, std::string, noise);
 
+    __Proxy(lastrecord, std::string, std::string, std::string, lastrecord);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -146,6 +148,7 @@ protected:
         register_field("sensor.device.rssi", "Sensor rssi level", &rssi);
         register_field("sensor.device.snr", "Sensor snr level", &snr);
         register_field("sensor.device.noise", "Sensor noise level", &noise);
+        register_field("sensor.device.last_record", "Last seen record", &lastrecord);
     }
 
     std::shared_ptr<tracker_element_string> model;
@@ -156,11 +159,11 @@ protected:
     // RTL subchannel, if one is available (many thermometers report one)
     std::shared_ptr<tracker_element_string> subchannel;
 
-    // Battery as a string
     std::shared_ptr<tracker_element_string> battery;
     std::shared_ptr<tracker_element_string> rssi;
     std::shared_ptr<tracker_element_string> snr;
     std::shared_ptr<tracker_element_string> noise;
+    std::shared_ptr<tracker_element_string> lastrecord;
 };
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
@@ -650,6 +653,7 @@ protected:
 
     std::shared_ptr<tracker_element_string> sensor_manuf;
 
+    bool track_last_record;
 };
 
 #endif

@@ -101,6 +101,9 @@ kis_sensor_phy::kis_sensor_phy(int in_phyid) :
     httpregistry->register_js_module("kismet_ui_sensor", "js/kismet.ui.sensor.js");
 
 	packetchain->register_handler(&packet_handler, this, CHAINPOS_CLASSIFIER, -100);
+
+    track_last_record = 
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("rtl433_track_last", false);
 }
 
 kis_sensor_phy::~kis_sensor_phy() {
@@ -298,6 +301,12 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
         commondev->set_subchannel("0");
     }
+
+    if (track_last_record) {
+        auto pkt_json = packet->fetch<kis_json_packinfo>(pack_comp_json);
+        commondev->set_lastrecord(pkt_json->json_string);
+    }
+
 
     if (channel_j.is_number())
         commondev->set_subchannel(fmt::format("{}", channel_j.get<int>()));
