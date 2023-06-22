@@ -392,6 +392,12 @@ bool kis_sensor_phy::is_weather_station(nlohmann::json json) {
     if (!json["rain"].is_null())
         return true;
 
+    if (!json["rain_mm"].is_null())
+        return true;
+
+    if (!json["rain_raw"].is_null())
+        return true;
+
     if (!json["uv_index"].is_null())
         return true;
 
@@ -542,9 +548,21 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
         weatherdev->get_wind_gust_rrd()->add_sample(json["gust"], Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
+    if (json["rain"].is_number()) {
+        try {
+            weatherdev->set_rain(json["rain"]);
+            weatherdev->get_rain_rrd()->add_sample(json["rain"], Globalreg::globalreg->last_tv_sec);
+        } catch (...) { }
+    } else if (json["rain_mm"].is_number()) {
+        try {
+            weatherdev->set_rain(json["rain_mm"]);
+            weatherdev->get_rain_rrd()->add_sample(json["rain_mm"], 
+                    Globalreg::globalreg->last_tv_sec);
+        } catch (...) { }
+    }
+
     try {
-        weatherdev->set_rain(json["rain"]);
-        weatherdev->get_rain_rrd()->add_sample(json["rain"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_rain(json["rain_raw"]);
     } catch (...) { }
 
     try {

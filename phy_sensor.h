@@ -252,6 +252,7 @@ public:
     __Proxy(wind_speed, int32_t, int32_t, int32_t, wind_speed);
     __Proxy(wind_gust, int32_t, int32_t, int32_t, wind_gust);
     __Proxy(rain, int32_t, int32_t, int32_t, rain);
+    __Proxy(rain_raw, int32_t, int32_t, int32_t, rain_raw);
     __Proxy(uv_index, int32_t, int32_t, int32_t, uv_index);
     __Proxy(lux, int32_t, int32_t, int32_t, lux);
 
@@ -275,6 +276,7 @@ protected:
         register_field("sensor.device.wind_gust_rrd", "Wind gust RRD", &wind_gust_rrd);
 
         register_field("sensor.device.rain", "Measured rain", &rain);
+        register_field("sensor.device.rain_raw", "Measured rain (raw)", &rain_raw);
         register_field("sensor.device.rain_rrd", "Rain RRD", &rain_rrd);
 
         register_field("sensor.device.uv_index", "UV index", &uv_index);
@@ -297,6 +299,7 @@ protected:
 
     // Rain (in whatever the sensor reports it in)
     std::shared_ptr<tracker_element_int32> rain;
+    std::shared_ptr<tracker_element_int32> rain_raw;
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> rain_rrd;
 
     // UV

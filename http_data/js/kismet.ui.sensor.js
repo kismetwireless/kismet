@@ -152,6 +152,12 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     title: "Rain",
                     filterOnEmpty: true
                 },
+                {
+                    field: "sensor.device/sensor.device.weatherstation/sensor.device.rain_raw",
+                    title: "Rain (Raw)",
+                    filterOnEmpty: true,
+                    help: "Raw sensor value for rain",
+                },
                 ]
             },
             {
