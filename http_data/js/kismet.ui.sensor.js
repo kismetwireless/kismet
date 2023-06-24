@@ -111,6 +111,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_dir",
                     title: "Wind Direction",
                     filterOnEmpty: true,
+                    filterOnZero: true,
                     draw: function(opts) {
                         var rv = opts['value'] + "&deg; (" + 
                             kismet_ui.DegToDir(opts['value']) + ")";
@@ -135,6 +136,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_speed",
                     title: "Wind Speed",
                     filterOnEmpty: true,
+                    filterOnZero: true,
                     draw: function(opts) {
                         return kismet_ui.renderSpeed(opts['value'], 2);
                     }
@@ -143,6 +145,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_gust",
                     title: "Wind Gust",
                     filterOnEmpty: true,
+                    filterOnZero: true,
                     draw: function(opts) {
                         return kismet_ui.renderSpeed(opts['value'], 2);
                     }
@@ -150,12 +153,14 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                 {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.rain",
                     title: "Rain",
-                    filterOnEmpty: true
+                    filterOnEmpty: true,
+                    filterOnZero: true,
                 },
                 {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.rain_raw",
                     title: "Rain (Raw)",
                     filterOnEmpty: true,
+                    filterOnZero: true,
                     help: "Raw sensor value for rain",
                 },
                 ]

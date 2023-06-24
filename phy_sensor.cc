@@ -562,7 +562,7 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
     }
 
     try {
-        weatherdev->set_rain(json["rain_raw"]);
+        weatherdev->set_rain_raw(json["rain_raw"]);
     } catch (...) { }
 
     try {
