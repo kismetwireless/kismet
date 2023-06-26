@@ -519,60 +519,60 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
     }
 
     try {
-        weatherdev->set_wind_dir(json["winddirection"]);
-        weatherdev->get_wind_dir_rrd()->add_sample(json["winddirection"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_wind_dir(json["winddirection"].get<double>());
+        weatherdev->get_wind_dir_rrd()->add_sample(json["winddirection"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
-        weatherdev->set_wind_speed(json["windspeed"]);
-        weatherdev->get_wind_speed_rrd()->add_sample(json["windspeed"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_wind_speed(json["windspeed"].get<double>());
+        weatherdev->get_wind_speed_rrd()->add_sample(json["windspeed"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
-        weatherdev->set_wind_speed(json["windstrength"]);
-        weatherdev->get_wind_speed_rrd()->add_sample(json["windstrength"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_wind_speed(json["windstrength"].get<double>());
+        weatherdev->get_wind_speed_rrd()->add_sample(json["windstrength"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
-        weatherdev->set_wind_speed(json["wind_avg_km_h"]);
-        weatherdev->get_wind_speed_rrd()->add_sample(json["wind_avg_km_h"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_wind_speed(json["wind_avg_km_h"].get<double>());
+        weatherdev->get_wind_speed_rrd()->add_sample(json["wind_avg_km_h"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
-        weatherdev->set_wind_speed(json["speed"]);
-        weatherdev->get_wind_speed_rrd()->add_sample(json["speed"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_wind_speed(json["speed"].get<double>());
+        weatherdev->get_wind_speed_rrd()->add_sample(json["speed"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
-        weatherdev->set_wind_gust(json["gust"]);
-        weatherdev->get_wind_gust_rrd()->add_sample(json["gust"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_wind_gust(json["gust"].get<double>());
+        weatherdev->get_wind_gust_rrd()->add_sample(json["gust"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     if (json["rain"].is_number()) {
         try {
-            weatherdev->set_rain(json["rain"]);
-            weatherdev->get_rain_rrd()->add_sample(json["rain"], Globalreg::globalreg->last_tv_sec);
+            weatherdev->set_rain(json["rain"].get<double>());
+            weatherdev->get_rain_rrd()->add_sample(json["rain"].get<double>(), Globalreg::globalreg->last_tv_sec);
         } catch (...) { }
     } else if (json["rain_mm"].is_number()) {
         try {
-            weatherdev->set_rain(json["rain_mm"]);
-            weatherdev->get_rain_rrd()->add_sample(json["rain_mm"], 
+            weatherdev->set_rain(json["rain_mm"].get<double>());
+            weatherdev->get_rain_rrd()->add_sample(json["rain_mm"].get<double>(), 
                     Globalreg::globalreg->last_tv_sec);
         } catch (...) { }
     }
 
     try {
-        weatherdev->set_rain_raw(json["rain_raw"]);
+        weatherdev->set_rain_raw(json["rain_raw"].get<unsigned int>());
     } catch (...) { }
 
     try {
-        weatherdev->set_uv_index(json["uv_index"]);
-        weatherdev->get_uv_index_rrd()->add_sample(json["uv_index"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_uv_index(json["uv_index"].get<double>());
+        weatherdev->get_uv_index_rrd()->add_sample(json["uv_index"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
-        weatherdev->set_lux(json["lux"]);
-        weatherdev->get_lux_rrd()->add_sample(json["lux"], Globalreg::globalreg->last_tv_sec);
+        weatherdev->set_lux(json["lux"].get<double>());
+        weatherdev->get_lux_rrd()->add_sample(json["lux"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
 }
@@ -588,11 +588,11 @@ void kis_sensor_phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
     }
 
     try {
-        thermdev->set_temperature(f_to_c(json["temperature_F"]));
+        thermdev->set_temperature(f_to_c(json["temperature_F"].get<double>()));
     } catch (...) { }
 
     try {
-        thermdev->set_temperature(json["temperature_C"]);
+        thermdev->set_temperature(json["temperature_C"].get<double>());
     } catch (...) { }
 
 }
@@ -624,23 +624,23 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
     */
 
     try {
-        tpmsdev->set_temperature(f_to_c(json["temperature_F"]));
+        tpmsdev->set_temperature(f_to_c(json["temperature_F"].get<double>()));
     } catch (...) { }
 
     try {
-        tpmsdev->set_temperature(json["temperature_C"]);
+        tpmsdev->set_temperature(json["temperature_C"].get<double>());
     } catch (...) { }
 
     try {
-        tpmsdev->set_pressure_psi(json["pressure_PSI"]);
+        tpmsdev->set_pressure_psi(json["pressure_PSI"].get<double>());
     } catch (...) { }
 
     try {
-        tpmsdev->set_pressure_bar(json["pressure_bar"]);
+        tpmsdev->set_pressure_bar(json["pressure_bar"].get<double>());
     } catch (...) { }
 
     try {
-        tpmsdev->set_pressure_kpa(json["pressure_kPa"]);
+        tpmsdev->set_pressure_kpa(json["pressure_kPa"].get<double>());
     } catch (...) { }
 
     try {
@@ -754,19 +754,19 @@ void kis_sensor_phy::add_lightning(nlohmann::json json, std::shared_ptr<tracker_
     }
 
     try {
-        lightningdev->set_strike_count(json["strike_count"]);
+        lightningdev->set_strike_count(json["strike_count"].get<unsigned int>());
     } catch (...) { }
 
     try {
-        lightningdev->set_storm_distance(json["storm_dist"]);
+        lightningdev->set_storm_distance(json["storm_dist"].get<uint64_t>());
     } catch (...) { }
 
     try {
-        lightningdev->set_storm_active(json["active"]);
+        lightningdev->set_storm_active(json["active"].get<unsigned int>());
     } catch (...) { }
 
     try {
-        lightningdev->set_lightning_rfi(json["rfi"]);
+        lightningdev->set_lightning_rfi(json["rfi"].get<unsigned int>());
     } catch (...) { }
 
 }
@@ -783,15 +783,15 @@ void kis_sensor_phy::add_moisture(nlohmann::json json, std::shared_ptr<tracker_e
 
     if (json["moisture"].is_number()) {
         try {
-            mdev->set_moisture(json["moisture"]);
-            mdev->get_moisture_rrd()->add_sample(json["moisture"], Globalreg::globalreg->last_tv_sec);
+            mdev->set_moisture(json["moisture"].get<unsigned int>());
+            mdev->get_moisture_rrd()->add_sample(json["moisture"].get<unsigned int>(), Globalreg::globalreg->last_tv_sec);
         } catch (...) { }
     }
 
     if (json["humidity"].is_number()) {
         try {
-            mdev->set_moisture(json["humidity"]);
-            mdev->get_moisture_rrd()->add_sample(json["humidity"], Globalreg::globalreg->last_tv_sec);
+            mdev->set_moisture(json["humidity"].get<unsigned int>());
+            mdev->get_moisture_rrd()->add_sample(json["humidity"].get<unsigned int>(), Globalreg::globalreg->last_tv_sec);
         } catch (...) { }
     }
 
