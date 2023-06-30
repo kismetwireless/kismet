@@ -67,7 +67,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                 field: "sensor.device/sensor.device.common/sensor.device.battery",
                 title: "Battery",
                 filterOnEmpty: true,
-                help: "Sensor batery level, if known.",
+                help: "Sensor battery data.  Different vendors use different indicators, this value may be a string such as 'OK' or may be a numerical value for presence or charge.",
             },
             {
                 field: "sensor.device/sensor.device.thermometer",

@@ -315,8 +315,17 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     
 
     auto battery_j = json["battery"];
-    if (battery_j.is_string())
+    if (battery_j.is_null()) {
+        battery_j = json["battery_ok"];
+    }
+
+    if (battery_j.is_string()) {
         commondev->set_battery(munge_to_printable(battery_j));
+    } else if (battery_j.is_number()) {
+        commondev->set_battery(fmt::format("{}", battery_j.get<double>()));
+    } else if (battery_j.is_boolean()) {
+        commondev->set_battery(fmt::format("{}", battery_j.get<bool>()));
+    }
 
     auto rssi_j = json["rssi"];
     if (rssi_j.is_number())
