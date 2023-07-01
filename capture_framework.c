@@ -1337,7 +1337,7 @@ void *cf_int_signal_thread(void *arg) {
 
 /* Launch a capture thread after opening has been successful */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
-    /* Set the thread attributes - detached, cancelable */
+    /* Set the thread attributes - detached, cancellable */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
