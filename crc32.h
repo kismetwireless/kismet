@@ -8,10 +8,21 @@
 
 // if running on an embedded system, you might consider shrinking the
 // big Crc32Lookup table by undefining these lines:
-// #define CRC32_USE_LOOKUP_TABLE_BYTE
-// #define CRC32_USE_LOOKUP_TABLE_SLICING_BY_4
-// #define CRC32_USE_LOOKUP_TABLE_SLICING_BY_8
-// #define CRC32_USE_LOOKUP_TABLE_SLICING_BY_16
+
+#if UINTPTR_MAX == 0xffffffff
+
+// Don't define lookup tables on 32bit (mostly armhf/armel) because it seems to
+// break and cause weird bus errors
+
+#elif UINTPTR_MAX == 0xffffffffffffffff
+
+#define CRC32_USE_LOOKUP_TABLE_BYTE
+#define CRC32_USE_LOOKUP_TABLE_SLICING_BY_4
+#define CRC32_USE_LOOKUP_TABLE_SLICING_BY_8
+#define CRC32_USE_LOOKUP_TABLE_SLICING_BY_16
+
+#endif
+
 //
 // - crc32_bitwise  doesn't need it at all
 // - crc32_halfbyte has its own small lookup table
