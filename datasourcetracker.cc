@@ -382,6 +382,9 @@ datasource_tracker::datasource_tracker() :
 
     auto_masked_types =
         Globalreg::globalreg->kismet_config->fetch_opt_vec("mask_datasource_type");
+
+    masked_ifnames =
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("mask_datasource_interface");
 }
 
 datasource_tracker::~datasource_tracker() {
@@ -1600,9 +1603,27 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
     dst_list->list_sources(dst_list, [this, listid, in_cb, dst_list](std::vector<shared_interface> interfaces) {
         kis_unique_lock<kis_mutex> lock(dst_lock, "dst list_sources cancel lambda");
 
+        // Filter interfaces
+        std::vector<shared_interface> f_interfaces;
+
+        std::copy_if(interfaces.begin(), interfaces.end(), std::back_inserter(f_interfaces),
+                [this](shared_interface i) -> bool {
+                    for (const auto& mi : masked_ifnames) {
+                        if (i->get_interface() == mi) {
+                            return false;
+                        }
+
+                        if (i->get_cap_interface() == mi) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                });
+
         // Figure out what interfaces are in use by active sources and amend their
         // UUID records in the listing
-        for (const auto& il : interfaces) {
+        for (const auto& il : f_interfaces) {
             for (const auto& s : *datasource_vec) {
                 shared_datasource sds = std::static_pointer_cast<kis_datasource>(s);
 
@@ -1619,7 +1640,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 
         lock.unlock();
 
-        in_cb(interfaces);
+        in_cb(f_interfaces);
 
         lock.lock();
 

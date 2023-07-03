@@ -436,6 +436,9 @@ protected:
     // for systems where python takes so long to load it causes problems
     std::vector<std::string> auto_masked_types;
 
+    // Masked interface names we don't return
+    std::vector<std::string> masked_ifnames;
+
     // Sub-workers slated for being removed
     std::vector<shared_dst_source_probe> probing_complete_vec;
 
