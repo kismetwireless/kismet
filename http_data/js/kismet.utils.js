@@ -179,7 +179,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         if ('transformopt' in opt)
             cbopt = opt.cbopt;
 
-        return opt.transform(adj_data, cbopt);
+        return opt.transform(adj_data, cbopt, rrddata);
     }
 
     return adj_data;
@@ -293,10 +293,83 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
         if ('transformopt' in opt)
             cbopt = opt.cbopt;
 
-        return opt.transform(adj_data, cbopt);
+        return opt.transform(adj_data, cbopt, rrddata);
     }
 
     return adj_data;
+}
+
+// 'drag' the last value of the RRD forwards over zeroes
+exports.RrdDrag = function(data, opt, rrd) {
+    var ret = new Array();
+
+    var last = 0;
+    var last_pos = -1;
+
+    for (var ri = 0; ri < data.length; ri++) {
+        if (data[ri] != rrd['kismet.common.rrd.blank_val']) {
+            last = data[ri];
+            last_pos = ri;
+            break;
+        }
+
+        ret.push(0);
+    }
+
+    if (last_pos == -1)
+        return ret;
+
+    for (var ri = last_pos; ri < data.length; ri++) {
+        if (data[ri] == rrd['kismet.common.rrd.blank_val']) {
+            ret.push(last);
+            continue;
+        }
+
+        ret.push(data[ri]);
+    }
+
+    return ret;
+}
+
+
+// Convert RRD data into deltas, doing our best to skip gaps and empties
+exports.RrdDelta = function(data, opt, rrd) {
+    var ret = new Array();
+
+    var last = 0;
+    var last_pos = -1;
+
+    for (var ri = 0; ri < data.length; ri++) {
+        if (data[ri] != rrd['kismet.common.rrd.blank_val']) {
+            last = data[ri];
+            last_pos = ri;
+            break;
+        }
+
+        ret.push(0);
+    }
+
+    if (last_pos == -1)
+        return ret;
+
+
+    for (var ri = last_pos; ri < data.length; ri++) {
+        if (data[ri] == rrd['kismet.common.rrd.blank_val']) {
+            ret.push(0);
+            continue;
+        }
+
+        if (data[ri] < last) {
+            last = data[ri];
+            ret.push(0);
+            continue;
+        }
+
+        ret.push(data[ri] - last);
+        last = data[ri];
+    }
+
+    return ret;
 }
 
 exports.sanitizeId = function(s) {

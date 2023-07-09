@@ -343,6 +343,10 @@ public:
     }
 
     __Proxy(strike_count, uint64_t, uint64_t, uint64_t, strike_count);
+
+    typedef kis_tracked_rrd<sensor_empty_aggregator> rrdt;
+    __ProxyTrackable(strike_count_rrd, rrdt, strike_count_rrd);
+
     __Proxy(storm_distance, uint64_t, uint64_t, uint64_t, storm_distance);
     __Proxy(storm_active, uint8_t, bool, bool, storm_active);
     __Proxy(lightning_rfi, uint64_t, uint64_t, uint64_t, lightning_rfi);
@@ -352,12 +356,15 @@ protected:
     
     virtual void register_fields() override {
         register_field("sensor.device.lightning_strike_count", "Strike count", &strike_count);
+        register_field("sensor.device.lightning_strike_count_rrd", "Strike count RRD", &strike_count_rrd);
         register_field("sensor.device.lightning_storm_distance", "Storm distance (no unit)", &storm_distance);
         register_field("sensor.device.lightning_storm_active", "Storm active", &storm_active);
         register_field("sensor.device.lightning_rfi", "Lightning radio frequency interference", &lightning_rfi);
     }
 
     std::shared_ptr<tracker_element_uint64> strike_count;
+    std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> strike_count_rrd;
+
     std::shared_ptr<tracker_element_uint64> storm_distance;
     std::shared_ptr<tracker_element_uint8> storm_active;
     std::shared_ptr<tracker_element_uint64> lightning_rfi;

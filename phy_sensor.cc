@@ -598,10 +598,12 @@ void kis_sensor_phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
 
     try {
         thermdev->set_temperature(f_to_c(json["temperature_F"].get<double>()));
+        thermdev->get_temperature_rrd()->add_sample(f_to_c(json["temperature_F"].get<double>()), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
         thermdev->set_temperature(json["temperature_C"].get<double>());
+        thermdev->get_temperature_rrd()->add_sample(json["temperature_C"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
 }
@@ -764,6 +766,7 @@ void kis_sensor_phy::add_lightning(nlohmann::json json, std::shared_ptr<tracker_
 
     try {
         lightningdev->set_strike_count(json["strike_count"].get<unsigned int>());
+        lightningdev->get_strike_count_rrd()->add_sample(json["strike_count"].get<unsigned int>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
