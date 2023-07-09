@@ -99,39 +99,42 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
 
 
                         var t_m =
-                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag});
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
                         m.sparkline(t_m, 
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
+                                chartRangeMin: 0,
                                 barColor: kismet_theme.sparkline_main,
                                 nullColor: kismet_theme.sparkline_main,
                                 zeroColor: kismet_theme.sparkline_main,
                             });
 
                         var t_h =
-                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag});
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
                         h.sparkline(t_h, 
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
+                                chartRangeMin: 0,
                                 barColor: kismet_theme.sparkline_main,
                                 nullColor: kismet_theme.sparkline_main,
                                 zeroColor: kismet_theme.sparkline_main,
                             });
 
                         var t_d =
-                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag});
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
                         d.sparkline(t_d, 
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
+                                chartRangeMin: 0,
                                 barColor: kismet_theme.sparkline_main,
                                 nullColor: kismet_theme.sparkline_main,
                                 zeroColor: kismet_theme.sparkline_main,
@@ -170,39 +173,42 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
 
 
                         var t_m =
-                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag});
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
                         m.sparkline(t_m, 
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
+                                chartRangeMin: 0,
                                 barColor: kismet_theme.sparkline_main,
                                 nullColor: kismet_theme.sparkline_main,
                                 zeroColor: kismet_theme.sparkline_main,
                             });
 
                         var t_h =
-                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag});
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
                         h.sparkline(t_h, 
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
+                                chartRangeMin: 0,
                                 barColor: kismet_theme.sparkline_main,
                                 nullColor: kismet_theme.sparkline_main,
                                 zeroColor: kismet_theme.sparkline_main,
                             });
 
                         var t_d =
-                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag});
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
                         d.sparkline(t_d, 
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
+                                chartRangeMin: 0,
                                 barColor: kismet_theme.sparkline_main,
                                 nullColor: kismet_theme.sparkline_main,
                                 zeroColor: kismet_theme.sparkline_main,

@@ -177,7 +177,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         var cbopt = {};
 
         if ('transformopt' in opt)
-            cbopt = opt.cbopt;
+            cbopt = opt.transformopt;
 
         return opt.transform(adj_data, cbopt, rrddata);
     }
@@ -222,7 +222,6 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
             ];
         } else if (type == exports.RRD_HOUR) {
             data = [
@@ -291,7 +290,7 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
         var cbopt = {};
 
         if ('transformopt' in opt)
-            cbopt = opt.cbopt;
+            cbopt = opt.transformopt;
 
         return opt.transform(adj_data, cbopt, rrddata);
     }
@@ -318,6 +317,11 @@ exports.RrdDrag = function(data, opt, rrd) {
 
     if (last_pos == -1)
         return ret;
+
+    if ('backfill' in opt && opt['backfill'] == true) {
+        ret = new Array();
+        last_pos = 0;
+    }
 
     for (var ri = last_pos; ri < data.length; ri++) {
         if (data[ri] == rrd['kismet.common.rrd.blank_val']) {
