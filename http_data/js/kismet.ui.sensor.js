@@ -79,6 +79,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.thermometer/sensor.device.temperature",
                     title: "Temperature",
                     filterOnEmpty: true,
+                    liveupdate: true,
                     render: function(opts) {
                         var d = 
                             "<span></span><br>" +
@@ -149,6 +150,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.moisturesensor/sensor.device.moisture",
                     title: "Moisture (%)",
                     filterOnEmpty: true,
+                    liveupdate: true,
                     render: function(opts) {
                         var d = 
                             "<span></span><br>" +
@@ -342,6 +344,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_strike_count",
                     title: "Strike Count",
                     filterOnEmpty: true,
+                    liveupdate: true,
                     help: "Last reported lighting strike count (may reset arbitrarily)",
                     render: function(opts) {
                         var d = 
@@ -405,6 +408,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_storm_active",
                     title: "Storm Active",
                     filterOnEmpty: true,
+                    liveupdate: true,
                     help: "Storm currently active",
                     draw: function(opts) {
                         if (opts['value'])
@@ -415,19 +419,22 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                 {
                     field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_rfi",
                     title: "RFI",
+                    liveupdate: true,
                     filterOnEmpty: true,
-                    help: "Radio Frequency Interference from lightning activity"
+                    help: "Radio Frequency Interference detected, often from other electronic devices."
                 },
                 {
                     field: "sensor.device/sensor.device.lightningsensor/sensor.device.lightning_storm_distance",
                     title: "Storm distance",
                     filterOnEmpty: true,
+                    liveupdate: true,
                     help: "Estimated storm distance (no distance units provided)"
                 },
                 ]
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.last_record",
+                liveupdate: true,
                 title: "Last record",
                 filterOnEmpty: true,
                 help: "Last JSON record (for debug/devel purposes)",
