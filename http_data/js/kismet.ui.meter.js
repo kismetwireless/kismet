@@ -57,17 +57,17 @@ kismet_ui.AddDeviceDetail("rfmeter", "Meter (SDR)", 0, {
                 render: function(opts) {
                     var d = 
                         "<span></span><br>" +
-                        "&Delta;M: <span></span><br>" + 
-                        "&Delta;H: <span></span><br>" + 
-                        "&Delta;D: <span></span><br>";
+                        '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' + 
+                        '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' + 
+                        '<span style="display: inline-block; width: 2em;">&Delta;D:</span> <span></span><br>';
 
                     return d;
                 },
                 draw: function(opts) {
                     var t = $('span:eq(0)', opts['container']);   
-                    var m = $('span:eq(1)', opts['container']);   
-                    var h = $('span:eq(2)', opts['container']);   
-                    var d = $('span:eq(3)', opts['container']);   
+                    var m = $('span:eq(2)', opts['container']);   
+                    var h = $('span:eq(4)', opts['container']);   
+                    var d = $('span:eq(6)', opts['container']);   
 
                     t.html(opts['value']);
 

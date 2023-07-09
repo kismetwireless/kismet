@@ -80,20 +80,21 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     title: "Temperature",
                     filterOnEmpty: true,
                     liveupdate: true,
+                    help: "Temperature (localized to preferred units whenever possible) reported by the sensor, as well as the past minute, hour, and day of temperature readings.  Not all sensors report temperature regularly, so the past minute of data may sometimes be empty.",
                     render: function(opts) {
                         var d = 
-                            "<span></span><br>" +
-                            "M: <span></span><br>" + 
-                            "H: <span></span><br>" + 
-                            "D: <span></span><br>";
+                            '<span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
                         var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(1)', opts['container']);   
-                        var h = $('span:eq(2)', opts['container']);   
-                        var d = $('span:eq(3)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
 
                         t.html(kismet_ui.renderTemperature(opts['value'], 2));
 
@@ -153,21 +154,22 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.moisturesensor/sensor.device.moisture",
                     title: "Moisture (%)",
                     filterOnEmpty: true,
+                    help: "Moisture or humidity, most often in a percentage, as reported by the sensor, as well as the past minute, hour, and day of moisture readings.  Not all sensors report moisture regularly, so the past minute of data may sometimes be empty.",
                     liveupdate: true,
                     render: function(opts) {
                         var d = 
                             "<span></span><br>" +
-                            "M: <span></span><br>" + 
-                            "H: <span></span><br>" + 
-                            "D: <span></span><br>";
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
                         var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(1)', opts['container']);   
-                        var h = $('span:eq(2)', opts['container']);   
-                        var d = $('span:eq(3)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
 
                         t.html(`${opts['value']}%`);
 
@@ -355,17 +357,17 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     render: function(opts) {
                         var d = 
                             "<span></span><br>" +
-                            "&Delta;M: <span></span><br>" + 
-                            "&Delta;H: <span></span><br>" + 
-                            "&Delta;D: <span></span><br>";
+                            '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 2em;">&Delta;D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
                         var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(1)', opts['container']);   
-                        var h = $('span:eq(2)', opts['container']);   
-                        var d = $('span:eq(3)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
 
                         t.html(opts['value']);
 
