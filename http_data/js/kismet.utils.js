@@ -179,7 +179,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         if ('transformopt' in opt)
             cbopt = opt.transformopt;
 
-        return opt.transform(adj_data, cbopt, rrddata);
+        return opt.transform(adj_data, cbopt, adj_data);
     }
 
     return adj_data;

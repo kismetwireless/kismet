@@ -1606,26 +1606,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
         // Filter interfaces
         std::vector<shared_interface> f_interfaces;
 
-#if 0
-        // C++20 only so no joy
-
-        std::copy_if(interfaces.begin(), interfaces.end(), std::back_inserter(f_interfaces),
-                [this](shared_interface i) -> bool {
-                    for (const auto& mi : masked_ifnames) {
-                        if (i->get_interface() == mi) {
-                            return false;
-                        }
-
-                        if (i->get_cap_interface() == mi) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                });
-#endif
-
-        for (const auto &i : interfaces) {
+        for (auto i : interfaces) {
             bool copy = true;
 
             for (const auto& mi : masked_ifnames) {
