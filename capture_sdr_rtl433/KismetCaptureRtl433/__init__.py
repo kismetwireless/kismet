@@ -406,6 +406,12 @@ class KismetRtl433(object):
 
         if 'channel' in options:
             self.opts['channel'] = options['channel']
+            try:
+                self.freq_khz = self.__parse_human_frequency(self.opts['channel'])
+            except: 
+                ret['success'] = False
+                ret['message'] = "Could not parse the supplied channel, make sure that your channel is of the format nnn.nnKhz, nnn.nnMhz, or nnn.nn for basic Hz"
+                return ret
 
         if 'gain' in options:
             self.opts['gain'] = options['gain']
