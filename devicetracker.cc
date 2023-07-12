@@ -1293,22 +1293,28 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
 	if ((in_flags & UCD_UPDATE_FREQUENCIES)) {
+        bool set_channel = false;
+        bool set_freq = false;
+
         if (pack_l1info != nullptr) {
             if (pack_l1info->channel != "0" && pack_l1info->channel != "") {
+                set_channel = true;
                 device->set_channel(pack_l1info->channel);
             }
             if (pack_l1info->freq_khz != 0) {
+                set_freq = true;
                 device->set_frequency(pack_l1info->freq_khz);
                 device->inc_frequency_count((int) pack_l1info->freq_khz);
             }
         }
 
         if (pack_common != nullptr) {
-            if (pack_common->channel != "0" && pack_common->channel != "") {
+            if (set_channel == false && 
+                    (pack_common->channel != "0" && pack_common->channel != "")) {
                 device->set_channel(pack_common->channel);
             }
 
-            if (pack_common->freq_khz != 0) {
+            if (set_freq == false && pack_common->freq_khz != 0) {
                 device->set_frequency(pack_common->freq_khz);
                 device->inc_frequency_count((int) pack_common->freq_khz);
             }
