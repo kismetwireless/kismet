@@ -92,6 +92,11 @@ kis_sensor_phy::kis_sensor_phy(int in_phyid) :
                 tracker_element_factory<sensor_tracked_moisture>(),
                 "sensor - moisture");
 
+    sensor_aqi_id =
+        Globalreg::globalreg->entrytracker->register_field("sensor.device.aqi",
+                tracker_element_factory<sensor_tracked_aqi>(),
+                "sensor - aqi");
+
     // Make the manuf string
     sensor_manuf = Globalreg::globalreg->manufdb->make_manuf("RF Sensor");
 
@@ -367,6 +372,9 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     if (is_lightning(json))
         add_lightning(json, rtlholder);
 
+    if (is_aqi(json))
+        add_aqi(json, rtlholder);
+
     if (newrtl && commondev != NULL) {
         std::string info = "Detected new RF sensor device '" + commondev->get_model() + "'";
 
@@ -508,6 +516,16 @@ bool kis_sensor_phy::is_moisture(nlohmann::json json) {
         return true;
 
     if (!json["humidity"].is_null())
+        return true;
+
+    return false;
+}
+
+bool kis_sensor_phy::is_aqi(nlohmann::json json) {
+    if (!json["pm2_5_ug_m3"].is_null())
+        return true;
+
+    if (!json["estimated_pm10_0_ug_m3"].is_null())
         return true;
 
     return false;
@@ -808,6 +826,33 @@ void kis_sensor_phy::add_moisture(nlohmann::json json, std::shared_ptr<tracker_e
     }
 
 }
+
+void kis_sensor_phy::add_aqi(nlohmann::json json, std::shared_ptr<tracker_element_map> rtlholder) {
+    auto mdev = 
+        rtlholder->get_sub_as<sensor_tracked_aqi>(sensor_aqi_id);
+
+    if (mdev == nullptr) {
+        mdev = 
+            std::make_shared<sensor_tracked_aqi>(sensor_aqi_id);
+        rtlholder->insert(mdev);
+    }
+
+    if (json["pm2_5_ug_m3"].is_number()) {
+        try {
+            mdev->set_pm2_5(json["pm2_5_ug_m3"].get<unsigned int>());
+            mdev->get_pm2_5_rrd()->add_sample(json["pm2_5_ug_m3"].get<unsigned int>(), Globalreg::globalreg->last_tv_sec);
+        } catch (...) { }
+    }
+
+    if (json["estimated_pm10_0_ug_m3"].is_number()) {
+        try {
+            mdev->set_pm10(json["estimated_pm10_0_ug_m3"].get<unsigned int>());
+            mdev->get_pm10_rrd()->add_sample(json["estimated_pm10_0_ug_m3"].get<unsigned int>(), Globalreg::globalreg->last_tv_sec);
+        } catch (...) { }
+    }
+
+}
+
 
 int kis_sensor_phy::packet_handler(CHAINCALL_PARMS) {
     kis_sensor_phy *sensor = (kis_sensor_phy *) auxdata;

@@ -273,6 +273,65 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     title: "Rain",
                     filterOnEmpty: true,
                     filterOnZero: true,
+                    liveupdate: true,
+                    help: "Rain quantity (often in mm)",
+                    render: function(opts) {
+                        var d = 
+                            "<span></span><br>" +
+                            '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 2em;">&Delta;D:</span> <span></span><br>';
+
+                        return d;
+                    },
+                    draw: function(opts) {
+                        var t = $('span:eq(0)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
+
+                        t.html(opts['value']);
+
+
+                        var t_m =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.rain_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDelta});
+
+
+                        m.sparkline(t_m, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_h =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.rain_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDelta});
+
+
+                        h.sparkline(t_h, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_d =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.rain_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDelta});
+
+
+                        d.sparkline(t_d, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+                    },
                 },
                 {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.rain_raw",
@@ -437,6 +496,148 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     filterOnEmpty: true,
                     liveupdate: true,
                     help: "Estimated storm distance (no distance units provided)"
+                },
+                ]
+            },
+            {
+                field: "sensor.device/sensor.device.aqi",
+                groupTitle: "Air Quality",
+                id: "group_aqi_data",
+                filterOnEmpty: true,
+                fields: [
+                {
+                    field: "sensor.device/sensor.device.aqi/sensor.device.pm2_5",
+                    title: "PM2.5",
+                    filterOnEmpty: true,
+                    help: "Estimated PM2.5 particulate matter",
+                    liveupdate: true,
+                    render: function(opts) {
+                        var d = 
+                            "<span></span><br>" +
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
+
+                        return d;
+                    },
+                    draw: function(opts) {
+                        var t = $('span:eq(0)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
+
+                        t.html(`${opts['value']}`);
+
+
+                        var t_m =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm2_5_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        m.sparkline(t_m, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_h =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm2_5_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        h.sparkline(t_h, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_d =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm2_5_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        d.sparkline(t_d, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+                    },
+                },
+                {
+                    field: "sensor.device/sensor.device.aqi/sensor.device.pm10",
+                    title: "PM10",
+                    filterOnEmpty: true,
+                    help: "Estimated PM2.5 particulate matter",
+                    liveupdate: true,
+                    render: function(opts) {
+                        var d = 
+                            "<span></span><br>" +
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
+
+                        return d;
+                    },
+                    draw: function(opts) {
+                        var t = $('span:eq(0)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
+
+                        t.html(`${opts['value']}`);
+
+
+                        var t_m =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm10_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        m.sparkline(t_m, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_h =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm10_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        h.sparkline(t_h, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_d =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm10_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        d.sparkline(t_d, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+                    },
                 },
                 ]
             },

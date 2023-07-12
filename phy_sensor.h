@@ -606,6 +606,61 @@ protected:
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> moisture_rrd;
 };
 
+class sensor_tracked_aqi : public tracker_component {
+// {"time": "2023-07-12 01:57:03", "model": "Fineoffset-WH0290", "id": 146, "battery_ok": 0.6, "pm2_5_ug_m3": 11, "estimated_pm10_0_ug_m3": 10, "family": 65, "unknown1": 0, "mic": "CRC", "mod": "FSK", "freq1": 914.941, "freq2": 915.037, "rssi": -7.18, "snr": 17.482, "noise": -24.662}
+public:
+    sensor_tracked_aqi() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    sensor_tracked_aqi(int in_id) :
+       tracker_component(in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    sensor_tracked_aqi(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("sensor_tracked_aqi");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    typedef kis_tracked_rrd<sensor_empty_aggregator> rrdt;
+
+    __Proxy(pm2_5, uint32_t, uint32_t, uint32_t, pm2_5);
+    __ProxyTrackable(pm2_5_rrd, rrdt, pm2_5_rrd);
+    __Proxy(pm10, uint32_t, uint32_t, uint32_t, pm10);
+    __ProxyTrackable(pm10_rrd, rrdt, pm10_rrd);
+
+protected:
+    virtual void register_fields() override {
+        register_field("sensor.device.pm2_5", "Estimated PM2.5 particulate", &pm2_5);
+        register_field("sensor.device.pm2_5_rrd", "Estimated PM2.5 particulate RRD", &pm2_5_rrd);
+        register_field("sensor.device.pm10", "Estimated PM10 particulate", &pm10);
+        register_field("sensor.device.pm10_rrd", "Estimated PM10 particulate RRD", &pm10_rrd);
+    }
+
+    std::shared_ptr<tracker_element_uint32> pm2_5;
+    std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> pm2_5_rrd;
+
+    std::shared_ptr<tracker_element_uint32> pm10;
+    std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> pm10_rrd;
+};
+
+
 
 class kis_sensor_phy : public kis_phy_handler {
 public:
@@ -638,6 +693,7 @@ protected:
     bool is_insteon(nlohmann::json json);
     bool is_lightning(nlohmann::json json);
     bool is_moisture(nlohmann::json json);
+    bool is_aqi(nlohmann::json json);
 
     void add_weather_station(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
     void add_thermometer(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
@@ -646,6 +702,7 @@ protected:
     void add_insteon(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
     void add_lightning(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
     void add_moisture(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
+    void add_aqi(nlohmann::json json, std::shared_ptr<tracker_element_map> sensorholder);
 
     double f_to_c(double f);
 
@@ -657,7 +714,8 @@ protected:
 
     int sensor_holder_id, sensor_common_id, sensor_thermometer_id, 
         sensor_weatherstation_id, sensor_tpms_id, sensor_switch_id,
-        sensor_insteon_id, sensor_lightning_id, sensor_moisture_id;
+        sensor_insteon_id, sensor_lightning_id, sensor_moisture_id,
+        sensor_aqi_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
