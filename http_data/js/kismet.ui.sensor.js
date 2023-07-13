@@ -254,6 +254,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_speed",
                     title: "Wind Speed",
                     filterOnEmpty: true,
+                    filterOnZero: true,
                     help: "Wind speed",
                     liveupdate: true,
                     render: function(opts) {
@@ -320,6 +321,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_gust",
                     title: "Wind Gust",
                     filterOnEmpty: true,
+                    filterOnZero: true,
                     help: "Wind speed (max/gust)",
                     liveupdate: true,
                     render: function(opts) {
