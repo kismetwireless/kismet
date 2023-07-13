@@ -400,6 +400,15 @@ bool kis_sensor_phy::is_weather_station(nlohmann::json json) {
     if (!json["winddirection"].is_null())
         return true;
 
+    if (!json["wind_dir_deg"].is_null())
+        return true;
+
+    if (!json["wind_avg_km_h"].is_null())
+        return true;
+
+    if (!json["wind_max_km_h"].is_null())
+        return true;
+
     if (!json["speed"].is_null())
         return true;
 
@@ -545,9 +554,16 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
         rtlholder->insert(weatherdev);
     }
 
+    // {"time": "2023-07-13 18:31:29", "model": "Fineoffset-WHx080", "subtype": 0, "id": 129, "battery_ok": 1, "temperature_C": 30.9, "humidity": 50, "wind_dir_deg": 180, "wind_avg_km_h": 2.448, "wind_max_km_h": 4.896, "rain_mm": 0.0, "mic": "CRC", "mod": "ASK", "freq": 433.861, "rssi": -0.13, "snr": 15.077, "noise": -15.207}
+
     try {
         weatherdev->set_wind_dir(json["winddirection"].get<double>());
         weatherdev->get_wind_dir_rrd()->add_sample(json["winddirection"].get<double>(), Globalreg::globalreg->last_tv_sec);
+    } catch (...) { }
+
+    try {
+        weatherdev->set_wind_dir(json["wind_dir_deg"].get<double>());
+        weatherdev->get_wind_dir_rrd()->add_sample(json["wind_dir_deg"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
     try {
@@ -575,6 +591,11 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
         weatherdev->get_wind_gust_rrd()->add_sample(json["gust"].get<double>(), Globalreg::globalreg->last_tv_sec);
     } catch (...) { }
 
+    try {
+        weatherdev->set_wind_gust(json["wind_max_km_h"].get<double>());
+        weatherdev->get_wind_gust_rrd()->add_sample(json["wind_max_km_h"].get<double>(), Globalreg::globalreg->last_tv_sec);
+    } catch (...) { }
+
     if (json["rain"].is_number()) {
         try {
             weatherdev->set_rain(json["rain"].get<double>());
@@ -589,7 +610,7 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
     }
 
     try {
-        weatherdev->set_rain_raw(json["rain_raw"].get<unsigned int>());
+        weatherdev->set_rain_raw(json["rain_raw"].get<double>());
     } catch (...) { }
 
     try {

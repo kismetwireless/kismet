@@ -249,11 +249,11 @@ public:
     }
 
     __Proxy(wind_dir, int32_t, int32_t, int32_t, wind_dir);
-    __Proxy(wind_speed, int32_t, int32_t, int32_t, wind_speed);
-    __Proxy(wind_gust, int32_t, int32_t, int32_t, wind_gust);
-    __Proxy(rain, int32_t, int32_t, int32_t, rain);
-    __Proxy(rain_raw, int32_t, int32_t, int32_t, rain_raw);
-    __Proxy(uv_index, int32_t, int32_t, int32_t, uv_index);
+    __Proxy(wind_speed, double, double, double, wind_speed);
+    __Proxy(wind_gust, double, double, double, wind_gust);
+    __Proxy(rain, double, double, double, rain);
+    __Proxy(rain_raw, double, double, double, rain_raw);
+    __Proxy(uv_index, double, double, double, uv_index);
     __Proxy(lux, int32_t, int32_t, int32_t, lux);
 
     typedef kis_tracked_rrd<sensor_empty_aggregator> rrdt;
@@ -269,7 +269,7 @@ protected:
         register_field("sensor.device.wind_dir", "Wind direction (degrees)", &wind_dir);
         register_field("sensor.device.wind_dir_rrd", "Wind direction RRD", &wind_dir_rrd);
 
-        register_field("sensor.device.weatherstation.wind_speed", "Wind speed (KPH)", &wind_speed);
+        register_field("sensor.device.wind_speed", "Wind speed (KPH)", &wind_speed);
         register_field("sensor.device.wind_speed_rrd", "Wind speed RRD", &wind_speed_rrd);
 
         register_field("sensor.device.wind_gust", "Wind gust (KPH)", &wind_gust);
@@ -291,19 +291,19 @@ protected:
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> wind_dir_rrd;
 
     // Wind speed in kph (might have to convert for some sensors)
-    std::shared_ptr<tracker_element_int32> wind_speed;
+    std::shared_ptr<tracker_element_double> wind_speed;
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> wind_speed_rrd;
 
-    std::shared_ptr<tracker_element_int32> wind_gust;
+    std::shared_ptr<tracker_element_double> wind_gust;
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> wind_gust_rrd;
 
     // Rain (in whatever the sensor reports it in)
-    std::shared_ptr<tracker_element_int32> rain;
-    std::shared_ptr<tracker_element_int32> rain_raw;
+    std::shared_ptr<tracker_element_double> rain;
+    std::shared_ptr<tracker_element_double> rain_raw;
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> rain_rrd;
 
     // UV
-    std::shared_ptr<tracker_element_int32> uv_index;
+    std::shared_ptr<tracker_element_double> uv_index;
     std::shared_ptr<kis_tracked_rrd<sensor_empty_aggregator>> uv_index_rrd;
 
     // Lux

@@ -254,19 +254,132 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_speed",
                     title: "Wind Speed",
                     filterOnEmpty: true,
-                    filterOnZero: true,
+                    help: "Wind speed",
+                    liveupdate: true,
+                    render: function(opts) {
+                        var d = 
+                            "<span></span><br>" +
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
+
+                        return d;
+                    },
                     draw: function(opts) {
-                        return kismet_ui.renderSpeed(opts['value'], 2);
-                    }
+                        var t = $('span:eq(0)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
+
+                        t.html(`${kismet_ui.renderSpeed(opts['value'], 2)}`);
+
+                        var t_m =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_speed_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        m.sparkline(t_m, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_h =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_speed_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        h.sparkline(t_h, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_d =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_speed_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        d.sparkline(t_d, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+                    },
                 },
                 {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.wind_gust",
                     title: "Wind Gust",
                     filterOnEmpty: true,
-                    filterOnZero: true,
+                    help: "Wind speed (max/gust)",
+                    liveupdate: true,
+                    render: function(opts) {
+                        var d = 
+                            "<span></span><br>" +
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
+
+                        return d;
+                    },
                     draw: function(opts) {
-                        return kismet_ui.renderSpeed(opts['value'], 2);
-                    }
+                        var t = $('span:eq(0)', opts['container']);   
+                        var m = $('span:eq(2)', opts['container']);   
+                        var h = $('span:eq(4)', opts['container']);   
+                        var d = $('span:eq(6)', opts['container']);   
+
+                        t.html(`${kismet_ui.renderSpeed(opts['value'], 2)}`);
+
+                        var t_m =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_gust_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+                        m.sparkline(t_m, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_h =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_gust_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        h.sparkline(t_h, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+
+                        var t_d =
+                            kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_gust_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+
+                        d.sparkline(t_d, 
+                            { type: "bar",
+                                height: 14,
+                                barWidth: 2,
+                                chartRangeMin: 0,
+                                barColor: kismet_theme.sparkline_main,
+                                nullColor: kismet_theme.sparkline_main,
+                                zeroColor: kismet_theme.sparkline_main,
+                            });
+                    },
                 },
                 {
                     field: "sensor.device/sensor.device.weatherstation/sensor.device.rain",
