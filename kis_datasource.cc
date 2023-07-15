@@ -1392,10 +1392,15 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno,
 
 void kis_datasource::handle_packet_data_report(uint32_t in_seqno, 
         const nonstd::string_view& in_content) {
-    // If we're paused, throw away this packet
     {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report");
 
+        // If we haven't acquired the gpstracker, do so
+        if (gpstracker == nullptr)
+            gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+
+
+        // If we're paused, throw away this packet
         if (get_source_paused())
             return;
     }
@@ -1472,6 +1477,18 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
     // TODO handle spectrum
    
     handle_rx_packet(packet);
+
+    // Insert GPS data as soon as possible in the chain if there's no data
+    // from the rest of the processing
+    if (packet->fetch(pack_comp_gps) == nullptr &&
+            packet->fetch(pack_comp_no_gps) == nullptr) {
+        auto gpsloc = gpstracker->get_best_location();
+
+        if (gpsloc != nullptr) {
+            packet->insert(pack_comp_gps, std::move(gpsloc));
+        }
+
+    }
 }
 
 void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
