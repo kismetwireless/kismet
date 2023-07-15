@@ -196,7 +196,9 @@ bool Kis_RTL433_Phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     else if (channel_j.is_number()) 
         common->channel = fmt::format("{}", channel_j.get<int>());
 
-    common->freq_khz = 433920;
+    // Carried in l1info now
+    // common->freq_khz = 433920;
+    
     common->source = rtlmac;
     common->transmitter = rtlmac;
 

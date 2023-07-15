@@ -222,9 +222,6 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         common->freq_khz = freq_j.get<double>() * 1000;
     }
 
-    // TODO extract l1info if no freq in json
-    // common->freq_khz = packet->freq_khz;
-
     common->source = rtlmac;
     common->transmitter = rtlmac;
 
@@ -658,20 +655,6 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
             std::make_shared<sensor_tracked_tpms>(sensor_tpms_id);
         rtlholder->insert(tpmsdev);
     }
-
-    /* handled in common 
-    try {
-        tpmsdev->set_freq(json["freq"]);
-    } catch (...) { }
-
-    try {
-        tpmsdev->set_freq(json["freq1"]);
-    } catch (...) { }
-
-    try {
-        tpmsdev->set_freq(json["freq2"]);
-    } catch (...) { }
-    */
 
     try {
         tpmsdev->set_temperature(f_to_c(json["temperature_F"].get<double>()));
