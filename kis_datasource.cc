@@ -1478,17 +1478,6 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
    
     handle_rx_packet(packet);
 
-    // Insert GPS data as soon as possible in the chain if there's no data
-    // from the rest of the processing
-    if (packet->fetch(pack_comp_gps) == nullptr &&
-            packet->fetch(pack_comp_no_gps) == nullptr) {
-        auto gpsloc = gpstracker->get_best_location();
-
-        if (gpsloc != nullptr) {
-            packet->insert(pack_comp_gps, std::move(gpsloc));
-        }
-
-    }
 }
 
 void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
@@ -1559,6 +1548,18 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
     inc_source_num_packets(1);
     get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+    // Insert GPS data as soon as possible in the chain if there's no data
+    // from the rest of the processing
+    if (packet->fetch(pack_comp_gps) == nullptr &&
+            packet->fetch(pack_comp_no_gps) == nullptr) {
+        auto gpsloc = gpstracker->get_best_location();
+
+        if (gpsloc != nullptr) {
+            packet->insert(pack_comp_gps, std::move(gpsloc));
+        }
+
+    }
 
     // Inject the packet into the packetchain if we have one
     packetchain->process_packet(packet);
