@@ -926,6 +926,19 @@ AC_ARG_ENABLE(pcre,
 	[wantpcre=yes]
 )
 
+AC_ARG_ENABLE(require-pcre2,
+    AS_HELP_STRING([--enable-require-pcre2], [Explicitly require libpcre2]),
+	[case "${enableval}" in
+	  yes) needpcre2=yes ;;
+	    *) needpcre2=no ;;
+	 esac],
+	[needpcre2=no]
+)
+
+if test "${wantpcre}x" = "nox" -a "${needpcre2}x" = "yesx"; then
+    AC_MSG_ERROR([Can not combine --disable-pcre and --enable-require-pcre2])
+fi
+
 if test "$caponly" == 0; then
     if test "$HAVE_CXX17" = "1"; then
 	    AC_MSG_CHECKING([Checking C++17 parallel functions])
@@ -1033,6 +1046,10 @@ if test "$caponly" == 0; then
         LIBS="$OLIBS"
 
         if test "$pcre2" != "yes"; then
+            if test "${needpcre2}x" == "yesx"; then
+                AC_MSG_ERROR([Could not find libpcre2 and --enable-require-pcre2 selected])
+            fi
+
     	    AC_CHECK_LIB([pcre], [pcre_compile], pcre1=yes, pcre1=no)
 
             if test "$pcre1" == "yes"; then

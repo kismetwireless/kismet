@@ -840,6 +840,7 @@ enable_linuxwext
 enable_libcap
 with_pcreheaders
 enable_pcre
+enable_require_pcre2
 with_openssl
 enable_prelude
 with_libprelude_prefix
@@ -1535,6 +1536,7 @@ Optional Features:
   --disable-linuxwext     Disable Linux wireless extensions
   --disable-libcap        Disable libcap capabilities
   --disable-pcre          Disable PCRE regex
+  --enable-require-pcre2  Explicitly require libpcre2
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-libwebsockets Disable C-based libwebsockets, this will only impact
                           building remote capture sources. The Kismet server
@@ -9915,6 +9917,23 @@ else $as_nop
 fi
 
 
+# Check whether --enable-require-pcre2 was given.
+if test ${enable_require_pcre2+y}
+then :
+  enableval=$enable_require_pcre2; case "${enableval}" in
+	  yes) needpcre2=yes ;;
+	    *) needpcre2=no ;;
+	 esac
+else $as_nop
+  needpcre2=no
+
+fi
+
+
+if test "${wantpcre}x" = "nox" -a "${needpcre2}x" = "yesx"; then
+    as_fn_error $? "Can not combine --disable-pcre and --enable-require-pcre2" "$LINENO" 5
+fi
+
 if test "$caponly" == 0; then
     if test "$HAVE_CXX17" = "1"; then
 	    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking Checking C++17 parallel functions" >&5
@@ -10108,6 +10127,10 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
         LIBS="$OLIBS"
 
         if test "$pcre2" != "yes"; then
+            if test "${needpcre2}x" == "yesx"; then
+                as_fn_error $? "Could not find libpcre2 and --enable-require-pcre2 selected" "$LINENO" 5
+            fi
+
     	    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for pcre_compile in -lpcre" >&5
 printf %s "checking for pcre_compile in -lpcre... " >&6; }
 if test ${ac_cv_lib_pcre_pcre_compile+y}
