@@ -26,8 +26,14 @@ acft={}
 mdl={}
 res={}
 
+# User agent headers; it looks like faa.gov filters robot downloads, which is totally
+# fair, but this triggers so rarely I don't actually feel bad.
+headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+        }
+
 #FAA Records Fetch
-with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip") as response, io.BytesIO() as mem_zf:
+with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip", timeout=30, headers=headers) as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
     mem_zf.write(response.content)
 
@@ -81,7 +87,7 @@ with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip") as 
 
 #Canada Records Fetch 
 owner={}
-with requests.get("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/ccarcsdb.zip") as response, io.BytesIO() as mem_zf:
+with requests.get("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/ccarcsdb.zip", timeout=30, headers=headers) as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
     mem_zf.write(response.content)
 
