@@ -66,6 +66,9 @@
 /* cpp17 available */
 #undef HAVE_CXX17
 
+/* cpp20 available */
+#undef HAVE_CXX20
+
 /* Define to 1 if you have the <dwarf.h> header file. */
 #undef HAVE_DWARF_H
 

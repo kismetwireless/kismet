@@ -77,7 +77,7 @@ public:
     // deserialization and rest queries; it's fairly expensive otherwise
     device_key(std::string in_keystr);
 
-    std::string as_string() const;
+    std::string as_string();
 
     // Generate a cached phykey component; phyhandlers do this to cache
     static uint32_t gen_pkey(std::string in_phy);
@@ -269,7 +269,7 @@ public:
         return false;
     } 
 
-    virtual std::string as_string() const {
+    virtual std::string as_string() {
         return "";
     }
 
@@ -394,7 +394,7 @@ public:
         return alias_element->is_stringable();
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return alias_element->as_string();
     }
 
@@ -554,7 +554,7 @@ public:
         return true;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return value;
     }
 
@@ -611,7 +611,7 @@ public:
         return r;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return to_hex();
     }
 
@@ -716,7 +716,7 @@ public:
         return true;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return value.as_string();
     }
 
@@ -775,7 +775,7 @@ public:
         return true;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return value.as_string();
     }
 
@@ -831,7 +831,7 @@ public:
         return true;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return value.as_string();
     }
 
@@ -895,7 +895,7 @@ public:
         return true;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         struct in_addr addr;
         char buf[32];
         addr.s_addr = value;
@@ -968,7 +968,7 @@ public:
         return true;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         S s;
         return s.as_string(value);
     }
@@ -1166,7 +1166,7 @@ using tracker_element_int64 = tracker_element_core_numeric<int64_t, tracker_type
 template<class N>
 class float_numerical_string {
 public:
-    virtual std::string as_string(N v) const {
+    virtual std::string as_string(const N v) {
         if (std::isnan(v) || std::isinf(v))
             return "0";
 
@@ -1236,7 +1236,7 @@ public:
         return false;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return "";
     }
 
@@ -1533,7 +1533,7 @@ public:
         return false;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return "";
     }
 
@@ -1686,7 +1686,7 @@ public:
         return false;
     }
 
-    virtual std::string as_string() const override {
+    virtual std::string as_string() override {
         return "";
     }
 

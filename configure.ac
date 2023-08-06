@@ -17,7 +17,7 @@ AC_PREREQ(2.57)
 AC_CANONICAL_HOST
 
 # Checks for programs.
-AC_PROG_CC_STDC
+AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
@@ -196,8 +196,14 @@ else
 fi
 
 # Start at the newest C++ and define our way back
-AX_CXX_COMPILE_STDCXX(17, , [mandatory])
-if test "$HAVE_CXX17" = "1"; then
+AX_CXX_COMPILE_STDCXX(20, , [optional])
+if test "$HAVE_CXX20" = "1"; then
+    AC_DEFINE(HAVE_CXX20, 1, [cpp20 available])
+    AC_DEFINE(HAVE_CXX17, 1, [cpp17 available])
+    AC_DEFINE(HAVE_CXX14, 1, [cpp14 available])
+    AC_DEFINE(HAVE_CXX11, 1, [cpp11 available])
+else
+    AX_CXX_COMPILE_STDCXX(17, , [mandatory])
     AC_DEFINE(HAVE_CXX17, 1, [cpp17 available])
     AC_DEFINE(HAVE_CXX14, 1, [cpp14 available])
     AC_DEFINE(HAVE_CXX11, 1, [cpp11 available])

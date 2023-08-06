@@ -73,7 +73,7 @@ device_key::device_key(std::string in_keystr) {
     error = false;
 }
 
-std::string device_key::as_string() const {
+std::string device_key::as_string() {
     std::stringstream ss;
     ss << *this;
     return ss.str();
@@ -414,7 +414,7 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
 
-std::ostream& operator<<(std::ostream& os, const tracker_element& e) {
+std::ostream& operator<<(std::ostream& os, tracker_element& e) {
     os << e.as_string();
     return os;
 }

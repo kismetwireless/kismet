@@ -67,11 +67,11 @@
 #include "nlohmann/json.hpp"
 
 // Forward-define formatters for a bunch of json features we use throughout kismet
-template <>struct fmt::formatter<nlohmann::json::array_t> : fmt::ostream_formatter {};
-template <>struct fmt::formatter<nlohmann::json::string_t> : fmt::ostream_formatter {};
-template <>struct fmt::formatter<nlohmann::json::number_float_t> : fmt::ostream_formatter {};
-template <>struct fmt::formatter<nlohmann::json::number_integer_t> : fmt::ostream_formatter {};
-template <>struct fmt::formatter<nlohmann::json::number_unsigned_t> : fmt::ostream_formatter {};
+// template <>struct fmt::formatter<nlohmann::json::array_t> : fmt::ostream_formatter {};
+// template <>struct fmt::formatter<nlohmann::json::string_t> : fmt::ostream_formatter {};
+// template <>struct fmt::formatter<nlohmann::json::number_float_t> : fmt::ostream_formatter {};
+// template <>struct fmt::formatter<nlohmann::json::number_integer_t> : fmt::ostream_formatter {};
+// template <>struct fmt::formatter<nlohmann::json::number_unsigned_t> : fmt::ostream_formatter {};
 
 // Munge a string to printable - printable assumed to be either a UTF8 string, or 
 // a pure ascii string if we can't confirm that it's UTF8

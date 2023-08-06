@@ -204,7 +204,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             if (devtype_j.is_string())
                 newdevstr << " " << btdev->get_type_string();
 
-            _MSG_INFO(newdevstr.str());
+            _MSG_INFO("{}", newdevstr.str());
 
             btdev_bluetooth = 
                 std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
