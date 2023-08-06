@@ -55,7 +55,7 @@
 #include "devicetracker_view_workers.h"
 #include "kis_database.h"
 #include "eventbus.h"
-#include "robin_hood.h"
+#include "unordered_dense.h"
 #include "streamtracker.h"
 
 #define KIS_PHY_ANY	-1
@@ -137,7 +137,7 @@ public:
     std::shared_ptr<tracker_element_vector> do_readonly_device_work(device_tracker_view_worker& worker, 
             std::shared_ptr<tracker_element_vector> source_vec);
 
-    using device_map_t = robin_hood::unordered_node_map<device_key, std::shared_ptr<kis_tracked_device_base>>;
+    using device_map_t = ankerl::unordered_dense::map<device_key, std::shared_ptr<kis_tracked_device_base>>;
     using device_itr = device_map_t::iterator;
     using const_device_itr = device_map_t::const_iterator;
 
@@ -257,11 +257,11 @@ protected:
 
     // Map of seen-by views
     bool map_seenby_views;
-    robin_hood::unordered_map<uuid, std::shared_ptr<device_tracker_view>> seenby_view_map;
+    ankerl::unordered_dense::map<uuid, std::shared_ptr<device_tracker_view>> seenby_view_map;
 
     // Map of phy views
     bool map_phy_views;
-    robin_hood::unordered_map<int, std::shared_ptr<device_tracker_view>> phy_view_map;
+    ankerl::unordered_dense::map<int, std::shared_ptr<device_tracker_view>> phy_view_map;
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id;
@@ -364,7 +364,7 @@ protected:
 
 	// Registered PHY types
 	int next_phy_id;
-    robin_hood::unordered_node_map<int, kis_phy_handler *> phy_handler_map;
+    ankerl::unordered_dense::map<int, kis_phy_handler *> phy_handler_map;
     kis_mutex phy_mutex;
 
     // New multimutex primitive

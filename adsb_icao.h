@@ -39,7 +39,7 @@
 #include "util.h"
 #include "globalregistry.h"
 
-#include "robin_hood.h"
+#include "unordered_dense.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
@@ -141,7 +141,7 @@ protected:
     std::shared_ptr<tracked_adsb_icao> unknown_icao;
 
     std::vector<index_pos> index_vec;
-    robin_hood::unordered_node_map<uint32_t, std::shared_ptr<tracked_adsb_icao>> icao_map;
+    ankerl::unordered_dense::map<uint32_t, std::shared_ptr<tracked_adsb_icao>> icao_map;
 };
 
 

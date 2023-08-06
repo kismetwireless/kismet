@@ -43,7 +43,7 @@
 #include "nlohmann/json.hpp"
 #include "kis_mutex.h"
 #include "macaddr.h"
-#include "robin_hood.h"
+#include "unordered_dense.h"
 #include "uuid.h"
 
 class entry_tracker;
@@ -1367,16 +1367,16 @@ protected:
 };
 
 // Dictionary / map-by-id
-class tracker_element_map : public tracker_element_core_map<robin_hood::unordered_node_map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map> {
+class tracker_element_map : public tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map> {
 public:
     tracker_element_map() :
-        tracker_element_core_map<robin_hood::unordered_node_map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>() { }
+        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>() { }
 
     tracker_element_map(int id) :
-        tracker_element_core_map<robin_hood::unordered_node_map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>(id) { }
+        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>(id) { }
 
     tracker_element_map(const tracker_element_map *p) :
-        tracker_element_core_map<robin_hood::unordered_node_map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>(p) { }
+        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>(p) { }
 
     shared_tracker_element get_sub(int id) {
         auto v = map.find(id);
@@ -1456,29 +1456,29 @@ public:
 };
 
 // int::element
-using tracker_element_int_map = tracker_element_core_map<robin_hood::unordered_node_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>, tracker_type::tracker_int_map>;
+using tracker_element_int_map = tracker_element_core_map<ankerl::unordered_dense::map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>, tracker_type::tracker_int_map>;
 
 // hash::element
-using tracker_element_hashkey_map = tracker_element_core_map<robin_hood::unordered_node_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>, tracker_type::tracker_hashkey_map>;
+using tracker_element_hashkey_map = tracker_element_core_map<ankerl::unordered_dense::map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>, tracker_type::tracker_hashkey_map>;
 
 // double::element
-using tracker_element_double_map = tracker_element_core_map<robin_hood::unordered_node_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>, tracker_type::tracker_double_map>;
+using tracker_element_double_map = tracker_element_core_map<ankerl::unordered_dense::map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>, tracker_type::tracker_double_map>;
 
 // mac::element, keyed as *unordered*, does not allow mask operations.  for generating mac maps which allow
 // masks, use tracker_element_macfilter_map
-using tracker_element_mac_map = tracker_element_core_map<robin_hood::unordered_node_map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
+using tracker_element_mac_map = tracker_element_core_map<ankerl::unordered_dense::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
 using tracker_element_macfilter_map = tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
 
 // string::element
-using tracker_element_string_map = tracker_element_core_map<robin_hood::unordered_node_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>, tracker_type::tracker_string_map>;
+using tracker_element_string_map = tracker_element_core_map<ankerl::unordered_dense::map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>, tracker_type::tracker_string_map>;
 
 // devicekey::element
-using tracker_element_device_key_map = tracker_element_core_map<robin_hood::unordered_node_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>, tracker_type::tracker_key_map>;
+using tracker_element_device_key_map = tracker_element_core_map<ankerl::unordered_dense::map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>, tracker_type::tracker_key_map>;
 
-using tracker_element_uuid_map = tracker_element_core_map<robin_hood::unordered_node_map<uuid, std::shared_ptr<tracker_element>>, uuid, std::shared_ptr<tracker_element>, tracker_type::tracker_uuid_map>;
+using tracker_element_uuid_map = tracker_element_core_map<ankerl::unordered_dense::map<uuid, std::shared_ptr<tracker_element>>, uuid, std::shared_ptr<tracker_element>, tracker_type::tracker_uuid_map>;
 
 // double::double
-using tracker_element_double_map_double = tracker_element_core_map<robin_hood::unordered_node_map<double, double>, double, double, tracker_type::tracker_double_map_double>;
+using tracker_element_double_map_double = tracker_element_core_map<ankerl::unordered_dense::map<double, double>, double, double, tracker_type::tracker_double_map_double>;
 
 // Core vector
 template<typename T, tracker_type TT>

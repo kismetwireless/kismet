@@ -42,6 +42,7 @@
 #include "trackedcomponent.h"
 
 #include "string_view.hpp"
+#include "unordered_dense.h"
 
 // This is the main switch for how big the vector is.  If something ever starts
 // bumping up against this we'll need to increase it, but that'll slow down 
@@ -196,7 +197,7 @@ public:
     }
 
     // Tags applied to the packet
-    robin_hood::unordered_map<std::string, bool> tag_map;
+    ankerl::unordered_dense::map<std::string, bool> tag_map;
 
     // Original packet if we're a duplicate
     std::shared_ptr<kis_packet> original;

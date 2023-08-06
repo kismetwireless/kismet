@@ -31,7 +31,7 @@
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 
-#include "robin_hood.h"
+#include "unordered_dense.h"
 
 
 // Tracked SSID group; a ssid, who has beaconed, probed, and responded for it,
@@ -178,7 +178,7 @@ public:
 protected:
     kis_mutex mutex;
 
-    robin_hood::unordered_node_map<size_t, std::shared_ptr<dot11_tracked_ssid_group>> ssid_map;
+    ankerl::unordered_dense::map<size_t, std::shared_ptr<dot11_tracked_ssid_group>> ssid_map;
     std::shared_ptr<tracker_element_vector> ssid_vector;
 
     int tracked_ssid_id;

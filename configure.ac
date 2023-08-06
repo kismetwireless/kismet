@@ -196,17 +196,17 @@ else
 fi
 
 # Start at the newest C++ and define our way back
-AX_CXX_COMPILE_STDCXX(17, , [optional])
+AX_CXX_COMPILE_STDCXX(17, , [mandatory])
 if test "$HAVE_CXX17" = "1"; then
     AC_DEFINE(HAVE_CXX17, 1, [cpp17 available])
     AC_DEFINE(HAVE_CXX14, 1, [cpp14 available])
     AC_DEFINE(HAVE_CXX11, 1, [cpp11 available])
-else
-    AX_CXX_COMPILE_STDCXX(14, ,[mandatory])
-    if test "$HAVE_CXX14" = "1"; then
-        AC_DEFINE(HAVE_CXX14, 1, [cpp14 available])
-        AC_DEFINE(HAVE_CXX11, 1, [cpp11 available])
-    fi
+# else
+#     AX_CXX_COMPILE_STDCXX(14, ,[mandatory])
+#     if test "$HAVE_CXX14" = "1"; then
+#         AC_DEFINE(HAVE_CXX14, 1, [cpp14 available])
+#         AC_DEFINE(HAVE_CXX11, 1, [cpp11 available])
+#     fi
 fi
 
 AC_SUBST(PLUGINLDFLAGS)

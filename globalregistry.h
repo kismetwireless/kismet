@@ -30,7 +30,7 @@
 #include "kis_mutex.h"
 #include "macaddr.h"
 #include "objectpool.h"
-#include "robin_hood.h"
+#include "unordered_dense.h"
 #include "util.h"
 #include "uuid.h"
 
@@ -274,7 +274,7 @@ public:
     std::vector<std::shared_ptr<deferred_startup> > deferred_vec;
 
     kis_mutex pool_map_mutex;
-    robin_hood::unordered_map<size_t, std::shared_ptr<void>> object_pool_map;
+    ankerl::unordered_dense::map<size_t, std::shared_ptr<void>> object_pool_map;
 };
 
 namespace Globalreg {

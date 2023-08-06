@@ -32,7 +32,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "objectpool.h"
-#include "robin_hood.h"
+#include "unordered_dense.h"
 #include "trackedelement.h"
 
 class kis_net_beast_httpd_connection;
@@ -151,12 +151,12 @@ protected:
         std::shared_ptr<tracker_element> builder;
     };
 
-    robin_hood::unordered_node_map<std::string, std::shared_ptr<reserved_field> > field_name_map;
-    robin_hood::unordered_node_map<uint16_t, std::shared_ptr<reserved_field> > field_id_map;
-    robin_hood::unordered_node_map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
+    ankerl::unordered_dense::map<std::string, std::shared_ptr<reserved_field> > field_name_map;
+    ankerl::unordered_dense::map<uint16_t, std::shared_ptr<reserved_field> > field_id_map;
+    ankerl::unordered_dense::map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
 
     // Field IDs to optional search xform function
-    robin_hood::unordered_node_map<uint16_t, std::function<void (std::shared_ptr<tracker_element>, 
+    ankerl::unordered_dense::map<uint16_t, std::function<void (std::shared_ptr<tracker_element>, 
             std::string& mapped_str)>> search_xform_map;
 
     void tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
