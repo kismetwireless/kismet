@@ -242,7 +242,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                     ;
                 }
 
-                for (const auto t : key_timer_map)
+                for (const auto &t : key_timer_map)
                     timetracker->remove_timer(t.second);
 
                 }));
