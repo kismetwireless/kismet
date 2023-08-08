@@ -1616,10 +1616,10 @@ want_coconut="no"
 AC_ARG_ENABLE([wifi-coconut],
     AS_HELP_STRING([--enable-wifi-coconut], [Enable Hak5 WiFi Coconut userspace]),
 	[case "${enableval}" in
-	  no) want_coconut=no ;;
-	   *) want_coconut=yes ;;
+         yes) want_coconut=yes ;;
+           *) want_coconut=no ;;
 	 esac],
-	[want_coconut=yes]
+         [want_coconut=no]
 )
 
 BUILD_CAPTURE_HAK5_COCONUT=0

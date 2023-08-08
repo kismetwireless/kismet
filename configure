@@ -15192,11 +15192,11 @@ want_coconut="no"
 if test ${enable_wifi_coconut+y}
 then :
   enableval=$enable_wifi_coconut; case "${enableval}" in
-	  no) want_coconut=no ;;
-	   *) want_coconut=yes ;;
+         yes) want_coconut=yes ;;
+           *) want_coconut=no ;;
 	 esac
 else $as_nop
-  want_coconut=yes
+  want_coconut=no
 
 fi
 
