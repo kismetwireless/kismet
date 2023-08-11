@@ -2123,14 +2123,14 @@ printf "         bladeRF-wiphy: "
 if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
 	echo "yes";
 else
-	echo "no (bladeRF support not enabled)";
+	echo "no (bladeRF support not explicitly enabled)";
 fi
 
 printf "     Hak5 WiFi Coconut: "
 if test "$BUILD_CAPTURE_HAK5_COCONUT" = 1; then
 	echo "yes";
 else
-	echo "no (Hak5 WiFi Coconut support not enabled)";
+	echo "no (Hak5 WiFi Coconut not explicitly enabled)";
 fi
 
 printf " lm-sensors monitoring: "
