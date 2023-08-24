@@ -35,6 +35,28 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 
+#include "bluetooth_types.h"
+
+
+#define h4_direction_sent                       0x00
+#define h4_direction_recv                       0x01
+
+#define h4_hci_event                            0x04
+
+#define h4_extended_inquiry_result              0x2f
+#define h4_remote_name_req_complete             0x07
+#define h4_remote_supported_features            0x3d
+#define h4_ec_le_meta                           0x3e
+
+#define h4_ec_le_meta_sub_advertising_report    0x02
+
+#define h4_ext_data_16bit_uuid                  0x03
+#define h4_ext_data_32bit_uuid                  0x05
+#define h4_ext_data_128bit_uuid                 0x07
+#define h4_ext_data_devicename                  0x09
+#define h4_ext_data_deviceid                    0x10
+#define h4_ext_data_txpower                     0x0a
+
 kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
     kis_phy_handler(in_phyid) {
 
@@ -56,6 +78,7 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
 
     packetchain->register_handler(&common_classifier_bluetooth, this, CHAINPOS_CLASSIFIER, -100);
     packetchain->register_handler(&packet_tracker_bluetooth, this, CHAINPOS_TRACKER, -100);
+    packetchain->register_handler(&packet_tracker_h4_linux, this, CHAINPOS_TRACKER, -100);
     packetchain->register_handler(&packet_bluetooth_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
     
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
@@ -63,6 +86,7 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
     pack_comp_json = packetchain->register_packet_component("JSON");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 
     btdev_bredr = devicetracker->get_cached_devicetype("BR/EDR");
     btdev_btle = devicetracker->get_cached_devicetype("BTLE");
@@ -244,6 +268,100 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
 
     return 1;
 }
+
+int kis_bluetooth_phy::packet_tracker_h4_linux(CHAINCALL_PARMS) {
+    /* Decode the Linux H4 packet stream from sniffing bluetoothN devices */
+
+    typedef struct {
+        uint8_t event_code;
+        uint8_t total_length;
+        
+        uint8_t data[0];
+    } __attribute__((packed)) bt_h4_event;
+
+    typedef struct {
+        uint8_t num_responses;
+        uint8_t bdaddr[6];
+        uint8_t scan_repetition;
+        uint8_t reserved;
+        uint8_t minor_class; // 6 bits minor class
+        uint16_t service_major_class; // Major service mask and major class
+        uint16_t clock_offset;
+        uint8_t rssi;
+
+        uint8_t data[0];
+    } __attribute__((packed)) bt_h4_ext_inq_result;
+
+    typedef struct {
+        uint8_t status;
+        uint8_t bdaddr[6];
+        uint8_t remote_name[0];
+    } __attribute__((packed)) bt_h4_remote_name_complete;
+
+    typedef struct {
+        uint8_t length;
+        uint8_t type;
+
+        uint8_t data[0];
+    } __attribute__((packed)) bt_h4_extended_data;
+
+    auto mphy = static_cast<kis_bluetooth_phy *>(auxdata);
+
+    if (in_pack->error || in_pack->filtered)
+        return 0;
+
+    auto linkchunk = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
+
+    if (linkchunk == nullptr)
+        return 0;
+
+    if (linkchunk->dlt != KDLT_BT_H4_LINUX)
+        return 0;
+
+    // We only care about events
+    if (linkchunk->length() < sizeof(bt_h4_event) + 1)
+        return 0;
+
+    if (linkchunk->data()[0] != h4_hci_event)
+        return 0;
+
+    auto event = reinterpret_cast<const bt_h4_event *>(&linkchunk->data()[1]);
+
+    if (event->total_length > linkchunk->length() - 1) {
+        _MSG_DEBUG("Event length too long for frame");
+        return 0;
+    }
+
+    if (event->event_code == h4_extended_inquiry_result) {
+        if (event->total_length < sizeof(bt_h4_ext_inq_result)) {
+            _MSG_DEBUG("Event length too short for ext_inq_result");
+            return 0;
+        }
+
+        auto inquiry = reinterpret_cast<const bt_h4_ext_inq_result *>(event->data);
+
+        uint8_t minor_class = inquiry->minor_class >> 2;
+        uint16_t major_group = kis_letoh16(inquiry->service_major_class);
+        uint8_t major_class = major_group & 0x1F;
+
+        auto commoninfo = in_pack->fetch_or_add<kis_common_info>(mphy->pack_comp_common);
+        commoninfo->phyid = mphy->fetch_phy_id();
+        commoninfo->type = packet_basic_mgmt;
+        commoninfo->source = mac_addr(inquiry->bdaddr, 6);
+        commoninfo->transmitter = commoninfo->source;
+        commoninfo->channel = "FHSS";
+        commoninfo->freq_khz = 2400000;
+
+        auto l1info = in_pack->fetch_or_add<kis_layer1_packinfo>(mphy->pack_comp_l1info);
+        l1info->signal_type = kis_l1_signal_type_dbm;
+        l1info->freq_khz = 2400000;
+        l1info->channel = "FHSS";
+
+    }
+
+    return 1;
+}
+
 
 int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     kis_bluetooth_phy *btphy = (kis_bluetooth_phy *) auxdata;

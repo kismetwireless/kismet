@@ -42,6 +42,10 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 
+#ifndef KDLT_BT_H4_LINUX
+#define KDLT_BT_H4_LINUX        99
+#endif
+
 class bluetooth_tracked_device;
 
 class bluetooth_packinfo : public packet_component {
@@ -170,6 +174,9 @@ public:
     // Tracker entry
 	static int packet_tracker_bluetooth(CHAINCALL_PARMS);
 
+    // H4 Linux DLT parser
+    static int packet_tracker_h4_linux(CHAINCALL_PARMS);
+
     // Load stored data
     virtual void load_phy_storage(shared_tracker_element in_storage, 
             shared_tracker_element in_device) override;
@@ -190,7 +197,8 @@ protected:
 	int dev_comp_bluetooth, dev_comp_common;
 
 	// Packet components
-	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta, pack_comp_json;
+	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta, pack_comp_json,
+        pack_comp_linkframe;
 
     std::shared_ptr<tracker_element_string> btdev_bredr;
     std::shared_ptr<tracker_element_string> btdev_btle;
