@@ -674,6 +674,8 @@ DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
+libmosquitto_LIBS
+libmosquitto_CFLAGS
 LIBBTBBCFLAGS
 LIBBTBBLIBS
 LIBUBERTOOTHCFLAGS
@@ -854,6 +856,7 @@ with_netlink_tiny
 enable_libusb
 enable_wifi_coconut
 enable_ubertooth
+enable_mosquitto
 enable_lmsensors
 with_suidgroup
 enable_optimization
@@ -897,7 +900,9 @@ libnl20_LIBS
 libnl1_CFLAGS
 libnl1_LIBS
 libusb_CFLAGS
-libusb_LIBS'
+libusb_LIBS
+libmosquitto_CFLAGS
+libmosquitto_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1548,6 +1553,7 @@ Optional Features:
                           sources
   --enable-wifi-coconut   Enable Hak5 WiFi Coconut userspace
   --disable-ubertooth     Disable Ubertooth One support
+  --disable-mosquitto     Disable MQTT support
   --disable-lmsensors     Disable lmsensors support
   --disable-optimization        disable -Ox gcc optimization
   --enable-asan           enable ASAN address debugging
@@ -1627,6 +1633,10 @@ Some influential environment variables:
   libusb_CFLAGS
               C compiler flags for libusb, overriding pkg-config
   libusb_LIBS linker flags for libusb, overriding pkg-config
+  libmosquitto_CFLAGS
+              C compiler flags for libmosquitto, overriding pkg-config
+  libmosquitto_LIBS
+              linker flags for libmosquitto, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -15505,6 +15515,177 @@ else
 	suidgroup="kismet"
 fi
 
+want_mosquitto="yes"
+# Check whether --enable-mosquitto was given.
+if test ${enable_mosquitto+y}
+then :
+  enableval=$enable_mosquitto; case "${enableval}" in
+	  no) want_mosquitto=no ;;
+	   *) want_mosquitto=yes ;;
+	 esac
+else $as_nop
+  want_mosquitto=yes
+
+fi
+
+
+if test "x$want_mosquitto" != "xno"
+then :
+
+
+pkg_failed=no
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libmosquitto" >&5
+printf %s "checking for libmosquitto... " >&6; }
+
+if test -n "$libmosquitto_CFLAGS"; then
+    pkg_cv_libmosquitto_CFLAGS="$libmosquitto_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libmosquitto\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libmosquitto") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libmosquitto_CFLAGS=`$PKG_CONFIG --cflags "libmosquitto" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libmosquitto_LIBS"; then
+    pkg_cv_libmosquitto_LIBS="$libmosquitto_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libmosquitto\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libmosquitto") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libmosquitto_LIBS=`$PKG_CONFIG --libs "libmosquitto" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libmosquitto_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libmosquitto" 2>&1`
+        else
+	        libmosquitto_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libmosquitto" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libmosquitto_PKG_ERRORS" >&5
+
+	as_fn_error $? "Package requirements (libmosquitto) were not met:
+
+$libmosquitto_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables libmosquitto_CFLAGS
+and libmosquitto_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
+elif test $pkg_failed = untried; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	{ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables libmosquitto_CFLAGS
+and libmosquitto_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
+else
+	libmosquitto_CFLAGS=$pkg_cv_libmosquitto_CFLAGS
+	libmosquitto_LIBS=$pkg_cv_libmosquitto_LIBS
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	have_libmosquitto_pkg=yes
+fi
+
+    if test x"$have_libmosquitto_pkg" != "xyes"; then
+        as_fn_error $? "required libmosquitto not available, configure with --disable-mosquitto to turn off MQTT support." "$LINENO" 5
+    else
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for mosquitto_lib_init in -lmosquitto" >&5
+printf %s "checking for mosquitto_lib_init in -lmosquitto... " >&6; }
+if test ${ac_cv_lib_mosquitto_mosquitto_lib_init+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmosquitto  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+namespace conftest {
+  extern "C" int mosquitto_lib_init ();
+}
+int
+main (void)
+{
+return conftest::mosquitto_lib_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"
+then :
+  ac_cv_lib_mosquitto_mosquitto_lib_init=yes
+else $as_nop
+  ac_cv_lib_mosquitto_mosquitto_lib_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mosquitto_mosquitto_lib_init" >&5
+printf "%s\n" "$ac_cv_lib_mosquitto_mosquitto_lib_init" >&6; }
+if test "x$ac_cv_lib_mosquitto_mosquitto_lib_init" = xyes
+then :
+
+                      LIBS="$LIBS `pkg-config --libs libmosquitto`"
+                      CPPFLAGS="$CPPFLAGS `pkg-config --cflags libmosquitto`"
+                      CFLAGS="$CFLAGS `pkg-config --cflags libmosquitto`"
+
+                      have_mosquitto="yes"
+
+printf "%s\n" "#define HAVE_LIBMOSQUITTO 1" >>confdefs.h
+
+
+else $as_nop
+  as_fn_error $? "libmosquitto not available" "$LINENO" 5
+fi
+
+    fi
+
+
+else $as_nop
+
+    MQTT_MISSING_REASON="libmosquitto MQTT disabled"
+
+fi
+
 
 if test "$linux" = "yes"
 then :
@@ -15535,8 +15716,7 @@ then :
   printf "%s\n" "#define HAVE_SENSORS_SENSORS_H 1" >>confdefs.h
  HAVE_LMSENSORS_H=1
 else $as_nop
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: \"libsensors lm-sensors missing\"" >&5
-printf "%s\n" "$as_me: WARNING: \"libsensors lm-sensors missing\"" >&2;}
+  HAVE_LMSENSORS_H=0
 fi
 
 done
@@ -15580,15 +15760,18 @@ if test "x$ac_cv_lib_sensors_sensors_init" = xyes
 then :
   HAVE_LIBLMSENSORS=1
 else $as_nop
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: libsensors not available" >&5
-printf "%s\n" "$as_me: WARNING: libsensors not available" >&2;}
+  HAVE_LIBLMSENSORS=0
 fi
+
 
         if test "$HAVE_LIBLMSENSORS" = 1; then
             LIBS="$LIBS -lsensors"
+            have_lmsensors=yes
+        else
+            as_fn_error $? "required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information" "$LINENO" 5
         fi
     else
-        LMSENSORS_MISSING_REASON="Missing sensors/sensors.h"
+        as_fn_error $? "required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information" "$LINENO" 5
     fi
 
 else $as_nop
@@ -17079,6 +17262,13 @@ else
     echo "no (will not be able to control NetworkManager, $LIBNM_MISSING_REASON)"
 fi
 
+# printf "        Mosquitto MQTT: "
+# if test "$have_mosquitto" = "yes"; then
+# 	echo "yes (libmosquitto MQTT support)";
+# else
+#     echo "no (will not support MQTT data sources, $MQTT_MISSING_REASON)"
+# fi
+
 printf "   Linux HCI Bluetooth: "
 if test "$BUILD_CAPTURE_LINUX_BLUETOOTH" = 1; then
 	echo "yes";
@@ -17217,7 +17407,7 @@ else
 fi
 
 printf " lm-sensors monitoring: "
-if test "$HAVE_LIBLMSENSORS" = 1; then
+if test "x$have_lmsensors" = "xyes"; then
 	echo "yes";
 elif test "$linux" != "yes"; then
     echo "n/a (only Linux)"

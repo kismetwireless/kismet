@@ -1772,6 +1772,39 @@ else
 	suidgroup="kismet"
 fi
 
+want_mosquitto="yes"
+AC_ARG_ENABLE(mosquitto,
+    AS_HELP_STRING([--disable-mosquitto], [Disable MQTT support]),
+	[case "${enableval}" in
+	  no) want_mosquitto=no ;;
+	   *) want_mosquitto=yes ;;
+	 esac],
+	[want_mosquitto=yes]
+    )
+
+AS_IF([test "x$want_mosquitto" != "xno"], [
+    PKG_CHECK_MODULES([libmosquitto], [libmosquitto], have_libmosquitto_pkg=yes)
+
+    if test x"$have_libmosquitto_pkg" != "xyes"; then
+        AC_MSG_ERROR([required libmosquitto not available, configure with --disable-mosquitto to turn off MQTT support.])
+    else
+        AC_CHECK_LIB([mosquitto], [mosquitto_lib_init],
+                     [
+                      LIBS="$LIBS `pkg-config --libs libmosquitto`"
+                      CPPFLAGS="$CPPFLAGS `pkg-config --cflags libmosquitto`"
+                      CFLAGS="$CFLAGS `pkg-config --cflags libmosquitto`"
+                      
+                      have_mosquitto="yes"
+                      AC_DEFINE(HAVE_LIBMOSQUITTO, 1, libmosquitto)
+                     ],
+                     AC_MSG_ERROR([libmosquitto not available]))
+    fi
+
+],
+[
+    MQTT_MISSING_REASON="libmosquitto MQTT disabled"
+])
+
 
 AS_IF([test "$linux" = "yes"], [
 
@@ -1788,17 +1821,21 @@ AC_ARG_ENABLE(lmsensors,
 AS_IF([test "x$want_lmsensors" != "xno"], [
     AC_CHECK_HEADERS([sensors/sensors.h],
         HAVE_LMSENSORS_H=1,
-        AC_MSG_WARN("libsensors lm-sensors missing"))
+        HAVE_LMSENSORS_H=0)
     
     if test "$HAVE_LMSENSORS_H" = 1; then
         AC_CHECK_LIB([sensors], [sensors_init],
     			HAVE_LIBLMSENSORS=1,
-                AC_MSG_WARN([libsensors not available]))
+                HAVE_LIBLMSENSORS=0)
+
         if test "$HAVE_LIBLMSENSORS" = 1; then
             LIBS="$LIBS -lsensors"
-        fi
+            have_lmsensors=yes
+        else 
+            AC_MSG_ERROR([required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information])
+        fi 
     else
-        LMSENSORS_MISSING_REASON="Missing sensors/sensors.h"
+        AC_MSG_ERROR([required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information])
     fi
 ],
 [
@@ -1996,6 +2033,13 @@ else
     echo "no (will not be able to control NetworkManager, $LIBNM_MISSING_REASON)"
 fi
 
+# printf "        Mosquitto MQTT: "
+# if test "$have_mosquitto" = "yes"; then
+# 	echo "yes (libmosquitto MQTT support)";
+# else
+#     echo "no (will not support MQTT data sources, $MQTT_MISSING_REASON)"
+# fi
+
 printf "   Linux HCI Bluetooth: "
 if test "$BUILD_CAPTURE_LINUX_BLUETOOTH" = 1; then
 	echo "yes";
@@ -2134,7 +2178,7 @@ else
 fi
 
 printf " lm-sensors monitoring: "
-if test "$HAVE_LIBLMSENSORS" = 1; then
+if test "x$have_lmsensors" = "xyes"; then
 	echo "yes";
 elif test "$linux" != "yes"; then
     echo "n/a (only Linux)"

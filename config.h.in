@@ -93,6 +93,9 @@
 /* Define to 1 if you have the `cap' library (-lcap). */
 #undef HAVE_LIBCAP
 
+/* libmosquitto */
+#undef HAVE_LIBMOSQUITTO
+
 /* libnl netlink library */
 #undef HAVE_LIBNL
 
