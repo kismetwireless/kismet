@@ -227,3 +227,21 @@ std::atomic<unsigned long> Globalreg::n_tracked_fields;
 std::atomic<unsigned long> Globalreg::n_tracked_components;
 std::atomic<unsigned long> Globalreg::n_tracked_http_connections;
 
+std::shared_ptr<tracker_element_string> Globalreg::cache_string(const char *string) {
+    kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->string_cache_mutex, "globalreg cache_string");
+
+    const auto k = Globalreg::globalreg->string_cache_map.find(string);
+
+    if (k != Globalreg::globalreg->string_cache_map.end()) {
+        return k->second;
+    }
+
+    // Create and cache.  Cached strings don't get thrashed so there's no reason to
+    // make them from the pool, and this dodges a double lock event
+    auto ts = std::make_shared<tracker_element_string>(string);
+    Globalreg::globalreg->string_cache_map[string] = ts;
+
+    return ts;
+
+}
+

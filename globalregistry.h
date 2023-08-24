@@ -139,6 +139,7 @@ public:
 // we're doing globals, but it's a lot nicer for maintenance at least.
 
 class tracker_element_uuid;
+class tracker_element_string;
 
 class global_registry {
 public:
@@ -275,6 +276,9 @@ public:
 
     kis_mutex pool_map_mutex;
     ankerl::unordered_dense::map<size_t, std::shared_ptr<void>> object_pool_map;
+
+    kis_mutex string_cache_mutex;
+    ankerl::unordered_dense::map<const char *, std::shared_ptr<tracker_element_string>> string_cache_map;
 };
 
 namespace Globalreg {
@@ -386,6 +390,7 @@ namespace Globalreg {
             return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
         }
 
+    std::shared_ptr<tracker_element_string> cache_string(const char *string);
 }
 
 
