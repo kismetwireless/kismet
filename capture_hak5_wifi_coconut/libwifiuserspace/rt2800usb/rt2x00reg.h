@@ -149,18 +149,18 @@ enum firmware_errors {
  * inside the register while making sure the process remains byte order safe.
  */
 struct rt2x00_field8 {
-	u8 bit_offset;
-	u8 bit_mask;
+	uint8_t bit_offset;
+	uint8_t bit_mask;
 };
 
 struct rt2x00_field16 {
-	u16 bit_offset;
-	u16 bit_mask;
+	uint16_t bit_offset;
+	uint16_t bit_mask;
 };
 
 struct rt2x00_field32 {
-	u32 bit_offset;
-	u32 bit_mask;
+	uint32_t bit_offset;
+	uint32_t bit_mask;
 };
 
 /*

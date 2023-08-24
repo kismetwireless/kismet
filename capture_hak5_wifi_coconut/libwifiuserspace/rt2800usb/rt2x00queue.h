@@ -83,12 +83,12 @@ struct rxdone_entry_desc {
 	int size;
 	int flags;
 	int dev_flags;
-	u16 rate_mode;
-	u16 enc_flags;
+	uint16_t rate_mode;
+	uint16_t enc_flags;
 	enum mac80211_rx_encoding encoding;
 	enum rate_info_bw bw;
-	u8 cipher;
-	u8 cipher_status;
+	uint8_t cipher;
+	uint8_t cipher_status;
 
 	__le32 iv[2];
 	__le32 icv;

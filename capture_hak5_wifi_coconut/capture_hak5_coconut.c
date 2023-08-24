@@ -239,7 +239,7 @@ int coconut_rx_packet(struct userspace_wifi_context *context,
             .flags = 0,
             .channel_freq = htole16(ieee80211_channel_to_frequency(signal->channel, signal->band)),
             .channel_flags = 0,
-            .antsignal = (u8) signal->signal,
+            .antsignal = (uint8_t) signal->signal,
         },
     };
 

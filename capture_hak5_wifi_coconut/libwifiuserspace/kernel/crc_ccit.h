@@ -11,18 +11,18 @@
 
 #include "kernel/types.h"
 
-extern u16 const crc_ccitt_table[256];
-extern u16 const crc_ccitt_false_table[256];
+extern uint16_t const crc_ccitt_table[256];
+extern uint16_t const crc_ccitt_false_table[256];
 
-extern u16 crc_ccitt(u16 crc, const u8 *buffer, size_t len);
-extern u16 crc_ccitt_false(u16 crc, const u8 *buffer, size_t len);
+extern uint16_t crc_ccitt(uint16_t crc, const uint8_t *buffer, size_t len);
+extern uint16_t crc_ccitt_false(uint16_t crc, const uint8_t *buffer, size_t len);
 
-static inline u16 crc_ccitt_byte(u16 crc, const u8 c)
+static inline uint16_t crc_ccitt_byte(uint16_t crc, const uint8_t c)
 {
 	return (crc >> 8) ^ crc_ccitt_table[(crc ^ c) & 0xff];
 }
 
-static inline u16 crc_ccitt_false_byte(u16 crc, const u8 c)
+static inline uint16_t crc_ccitt_false_byte(uint16_t crc, const uint8_t c)
 {
     return (crc << 8) ^ crc_ccitt_false_table[(crc >> 8) ^ c];
 }

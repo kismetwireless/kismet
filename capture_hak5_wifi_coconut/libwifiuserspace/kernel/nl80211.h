@@ -164,15 +164,15 @@ enum nl80211_iftype {
 #define IEEE80211_P2P_NOA_DESC_MAX	4
 
 struct ieee80211_p2p_noa_desc {
-	u8 count;
+	uint8_t count;
 	__le32 duration;
 	__le32 interval;
 	__le32 start_time;
 } __packed;
 
 struct ieee80211_p2p_noa_attr {
-	u8 index;
-	u8 oppps_ctwindow;
+	uint8_t index;
+	uint8_t oppps_ctwindow;
 	struct ieee80211_p2p_noa_desc desc[IEEE80211_P2P_NOA_DESC_MAX];
 } __packed;
 

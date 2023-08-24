@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(rt2x00mac_add_interface);
 void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00_intf *intf,
 			   enum nl80211_iftype type,
-			   const u8 *mac, const u8 *bssid)
+			   const uint8_t *mac, const uint8_t *bssid)
 {
 
     /*

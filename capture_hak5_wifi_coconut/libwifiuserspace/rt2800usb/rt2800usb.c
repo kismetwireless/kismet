@@ -520,7 +520,7 @@ static const struct usb_device_id rt2800usb_device_table[] = {
  */
 int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev) {
     __le32 *reg;
-    u32 fw_mode;
+    uint32_t fw_mode;
     int ret;
 
     reg = (__le32 *) malloc(sizeof(__le32));
@@ -554,10 +554,10 @@ static char *rt2800usb_get_firmware_name(struct rt2x00_dev *rt2x00dev) {
 }
 
 static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
-        const u8 *data, const size_t len) {
+        const uint8_t *data, const size_t len) {
     int status;
-    u32 offset;
-    u32 length;
+    uint32_t offset;
+    uint32_t length;
     int retval;
 
     /*
@@ -617,7 +617,7 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
  */
 static void rt2800usb_start_queue(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
+	uint32_t reg;
 
     rt2x00_info(rt2x00dev, "Starting RX queue\n");
 
@@ -632,7 +632,7 @@ static void rt2800usb_start_queue(struct rt2x00_dev *rt2x00dev)
  */
 static void rt2800usb_stop_queue(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
+	uint32_t reg;
 
     rt2x00_info(rt2x00dev, "Stopping RX queue\n");
 
@@ -645,7 +645,7 @@ static void rt2800usb_stop_queue(struct rt2x00_dev *rt2x00dev)
  * Device state switch handlers.
  */
 static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev) {
-    u32 reg;
+    uint32_t reg;
 
     rt2x00_info(rt2x00dev, "rt2800usb_init_registers\n");
 
@@ -672,7 +672,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev) {
 }
 
 static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev) {
-    u32 reg = 0;
+    uint32_t reg = 0;
 
     if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev)))
         return -EIO;
@@ -912,7 +912,7 @@ static void *rt2800_eeprom_addr(struct rt2x00_dev *rt2x00dev,
 }
 #endif
 
-static u16 rt2800_eeprom_read(struct rt2x00_dev *rt2x00dev,
+static uint16_t rt2800_eeprom_read(struct rt2x00_dev *rt2x00dev,
 			      const enum rt2800_eeprom_word word)
 {
 	unsigned int index;
@@ -923,7 +923,7 @@ static u16 rt2800_eeprom_read(struct rt2x00_dev *rt2x00dev,
 
 #if 0
 static void rt2800_eeprom_write(struct rt2x00_dev *rt2x00dev,
-				const enum rt2800_eeprom_word word, u16 data)
+				const enum rt2800_eeprom_word word, uint16_t data)
 {
 	unsigned int index;
 
@@ -931,7 +931,7 @@ static void rt2800_eeprom_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00_eeprom_write(rt2x00dev, index, data);
 }
 
-static u16 rt2800_eeprom_read_from_array(struct rt2x00_dev *rt2x00dev,
+static uint16_t rt2800_eeprom_read_from_array(struct rt2x00_dev *rt2x00dev,
 					 const enum rt2800_eeprom_word array,
 					 unsigned int offset)
 {
@@ -1046,7 +1046,7 @@ static void rt2x00lib_channel(struct ieee80211_channel *entry,
 }
 
 static void rt2x00lib_rate(struct ieee80211_rate *entry,
-			   const u16 index, const struct rt2x00_rate *rate)
+			   const uint16_t index, const struct rt2x00_rate *rate)
 {
 	entry->flags = 0;
 	entry->bitrate = rate->bitrate;
@@ -1510,7 +1510,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
 	struct channel_info *info;
 	unsigned int tx_chains, rx_chains;
-	u32 reg;
+	uint32_t reg;
 
     /* 
      * Gutted for userspace mode 
@@ -1869,7 +1869,7 @@ void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
  */
-static inline __le32 _rt2x00_desc_read(__le32 *desc, const u8 word)
+static inline __le32 _rt2x00_desc_read(__le32 *desc, const uint8_t word)
 {
 	return desc[word];
 }
@@ -1880,20 +1880,20 @@ static inline __le32 _rt2x00_desc_read(__le32 *desc, const u8 word)
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
  */
-static inline u32 rt2x00_desc_read(__le32 *desc, const u8 word)
+static inline uint32_t rt2x00_desc_read(__le32 *desc, const uint8_t word)
 {
 	return le32_to_cpu(_rt2x00_desc_read(desc, word));
 }
 
-static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
+static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, uint32_t rxwi_w2)
 {
-	s8 rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
-	s8 rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);
-	s8 rssi2 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI2);
-	u16 eeprom;
-	u8 offset0;
-	u8 offset1;
-	u8 offset2;
+	int8_t rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
+	int8_t rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);
+	int8_t rssi2 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI2);
+	uint16_t eeprom;
+	uint8_t offset0;
+	uint8_t offset1;
+	uint8_t offset2;
 
 	if (rt2x00dev->curr_band == NL80211_BAND_2GHZ) {
 		eeprom = rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_BG);
@@ -1957,7 +1957,7 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
 
 	__le32 *rxi = (__le32 *) workbuf;
 	__le32 *rxd;
-	u32 word;
+	uint32_t word;
 
 	unsigned int rx_pkt_len;
 

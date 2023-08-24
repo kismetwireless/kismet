@@ -98,14 +98,14 @@ enum ieee80211_filter_flags {
  */
 struct ieee80211_key_conf {
 	atomic64_t tx_pn;
-	u32 cipher;
-	u8 icv_len;
-	u8 iv_len;
-	u8 hw_key_idx;
-	s8 keyidx;
-	u16 flags;
-	u8 keylen;
-	u8 key[0];
+	uint32_t cipher;
+	uint8_t icv_len;
+	uint8_t iv_len;
+	uint8_t hw_key_idx;
+	int8_t keyidx;
+	uint16_t flags;
+	uint8_t keylen;
+	uint8_t key[0];
 };
 
 /**
@@ -176,13 +176,13 @@ enum ieee80211_smps_mode {
  *	otherwise each channel context has the number of chains listed.
  */
 struct ieee80211_conf {
-	u32 flags;
+	uint32_t flags;
 	int power_level, dynamic_ps_timeout;
 
-	u16 listen_interval;
-	u8 ps_dtim_period;
+	uint16_t listen_interval;
+	uint8_t ps_dtim_period;
 
-	u8 long_frame_max_tx_count, short_frame_max_tx_count;
+	uint8_t long_frame_max_tx_count, short_frame_max_tx_count;
 
 	struct cfg80211_chan_def chandef;
 	bool radar_enabled;
@@ -601,30 +601,30 @@ struct ieee80211_hw {
 	int sta_data_size;
 	int chanctx_data_size;
 	int txq_data_size;
-	u16 queues;
-	u16 max_listen_interval;
-	s8 max_signal;
-	u8 max_rates;
-	u8 max_report_rates;
-	u8 max_rate_tries;
-	u16 max_rx_aggregation_subframes;
-	u16 max_tx_aggregation_subframes;
-	u8 max_tx_fragments;
-	u8 offchannel_tx_hw_queue;
-	u8 radiotap_mcs_details;
-	u16 radiotap_vht_details;
+	uint16_t queues;
+	uint16_t max_listen_interval;
+	int8_t max_signal;
+	uint8_t max_rates;
+	uint8_t max_report_rates;
+	uint8_t max_rate_tries;
+	uint16_t max_rx_aggregation_subframes;
+	uint16_t max_tx_aggregation_subframes;
+	uint8_t max_tx_fragments;
+	uint8_t offchannel_tx_hw_queue;
+	uint8_t radiotap_mcs_details;
+	uint16_t radiotap_vht_details;
 	struct {
 		int units_pos;
-		s16 accuracy;
+		int16_t accuracy;
 	} radiotap_timestamp;
 	netdev_features_t netdev_features;
-	u8 uapsd_queues;
-	u8 uapsd_max_sp_len;
-	u8 n_cipher_schemes;
+	uint8_t uapsd_queues;
+	uint8_t uapsd_max_sp_len;
+	uint8_t n_cipher_schemes;
 	const struct ieee80211_cipher_scheme *cipher_schemes;
-	u8 max_nan_de_entries;
-	u8 tx_sk_pacing_shift;
-	u8 weight_multiplier;
+	uint8_t max_nan_de_entries;
+	uint8_t tx_sk_pacing_shift;
+	uint8_t weight_multiplier;
 };
 
 /**
@@ -721,8 +721,8 @@ enum ieee80211_bss_change {
  * @position: 2 bits per group id indicating the position in the group
  */
 struct ieee80211_mu_group_data {
-	u8 membership[WLAN_MEMBERSHIP_LEN];
-	u8 position[WLAN_USER_POSITION_LEN];
+	uint8_t membership[WLAN_MEMBERSHIP_LEN];
+	uint8_t position[WLAN_USER_POSITION_LEN];
 };
 
 /**
@@ -839,39 +839,39 @@ struct ieee80211_mu_group_data {
  *	in order to discover all the nontransmitted BSSIDs in the set.
  */
 struct ieee80211_bss_conf {
-	const u8 *bssid;
-	u8 bss_color;
-	u8 htc_trig_based_pkt_ext;
+	const uint8_t *bssid;
+	uint8_t bss_color;
+	uint8_t htc_trig_based_pkt_ext;
 	bool multi_sta_back_32bit;
 	bool uora_exists;
 	bool ack_enabled;
-	u8 uora_ocw_range;
-	u16 frame_time_rts_th;
+	uint8_t uora_ocw_range;
+	uint16_t frame_time_rts_th;
 	bool he_support;
 	bool twt_requester;
 	/* association related data */
 	bool assoc, ibss_joined;
 	bool ibss_creator;
-	u16 aid;
+	uint16_t aid;
 	/* erp related data */
 	bool use_cts_prot;
 	bool use_short_preamble;
 	bool use_short_slot;
 	bool enable_beacon;
-	u8 dtim_period;
-	u16 beacon_int;
-	u16 assoc_capability;
+	uint8_t dtim_period;
+	uint16_t beacon_int;
+	uint16_t assoc_capability;
 	u64 sync_tsf;
-	u32 sync_device_ts;
-	u8 sync_dtim_count;
-	u32 basic_rates;
+	uint32_t sync_device_ts;
+	uint8_t sync_dtim_count;
+	uint32_t basic_rates;
 	struct ieee80211_rate *beacon_rate;
 	int mcast_rate[NUM_NL80211_BANDS];
-	u16 ht_operation_mode;
-	s32 cqm_rssi_thold;
-	u32 cqm_rssi_hyst;
-	s32 cqm_rssi_low;
-	s32 cqm_rssi_high;
+	uint16_t ht_operation_mode;
+	int32_t cqm_rssi_thold;
+	uint32_t cqm_rssi_hyst;
+	int32_t cqm_rssi_low;
+	int32_t cqm_rssi_high;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_mu_group_data mu_group;
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
@@ -879,24 +879,24 @@ struct ieee80211_bss_conf {
 	bool qos;
 	bool idle;
 	bool ps;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	uint8_t ssid[IEEE80211_MAX_SSID_LEN];
 	size_t ssid_len;
 	bool hidden_ssid;
 	int txpower;
 	enum nl80211_tx_power_setting txpower_type;
 	struct ieee80211_p2p_noa_attr p2p_noa_attr;
 	bool allow_p2p_go_ps;
-	u16 max_idle_period;
+	uint16_t max_idle_period;
 	bool protected_keep_alive;
 	bool ftm_responder;
 	struct ieee80211_ftm_responder_params *ftmr_params;
 	/* Multiple BSSID data */
 	bool nontransmitted;
-	u8 transmitter_bssid[ETH_ALEN];
-	u8 bssid_index;
-	u8 bssid_indicator;
+	uint8_t transmitter_bssid[ETH_ALEN];
+	uint8_t bssid_index;
+	uint8_t bssid_indicator;
 	bool ema_ap;
-	u8 profile_periodicity;
+	uint8_t profile_periodicity;
 };
 
 /**
@@ -920,11 +920,11 @@ struct ieee80211_chanctx_conf {
 	struct cfg80211_chan_def def;
 	struct cfg80211_chan_def min_def;
 
-	u8 rx_chains_static, rx_chains_dynamic;
+	uint8_t rx_chains_static, rx_chains_dynamic;
 
 	bool radar_enabled;
 
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	uint8_t drv_priv[0] __aligned(sizeof(void *));
 };
 
 /**
@@ -992,19 +992,19 @@ enum ieee80211_vif_flags {
 struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_bss_conf bss_conf;
-	u8 addr[ETH_ALEN] __aligned(2);
+	uint8_t addr[ETH_ALEN] __aligned(2);
 	bool p2p;
 	bool csa_active;
 	bool mu_mimo_owner;
 
-	u8 cab_queue;
-	u8 hw_queue[IEEE80211_NUM_ACS];
+	uint8_t cab_queue;
+	uint8_t hw_queue[IEEE80211_NUM_ACS];
 
 	struct ieee80211_txq *txq;
 
 	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
 
-	u32 driver_flags;
+	uint32_t driver_flags;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
@@ -1015,7 +1015,7 @@ struct ieee80211_vif {
 	bool txqs_stopped[IEEE80211_NUM_ACS];
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	uint8_t drv_priv[0] __aligned(sizeof(void *));
 };
 
 /**
@@ -1072,7 +1072,7 @@ enum ieee80211_sta_rx_bandwidth {
  */
 struct rcu_head { 
 	/* MSVC doesn't like empty structs, so give it some junk here */
-	u8 junk;
+	uint8_t junk;
 };
 
 /**
@@ -1085,11 +1085,11 @@ struct rcu_head {
 struct ieee80211_sta_rates {
 	struct rcu_head rcu_head;
 	struct {
-		s8 idx;
-		u8 count;
-		u8 count_cts;
-		u8 count_rts;
-		u16 flags;
+		int8_t idx;
+		uint8_t count;
+		uint8_t count_cts;
+		uint8_t count_rts;
+		uint16_t flags;
 	} rate[IEEE80211_TX_RATE_TABLE_SIZE];
 };
 
@@ -1107,7 +1107,7 @@ struct ieee80211_sta_rates {
  *	per peer TPC.
  */
 struct ieee80211_sta_txpwr {
-	s16 power;
+	int16_t power;
 	enum nl80211_tx_power_setting type;
 };
 
@@ -1159,24 +1159,24 @@ struct ieee80211_sta_txpwr {
  *	the last entry (%IEEE80211_NUM_TIDS) is used for non-data frames
  */
 struct ieee80211_sta {
-	u32 supp_rates[NUM_NL80211_BANDS];
-	u8 addr[ETH_ALEN];
-	u16 aid;
+	uint32_t supp_rates[NUM_NL80211_BANDS];
+	uint8_t addr[ETH_ALEN];
+	uint16_t aid;
 	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
 	struct ieee80211_sta_he_cap he_cap;
-	u16 max_rx_aggregation_subframes;
+	uint16_t max_rx_aggregation_subframes;
 	bool wme;
-	u8 uapsd_queues;
-	u8 max_sp;
-	u8 rx_nss;
+	uint8_t uapsd_queues;
+	uint8_t max_sp;
+	uint8_t rx_nss;
 	enum ieee80211_sta_rx_bandwidth bandwidth;
 	enum ieee80211_smps_mode smps_mode;
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
 	bool tdls_initiator;
 	bool mfp;
-	u8 max_amsdu_subframes;
+	uint8_t max_amsdu_subframes;
 
 	/**
 	 * @max_amsdu_len:
@@ -1193,16 +1193,16 @@ struct ieee80211_sta {
 	 * driver. This is defined by the spec (IEEE 802.11-2012 section
 	 * 8.3.2.2 NOTE 2).
 	 */
-	u16 max_amsdu_len;
+	uint16_t max_amsdu_len;
 	bool support_p2p_ps;
-	u16 max_rc_amsdu_len;
-	u16 max_tid_amsdu_len[IEEE80211_NUM_TIDS];
+	uint16_t max_rc_amsdu_len;
+	uint16_t max_tid_amsdu_len[IEEE80211_NUM_TIDS];
 	struct ieee80211_sta_txpwr txpwr;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	uint8_t drv_priv[0] __aligned(sizeof(void *));
 };
 
 static inline bool
@@ -1314,23 +1314,23 @@ enum mac80211_rx_encoding {
 struct ieee80211_rx_status {
 	u64 mactime;
 	u64 boottime_ns;
-	u32 device_timestamp;
-	u32 ampdu_reference;
-	u32 flag;
-	u16 freq;
-	u8 enc_flags;
-	u8 encoding:2, bw:3, he_ru:3;
-	u8 he_gi:2, he_dcm:1;
-	u8 rate_idx;
-	u8 nss;
-	u8 rx_flags;
-	u8 band;
-	u8 antenna;
-	s8 signal;
-	u8 chains;
-	s8 chain_signal[IEEE80211_MAX_CHAINS];
-	u8 ampdu_delimiter_crc;
-	u8 zero_length_psdu_type;
+	uint32_t device_timestamp;
+	uint32_t ampdu_reference;
+	uint32_t flag;
+	uint16_t freq;
+	uint8_t enc_flags;
+	uint8_t encoding:2, bw:3, he_ru:3;
+	uint8_t he_gi:2, he_dcm:1;
+	uint8_t rate_idx;
+	uint8_t nss;
+	uint8_t rx_flags;
+	uint8_t band;
+	uint8_t antenna;
+	int8_t signal;
+	uint8_t chains;
+	int8_t chain_signal[IEEE80211_MAX_CHAINS];
+	uint8_t ampdu_delimiter_crc;
+	uint8_t zero_length_psdu_type;
 };
 
 /**

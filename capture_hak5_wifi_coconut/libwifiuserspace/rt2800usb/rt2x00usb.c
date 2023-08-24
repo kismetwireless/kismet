@@ -32,9 +32,9 @@
  * Interfacing with the HW.
  */
 int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
-        const u8 request, const u8 requesttype,
-        const u16 offset, const u16 value,
-        void *buffer, const u16 buffer_length,
+        const uint8_t request, const uint8_t requesttype,
+        const uint16_t offset, const uint16_t value,
+        void *buffer, const uint16_t buffer_length,
         const int timeout) {
 
     struct libusb_device_handle *usb_dev = rt2x00dev->dev;
@@ -122,13 +122,13 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 }
 
 int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
-				  const u8 request, const u8 requesttype,
-				  const u16 offset, void *buffer,
-				  const u16 buffer_length)
+				  const uint8_t request, const uint8_t requesttype,
+				  const uint16_t offset, void *buffer,
+				  const uint16_t buffer_length)
 {
 	int status = 0;
 	unsigned char *tb;
-	u16 off, len, bsize;
+	uint16_t off, len, bsize;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -136,7 +136,7 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 	off = offset;
 	len = buffer_length;
 	while (len && !status) {
-		bsize = min_t(u16, CSR_CACHE_SIZE, len);
+		bsize = min_t(uint16_t, CSR_CACHE_SIZE, len);
 		status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
 							requesttype, off, tb,
 							bsize, REGISTER_TIMEOUT);
@@ -158,9 +158,9 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
  * Userspace buff_lock doesn't do any locking
  */
 int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
-				   const u8 request, const u8 requesttype,
-				   const u16 offset, void *buffer,
-				   const u16 buffer_length, const int timeout)
+				   const uint8_t request, const uint8_t requesttype,
+				   const uint16_t offset, void *buffer,
+				   const uint16_t buffer_length, const int timeout)
 {
 	int status;
 
@@ -191,7 +191,7 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         const struct rt2x00_field32 field,
-        u32 *reg) {
+        uint32_t *reg) {
     unsigned int i;
 
     if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
@@ -214,7 +214,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 struct rt2x00_async_read_data {
     __le32 reg;
     struct rt2x00_dev *rt2x00dev;
-    bool (*callback)(struct rt2x00_dev *, int, u32);
+    bool (*callback)(struct rt2x00_dev *, int, uint32_t);
 };
 
 /* 
@@ -223,7 +223,7 @@ struct rt2x00_async_read_data {
  */
 void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        bool (*callback)(struct rt2x00_dev*, int, u32)) {
+        bool (*callback)(struct rt2x00_dev*, int, uint32_t)) {
     struct libusb_device_handle *usb_dev = rt2x00dev->dev;
     struct rt2x00_async_read_data *rd;
     int status;
@@ -242,7 +242,7 @@ void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
      */
     do {
         status = libusb_control_transfer(usb_dev, USB_VENDOR_REQUEST_IN, USB_MULTI_READ,
-                0, cpu_to_le16(offset), (unsigned char *) &rd->reg, cpu_to_le16(sizeof(u32)), REGISTER_TIMEOUT);
+                0, cpu_to_le16(offset), (unsigned char *) &rd->reg, cpu_to_le16(sizeof(uint32_t)), REGISTER_TIMEOUT);
 
         if (rd->callback(rd->rt2x00dev, status, le32_to_cpu(rd->reg)))
             continue;
@@ -380,7 +380,7 @@ int rt2x00usb_alloc_reg(struct rt2x00_dev *rt2x00dev) {
         return -ENOMEM;
     }
 
-    rt2x00dev->rf = (u32 *) malloc(rt2x00dev->ops->rf_size);
+    rt2x00dev->rf = (uint32_t *) malloc(rt2x00dev->ops->rf_size);
     if (!rt2x00dev->rf) {
         free(rt2x00dev->csr.cache);
         free(rt2x00dev->eeprom);

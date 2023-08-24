@@ -303,10 +303,10 @@
  * @tx_params: TX parameters
  */
 struct ieee80211_mcs_info {
-	u8 rx_mask[IEEE80211_HT_MCS_MASK_LEN];
+	uint8_t rx_mask[IEEE80211_HT_MCS_MASK_LEN];
 	__le16 rx_highest;
-	u8 tx_params;
-	u8 reserved[3];
+	uint8_t tx_params;
+	uint8_t reserved[3];
 } __packed;
 
 /* 802.11n HT capability MSC set */
@@ -338,14 +338,14 @@ struct ieee80211_mcs_info {
  */
 struct ieee80211_ht_cap {
 	__le16 cap_info;
-	u8 ampdu_params_info;
+	uint8_t ampdu_params_info;
 
 	/* 16 bytes MCS information */
 	struct ieee80211_mcs_info mcs;
 
 	__le16 extended_ht_cap_info;
 	__le32 tx_BF_cap_info;
-	u8 antenna_selection_info;
+	uint8_t antenna_selection_info;
 } __packed;
 
 /* 802.11n HT capabilities masks (for cap_info) */
@@ -412,8 +412,8 @@ struct ieee80211_vht_mcs_info {
  * described in P802.11ax_D4.0 section 9.4.2.242.2 and 9.4.2.242.3
  */
 struct ieee80211_he_cap_elem {
-	u8 mac_cap_info[6];
-	u8 phy_cap_info[11];
+	uint8_t mac_cap_info[6];
+	uint8_t phy_cap_info[11];
 } __packed;
 
 /**
@@ -480,29 +480,29 @@ struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
 	struct_group(addrs,
-		u8 addr1[ETH_ALEN];
-		u8 addr2[ETH_ALEN];
-		u8 addr3[ETH_ALEN];
+		uint8_t addr1[ETH_ALEN];
+		uint8_t addr2[ETH_ALEN];
+		uint8_t addr3[ETH_ALEN];
 	);
 	__le16 seq_ctrl;
-	u8 addr4[ETH_ALEN];
+	uint8_t addr4[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
+	uint8_t addr1[ETH_ALEN];
+	uint8_t addr2[ETH_ALEN];
+	uint8_t addr3[ETH_ALEN];
 	__le16 seq_ctrl;
 } __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
+	uint8_t addr1[ETH_ALEN];
+	uint8_t addr2[ETH_ALEN];
+	uint8_t addr3[ETH_ALEN];
 	__le16 seq_ctrl;
 	__le16 qos_ctrl;
 } __packed __aligned(2);
@@ -510,10 +510,10 @@ struct ieee80211_qos_hdr {
 struct ieee80211_trigger {
 	__le16 frame_control;
 	__le16 duration;
-	u8 ra[ETH_ALEN];
-	u8 ta[ETH_ALEN];
+	uint8_t ra[ETH_ALEN];
+	uint8_t ta[ETH_ALEN];
 	__le64 common_info;
-	u8 variable[];
+	uint8_t variable[];
 } __packed __aligned(2);
 
 /**

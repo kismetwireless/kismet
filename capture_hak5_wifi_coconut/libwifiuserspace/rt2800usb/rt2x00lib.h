@@ -39,7 +39,7 @@ struct rt2x00_rate {
 
 extern const struct rt2x00_rate rt2x00_supported_rates[12];
 
-static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
+static inline const struct rt2x00_rate *rt2x00_get_rate(const uint16_t hw_value)
 {
 	return &rt2x00_supported_rates[hw_value & 0xff];
 }
@@ -47,7 +47,7 @@ static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
 #define RATE_MCS(__mode, __mcs) \
 	((((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff))
 
-static inline int rt2x00_get_rate_mcs(const u16 mcs_value)
+static inline int rt2x00_get_rate_mcs(const uint16_t mcs_value)
 {
 	return (mcs_value & 0x00ff);
 }
@@ -66,11 +66,11 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00_intf *intf,
 			   enum nl80211_iftype type,
-			   const u8 *mac, const u8 *bssid);
+			   const uint8_t *mac, const uint8_t *bssid);
 void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct rt2x00_intf *intf,
 			  struct ieee80211_bss_conf *conf,
-			  u32 changed);
+			  uint32_t changed);
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      struct antenna_setup ant);
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,

@@ -62,9 +62,9 @@ enum rt2x00usb_mode_offset {
  * to unexpected behavior depending on the architecture.
  */
 int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
-        const u8 request, const u8 requesttype,
-        const u16 offset, const u16 value,
-        void *buffer, const u16 buffer_length,
+        const uint8_t request, const uint8_t requesttype,
+        const uint16_t offset, const uint16_t value,
+        void *buffer, const uint16_t buffer_length,
         const int timeout);
 
 /**
@@ -85,9 +85,9 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
  * which has been allocated properly.
  */
 int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
-        const u8 request, const u8 requesttype,
-        const u16 offset, void *buffer,
-        const u16 buffer_length);
+        const uint8_t request, const uint8_t requesttype,
+        const uint16_t offset, void *buffer,
+        const uint16_t buffer_length);
 
 /**
  * rt2x00usb_vendor_request_buff - Send register command to device (buffered)
@@ -103,9 +103,9 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
  * if the usb_cache_mutex is already held.
  */
 int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
-        const u8 request, const u8 requesttype,
-        const u16 offset, void *buffer,
-        const u16 buffer_length, const int timeout);
+        const uint8_t request, const uint8_t requesttype,
+        const uint16_t offset, void *buffer,
+        const uint16_t buffer_length, const int timeout);
 
 /**
  * rt2x00usb_vendor_request_sw - Send single register command to device
@@ -120,9 +120,9 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
  * don't have to worry about kmalloc here.
  */
 static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
-        const u8 request,
-        const u16 offset,
-        const u16 value,
+        const uint8_t request,
+        const uint16_t offset,
+        const uint16_t value,
         const int timeout) {
     return rt2x00usb_vendor_request(rt2x00dev, request,
             USB_VENDOR_REQUEST_OUT, offset,
@@ -140,7 +140,7 @@ static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
  * kmalloc for correct handling inside the kernel USB layer.
  */
 static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
-        __le16 *eeprom, const u16 length) {
+        __le16 *eeprom, const uint16_t length) {
     return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
             USB_VENDOR_REQUEST_IN, 0, 0,
             eeprom, length, EEPROM_TIMEOUT);
@@ -154,7 +154,7 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
  * This function is a simple wrapper for 32bit register access
  * through rt2x00usb_vendor_request_buff().
  */
-static inline u32 rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
+static inline uint32_t rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset) {
     __le32 reg = 0;
     rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
@@ -171,7 +171,7 @@ static inline u32 rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
  * This function is a simple wrapper for 32bit register access
  * through rt2x00usb_vendor_req_buff_lock().
  */
-static inline u32 rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
+static inline uint32_t rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset) {
     __le32 reg = 0;
     rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
@@ -192,7 +192,7 @@ static inline u32 rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
  */
 static inline void rt2x00usb_register_multiread(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        void *value, const u32 length) {
+        void *value, const uint32_t length) {
     rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
             USB_VENDOR_REQUEST_IN, offset,
             value, length);
@@ -209,7 +209,7 @@ static inline void rt2x00usb_register_multiread(struct rt2x00_dev *rt2x00dev,
  */
 static inline void rt2x00usb_register_write(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        u32 value) {
+        uint32_t value) {
     __le32 reg = cpu_to_le32(value);
     rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
             USB_VENDOR_REQUEST_OUT, offset,
@@ -227,7 +227,7 @@ static inline void rt2x00usb_register_write(struct rt2x00_dev *rt2x00dev,
  */
 static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        u32 value) {
+        uint32_t value) {
     __le32 reg = cpu_to_le32(value);
     rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_WRITE,
             USB_VENDOR_REQUEST_OUT, offset,
@@ -247,7 +247,7 @@ static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
 static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         const void *value,
-        const u32 length) {
+        const uint32_t length) {
     rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
             USB_VENDOR_REQUEST_OUT, offset,
             (void *)value, length);
@@ -269,7 +269,7 @@ static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         const struct rt2x00_field32 field,
-        u32 *reg);
+        uint32_t *reg);
 
 /**
  * rt2x00usb_register_read_async - Asynchronously read 32bit register word
@@ -286,7 +286,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
  */
 void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        bool (*callback)(struct rt2x00_dev*, int, u32));
+        bool (*callback)(struct rt2x00_dev*, int, uint32_t));
 
 int rt2x00usb_alloc_reg(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_free(struct rt2x00_dev *rt2x00dev);

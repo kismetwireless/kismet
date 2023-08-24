@@ -48,14 +48,14 @@
  */
 struct ieee80211_channel {
 	enum nl80211_band band;
-	u32 center_freq;
-	u16 hw_value;
-	u32 flags;
+	uint32_t center_freq;
+	uint16_t hw_value;
+	uint32_t flags;
 	int max_antenna_gain;
 	int max_power;
 	int max_reg_power;
 	bool beacon_found;
-	u32 orig_flags;
+	uint32_t orig_flags;
 	int orig_mag, orig_mpwr;
 	enum nl80211_dfs_state dfs_state;
 	unsigned long dfs_state_entered;
@@ -73,8 +73,8 @@ struct ieee80211_channel {
 struct cfg80211_chan_def {
 	struct ieee80211_channel *chan;
 	enum nl80211_chan_width width;
-	u32 center_freq1;
-	u32 center_freq2;
+	uint32_t center_freq1;
+	uint32_t center_freq2;
 }
 ;
 /**
@@ -92,9 +92,9 @@ struct cfg80211_chan_def {
  *	short preamble is used
  */
 struct ieee80211_rate {
-	u32 flags;
-	u16 bitrate;
-	u16 hw_value, hw_value_short;
+	uint32_t flags;
+	uint16_t bitrate;
+	uint16_t hw_value, hw_value_short;
 };
 
 /**
@@ -110,10 +110,10 @@ struct ieee80211_rate {
  * @mcs: Supported MCS rates
  */
 struct ieee80211_sta_ht_cap {
-	u16 cap; /* use IEEE80211_HT_CAP_ */
+	uint16_t cap; /* use IEEE80211_HT_CAP_ */
 	bool ht_supported;
-	u8 ampdu_factor;
-	u8 ampdu_density;
+	uint8_t ampdu_factor;
+	uint8_t ampdu_density;
 	struct ieee80211_mcs_info mcs;
 };
 
@@ -129,7 +129,7 @@ struct ieee80211_sta_ht_cap {
  */
 struct ieee80211_sta_vht_cap {
 	bool vht_supported;
-	u32 cap; /* use IEEE80211_VHT_CAP_ */
+	uint32_t cap; /* use IEEE80211_VHT_CAP_ */
 	struct ieee80211_vht_mcs_info vht_mcs;
 };
 
@@ -150,7 +150,7 @@ struct ieee80211_sta_he_cap {
 	bool has_he;
 	struct ieee80211_he_cap_elem he_cap_elem;
 	struct ieee80211_he_mcs_nss_supp he_mcs_nss_supp;
-	u8 ppe_thres[IEEE80211_HE_PPE_THRES_MAX_LEN];
+	uint8_t ppe_thres[IEEE80211_HE_PPE_THRES_MAX_LEN];
 };
 
 #define IEEE80211_MAX_CHAINS            4
@@ -214,14 +214,14 @@ enum rate_info_bw {
  *	only valid if bw is %RATE_INFO_BW_HE_RU)
  */
 struct rate_info {
-	u8 flags;
-	u8 mcs;
-	u16 legacy;
-	u8 nss;
-	u8 bw;
-	u8 he_gi;
-	u8 he_dcm;
-	u8 he_ru_alloc;
+	uint8_t flags;
+	uint8_t mcs;
+	uint16_t legacy;
+	uint8_t nss;
+	uint8_t bw;
+	uint8_t he_gi;
+	uint8_t he_dcm;
+	uint8_t he_ru_alloc;
 };
 
 /**
@@ -307,7 +307,7 @@ struct ieee80211_supported_band {
 	int n_bitrates;
 	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
-	u16 n_iftype_data;
+	uint16_t n_iftype_data;
 	const struct ieee80211_sband_iftype_data *iftype_data;
 };
 

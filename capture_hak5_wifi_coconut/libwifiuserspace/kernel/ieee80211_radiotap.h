@@ -305,8 +305,8 @@ enum ieee80211_radiotap_he_bits {
 
 struct ieee80211_radiotap_he_mu {
 	__le16 flags1, flags2;
-	u8 ru_ch1[4];
-	u8 ru_ch2[4];
+	uint8_t ru_ch1[4];
+	uint8_t ru_ch2[4];
 };
 
 enum ieee80211_radiotap_he_mu_bits {
@@ -358,7 +358,7 @@ enum ieee80211_radiotap_zero_len_psdu_type {
 /**
  * ieee80211_get_radiotap_len - get radiotap header length
  */
-static inline u16 ieee80211_get_radiotap_len(const char *data)
+static inline uint16_t ieee80211_get_radiotap_len(const char *data)
 {
 	struct ieee80211_radiotap_header *hdr = (struct ieee80211_radiotap_header *)data;
 

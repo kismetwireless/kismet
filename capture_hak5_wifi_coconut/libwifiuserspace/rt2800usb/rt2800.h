@@ -2030,25 +2030,25 @@
 #define MAC_IVEIV_ENTRY(__idx) \
 	(MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)))
 #define MAC_WCID_ATTR_ENTRY(__idx) \
-	(MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)))
+	(MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(uint32_t)))
 #define SHARED_KEY_ENTRY(__idx) \
 	(SHARED_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)))
 #define SHARED_KEY_MODE_ENTRY(__idx) \
-	(SHARED_KEY_MODE_BASE + ((__idx) * sizeof(u32)))
+	(SHARED_KEY_MODE_BASE + ((__idx) * sizeof(uint32_t)))
 
 struct mac_wcid_entry {
-	u8 mac[6];
-	u8 reserved[2];
+	uint8_t mac[6];
+	uint8_t reserved[2];
 } __packed;
 
 struct hw_key_entry {
-	u8 key[16];
-	u8 tx_mic[8];
-	u8 rx_mic[8];
+	uint8_t key[16];
+	uint8_t tx_mic[8];
+	uint8_t rx_mic[8];
 } __packed;
 
 struct mac_iveiv_entry {
-	u8 iv[8];
+	uint8_t iv[8];
 } __packed;
 
 /*
@@ -3208,11 +3208,11 @@ enum rt2800_eeprom_word {
 #define MAC_IVEIV_ENTRY(__idx) \
 	(MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)))
 #define MAC_WCID_ATTR_ENTRY(__idx) \
-	(MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)))
+	(MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(uint32_t)))
 #define SHARED_KEY_ENTRY(__idx) \
 	(SHARED_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)))
 #define SHARED_KEY_MODE_ENTRY(__idx) \
-	(SHARED_KEY_MODE_BASE + ((__idx) * sizeof(u32)))
+	(SHARED_KEY_MODE_BASE + ((__idx) * sizeof(uint32_t)))
 
 
 #endif /* ifndef RT2800_H */

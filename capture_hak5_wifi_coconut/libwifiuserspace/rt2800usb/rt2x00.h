@@ -160,7 +160,7 @@ enum rt2x00_chip_intf {
  * The chipset combination is important for determining device capabilities.
  */
 struct rt2x00_chip {
-	u16 rt;
+	uint16_t rt;
 #define RT2460		0x2460
 #define RT2560		0x2560
 #define RT2570		0x2570
@@ -184,8 +184,8 @@ struct rt2x00_chip {
 #define RT5592		0x5592
 #define RT6352		0x6352  /* WSOC 2.4GHz */
 
-	u16 rf;
-	u16 rev;
+	uint16_t rf;
+	uint16_t rev;
 
 	enum rt2x00_chip_intf intf;
 };
@@ -195,10 +195,10 @@ struct rt2x00_chip {
  */
 struct rf_channel {
 	int channel;
-	u32 rf1;
-	u32 rf2;
-	u32 rf3;
-	u32 rf4;
+	uint32_t rf1;
+	uint32_t rf2;
+	uint32_t rf3;
+	uint32_t rf4;
 };
 
 /*
@@ -220,8 +220,8 @@ struct channel_info {
 struct antenna_setup {
 	enum antenna rx;
 	enum antenna tx;
-	u8 rx_chain_num;
-	u8 tx_chain_num;
+	uint8_t rx_chain_num;
+	uint8_t tx_chain_num;
 };
 
 /*
@@ -252,8 +252,8 @@ struct link_qual {
 	 * number of BBP register reads to reduce register access
 	 * overhead. For this reason we store both values here.
 	 */
-	u8 vgc_level;
-	u8 vgc_level_reg;
+	uint8_t vgc_level;
+	uint8_t vgc_level_reg;
 
 	/*
 	 * Statistics required for Signal quality calculation.
@@ -355,13 +355,13 @@ struct rt2x00lib_crypto {
 	enum cipher cipher;
 
 	enum set_key_cmd cmd;
-	const u8 *address;
+	const uint8_t *address;
 
-	u32 bssidx;
+	uint32_t bssidx;
 
-	u8 key[16];
-	u8 tx_mic[8];
-	u8 rx_mic[8];
+	uint8_t key[16];
+	uint8_t tx_mic[8];
+	uint8_t rx_mic[8];
 
 	int wcid;
 };
@@ -404,7 +404,7 @@ struct rt2x00lib_erp {
 	int short_preamble;
 	int cts_protection;
 
-	u32 basic_rates;
+	uint32_t basic_rates;
 
 	int slot_time;
 
@@ -413,8 +413,8 @@ struct rt2x00lib_erp {
 	short difs;
 	short eifs;
 
-	u16 beacon_int;
-	u16 ht_opmode;
+	uint16_t beacon_int;
+	uint16_t ht_opmode;
 };
 
 DECLARE_EWMA(rssi, 10, 8)
@@ -464,7 +464,7 @@ struct link {
 	 * The number of times the link has been tuned
 	 * since the radio has been switched on.
 	 */
-	u32 count;
+	uint32_t count;
 
 	/*
 	 * Quality measurement values.
@@ -585,7 +585,7 @@ struct rt2x00_dev {
 	 * This field should be accessed by using
 	 * rt2x00_rf_read() and rt2x00_rf_write().
 	 */
-	u32 *rf;
+	uint32_t *rf;
 
 	/*
      * Last set channel data
@@ -613,27 +613,27 @@ struct rt2x00_dev {
 	/*
 	 * Current TX power value.
 	 */
-	u16 tx_power;
+	uint16_t tx_power;
 
 	/*
 	 * Rssi <-> Dbm offset
 	 */
-	u8 rssi_offset;
+	uint8_t rssi_offset;
 
 	/*
 	 * Frequency offset.
 	 */
-	u8 freq_offset;
+	uint8_t freq_offset;
 
     /*
      * LED reg cache
      */
-	u16 led_mcu_reg;
+	uint16_t led_mcu_reg;
 
     /* 
      * MAC address
      */
-    u8 *mac;
+    uint8_t *mac;
 
     /*
      * station count (should just be 1)
@@ -687,9 +687,9 @@ struct rt2x00lib_ops {
 	int (*probe_hw) (struct rt2x00_dev *rt2x00dev);
 	char *(*get_firmware_name) (struct rt2x00_dev *rt2x00dev);
 	int (*check_firmware) (struct rt2x00_dev *rt2x00dev,
-			       const u8 *data, const size_t len);
+			       const uint8_t *data, const size_t len);
 	int (*load_firmware) (struct rt2x00_dev *rt2x00dev,
-			      const u8 *data, const size_t len);
+			      const uint8_t *data, const size_t len);
 
 	/*
 	 * Device initialization/deinitialization handlers.
@@ -715,7 +715,7 @@ struct rt2x00lib_ops {
 	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev,
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
-			    struct link_qual *qual, const u32 count);
+			    struct link_qual *qual, const uint32_t count);
 	void (*gain_calibration) (struct rt2x00_dev *rt2x00dev);
 	void (*vco_calibration) (struct rt2x00_dev *rt2x00dev);
 
@@ -746,7 +746,7 @@ struct rt2x00lib_ops {
 
 	void (*config_erp) (struct rt2x00_dev *rt2x00dev,
 			    struct rt2x00lib_erp *erp,
-			    u32 changed);
+			    uint32_t changed);
 	void (*config_ant) (struct rt2x00_dev *rt2x00dev,
 			    struct antenna_setup *ant);
 	void (*config) (struct rt2x00_dev *rt2x00dev,
@@ -796,7 +796,7 @@ struct rt2x00_ops {
  * Chipset handlers
  */
 static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
-        const u16 rt, const u16 rf, const u16 rev) {
+        const uint16_t rt, const uint16_t rf, const uint16_t rev) {
     rt2x00dev->chip.rt = rt;
     rt2x00dev->chip.rf = rf;
     rt2x00dev->chip.rev = rev;
@@ -807,7 +807,7 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 }
 
 static inline void rt2x00_set_rt(struct rt2x00_dev *rt2x00dev,
-        const u16 rt, const u16 rev) {
+        const uint16_t rt, const uint16_t rev) {
     rt2x00dev->chip.rt = rt;
     rt2x00dev->chip.rev = rev;
 
@@ -815,37 +815,37 @@ static inline void rt2x00_set_rt(struct rt2x00_dev *rt2x00dev,
             rt2x00dev->chip.rt, rt2x00dev->chip.rev);
 }
 
-static inline void rt2x00_set_rf(struct rt2x00_dev *rt2x00dev, const u16 rf) {
+static inline void rt2x00_set_rf(struct rt2x00_dev *rt2x00dev, const uint16_t rf) {
     rt2x00dev->chip.rf = rf;
 
     rt2x00_info(rt2x00dev, "RF chipset %04x detected\n",
             rt2x00dev->chip.rf);
 }
 
-static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt) {
+static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const uint16_t rt) {
     return (rt2x00dev->chip.rt == rt);
 }
 
-static inline bool rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf) {
+static inline bool rt2x00_rf(struct rt2x00_dev *rt2x00dev, const uint16_t rf) {
     return (rt2x00dev->chip.rf == rf);
 }
 
-static inline u16 rt2x00_rev(struct rt2x00_dev *rt2x00dev) {
+static inline uint16_t rt2x00_rev(struct rt2x00_dev *rt2x00dev) {
     return rt2x00dev->chip.rev;
 }
 
 static inline bool rt2x00_rt_rev(struct rt2x00_dev *rt2x00dev,
-        const u16 rt, const u16 rev) {
+        const uint16_t rt, const uint16_t rev) {
     return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) == rev);
 }
 
 static inline bool rt2x00_rt_rev_lt(struct rt2x00_dev *rt2x00dev,
-        const u16 rt, const u16 rev) {
+        const uint16_t rt, const uint16_t rev) {
     return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) < rev);
 }
 
 static inline bool rt2x00_rt_rev_gte(struct rt2x00_dev *rt2x00dev,
-        const u16 rt, const u16 rev) {
+        const uint16_t rt, const uint16_t rev) {
     return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) >= rev);
 }
 
@@ -971,36 +971,36 @@ static inline void *rt2x00_eeprom_addr(struct rt2x00_dev *rt2x00dev,
     return (void *)&rt2x00dev->eeprom[word];
 }
 
-static inline u16 rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
+static inline uint16_t rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int word) {
     return le16_to_cpu(rt2x00dev->eeprom[word]);
 }
 
 static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,
-        const unsigned int word, u16 data) {
+        const unsigned int word, uint16_t data) {
     rt2x00dev->eeprom[word] = cpu_to_le16(data);
 }
 
-static inline u8 rt2x00_eeprom_byte(struct rt2x00_dev *rt2x00dev,
+static inline uint8_t rt2x00_eeprom_byte(struct rt2x00_dev *rt2x00dev,
         const unsigned int byte) {
-    return *(((u8 *)rt2x00dev->eeprom) + byte);
+    return *(((uint8_t *)rt2x00dev->eeprom) + byte);
 }
 
 /*
  * Generic RF access.
  * The RF is being accessed by word index.
  */
-static inline u32 rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
+static inline uint32_t rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
 				 const unsigned int word)
 {
-	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
+	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(uint32_t));
 	return rt2x00dev->rf[word - 1];
 }
 
 static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
-				   const unsigned int word, u32 data)
+				   const unsigned int word, uint32_t data)
 {
-	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
+	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(uint32_t));
 	rt2x00dev->rf[word - 1] = data;
 }
 

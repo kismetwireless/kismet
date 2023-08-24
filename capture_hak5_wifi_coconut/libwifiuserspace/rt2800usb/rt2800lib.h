@@ -21,58 +21,58 @@
 
 /* RT2800 driver data structure */
 struct rt2800_drv_data {
-	u8 calibration_bw20;
-	u8 calibration_bw40;
+	uint8_t calibration_bw20;
+	uint8_t calibration_bw40;
 	char rx_calibration_bw20;
 	char rx_calibration_bw40;
 	char tx_calibration_bw20;
 	char tx_calibration_bw40;
-	u8 bbp25;
-	u8 bbp26;
-	u8 txmixer_gain_24g;
-	u8 txmixer_gain_5g;
-	u8 max_psdu;
+	uint8_t bbp25;
+	uint8_t bbp26;
+	uint8_t txmixer_gain_24g;
+	uint8_t txmixer_gain_5g;
+	uint8_t max_psdu;
 	unsigned int tbtt_tick;
 	unsigned int ampdu_factor_cnt[4];
 };
 
 struct rt2800_ops {
-    u32 (*register_read)(struct rt2x00_dev *rt2x00dev,
+    uint32_t (*register_read)(struct rt2x00_dev *rt2x00dev,
             const unsigned int offset);
-    u32 (*register_read_lock)(struct rt2x00_dev *rt2x00dev,
+    uint32_t (*register_read_lock)(struct rt2x00_dev *rt2x00dev,
             const unsigned int offset);
     void (*register_write)(struct rt2x00_dev *rt2x00dev,
-            const unsigned int offset, u32 value);
+            const unsigned int offset, uint32_t value);
     void (*register_write_lock)(struct rt2x00_dev *rt2x00dev,
-            const unsigned int offset, u32 value);
+            const unsigned int offset, uint32_t value);
 
     void (*register_multiread)(struct rt2x00_dev *rt2x00dev,
             const unsigned int offset,
-            void *value, const u32 length);
+            void *value, const uint32_t length);
     void (*register_multiwrite)(struct rt2x00_dev *rt2x00dev,
             const unsigned int offset,
-            const void *value, const u32 length);
+            const void *value, const uint32_t length);
 
     int (*regbusy_read)(struct rt2x00_dev *rt2x00dev,
             const unsigned int offset,
-            const struct rt2x00_field32 field, u32 *reg);
+            const struct rt2x00_field32 field, uint32_t *reg);
 
     int (*read_eeprom)(struct rt2x00_dev *rt2x00dev);
     bool (*hwcrypt_disabled)(struct rt2x00_dev *rt2x00dev);
 
     int (*drv_write_firmware)(struct rt2x00_dev *rt2x00dev,
-            const u8 *data, const size_t len);
+            const uint8_t *data, const size_t len);
     int (*drv_init_registers)(struct rt2x00_dev *rt2x00dev);
 };
 
-static inline u32 rt2800_register_read(struct rt2x00_dev *rt2x00dev,
+static inline uint32_t rt2800_register_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     return rt2800ops->register_read(rt2x00dev, offset);
 }
 
-static inline u32 rt2800_register_read_lock(struct rt2x00_dev *rt2x00dev,
+static inline uint32_t rt2800_register_read_lock(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
@@ -81,7 +81,7 @@ static inline u32 rt2800_register_read_lock(struct rt2x00_dev *rt2x00dev,
 
 static inline void rt2800_register_write(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        u32 value) {
+        uint32_t value) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     rt2800ops->register_write(rt2x00dev, offset, value);
@@ -89,7 +89,7 @@ static inline void rt2800_register_write(struct rt2x00_dev *rt2x00dev,
 
 static inline void rt2800_register_write_lock(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        u32 value) {
+        uint32_t value) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     rt2800ops->register_write_lock(rt2x00dev, offset, value);
@@ -97,7 +97,7 @@ static inline void rt2800_register_write_lock(struct rt2x00_dev *rt2x00dev,
 
 static inline void rt2800_register_multiread(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
-        void *value, const u32 length) {
+        void *value, const uint32_t length) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     rt2800ops->register_multiread(rt2x00dev, offset, value, length);
@@ -106,7 +106,7 @@ static inline void rt2800_register_multiread(struct rt2x00_dev *rt2x00dev,
 static inline void rt2800_register_multiwrite(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         const void *value,
-        const u32 length) {
+        const uint32_t length) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     rt2800ops->register_multiwrite(rt2x00dev, offset, value, length);
@@ -115,7 +115,7 @@ static inline void rt2800_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         const struct rt2x00_field32 field,
-        u32 *reg) {
+        uint32_t *reg) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     return rt2800ops->regbusy_read(rt2x00dev, offset, field, reg);
@@ -134,7 +134,7 @@ static inline bool rt2800_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev) {
 }
 
 static inline int rt2800_drv_write_firmware(struct rt2x00_dev *rt2x00dev,
-        const u8 *data, const size_t len) {
+        const uint8_t *data, const size_t len) {
     const struct rt2800_ops *rt2800ops = (const struct rt2800_ops *) rt2x00dev->ops->drv;
 
     return rt2800ops->drv_write_firmware(rt2x00dev, data, len);
@@ -169,11 +169,11 @@ void rt2800_config(struct rt2x00_dev *rt2x00dev,
 void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 			struct rt2x00intf_conf *conf, const unsigned int flags);
 void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
-		       u32 changed);
+		       uint32_t changed);
 void rt2800_link_stats(struct rt2x00_dev *rt2x00dev, struct link_qual *qual);
 void rt2800_reset_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual);
 void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
-        const u32 count);
+        const uint32_t count);
 void rt2800_gain_calibration(struct rt2x00_dev *rt2x00dev);
 void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev);
 
@@ -183,16 +183,16 @@ void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev);
 
 void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
-        const u8 command, const u8 token,
-        const u8 arg0, const u8 arg1);
+        const uint8_t command, const uint8_t token,
+        const uint8_t arg0, const uint8_t arg1);
 
 int rt2800_wait_csr_ready(struct rt2x00_dev *rt2x00dev);
 int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_check_firmware(struct rt2x00_dev *rt2x00dev,
-        const u8 *data, const size_t len);
+        const uint8_t *data, const size_t len);
 int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
-        const u8 *data, const size_t len);
+        const uint8_t *data, const size_t len);
 
 int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev);

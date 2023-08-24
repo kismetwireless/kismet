@@ -23,7 +23,7 @@
  */
 #ifndef CONFIG_ARCH_HAS_ILOG2_U32
 static inline const
-int __ilog2_u32(u32 n)
+int __ilog2_u32(uint32_t n)
 {
 	return __fls(n) - 1;
 }
