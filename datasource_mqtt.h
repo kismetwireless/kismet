@@ -26,6 +26,8 @@
 
 #ifdef HAVE_LIBMOSQUITTO
 
+#include <mosquitto.h>
+
 class kis_datasource_mqtt : public kis_datasource {
 public:
     kis_datasource_mqtt(shared_datasource_builder in_builder);
@@ -34,10 +36,40 @@ public:
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;
+    virtual void close_source() override;
+
+    virtual void handle_source_error() override;
+
+    virtual void probe_interface(std::string in_definition, unsigned int in_transaction, probe_callback_t in_cb) override;
+
+    struct mosquitto *mosquitto_;
+    bool thread_started_;
+    bool mqtt_connected_;
+    
+    std::string host_;
+    unsigned int port_;
+
+    std::string identity_;
+    std::string user_;
+    std::string password_;
+
+    bool tls_;
+    std::string tls_psk_;
+    std::string tls_ca_path_;
+    std::string tls_ca_file_;
+    std::string tls_certfile_;
+    std::string tls_keyfile_;
+    std::string tls_keyfile_pw_;
+
+    std::string topic_;
+
+    open_callback_t open_cb_;
+    unsigned int open_trans_id_;
 };
 
-#else /* HAVE_LIBMOSQUITTO */
+#else /* ! HAVE_LIBMOSQUITTO */
 
+// Stub implementation to show warnings, no implementation behind it
 class kis_datasource_mqtt : public kis_datasource {
 public:
     kis_datasource_mqtt(shared_datasource_builder in_builder);
@@ -49,5 +81,56 @@ protected:
 };
 
 #endif
+
+class datasource_mqtt_builder : public kis_datasource_builder {
+public:
+    datasource_mqtt_builder() :
+        kis_datasource_builder() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    datasource_mqtt_builder(int in_id) :
+        kis_datasource_builder(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    datasource_mqtt_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
+
+        register_fields();
+        reserve_fields(e);
+        initialize();
+    }
+
+    virtual ~datasource_mqtt_builder() { }
+
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
+        return std::make_shared<kis_datasource_mqtt>(in_sh_this);
+    }
+
+    virtual void initialize() override {
+        set_source_type("mqtt");
+        set_source_description("MQTT listener");
+
+        set_probe_capable(true);
+        set_list_capable(false);
+
+        // We have no local or remote capture, we connect to mqtt directly
+        set_local_capable(false);
+        set_remote_capable(false);
+
+        // Passive only
+        set_passive_capable(true);
+
+        // Incapable of tuning, we accept whatever mqtt gives us
+        set_tune_capable(false);
+        set_hop_capable(false);
+    }
+
+};
 
 #endif /* __DATASOURCE_MQTT_H__ */

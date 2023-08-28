@@ -86,6 +86,7 @@
 #include "datasource_adsbproxy.h"
 #include "datasource_bt_geiger.h"
 #include "datasource_hak5_wifi_coconut.h"
+#include "datasource_mqtt.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -126,6 +127,10 @@
 #include "json_adapter.h"
 
 #include "kis_server_announce.h"
+
+#ifdef HAVE_LIBMOSQUITTO
+#include <mosquitto.h>
+#endif
 
 #ifndef exec_name
 char *exec_name;
@@ -810,6 +815,11 @@ int main(int argc, char *argv[], char *envp[]) {
         globalregistry->servername = munge_to_printable(conf->fetch_opt("servername"));
     }
 
+#ifdef HAVE_LIBMOSQUITTO
+    // If we have mqtt, initialize the library 
+    mosquitto_lib_init();
+#endif
+
     // Create the IPC handler
     ipc_tracker_v2::create_ipctracker();
 
@@ -918,6 +928,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_adsbproxy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bt_geiger_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_hak5_wifi_coconut_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_mqtt_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();
@@ -1052,6 +1063,10 @@ int main(int argc, char *argv[], char *envp[]) {
         if (t.joinable())
             t.join();
     }
+
+#ifdef HAVE_LIBMOSQUITTO
+    mosquitto_lib_cleanup();
+#endif
 
 }
 
