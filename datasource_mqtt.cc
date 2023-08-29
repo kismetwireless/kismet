@@ -153,6 +153,20 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
         port_ = 1883;
     }
 
+    if (has_definition_opt("mapping")) {
+        json_type_ = get_definition_opt("mapping");
+    } else {
+        set_int_source_running(0);
+        set_int_source_error(1);
+        set_int_source_error_reason("Missing 'mapping' option");
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "Missing 'mapping' option in source definition, this is required");
+            return;
+        }
+
+    }
+
     if (get_source_uuid().error && !local_uuid) {
         uuid nuuid;
 
@@ -290,6 +304,51 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
                     mosquitto_strerror(rc));
 
             ds->handle_source_error();
+        });
+
+    mosquitto_message_callback_set(mosquitto_, [](struct mosquitto *m, void *obj, const struct mosquitto_message *msg) {
+            auto ds = static_cast<kis_datasource_mqtt *>(obj);
+            
+            bool match = false;
+            mosquitto_topic_matches_sub(ds->topic_.c_str(), msg->topic, &match);
+
+            if (!match) {
+                return;
+            }
+
+            auto packet = ds->packetchain->generate_packet();
+
+            auto datasrcinfo = ds->packetchain->new_packet_component<packetchain_comp_datasource>();
+            datasrcinfo->ref_source = ds;
+
+            packet->insert(ds->pack_comp_datasrc, datasrcinfo);
+
+            ds->inc_source_num_packets(1);
+            ds->get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+            // Insert GPS data as soon as possible in the chain if there's no data
+            // from the rest of the processing
+            if (packet->fetch(ds->pack_comp_gps) == nullptr &&
+                    packet->fetch(ds->pack_comp_no_gps) == nullptr) {
+                auto gpsloc = ds->gpstracker->get_best_location();
+
+                if (gpsloc != nullptr) {
+                    packet->insert(ds->pack_comp_gps, std::move(gpsloc));
+                }
+
+            }
+
+            gettimeofday(&(packet->ts), NULL);
+
+            auto jsoninfo = ds->packetchain->new_packet_component<kis_json_packinfo>();
+            jsoninfo->type = ds->json_type_;
+            jsoninfo->json_string = std::string((const char *) msg->payload, msg->payloadlen);
+
+            packet->insert(ds->pack_comp_json, jsoninfo);
+
+            // Inject the packet into the packetchain if we have one
+            ds->packetchain->process_packet(packet);
+
         });
 
     if (tls_) {

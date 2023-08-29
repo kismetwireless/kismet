@@ -45,6 +45,8 @@ protected:
     struct mosquitto *mosquitto_;
     bool thread_started_;
     bool mqtt_connected_;
+
+    std::string json_type_;
     
     std::string host_;
     unsigned int port_;
