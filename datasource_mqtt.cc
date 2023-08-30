@@ -69,21 +69,19 @@ void kis_datasource_mqtt::probe_interface(std::string in_definition, unsigned in
 void kis_datasource_mqtt::handle_source_error(void) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource_mqtt handle_source_error");
 
-    if (get_source_error()) {
-        auto alrt = fmt::format("Source {} ({}) has encountered an error and can not be started ({}). ",
-                get_source_name(), get_source_uuid(), get_source_error_reason());
+    if (get_source_running()) {
+        auto alrt = fmt::format("Source {} ({}) has encountered an error ({}).  The MQTT service "
+                "will attempt to automatically reconnect.", get_source_name(), get_source_uuid(),
+                get_source_error_reason());
 
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
         alertracker->raise_one_shot("SOURCEERROR", "SYSTEM", kis_alert_severity::critical, alrt, -1);
 
         _MSG(alrt, MSGFLAG_ERROR);
-    }
-
-    if (get_source_running()) {
-        auto alrt = fmt::format("Source {} ({}) has encountered an error ({}).  The MQTT service "
-                "will attempt to automatically reconnect.", get_source_name(), get_source_uuid(),
-                get_source_error_reason());
+    } else {
+        auto alrt = fmt::format("Source {} ({}) has encountered an error and can not be started ({}). ",
+                get_source_name(), get_source_uuid(), get_source_error_reason());
 
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
@@ -257,6 +255,9 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             lock.lock();
 
             if (rc == 0) {
+                ds->set_int_source_running(true);
+                ds->set_int_source_error(false);
+
                 _MSG_INFO("MQTT source {} ({}) connected to server at {}:{}",
                         ds->get_source_name(), ds->get_source_uuid(), ds->host_, ds->port_);
 
@@ -271,7 +272,8 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
                         ds->timetracker->remove_timer(ds->error_timer_id);
                 }
             } else {
-                ds->set_int_source_running(0);
+                ds->set_int_source_running(false);
+                ds->set_int_source_error(true);
                 ds->set_int_source_error_reason(std::string(mosquitto_strerror(rc)));
 
                 _MSG_ERROR("MQTT source {} ({}) failed to connect to server at {}:{}: {}",
