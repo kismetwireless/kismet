@@ -351,13 +351,15 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             auto ds = static_cast<kis_datasource_mqtt *>(obj);
 
             // _MSG_DEBUG("MQTT {} {}", msg->topic, std::string((const char *) msg->payload, msg->payloadlen));
-            
+           
+            /*
             bool match = false;
             mosquitto_topic_matches_sub(ds->topic_.c_str(), msg->topic, &match);
 
             if (!match) {
                 return;
             }
+            */
 
             auto packet = ds->packetchain->generate_packet();
 
