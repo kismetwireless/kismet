@@ -228,6 +228,12 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     tls_keyfile_ = get_definition_opt("tls_keyfile");
     tls_keyfile_pw_ = get_definition_opt("tls_keyfile_pw");
 
+    if (tls_ && tls_ca_file_.length() == 0 && tls_ca_path_.length() == 0) {
+        _MSG_INFO("MQTT source {} ({}) no CA file or path provided, guessing system default "
+                "of /etc/ssl/certs.", get_source_name(), get_source_uuid());
+        tls_ca_path_ = "/etc/ssl/certs";
+    }
+
     if (tls_psk_.length() || tls_ca_path_.length() || tls_ca_file_.length() || 
             tls_certfile_.length()) {
         tls_ = true;
@@ -254,6 +260,29 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             return;
         }
     }
+
+    if (user_.length() != 0 && password_.length() == 0) {
+        set_int_source_running(0);
+        set_int_source_error(1);
+        set_int_source_error_reason("'user' requires 'password' mqtt option");
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "'user' option requires a 'password' mqtt option");
+            return;
+        }
+    }
+
+    if (user_.length() != 0 && !tls_) {
+        set_int_source_running(0);
+        set_int_source_error(1);
+        set_int_source_error_reason("MQTT logins require TLS");
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "MQTT logins require TLS");
+            return;
+        }
+    }
+
 
     if (has_definition_opt("metagps")) {
         auto gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
@@ -287,6 +316,8 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
     mosquitto_connect_callback_set(mosquitto_, [](struct mosquitto *m, void *obj, int rc) -> void {
             auto ds = static_cast<kis_datasource_mqtt *>(obj);
+
+            _MSG_DEBUG("MQTT connect cb {} {}", ds->get_name(), rc);
 
             kis_unique_lock<kis_mutex> lock(ds->ext_mutex, std::defer_lock, "datasource_mqtt mqtt_conn_cb");
             lock.lock();
@@ -409,7 +440,16 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
         });
 
+    if (get_definition_opt_bool("debug", false)) {
+        mosquitto_log_callback_set(mosquitto_, 
+                [](struct mosquitto *mosq, void *obj, int level, const char *str) {
+                    _MSG_DEBUG("MQTT - {}", str);
+                });
+    }
+
     if (tls_) {
+        _MSG_DEBUG("MQTT setting TLS caf {} cap {} cf {} kf {} kp {}", tls_ca_file_, tls_ca_path_, tls_certfile_, tls_keyfile_, tls_keyfile_pw_);
+
         auto rc = mosquitto_tls_set(mosquitto_, 
                 tls_ca_file_.length() != 0 ? tls_ca_file_.c_str() : NULL,
                 tls_ca_path_.length() != 0 ? tls_ca_path_.c_str() : NULL,
@@ -434,6 +474,10 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
                 return;
             }
         }
+    }
+
+    if (user_.length() != 0) {
+        mosquitto_username_pw_set(mosquitto_, user_.c_str(), password_.c_str());
     }
 
     // Spawn background thread if needed for mqtt async
