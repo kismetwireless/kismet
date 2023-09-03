@@ -180,7 +180,6 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
     }
 
-
     if (get_source_uuid().error && !local_uuid) {
         uuid nuuid;
 
@@ -195,6 +194,28 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     } else {
         identity_ = fmt::format("kismet-{}", get_source_uuid());
     }
+
+    if (has_definition_opt("channel")) {
+        channel_ = get_definition_opt("channel");
+    }
+
+    if (has_definition_opt("frequency")) {
+        try {
+            freq_khz_ = human_to_freq_khz(get_definition_opt("frequency"));
+        } catch (...) {
+            set_int_source_running(0);
+            set_int_source_error(1);
+            set_int_source_error_reason("Invalid 'frequency' option");
+            if (in_cb != NULL) {
+                lock.unlock();
+                in_cb(in_transaction, false, "Invalid 'frequency' option in mqtt source definition, expected number");
+                return;
+            }
+        }
+    } else {
+        freq_khz_ = 0;
+    }
+
 
     user_ = get_definition_opt("user");
     password_ = get_definition_opt("password");
@@ -365,6 +386,15 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             }
 
             gettimeofday(&(packet->ts), NULL);
+
+            if (ds->freq_khz_ != 0 || ds->channel_.length() != 0) {
+                auto l1 = ds->packetchain->new_packet_component<kis_layer1_packinfo>();
+
+                l1->freq_khz = ds->freq_khz_;
+                l1->channel = ds->channel_;
+
+                packet->insert(ds->pack_comp_l1_agg, l1);
+            }
 
             auto jsoninfo = ds->packetchain->new_packet_component<kis_json_packinfo>();
             jsoninfo->type = ds->json_type_;

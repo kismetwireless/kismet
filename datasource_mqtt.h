@@ -65,6 +65,9 @@ protected:
 
     std::string topic_;
 
+    uint64_t freq_khz_;
+    std::string channel_;
+
     open_callback_t open_cb_;
     unsigned int open_trans_id_;
 };
