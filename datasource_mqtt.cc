@@ -129,7 +129,7 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, false, "Missing 'host' option in source definition");
+            in_cb(in_transaction, false, "Missing 'host' option in mqtt source definition");
             return;
         }
     }
@@ -143,12 +143,27 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             set_int_source_error_reason("Invalid 'port' option");
             if (in_cb != NULL) {
                 lock.unlock();
-                in_cb(in_transaction, false, "Invalid 'port' option in source definition, expected port number");
+                in_cb(in_transaction, false, "Invalid 'port' option in mqtt source definition, expected port number");
                 return;
             }
         }
     } else {
         port_ = 1883;
+    }
+
+    if (has_definition_opt("topic")) {
+        topic_ = get_definition_opt("topic");
+        set_int_source_cap_interface(topic_);
+    } else {
+        set_int_source_running(0);
+        set_int_source_error(1);
+        set_int_source_error_reason("Missing 'topic' option");
+
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "Missing 'topic' option in mqtt source definition");
+            return;
+        }
     }
 
     if (has_definition_opt("mapping")) {
@@ -159,11 +174,12 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
         set_int_source_error_reason("Missing 'mapping' option");
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, false, "Missing 'mapping' option in source definition, this is required");
+            in_cb(in_transaction, false, "Missing 'mapping' option in mqtt source definition, this is required");
             return;
         }
 
     }
+
 
     if (get_source_uuid().error && !local_uuid) {
         uuid nuuid;
@@ -199,10 +215,10 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     if (tls_psk_.length() != 0 && tls_certfile_.length() != 0) {
         set_int_source_running(0);
         set_int_source_error(1);
-        set_int_source_error_reason("Can not combine 'tls_psk' and 'tls_certfile'");
+        set_int_source_error_reason("Can not combine 'tls_psk' and 'tls_certfile' mqtt options");
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, false, "Can not combine 'tls_psk' and 'tls_certfile' options");
+            in_cb(in_transaction, false, "Can not combine 'tls_psk' and 'tls_certfile' mqtt options");
             return;
         }
     }
@@ -210,10 +226,10 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     if (tls_certfile_.length() == 0 && tls_keyfile_.length() != 0) {
         set_int_source_running(0);
         set_int_source_error(1);
-        set_int_source_error_reason("'tls_keyfile' requires 'tls_certfile' option");
+        set_int_source_error_reason("'tls_keyfile' requires 'tls_certfile' mqtt option");
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, false, "'tls_keyfile' option requires a 'tls_certfile' option");
+            in_cb(in_transaction, false, "'tls_keyfile' option requires a 'tls_certfile' mqtt option");
             return;
         }
     }
@@ -271,6 +287,8 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
                     if (ds->error_timer_id > 0)
                         ds->timetracker->remove_timer(ds->error_timer_id);
                 }
+
+                mosquitto_subscribe(ds->mosquitto_, NULL, ds->topic_.c_str(), 0);
             } else {
                 ds->set_int_source_running(false);
                 ds->set_int_source_error(true);
@@ -310,6 +328,8 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
     mosquitto_message_callback_set(mosquitto_, [](struct mosquitto *m, void *obj, const struct mosquitto_message *msg) {
             auto ds = static_cast<kis_datasource_mqtt *>(obj);
+
+            // _MSG_DEBUG("MQTT {} {}", msg->topic, std::string((const char *) msg->payload, msg->payloadlen));
             
             bool match = false;
             mosquitto_topic_matches_sub(ds->topic_.c_str(), msg->topic, &match);
@@ -332,6 +352,10 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             // from the rest of the processing
             if (packet->fetch(ds->pack_comp_gps) == nullptr &&
                     packet->fetch(ds->pack_comp_no_gps) == nullptr) {
+                // If we haven't acquired the gpstracker, do so
+                if (ds->gpstracker == nullptr)
+                    ds->gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+
                 auto gpsloc = ds->gpstracker->get_best_location();
 
                 if (gpsloc != nullptr) {
@@ -396,13 +420,12 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
         }
 
         thread_started_ = true;
-
     }
 
     if (mqtt_connected_) {
         mosquitto_reconnect_async(mosquitto_);
     } else {
-        mosquitto_connect_async(mosquitto_, host_.c_str(), port_, 60);
+        mosquitto_connect_async(mosquitto_, host_.c_str(), port_, 30);
     }
 
     return;
