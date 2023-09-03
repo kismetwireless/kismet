@@ -542,5 +542,8 @@ protected:
 
 bool is_valid_utf8(const std::string& subject);
 
+bool iequals(const std::string& a, const std::string& b);
+uint64_t human_to_freq_khz(const std::string&);
+
 #endif
 

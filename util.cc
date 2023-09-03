@@ -1263,4 +1263,35 @@ bool is_valid_utf8(const std::string& subject) {
     return true;
 }
 
+bool iequals(const std::string& a, const std::string& b) {
+    return std::equal(a.begin(), a.end(),
+		b.begin(), b.end(),
+		[](char a, char b) { return ::tolower(a) == ::tolower(b); });
+}
 
+uint64_t human_to_freq_khz(const std::string &s) {
+	auto ds = s;
+	int scale = 1;
+
+	try {
+		auto unit = s.substr(s.length() - 3, 3);
+
+		if (iequals(unit, "khz")) {
+			ds = s.substr(0, s.length() - 3);
+			scale = 1000;
+		} else if (iequals(unit, "mhz")) {
+			ds = s.substr(0, s.length() - 3);
+			scale = 1000*1000;
+		} else if (iequals(unit, "ghz")) {
+			ds = s.substr(0, s.length() - 3);
+			scale = 1000*1000*1000;
+		} else if (iequals(unit.substr(1, 2), "hz")) {
+			ds = s.substr(0, s.length() - 2);
+			scale = 1;
+		}
+	} catch (...) { }
+
+	auto v = string_to_n<uint64_t>(ds);
+
+	return v * scale;
+}
