@@ -381,7 +381,7 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     mosquitto_message_callback_set(mosquitto_, [](struct mosquitto *m, void *obj, const struct mosquitto_message *msg) {
             auto ds = static_cast<kis_datasource_mqtt *>(obj);
 
-            // _MSG_DEBUG("MQTT {} {}", msg->topic, std::string((const char *) msg->payload, msg->payloadlen));
+            //_MSG_DEBUG("MQTT {} {}", msg->topic, std::string((const char *) msg->payload, msg->payloadlen));
            
             /*
             bool match = false;
@@ -448,8 +448,6 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     }
 
     if (tls_) {
-        _MSG_DEBUG("MQTT setting TLS caf {} cap {} cf {} kf {} kp {}", tls_ca_file_, tls_ca_path_, tls_certfile_, tls_keyfile_, tls_keyfile_pw_);
-
         auto rc = mosquitto_tls_set(mosquitto_, 
                 tls_ca_file_.length() != 0 ? tls_ca_file_.c_str() : NULL,
                 tls_ca_path_.length() != 0 ? tls_ca_path_.c_str() : NULL,

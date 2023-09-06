@@ -29,6 +29,28 @@
 #include "manuf.h"
 #include "messagebus.h"
 
+uint32_t kis_adsb_phy::modes_checksum_table[] = {
+    0x3935ea, 0x1c9af5, 0xf1b77e, 0x78dbbf, 0xc397db, 0x9e31e9, 
+    0xb0e2f0, 0x587178, 0x2c38bc, 0x161c5e, 0x0b0e2f, 0xfa7d13, 
+    0x82c48d, 0xbe9842, 0x5f4c21, 0xd05c14, 0x682e0a, 0x341705, 
+    0xe5f186, 0x72f8c3, 0xc68665, 0x9cb936, 0x4e5c9b, 0xd8d449,
+    0x939020, 0x49c810, 0x24e408, 0x127204, 0x093902, 0x049c81, 
+    0xfdb444, 0x7eda22, 0x3f6d11, 0xe04c8c, 0x702646, 0x381323, 
+    0xe3f395, 0x8e03ce, 0x4701e7, 0xdc7af7, 0x91c77f, 0xb719bb, 
+    0xa476d9, 0xadc168, 0x56e0b4, 0x2b705a, 0x15b82d, 0xf52612,
+    0x7a9309, 0xc2b380, 0x6159c0, 0x30ace0, 0x185670, 0x0c2b38, 
+    0x06159c, 0x030ace, 0x018567, 0xff38b7, 0x80665f, 0xbfc92b, 
+    0xa01e91, 0xaff54c, 0x57faa6, 0x2bfd53, 0xea04ad, 0x8af852, 
+    0x457c29, 0xdd4410, 0x6ea208, 0x375104, 0x1ba882, 0x0dd441,
+    0xf91024, 0x7c8812, 0x3e4409, 0xe0d800, 0x706c00, 0x383600, 
+    0x1c1b00, 0x0e0d80, 0x0706c0, 0x038360, 0x01c1b0, 0x00e0d8, 
+    0x00706c, 0x003836, 0x001c1b, 0xfff409, 0x000000, 0x000000, 
+    0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+    0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 
+    0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 
+    0x000000, 0x000000, 0x000000, 0x000000
+};
+
 kis_adsb_phy::kis_adsb_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
@@ -416,7 +438,7 @@ kis_adsb_phy::~kis_adsb_phy() {
     packetchain->remove_handler(&packet_handler, CHAINPOS_CLASSIFIER);
 }
 
-mac_addr kis_adsb_phy::json_to_mac(nlohmann::json json) {
+mac_addr kis_adsb_phy::icao_to_mac(uint32_t icao) {
     // Derive a mac addr from the model and device id data
     //
     // We turn the model string into 4 bytes using the adler32 checksum,
@@ -430,29 +452,278 @@ mac_addr kis_adsb_phy::json_to_mac(nlohmann::json json) {
 
     memset(bytes, 0, 6);
 
-    bool set_model = false;
-
     std::string smodel = "unk";
 
-    try {
-        smodel = json["icao"];
-        *model = kis_hton16(std::stoi(smodel, 0, 16));
-        set_model = true;
-    } catch (...) { }
-
-    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
+    *model = icao;
+    *checksum = adler32_checksum((const uint8_t *) &icao, 4);
   
-    if (!set_model) {
-        *model = 0x0000;
-    }
-
     // Set the local bit
     bytes[0] |= 0x2;
 
     return mac_addr(bytes, 6);
 }
 
-bool kis_adsb_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
+bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
+    if (!json["adsb"].is_string()) {
+        return false;
+    }
+
+    const std::string adsb_hex = json["adsb"].get<std::string>();
+    std::string adsb_bin;
+
+    try {
+        adsb_bin = hex_to_bytes(adsb_hex.substr(1, adsb_hex.length() - 2));
+    } catch (...) {
+        return false;
+    }
+
+    if (adsb_bin.length() == 0) {
+        return false;
+    }
+
+    auto crc1 = adsb_msg_get_crc(adsb_bin);
+    auto crc2 = modes_checksum(adsb_bin);
+
+    if (crc1 != crc2) {
+        return false;
+    }
+
+    auto icao = adsb_msg_get_icao(adsb_bin);
+    auto icao_s = fmt::format("{:x}", icao & 0x00FFFFFF);
+    auto msgtype = adsb_msg_get_type(adsb_bin);
+    auto msgsize = adsb_msg_len_by_type(msgtype);
+
+    if (msgsize / 8 > adsb_bin.length()) {
+        return false;
+    }
+
+    std::string callsign;
+    bool use_callsign = false;
+
+    unsigned long altitude = 0;
+    bool use_altitude = false;
+
+    adsb_location location;
+    bool use_location = false;
+
+    double speed = 0;
+    bool use_speed = 0;
+
+    double heading = 0;
+    bool use_heading = 0;
+
+    if (msgtype == 17) {
+        auto msgme = adsb_msg_get_me_type(adsb_bin);
+        auto msgsubme = adsb_msg_get_me_subtype(adsb_bin);
+
+        if (msgme >= 1 && msgme <= 4) {
+            callsign = adsb_msg_get_flight(adsb_bin);
+            use_callsign = true;
+        } else if (msgme >= 9 && msgme <= 18) {
+            altitude = adsb_msg_get_ac12_altitude(adsb_bin);
+            use_altitude = true;
+
+            location = adsb_msg_get_airborne_position(adsb_bin);
+            use_location = true;
+        } else if (msgme == 19 && (msgsubme >= 1 && msgsubme <= 4)) {
+            if (msgsubme == 1 || msgsubme == 2) {
+                speed = adsb_msg_get_airborne_velocity(adsb_bin);
+                use_speed = true;
+
+                heading = adsb_msg_get_airborne_heading(adsb_bin);
+                use_heading = true;
+            } else if (msgsubme == 3 || msgsubme == 4) {
+                heading = adsb_msg_get_airborne_heading(adsb_bin);
+                use_heading = true;
+            }
+        }
+    } else if (msgtype == 0 || msgtype == 4 || msgtype == 16 || msgtype == 20) {
+        altitude = adsb_msg_get_ac13_altitude(adsb_bin);
+        use_altitude = true;
+    }
+
+    auto mac = icao_to_mac(icao);
+
+    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
+
+    common->type = packet_basic_data;
+    common->phyid = fetch_phy_id();
+    common->datasize = 0;
+
+    common->freq_khz = 1090000;
+    common->source = mac;
+    common->transmitter = mac;
+
+    // Update the base dev without setting location, because we want to
+    // override that location ourselves later once we've gotten our
+    // adsb device and possibly merged packets
+    std::shared_ptr<kis_tracked_device_base> basedev =
+        devicetracker->update_common_device(common, common->source, this, packet,
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                 UCD_UPDATE_SEENBY), "ADSB");
+
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
+
+    auto dn = fmt::format("{}", icao_s);
+
+    basedev->set_manuf(rtl_manuf);
+
+    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+    basedev->set_devicename(fmt::format("ADSB {}", dn));
+
+    // Generate the adsb device record
+    bool new_adsb = false;
+    std::stringstream new_ss;
+
+    auto adsbdev = 
+        basedev->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
+
+    if (adsbdev == NULL) {
+        adsbdev = 
+            std::make_shared<adsb_tracked_adsb>(adsb_adsb_id);
+        basedev->insert(adsbdev);
+        new_adsb = true;
+
+        new_ss << "Detected new ADSB device ICAO " << icao_s;
+    }
+
+    adsbdev->set_icao(icao_s);
+
+    auto icao_record = icaodb->lookup_icao(icao_s);
+    adsbdev->set_icao_record(icao_record);
+
+    if (use_callsign) {
+        auto raw_cs = callsign;
+
+        std::string mangle_cs;
+
+        for (size_t i = 0; i < raw_cs.length(); i++) {
+            if (raw_cs[i] != '_') {
+                mangle_cs += raw_cs[i];
+            }
+        }
+
+        adsbdev->set_callsign(mangle_cs);
+        if (adsbdev->get_callsign() != "")
+            new_ss << adsbdev->get_callsign();
+    }
+
+    if (icao_record != icaodb->get_unknown_icao()) {
+        new_ss << " " << icao_record->get_model();
+        new_ss << " " << icao_record->get_model_type();
+        new_ss << " " << icao_record->get_owner();
+        new_ss << " " << icao_record->get_atype()->get();
+    }
+
+    if (use_altitude) {
+        adsbdev->alt = altitude * 0.3048;
+        adsbdev->update_location = true;
+    }
+
+    if (use_speed) {
+        adsbdev->speed = speed * 1.60934;
+        adsbdev->update_location = true;
+    }
+
+    if (use_heading) {
+        adsbdev->heading = heading;
+        adsbdev->update_location = true;
+    }
+
+    if (use_location) {
+        bool calc_coords = false;
+
+        if (location.even) {
+            adsbdev->set_even_raw_lat(location.lat);
+            adsbdev->set_even_raw_lon(location.lon);
+            adsbdev->set_even_ts(time(0));
+
+            if (adsbdev->get_even_ts() - adsbdev->get_odd_ts() < 10)
+                calc_coords = true;
+
+        } else {
+            adsbdev->set_odd_raw_lat(location.lat);
+            adsbdev->set_odd_raw_lon(location.lon);
+            adsbdev->set_odd_ts(time(0));
+
+            if (adsbdev->get_odd_ts() - adsbdev->get_even_ts() < 10)
+                calc_coords = true;
+        }
+
+        if (calc_coords)
+            decode_cpr(adsbdev, packet);
+    }
+
+
+    if (new_adsb) {
+        _MSG_INFO("{}", new_ss.str());
+    }
+
+    if (icao_record != icaodb->get_unknown_icao()) {
+        switch (icao_record->get_atype_short()) {
+            case '1':
+            case '7':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
+                break;
+            case '2':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
+                break;
+            case '3':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
+                break;
+            case '4':
+            case '5':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+                break;
+            case '6':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
+                break;
+            case '8':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
+                break;
+            case '9':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
+                break;
+            default:
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
+                break;
+        }
+
+        auto cs = adsbdev->get_callsign();
+        if (cs.length() != 0)
+            cs += " ";
+
+        basedev->set_devicename(fmt::format("{} {} {}",
+                    cs, icao_record->get_model_type(), icao_record->get_owner()));
+    }
+
+    if (adsbdev->update_location) {
+        adsbdev->update_location = false;
+
+        // Update the common device with location if we've got a location record now
+        auto gpsinfo = std::make_shared<kis_gps_packinfo>();
+
+        gpsinfo->lat = adsbdev->lat;
+        gpsinfo->lon = adsbdev->lon;
+        gpsinfo->speed = adsbdev->speed;
+        gpsinfo->alt = adsbdev->alt;
+        gpsinfo->heading = adsbdev->heading;
+
+        if (adsbdev->alt != 0)
+            gpsinfo->fix = 3;
+
+        gettimeofday(&gpsinfo->tv, NULL);
+
+        packet->insert(pack_comp_gps, gpsinfo);
+
+        devicetracker->update_common_device(common, common->source, this, packet,
+                (UCD_UPDATE_LOCATION), "ADSB Transmitter");
+    }
+
+    return true;
+}
+
+bool kis_adsb_phy::json_to_rtl(const nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -461,9 +732,11 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet> 
         return false;
 
     // synth a mac out of it
-    mac_addr rtlmac = json_to_mac(json);
-
-    if (rtlmac.state.error) {
+    mac_addr rtlmac;
+    auto icao_j = json["icao"];
+    if (icao_j.is_number()) {
+        rtlmac = icao_to_mac(icao_j.get<uint32_t>());
+    } else {
         return false;
     }
 
@@ -733,8 +1006,11 @@ int kis_adsb_phy::packet_handler(CHAINCALL_PARMS) {
     try {
         ss >> device_json;
 
-        // Copy the JSON as the meta field for logging, if it's valid
-        if (adsb->json_to_rtl(device_json, in_pack)) {
+        // Process raw ADSB, and then process parsed ADSB JSON
+        if (adsb->process_adsb_hex(device_json, in_pack)) {
+             auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
+             adata->set_data("ADSB", json->json_string);
+        } else if (adsb->json_to_rtl(device_json, in_pack)) {
              auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
              adata->set_data("ADSB", json->json_string);
         }
@@ -973,6 +1249,225 @@ kis_adsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connecti
     adsb_view->do_readonly_device_work(recent_worker);
 
     return ret_map;
+}
+
+size_t kis_adsb_phy::adsb_msg_len_by_type(uint8_t type) {
+    switch (type) {
+        case 16:
+        case 7:
+        case 19:
+        case 20:
+        case 21:
+            return 112; 
+            break; 
+        default:
+            return 56;
+    }
+
+    return 56;
+}
+
+uint32_t kis_adsb_phy::adsb_msg_get_crc(const std::string& u8_buf) {
+    if (u8_buf.size() < 7)
+        return 0; 
+
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+
+    uint32_t crc = 0;
+    auto len = u8_buf.size(); 
+
+    crc = buf[len - 3] << 16; 
+    crc |= buf[len - 2] << 8;
+    crc |= buf[len - 1];
+
+    return crc;
+}
+
+uint8_t kis_adsb_phy::adsb_msg_get_type(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    return buf[0] >> 3;
+}
+
+uint32_t kis_adsb_phy::adsb_msg_get_icao(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    uint32_t icao = 0; 
+
+    icao |= buf[1] << 24;
+    icao |= buf[2] << 16;
+    icao |= buf[3];
+
+    return icao;
+}
+
+uint8_t kis_adsb_phy::adsb_msg_get_fs(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    return buf[0] & 7;
+}
+
+uint8_t kis_adsb_phy::adsb_msg_get_me_type(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    return buf[4] >> 3;
+}
+
+uint8_t kis_adsb_phy::adsb_msg_get_me_subtype(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    return buf[4] & 7;
+}
+
+int kis_adsb_phy::adsb_msg_get_ac13_altitude(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    uint8_t m_bit = buf[3] & (1 << 6);
+    uint8_t q_bit = buf[3] & (1 << 4);
+
+    if (!m_bit) {
+        if (q_bit) {
+            int n = (buf[2] & 31) << 6;
+            n |= (buf[3] & 0x80) >> 2;
+            n |= (buf[3] & 0x20) >> 1;
+            n |= (buf[3] & 0x15);
+
+            return n * 25 - 1000;
+        }
+    }
+
+    return 0;
+}
+
+int kis_adsb_phy::adsb_msg_get_ac12_altitude(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    uint8_t q_bit = buf[5] & 1;
+    int16_t n = 0;
+
+    if (q_bit) {
+        // Extract the 11bit integer after removing bit 0
+        n = (buf[5] >> 1) << 4;
+        n |= (buf[6] & 0xF0) >> 4;
+
+        return n * 25 - 1000;
+    }
+
+    return 0;
+}
+
+std::string kis_adsb_phy::adsb_msg_get_flight(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    std::string ais_charset = "?ABCDEFGHIJKLMNOPQRSTUVWXYZ????? ???????????????0123456789??????";
+
+    std::ostringstream flight;
+
+    flight << ais_charset[buf[5] >> 2];
+    flight << ais_charset[((buf[5] & 3) << 4) | (buf[6] >> 4)];
+    flight << ais_charset[((buf[6] & 15) << 2) | (buf[7] >> 6)];
+    flight << ais_charset[buf[7] & 63];
+    flight << ais_charset[buf[8] >> 2];
+    flight << ais_charset[((buf[8] & 3) << 4) | (buf[9] >> 4)];
+    flight << ais_charset[((buf[9] & 15) << 2) | (buf[10] >> 6)];
+    flight << ais_charset[buf[10] & 63];
+
+    return flight.str();
+}
+
+kis_adsb_phy::adsb_location_t kis_adsb_phy::adsb_msg_get_airborne_position(const std::string& u8_buf) const {
+    // Decode the airborne position from message 17 
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+
+    adsb_location_t ret;
+
+    ret.even = (buf[6] & (1 << 2)) == 0;
+
+    ret.lat = (buf[6] & 3) << 15;
+    ret.lat |= buf[7] << 7;
+    ret.lat |= buf[8] >> 1;
+
+    ret.lon = (buf[8] & 1) << 16;
+    ret.lon |= buf[9] << 8;
+    ret.lon |= buf[10];
+
+    return ret;
+
+}
+
+double kis_adsb_phy::adsb_msg_get_airborne_velocity(const std::string& u8_buf) const {
+    // Get airborne velocity from message 17
+    // Synthesized from the EW/NS velocities
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+
+    // int ew_dir = (buf[5] & 4) >> 2;
+    int ew_velocity = ((buf[5] & 3) << 8) | buf[6];
+    // int ns_dir = (buf[7] & 0x80) >> 7;
+    int ns_velocity = ((buf[7] & 0x7f) << 3) | ((buf[8] & 0xe0) >> 5);
+
+    double velocity = sqrt(ns_velocity * ns_velocity + ew_velocity * ew_velocity);
+
+    return velocity;
+}
+
+double kis_adsb_phy::adsb_msg_get_airborne_heading(const std::string& u8_buf) const {
+    // Airborne heading from message 17 
+    // Synthesized from EW/NS headings
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+
+    int ew_dir = (buf[5] & 4) >> 2;
+    int ew_velocity = ((buf[5] & 3) << 8) | buf[6];
+    int ns_dir = (buf[7] & 0x80) >> 7;
+    int ns_velocity = ((buf[7] & 0x7f) << 3) | ((buf[8] & 0xe0) >> 5);
+
+    if (ew_dir)
+        ew_velocity *= -1;
+    
+    if (ns_dir)
+        ns_velocity *= -1;
+    
+    double heading = atan2(ew_velocity, ns_velocity);
+
+    heading = heading * 360 / (M_PI * 2);
+    
+    if (heading < 0)
+        heading += 360;
+    
+    return heading;
+}
+
+double kis_adsb_phy::adsb_msg_get_sub3_heading(const std::string& u8_buf) const {
+    // Direct heading from msg17 sub3 and sub4
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+       
+    if (!(buf[5] & (1 << 2)))
+        return -1;
+
+    int iheading = (buf[5] & 3) << 5;
+    iheading |= buf[6] >> 3;
+    double heading = iheading * (double) (360.0 / 128);
+
+    if (heading < 0)
+        heading += 360;
+
+    return heading;
+
+}
+
+uint32_t kis_adsb_phy::modes_checksum(const std::string& u8_buf) {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    uint32_t crc = 0;
+    size_t offset = 0; 
+
+    if (u8_buf.size() < 7)
+        return 0; 
+
+    if (u8_buf.size() != 14) 
+        offset = 112 - 56;
+
+    for (unsigned int j = 0; j < u8_buf.size() * 8; j++) {
+        auto b = j / 8;
+        auto bit = j % 8;
+        auto mask = 1 << (7 - bit);
+
+        if (buf[b] & mask) {
+            crc ^= modes_checksum_table[j + offset];
+        }
+    }
+
+    return (crc & 0x00FFFFFF);
 }
 
 

@@ -157,16 +157,19 @@ protected:
     int pack_comp_gps;
 
     // Convert a JSON record to a RTL-based device key
-    mac_addr json_to_mac(nlohmann::json in_json);
+    mac_addr icao_to_mac(uint32_t icao);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
+    bool json_to_rtl(const nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
+    bool process_adsb_hex(const nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_adsb(nlohmann::json json);
 
     std::shared_ptr<adsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
             nlohmann::json json, std::shared_ptr<kis_tracked_device_base> rtlholder);
+
+    static uint32_t modes_checksum_table[];
 
     double f_to_c(double f);
 
@@ -189,6 +192,45 @@ protected:
     std::shared_ptr<tracker_element> adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int map_min_lat_id, map_max_lat_id, map_min_lon_id, map_max_lon_id, map_recent_devs_id;
+
+    // Calculate checksum
+    uint32_t modes_checksum(const std::string& u8_buf); 
+
+    // Get the expected length of a message based on the type 
+    size_t adsb_msg_len_by_type(uint8_t type);
+
+    // Extract checksum
+    uint32_t adsb_msg_get_crc(const std::string& u8_buf);
+
+    uint8_t adsb_msg_get_type(const std::string& u8_buf) const;
+    uint32_t adsb_msg_get_icao(const std::string& u8_buf) const;
+    uint8_t adsb_msg_get_fs(const std::string& u8_buf) const;
+    uint8_t adsb_msg_get_me_type(const std::string& u8_buf) const;
+    uint8_t adsb_msg_get_me_subtype(const std::string& u8_buf) const;
+
+    int adsb_msg_get_ac13_altitude(const std::string& u8_buf) const;
+    int adsb_msg_get_ac12_altitude(const std::string& u8_buf) const;
+
+    std::string adsb_msg_get_flight(const std::string& u8_buf) const;
+
+    typedef struct adsb_location {
+        int lat;
+        int lon;
+        bool even;
+
+        adsb_location() {
+            lat = 0;
+            lon = 0;
+            even = false;
+        }
+    } adsb_location_t;
+
+    adsb_location_t adsb_msg_get_airborne_position(const std::string& u8_buf) const;
+
+    double adsb_msg_get_airborne_velocity(const std::string& u8_buf) const;
+    double adsb_msg_get_airborne_heading(const std::string& u8_buf) const;
+    double adsb_msg_get_sub3_heading(const std::string& u8_buf) const;
+
 };
 
 #endif
