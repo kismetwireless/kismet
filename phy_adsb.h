@@ -225,7 +225,7 @@ protected:
         }
     } adsb_location_t;
 
-    adsb_location_t adsb_msg_get_airborne_position(const std::string& u8_buf) const;
+    void adsb_msg_get_airborne_position(const std::string& u8_buf, adsb_location_t &ret) const;
 
     double adsb_msg_get_airborne_velocity(const std::string& u8_buf) const;
     double adsb_msg_get_airborne_heading(const std::string& u8_buf) const;

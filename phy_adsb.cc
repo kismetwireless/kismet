@@ -523,7 +523,7 @@ bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<
             altitude = adsb_msg_get_ac12_altitude(adsb_bin);
             use_altitude = true;
 
-            location = adsb_msg_get_airborne_position(adsb_bin);
+            adsb_msg_get_airborne_position(adsb_bin, location);
             use_location = true;
         } else if (msgme == 19 && (msgsubme >= 1 && msgsubme <= 4)) {
             if (msgsubme == 1 || msgsubme == 2) {
@@ -1367,11 +1367,9 @@ std::string kis_adsb_phy::adsb_msg_get_flight(const std::string& u8_buf) const {
     return flight.str();
 }
 
-kis_adsb_phy::adsb_location_t kis_adsb_phy::adsb_msg_get_airborne_position(const std::string& u8_buf) const {
+void kis_adsb_phy::adsb_msg_get_airborne_position(const std::string& u8_buf, kis_adsb_phy::adsb_location_t &ret) const {
     // Decode the airborne position from message 17 
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-
-    adsb_location_t ret;
 
     ret.even = (buf[6] & (1 << 2)) == 0;
 
@@ -1382,9 +1380,6 @@ kis_adsb_phy::adsb_location_t kis_adsb_phy::adsb_msg_get_airborne_position(const
     ret.lon = (buf[8] & 1) << 16;
     ret.lon |= buf[9] << 8;
     ret.lon |= buf[10];
-
-    return ret;
-
 }
 
 double kis_adsb_phy::adsb_msg_get_airborne_velocity(const std::string& u8_buf) const {
