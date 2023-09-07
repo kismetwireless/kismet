@@ -526,15 +526,22 @@ bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<
             adsb_msg_get_airborne_position(adsb_bin, location);
             use_location = true;
         } else if (msgme == 19 && (msgsubme >= 1 && msgsubme <= 4)) {
+            altitude = adsb_msg_get_ac12_altitude(adsb_bin);
+            use_altitude = true;
+
             if (msgsubme == 1 || msgsubme == 2) {
                 speed = adsb_msg_get_airborne_velocity(adsb_bin);
                 use_speed = true;
 
-                heading = adsb_msg_get_airborne_heading(adsb_bin);
-                use_heading = true;
+                if (adsb_msg_get_airborne_heading_valid(adsb_bin)) {
+                    heading = adsb_msg_get_airborne_heading(adsb_bin);
+                    use_heading = true;
+                }
             } else if (msgsubme == 3 || msgsubme == 4) {
-                heading = adsb_msg_get_airborne_heading(adsb_bin);
-                use_heading = true;
+                if (adsb_msg_get_airborne_heading_valid(adsb_bin)) {
+                    heading = adsb_msg_get_airborne_heading(adsb_bin);
+                    use_heading = true;
+                }
             }
         }
     } else if (msgtype == 0 || msgtype == 4 || msgtype == 16 || msgtype == 20) {
@@ -554,6 +561,8 @@ bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<
     common->source = mac;
     common->transmitter = mac;
 
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_raw");
+
     // Update the base dev without setting location, because we want to
     // override that location ourselves later once we've gotten our
     // adsb device and possibly merged packets
@@ -562,7 +571,9 @@ bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
+    if (basedev == nullptr) {
+        return 0;
+    }
 
     auto dn = fmt::format("{}", icao_s);
 
@@ -616,12 +627,12 @@ bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<
     }
 
     if (use_altitude) {
-        adsbdev->alt = altitude * 0.3048;
+        adsbdev->alt = (double) altitude * 0.3048;
         adsbdev->update_location = true;
     }
 
     if (use_speed) {
-        adsbdev->speed = speed * 1.60934;
+        adsbdev->speed = (double) speed * 1.60934;
         adsbdev->update_location = true;
     }
 
@@ -1010,9 +1021,11 @@ int kis_adsb_phy::packet_handler(CHAINCALL_PARMS) {
         if (adsb->process_adsb_hex(device_json, in_pack)) {
              auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
              adata->set_data("ADSB", json->json_string);
+             /*
         } else if (adsb->json_to_rtl(device_json, in_pack)) {
              auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
              adata->set_data("ADSB", json->json_string);
+             */
         }
     } catch (std::exception& e) {
         fprintf(stderr, "debug - error processing json %s\n", e.what());
@@ -1280,7 +1293,7 @@ uint32_t kis_adsb_phy::adsb_msg_get_crc(const std::string& u8_buf) {
     crc |= buf[len - 2] << 8;
     crc |= buf[len - 1];
 
-    return crc;
+    return crc & 0x00FFFFFF;
 }
 
 uint8_t kis_adsb_phy::adsb_msg_get_type(const std::string& u8_buf) const {
@@ -1292,8 +1305,8 @@ uint32_t kis_adsb_phy::adsb_msg_get_icao(const std::string& u8_buf) const {
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
     uint32_t icao = 0; 
 
-    icao |= buf[1] << 24;
-    icao |= buf[2] << 16;
+    icao |= buf[1] << 16;     
+    icao |= buf[2] << 8;      
     icao |= buf[3];
 
     return icao;
@@ -1316,8 +1329,8 @@ uint8_t kis_adsb_phy::adsb_msg_get_me_subtype(const std::string& u8_buf) const {
 
 int kis_adsb_phy::adsb_msg_get_ac13_altitude(const std::string& u8_buf) const {
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-    uint8_t m_bit = buf[3] & (1 << 6);
-    uint8_t q_bit = buf[3] & (1 << 4);
+    int m_bit = buf[3] & (1 << 6);
+    int q_bit = buf[3] & (1 << 4);
 
     if (!m_bit) {
         if (q_bit) {
@@ -1335,8 +1348,8 @@ int kis_adsb_phy::adsb_msg_get_ac13_altitude(const std::string& u8_buf) const {
 
 int kis_adsb_phy::adsb_msg_get_ac12_altitude(const std::string& u8_buf) const {
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-    uint8_t q_bit = buf[5] & 1;
-    int16_t n = 0;
+    int q_bit = buf[5] & 1;
+    int n = 0;
 
     if (q_bit) {
         // Extract the 11bit integer after removing bit 0
@@ -1368,18 +1381,25 @@ std::string kis_adsb_phy::adsb_msg_get_flight(const std::string& u8_buf) const {
 }
 
 void kis_adsb_phy::adsb_msg_get_airborne_position(const std::string& u8_buf, kis_adsb_phy::adsb_location_t &ret) const {
-    // Decode the airborne position from message 17 
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    // Decode the airborne position from message 17             
+    
+    int even = (buf[6] & (1 << 2)) == 0;                    
 
-    ret.even = (buf[6] & (1 << 2)) == 0;
+    int lat = 0;                                           
+    lat = (buf[6] & 3) << 15;                                   
+    lat |= buf[7] << 7;                                         
+    lat |= buf[8] >> 1;                                         
 
-    ret.lat = (buf[6] & 3) << 15;
-    ret.lat |= buf[7] << 7;
-    ret.lat |= buf[8] >> 1;
+    int lon = 0;                                           
+    lon = (buf[8] & 1) << 16;                                   
+    lon |= buf[9] << 8;                                         
+    lon |= buf[10];                                             
 
-    ret.lon = (buf[8] & 1) << 16;
-    ret.lon |= buf[9] << 8;
-    ret.lon |= buf[10];
+    ret.even = even;
+    ret.lat = lat;
+    ret.lon = lon;
+
 }
 
 double kis_adsb_phy::adsb_msg_get_airborne_velocity(const std::string& u8_buf) const {
@@ -1395,6 +1415,11 @@ double kis_adsb_phy::adsb_msg_get_airborne_velocity(const std::string& u8_buf) c
     double velocity = sqrt(ns_velocity * ns_velocity + ew_velocity * ew_velocity);
 
     return velocity;
+}
+
+bool kis_adsb_phy::adsb_msg_get_airborne_heading_valid(const std::string& u8_buf) const {
+    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
+    return buf[5] & (1 << 2);
 }
 
 double kis_adsb_phy::adsb_msg_get_airborne_heading(const std::string& u8_buf) const {
@@ -1453,9 +1478,9 @@ uint32_t kis_adsb_phy::modes_checksum(const std::string& u8_buf) {
         offset = 112 - 56;
 
     for (unsigned int j = 0; j < u8_buf.size() * 8; j++) {
-        auto b = j / 8;
-        auto bit = j % 8;
-        auto mask = 1 << (7 - bit);
+        uint8_t b = j / 8;
+        uint8_t bit = j % 8;
+        uint8_t mask = 1 << (7 - bit);
 
         if (buf[b] & mask) {
             crc ^= modes_checksum_table[j + offset];
@@ -1464,5 +1489,7 @@ uint32_t kis_adsb_phy::modes_checksum(const std::string& u8_buf) {
 
     return (crc & 0x00FFFFFF);
 }
+
+
 
 

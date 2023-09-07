@@ -214,8 +214,8 @@ protected:
     std::string adsb_msg_get_flight(const std::string& u8_buf) const;
 
     typedef struct adsb_location {
-        int lat;
-        int lon;
+        unsigned int lat;
+        unsigned int lon;
         bool even;
 
         adsb_location() {
@@ -229,6 +229,7 @@ protected:
 
     double adsb_msg_get_airborne_velocity(const std::string& u8_buf) const;
     double adsb_msg_get_airborne_heading(const std::string& u8_buf) const;
+    bool adsb_msg_get_airborne_heading_valid(const std::string& u8_buf) const;
     double adsb_msg_get_sub3_heading(const std::string& u8_buf) const;
 
 };
