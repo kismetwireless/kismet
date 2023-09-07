@@ -317,7 +317,7 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     mosquitto_connect_callback_set(mosquitto_, [](struct mosquitto *m, void *obj, int rc) -> void {
             auto ds = static_cast<kis_datasource_mqtt *>(obj);
 
-            _MSG_DEBUG("MQTT connect cb {} {}", ds->get_name(), rc);
+            // _MSG_DEBUG("MQTT connect cb {} {}", ds->get_name(), rc);
 
             kis_unique_lock<kis_mutex> lock(ds->ext_mutex, std::defer_lock, "datasource_mqtt mqtt_conn_cb");
             lock.lock();
