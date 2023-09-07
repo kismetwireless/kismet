@@ -1021,11 +1021,9 @@ int kis_adsb_phy::packet_handler(CHAINCALL_PARMS) {
         if (adsb->process_adsb_hex(device_json, in_pack)) {
              auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
              adata->set_data("ADSB", json->json_string);
-             /*
         } else if (adsb->json_to_rtl(device_json, in_pack)) {
              auto adata = in_pack->fetch_or_add<packet_metablob>(adsb->pack_comp_meta);
              adata->set_data("ADSB", json->json_string);
-             */
         }
     } catch (std::exception& e) {
         fprintf(stderr, "debug - error processing json %s\n", e.what());
