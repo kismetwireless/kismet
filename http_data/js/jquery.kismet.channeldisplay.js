@@ -116,13 +116,9 @@
 
                 for (var fk in data['kismet.channeltracker.frequency_map']) {
                     var linedata =
-                        kismet.RecalcRrdData(
-                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'],
+                        kismet.RecalcRrdData2(
+                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd'],
                             rrd_type,
-                            kismet.ObjectByString(
-                                data['kismet.channeltracker.frequency_map'][fk],
-                                rrd_data),
                             {});
 
                     // Convert the freq name
@@ -187,15 +183,15 @@
                         options: {
                             maintainAspectRatio: false,
                             scales: {
-                                yAxes: [{
+                                y: {
                                     ticks: {
                                         beginAtZero: true,
                                     },
                                     stacked: true,
-                                }],
-                                xAxes: [{
+                                },
+                                x: {
                                     stacked: true,
-                                }],
+                                },
                             },
                             legend: {
                                 labels: {
@@ -277,9 +273,8 @@
                         device_options);
 
                 } else {
-                    state.devgraph_chart.data.datasets[0].data = devnums;
+                    state.devgraph_chart.data.datasets = devnums;
                     state.devgraph_chart.data.labels = devtitles;
-
                     state.devgraph_chart.update();
                 }
             }
