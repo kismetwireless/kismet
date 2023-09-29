@@ -38,12 +38,12 @@ struct ieee80211_radiotap_header {
 	/**
 	 * @it_len: overall radiotap header length
 	 */
-	__le16 it_len;
+	___le16 it_len;
 
 	/**
 	 * @it_present: (first) present word
 	 */
-	__le32 it_present;
+	___le32 it_present;
 } __packed;
 
 /* version is always 0 */
@@ -210,7 +210,7 @@ enum ieee80211_radiotap_timestamp_flags {
 };
 
 struct ieee80211_radiotap_he {
-	__le16 data1, data2, data3, data4, data5, data6;
+	___le16 data1, data2, data3, data4, data5, data6;
 };
 
 enum ieee80211_radiotap_he_bits {
@@ -304,7 +304,7 @@ enum ieee80211_radiotap_he_bits {
 };
 
 struct ieee80211_radiotap_he_mu {
-	__le16 flags1, flags2;
+	___le16 flags1, flags2;
 	uint8_t ru_ch1[4];
 	uint8_t ru_ch2[4];
 };
@@ -346,7 +346,7 @@ enum ieee80211_radiotap_lsig_data2 {
 };
 
 struct ieee80211_radiotap_lsig {
-	__le16 data1, data2;
+	___le16 data1, data2;
 };
 
 enum ieee80211_radiotap_zero_len_psdu_type {

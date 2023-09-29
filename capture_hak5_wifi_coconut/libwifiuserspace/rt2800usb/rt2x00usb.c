@@ -212,7 +212,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 }
 
 struct rt2x00_async_read_data {
-    __le32 reg;
+    ___le32 reg;
     struct rt2x00_dev *rt2x00dev;
     bool (*callback)(struct rt2x00_dev *, int, uint32_t);
 };
@@ -374,7 +374,7 @@ int rt2x00usb_alloc_reg(struct rt2x00_dev *rt2x00dev) {
         return -ENOMEM;
     }
 
-    rt2x00dev->eeprom = (__le16*) malloc(rt2x00dev->ops->eeprom_size);
+    rt2x00dev->eeprom = (___le16*) malloc(rt2x00dev->ops->eeprom_size);
     if (!rt2x00dev->eeprom) {
         free(rt2x00dev->csr.cache);
         return -ENOMEM;

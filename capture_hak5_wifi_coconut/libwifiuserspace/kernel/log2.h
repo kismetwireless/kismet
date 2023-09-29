@@ -31,7 +31,7 @@ int __ilog2_u32(uint32_t n)
 
 #ifndef CONFIG_ARCH_HAS_ILOG2_U64
 static inline const
-int __ilog2_u64(u64 n)
+int __ilog2_u64(uint64_t n)
 {
 	return __fls64(n) - 1;
 }

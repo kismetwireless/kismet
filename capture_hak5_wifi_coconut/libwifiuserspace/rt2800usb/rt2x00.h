@@ -393,8 +393,8 @@ struct rt2x00intf_conf {
 	 * This will also make it easier for the driver to write
 	 * the data to the device.
 	 */
-	__le32 mac[2];
-	__le32 bssid[2];
+	___le32 mac[2];
+	___le32 bssid[2];
 };
 
 /*
@@ -575,7 +575,7 @@ struct rt2x00_dev {
 	/*
 	 * EEPROM data.
 	 */
-	__le16 *eeprom;
+	___le16 *eeprom;
 
 	/*
 	 * Active RF register values.

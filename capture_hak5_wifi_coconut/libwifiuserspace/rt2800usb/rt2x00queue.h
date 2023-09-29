@@ -77,7 +77,7 @@ enum rxdone_entry_desc_flags {
  * @icv: ICV data used during decryption.
  */
 struct rxdone_entry_desc {
-	u64 timestamp;
+	uint64_t timestamp;
 	int signal;
 	int rssi;
 	int size;
@@ -90,8 +90,8 @@ struct rxdone_entry_desc {
 	uint8_t cipher;
 	uint8_t cipher_status;
 
-	__le32 iv[2];
-	__le32 icv;
+	___le32 iv[2];
+	___le32 icv;
 };
 
 #endif /* ifndef RT2X00QUEUE_H */

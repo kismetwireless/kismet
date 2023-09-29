@@ -37,7 +37,7 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 /*
  * Kluge swab16
  */
-static inline __u16 ___swab16(__u16 x)
+static inline uint64_t ___swab16(uint16_t x)
 {
         return x<<8 | x>>8;
 }
@@ -83,9 +83,9 @@ static int __fls(unsigned int x)
     return r;
 }
 
-static int __fls64(__u64 x)
+static int __fls64(uint64_t x)
 {
-    __u32 h = x >> 32;
+    uint32_t h = x >> 32;
     if (h)
         return __fls(h) + 32;
     return __fls(x);

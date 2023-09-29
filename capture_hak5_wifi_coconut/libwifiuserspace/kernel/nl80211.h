@@ -165,9 +165,9 @@ enum nl80211_iftype {
 
 struct ieee80211_p2p_noa_desc {
 	uint8_t count;
-	__le32 duration;
-	__le32 interval;
-	__le32 start_time;
+	___le32 duration;
+	___le32 interval;
+	___le32 start_time;
 } __packed;
 
 struct ieee80211_p2p_noa_attr {

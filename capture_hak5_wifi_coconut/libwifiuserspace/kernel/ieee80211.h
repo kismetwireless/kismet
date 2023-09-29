@@ -136,7 +136,7 @@
 #define IEEE80211_NDP_FTYPE_PAGING		6
 #define IEEE80211_NDP_FTYPE_PREQ		7
 
-#define SM64(f, v)	((((u64)v) << f##_S) & f)
+#define SM64(f, v)	((((uint64_t)v) << f##_S) & f)
 
 /* NDP CMAC frame fields */
 #define IEEE80211_NDP_FTYPE                    0x0000000000000007
@@ -304,7 +304,7 @@
  */
 struct ieee80211_mcs_info {
 	uint8_t rx_mask[IEEE80211_HT_MCS_MASK_LEN];
-	__le16 rx_highest;
+	___le16 rx_highest;
 	uint8_t tx_params;
 	uint8_t reserved[3];
 } __packed;
@@ -337,14 +337,14 @@ struct ieee80211_mcs_info {
  * described in 802.11n D5.0 7.3.2.57
  */
 struct ieee80211_ht_cap {
-	__le16 cap_info;
+	___le16 cap_info;
 	uint8_t ampdu_params_info;
 
 	/* 16 bytes MCS information */
 	struct ieee80211_mcs_info mcs;
 
-	__le16 extended_ht_cap_info;
-	__le32 tx_BF_cap_info;
+	___le16 extended_ht_cap_info;
+	___le32 tx_BF_cap_info;
 	uint8_t antenna_selection_info;
 } __packed;
 
@@ -399,10 +399,10 @@ struct ieee80211_ht_cap {
  *	Capability.
  */
 struct ieee80211_vht_mcs_info {
-	__le16 rx_mcs_map;
-	__le16 rx_highest;
-	__le16 tx_mcs_map;
-	__le16 tx_highest;
+	___le16 rx_mcs_map;
+	___le16 rx_highest;
+	___le16 tx_mcs_map;
+	___le16 tx_highest;
 } __packed;
 
 /**
@@ -457,12 +457,12 @@ enum ieee80211_he_mcs_support {
  *     channel width 80p80MHz.
  */
 struct ieee80211_he_mcs_nss_supp {
-	__le16 rx_mcs_80;
-	__le16 tx_mcs_80;
-	__le16 rx_mcs_160;
-	__le16 tx_mcs_160;
-	__le16 rx_mcs_80p80;
-	__le16 tx_mcs_80p80;
+	___le16 rx_mcs_80;
+	___le16 tx_mcs_80;
+	___le16 rx_mcs_160;
+	___le16 tx_mcs_160;
+	___le16 rx_mcs_80p80;
+	___le16 tx_mcs_80p80;
 } __packed;
 
 /* for operation_mode */
@@ -477,42 +477,42 @@ struct ieee80211_he_mcs_nss_supp {
 #define IEEE80211_HT_OP_MODE_CCFS2_MASK			0x1fe0
 
 struct ieee80211_hdr {
-	__le16 frame_control;
-	__le16 duration_id;
+	___le16 frame_control;
+	___le16 duration_id;
 	struct_group(addrs,
 		uint8_t addr1[ETH_ALEN];
 		uint8_t addr2[ETH_ALEN];
 		uint8_t addr3[ETH_ALEN];
 	);
-	__le16 seq_ctrl;
+	___le16 seq_ctrl;
 	uint8_t addr4[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
-	__le16 frame_control;
-	__le16 duration_id;
+	___le16 frame_control;
+	___le16 duration_id;
 	uint8_t addr1[ETH_ALEN];
 	uint8_t addr2[ETH_ALEN];
 	uint8_t addr3[ETH_ALEN];
-	__le16 seq_ctrl;
+	___le16 seq_ctrl;
 } __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
-	__le16 frame_control;
-	__le16 duration_id;
+	___le16 frame_control;
+	___le16 duration_id;
 	uint8_t addr1[ETH_ALEN];
 	uint8_t addr2[ETH_ALEN];
 	uint8_t addr3[ETH_ALEN];
-	__le16 seq_ctrl;
-	__le16 qos_ctrl;
+	___le16 seq_ctrl;
+	___le16 qos_ctrl;
 } __packed __aligned(2);
 
 struct ieee80211_trigger {
-	__le16 frame_control;
-	__le16 duration;
+	___le16 frame_control;
+	___le16 duration;
 	uint8_t ra[ETH_ALEN];
 	uint8_t ta[ETH_ALEN];
-	__le64 common_info;
+	___le64 common_info;
 	uint8_t variable[];
 } __packed __aligned(2);
 
@@ -520,7 +520,7 @@ struct ieee80211_trigger {
  * ieee80211_has_tods - check if IEEE80211_FCTL_TODS is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_tods(__le16 fc)
+static inline bool ieee80211_has_tods(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_TODS)) != 0;
 }
@@ -529,7 +529,7 @@ static inline bool ieee80211_has_tods(__le16 fc)
  * ieee80211_has_fromds - check if IEEE80211_FCTL_FROMDS is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_fromds(__le16 fc)
+static inline bool ieee80211_has_fromds(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FROMDS)) != 0;
 }
@@ -538,9 +538,9 @@ static inline bool ieee80211_has_fromds(__le16 fc)
  * ieee80211_has_a4 - check if IEEE80211_FCTL_TODS and IEEE80211_FCTL_FROMDS are set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_a4(__le16 fc)
+static inline bool ieee80211_has_a4(___le16 fc)
 {
-	__le16 tmp = cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
+	___le16 tmp = cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
 	return (fc & tmp) == tmp;
 }
 
@@ -548,7 +548,7 @@ static inline bool ieee80211_has_a4(__le16 fc)
  * ieee80211_has_morefrags - check if IEEE80211_FCTL_MOREFRAGS is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_morefrags(__le16 fc)
+static inline bool ieee80211_has_morefrags(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_MOREFRAGS)) != 0;
 }
@@ -557,7 +557,7 @@ static inline bool ieee80211_has_morefrags(__le16 fc)
  * ieee80211_has_retry - check if IEEE80211_FCTL_RETRY is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_retry(__le16 fc)
+static inline bool ieee80211_has_retry(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_RETRY)) != 0;
 }
@@ -566,7 +566,7 @@ static inline bool ieee80211_has_retry(__le16 fc)
  * ieee80211_has_pm - check if IEEE80211_FCTL_PM is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_pm(__le16 fc)
+static inline bool ieee80211_has_pm(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_PM)) != 0;
 }
@@ -575,7 +575,7 @@ static inline bool ieee80211_has_pm(__le16 fc)
  * ieee80211_has_moredata - check if IEEE80211_FCTL_MOREDATA is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_moredata(__le16 fc)
+static inline bool ieee80211_has_moredata(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_MOREDATA)) != 0;
 }
@@ -584,7 +584,7 @@ static inline bool ieee80211_has_moredata(__le16 fc)
  * ieee80211_has_protected - check if IEEE80211_FCTL_PROTECTED is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_protected(__le16 fc)
+static inline bool ieee80211_has_protected(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_PROTECTED)) != 0;
 }
@@ -593,7 +593,7 @@ static inline bool ieee80211_has_protected(__le16 fc)
  * ieee80211_has_order - check if IEEE80211_FCTL_ORDER is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_has_order(__le16 fc)
+static inline bool ieee80211_has_order(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_ORDER)) != 0;
 }
@@ -602,7 +602,7 @@ static inline bool ieee80211_has_order(__le16 fc)
  * ieee80211_is_mgmt - check if type is IEEE80211_FTYPE_MGMT
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_mgmt(__le16 fc)
+static inline bool ieee80211_is_mgmt(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT);
@@ -612,7 +612,7 @@ static inline bool ieee80211_is_mgmt(__le16 fc)
  * ieee80211_is_ctl - check if type is IEEE80211_FTYPE_CTL
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_ctl(__le16 fc)
+static inline bool ieee80211_is_ctl(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL);
@@ -622,7 +622,7 @@ static inline bool ieee80211_is_ctl(__le16 fc)
  * ieee80211_is_data - check if type is IEEE80211_FTYPE_DATA
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_data(__le16 fc)
+static inline bool ieee80211_is_data(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_DATA);
@@ -632,7 +632,7 @@ static inline bool ieee80211_is_data(__le16 fc)
  * ieee80211_is_ext - check if type is IEEE80211_FTYPE_EXT
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_ext(__le16 fc)
+static inline bool ieee80211_is_ext(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_EXT);
@@ -643,7 +643,7 @@ static inline bool ieee80211_is_ext(__le16 fc)
  * ieee80211_is_data_qos - check if type is IEEE80211_FTYPE_DATA and IEEE80211_STYPE_QOS_DATA is set
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_data_qos(__le16 fc)
+static inline bool ieee80211_is_data_qos(___le16 fc)
 {
 	/*
 	 * mask with QOS_DATA rather than IEEE80211_FCTL_STYPE as we just need
@@ -657,7 +657,7 @@ static inline bool ieee80211_is_data_qos(__le16 fc)
  * ieee80211_is_data_present - check if type is IEEE80211_FTYPE_DATA and has data
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_data_present(__le16 fc)
+static inline bool ieee80211_is_data_present(___le16 fc)
 {
 	/*
 	 * mask with 0x40 and test that that bit is clear to only return true
@@ -671,7 +671,7 @@ static inline bool ieee80211_is_data_present(__le16 fc)
  * ieee80211_is_assoc_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ASSOC_REQ
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_assoc_req(__le16 fc)
+static inline bool ieee80211_is_assoc_req(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ASSOC_REQ);
@@ -681,7 +681,7 @@ static inline bool ieee80211_is_assoc_req(__le16 fc)
  * ieee80211_is_assoc_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ASSOC_RESP
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_assoc_resp(__le16 fc)
+static inline bool ieee80211_is_assoc_resp(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ASSOC_RESP);
@@ -691,7 +691,7 @@ static inline bool ieee80211_is_assoc_resp(__le16 fc)
  * ieee80211_is_reassoc_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_REASSOC_REQ
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_reassoc_req(__le16 fc)
+static inline bool ieee80211_is_reassoc_req(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_REASSOC_REQ);
@@ -701,7 +701,7 @@ static inline bool ieee80211_is_reassoc_req(__le16 fc)
  * ieee80211_is_reassoc_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_REASSOC_RESP
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_reassoc_resp(__le16 fc)
+static inline bool ieee80211_is_reassoc_resp(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_REASSOC_RESP);
@@ -711,7 +711,7 @@ static inline bool ieee80211_is_reassoc_resp(__le16 fc)
  * ieee80211_is_probe_req - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_PROBE_REQ
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_probe_req(__le16 fc)
+static inline bool ieee80211_is_probe_req(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_REQ);
@@ -721,7 +721,7 @@ static inline bool ieee80211_is_probe_req(__le16 fc)
  * ieee80211_is_probe_resp - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_PROBE_RESP
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_probe_resp(__le16 fc)
+static inline bool ieee80211_is_probe_resp(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
@@ -731,7 +731,7 @@ static inline bool ieee80211_is_probe_resp(__le16 fc)
  * ieee80211_is_beacon - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_BEACON
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_beacon(__le16 fc)
+static inline bool ieee80211_is_beacon(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
@@ -742,7 +742,7 @@ static inline bool ieee80211_is_beacon(__le16 fc)
  * IEEE80211_STYPE_S1G_BEACON
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_s1g_beacon(__le16 fc)
+static inline bool ieee80211_is_s1g_beacon(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE |
 				 IEEE80211_FCTL_STYPE)) ==
@@ -754,7 +754,7 @@ static inline bool ieee80211_is_s1g_beacon(__le16 fc)
  * IEEE80211_STYPE_S1G_BEACON && IEEE80211_S1G_BCN_NEXT_TBTT
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_next_tbtt_present(__le16 fc)
+static inline bool ieee80211_next_tbtt_present(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON) &&
@@ -766,7 +766,7 @@ static inline bool ieee80211_next_tbtt_present(__le16 fc)
  * true for S1G beacons when they're short.
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
+static inline bool ieee80211_is_s1g_short_beacon(___le16 fc)
 {
 	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
 }
@@ -775,7 +775,7 @@ static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
  * ieee80211_is_atim - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ATIM
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_atim(__le16 fc)
+static inline bool ieee80211_is_atim(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ATIM);
@@ -785,7 +785,7 @@ static inline bool ieee80211_is_atim(__le16 fc)
  * ieee80211_is_disassoc - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_DISASSOC
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_disassoc(__le16 fc)
+static inline bool ieee80211_is_disassoc(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DISASSOC);
@@ -795,7 +795,7 @@ static inline bool ieee80211_is_disassoc(__le16 fc)
  * ieee80211_is_auth - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_AUTH
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_auth(__le16 fc)
+static inline bool ieee80211_is_auth(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH);
@@ -805,7 +805,7 @@ static inline bool ieee80211_is_auth(__le16 fc)
  * ieee80211_is_deauth - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_DEAUTH
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_deauth(__le16 fc)
+static inline bool ieee80211_is_deauth(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH);
@@ -815,7 +815,7 @@ static inline bool ieee80211_is_deauth(__le16 fc)
  * ieee80211_is_action - check if IEEE80211_FTYPE_MGMT && IEEE80211_STYPE_ACTION
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_action(__le16 fc)
+static inline bool ieee80211_is_action(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ACTION);
@@ -825,7 +825,7 @@ static inline bool ieee80211_is_action(__le16 fc)
  * ieee80211_is_back_req - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_BACK_REQ
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_back_req(__le16 fc)
+static inline bool ieee80211_is_back_req(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
@@ -835,7 +835,7 @@ static inline bool ieee80211_is_back_req(__le16 fc)
  * ieee80211_is_back - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_BACK
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_back(__le16 fc)
+static inline bool ieee80211_is_back(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK);
@@ -845,7 +845,7 @@ static inline bool ieee80211_is_back(__le16 fc)
  * ieee80211_is_pspoll - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_PSPOLL
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_pspoll(__le16 fc)
+static inline bool ieee80211_is_pspoll(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
@@ -855,7 +855,7 @@ static inline bool ieee80211_is_pspoll(__le16 fc)
  * ieee80211_is_rts - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_RTS
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_rts(__le16 fc)
+static inline bool ieee80211_is_rts(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
@@ -865,7 +865,7 @@ static inline bool ieee80211_is_rts(__le16 fc)
  * ieee80211_is_cts - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CTS
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_cts(__le16 fc)
+static inline bool ieee80211_is_cts(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS);
@@ -875,7 +875,7 @@ static inline bool ieee80211_is_cts(__le16 fc)
  * ieee80211_is_ack - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_ACK
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_ack(__le16 fc)
+static inline bool ieee80211_is_ack(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_ACK);
@@ -885,7 +885,7 @@ static inline bool ieee80211_is_ack(__le16 fc)
  * ieee80211_is_cfend - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CFEND
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_cfend(__le16 fc)
+static inline bool ieee80211_is_cfend(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CFEND);
@@ -895,7 +895,7 @@ static inline bool ieee80211_is_cfend(__le16 fc)
  * ieee80211_is_cfendack - check if IEEE80211_FTYPE_CTL && IEEE80211_STYPE_CFENDACK
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_cfendack(__le16 fc)
+static inline bool ieee80211_is_cfendack(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CFENDACK);
@@ -905,7 +905,7 @@ static inline bool ieee80211_is_cfendack(__le16 fc)
  * ieee80211_is_nullfunc - check if frame is a regular (non-QoS) nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_nullfunc(__le16 fc)
+static inline bool ieee80211_is_nullfunc(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC);
@@ -915,7 +915,7 @@ static inline bool ieee80211_is_nullfunc(__le16 fc)
  * ieee80211_is_qos_nullfunc - check if frame is a QoS nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
+static inline bool ieee80211_is_qos_nullfunc(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_NULLFUNC);
@@ -925,7 +925,7 @@ static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
  * ieee80211_is_trigger - check if frame is trigger frame
  * @fc: frame control field in little-endian byteorder
  */
-static inline bool ieee80211_is_trigger(__le16 fc)
+static inline bool ieee80211_is_trigger(___le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_TRIGGER);
@@ -935,7 +935,7 @@ static inline bool ieee80211_is_trigger(__le16 fc)
  * ieee80211_is_any_nullfunc - check if frame is regular or QoS nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_any_nullfunc(__le16 fc)
+static inline bool ieee80211_is_any_nullfunc(___le16 fc)
 {
 	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
 }
@@ -944,7 +944,7 @@ static inline bool ieee80211_is_any_nullfunc(__le16 fc)
  * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
  * @fc: frame control field in little-endian byteorder
  */
-static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
+static inline bool ieee80211_is_bufferable_mmpdu(___le16 fc)
 {
 	/* IEEE 802.11-2012, definition of "bufferable management frame";
 	 * note that this ignores the IBSS special case. */
@@ -958,7 +958,7 @@ static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
  * ieee80211_is_first_frag - check if IEEE80211_SCTL_FRAG is not set
  * @seq_ctrl: frame sequence control bytes in little-endian byteorder
  */
-static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
+static inline bool ieee80211_is_first_frag(___le16 seq_ctrl)
 {
 	return (seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0;
 }

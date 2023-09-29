@@ -519,11 +519,11 @@ static const struct usb_device_id rt2800usb_device_table[] = {
  * Firmware functions
  */
 int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev) {
-    __le32 *reg;
+    ___le32 *reg;
     uint32_t fw_mode;
     int ret;
 
-    reg = (__le32 *) malloc(sizeof(__le32));
+    reg = (___le32 *) malloc(sizeof(___le32));
     if (reg == NULL)
         return -ENOMEM;
 
@@ -534,7 +534,7 @@ int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev) {
      */
     ret = rt2x00usb_vendor_request(rt2x00dev, USB_DEVICE_MODE,
             USB_VENDOR_REQUEST_IN, 0,
-            USB_MODE_AUTORUN, reg, sizeof(__le32),
+            USB_MODE_AUTORUN, reg, sizeof(___le32),
             REGISTER_TIMEOUT_FIRMWARE);
     fw_mode = le32_to_cpu(*reg);
 
@@ -1869,7 +1869,7 @@ void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
  */
-static inline __le32 _rt2x00_desc_read(__le32 *desc, const uint8_t word)
+static inline ___le32 _rt2x00_desc_read(___le32 *desc, const uint8_t word)
 {
 	return desc[word];
 }
@@ -1880,7 +1880,7 @@ static inline __le32 _rt2x00_desc_read(__le32 *desc, const uint8_t word)
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
  */
-static inline uint32_t rt2x00_desc_read(__le32 *desc, const uint8_t word)
+static inline uint32_t rt2x00_desc_read(___le32 *desc, const uint8_t word)
 {
 	return le32_to_cpu(_rt2x00_desc_read(desc, word));
 }
@@ -1955,8 +1955,8 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
     unsigned char *workbuf = transfer->buffer;
     unsigned int workbuf_len = transfer->actual_length;
 
-	__le32 *rxi = (__le32 *) workbuf;
-	__le32 *rxd;
+	___le32 *rxi = (___le32 *) workbuf;
+	___le32 *rxd;
 	uint32_t word;
 
 	unsigned int rx_pkt_len;
@@ -2031,12 +2031,12 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
     workbuf = workbuf + RXINFO_DESC_SIZE;
     workbuf_len -= RXINFO_DESC_SIZE;
 
-	rxd = (__le32 *)(workbuf + rx_pkt_len);
+	rxd = (___le32 *)(workbuf + rx_pkt_len);
 
 	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	word = rt2x00_desc_read((__le32 *) rxd, 0);
+	word = rt2x00_desc_read((___le32 *) rxd, 0);
 
 	if (rt2x00_get_field32(word, RXD_W0_L2PAD))
         pad = 1;
@@ -2056,7 +2056,7 @@ void rt2800usb_libusb_transfer_fn(struct libusb_transfer *transfer) {
     workbuf_len -= pad;
      */
 
-    rxi = (__le32 *) workbuf;
+    rxi = (___le32 *) workbuf;
 
 	word = rt2x00_desc_read(rxi, 0);
 	mpdu_sz = rt2x00_get_field32(word, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);

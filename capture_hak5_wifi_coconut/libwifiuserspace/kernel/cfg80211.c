@@ -64,7 +64,7 @@ int ieee80211_frequency_to_channel(int freq)
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
-unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc)
+unsigned int __attribute_const__ ieee80211_hdrlen(___le16 fc)
 {
 	unsigned int hdrlen = 24;
 

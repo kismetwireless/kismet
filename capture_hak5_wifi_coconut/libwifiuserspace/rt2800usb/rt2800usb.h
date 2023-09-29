@@ -23,8 +23,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXINFO_DESC_SIZE		(1 * sizeof(__le32))
-#define RXINFO_DESC_SIZE		(1 * sizeof(__le32))
+#define TXINFO_DESC_SIZE		(1 * sizeof(___le32))
+#define RXINFO_DESC_SIZE		(1 * sizeof(___le32))
 
 /*
  * TX Info structure

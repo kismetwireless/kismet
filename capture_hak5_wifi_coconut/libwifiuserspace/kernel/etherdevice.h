@@ -45,9 +45,9 @@ static const uint8_t eth_reserved_addr_base[ETH_ALEN] __aligned(2) =
  */
 static inline bool is_link_local_ether_addr(const uint8_t *addr)
 {
-	__be16 *a = (__be16 *)addr;
-	static const __be16 *b = (const __be16 *)eth_reserved_addr_base;
-	__be16 m = cpu_to_be16(0xfff0);
+	___be16 *a = (___be16 *)addr;
+	static const ___be16 *b = (const ___be16 *)eth_reserved_addr_base;
+	___be16 m = cpu_to_be16(0xfff0);
 
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
 	return (((*(const uint32_t *)addr) ^ (*(const uint32_t *)b)) |

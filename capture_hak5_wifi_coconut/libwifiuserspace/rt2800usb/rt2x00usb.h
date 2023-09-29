@@ -140,7 +140,7 @@ static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
  * kmalloc for correct handling inside the kernel USB layer.
  */
 static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
-        __le16 *eeprom, const uint16_t length) {
+        ___le16 *eeprom, const uint16_t length) {
     return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
             USB_VENDOR_REQUEST_IN, 0, 0,
             eeprom, length, EEPROM_TIMEOUT);
@@ -156,7 +156,7 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
  */
 static inline uint32_t rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset) {
-    __le32 reg = 0;
+    ___le32 reg = 0;
     rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
             USB_VENDOR_REQUEST_IN, offset,
             &reg, sizeof(reg));
@@ -173,7 +173,7 @@ static inline uint32_t rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
  */
 static inline uint32_t rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset) {
-    __le32 reg = 0;
+    ___le32 reg = 0;
     rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
             USB_VENDOR_REQUEST_IN, offset,
             &reg, sizeof(reg), REGISTER_TIMEOUT);
@@ -210,7 +210,7 @@ static inline void rt2x00usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 static inline void rt2x00usb_register_write(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         uint32_t value) {
-    __le32 reg = cpu_to_le32(value);
+    ___le32 reg = cpu_to_le32(value);
     rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
             USB_VENDOR_REQUEST_OUT, offset,
             &reg, sizeof(reg));
@@ -228,7 +228,7 @@ static inline void rt2x00usb_register_write(struct rt2x00_dev *rt2x00dev,
 static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
         const unsigned int offset,
         uint32_t value) {
-    __le32 reg = cpu_to_le32(value);
+    ___le32 reg = cpu_to_le32(value);
     rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_WRITE,
             USB_VENDOR_REQUEST_OUT, offset,
             &reg, sizeof(reg), REGISTER_TIMEOUT);

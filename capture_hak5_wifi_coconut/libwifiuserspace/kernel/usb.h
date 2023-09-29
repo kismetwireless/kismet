@@ -89,26 +89,26 @@
  */
 struct usb_device_id {
 	/* which fields to match against? */
-	__u16		match_flags;
+	uint16_t		match_flags;
 
 	/* Used for product specific matches; range is inclusive */
-	__u16		idVendor;
-	__u16		idProduct;
-	__u16		bcdDevice_lo;
-	__u16		bcdDevice_hi;
+	uint16_t		idVendor;
+	uint16_t		idProduct;
+	uint16_t		bcdDevice_lo;
+	uint16_t		bcdDevice_hi;
 
 	/* Used for device class matches */
-	__u8		bDeviceClass;
-	__u8		bDeviceSubClass;
-	__u8		bDeviceProtocol;
+	uint8_t		bDeviceClass;
+	uint8_t		bDeviceSubClass;
+	uint8_t		bDeviceProtocol;
 
 	/* Used for interface class matches */
-	__u8		bInterfaceClass;
-	__u8		bInterfaceSubClass;
-	__u8		bInterfaceProtocol;
+	uint8_t		bInterfaceClass;
+	uint8_t		bInterfaceSubClass;
+	uint8_t		bInterfaceProtocol;
 
 	/* Used for vendor-specific interface matches */
-	__u8		bInterfaceNumber;
+	uint8_t		bInterfaceNumber;
 };
 
 /* Some useful macros to use to create struct usb_device_id */

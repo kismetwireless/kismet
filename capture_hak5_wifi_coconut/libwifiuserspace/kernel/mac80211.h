@@ -861,7 +861,7 @@ struct ieee80211_bss_conf {
 	uint8_t dtim_period;
 	uint16_t beacon_int;
 	uint16_t assoc_capability;
-	u64 sync_tsf;
+	uint64_t sync_tsf;
 	uint32_t sync_device_ts;
 	uint8_t sync_dtim_count;
 	uint32_t basic_rates;
@@ -874,7 +874,7 @@ struct ieee80211_bss_conf {
 	int32_t cqm_rssi_high;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_mu_group_data mu_group;
-	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
+	___be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
 	int arp_addr_cnt;
 	bool qos;
 	bool idle;
@@ -1312,8 +1312,8 @@ enum mac80211_rx_encoding {
  * @zero_length_psdu_type: radiotap type of the 0-length PSDU
  */
 struct ieee80211_rx_status {
-	u64 mactime;
-	u64 boottime_ns;
+	uint64_t mactime;
+	uint64_t boottime_ns;
 	uint32_t device_timestamp;
 	uint32_t ampdu_reference;
 	uint32_t flag;
