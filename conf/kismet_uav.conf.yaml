@@ -85,7 +85,23 @@
     model: Mavic
     ssid: ^Mavic_.*
     mac: 
-        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00 
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: dji_mavic_3
+    name: DJI
+    model: Mavic 3
+    ssid: ^DJI-MAVIC3.*
+    mac:
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: dji_mini3_pro
+    name: DJI
+    model: Mini3 Pro
+    ssid: ^DJI-MINI3-Pro-.*
+    mac:
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00
 
 - uav:
     id: dji_spark
