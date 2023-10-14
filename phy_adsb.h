@@ -161,8 +161,8 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(const nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
-    bool process_adsb_hex(const nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
+    bool json_to_rtl(nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
+    bool process_adsb_hex(nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_adsb(nlohmann::json json);
 

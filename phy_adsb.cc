@@ -463,16 +463,26 @@ mac_addr kis_adsb_phy::icao_to_mac(uint32_t icao) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
-    if (!json["adsb"].is_string()) {
+bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
+	auto hex_j = json["adsb"];
+	
+	if (hex_j.is_null() || !hex_j.is_string()) {
+		hex_j = json["adsb_raw_msg"];
+	}
+
+	if (hex_j.is_null() || !hex_j.is_string()) {
         return false;
     }
 
-    const std::string adsb_hex = json["adsb"].get<std::string>();
+    const std::string adsb_hex = hex_j.get<std::string>();
     std::string adsb_bin;
 
     try {
-        adsb_bin = hex_to_bytes(adsb_hex.substr(1, adsb_hex.length() - 2));
+		if (adsb_hex[0] == '*') {
+			adsb_bin = hex_to_bytes(adsb_hex.substr(1, adsb_hex.length() - 2));
+		} else {
+			adsb_bin = hex_to_bytes(adsb_hex);
+		}
     } catch (...) {
         return false;
     }
@@ -734,7 +744,7 @@ bool kis_adsb_phy::process_adsb_hex(const nlohmann::json& json, std::shared_ptr<
     return true;
 }
 
-bool kis_adsb_phy::json_to_rtl(const nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
+bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
