@@ -2903,7 +2903,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80) {
                 ssid->set_ht_mode("HT80");
                 ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
-                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center1()));
+                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
             } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_160) {
                 ssid->set_ht_mode("HT160");
                 ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
