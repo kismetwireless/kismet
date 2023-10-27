@@ -1654,7 +1654,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
     } else if (strncasecmp(command, "KDSLISTINTERFACES", 32) == 0) {
         if (caph->listdevices_cb == NULL) {
             if (caph->verbose)
-                fprintf(stderr, "ERROR: Source does not support listing datasources.\n");
+                fprintf(stderr, "ERROR: Capture source (%s) source does not support listing datasources.\n",
+						caph->capsource_type);
 
             cf_send_listresp(caph, seqno, true, "", NULL, 0);
             cbret = -1;
@@ -2019,7 +2020,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-        fprintf(stderr, "FATAL: Invalid frame header received\n");
+        fprintf(stderr, "FATAL: Capture source (%s) invalid frame header received\n",
+				caph->capsource_type);
         return -1;
     }
 
@@ -2030,7 +2032,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             ntohs(external_frame_v2->frame_version) == 0x02) {
 
         if (len < packet_sz + sizeof(kismet_external_frame_v2_t)) {
-            fprintf(stderr, "FATAL: Runt v2 packet\n");
+            fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v2 packet\n",
+					caph->capsource_type);
             return -1;
         }
 
@@ -2040,14 +2043,16 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                 external_frame_v2->data, packet_sz);
     } else {
         if (len < packet_sz + sizeof(kismet_external_frame_t)) {
-            fprintf(stderr, "FATAL: Runt v0 packet\n");
+            fprintf(stderr, "FATAL: Capture source (%s) malformed too-small v0 packet\n",
+					caph->capsource_type);
             return -1;
         }
 
         kds_cmd = kismet_external__command__unpack(NULL, packet_sz, external_frame->data);
 
         if (kds_cmd == NULL) {
-            fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack v0 command\n");
+            fprintf(stderr, "FATAL:  Capture source (%s) invalid frame received, unable to unpack v0 command\n",
+					caph->capsource_type);
             return -1;
         }
 
@@ -2094,7 +2099,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
-        fprintf(stderr, "FATAL: Invalid frame header received\n");
+        fprintf(stderr, "FATAL: Capture source (%s) invalid frame header received\n",
+				caph->capsource_type);
         return -1;
     }
 
@@ -2110,7 +2116,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     if (total_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
-        fprintf(stderr, "FATAL: Incoming packet too large for ringbuf\n");
+        fprintf(stderr, "FATAL: Capture source (%s) incoming packet too large for ringbuf\n",
+				caph->capsource_type);
         return -1;
     }
 
@@ -2126,7 +2133,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     /* Peek our ring buffer */
     if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf, total_sz) != total_sz) {
-        fprintf(stderr, "FATAL: Failed to read packet from ringbuf\n");
+        fprintf(stderr, "FATAL: Capture source (%s) failed to read packet from ringbuf\n",
+				caph->capsource_type);
         free(frame_buf);
         return -1;
     }
@@ -2734,7 +2742,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     /* See if we have a complete packet to do something with */
                     if (cf_handle_rb_rx_data(caph) < 0) {
                         /* Enter spindown if processing an incoming packet failed */
-                        fprintf(stderr, "FATAL:  Datasource helper failed, could not process incoming control packet.\n");
+                        fprintf(stderr, "FATAL:  Datasource helper (%s) failed, could not process incoming control packet.\n",
+								caph->capsource_type);
                         cf_handler_spindown(caph);
                     }
                 }
