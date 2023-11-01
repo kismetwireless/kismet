@@ -187,8 +187,8 @@ struct kismet_pcapng_gps_chunk {
 } __attribute__((packed));
 typedef struct kismet_pcapng_gps_chunk kismet_pcapng_gps_chunk_t;
 
+/* Magic identifier to ID this custom sub chunk */
 #define PCAPNG_GPS_MAGIC            0x47
-
 #define PCAPNG_GPS_VERSION          0x1
 
 #define PCAPNG_GPS_FLAG_LON         0x2
@@ -202,5 +202,19 @@ typedef struct kismet_pcapng_gps_chunk kismet_pcapng_gps_chunk_t;
 #define PCAPNG_GPS_FLAG_EPT         0x200
 #define PCAPNG_GPS_TS_HIGH          0x400
 #define PCAPNG_GPS_TS_LOW           0x800
+
+/* Kismet JSON record, encapsulates a JSON event instead of a binary packet event for 
+ * things like rtlsdr, bluetooth hci, etc */
+struct kismet_pcapng_json_chunk {
+	uint8_t json_magic;
+	uint8_t json_version;
+	uint16_t json_len;
+	char json_data[0];
+} __attribute__((packed));
+typedef struct kismet_pcapng_json_chunk kismet_pcapng_json_chunk_t;
+
+/* Magic identifier for this custom sub chunk */
+#define PCAPNG_JSON_MAGIC 			0x48
+#define PCAPNG_JSON_VERSION 		0x1
 
 #endif
