@@ -42,6 +42,7 @@ pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
     pack_comp_gpsinfo = packetchain->register_packet_component("GPS");
+	pack_comp_json = packetchain->register_packet_component("JSON");
 }
 
 pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
@@ -296,16 +297,35 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
 
     auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
     auto gpsinfo = in_packet->fetch<kis_gps_packinfo>(pack_comp_gpsinfo);
+	auto jsoninfo = in_packet->fetch<kis_json_packinfo>(pack_comp_json);
 
-    if (datasrcinfo == nullptr)
+    if (datasrcinfo == nullptr) {
         return 0;
+	}
 
-    int ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, in_data->dlt);
+    int ng_interface_id;
+
+	if (in_data != nullptr) {
+		ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, in_data->dlt);
+	} else {
+		ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, 0);
+	}
+
+	// Bundle the json info into a single keyed entry including the type; do this with 
+	// basic strings because we don't want to waste time re-parsing the JSON data
+	std::string formatted_json;
+	if (jsoninfo != nullptr) {
+		formatted_json = fmt::format("\"{}\": {}", jsoninfo->type, jsoninfo->json_string);
+	}
 
     std::shared_ptr<char> buf;
 
     // Total buffer size starts header + data + options + end of option
-    size_t buf_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length()) + sizeof(pcapng_option_t);
+    size_t buf_sz = sizeof(pcapng_epb_t) + sizeof(pcapng_option_t);
+
+	if (in_data != nullptr) {
+		buf_sz += PAD_TO_32BIT(in_data->length());
+	}
 
     // Optionally we add the GPS option into the total length
     size_t gps_len = 0;
@@ -323,6 +343,12 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
         // Total additional size is custom option block including PEN, and padded custom data
         buf_sz += sizeof(pcapng_custom_option_t) + PAD_TO_32BIT(gps_len);
     }
+
+	size_t json_len = 0;
+	if (formatted_json.length() > 0) {
+		json_len = sizeof(kismet_pcapng_json_chunk_t) + formatted_json.length();
+		buf_sz += sizeof(pcapng_custom_option_t) + PAD_TO_32BIT(json_len);
+	}
 
     if (in_packet->hash != 0) {
         // CRC32 hash, 1 octet identifier, 4 octet hash
@@ -359,14 +385,21 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
     epb->timestamp_high = (conv_ts >> 32);
     epb->timestamp_low = conv_ts;
 
-    epb->captured_length = in_data->length();
-    epb->original_length = in_data->length();
+	size_t opt_offt = sizeof(pcapng_epb_t);
 
-    // Copy the data after the epb header
-    memcpy(buf.get() + sizeof(pcapng_epb_t), in_data->data(), in_data->length());
+	if (in_data != nullptr) {
+		epb->captured_length = in_data->length();
+		epb->original_length = in_data->length();
 
-    // Offset to the end of the epb header + data + pad
-    size_t opt_offt = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length());
+		// Copy the data after the epb header
+		memcpy(buf.get() + sizeof(pcapng_epb_t), in_data->data(), in_data->length());
+
+		// Offset to the end of the epb header + data + pad
+		opt_offt += PAD_TO_32BIT(in_data->length());
+	} else {
+		epb->captured_length = 0;
+		epb->original_length = 0;
+	}
 
     if (in_packet->hash != 0) {
         auto hopt = reinterpret_cast<pcapng_epb_hash_option_t *>(buf.get() + opt_offt);
@@ -387,6 +420,25 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
         popt->packetid = in_packet->packet_no;
 
         opt_offt += PAD_TO_32BIT(sizeof(pcapng_epb_packetid_option_t));
+    }
+
+    if (formatted_json.length() > 0) {
+        auto gopt = reinterpret_cast<pcapng_custom_option_t *>(buf.get() + opt_offt);
+
+        gopt->option_code = PCAPNG_OPT_CUSTOM_UTF8;
+        gopt->option_pen = KISMET_IANA_PEN;
+        // PEN + data, without padding
+        gopt->option_length = 4 + sizeof(kismet_pcapng_json_chunk_t) + formatted_json.length();
+
+        auto json = reinterpret_cast<kismet_pcapng_json_chunk_t *>(gopt->option_data);
+        json->json_magic = PCAPNG_JSON_MAGIC;
+        json->json_version = PCAPNG_JSON_VERSION;
+        json->json_len = (uint16_t) formatted_json.length();
+
+        memcpy(json->json_data, formatted_json.data(), formatted_json.length());
+
+        // Move the offset by option length + padded content length
+        opt_offt += sizeof(pcapng_option_t) + PAD_TO_32BIT(gopt->option_length);
     }
 
     if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
@@ -513,19 +565,24 @@ void pcapng_stream_futurebuf::handle_packet(std::shared_ptr<kis_packet> in_packe
     if (get_stream_paused())
         return;
 
-    if (accept_cb != nullptr && accept_cb(in_packet) == false)
+    if (accept_cb != nullptr && accept_cb(in_packet) == false) {
         return;
+	}
 
-    if (selector_cb != nullptr)
+    if (selector_cb != nullptr) {
         target_datachunk = selector_cb(in_packet);
-    else
+	} else {
         target_datachunk = in_packet->fetch<kis_datachunk>(pack_comp_linkframe);
+	}
 
-    if (target_datachunk == nullptr)
-        return;
+	// Allow null data chunks if we have json, otherwise skip this packet
+	if (target_datachunk == nullptr && !in_packet->has(pack_comp_json)) {
+		return;
+	}
 
-    if (target_datachunk->dlt == 0)
+	if (target_datachunk != nullptr && target_datachunk->dlt == 0 && !in_packet->has(pack_comp_json)) {
         return;
+	}
 
     kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf handle_packet");
 
