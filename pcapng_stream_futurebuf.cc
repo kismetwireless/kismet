@@ -42,7 +42,7 @@ pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
     pack_comp_gpsinfo = packetchain->register_packet_component("GPS");
-	pack_comp_json = packetchain->register_packet_component("JSON");
+	pack_comp_meta = packetchain->register_packet_component("JSON");
 }
 
 pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
@@ -297,7 +297,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
 
     auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
     auto gpsinfo = in_packet->fetch<kis_gps_packinfo>(pack_comp_gpsinfo);
-	auto jsoninfo = in_packet->fetch<kis_json_packinfo>(pack_comp_json);
+	auto metablob = in_packet->fetch<packet_metablob>(pack_comp_meta);
 
     if (datasrcinfo == nullptr) {
         return 0;
@@ -314,8 +314,8 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
 	// Bundle the json info into a single keyed entry including the type; do this with 
 	// basic strings because we don't want to waste time re-parsing the JSON data
 	std::string formatted_json;
-	if (jsoninfo != nullptr) {
-		formatted_json = fmt::format("\"{}\": {}", jsoninfo->type, jsoninfo->json_string);
+	if (metablob != nullptr) {
+		formatted_json = fmt::format("\"{}\": {}", metablob->meta_type, metablob->meta_data);
 	}
 
     std::shared_ptr<char> buf;
@@ -576,11 +576,11 @@ void pcapng_stream_futurebuf::handle_packet(std::shared_ptr<kis_packet> in_packe
 	}
 
 	// Allow null data chunks if we have json, otherwise skip this packet
-	if (target_datachunk == nullptr && !in_packet->has(pack_comp_json)) {
+	if (target_datachunk == nullptr && !in_packet->has(pack_comp_meta)) {
 		return;
 	}
 
-	if (target_datachunk != nullptr && target_datachunk->dlt == 0 && !in_packet->has(pack_comp_json)) {
+	if (target_datachunk != nullptr && target_datachunk->dlt == 0 && !in_packet->has(pack_comp_meta)) {
         return;
 	}
 
