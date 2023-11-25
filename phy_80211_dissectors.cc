@@ -241,11 +241,11 @@ uint64_t kis_80211_phy::wpa_rsn_pairwise_conv(ie48_rsn_cipher cipher) {
             ret |= dot11_crypt_pairwise_tkip;
             break;
         case ie48_rsn_cipher::rsn_aes_ocb:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa2;
             ret |= dot11_crypt_pairwise_ocb;
             break;
         case ie48_rsn_cipher::rsn_aes_ccm:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa2;
             ret |= dot11_crypt_pairwise_ccmp128;
             break;
         case ie48_rsn_cipher::rsn_wep_104:
@@ -253,31 +253,31 @@ uint64_t kis_80211_phy::wpa_rsn_pairwise_conv(ie48_rsn_cipher cipher) {
             ret |= dot11_crypt_pairwise_wep104;
             break;
         case ie48_rsn_cipher::rsn_bip_128:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
             ret |= dot11_crypt_pairwise_bip_cmac128;
             break;
         case ie48_rsn_cipher::rsn_gcmp_128:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa2;
             ret |= dot11_crypt_pairwise_gcmp128;
             break;
         case ie48_rsn_cipher::rsn_gcmp_256:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa2;
             ret |= dot11_crypt_pairwise_gcmp256;
             break;
         case ie48_rsn_cipher::rsn_ccmp_256:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa2;
             ret |= dot11_crypt_pairwise_ccmp256;
             break;
         case ie48_rsn_cipher::rsn_bip_gmac_128:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
             ret |= dot11_crypt_pairwise_bip_gmac128;
             break;
         case ie48_rsn_cipher::rsn_bip_gmac_256:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
             ret |= dot11_crypt_pairwise_bip_gmac256;
             break;
         case ie48_rsn_cipher::rsn_bip_cmac_256:
-            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
             ret |= dot11_crypt_pairwise_bip_cmac256;
             break;
         case ie48_rsn_cipher::rsn_cipher_none:
