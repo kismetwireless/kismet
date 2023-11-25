@@ -391,6 +391,10 @@ namespace Globalreg {
         }
 
     std::shared_ptr<tracker_element_string> cache_string(const char *string);
+    std::shared_ptr<tracker_element_string> cache_string(const std::string& string);
+
+    void cache_string_stats(unsigned int& size, unsigned long int& bytes,
+            unsigned long int& bytes_dedupe);
 }
 
 

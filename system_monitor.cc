@@ -279,6 +279,10 @@ void tracked_system_status::register_fields() {
     register_field("kismet.system.num_fields", "number of allocated tracked element fields", &num_fields);
     register_field("kismet.system.num_components", "number of allocated tracked element components", &num_components);
     register_field("kismet.system.num_http_connections", "number of concurrent http connections", &num_http_connections);
+
+    register_field("kismet.system.string_cache_size", "number of strings in cache", &string_cache_sz);
+    register_field("kismet.system.string_cache_bytes", "size of string cache, in bytes", &string_cache_bytes);
+    register_field("kismet.system.string_cache_dedupe", "size string cache, in bytes (after dedupe)", &string_cache_dedupe);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
@@ -445,5 +449,14 @@ void tracked_system_status::pre_serialize() {
     set_num_fields(Globalreg::n_tracked_fields);
     set_num_components(Globalreg::n_tracked_components);
     set_num_http_connections(Globalreg::n_tracked_http_connections);
+
+    unsigned int csize = 0;
+    unsigned long int cbytes = 0, cdedupe = 0;
+    Globalreg::cache_string_stats(csize, cbytes, cdedupe);
+
+    set_string_cache_sz(csize);
+    set_string_cache_bytes(cbytes);
+    set_string_cache_dedupe(cdedupe);
+
 } 
 

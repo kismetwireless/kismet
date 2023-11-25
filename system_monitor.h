@@ -95,6 +95,10 @@ public:
     __Proxy(num_components, uint64_t, uint64_t, uint64_t, num_components);
     __Proxy(num_http_connections, uint64_t, uint64_t, uint64_t, num_http_connections);
 
+    __Proxy(string_cache_sz, uint64_t, uint64_t, uint64_t, string_cache_sz);
+    __Proxy(string_cache_bytes, uint64_t, uint64_t, uint64_t, string_cache_bytes);
+    __Proxy(string_cache_dedupe, uint64_t, uint64_t, uint64_t, string_cache_dedupe);
+
     virtual void pre_serialize() override;
 
 protected:
@@ -130,6 +134,10 @@ protected:
     std::shared_ptr<tracker_element_uint64> num_fields;
     std::shared_ptr<tracker_element_uint64> num_components;
     std::shared_ptr<tracker_element_uint64> num_http_connections;
+
+    std::shared_ptr<tracker_element_uint64> string_cache_sz;
+    std::shared_ptr<tracker_element_uint64> string_cache_bytes;
+    std::shared_ptr<tracker_element_uint64> string_cache_dedupe;
 };
 
 class Systemmonitor : public lifetime_global, public time_tracker_event {
