@@ -4090,8 +4090,10 @@ std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
     if (cryptset & dot11_crypt_eap_tls)
         ret = string_append(ret, fmt::format("{}-TLS", WPAVER));
 
+    /*
     if (cryptset & crypt_wpa_migmode)
         ret = string_append(ret, "WPA-MIGRATION");
+    */
 
     if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip))
         ret = string_append(ret, "TKIP");

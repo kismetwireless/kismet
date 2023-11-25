@@ -1167,13 +1167,15 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "802.11s mesh id, present only in meshing networks.",
                 },
                 {
-                    field: "dot11.advertisedssid.crypt_set",
+                    field: "dot11.advertisedssid.crypt_string",
                     liveupdate: true,
                     title: "Encryption",
+                    /*
                     draw: function(opts) {
                         return CryptToHumanReadable(opts['value']);
                     },
-                    help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
+                    */
+                    help: "Wi-Fi networks advertise encryption options in beacon fields.  The encryption settings are often a mix of WPA, WPA2, and WPA3 options",
                 },
                 {
                     field: "dot11.advertisedssid.wpa_mfp_required",
