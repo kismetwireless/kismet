@@ -2348,9 +2348,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             ssid->set_first_time(in_pack->ts.tv_sec);
             ssid->set_last_time(in_pack->ts.tv_sec);
 
-            // Use cached strings
-            bssid_dev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(cryptset)));
-            // bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
+            auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(cryptset));
+            ssid->set_crypt_string(crypt_s);
+            bssid_dev->set_crypt_string(crypt_s);
 
             ssid->set_ssid(ssid_str);
 
@@ -2637,8 +2637,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid->set_first_time(in_pack->ts.tv_sec);
         ssid->set_last_time(in_pack->ts.tv_sec);
 
-        basedev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset)));
-        // basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
+        auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset));
+        ssid->set_crypt_string(crypt_s);
+        basedev->set_crypt_string(crypt_s);
 
         // TODO handle loading SSID from the stored file
         ssid->set_ssid(dot11info->ssid);
@@ -3022,8 +3023,10 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_crypt_set_old(dot11info->cryptset);
-        // basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
-        basedev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset)));
+
+        auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset));
+        ssid->set_crypt_string(crypt_s);
+        basedev->set_crypt_string(crypt_s);
     }
 
     if (!channel_from_ht && ssid->get_channel().length() > 0 &&
@@ -3292,6 +3295,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
         probessid->set_crypt_set_old(dot11info->cryptset);
+
+        auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset));
+        probessid->set_crypt_string(crypt_s);
 
         if (probessid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
             probessid->set_wps_version(dot11info->wps_version);
