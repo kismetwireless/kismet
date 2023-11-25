@@ -123,7 +123,7 @@ protected:
     std::shared_ptr<tracker_element_byte_array> eapol_rsn_pmkid;
 
     std::shared_ptr<kis_tracked_packet> eapol_packet;
-    int eapol_packet_id;
+    uint16_t eapol_packet_id;
 };
 
 class dot11_tracked_nonce : public tracker_component {
@@ -297,7 +297,7 @@ protected:
     std::shared_ptr<tracker_element_string> ssid_group_name;
     std::shared_ptr<tracker_element_string> ssid_regex;
     std::shared_ptr<tracker_element_vector> allowed_macs_vec;
-    int allowed_mac_id;
+    uint16_t allowed_mac_id;
 
 #if defined(HAVE_LIBPCRE1)
     pcre *ssid_re;
@@ -810,9 +810,9 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
 
-    int owe_ssid_id;
-    int owe_ssid_len_id;
-    int owe_bssid_id;
+    uint16_t owe_ssid_id;
+    uint16_t owe_ssid_len_id;
+    uint16_t owe_bssid_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_beacon;
     std::shared_ptr<tracker_element_uint8> ssid_probe_response;
@@ -826,7 +826,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
 
-    int beacon_info_id;
+    uint16_t beacon_info_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_cloaked;
     std::shared_ptr<tracker_element_uint64> crypt_set_old;
@@ -844,22 +844,22 @@ protected:
 
     // IE tag dot11d country / power restrictions from 802.11d; 
     // deprecated but still in use
-    int dot11d_country_id;
-    int dot11d_vec_id;
-    int dot11d_country_entry_id;
+    uint16_t dot11d_country_id;
+    uint16_t dot11d_vec_id;
+    uint16_t dot11d_country_entry_id;
 
     // WPS components
-    int wps_version_id;
-    int wps_state_id;
-    int wps_config_methods_id;
-    int wps_manuf_id;
-    int wps_device_name_id;
-    int wps_model_name_id;
-    int wps_model_number_id;
-    int wps_serial_number_id;
-    int wps_uuid_e_id;
+    uint16_t wps_version_id;
+    uint16_t wps_state_id;
+    uint16_t wps_config_methods_id;
+    uint16_t wps_manuf_id;
+    uint16_t wps_device_name_id;
+    uint16_t wps_model_name_id;
+    uint16_t wps_model_number_id;
+    uint16_t wps_serial_number_id;
+    uint16_t wps_uuid_e_id;
 
-    int location_id;
+    uint16_t location_id;
 
     // 802.11r mobility/fast roaming advertisements
     std::shared_ptr<tracker_element_uint8> dot11r_mobility;
@@ -1585,28 +1585,28 @@ protected:
     std::shared_ptr<tracker_element_uint64> type_set;
 
     std::shared_ptr<tracker_element_mac_map> client_map;
-    int client_map_id;
-    int client_map_entry_id;
+    uint16_t client_map_id;
+    uint16_t client_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_client_aps;
 
     std::shared_ptr<tracker_element_hashkey_map> advertised_ssid_map;
-    int advertised_ssid_map_id;
-    int advertised_ssid_map_entry_id;
+    uint16_t advertised_ssid_map_id;
+    uint16_t advertised_ssid_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_advertised_ssids;
 
     std::shared_ptr<tracker_element_hashkey_map> responded_ssid_map;
-    int responded_ssid_map_id;
-    int responded_ssid_map_entry_id;
+    uint16_t responded_ssid_map_id;
+    uint16_t responded_ssid_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_responded_ssids;
 
     std::shared_ptr<tracker_element_hashkey_map> probed_ssid_map;
-    int probed_ssid_map_id;
-    int probed_ssid_map_entry_id;
+    uint16_t probed_ssid_map_id;
+    uint16_t probed_ssid_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_probed_ssids;
 
     std::shared_ptr<tracker_element_mac_map> associated_client_map;
-    int associated_client_map_id;
-    int associated_client_map_entry_id;
+    uint16_t associated_client_map_id;
+    uint16_t associated_client_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_associated_clients;
     std::shared_ptr<tracker_element_uint64> client_disconnects;
     std::shared_ptr<tracker_element_uint64> client_disconnects_last;
@@ -1621,29 +1621,29 @@ protected:
     std::shared_ptr<tracker_element_uint64> datasize_retry;
 
     std::shared_ptr<tracker_element_mac_addr> last_bssid;
-    int last_bssid_id;
+    uint16_t last_bssid_id;
 
     std::shared_ptr<tracker_element_uint64> last_beacon_timestamp;
 
     std::shared_ptr<tracker_element_uint64> wps_m3_count;
     std::shared_ptr<tracker_element_uint64> wps_m3_last;
 
-    int wpa_key_map_id;
+    uint16_t wpa_key_map_id;
     std::shared_ptr<tracker_element_mac_map> wpa_key_map;
-    int wpa_key_entry_id;
+    uint16_t wpa_key_entry_id;
 
     std::shared_ptr<tracker_element_vector> wpa_nonce_vec;
-    int wpa_nonce_vec_id;
+    uint16_t wpa_nonce_vec_id;
 
     std::shared_ptr<tracker_element_vector> wpa_anonce_vec;
-    int wpa_anonce_vec_id;
-    int wpa_nonce_entry_id;
+    uint16_t wpa_anonce_vec_id;
+    uint16_t wpa_nonce_entry_id;
 
     std::shared_ptr<kis_tracked_packet> ssid_beacon_packet;
-    int ssid_beacon_packet_id;
+    uint16_t ssid_beacon_packet_id;
 
     std::shared_ptr<kis_tracked_packet> pmkid_packet;
-    int pmkid_packet_id;
+    uint16_t pmkid_packet_id;
 
     // Un-exposed internal tracking options
     uint32_t last_adv_ie_csum;
@@ -1654,22 +1654,22 @@ protected:
     std::shared_ptr<tracker_element_uint8> max_tx_power;
 
     std::shared_ptr<tracker_element_vector_double> supported_channels;
-    int supported_channels_id;
+    uint16_t supported_channels_id;
 
     std::shared_ptr<tracker_element_uint8> link_measurement_capable;
     std::shared_ptr<tracker_element_uint8> neighbor_report_capable;
 
     std::shared_ptr<tracker_element_vector_string> extended_capabilities_list;
-    int extended_capabilities_list_id;
+    uint16_t extended_capabilities_list_id;
 
     std::shared_ptr<tracker_element_uint32> beacon_fingerprint;
     std::shared_ptr<tracker_element_uint32> probe_fingerprint;
     std::shared_ptr<tracker_element_uint32> response_fingerprint;
 
-    int last_beaconed_ssid_record_id;
+    uint16_t last_beaconed_ssid_record_id;
     std::shared_ptr<tracker_element_alias> last_beaconed_ssid_record;
 
-    int last_probed_ssid_record_id;
+    uint16_t last_probed_ssid_record_id;
     std::shared_ptr<tracker_element_alias> last_probed_ssid_record;
 };
 
