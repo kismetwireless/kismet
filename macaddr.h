@@ -47,8 +47,6 @@
 #include "fmt.h"
 #include "multi_constexpr.h"
 
-// Subnet-style maskable mac address up to 8 octets
-
 #define MAC_LEN_MAX		8
 
 struct mac_addr {
@@ -380,6 +378,15 @@ struct mac_addr {
 
     constexpr17 static uint32_t OUI(short *val) {
         return (val[0] << 16) | (val[1] << 8) | val[2];
+    }
+
+    constexpr17 bool is_broadcast() const {
+        const uint64_t fill = -1;
+        return (longmac << (8 - (state.len + 1) * 8) == (fill << (8 - (state.len + 1) * 8)));
+    }
+
+    constexpr17 bool is_multicast() const {
+        return (longmac >> (8 - (state.len + 1) * 8) & 0x01);
     }
 
     inline std::string as_string() const {

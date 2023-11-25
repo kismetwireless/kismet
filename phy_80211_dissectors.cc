@@ -228,54 +228,331 @@ static const uint32_t dot11_wep_crc32_table[256] = {
     0x2d02ef8dL
 };
 
-// Convert WPA cipher elements into crypt_set stuff
-int kis_80211_phy::wpa_cipher_conv(uint8_t cipher_index) {
-    int ret = crypt_wpa;
+uint64_t kis_80211_phy::wpa_rsn_pairwise_conv(ie48_rsn_cipher cipher) {
+    uint64_t ret = 0;
 
-    // TODO fix cipher methodology for new standards, rewrite basic 
-    // cipher stuff
-
-    switch (cipher_index) {
-        case 1:
-            ret |= crypt_wep40;
+    switch (cipher) {
+        case ie48_rsn_cipher::rsn_wep_40:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_pairwise_wep40;
             break;
-        case 2:
-            ret |= crypt_tkip;
+        case ie48_rsn_cipher::rsn_tkip:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_tkip;
             break;
-        case 3:
-            ret |= crypt_aes_ocb;
+        case ie48_rsn_cipher::rsn_aes_ocb:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_ocb;
             break;
-        case 4:
-            ret |= crypt_aes_ccm;
+        case ie48_rsn_cipher::rsn_aes_ccm:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_ccmp128;
             break;
-        case 5:
-            ret |= crypt_wep104;
+        case ie48_rsn_cipher::rsn_wep_104:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_pairwise_wep104;
             break;
-
-        default:
-            ret = 0;
+        case ie48_rsn_cipher::rsn_bip_128:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_bip_cmac128;
+            break;
+        case ie48_rsn_cipher::rsn_gcmp_128:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_gcmp128;
+            break;
+        case ie48_rsn_cipher::rsn_gcmp_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_gcmp256;
+            break;
+        case ie48_rsn_cipher::rsn_ccmp_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_ccmp256;
+            break;
+        case ie48_rsn_cipher::rsn_bip_gmac_128:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_bip_gmac128;
+            break;
+        case ie48_rsn_cipher::rsn_bip_gmac_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_bip_gmac256;
+            break;
+        case ie48_rsn_cipher::rsn_bip_cmac_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_bip_cmac256;
+            break;
+        case ie48_rsn_cipher::rsn_cipher_none:
+        case ie48_rsn_cipher::rsn_no_group:
             break;
     }
 
     return ret;
 }
 
-// Convert WPA key management elements into crypt_set stuff
-int kis_80211_phy::wpa_key_mgt_conv(uint8_t mgt_index) {
-    int ret = crypt_wpa;
+uint64_t kis_80211_phy::wpa_rsn_group_conv(ie48_rsn_cipher cipher) {
+    uint64_t ret = 0;
 
-    switch (mgt_index) {
-        case 1:
-            ret |= crypt_wpa;
+    switch (cipher) {
+        case ie48_rsn_cipher::rsn_wep_40:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_group_wep40;
             break;
-        case 2:
-            ret |= crypt_psk;
+        case ie48_rsn_cipher::rsn_tkip:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_tkip;
             break;
-        case 8:
-            ret |= crypt_sae;
+        case ie48_rsn_cipher::rsn_aes_ocb:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_ocb;
             break;
-        default:
-            ret = 0;
+        case ie48_rsn_cipher::rsn_aes_ccm:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_ccmp128;
+            break;
+        case ie48_rsn_cipher::rsn_wep_104:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_group_wep104;
+            break;
+        case ie48_rsn_cipher::rsn_bip_128:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_bip_cmac128;
+            break;
+        case ie48_rsn_cipher::rsn_gcmp_128:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_gcmp128;
+            break;
+        case ie48_rsn_cipher::rsn_gcmp_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_gcmp256;
+            break;
+        case ie48_rsn_cipher::rsn_ccmp_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_ccmp256;
+            break;
+        case ie48_rsn_cipher::rsn_bip_gmac_128:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_bip_gmac128;
+            break;
+        case ie48_rsn_cipher::rsn_bip_gmac_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_bip_gmac256;
+            break;
+        case ie48_rsn_cipher::rsn_bip_cmac_256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_bip_cmac256;
+            break;
+        case ie48_rsn_cipher::rsn_cipher_none:
+        case ie48_rsn_cipher::rsn_no_group:
+            break;
+    }
+
+    return ret;
+}
+
+uint64_t kis_80211_phy::wpa_rsn_auth_conv(ie48_rsn_mgmt cipher) {
+    uint64_t ret = 0;
+
+    switch (cipher) {
+        case ie48_rsn_mgmt::mgmt_1x:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_1x;
+            break;
+        case ie48_rsn_mgmt::mgmt_psk:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_psk;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_dot1x:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_1x_ft;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_psk:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_psk_ft;
+            break;
+        case ie48_rsn_mgmt::mgmt_1x_sha256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_1x_sha256;
+            break;
+        case ie48_rsn_mgmt::mgmt_psk_sha256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_psk_sha256;
+            break;
+        case ie48_rsn_mgmt::mgmt_tdls_sha256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_akm_tdls;
+            break;
+        case ie48_rsn_mgmt::mgmt_sae_sha256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_sae;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_sae:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_sae_ft;
+            break;
+        case ie48_rsn_mgmt::mgmt_ap_peerkey:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_ap_peer;
+            break;
+        case ie48_rsn_mgmt::mgmt_1x_sha256_suite_b:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_1x_suiteb_sha256;
+            break;
+        case ie48_rsn_mgmt::mgmt_1x_sha384_suite_b:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_1x_suiteb_sha384;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_dot1x_sha384:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_1x_ft_sha384;
+            break;
+        case ie48_rsn_mgmt::mgmt_fils_sha256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_fils_sha256;
+            break;
+        case ie48_rsn_mgmt::mgmt_fils_sha384:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_fils_sha384;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_fils_sha256:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_fils_sha256_ft;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_fils_sha384:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_fils_sha384_ft;
+            break;
+        case ie48_rsn_mgmt::mgmt_owe:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_owe;
+            break;
+        case ie48_rsn_mgmt::mgmt_ft_psk_sha384:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_psk_sha384_ft;
+            break;
+        case ie48_rsn_mgmt::mgmt_psk_sha384:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_general_wpa3;
+            ret |= dot11_crypt_akm_psk_sha384;
+            break;
+        case ie48_rsn_mgmt::mgmt_pasn:
+        case ie48_rsn_mgmt::mgmt_none:
+            break;
+    }
+
+    return ret;
+}
+
+uint64_t kis_80211_phy::wfa_pairwise_conv(ie221_wfa_cipher cipher) {
+    uint64_t ret = 0;
+
+    switch (cipher) {
+        case ie221_wfa_cipher::wfa_wep_40:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_pairwise_wep40;
+            break;
+        case ie221_wfa_cipher::wfa_tkip:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_tkip;
+            break;
+        case ie221_wfa_cipher::wfa_aes_ocb:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_ocb;
+            break;
+        case ie221_wfa_cipher::wfa_aes_ccm:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_ccmp128;
+            break;
+        case ie221_wfa_cipher::wfa_wep_104:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_pairwise_wep104;
+            break;
+        case ie221_wfa_cipher::wfa_bip:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_pairwise_bip_cmac128;
+            break;
+        case ie221_wfa_cipher::wfa_none:
+        case ie221_wfa_cipher::wfa_no_group:
+            break;
+    }
+
+    return ret;
+}
+
+uint64_t kis_80211_phy::wfa_group_conv(ie221_wfa_cipher cipher) {
+    uint64_t ret = 0;
+
+    switch (cipher) {
+        case ie221_wfa_cipher::wfa_wep_40:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_group_wep40;
+            break;
+        case ie221_wfa_cipher::wfa_tkip:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_tkip;
+            break;
+        case ie221_wfa_cipher::wfa_aes_ocb:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_ocb;
+            break;
+        case ie221_wfa_cipher::wfa_aes_ccm:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_ccmp128;
+            break;
+        case ie221_wfa_cipher::wfa_wep_104:
+            ret |= dot11_crypt_general_wep;
+            ret |= dot11_crypt_group_wep104;
+            break;
+        case ie221_wfa_cipher::wfa_bip:
+            ret |= dot11_crypt_general_wpa;
+            ret |= dot11_crypt_group_bip_cmac128;
+            break;
+        case ie221_wfa_cipher::wfa_none:
+        case ie221_wfa_cipher::wfa_no_group:
+            break;
+    }
+
+    return ret;
+}
+
+uint64_t kis_80211_phy::wfa_auth_conv(ie221_wfa_mgmt cipher) {
+    uint64_t ret = 0;
+
+    ret |= dot11_crypt_general_wpa;
+
+    switch (cipher) {
+        case ie221_wfa_mgmt::wfa_mgmt_wpa:
+            ret |= dot11_crypt_akm_1x;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_psk:
+            ret |= dot11_crypt_akm_psk;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_ft_dot1x:
+            ret |= dot11_crypt_akm_1x_ft;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_ft_psk:
+            ret |= dot11_crypt_akm_psk_ft;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_wpa_sha256:
+            ret |= dot11_crypt_akm_1x_sha256;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_psk_sha256:
+            ret |= dot11_crypt_akm_psk_sha256;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_tdls_tpk:
+            ret |= dot11_crypt_akm_tdls;
+            break;
+        case ie221_wfa_mgmt::wfa_mgmt_none:
             break;
     }
 
@@ -333,11 +610,15 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
 
     const auto fc = reinterpret_cast<const frame_control *>(chunk->data());
 
-    // Inherit the FC privacy flag
+#if 0
+    // Privacy no longer means wep; figure out new way to denote classic wep.
+    // Likely preserve privacy flag in packinfo and compare if no rsn or wpa ie
+    // tags?
     if (fc->wep) {
-        packinfo->cryptset |= crypt_wep;
+        packinfo->cryptset |= dot11_crypt_general_wep;
         common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
     }
+#endif
 
     uint16_t duration = 0;
 
@@ -694,10 +975,13 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
+#if 0
+                // Again, privacy in fc no longer means wep per se
                 if (fixparm->wep) {
-                    packinfo->cryptset |= crypt_wep;
+                    packinfo->cryptset |= dot11_crypt_general_wep;
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 }
+#endif
 
                 // Look for MSF opcode beacons before tag decode
                 if (packinfo->source_mac == msfopcode_mac) {
@@ -1057,22 +1341,24 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
         // WEP/Protected on data frames means encrypted, not WEP, sometimes
         if (fc->wep) {
             bool alt_crypt = false;
-            // Either way to be useful it has to be 2+ bytes, so check tkip
-            // and ccmp at the same time
+            
+            // We can't really know if it's WPA1 or WPA2 from just a data frame so 
+            // set a generic 'wpa'
             if (packinfo->header_offset + 2 < chunk->length()) {
                 if (chunk->data()[packinfo->header_offset + 2] == 0) {
-                    packinfo->cryptset |= crypt_aes_ccm;
+                    packinfo->cryptset |= dot11_crypt_general_wpa;
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
                 }  else if (chunk->data()[packinfo->header_offset + 1] & 0x20) {
-                    packinfo->cryptset |= crypt_tkip;
+                    packinfo->cryptset |= dot11_crypt_general_wpa;
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
                 }
             }  
-        
+       
+            // Try setting wep if we can't determine what it is otherwise
             if (!alt_crypt) {
-                packinfo->cryptset |= crypt_wep;
+                packinfo->cryptset |= dot11_crypt_general_wep;
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             }
         }
@@ -1144,24 +1430,23 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
                 switch (eap_type) {
                     case EAP_TYPE_LEAP:
                         datainfo->field1 = eap_code;
-                        packinfo->cryptset |= crypt_leap;
+                        packinfo->cryptset |= dot11_crypt_eap_leap;
                         break;
                     case EAP_TYPE_TLS:
                         datainfo->field1 = eap_code;
-                        packinfo->cryptset |= crypt_tls;
+                        packinfo->cryptset |= dot11_crypt_eap_tls;
                         break;
                     case EAP_TYPE_TTLS:
                         datainfo->field1 = eap_code;
-                        packinfo->cryptset |= crypt_ttls;
+                        packinfo->cryptset |= dot11_crypt_eap_ttls;
                         break;
                     case EAP_TYPE_PEAP:
                         // printf("debug - peap!\n");
                         datainfo->field1 = eap_code;
-                        packinfo->cryptset |= crypt_peap;
+                        packinfo->cryptset |= dot11_crypt_eap_peap;
                         break;
                     case EAP_TYPE_IDENTITY:
                         if (eap_code == EAP_CODE_RESPONSE) {
-
                             rawlen = eap_length - 5;
                             rawid = new char[rawlen + 1];
                             memcpy(rawid, &(chunk->data()[offset + 5]), rawlen);
@@ -1759,32 +2044,19 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 				auto rsn = Globalreg::new_from_pool<dot11_ie_48_rsn>();
                 rsn->parse(ie_tag->tag_data_stream());
 
-                // TODO - don't aggregate these in the future
+                packinfo->cryptset |= wpa_rsn_group_conv(rsn->group_cipher()->cipher_type());
 
-                // Merge the group cipher
-                packinfo->cryptset |= 
-                    wpa_cipher_conv(rsn->group_cipher()->cipher_type());
-
-                // Merge the unicast ciphers
                 for (auto i : *(rsn->pairwise_ciphers())) {
-                    packinfo->cryptset |= wpa_cipher_conv(i->cipher_type());
+                    packinfo->cryptset |= wpa_rsn_pairwise_conv(i->cipher_type());
                 }
 
                 // Merge the authkey types
                 for (auto i : *(rsn->akm_ciphers())) {
-                    packinfo->cryptset |= wpa_key_mgt_conv(i->management_type());
-                }
-
-                // IF we're advertised using IE48 RSN, we're wpa2 or wpa3.  WPA3
-                // sets SAE...
-                if (packinfo->cryptset & crypt_sae) {
-                    packinfo->cryptset |= crypt_version_wpa3;
-                } else {
-                    packinfo->cryptset |= crypt_version_wpa2;
+                    packinfo->cryptset |= dot11_crypt_general_wpa;
+                    packinfo->cryptset |= wpa_rsn_auth_conv(i->management_type());
                 }
 
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
                 packinfo->rsn = rsn;
             } catch (const std::exception& e) {
                 rsn_invalid = true;
@@ -1808,10 +2080,11 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
                                 packinfo->dest_mac, packinfo->other_mac,
                                 packinfo->channel,
                                 "Invalid 802.11i RSN IE seen with extremely "
-                                "large number of pairwise ciphers; this may "
+                                "large number of pairwise ciphers; this could "
                                 "be an attack against Atheros drivers per "
                                 "CVE-2017-9714 and "
-                                "https://pleasestopnamingvulnerabilities.com/");
+                                "https://pleasestopnamingvulnerabilities.com/ but "
+                                "may also simply be a device performing unusually.");
                     }
 
                 } catch (const std::exception& e) {
@@ -2087,24 +2360,24 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
 
                     // Merge the group cipher
                     packinfo->cryptset |= 
-                        wpa_cipher_conv(wpa->multicast_cipher()->cipher_type());
+                        wfa_group_conv(static_cast<ie221_wfa_cipher>(wpa->multicast_cipher()->cipher_type()));
 
                     // Merge the unicast ciphers
                     for (auto i : *(wpa->unicast_ciphers())) {
-                        packinfo->cryptset |= wpa_cipher_conv(i->cipher_type());
+                        packinfo->cryptset |= wfa_pairwise_conv(static_cast<ie221_wfa_cipher>(i->cipher_type()));
                     }
 
                     // Merge the authkey types
                     for (auto i : *(wpa->akm_ciphers())) {
-                        packinfo->cryptset |= wpa_key_mgt_conv(i->cipher_type());
+                        packinfo->cryptset |= wfa_auth_conv(static_cast<ie221_wfa_mgmt>(i->cipher_type()));
                     }
 
                     if (wpa->wpa_version() == 1)
-                        packinfo->cryptset |= crypt_version_wpa;
+                        packinfo->cryptset |= dot11_crypt_general_wpa1;
                     if (wpa->wpa_version() == 2)
-                        packinfo->cryptset |= crypt_version_wpa2;
+                        packinfo->cryptset |= dot11_crypt_general_wpa2;
                     if (wpa->wpa_version() == 3)
-                        packinfo->cryptset |= crypt_version_wpa3;
+                        packinfo->cryptset |= dot11_crypt_general_wpa3;
 
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 }

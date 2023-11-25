@@ -456,7 +456,11 @@ void kis_tracked_device_base::register_fields() {
             "common name alias of custom or device names", &commonname);
     register_field("kismet.device.base.type", "printable device type", &type_string);
     register_field("kismet.device.base.basic_type_set", "bitset of basic type", &basic_type_set);
-    register_field("kismet.device.base.crypt", "printable encryption type", &crypt_string);
+
+    crypt_string_alias_id =
+        register_dynamic_field("kismet.device.base.crypt", "printable basic encryption information",
+                &crypt_string_alias);
+
     register_field("kismet.device.base.basic_crypt_set", 
             "bitset of basic encryption", &basic_crypt_set);
     register_field("kismet.device.base.first_time", "first time seen time_t", &first_time);

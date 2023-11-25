@@ -460,6 +460,8 @@ public:
             __ImportId(location_id, p);
 
             __ImportField(crypt_set, p);
+            __ImportField(crypt_set_old, p);
+            __ImportId(crypt_string_alias_id, p);
             __ImportField(wpa_mfp_required, p);
             __ImportField(wpa_mfp_supported, p);
 
@@ -501,6 +503,22 @@ public:
                         dot11r_mobility_domain_id_id);
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
+    __Proxy(crypt_set_old, uint64_t, uint64_t, uint64_t, crypt_set_old);
+	
+    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
+            crypt_string_alias, crypt_string_alias_id);
+    
+    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
+        auto csa = get_crypt_string();
+        csa->set(string);
+    }
+
+    void set_crypt_string(const std::string& string) {
+        auto csa = get_crypt_string();
+        auto sc = Globalreg::cache_string(string);
+        csa->set(sc);
+    }
+
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
     __Proxy(wpa_mfp_supported, uint8_t, bool, bool, wpa_mfp_supported);
 
@@ -530,7 +548,12 @@ protected:
 
     uint16_t location_id;
 
+    std::shared_ptr<tracker_element_uint64> crypt_set_old;
     std::shared_ptr<tracker_element_uint64> crypt_set;
+    
+    uint16_t crypt_string_alias_id;
+    std::shared_ptr<tracker_element_alias> crypt_string_alias;
+
     std::shared_ptr<tracker_element_uint8> wpa_mfp_required;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;
 
@@ -600,6 +623,8 @@ public:
 
             __ImportField(ssid_cloaked, p);
             __ImportField(crypt_set, p);
+            __ImportField(crypt_set_old, p);
+            __ImportId(crypt_string_alias_id, p);
             __ImportField(wpa_mfp_required, p);
             __ImportField(wpa_mfp_supported, p);
             __ImportField(maxrate, p);
@@ -683,6 +708,22 @@ public:
     __Proxy(ssid_cloaked, uint8_t, bool, bool, ssid_cloaked);
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
+    __Proxy(crypt_set_old, uint64_t, uint64_t, uint64_t, crypt_set_old);
+
+    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
+            crypt_string_alias, crypt_string_alias_id);
+    
+    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
+        auto csa = get_crypt_string();
+        csa->set(string);
+    }
+
+    void set_crypt_string(const std::string& string) {
+        auto csa = get_crypt_string();
+        auto sc = Globalreg::cache_string(string);
+        csa->set(sc);
+    }
+
 
     // WPA MFP
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
@@ -788,7 +829,12 @@ protected:
     int beacon_info_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_cloaked;
+    std::shared_ptr<tracker_element_uint64> crypt_set_old;
     std::shared_ptr<tracker_element_uint64> crypt_set;
+
+    uint16_t crypt_string_alias_id;
+    std::shared_ptr<tracker_element_alias> crypt_string_alias;
+
     std::shared_ptr<tracker_element_uint8> wpa_mfp_required;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;
     std::shared_ptr<tracker_element_double> maxrate;
@@ -885,9 +931,6 @@ public:
             __ImportId(dhcp_host_id, p);
             __ImportId(dhcp_vendor_id, p);
 
-            __ImportField(tx_cryptset, p);
-            __ImportField(rx_cryptset, p);
-
             __ImportId(eap_identity_id, p);
 
             __ImportId(cdp_device_id, p);
@@ -927,9 +970,6 @@ public:
     __ProxyFullyDynamic(dhcp_host, std::string, std::string, std::string, tracker_element_string, dhcp_host_id);
     __ProxyFullyDynamic(dhcp_vendor, std::string, std::string, std::string, tracker_element_string, dhcp_vendor_id);
 
-    __Proxy(tx_cryptset, uint64_t, uint64_t, uint64_t, tx_cryptset);
-    __Proxy(rx_cryptset, uint64_t, uint64_t, uint64_t, rx_cryptset);
-
     __ProxyFullyDynamic(eap_identity, std::string, std::string, std::string, tracker_element_string, eap_identity_id);
 
     __ProxyFullyDynamic(cdp_device, std::string, std::string, std::string, tracker_element_string, cdp_device_id);
@@ -966,9 +1006,6 @@ protected:
         dhcp_vendor_id =
             register_dynamic_field<tracker_element_string>("dot11.client.dhcp_vendor", "dhcp vendor");
 
-        register_field("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
-        register_field("dot11.client.rx_cryptset", "bitset of received encryption", &rx_cryptset);
-
         eap_identity_id = 
             register_dynamic_field<tracker_element_string>("dot11.client.eap_identity", "EAP identity");
 
@@ -1002,9 +1039,6 @@ protected:
 
     uint16_t dhcp_host_id;
     uint16_t dhcp_vendor_id;
-
-    std::shared_ptr<tracker_element_uint64> tx_cryptset;
-    std::shared_ptr<tracker_element_uint64> rx_cryptset;
 
     uint16_t eap_identity_id;
 

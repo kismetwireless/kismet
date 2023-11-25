@@ -329,115 +329,6 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 		memcpy(&addr, &(chunk->data()[IP_OFFSET + 7]), 4);
 		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
-#if 0
-		if (datainfo->ip_source_port == IAPP_PORT &&
-			datainfo->ip_dest_port == IAPP_PORT &&
-			(IAPP_OFFSET + IAPP_HEADER_SIZE) < chunk->length) {
-
-			uint8_t iapp_version = 
-				chunk->data[IAPP_OFFSET];
-			uint8_t iapp_type =
-				chunk->data[IAPP_OFFSET + 1];
-
-			// If we can't understand the iapp version, bail and return the
-			// UDP frame we DID decode
-			if (iapp_version != 1) {
-				in_pack->insert(pack_comp_basicdata, datainfo);
-				return 1;
-			}
-
-			// Same again -- bail on UDP if we can't make sense of this
-			switch (iapp_type) {
-				case iapp_announce_request:
-				case iapp_announce_response:
-				case iapp_handover_request:
-				case iapp_handover_response:
-					break;
-				default:
-					in_pack->insert(pack_comp_basicdata, datainfo);
-					return 1;
-					break;
-			}
-
-			unsigned int pdu_offset = IAPP_OFFSET + IAPP_HEADER_SIZE;
-
-			while (pdu_offset + IAPP_PDUHEADER_SIZE < chunk->length) {
-				uint8_t *pdu = &(chunk->data[pdu_offset]);
-				uint8_t pdu_type = pdu[0];
-				uint8_t pdu_len = pdu[1];
-
-				// If we have a short/malformed PDU frame, bail
-				if ((pdu_offset + 3 + pdu_len) >= chunk->length) {
-					delete datainfo;
-					return 0;
-				}
-
-				switch (pdu_type) {
-					case iapp_pdu_ssid:
-						if (pdu_len > SSID_SIZE)
-							break;
-
-						packinfo->ssid = 
-							munge_to_printable((char *) &(pdu[3]), pdu_len, 0);
-						break;
-					case iapp_pdu_bssid:
-						if (pdu_len != PHY80211_MAC_LEN)
-							break;
-
-						packinfo->bssid_mac = mac_addr(&(pdu[3]), PHY80211_MAC_LEN);
-						break;
-					case iapp_pdu_capability:
-						if (pdu_len != 1)
-							break;
-						if ((pdu[3] & iapp_cap_wep))
-							packinfo->cryptset |= crypt_wep;
-						break;
-					case iapp_pdu_channel:
-						if (pdu_len != 1)
-							break;
-						packinfo->channel = (int) pdu[3];
-						break;
-					case iapp_pdu_beaconint:
-						if (pdu_len != 2)
-							break;
-						packinfo->beacon_interval = (int) ((pdu[3] << 8) | pdu[4]);
-						break;
-					case iapp_pdu_oldbssid:
-					case iapp_pdu_msaddr:
-					case iapp_pdu_announceint:
-					case iapp_pdu_hotimeout:
-					case iapp_pdu_messageid:
-					case iapp_pdu_phytype:
-					case iapp_pdu_regdomain:
-					case iapp_pdu_ouiident:
-					case iapp_pdu_authinfo:
-					default:
-						break;
-				}
-				pdu_offset += pdu_len + 3;
-			}
-
-			datainfo->proto = proto_iapp;
-			in_pack->insert(pack_comp_basicdata, datainfo);
-			return 1;
-		} // IAPP port
-
-		if ((datainfo->ip_source_port == ISAKMP_PORT ||
-			 datainfo->ip_dest_port == ISAKMP_PORT) &&
-			(ISAKMP_OFFSET + ISAKMP_PACKET_SIZE) < chunk->length) {
-			
-			datainfo->proto = proto_isakmp;
-			datainfo->field1 = 
-				chunk->data[ISAKMP_OFFSET + 4];
-
-			packinfo->cryptset |= crypt_isakmp;
-			
-			in_pack->insert(pack_comp_basicdata, datainfo);
-			return 1;
-
-		}
-#endif
-
 		/* DHCP Offer */
 		if (common->dest == Globalreg::globalreg->broadcast_mac &&
 			datainfo->ip_source_port == 67 &&
@@ -685,14 +576,6 @@ mdns_end:
 		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
 		datainfo->proto = proto_tcp;
-
-		/*
-		if (datainfo->ip_source_port == PPTP_PORT || 
-			datainfo->ip_dest_port == PPTP_PORT) {
-			datainfo->proto = proto_pptp;
-			packinfo->cryptset |= crypt_pptp;
-		}
-		*/
 
 		in_pack->insert(pack_comp_basicdata, datainfo);
 		return 1;

@@ -2344,10 +2344,13 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
             ssid->set_ssid_hash(ssid_csum);
             ssid->set_crypt_set(cryptset);
+            ssid->set_crypt_set_old(crypt_to_legacy_bitset(cryptset));
             ssid->set_first_time(in_pack->ts.tv_sec);
             ssid->set_last_time(in_pack->ts.tv_sec);
 
-            bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
+            // Use cached strings
+            bssid_dev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(cryptset)));
+            // bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
 
             ssid->set_ssid(ssid_str);
 
@@ -2406,7 +2409,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         ssid->set_ietag_checksum(ietag_csum);
 
         if (ssid->get_crypt_set() != cryptset) {
-            if (ssid->get_crypt_set() && cryptset == crypt_none &&
+            if (ssid->get_crypt_set() && cryptset == 0 &&
                     d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
                 in_pack->tag_map["DOT11_BEACON_SSID"] = true;
 
@@ -2436,7 +2439,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             }
 
             ssid->set_crypt_set(cryptset);
-            bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
+            ssid->set_crypt_set_old(crypt_to_legacy_bitset(cryptset));
+            bssid_dev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(cryptset)));
+            // bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
         }
 
         if (ssid->get_channel().length() > 0 &&
@@ -2628,10 +2633,12 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid->set_ssid_hash(dot11info->ssid_csum);
 
         ssid->set_crypt_set(dot11info->cryptset);
+        ssid->set_crypt_set_old(crypt_to_legacy_bitset(dot11info->cryptset));
         ssid->set_first_time(in_pack->ts.tv_sec);
         ssid->set_last_time(in_pack->ts.tv_sec);
 
-        basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
+        basedev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset)));
+        // basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
 
         // TODO handle loading SSID from the stored file
         ssid->set_ssid(dot11info->ssid);
@@ -2986,7 +2993,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     }
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
-        if (ssid->get_crypt_set() && dot11info->cryptset == crypt_none &&
+        if (ssid->get_crypt_set() && dot11info->cryptset == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
@@ -3014,7 +3021,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         }
 
         ssid->set_crypt_set(dot11info->cryptset);
-        basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
+        ssid->set_crypt_set_old(dot11info->cryptset);
+        // basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
+        basedev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset)));
     }
 
     if (!channel_from_ht && ssid->get_channel().length() > 0 &&
@@ -3282,6 +3291,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
+        probessid->set_crypt_set_old(dot11info->cryptset);
 
         if (probessid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {
             probessid->set_wps_version(dot11info->wps_version);
@@ -3802,87 +3812,182 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
     }
 }
 
-std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
-    std::string ret;
+uint64_t kis_80211_phy::crypt_to_legacy_bitset(uint64_t cryptset) {
+    uint64_t ret = 0;
 
-    if (cryptset == crypt_none)
-        return "Open";
+    if (cryptset == dot11_crypt_general_open)
+        return crypt_none;
 
-    if (cryptset == crypt_unknown)
-        return "Unknown";
+    if (cryptset & dot11_crypt_general_wep) {
+        if ((cryptset & dot11_crypt_pairwise_wep40) || (cryptset & dot11_crypt_group_wep40))
+            return crypt_wep | crypt_wep40;
+        if ((cryptset & dot11_crypt_pairwise_wep104) || (cryptset & dot11_crypt_group_wep104))
+            return crypt_wep | crypt_wep104;
+        return crypt_wep;
+    }
 
-    if (cryptset & crypt_wps)
-        ret = "WPS";
-
-    if ((cryptset & crypt_protectmask) == crypt_wep)
-        return string_append(ret, "WEP");
-
-    if (cryptset & crypt_wpa_owe)
-        return "OWE";
 
     std::string WPAVER = "WPA";
 
-    if (cryptset & crypt_version_wpa2)
+    if (cryptset & dot11_crypt_general_wpa1) 
+        ret |= crypt_wpa | crypt_version_wpa;
+
+    if (cryptset & dot11_crypt_general_wpa2) 
+        ret |= crypt_wpa | crypt_version_wpa2;
+
+    if (cryptset & dot11_crypt_general_wpa3) 
+        ret |= crypt_wpa | crypt_version_wpa3;
+
+    if ((cryptset & dot11_crypt_akm_psk) || (cryptset & dot11_crypt_akm_psk_ft) ||
+            (cryptset & dot11_crypt_akm_psk_sha256) || (cryptset & dot11_crypt_akm_psk_sha384) ||
+            (cryptset & dot11_crypt_akm_psk_sha384_ft)) 
+        ret |= crypt_psk; 
+
+    if ((cryptset & dot11_crypt_akm_sae) || (cryptset & dot11_crypt_akm_sae_ft)) 
+        cryptset |= crypt_sae;
+
+    if ((cryptset & dot11_crypt_akm_1x) ||
+            (cryptset & dot11_crypt_akm_1x_ft) ||
+            (cryptset & dot11_crypt_akm_1x_suiteb_sha256) ||
+            (cryptset & dot11_crypt_akm_1x_suiteb_sha384)) 
+        ret |= crypt_eap;
+
+    if ((cryptset & dot11_crypt_akm_owe)) 
+        ret |= crypt_wpa_owe;
+
+    if (cryptset & dot11_crypt_eap_peap)
+        ret |= crypt_peap;
+    if (cryptset & dot11_crypt_eap_leap)
+        ret |= crypt_leap;
+    if (cryptset & dot11_crypt_eap_ttls)
+        ret |= crypt_ttls;
+    if (cryptset & dot11_crypt_eap_tls)
+        ret |= crypt_tls;
+
+    if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip))
+        ret |= crypt_tkip;
+    if ((cryptset & dot11_crypt_pairwise_ocb) || (cryptset & dot11_crypt_group_ocb))
+        ret |= crypt_aes_ocb;
+    if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128))
+        ret |= crypt_aes_ccm;
+    if ((cryptset & dot11_crypt_pairwise_ccmp256) || (cryptset & dot11_crypt_group_ccmp256))
+        ret |= crypt_aes_ccm;
+
+    return ret;
+}
+
+std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
+    std::string ret;
+
+    if (cryptset == dot11_crypt_general_open)
+        return "Open";
+
+    if (cryptset & dot11_crypt_general_wep) {
+        if ((cryptset & dot11_crypt_pairwise_wep40) || (cryptset & dot11_crypt_group_wep40))
+            return "WEP40";
+        if ((cryptset & dot11_crypt_pairwise_wep104) || (cryptset & dot11_crypt_group_wep104))
+            return "WEP104";
+        return "WEP";
+
+    }
+
+    std::string WPAVER = "WPA";
+
+    if (cryptset & dot11_crypt_general_wpa1)
+        WPAVER = "WPA1";
+
+    if (cryptset & dot11_crypt_general_wpa2)
         WPAVER = "WPA2";
 
-    if (cryptset & crypt_version_wpa3)
+    if (cryptset & dot11_crypt_general_wpa3)
         WPAVER = "WPA3";
 
-    if (cryptset & crypt_wpa)
+    if (cryptset & dot11_crypt_general_wpa)
         ret = string_append(ret, WPAVER);
 
-    if (cryptset & crypt_psk)
+    if (cryptset & dot11_crypt_akm_psk)
         ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
-    if (cryptset & crypt_sae)
+    if (cryptset & dot11_crypt_akm_psk_ft)
+        ret = string_append(ret, fmt::format("{}-PSK-FT", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_psk_sha256)
+        ret = string_append(ret, fmt::format("{}-PSK-SHA256", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_psk_sha384)
+        ret = string_append(ret, fmt::format("{}-PSK-SHA384", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_psk_sha384_ft)
+        ret = string_append(ret, fmt::format("{}-PSK-SHA384-FT", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_sae)
         ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
 
-    if (cryptset & crypt_eap)
-        ret = string_append(ret, "EAP");
+    if (cryptset & dot11_crypt_akm_sae_ft)
+        ret = string_append(ret, fmt::format("{}-SAE-FT", WPAVER));
 
-    if (cryptset & crypt_peap)
+    if (cryptset & dot11_crypt_akm_tdls)
+        ret = string_append(ret, fmt::format("{}-TDLS", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_ap_peer)
+        ret = string_append(ret, fmt::format("{}-AP-PEER", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_fils_sha256)
+        ret = string_append(ret, fmt::format("{}-FILS-SHA256", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_fils_sha256_ft)
+        ret = string_append(ret, fmt::format("{}-FILS-SHA256-FT", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_fils_sha384)
+        ret = string_append(ret, fmt::format("{}-FILS-SHA384", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_fils_sha384_ft)
+        ret = string_append(ret, fmt::format("{}-FILS-SHA384-FT", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_1x)
+        ret = string_append(ret, "{}-EAP", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_1x_ft)
+        ret = string_append(ret, "{}-EAP-FT", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_1x_suiteb_sha256)
+        ret = string_append(ret, "{}-EAP-SUITEB-SHA256", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_1x_suiteb_sha384)
+        ret = string_append(ret, "{}-EAP-SUITEB-SHA384", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_owe)
+        ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
+
+    if (cryptset & dot11_crypt_eap_peap)
         ret = string_append(ret, fmt::format("{}-PEAP", WPAVER));
-    if (cryptset & crypt_leap)
+    if (cryptset & dot11_crypt_eap_leap)
         ret = string_append(ret, fmt::format("{}-LEAP", WPAVER));
-    if (cryptset & crypt_ttls)
+    if (cryptset & dot11_crypt_eap_ttls)
         ret = string_append(ret, fmt::format("{}-TTLS", WPAVER));
-    if (cryptset & crypt_tls)
+    if (cryptset & dot11_crypt_eap_tls)
         ret = string_append(ret, fmt::format("{}-TLS", WPAVER));
 
-    if (cryptset & crypt_wpa_migmode)
-        ret = string_append(ret, "WPA-MIGRATION");
-
-    if (cryptset & crypt_wep40)
-        ret = string_append(ret, "WEP40");
-    if (cryptset & crypt_wep104)
-        ret = string_append(ret, "WEP104");
-    if (cryptset & crypt_tkip)
+    if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip))
         ret = string_append(ret, "TKIP");
-    if (cryptset & crypt_aes_ocb)
+    if ((cryptset & dot11_crypt_pairwise_ocb) || (cryptset & dot11_crypt_group_ocb))
         ret = string_append(ret, "AES-OCB");
-    if (cryptset & crypt_aes_ccm)
+    if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128))
         ret = string_append(ret, "AES-CCMP");
-
-    if (cryptset & crypt_layer3)
-        ret = string_append(ret, "Layer 3");
-
-    if (cryptset & crypt_isakmp)
-        ret = string_append(ret, "ISA KMP");
-
-    if (cryptset & crypt_pptp)
-        ret = string_append(ret, "PPTP");
-
-    if (cryptset & crypt_fortress)
-        ret = string_append(ret, "Fortress");
-
-    if (cryptset & crypt_keyguard)
-        ret = string_append(ret, "Keyguard");
-
-    if (cryptset & crypt_unknown_protected)
-        ret = string_append(ret, "L3/Unknown");
-
-    if (cryptset & crypt_unknown_nonwep)
-        ret = string_append(ret, "Non-WEP/Unknown");
+    if ((cryptset & dot11_crypt_pairwise_bip_cmac128) || (cryptset & dot11_crypt_group_bip_cmac128))
+        ret = string_append(ret, "AES-BIP-CMAC128");
+    if ((cryptset & dot11_crypt_pairwise_gcmp128) || (cryptset & dot11_crypt_group_gcmp128))
+        ret = string_append(ret, "AES-GCMP128");
+    if ((cryptset & dot11_crypt_pairwise_gcmp256) || (cryptset & dot11_crypt_group_gcmp256))
+        ret = string_append(ret, "AES-GCMP256");
+    if ((cryptset & dot11_crypt_pairwise_ccmp256) || (cryptset & dot11_crypt_group_ccmp256))
+        ret = string_append(ret, "AES-CCMP256");
+    if ((cryptset & dot11_crypt_pairwise_bip_gmac128) || (cryptset & dot11_crypt_group_bip_gmac128))
+        ret = string_append(ret, "AES-BIP-GMAC128");
+    if ((cryptset & dot11_crypt_pairwise_bip_gmac256) || (cryptset & dot11_crypt_group_bip_gmac256))
+        ret = string_append(ret, "AES-BIP-GMAC256");
+    if ((cryptset & dot11_crypt_pairwise_bip_cmac256) || (cryptset & dot11_crypt_group_bip_cmac256))
+        ret = string_append(ret, "AES-BIP-CMAC256");
 
     return ret;
 }
@@ -3890,66 +3995,120 @@ std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
 std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
     std::string ret;
 
-    if (cryptset == crypt_none)
+    if (cryptset == dot11_crypt_general_open)
         return "Open";
 
-    if (cryptset == crypt_unknown)
-        return "Unknown";
+    if (cryptset & dot11_crypt_general_wep) {
+        if ((cryptset & dot11_crypt_pairwise_wep40) || (cryptset & dot11_crypt_group_wep40))
+            return "WEP40";
+        if ((cryptset & dot11_crypt_pairwise_wep104) || (cryptset & dot11_crypt_group_wep104))
+            return "WEP104";
+        return "WEP";
 
-    if (cryptset == crypt_wpa_owe)
-        return "Open (OWE)";
-
-    if (cryptset & crypt_wpa_owe)
-        return "OWE";
+    }
 
     std::string WPAVER = "WPA";
 
-    if (cryptset & crypt_version_wpa2)
+    if (cryptset & dot11_crypt_general_wpa1)
+        WPAVER = "WPA1";
+
+    if (cryptset & dot11_crypt_general_wpa2)
         WPAVER = "WPA2";
 
-    if (cryptset & crypt_version_wpa3)
+    if (cryptset & dot11_crypt_general_wpa3)
         WPAVER = "WPA3";
 
-    if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
-        return fmt::format("WPA3-TRANSITION");
+    if (cryptset & dot11_crypt_general_wpa)
+        ret = string_append(ret, WPAVER);
 
-    if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_sae))
-        return fmt::format("{}-SAE", WPAVER);
+    if (cryptset & dot11_crypt_akm_psk)
+        ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
-    if (cryptset & crypt_psk)
-        return fmt::format("{}-PSK", WPAVER);
+    if (cryptset & dot11_crypt_akm_psk_ft)
+        ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
-    if (cryptset & crypt_peap)
-        return fmt::format("{}-PEAP", WPAVER);
-    if (cryptset & crypt_leap)
-        return fmt::format("{}-LEAP", WPAVER);
-    if (cryptset & crypt_ttls)
-        return fmt::format("{}-TTLS", WPAVER);
-    if (cryptset & crypt_tls)
-        return fmt::format("{}-TLS", WPAVER);
+    if (cryptset & dot11_crypt_akm_psk_sha256)
+        ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
-    if (cryptset & crypt_wep40)
-        return "WEP40";
+    if (cryptset & dot11_crypt_akm_psk_sha384)
+        ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
-    if (cryptset & crypt_wep104)
-        return "WEP104";
+    if (cryptset & dot11_crypt_akm_psk_sha384_ft)
+        ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
-    if (cryptset & crypt_tkip)
-        return fmt::format("{}-TKIP", WPAVER);
+    if (cryptset & dot11_crypt_akm_sae)
+        ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
 
-    if (cryptset & crypt_aes_ocb)
-        return fmt::format("{}-OCB", WPAVER);
+    if (cryptset & dot11_crypt_akm_sae_ft)
+        ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
 
-    if (cryptset & crypt_aes_ccm)
-        return fmt::format("{}-CCMP", WPAVER);
+    if (cryptset & dot11_crypt_akm_tdls)
+        ret = string_append(ret, fmt::format("{}-TDLS", WPAVER));
 
-    if (cryptset & crypt_wpa)
-        return WPAVER;
+    if (cryptset & dot11_crypt_akm_ap_peer)
+        ret = string_append(ret, fmt::format("{}-AP-PEER", WPAVER));
 
-    if (cryptset & crypt_wep)
-        return "WEP";
+    if (cryptset & dot11_crypt_akm_fils_sha256)
+        ret = string_append(ret, fmt::format("{}-FILS", WPAVER));
 
-    return "Other";
+    if (cryptset & dot11_crypt_akm_fils_sha256_ft)
+        ret = string_append(ret, fmt::format("{}-FILS", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_fils_sha384)
+        ret = string_append(ret, fmt::format("{}-FILS", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_fils_sha384_ft)
+        ret = string_append(ret, fmt::format("{}-FILS", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_owe)
+        ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
+
+    if (cryptset & dot11_crypt_akm_1x)
+        ret = string_append(ret, "{}-EAP", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_1x_ft)
+        ret = string_append(ret, "{}-EAP-FT", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_1x_suiteb_sha256)
+        ret = string_append(ret, "{}-EAP-SUITEB-SHA256", WPAVER);
+
+    if (cryptset & dot11_crypt_akm_1x_suiteb_sha384)
+        ret = string_append(ret, "{}-EAP-SUITEB-SHA384", WPAVER);
+
+    if (cryptset & dot11_crypt_eap_peap)
+        ret = string_append(ret, fmt::format("{}-PEAP", WPAVER));
+    if (cryptset & dot11_crypt_eap_leap)
+        ret = string_append(ret, fmt::format("{}-LEAP", WPAVER));
+    if (cryptset & dot11_crypt_eap_ttls)
+        ret = string_append(ret, fmt::format("{}-TTLS", WPAVER));
+    if (cryptset & dot11_crypt_eap_tls)
+        ret = string_append(ret, fmt::format("{}-TLS", WPAVER));
+
+    if (cryptset & crypt_wpa_migmode)
+        ret = string_append(ret, "WPA-MIGRATION");
+
+    if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip))
+        ret = string_append(ret, "TKIP");
+    if ((cryptset & dot11_crypt_pairwise_ocb) || (cryptset & dot11_crypt_group_ocb))
+        ret = string_append(ret, "AES-OCB");
+    if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128))
+        ret = string_append(ret, "AES-CCMP");
+    if ((cryptset & dot11_crypt_pairwise_bip_cmac128) || (cryptset & dot11_crypt_group_bip_cmac128))
+        ret = string_append(ret, "AES-BIP-CMAC128");
+    if ((cryptset & dot11_crypt_pairwise_gcmp128) || (cryptset & dot11_crypt_group_gcmp128))
+        ret = string_append(ret, "AES-GCMP128");
+    if ((cryptset & dot11_crypt_pairwise_gcmp256) || (cryptset & dot11_crypt_group_gcmp256))
+        ret = string_append(ret, "AES-GCMP256");
+    if ((cryptset & dot11_crypt_pairwise_ccmp256) || (cryptset & dot11_crypt_group_ccmp256))
+        ret = string_append(ret, "AES-CCMP256");
+    if ((cryptset & dot11_crypt_pairwise_bip_gmac128) || (cryptset & dot11_crypt_group_bip_gmac128))
+        ret = string_append(ret, "AES-BIP-GMAC128");
+    if ((cryptset & dot11_crypt_pairwise_bip_gmac256) || (cryptset & dot11_crypt_group_bip_gmac256))
+        ret = string_append(ret, "AES-BIP-GMAC256");
+    if ((cryptset & dot11_crypt_pairwise_bip_cmac256) || (cryptset & dot11_crypt_group_bip_cmac256))
+        ret = string_append(ret, "AES-BIP-CMAC256");
+
+    return ret;
 }
 
 

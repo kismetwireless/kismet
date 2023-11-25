@@ -196,7 +196,12 @@ void dot11_probed_ssid::register_fields() {
         register_dynamic_field<tracker_element_uint16>("dot11.probedssid.dot11r_mobility_domain_id", 
             "advertised dot11r mobility domain id");
 
-    register_field("dot11.probedssid.crypt_set", "Requested encryption set", &crypt_set);
+    register_field("dot11.probedssid.crypt_bitfield", "Requested encryption set", &crypt_set);
+    register_field("dot11.probedssid.crypt_set", "Requested encryption set (legacy)", &crypt_set_old);
+
+    crypt_string_alias_id =
+        register_dynamic_field("dot11.probedssid.crypt_string", "printable encryption information",
+                &crypt_string_alias);
 
     register_field("dot11.probedssid.wpa_mfp_required",
             "WPA management protection required", &wpa_mfp_required);
@@ -262,7 +267,13 @@ void dot11_advertised_ssid::register_fields() {
         register_dynamic_field<tracker_element_string>("dot11.advertisedssid.beacon_info", 
                 "beacon info / vendor description");
     register_field("dot11.advertisedssid.cloaked", "SSID is hidden / cloaked", &ssid_cloaked);
-    register_field("dot11.advertisedssid.crypt_set", "bitfield of encryption options", &crypt_set);
+    register_field("dot11.advertisedssid.crypt_bitfield", "bitfield of encryption options", &crypt_set);
+    register_field("dot11.advertisedssid.crypt_set", "legacy bitfield of encryption options", &crypt_set_old);
+
+    crypt_string_alias_id =
+        register_dynamic_field("dot11.advertisedssid.crypt_string", "printable encryption information",
+                &crypt_string_alias);
+
     register_field("dot11.advertisedssid.maxrate", "advertised maximum rate", &maxrate);
     register_field("dot11.advertisedssid.beaconrate", "beacon rate", &beaconrate);
     register_field("dot11.advertisedssid.beacons_sec", "beacons seen in past second", &beacons_sec);

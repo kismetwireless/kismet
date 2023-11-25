@@ -71,6 +71,7 @@
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
+#include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
 
 #define PHY80211_MAC_LEN	6
 // Dot11 SSID max len
@@ -394,6 +395,11 @@ class kis_80211_phy : public kis_phy_handler, public time_tracker_event {
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
 
+    using ie48_rsn_cipher = dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher::rsn_cipher_type;
+    using ie48_rsn_mgmt = dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_management::rsn_management;
+    using ie221_wfa_cipher = dot11_ie_221_wfa_wpa::wpa_v1_cipher::wfa_wpa_cipher_e;
+    using ie221_wfa_mgmt = dot11_ie_221_wfa_wpa::wpa_v1_cipher::wfa_wpa_mgmt_e;
+
     // Stub
     ~kis_80211_phy();
 
@@ -409,8 +415,14 @@ public:
     // Strong constructor
     kis_80211_phy(int in_phyid);
 
-    int wpa_cipher_conv(uint8_t cipher_index);
-    int wpa_key_mgt_conv(uint8_t mgt_index);
+    uint64_t wpa_rsn_pairwise_conv(ie48_rsn_cipher cipher);
+    uint64_t wpa_rsn_group_conv(ie48_rsn_cipher cipher);
+    uint64_t wpa_rsn_auth_conv(ie48_rsn_mgmt cipher);
+
+    uint64_t wfa_pairwise_conv(ie221_wfa_cipher cipher);
+    uint64_t wfa_group_conv(ie221_wfa_cipher cipher);
+    uint64_t wfa_auth_conv(ie221_wfa_mgmt cipher);
+
 
     // Dot11 decoders, wep decryptors, etc
     int packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack);
@@ -460,6 +472,7 @@ public:
 
     static std::string crypt_to_string(uint64_t cryptset);
     static std::string crypt_to_simple_string(uint64_t cryptset);
+    static uint64_t crypt_to_legacy_bitset(uint64_t cryptset);
 
     // time_tracker event handler
     virtual int timetracker_event(int eventid) override;

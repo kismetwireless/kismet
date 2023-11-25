@@ -209,8 +209,87 @@ typedef struct {
     unsigned pdu_len : 16;
 } __attribute__ ((packed)) iapp_pdu_header;
 
-// Crypt bitfield ... broken out of enum thanks to c++ < 0x11 not understanding
-// enum widths
+// New 64-bit encryption field describing the overall state, plus broken out 
+// group/pairwise and keying ciphers.
+
+// General capabilities/summaries
+#define dot11_crypt_general_open            0ULL
+#define dot11_crypt_general_wep             (1ULL << 0)
+#define dot11_crypt_general_wpa             (1ULL << 1)
+#define dot11_crypt_general_wpa1            (1ULL << 2)
+#define dot11_crypt_general_wpa2            (1ULL << 3)
+#define dot11_crypt_general_wpa3            (1ULL << 4)
+#define dot11_crypt_general_reserve1        (1ULL << 5)
+#define dot11_crypt_general_reserve2        (1ULL << 6)
+
+// multicast ciphers
+#define dot11_crypt_group_wep40             (1ULL << 7)
+#define dot11_crypt_group_wep104            (1ULL << 8)
+#define dot11_crypt_group_tkip              (1ULL << 9)
+#define dot11_crypt_group_ccmp128           (1ULL << 10)
+#define dot11_crypt_group_bip_cmac128       (1ULL << 11)
+#define dot11_crypt_group_gcmp128           (1ULL << 12)
+#define dot11_crypt_group_gcmp256           (1ULL << 13)
+#define dot11_crypt_group_ccmp256           (1ULL << 14)
+#define dot11_crypt_group_bip_gmac128       (1ULL << 15)
+#define dot11_crypt_group_bip_gmac256       (1ULL << 16)
+#define dot11_crypt_group_bip_cmac256       (1ULL << 17)
+#define dot11_crypt_group_ocb               (1ULL << 18)
+#define dot11_crypt_group_reserve2          (1ULL << 19)
+#define dot11_crypt_group_reserve3          (1ULL << 20)
+#define dot11_crypt_group_reserve4          (1ULL << 21)
+#define dot11_crypt_group_reserve5          (1ULL << 22)
+#define dot11_crypt_group_reserve6          (1ULL << 23)
+
+// unicast ciphers
+#define dot11_crypt_pairwise_wep40          (1ULL << 24)
+#define dot11_crypt_pairwise_wep104         (1ULL << 25)
+#define dot11_crypt_pairwise_tkip           (1ULL << 36)
+#define dot11_crypt_pairwise_ccmp128        (1ULL << 27)
+#define dot11_crypt_pairwise_bip_cmac128    (1ULL << 28)
+#define dot11_crypt_pairwise_gcmp128        (1ULL << 29)
+#define dot11_crypt_pairwise_gcmp256        (1ULL << 30)
+#define dot11_crypt_pairwise_ccmp256        (1ULL << 31)
+#define dot11_crypt_pairwise_bip_gmac128    (1ULL << 32)
+#define dot11_crypt_pairwise_bip_gmac256    (1ULL << 33)
+#define dot11_crypt_pairwise_bip_cmac256    (1ULL << 34)
+#define dot11_crypt_pairwise_ocb            (1ULL << 35)
+#define dot11_crypt_pairwise_reserve2       (1ULL << 36)
+#define dot11_crypt_pairwise_reserve3       (1ULL << 37)
+
+// Key exchange types
+#define dot11_crypt_akm_1x                  (1ULL << 38)
+#define dot11_crypt_akm_psk                 (1ULL << 39)
+#define dot11_crypt_akm_1x_ft               (1ULL << 40)
+#define dot11_crypt_akm_psk_ft              (1ULL << 41)
+#define dot11_crypt_akm_1x_sha256           (1ULL << 42)
+#define dot11_crypt_akm_psk_sha256          (1ULL << 43)
+#define dot11_crypt_akm_tdls                (1ULL << 44)
+#define dot11_crypt_akm_sae                 (1ULL << 45)
+#define dot11_crypt_akm_sae_ft              (1ULL << 46)
+#define dot11_crypt_akm_ap_peer             (1ULL << 47)
+#define dot11_crypt_akm_1x_suiteb_sha256    (1ULL << 48)
+#define dot11_crypt_akm_1x_suiteb_sha384    (1ULL << 49)
+#define dot11_crypt_akm_1x_ft_sha384        (1ULL << 50)
+#define dot11_crypt_akm_fils_sha256         (1ULL << 51)
+#define dot11_crypt_akm_fils_sha384         (1ULL << 52)
+#define dot11_crypt_akm_fils_sha256_ft      (1ULL << 53)
+#define dot11_crypt_akm_fils_sha384_ft      (1ULL << 54)
+#define dot11_crypt_akm_owe                 (1ULL << 55)
+#define dot11_crypt_akm_psk_sha384_ft       (1ULL << 56)
+#define dot11_crypt_akm_psk_sha384          (1ULL << 57)
+
+// EAP types
+#define dot11_crypt_eap_leap                (1ULL << 58)
+#define dot11_crypt_eap_tls                 (1ULL << 59)
+#define dot11_crypt_eap_ttls                (1ULL << 60)
+#define dot11_crypt_eap_peap                (1ULL << 61)
+#define dot11_crypt_eap_identity            (1ULL << 62)
+#define dot11_crypt_eap_reserve1            (1ULL << 63)
+
+// Old bitfield; to be phased out, currently co-populated (2023) to not break old tools;
+// will not contain all the info of the new one!
+
 // Basic types
 #define crypt_none 			0
 #define crypt_unknown		1
