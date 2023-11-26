@@ -669,6 +669,8 @@ public:
             __ImportId(mesh_peerings_id, p);
             __ImportId(mesh_forwarding_id, p);
 
+            __ImportField(adv_tx_power, p);
+
             reserve_fields(nullptr);
         }
         
@@ -782,6 +784,8 @@ public:
 	__ProxyFullyDynamic(mesh_peerings, uint8_t, uint8_t, uint8_t, tracker_element_uint8, mesh_peerings_id);
 	__ProxyFullyDynamic(mesh_forwarding, uint8_t, bool, bool, tracker_element_uint8, mesh_forwarding_id);
 
+    __Proxy(adv_tx_power, uint8_t, uint8_t, uint8_t, adv_tx_power);
+
 protected:
     virtual void register_fields() override;
 
@@ -890,6 +894,8 @@ protected:
 	uint16_t mesh_gateway_id;
 	uint16_t mesh_peerings_id;
 	uint16_t mesh_forwarding_id;
+
+    std::shared_ptr<tracker_element_uint8> adv_tx_power;
 };
 
 /* dot11 client

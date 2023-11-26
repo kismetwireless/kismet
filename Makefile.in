@@ -17,6 +17,7 @@ PARSERS = \
 	dot11_parsers/dot11_ie_7_country.cc.o \
 	dot11_parsers/dot11_ie_11_qbss.cc.o \
 	dot11_parsers/dot11_ie_33_power.cc.o \
+	dot11_parsers/dot11_ie_35_tpc.cc.o \
 	dot11_parsers/dot11_ie_36_supported_channels.cc.o \
 	dot11_parsers/dot11_ie_45_ht_cap.cc.o \
 	dot11_parsers/dot11_ie_48_rsn.cc.o \

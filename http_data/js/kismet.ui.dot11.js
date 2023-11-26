@@ -1307,6 +1307,16 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     }
                 },
                 {
+                    field: "dot11.advertisedssid.advertised_txpower",
+                    liveupdate: true,
+                    title: "Advertised Power",
+                    filterOnZero: true,
+                    help: "Some APs may advertise transmit power via the IE35 TPC element.",
+                    draw: function(opts) {
+                        return opts['value'] + "dBm";
+                    },
+                },
+                {
                     field: "dot11.advertisedssid.ccx_txpower",
                     liveupdate: true,
                     title: "Cisco CCX TxPower",

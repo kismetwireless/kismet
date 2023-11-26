@@ -371,6 +371,9 @@ void dot11_advertised_ssid::register_fields() {
     mesh_forwarding_id =
         register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.dot11s.forwarding",
                 "802.11s Mesh forwarding enabled");
+
+    register_field("dot11.advertisedssid.advertised_txpower", 
+            "advertised transmit power (TPC)", &adv_tx_power);
 }
 
 void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags) {

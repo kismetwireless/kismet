@@ -59,6 +59,7 @@
 #include "dot11_parsers/dot11_ie_7_country.h"
 #include "dot11_parsers/dot11_ie_11_qbss.h"
 #include "dot11_parsers/dot11_ie_33_power.h"
+#include "dot11_parsers/dot11_ie_35_tpc.h"
 #include "dot11_parsers/dot11_ie_36_supported_channels.h"
 #include "dot11_parsers/dot11_ie_45_ht_cap.h"
 #include "dot11_parsers/dot11_ie_48_rsn.h"
@@ -127,6 +128,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     Globalreg::enable_pool_type<dot11_ie_221_vendor>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_11_qbss>([](auto *a) { a->reset();  });
     Globalreg::enable_pool_type<dot11_ie_33_power>([](auto *a) { a->reset(); });
+    Globalreg::enable_pool_type<dot11_ie_35_tpc>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_36_supported_channels>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<dot11_ie_45_ht_cap>([](auto *a) { a->reset(); });
@@ -2972,6 +2974,19 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                 } catch (...) {
                     ;
                 }
+            }
+
+            auto tpc = dot11info->ie_tags->tags_map()->find(35);
+            if (tpc != dot11info->ie_tags->tags_map()->end()) {
+                try {
+                    auto tpc_ie = Globalreg::new_from_pool<dot11_ie_35_tpc>();
+                    tpc_ie->parse(tpc->second->tag_data_stream());
+
+                    ssid->set_adv_tx_power(tpc_ie->txpower());
+                } catch (...) { 
+                    ;
+                }
+
             }
         }
     } else if (dot11info->subtype == packet_sub_probe_resp) {
