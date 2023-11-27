@@ -1389,6 +1389,84 @@ exports.MemoryMonitor = function() {
 
     memory_chart = null;
 
+
+/*
+    var content = 
+        $('<div>', {
+            'style': 'width: 100%; height: 100%;'
+        })
+        .append(
+            $('<div>', {
+                "style": "position: absolute; top: 0px; right: 10px; float: right;"
+            })
+            .append(
+                $('<span>', {
+                    'id': 'k_mm_devs',
+                    'class': 'padded',
+                }).html('#devices')
+            )
+            .append(
+                $('<span>', {
+                    'id': 'k_mm_ram',
+                    'class': 'padded',
+                }).html('#ram')
+            )
+        )
+        .append(
+            $('<canvas>', {
+                'id': 'k-mm-canvas',
+                'style': 'k-mm-canvas'
+            })
+        );
+*/
+
+	var content = 
+		$('<div class="k-mem-contentdiv">')
+		.append(
+			$('<div id="mem-tabs" class="tabs-min">')
+		);
+
+    memory_panel = $.jsPanel({
+        id: 'memory',
+        headerTitle: '<i class="fa fa-tasks" /> Memory use',
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        content: content,
+        onclosed: function() {
+            clearTimeout(memoryupdate_tid);
+        }
+    }).resize({
+        width: w,
+        height: h
+    }).reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: offty
+    });
+
+	kismet_ui_tabpane.AddTab({
+		id: 'memtotals',
+		tabTitle: 'Overall Memory',
+		createCallback: f_mem_memory,
+		priority: -5000,
+	}, 'mem-tabs');
+
+	kismet_ui_tabpane.AddTab({
+		id: 'stats',
+		tabTitle: 'Memory Statistics',
+		createCallback: f_mem_stats,
+		priority: -4000,
+	}, 'mem-tabs');
+
+	kismet_ui_tabpane.MakeTabPane($('#mem-tabs', content), 'mem-tabs');
+
+    memorydisplay_refresh();
+}
+
+var f_mem_memory = function(div) {
     var content = 
         $('<div>', {
             'style': 'width: 100%; height: 100%;'
@@ -1417,28 +1495,84 @@ exports.MemoryMonitor = function() {
             })
         );
 
-    memory_panel = $.jsPanel({
-        id: 'memory',
-        headerTitle: '<i class="fa fa-tasks" /> Memory use',
-        headerControls: {
-            controls: 'closeonly',
-            iconfont: 'jsglyph',
-        },
-        content: content,
-        onclosed: function() {
-            clearTimeout(memoryupdate_tid);
-        }
-    }).resize({
-        width: w,
-        height: h
-    }).reposition({
-        my: 'center-top',
-        at: 'center-top',
-        of: 'window',
-        offsetY: offty
-    });
+	div.append(content);
 
-    memorydisplay_refresh();
+	memory_panel.mem_content = div;
+}
+
+var f_mem_stats = function(div) {
+    var content = 
+        $('<div>', {
+            'style': 'width: 100%; height: 100%; padding: 10px;'
+		});
+
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("Total fields")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memfieldcount' })
+		)
+	);
+
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("Total Components")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memcomponentcount' })
+		)
+	);
+
+	content.append($('<div style="padding: 5px;">'));
+
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("Web connections")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memwebcmp' })
+		)
+	);
+
+	content.append($('<div style="padding: 5px;">'));
+
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("String Cache #")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memstrcache' })
+		)
+	);
+
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("String Cache Size")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memstrcachesz' })
+		)
+	);
+
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("String Cache Size (Expanded)")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memstrcacheszexpanded' })
+		)
+	);
+
+	div.append(content);
+
+	memory_panel.status_content = div;
 }
 
 function memorydisplay_refresh() {
@@ -1452,6 +1586,16 @@ function memorydisplay_refresh() {
 
     $.get(local_uri_prefix + "system/status.json")
     .done(function(data) {
+
+		$('#memfieldcount', memory_panel.status_content).html(kismet.sanitizeHTML(data['kismet.system.num_fields']));
+		$('#memcomponentcount', memory_panel.status_content).html(kismet.sanitizeHTML(data['kismet.system.num_components']));
+
+		$('#memwebcmp', memory_panel.status_content).html(kismet.sanitizeHTML(data['kismet.system.num_http_connections']));
+
+		$('#memstrcache', memory_panel.status_content).html(kismet.sanitizeHTML(data['kismet.system.string_cache_size']));
+		$('#memstrcachesz', memory_panel.status_content).html(kismet.HumanReadableSize(data['kismet.system.string_cache_bytes']));
+		$('#memstrcacheszexpanded', memory_panel.status_content).html(kismet.HumanReadableSize(data['kismet.system.string_cache_dedupe']));
+
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
         var rrddata = 'kismet.common.rrd.hour_vec';
@@ -1477,8 +1621,8 @@ function memorydisplay_refresh() {
         var dev_linedata =
             kismet.RecalcRrdData2(data['kismet.system.devices.rrd'], rrdtype);
 
-        $('#k_mm_devs', memory_panel.content).html(`${dev_linedata[dev_linedata.length - 1]} devices`);
-        $('#k_mm_ram', memory_panel.content).html(`${mem_linedata[mem_linedata.length - 1]} MB`);
+        $('#k_mm_devs', memory_panel.mem_content).html(`${dev_linedata[dev_linedata.length - 1]} devices`);
+        $('#k_mm_ram', memory_panel.mem_content).html(`${mem_linedata[mem_linedata.length - 1]} MB`);
 
         if (memory_chart == null) {
             var datasets = [

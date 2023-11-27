@@ -210,6 +210,17 @@ div.k-pqm-contentdiv {
     height: 100%;
 }
 
+div.k-mem-contentdiv {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    bottom: 5px;
+    right: 5px;
+    width: 100%;
+    height: 100%;
+}
+
+
 .padded {
     padding-right: 5px;
 }
@@ -232,4 +243,14 @@ th.apith {
     text-decoration: underline;
 }
 
+div.fakerow {
+	display: flex;
+	flex-direction: row;
+}
 
+div.cellleft {
+	width: 30em;
+}
+
+div.cellright {
+}
