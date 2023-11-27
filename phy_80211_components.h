@@ -448,7 +448,7 @@ public:
 
     dot11_probed_ssid(const dot11_probed_ssid *p) :
         tracker_component{p} {
-            __ImportField(ssid, p);
+            __ImportId(ssid_alias_id, p);
             __ImportField(ssid_len, p);
             __ImportField(bssid, p);
             __ImportField(first_time, p);
@@ -490,7 +490,27 @@ public:
         return r;
     }
 
-    __Proxy(ssid, std::string, std::string, std::string, ssid);
+    __ProxyDynamicTrackable(tracked_ssid, tracker_element_alias, 
+            ssid_alias, ssid_alias_id);
+   
+    const std::string get_ssid() const {
+        if (ssid_alias == nullptr)
+            return "";
+
+        return ssid_alias->as_string();
+    }
+    
+    void set_ssid(std::shared_ptr<tracker_element_string> string) {
+        auto ssa = get_tracked_ssid();
+        ssa->set(string);
+    }
+
+    void set_ssid(const std::string& string) {
+        auto ssa = get_tracked_ssid();
+        auto sc = Globalreg::cache_string(string);
+        ssa->set(sc);
+    }
+
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
@@ -537,7 +557,9 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<tracker_element_string> ssid;
+    uint16_t ssid_alias_id;
+    std::shared_ptr<tracker_element_alias> ssid_alias;
+
     std::shared_ptr<tracker_element_uint32> ssid_len;
     std::shared_ptr<tracker_element_mac_addr> bssid;
     std::shared_ptr<tracker_element_uint64> first_time;
@@ -599,7 +621,7 @@ public:
 
     dot11_advertised_ssid(const dot11_advertised_ssid *p) :
         tracker_component{p} {
-            __ImportField(ssid, p);
+            __ImportId(ssid_alias_id, p);
             __ImportField(ssid_len, p);
 
             __ImportField(ssid_hash, p);
@@ -685,7 +707,27 @@ public:
         return r;
     }
 
-    __Proxy(ssid, std::string, std::string, std::string, ssid);
+    __ProxyDynamicTrackable(tracked_ssid, tracker_element_alias, 
+            ssid_alias, ssid_alias_id);
+   
+    const std::string get_ssid() const {
+        if (ssid_alias == nullptr)
+            return "";
+
+        return ssid_alias->as_string();
+    }
+
+    void set_ssid(std::shared_ptr<tracker_element_string> string) {
+        auto ssa = get_tracked_ssid();
+        ssa->set(string);
+    }
+
+    void set_ssid(const std::string& string) {
+        auto ssa = get_tracked_ssid();
+        auto sc = Globalreg::cache_string(string);
+        ssa->set(sc);
+    }
+
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
 
     __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
@@ -809,7 +851,9 @@ protected:
         }
     }
 
-    std::shared_ptr<tracker_element_string> ssid;
+    uint16_t ssid_alias_id;
+    std::shared_ptr<tracker_element_alias> ssid_alias;
+
     std::shared_ptr<tracker_element_uint32> ssid_len;
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;

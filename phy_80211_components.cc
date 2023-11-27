@@ -179,7 +179,10 @@ void dot11_tracked_nonce::set_from_eapol(shared_tracker_element in_tracked_eapol
 }
 
 void dot11_probed_ssid::register_fields() {
-    register_field("dot11.probedssid.ssid", "probed ssid string (sanitized)", &ssid);
+    ssid_alias_id =
+        register_dynamic_field("dot11.probedssid.ssid", "probed ssid string",
+                &ssid_alias);
+
     register_field("dot11.probedssid.ssidlen", 
             "probed ssid string length (original bytes)", &ssid_len);
     register_field("dot11.probedssid.bssid", "probed ssid BSSID", &bssid);
@@ -233,7 +236,10 @@ void dot11_probed_ssid::register_fields() {
 }
 
 void dot11_advertised_ssid::register_fields() {
-    register_field("dot11.advertisedssid.ssid", "beaconed ssid string (sanitized)", &ssid);
+    ssid_alias_id =
+        register_dynamic_field("dot11.advertisedssid.ssid", "beaconed ssid string",
+                &ssid_alias);
+
     register_field("dot11.advertisedssid.ssidlen", 
             "beaconed ssid string length (original bytes)", &ssid_len);
 
