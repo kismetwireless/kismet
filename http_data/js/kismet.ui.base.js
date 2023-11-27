@@ -1570,6 +1570,16 @@ var f_mem_stats = function(div) {
 		)
 	);
 
+	content.append(
+		$('<div>', { 'class': 'fakerow'})
+		.append(
+			$('<div>', { 'class': 'cellleft' }).html("String Cache Reuse")
+		)
+		.append(
+			$('<div>', { 'class': 'cellleft', 'id': 'memstrcachereuse' })
+		)
+	);
+
 	div.append(content);
 
 	memory_panel.status_content = div;
@@ -1595,6 +1605,10 @@ function memorydisplay_refresh() {
 		$('#memstrcache', memory_panel.status_content).html(kismet.sanitizeHTML(data['kismet.system.string_cache_size']));
 		$('#memstrcachesz', memory_panel.status_content).html(kismet.HumanReadableSize(data['kismet.system.string_cache_bytes']));
 		$('#memstrcacheszexpanded', memory_panel.status_content).html(kismet.HumanReadableSize(data['kismet.system.string_cache_dedupe']));
+
+		var perc = Math.floor(100 * (data['kismet.system.string_cache_bytes'] / data['kismet.system.string_cache_dedupe']));
+
+		$('#memstrcachereuse', memory_panel.status_content).html(`${100 - perc}&percnt;`);
 
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
