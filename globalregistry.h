@@ -278,7 +278,7 @@ public:
     ankerl::unordered_dense::map<size_t, std::shared_ptr<void>> object_pool_map;
 
     kis_mutex string_cache_mutex;
-    ankerl::unordered_dense::map<const char *, std::shared_ptr<tracker_element_string>> string_cache_map;
+    ankerl::unordered_dense::map<std::string, std::shared_ptr<tracker_element_string>> string_cache_map;
 };
 
 namespace Globalreg {
@@ -390,7 +390,7 @@ namespace Globalreg {
             return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
         }
 
-    std::shared_ptr<tracker_element_string> cache_string(const char *string);
+    std::shared_ptr<tracker_element_string> cache_string(const char *string, size_t len);
     std::shared_ptr<tracker_element_string> cache_string(const std::string& string);
 
     void cache_string_stats(unsigned int& size, unsigned long int& bytes,
