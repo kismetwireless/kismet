@@ -1607,8 +1607,9 @@ function memorydisplay_refresh() {
 		$('#memstrcacheszexpanded', memory_panel.status_content).html(kismet.HumanReadableSize(data['kismet.system.string_cache_dedupe']));
 
 		var perc = Math.floor(100 * (data['kismet.system.string_cache_bytes'] / data['kismet.system.string_cache_dedupe']));
+        var svd = data['kismet.system.string_cache_dedupe'] - data['kismet.system.string_cache_bytes'];
 
-		$('#memstrcachereuse', memory_panel.status_content).html(`${100 - perc}&percnt;`);
+		$('#memstrcachereuse', memory_panel.status_content).html(`${100 - perc}&percnt; (${kismet.HumanReadableSize(svd)} cached)`);
 
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
