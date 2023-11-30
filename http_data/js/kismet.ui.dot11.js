@@ -2873,11 +2873,8 @@ AddSsidColumn('column_first_time', {
 
 AddSsidColumn('column_crypt', {
     sTitle: 'Encryption',
-    field: 'dot11.ssidgroup.crypt_set',
+    field: 'dot11.ssidgroup.crypt_string',
     description: 'Encryption',
-    renderfunc: function(d, t, r, m) {
-        return CryptToHumanReadable(d);
-    },
     searchable: true,
     orderable: true,
 });

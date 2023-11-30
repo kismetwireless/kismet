@@ -66,6 +66,7 @@ public:
         __ImportField(ssid, p);
         __ImportField(ssid_len, p);
         __ImportField(crypt_set, p);
+        __ImportId(crypt_string_alias_id, p);
 
         __ImportField(advertising_device_map, p);
         __ImportField(responding_device_map, p);
@@ -98,6 +99,20 @@ public:
     __Proxy(ssid, std::string, std::string, std::string, ssid);
     __Proxy(ssid_len, uint32_t, uint32_t, uint32_t, ssid_len);
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
+
+    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
+            crypt_string_alias, crypt_string_alias_id);
+    
+    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
+        auto csa = get_crypt_string();
+        csa->set(string);
+    }
+
+    void set_crypt_string(const std::string& string) {
+        auto csa = get_crypt_string();
+        auto sc = Globalreg::cache_string(string);
+        csa->set(sc);
+    }
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
@@ -135,6 +150,9 @@ protected:
     std::shared_ptr<tracker_element_uint32> ssid_len;
 
     std::shared_ptr<tracker_element_uint64> crypt_set;
+
+    uint16_t crypt_string_alias_id;
+    std::shared_ptr<tracker_element_alias> crypt_string_alias;
 
     // Maps contain nullptr values, and are used only as a fast way to indicate which device keys are
     // present.  We don't need to actually track a full link to the dependent device, and we'd rather avoid

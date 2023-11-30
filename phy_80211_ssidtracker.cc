@@ -33,6 +33,7 @@ dot11_tracked_ssid_group::dot11_tracked_ssid_group(const dot11_tracked_ssid_grou
         __ImportField(ssid, p);
         __ImportField(ssid_len, p);
         __ImportField(crypt_set, p);
+        __ImportId(crypt_string_alias_id, p);
 
         __ImportField(advertising_device_map, p);
         __ImportField(responding_device_map, p);
@@ -51,6 +52,9 @@ dot11_tracked_ssid_group::dot11_tracked_ssid_group(const dot11_tracked_ssid_grou
         set_ssid_len(in_ssid_len);
         set_crypt_set(in_crypt_set);
 
+        auto crypt_s = Globalreg::cache_string(kis_80211_phy::crypt_to_simple_string(in_crypt_set));
+        set_crypt_string(crypt_s);
+
         set_ssid_hash(kis_80211_phy::ssid_hash(in_ssid, in_ssid_len));
 }
 
@@ -61,6 +65,12 @@ void dot11_tracked_ssid_group::register_fields() {
     register_field("dot11.ssidgroup.ssid", "SSID", &ssid);
     register_field("dot11.ssidgroup.ssid_len", "Length of SSID", &ssid_len);
     register_field("dot11.ssidgroup.crypt_set", "Advertised encryption set", &crypt_set);
+
+    crypt_string_alias_id =
+        register_dynamic_field("dot11.ssidgroup.crypt_string", "printable encryption information",
+                &crypt_string_alias);
+
+
     register_field("dot11.ssidgroup.first_time", "First time seen (unix timestamp)", &first_time);
     register_field("dot11.ssidgroup.last_time", "Last time seen (unix timestamp)", &last_time);
 
