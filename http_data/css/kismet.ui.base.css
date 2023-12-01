@@ -254,3 +254,7 @@ div.cellleft {
 
 div.cellright {
 }
+
+#devices-table {
+    height: 100% !important;
+}

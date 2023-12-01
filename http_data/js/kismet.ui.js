@@ -1013,13 +1013,15 @@ function CancelDeviceSummary() {
 exports.CreateDeviceTable = function(element) {
     // devicetableElement = element;
     // var statuselement = $('#' + element.attr('id') + '_status');
+    //
+    element.ready(function() { 
+        var dt = exports.InitializeDeviceTable(element);
 
-    var dt = exports.InitializeDeviceTable(element);
+        dt.draw(false);
 
-    dt.draw(false);
-
-    // Start the auto-updating
-    ScheduleDeviceSummary();
+        // Start the auto-updating
+        ScheduleDeviceSummary();
+    });
 }
 
 /* Activate the device table & do something */

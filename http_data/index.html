@@ -259,7 +259,7 @@ $(function() {
 }); // onload
 
 // Page show complete
-$(window).on('pageshow', function() { 
+$(window).on('load', function() { 
     kismet_ui_base.FirstLoginCheck(function() {
         load_main_ui();
     });
