@@ -2254,11 +2254,11 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             }
 
             if (capabilities.find("WPS") != std::string::npos) {
-                cryptset |= crypt_wps;
+                cryptset |= dot11_crypt_akm_wps;
             }
 
             if (capabilities.find("WEP") != std::string::npos) {
-                cryptset |= crypt_wep;
+                cryptset |= dot11_crypt_general_wep;
             }
 
             auto caps_list = str_tokenize(capabilities, "[");
@@ -2266,34 +2266,43 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             for (const auto& c : caps_list) {
                 if (c.find("PSK") != std::string::npos) {
                     if (c.find("WPA2") != std::string::npos)
-                        cryptset |= crypt_wpa + crypt_psk + crypt_version_wpa2;
+                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa2 + dot11_crypt_akm_psk;
                     else
-                        cryptset |= crypt_wpa + crypt_psk + crypt_version_wpa;
+                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa1 + dot11_crypt_akm_psk;
                 }
 
                 if (c.find("EAP") != std::string::npos) {
                     if (c.find("WPA2") != std::string::npos)
-                        cryptset |= crypt_wpa + crypt_eap + crypt_version_wpa2;
+                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa2 + dot11_crypt_akm_1x;
                     else
-                        cryptset |= crypt_wpa + crypt_eap + crypt_version_wpa;
+                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa1 + dot11_crypt_akm_1x;
 
                     if (c.find("PEAP") != std::string::npos)
-                        cryptset |= crypt_peap;
+                        cryptset |= dot11_crypt_eap_peap;
 
                     if (c.find("TLS") != std::string::npos)
-                        cryptset |= crypt_tls;
+                        cryptset |= dot11_crypt_eap_tls;
 
                     if (c.find("TTLS") != std::string::npos)
-                        cryptset |= crypt_ttls;
+                        cryptset |= dot11_crypt_eap_ttls;
 
                     if (c.find("SAE") != std::string::npos)
-                        cryptset |= crypt_sae;
+                        cryptset |= dot11_crypt_akm_sae;
                 }
 
                 // Not sure if this is actually a valid option
                 if (c.find("OWE") != std::string::npos) {
                     cryptset |= crypt_wpa_owe;
                 }
+
+                if (c.find("WEP40") != std::string::npos) 
+                    cryptset |= dot11_crypt_general_wep + dot11_crypt_group_wep40 + dot11_crypt_pairwise_wep40;
+
+                if (c.find("WEP104") != std::string::npos) 
+                    cryptset |= dot11_crypt_general_wep + dot11_crypt_group_wep104 + dot11_crypt_pairwise_wep104;
+
+                if (c.find("CCMP") != std::string::npos || c.find("CCMP128") != std::string::npos) 
+                    cryptset |= dot11_crypt_general_wpa + dot11_crypt_group_ccmp128 + dot11_crypt_pairwise_ccmp128;
             }
 
         } else {
