@@ -427,6 +427,14 @@ class tracker_component : public tracker_element_map {
         (*cvar) -= (ptype) i; \
     }
 
+// Proxy update if less
+#define __ProxySetIfLess(name, ptype, rtype, cvar) \
+    inline void set_if_lt_##name(rtype i) { \
+        if ((*cvar) < i) { \
+            cvar->set(i); \
+        } \
+    }
+
 // Proxy increment and decrement functions, with mutex
 #define __ProxyIncDecM(name, ptype, rtype, cvar, mutex) \
     inline void inc_##name() { \
@@ -501,7 +509,7 @@ class tracker_component : public tracker_element_map {
     inline std::shared_ptr<ttype> get_##name() { \
         return cvar; \
     } \
-    inline void set_##name(std::shared_ptr<ttype> in) { \
+    inline void set_##name(const std::shared_ptr<ttype>& in) { \
         if (cvar != NULL) \
             erase(cvar); \
         cvar = in; \
@@ -518,7 +526,7 @@ class tracker_component : public tracker_element_map {
         kis_lock_guard<kis_mutex> lk(mutex); \
         return cvar; \
     } \
-    inline void set_##name(std::shared_ptr<ttype> in) { \
+    inline void set_##name(const std::shared_ptr<ttype>& in) { \
         kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar != NULL) \
             erase(cvar); \
@@ -537,7 +545,7 @@ class tracker_component : public tracker_element_map {
         kis_lock_guard<kis_mutex> lk(mutex); \
         return cvar; \
     } \
-    inline void set_##name(std::shared_ptr<ttype> in) { \
+    inline void set_##name(const std::shared_ptr<ttype>& in) { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         if (cvar != NULL) \
             erase(cvar); \
@@ -634,7 +642,7 @@ class tracker_component : public tracker_element_map {
         } \
         return cvar; \
     } \
-    inline void set_tracker_##name(std::shared_ptr<ttype> in) { \
+    inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
         if (cvar != nullptr) \
             erase(cvar); \
         cvar = in; \
@@ -666,7 +674,7 @@ class tracker_component : public tracker_element_map {
         } \
         return cvar; \
     } \
-    inline void set_tracker_##name(std::shared_ptr<ttype> in) { \
+    inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
         if (cvar != nullptr) \
             erase(cvar); \
         cvar = in; \
@@ -698,7 +706,7 @@ class tracker_component : public tracker_element_map {
         } \
         return cvar; \
     } \
-    inline void set_tracker_##name(std::shared_ptr<ttype> in) { \
+    inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
         kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar != nullptr) \
             erase(cvar); \
@@ -733,7 +741,7 @@ class tracker_component : public tracker_element_map {
         } \
         return cvar; \
     } \
-    inline void set_tracker_##name(std::shared_ptr<ttype> in) { \
+    inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         if (cvar != nullptr) \
             erase(cvar); \
@@ -757,7 +765,7 @@ class tracker_component : public tracker_element_map {
         inline std::shared_ptr<ttype> get_tracker_##name() { \
             return cvar; \
         } \
-        inline void set_tracker_##name(std::shared_ptr<ttype> in) { \
+        inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
             if (cvar != nullptr) { \
                 in->set_id(cvar->get_id()); \
                 erase(cvar); \
