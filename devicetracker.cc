@@ -1247,8 +1247,7 @@ std::shared_ptr<kis_tracked_device_base>
 
     }
 
-    if (device->get_last_time() < in_pack->ts.tv_sec)
-        device->set_last_time(in_pack->ts.tv_sec);
+    device->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();

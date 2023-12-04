@@ -514,7 +514,9 @@ public:
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
     __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
@@ -745,7 +747,9 @@ public:
     __Proxy(ht_center_2, uint64_t, uint64_t, uint64_t, ht_center_2);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
     __ProxyFullyDynamic(beacon_info, std::string, std::string, std::string, tracker_element_string, beacon_info_id);
 
@@ -1015,7 +1019,9 @@ public:
     __Proxy(client_type, uint32_t, uint32_t, uint32_t, client_type);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
     __ProxyFullyDynamic(dhcp_host, std::string, std::string, std::string, tracker_element_string, dhcp_host_id);
     __ProxyFullyDynamic(dhcp_vendor, std::string, std::string, std::string, tracker_element_string, dhcp_vendor_id);

@@ -514,7 +514,9 @@ public:
     void add_basic_crypt(uint64_t in) { (*basic_crypt_set) |= in; }
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
     // Simple management of last modified time
     __Proxy(mod_time, uint64_t, time_t, time_t, mod_time);

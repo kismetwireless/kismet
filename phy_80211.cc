@@ -1333,7 +1333,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         bool handle_probed_ssid = false;
         std::function<void ()> handle_probed_ssid_f;
 
-        if (dot11info->bssid_dev != NULL) {
+        if (dot11info->bssid_dev != nullptr) {
             dot11info->bssid_dot11 =
                 dot11info->bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1443,12 +1443,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             d11phy->devicetracker->update_view_device(dot11info->bssid_dev);
         }
 
-        if (dot11info->source_dev != NULL) {
+        if (dot11info->source_dev != nullptr) {
             dot11info->source_dot11 =
                 dot11info->source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
 
-            if (dot11info->source_dot11 == NULL) {
+            if (dot11info->source_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
                         dot11info->source_dev->get_macaddr().mac_to_string());
 
@@ -1469,7 +1469,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 dot11info->source_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && 
+            } else if (pack_l1info != nullptr && 
                     (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
                     dot11info->source_dev->get_channel().length() == 0)) {
                 try {
@@ -1503,12 +1503,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             d11phy->devicetracker->update_view_device(dot11info->source_dev);
         }
 
-        if (dot11info->dest_dev != NULL) {
+        if (dot11info->dest_dev != nullptr) {
             dot11info->dest_dot11 =
                 dot11info->dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
 
-            if (dot11info->dest_dot11 == NULL) {
+            if (dot11info->dest_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->dest_dev->get_macaddr());
 
                 dot11info->dest_dot11 =
@@ -1533,18 +1533,18 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         // Safety check that our BSSID device exists
-        if (dot11info->bssid_dev != NULL) {
+        if (dot11info->bssid_dev != nullptr) {
             // Perform multi-device correlation under devicelist lock
             
             // Now we've instantiated and mapped all the possible devices and dot11 devices; now
             // populate the per-client records for any which have mgmt communication
             
-            if (dot11info->source_dev != NULL)
+            if (dot11info->source_dev != nullptr)
                 d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11, 
                         dot11info->source_dev, dot11info->source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
-            if (dot11info->dest_dev != NULL) {
+            if (dot11info->dest_dev != nullptr) {
                 if (dot11info->type == packet_management && 
                         dot11info->subtype == packet_sub_probe_resp) {
                     // Don't map probe respsonses as clients
@@ -1765,13 +1765,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         "Wi-Fi Device");
         }
 
-        if (dot11info->bssid_dev != NULL) {
+        if (dot11info->bssid_dev != nullptr) {
             dot11info->bssid_dot11 =
                 dot11info->bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
 
             std::stringstream newdevstr;
 
-            if (dot11info->bssid_dot11 == NULL) {
+            if (dot11info->bssid_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->bssid_dev->get_macaddr());
 
                 dot11info->bssid_dot11 =
@@ -1839,7 +1839,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         // If we have a source device, we know it's not originating from the same radio as the AP,
         // since source != bssid
-        if (dot11info->source_dev != NULL) {
+        if (dot11info->source_dev != nullptr) {
             dot11info->source_dot11 =
                 dot11info->source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1946,12 +1946,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
         }
 
-        if (dot11info->dest_dev != NULL) {
+        if (dot11info->dest_dev != nullptr) {
             dot11info->dest_dot11 =
                 dot11info->dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
 
-            if (dot11info->dest_dot11 == NULL) {
+            if (dot11info->dest_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->dest_dev->get_macaddr());
 
                 dot11info->dest_dot11 =
@@ -1996,7 +1996,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         // WDS transmitter must be a wifi device, and an AP peer
-        if (dot11info->transmit_dev != NULL) {
+        if (dot11info->transmit_dev != nullptr) {
             dot11info->transmit_dot11 =
                 dot11info->transmit_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -2016,7 +2016,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 dot11info->transmit_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && 
+            } else if (pack_l1info != nullptr && 
                     (pack_l1info->freq_khz != dot11info->transmit_dev->get_frequency() ||
                     dot11info->transmit_dev->get_channel().length() == 0)) {
 
@@ -2044,12 +2044,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         // WDS receiver must also be a wifi device, and an AP peer
-        if (dot11info->receive_dev != NULL) {
+        if (dot11info->receive_dev != nullptr) {
             dot11info->receive_dot11 =
                 dot11info->receive_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
 
-            if (dot11info->receive_dot11 == NULL) {
+            if (dot11info->receive_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", 
                         dot11info->receive_dev->get_macaddr());
 
@@ -2078,9 +2078,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
         }
 
-        if (dot11info->bssid_dev != NULL) {
+        if (dot11info->bssid_dev != nullptr) {
             // Map clients
-            if (dot11info->source_dev != NULL) {
+            if (dot11info->source_dev != nullptr) {
                 d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11, 
                         dot11info->source_dev, dot11info->source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
@@ -2089,7 +2089,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         in_pack, dot11info);
             }
 
-            if (dot11info->dest_dev != NULL) {
+            if (dot11info->dest_dev != nullptr) {
                 d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11, 
                         dot11info->dest_dev, dot11info->dest_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
@@ -2100,12 +2100,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         // If we're WDS, link source and dest devices as clients of the transmitting WDS AP
-        if (dot11info->transmit_dev != NULL) {
-            if (dot11info->source_dev != NULL) 
+        if (dot11info->transmit_dev != nullptr) {
+            if (dot11info->source_dev != nullptr) 
                 d11phy->process_client(dot11info->transmit_dev, dot11info->transmit_dot11, 
                         dot11info->source_dev, dot11info->source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-            if (dot11info->dest_dev != NULL)
+            if (dot11info->dest_dev != nullptr)
                 d11phy->process_client(dot11info->transmit_dev, dot11info->transmit_dot11, 
                         dot11info->dest_dev, dot11info->dest_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
@@ -2326,8 +2326,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             ssid = bssid_dot11->get_last_adv_ssid();
 
             if (ssid != nullptr) {
-                if (ssid->get_last_time() < in_pack->ts.tv_sec)
-                    ssid->set_last_time(in_pack->ts.tv_sec);
+                ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
             }
 
             return 1;
@@ -2395,8 +2394,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             }
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
-            if (ssid->get_last_time() < in_pack->ts.tv_sec)
-                ssid->set_last_time(in_pack->ts.tv_sec);
+            ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
         }
 
         d11phy->ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
@@ -2532,8 +2530,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid = dot11dev->get_last_adv_ssid();
 
         if (ssid != nullptr) {
-            if (ssid->get_last_time() < in_pack->ts.tv_sec)
-                ssid->set_last_time(in_pack->ts.tv_sec);
+            ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
             if (dot11info->subtype == packet_sub_beacon) {
                 ssid->inc_beacons_sec();
@@ -2816,8 +2813,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             }
         }
     } else {
-        if (ssid->get_last_time() < in_pack->ts.tv_sec)
-            ssid->set_last_time(in_pack->ts.tv_sec);
+        ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
     }
 
     dot11dev->set_last_adv_ssid(ssid);
@@ -2838,8 +2834,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     auto lbr = dot11dev->get_last_beaconed_ssid_record();
     lbr->set(ssid);
 
-    if (ssid->get_last_time() < in_pack->ts.tv_sec)
-        ssid->set_last_time(in_pack->ts.tv_sec);
+    ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     // Update MFP
     if (dot11info->rsn != nullptr) {
@@ -3270,8 +3265,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
             probessid = std::static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
         }
 
-        if (probessid->get_last_time() < in_pack->ts.tv_sec)
-            probessid->set_last_time(in_pack->ts.tv_sec);
+        probessid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
         // Add the location data, if any
         if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
@@ -3449,9 +3443,7 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         client_record->set_first_time(in_pack->ts.tv_sec);
     }
 
-    if (client_record->get_last_time() < in_pack->ts.tv_sec) {
-        client_record->set_last_time(in_pack->ts.tv_sec);
-    }
+    client_record->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     clientdot11->set_last_bssid(bssiddev->get_macaddr());
 
