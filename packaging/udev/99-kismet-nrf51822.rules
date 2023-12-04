@@ -1,0 +1,2 @@
+#this rule symlinks compatible devices flashed with nrf zigbee sniffer firmware to /dev/nrf51822# with # starting at 1
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="1915", ATTRS{idProduct}=="154a", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/nrf51822* 2>/dev/null| tail -n1 | sed -e s#/dev/nrf51822## )+1))'", SYMLINK+="nrf51822%c"
