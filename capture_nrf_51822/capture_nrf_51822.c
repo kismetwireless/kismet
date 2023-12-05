@@ -15,7 +15,11 @@
 
 #define BUFFER_SIZE 256
 
+#if defined(SYS_OPENBSD)
+#define MODEMDEVICE "/dev/cuaU0"
+#else
 #define MODEMDEVICE "/dev/ttyUSB0"
+#endif
 
 #ifndef CRTSCTS
 #define CRTSCTS 020000000000 /*should be defined but isn't with the C99*/
@@ -310,8 +314,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         sizeof(localnrf->newtio)); /* clear struct for new port settings */
 
     /* set the baud rate and flags */
+#if defined(SYS_OPENBSD)
+    localnrf->newtio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
+    cfsetspeed(&localnrf->newtio, localnrf->baudrate);
+#else
     localnrf->newtio.c_cflag =
         localnrf->baudrate | CRTSCTS | CS8 | CLOCAL | CREAD;
+#endif
 
     /* ignore parity errors */
     localnrf->newtio.c_iflag = IGNPAR;
