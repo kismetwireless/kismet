@@ -1,0 +1,2 @@
+#this rule symlinks compatible devices flashed with nrf ble sniffer firmware to /dev/nrf52840# with # starting at 1
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="1915", ATTRS{idProduct}=="522a", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/nrf52840* 2>/dev/null| tail -n1 | sed -e s#/dev/nrf52840## )+1))'", SYMLINK+="nrf52840%c"
