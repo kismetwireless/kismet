@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <dirent.h>
+#include <stdio.h>
 
 #ifdef HAVE_LINUX_WIRELESS
 #include <asm/types.h>
