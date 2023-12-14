@@ -1,6 +1,6 @@
 import ctypes
 
-__version__ = "2020.10.01"
+__version__ = "2023.12.01"
 
 class RadioMissingLibrtlsdr(Exception):
     pass
@@ -21,6 +21,12 @@ class RtlSdr(object):
 
             try:
                 self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+                found_lib = True
+            except OSError:
+                pass
+
+            try:
+                self.rtllib = ctypes.CDLL("librtlsdr.so.2")
                 found_lib = True
             except OSError:
                 pass
