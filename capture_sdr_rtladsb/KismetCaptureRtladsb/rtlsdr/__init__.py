@@ -26,8 +26,9 @@ class RtlSdr(object):
                 pass
 
             try:
-                self.rtllib = ctypes.CDLL("librtlsdr.so.2")
-                found_lib = True
+                if not found_lib:
+                    self.rtllib = ctypes.CDLL("librtlsdr.so.2")
+                    found_lib = True
             except OSError:
                 pass
 
