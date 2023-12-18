@@ -62,7 +62,7 @@ class KismetRtl433(object):
         self.driverid = "rtl433"
         # Use ctypes to load librtlsdr and probe for supported USB devices
         try:
-            found_lib = false
+            found_lib = False
 
             try:
                 self.rtllib = ctypes.CDLL("librtlsdr.so.0")
