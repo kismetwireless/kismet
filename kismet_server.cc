@@ -215,7 +215,7 @@ void SpindownKismet() {
     if (daemonize == 0) {
         fprintf(stderr, "WARNING: Kismet changes the configuration of network devices.\n"
                 "         In most cases you will need to restart networking for\n"
-                "         your interface (varies per distribution/OS, but \n"
+                "         your interface (varies per distribution and OS), but \n"
                 "         typically one of:\n"
                 "         sudo service networking restart\n"
                 "         sudo /etc/init.d/networking restart\n"
