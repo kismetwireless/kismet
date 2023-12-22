@@ -160,11 +160,12 @@ kis_wiglecsv_logfile::~kis_wiglecsv_logfile() {
     close_log();
 }
 
-bool kis_wiglecsv_logfile::open_log(std::string in_path) {
+bool kis_wiglecsv_logfile::open_log(const std::string& in_template, const std::string& in_path) {
     kis_unique_lock<kis_mutex> lk(log_mutex, "open_log");
 
     set_int_log_open(false);
     set_int_log_path(in_path);
+    set_int_log_template(in_template);
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
 

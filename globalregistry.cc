@@ -227,41 +227,23 @@ std::atomic<unsigned long> Globalreg::n_tracked_fields;
 std::atomic<unsigned long> Globalreg::n_tracked_components;
 std::atomic<unsigned long> Globalreg::n_tracked_http_connections;
 
-std::shared_ptr<tracker_element_string> Globalreg::cache_string(const char *string, size_t len) {
+std::string *Globalreg::cache_string(const char *string, size_t len) {
     auto str = std::string(string, len);
     return cache_string(string);
 
 }
 
-std::shared_ptr<tracker_element_string> Globalreg::cache_string(const std::string& string) {
+std::string *Globalreg::cache_string(const std::string& string) {
     kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->string_cache_mutex, "globalreg cache_string");
 
-    const auto k = Globalreg::globalreg->string_cache_map.find(string);
-
-    if (k != Globalreg::globalreg->string_cache_map.end()) {
-        return k->second;
-    }
-
-    // Create and cache.  Cached strings don't get thrashed so there's no reason to
-    // make them from the pool, and this dodges a double lock event
-    auto ts = std::make_shared<tracker_element_string>(string);
-    Globalreg::globalreg->string_cache_map[string] = ts;
-
-    return ts;
+    return Globalreg::globalreg->string_cache_map.cache(string);
 }
 
-void Globalreg::cache_string_stats(unsigned int& size, unsigned long int& bytes,
-        unsigned long int& bytes_dedupe) {
+void Globalreg::cache_string_stats(unsigned int& size, unsigned long int& bytes) {
     kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->string_cache_mutex, "globalreg cache_string stats");
 
-    size = Globalreg::globalreg->string_cache_map.size();
+    size = Globalreg::globalreg->string_cache_map.length();
 
     bytes = 0;
-    bytes_dedupe = 0;
-
-    for (const auto& s : Globalreg::globalreg->string_cache_map) {
-        bytes += s.first.size(); 
-        bytes_dedupe += (s.first.size() * (s.second.use_count() - 1));
-    }
 }
 

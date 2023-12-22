@@ -88,7 +88,7 @@ public:
             insert(builder);
     }
 
-    virtual bool open_log(std::string in_path) override;
+    virtual bool open_log(const std::string& in_template, const std::string& in_path) override;
     virtual void close_log() override;
 
     virtual int database_upgrade_db() override;
@@ -277,7 +277,7 @@ public:
 
 class pcapng_stream_database : public pcapng_stream_futurebuf {
 public:
-    pcapng_stream_database(future_chainbuf& buffer);
+    pcapng_stream_database(future_chainbuf* buffer);
 
     virtual ~pcapng_stream_database();
 

@@ -36,7 +36,7 @@ public:
     kis_wiglecsv_logfile(shared_log_builder in_builder);
     virtual ~kis_wiglecsv_logfile();
 
-    virtual bool open_log(std::string in_path) override;
+    virtual bool open_log(const std::string& in_template, const std::string& in_path) override;
     virtual void close_log() override;
 
 protected:

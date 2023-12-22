@@ -76,7 +76,7 @@ void kis_database_logfile::trigger_deferred_shutdown() {
 
 }
 
-bool kis_database_logfile::open_log(std::string in_path) {
+bool kis_database_logfile::open_log(const std::string& in_template, const std::string& in_path) {
     // kis_unique_lock<kis_mutex> lk(ds_mutex, "open_log");
 
     auto timetracker = 
@@ -122,6 +122,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
 
     set_int_log_path(in_path);
+    set_int_log_template(in_template);
 
 	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
 
@@ -1487,7 +1488,7 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 
 	con->clear_timeout();
 
-	auto pcapng = std::make_shared<pcapng_stream_database>(con->response_stream());
+	auto pcapng = std::make_shared<pcapng_stream_database>(&con->response_stream());
 
 	con->set_target_file(fmt::format("{}.pcapng", con->uri_params()[":title"]));
 	con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
@@ -1574,7 +1575,7 @@ kis_database_logfile::list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_
     return std::make_shared<tracker_element_vector>();
 }
 
-pcapng_stream_database::pcapng_stream_database(future_chainbuf& buffer) :
+pcapng_stream_database::pcapng_stream_database(future_chainbuf* buffer) :
     pcapng_stream_futurebuf(buffer, 
             nullptr, 
             nullptr,
@@ -1585,7 +1586,7 @@ pcapng_stream_database::pcapng_stream_database(future_chainbuf& buffer) :
 }
 
 pcapng_stream_database::~pcapng_stream_database() {
-    chainbuf.cancel();
+    chainbuf->cancel();
 }
 
 void pcapng_stream_database::start_stream() {

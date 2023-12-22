@@ -23,8 +23,8 @@
 #include "messagebus.h"
 
 kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
-    kis_logfile(in_builder),
-    buffer{4096, 1024} {
+    kis_logfile(in_builder) {
+    buffer = new future_chainbuf(4096, 1024);
     pcapng = nullptr;
     pcapng_file = nullptr;
 
@@ -33,18 +33,26 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     log_data_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_data_packets", true);
 
+    // Max size in mb
+    max_size = 
+        Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_max_mb", 0L);
+    max_size = max_size * 1024 * 1024;
+
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
     pack_comp_common = packetchain->register_packet_component("COMMON");
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {
     close_log();
+    delete buffer;
 }
 
-bool kis_pcapng_logfile::open_log(std::string in_path) {
+bool kis_pcapng_logfile::open_log(const std::string& in_template, 
+        const std::string& in_path) {
     kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_path(in_path);
+    set_int_log_template(in_template);
 
     pcapng_file = fopen(in_path.c_str(), "w");
 
@@ -85,12 +93,12 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
     stream_t = std::thread([this, thread_p = std::move(thread_p)]() mutable {
             thread_p.set_value();
 
-            while (buffer.running() || buffer.size() > 0) {
-                buffer.wait();
+            while (pcapng_file != nullptr && (buffer->running() || buffer->size() > 0)) {
+                buffer->wait();
 
                 char *data;
 
-                auto sz = buffer.get(&data);
+                auto sz = buffer->get(&data);
 
                 if (sz > 0) {
                     if (fwrite(data, sz, 1, pcapng_file) == 0) {
@@ -101,7 +109,15 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
                     }
                 }
 
-                buffer.consume(sz);
+                buffer->consume(sz);
+
+                log_size += sz;
+
+                // Flush the buffer, close the log, and make a new one
+                if (log_size >= max_size && max_size != 0) {
+                    log_size = 0;
+                    rotate_log();
+                }
             }
 
         });
@@ -112,12 +128,70 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
     return true;
 }
 
+void kis_pcapng_logfile::rotate_log() {
+    // Rotate log is called inside the stream lambda, so the stream lambda thread 
+    // can't be touching the old log
+
+    // Move the old buffer and file, replace with new
+    auto old_buffer = buffer;
+    auto old_pcapng_file = pcapng_file;
+    auto old_path = get_log_path();
+
+    // Reset the buffer and pcap log; this will make a new SHB in the new buffer
+    // immediately, and leave the remnants of the old packets in the old buffer
+    buffer = pcapng->restart_stream(new future_chainbuf(4096, 1024));
+
+    // Generate a new log file from the template and open it
+    auto logtracker = 
+        Globalreg::fetch_mandatory_global_as<log_tracker>();
+
+    auto logpath =
+        logtracker->expand_template(get_log_template(), builder->get_log_class());
+    set_int_log_path(logpath);
+
+    _MSG_INFO("Rotating to new pcapng log {}", logpath);
+
+    pcapng_file = fopen(logpath.c_str(), "w");
+
+    if (pcapng_file == nullptr) {
+        _MSG_ERROR("Failed to open pcapng log '{}' - {}",
+                logpath, kis_strerror_r(errno));
+        close_log();
+        return;
+    }
+
+    // Flush out the contents of the old buffer direct to the old file; the buffer will
+    // empty because the stream has the new buffer assigned already
+    while (old_buffer->size() > 0) {
+        char *data;
+
+        auto sz = old_buffer->get(&data);
+
+        if (sz > 0) {
+            if (fwrite(data, sz, 1, old_pcapng_file) == 0) {
+                _MSG_ERROR("Error writing to pcapng log '{}' - {}", old_path,
+                        kis_strerror_r(errno));
+                close_log();
+                return;
+            }
+        }
+
+        old_buffer->consume(sz);
+    }
+
+    // Close the old file and remove the old buffer
+    fclose(old_pcapng_file);
+    delete old_buffer;
+
+    // Return to the packet handling loop thread and let it start processing packets again
+}
+
 void kis_pcapng_logfile::close_log() {
     kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_open(false);
 
-    buffer.cancel();
+    buffer->cancel();
 
     if (stream_t.joinable())
         stream_t.join();

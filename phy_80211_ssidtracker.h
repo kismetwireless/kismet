@@ -66,7 +66,7 @@ public:
         __ImportField(ssid, p);
         __ImportField(ssid_len, p);
         __ImportField(crypt_set, p);
-        __ImportId(crypt_string_alias_id, p);
+        __ImportId(crypt_string, p);
 
         __ImportField(advertising_device_map, p);
         __ImportField(responding_device_map, p);
@@ -96,22 +96,38 @@ public:
     }
 
     __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
-    __Proxy(ssid, std::string, std::string, std::string, ssid);
+
+    const std::string get_ssid() const {
+        if (ssid->get() == nullptr)
+            return "";
+
+        return std::string(*(ssid->get()));
+    }
+  
+    void set_ssid(const std::string& string) {
+        ssid->set(Globalreg::cache_string(string));
+    }
+
+    void set_ssid(const char *string) {
+        ssid->set(Globalreg::cache_string(string));
+    }
+
     __Proxy(ssid_len, uint32_t, uint32_t, uint32_t, ssid_len);
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
 
-    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
-            crypt_string_alias, crypt_string_alias_id);
-    
-    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
-        auto csa = get_crypt_string();
-        csa->set(string);
+    const std::string get_crypt_string() const {
+        if (crypt_string->get() == nullptr)
+            return "";
+
+        return std::string(*(crypt_string->get()));
+    }
+  
+    void set_crypt_string(const std::string& string) {
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
-    void set_crypt_string(const std::string& string) {
-        auto csa = get_crypt_string();
-        auto sc = Globalreg::cache_string(string);
-        csa->set(sc);
+    void set_crypt_string(const char *string) {
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
@@ -146,13 +162,12 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
 
-    std::shared_ptr<tracker_element_string> ssid;
+    std::shared_ptr<tracker_element_string_ptr> ssid;
     std::shared_ptr<tracker_element_uint32> ssid_len;
 
     std::shared_ptr<tracker_element_uint64> crypt_set;
 
-    uint16_t crypt_string_alias_id;
-    std::shared_ptr<tracker_element_alias> crypt_string_alias;
+    std::shared_ptr<tracker_element_string_ptr> crypt_string;
 
     // Maps contain nullptr values, and are used only as a fast way to indicate which device keys are
     // present.  We don't need to actually track a full link to the dependent device, and we'd rather avoid

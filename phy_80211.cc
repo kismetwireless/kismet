@@ -997,7 +997,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     if (mac.error())
                         throw std::runtime_error("invalid mac");
 
-                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(&con->response_stream(),
                             [this, mac](std::shared_ptr<kis_packet> packet) -> bool {
                                 auto dot11info = packet->fetch<dot11_packinfo>(pack_comp_80211);
 
@@ -2358,7 +2358,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             ssid->set_first_time(in_pack->ts.tv_sec);
             ssid->set_last_time(in_pack->ts.tv_sec);
 
-            auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(cryptset));
+            auto crypt_s = crypt_to_simple_string(cryptset);
             ssid->set_crypt_string(crypt_s);
             bssid_dev->set_crypt_string(crypt_s);
 
@@ -2449,7 +2449,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
             ssid->set_crypt_set(cryptset);
             ssid->set_crypt_set_old(crypt_to_legacy_bitset(cryptset));
-            bssid_dev->set_crypt_string(Globalreg::cache_string(crypt_to_simple_string(cryptset)));
+            bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
             // bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
         }
 
@@ -2645,7 +2645,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid->set_first_time(in_pack->ts.tv_sec);
         ssid->set_last_time(in_pack->ts.tv_sec);
 
-        auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset));
+        auto crypt_s = crypt_to_simple_string(dot11info->cryptset);
         ssid->set_crypt_string(crypt_s);
         basedev->set_crypt_string(crypt_s);
 
@@ -3043,7 +3043,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_crypt_set_old(dot11info->cryptset);
 
-        auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset));
+        auto crypt_s = crypt_to_simple_string(dot11info->cryptset);
         ssid->set_crypt_string(crypt_s);
         basedev->set_crypt_string(crypt_s);
     }
@@ -3314,7 +3314,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         probessid->set_crypt_set(dot11info->cryptset);
         probessid->set_crypt_set_old(dot11info->cryptset);
 
-        auto crypt_s = Globalreg::cache_string(crypt_to_simple_string(dot11info->cryptset));
+        auto crypt_s = crypt_to_simple_string(dot11info->cryptset);
         probessid->set_crypt_string(crypt_s);
 
         if (probessid->has_wps_state() || dot11info->wps != DOT11_WPS_NO_WPS) {

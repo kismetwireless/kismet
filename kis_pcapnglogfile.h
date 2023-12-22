@@ -30,12 +30,14 @@ public:
     kis_pcapng_logfile(shared_log_builder in_builder);
     virtual ~kis_pcapng_logfile();
 
-    virtual bool open_log(std::string in_path) override;
+    virtual bool open_log(const std::string& in_temlate, const std::string& in_path) override;
     virtual void close_log() override;
 
 protected:
+    void rotate_log();
+
     pcapng_stream_packetchain *pcapng;
-    future_chainbuf buffer;
+    future_chainbuf *buffer;
     FILE *pcapng_file;
     std::thread stream_t;
 

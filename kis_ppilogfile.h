@@ -63,7 +63,7 @@ public:
 	virtual void register_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux);
 	virtual void remove_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux);
 
-    virtual bool open_log(std::string in_path) override;
+    virtual bool open_log(const std::string &in_template, const std::string& in_path) override;
     virtual void close_log() override;
 
 	struct ppi_cb_rec {

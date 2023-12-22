@@ -338,7 +338,7 @@ public:
             __ImportField(commonname, p);
             __ImportField(type_string, p);
             __ImportField(basic_type_set,p );
-            __ImportId(crypt_string_alias_id, p);
+            __ImportField(crypt_string, p);
             __ImportField(basic_crypt_set, p);
             __ImportField(first_time, p);
             __ImportField(last_time, p);
@@ -496,18 +496,12 @@ public:
             set_tracker_type_string(in_type());
     }
 
-    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
-            crypt_string_alias, crypt_string_alias_id);
-    
-    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
-        auto csa = get_crypt_string();
-        csa->set(string);
+    void set_crypt_string(const std::string& string) {
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
-    void set_crypt_string(const std::string& string) {
-        auto csa = get_crypt_string();
-        auto sc = Globalreg::cache_string(string);
-        csa->set(sc);
+    void set_crypt_string(const char *string) {
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
     __Proxy(basic_crypt_set, uint64_t, uint64_t, uint64_t, basic_crypt_set);
@@ -641,8 +635,7 @@ protected:
     // Printable crypt string, which is set by the phy and is the best printable
     // representation of the phy crypt options.  This should be empty if the phy
     // layer hasn't added something intelligent.
-    uint16_t crypt_string_alias_id;
-    std::shared_ptr<tracker_element_alias> crypt_string_alias;
+    std::shared_ptr<tracker_element_string_ptr> crypt_string;
 
     // Bitset of basic phy-neutral crypt options
     std::shared_ptr<tracker_element_uint64> basic_crypt_set;

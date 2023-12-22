@@ -21,7 +21,7 @@
 #include "kis_mutex.h"
 #include "pcapng_stream_futurebuf.h"
 
-pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
+pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf *buffer,
         std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
         std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
         size_t backlog_sz,
@@ -36,7 +36,7 @@ pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
     pcap_mutex.set_name("pcapng_stream_futurebuf");
 
     // Kick us out of stream mode into packet mode
-    chainbuf.set_packetmode();
+    chainbuf->set_packetmode();
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
@@ -52,22 +52,37 @@ pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
         ;
     }
 
-    chainbuf.cancel();
+    chainbuf->cancel();
 }
 
 void pcapng_stream_futurebuf::start_stream() {
     pcapng_make_shb("", "", "Kismet");
 }
 
+future_chainbuf *pcapng_stream_futurebuf::restart_stream(future_chainbuf *new_buffer) {
+    // Restart a stream on the current buffer
+    kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf restart_stream");
+
+    // Swap to the new buffer; the caller should finish dealing with the old
+    // buffer somehow (such as flushing it out to file)
+    chainbuf = new_buffer;
+
+    log_packets = 0;
+    datasource_id_map.clear();
+    pcapng_make_shb("", "", "Kismet");
+
+    return chainbuf;
+}
+
 bool pcapng_stream_futurebuf::block_until(size_t req_bytes) {
     if (!block_for_buffer)
-        return chainbuf.size() + req_bytes < max_backlog;
+        return chainbuf->size() + req_bytes < max_backlog;
 
-    while (chainbuf.size() + req_bytes > max_backlog) {
-        if (!chainbuf.running())
+    while (chainbuf->size() + req_bytes > max_backlog) {
+        if (!chainbuf->running())
             return false;
 
-        chainbuf.wait_write();
+        chainbuf->wait_write();
     }
 
     return true;
@@ -80,7 +95,7 @@ void pcapng_stream_futurebuf::stop_stream(std::string reason) {
         ;
     }
 
-    chainbuf.cancel();
+    chainbuf->cancel();
 }
 
 void pcapng_stream_futurebuf::block_until_stream_done() {
@@ -173,7 +188,7 @@ int pcapng_stream_futurebuf::pcapng_make_shb(const std::string& in_hw, const std
     *end_sz = buf_sz + 4;
 
     // Drop it into the buffer
-    chainbuf.put_data(buf, buf_sz + 4);
+    chainbuf->put_data(buf, buf_sz + 4);
 
     log_size += buf_sz + 4;
 
@@ -284,7 +299,7 @@ int pcapng_stream_futurebuf::pcapng_make_idb(unsigned int in_sourcenumber, const
     uint32_t *end_sz = reinterpret_cast<uint32_t *>(buf.get() + buf_sz);
     *end_sz = buf_sz + 4;
 
-    chainbuf.put_data(buf, buf_sz + 4);
+    chainbuf->put_data(buf, buf_sz + 4);
 
     log_size += buf_sz + 4;
 
@@ -497,7 +512,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
     auto end_sz = reinterpret_cast<uint32_t *>(buf.get() + buf_sz);
     *end_sz = buf_sz + 4;
 
-    chainbuf.put_data(buf, buf_sz + 4);
+    chainbuf->put_data(buf, buf_sz + 4);
 
     log_size += buf_sz + 4;
 
@@ -552,7 +567,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(int ng_interface_id, const stru
     auto end_sz = reinterpret_cast<uint32_t *>(buf.get() + buf_sz);
     *end_sz = buf_sz + 4;
 
-    chainbuf.put_data(buf, buf_sz + 4);
+    chainbuf->put_data(buf, buf_sz + 4);
 
     log_size += buf_sz + 4;
 
@@ -591,14 +606,14 @@ void pcapng_stream_futurebuf::handle_packet(std::shared_ptr<kis_packet> in_packe
     log_packets++;
 
     if (check_over_size() || check_over_packets()) {
-        chainbuf.cancel();
+        chainbuf->cancel();
     }
 
 }
 
 
 
-pcapng_stream_packetchain::pcapng_stream_packetchain(future_chainbuf& buffer,
+pcapng_stream_packetchain::pcapng_stream_packetchain(future_chainbuf *buffer,
             std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
             std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
             size_t backlog_sz) :
@@ -608,7 +623,7 @@ pcapng_stream_packetchain::pcapng_stream_packetchain(future_chainbuf& buffer,
 
 pcapng_stream_packetchain::~pcapng_stream_packetchain() {
     packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
-    chainbuf.cancel();
+    chainbuf->cancel();
 }
 
 void pcapng_stream_packetchain::start_stream() {

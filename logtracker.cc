@@ -345,7 +345,7 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string 
         return nullptr;
     }
 
-    if (!lf->open_log(logpath)) {
+    if (!lf->open_log(get_log_template(), logpath)) {
         _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
                 MSGFLAG_ERROR);
         return nullptr;
@@ -354,6 +354,12 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string 
     logfile_vec->push_back(lf);
 
     return lf;
+}
+
+std::string log_tracker::expand_template(const std::string& in_template, const std::string& log_class) {
+    return Globalreg::globalreg->kismet_config->expand_log_path(get_log_template(),
+            get_log_title(), log_class, 1, 0);
+
 }
 
 int log_tracker::close_log(shared_logfile in_logfile) {

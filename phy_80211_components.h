@@ -448,7 +448,7 @@ public:
 
     dot11_probed_ssid(const dot11_probed_ssid *p) :
         tracker_component{p} {
-            __ImportId(ssid_alias_id, p);
+            __ImportField(ssid, p);
             __ImportField(ssid_len, p);
             __ImportField(bssid, p);
             __ImportField(first_time, p);
@@ -461,7 +461,7 @@ public:
 
             __ImportField(crypt_set, p);
             __ImportField(crypt_set_old, p);
-            __ImportId(crypt_string_alias_id, p);
+            __ImportField(crypt_string, p);
             __ImportField(wpa_mfp_required, p);
             __ImportField(wpa_mfp_supported, p);
 
@@ -490,25 +490,19 @@ public:
         return r;
     }
 
-    __ProxyDynamicTrackable(tracked_ssid, tracker_element_alias, 
-            ssid_alias, ssid_alias_id);
-   
     const std::string get_ssid() const {
-        if (ssid_alias == nullptr)
+        if (ssid->get() == nullptr)
             return "";
 
-        return ssid_alias->as_string();
+        return std::string(*(ssid->get()));
     }
-    
-    void set_ssid(std::shared_ptr<tracker_element_string> string) {
-        auto ssa = get_tracked_ssid();
-        ssa->set(string);
+  
+    void set_ssid(const std::string& string) {
+        ssid->set(Globalreg::cache_string(string));
     }
 
-    void set_ssid(const std::string& string) {
-        auto ssa = get_tracked_ssid();
-        auto sc = Globalreg::cache_string(string);
-        ssa->set(sc);
+    void set_ssid(const char *string) {
+        ssid->set(Globalreg::cache_string(string));
     }
 
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
@@ -527,18 +521,19 @@ public:
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
     __Proxy(crypt_set_old, uint64_t, uint64_t, uint64_t, crypt_set_old);
 	
-    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
-            crypt_string_alias, crypt_string_alias_id);
-    
-    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
-        auto csa = get_crypt_string();
-        csa->set(string);
+    const std::string get_crypt_string() const {
+        if (crypt_string->get() == nullptr)
+            return "";
+
+        return std::string(*(crypt_string->get()));
+    }
+  
+    void set_crypt_string(const std::string& string) {
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
-    void set_crypt_string(const std::string& string) {
-        auto csa = get_crypt_string();
-        auto sc = Globalreg::cache_string(string);
-        csa->set(sc);
+    void set_crypt_string(const char *string) {
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
@@ -559,8 +554,7 @@ public:
 protected:
     virtual void register_fields() override;
 
-    uint16_t ssid_alias_id;
-    std::shared_ptr<tracker_element_alias> ssid_alias;
+    std::shared_ptr<tracker_element_string_ptr> ssid;
 
     std::shared_ptr<tracker_element_uint32> ssid_len;
     std::shared_ptr<tracker_element_mac_addr> bssid;
@@ -575,8 +569,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> crypt_set_old;
     std::shared_ptr<tracker_element_uint64> crypt_set;
     
-    uint16_t crypt_string_alias_id;
-    std::shared_ptr<tracker_element_alias> crypt_string_alias;
+    std::shared_ptr<tracker_element_string_ptr> crypt_string;
 
     std::shared_ptr<tracker_element_uint8> wpa_mfp_required;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;
@@ -623,7 +616,7 @@ public:
 
     dot11_advertised_ssid(const dot11_advertised_ssid *p) :
         tracker_component{p} {
-            __ImportId(ssid_alias_id, p);
+            __ImportField(ssid, p);
             __ImportField(ssid_len, p);
 
             __ImportField(ssid_hash, p);
@@ -648,7 +641,7 @@ public:
             __ImportField(ssid_cloaked, p);
             __ImportField(crypt_set, p);
             __ImportField(crypt_set_old, p);
-            __ImportId(crypt_string_alias_id, p);
+            __ImportField(crypt_string, p);
             __ImportField(wpa_mfp_required, p);
             __ImportField(wpa_mfp_supported, p);
             __ImportField(maxrate, p);
@@ -709,25 +702,20 @@ public:
         return r;
     }
 
-    __ProxyDynamicTrackable(tracked_ssid, tracker_element_alias, 
-            ssid_alias, ssid_alias_id);
-   
+
     const std::string get_ssid() const {
-        if (ssid_alias == nullptr)
+        if (ssid->get() == nullptr)
             return "";
 
-        return ssid_alias->as_string();
+        return std::string(*(ssid->get()));
     }
-
-    void set_ssid(std::shared_ptr<tracker_element_string> string) {
-        auto ssa = get_tracked_ssid();
-        ssa->set(string);
-    }
-
+  
     void set_ssid(const std::string& string) {
-        auto ssa = get_tracked_ssid();
-        auto sc = Globalreg::cache_string(string);
-        ssa->set(sc);
+        ssid->set(Globalreg::cache_string(string));
+    }
+
+    void set_ssid(const char *string) {
+        ssid->set(Globalreg::cache_string(string));
     }
 
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
@@ -758,20 +746,20 @@ public:
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
     __Proxy(crypt_set_old, uint64_t, uint64_t, uint64_t, crypt_set_old);
 
-    __ProxyDynamicTrackable(crypt_string, tracker_element_alias, 
-            crypt_string_alias, crypt_string_alias_id);
-    
-    void set_crypt_string(std::shared_ptr<tracker_element_string> string) {
-        auto csa = get_crypt_string();
-        csa->set(string);
-    }
+    const std::string get_crypt_string() const {
+        if (crypt_string->get() == nullptr)
+            return "";
 
+        return std::string(*(crypt_string->get()));
+    }
+  
     void set_crypt_string(const std::string& string) {
-        auto csa = get_crypt_string();
-        auto sc = Globalreg::cache_string(string);
-        csa->set(sc);
+        crypt_string->set(Globalreg::cache_string(string));
     }
 
+    void set_crypt_string(const char *string) {
+        crypt_string->set(Globalreg::cache_string(string));
+    }
 
     // WPA MFP
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
@@ -855,8 +843,7 @@ protected:
         }
     }
 
-    uint16_t ssid_alias_id;
-    std::shared_ptr<tracker_element_alias> ssid_alias;
+    std::shared_ptr<tracker_element_string_ptr> ssid;
 
     std::shared_ptr<tracker_element_uint32> ssid_len;
 
@@ -884,8 +871,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> crypt_set_old;
     std::shared_ptr<tracker_element_uint64> crypt_set;
 
-    uint16_t crypt_string_alias_id;
-    std::shared_ptr<tracker_element_alias> crypt_string_alias;
+    std::shared_ptr<tracker_element_string_ptr> crypt_string;
 
     std::shared_ptr<tracker_element_uint8> wpa_mfp_required;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;

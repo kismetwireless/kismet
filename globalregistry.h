@@ -36,6 +36,8 @@
 
 #include "boost/asio.hpp"
 
+#include "fnv_ht.h"
+
 class global_registry;
 
 // Pre-defs for all the things we point to
@@ -278,7 +280,7 @@ public:
     ankerl::unordered_dense::map<size_t, std::shared_ptr<void>> object_pool_map;
 
     kis_mutex string_cache_mutex;
-    ankerl::unordered_dense::map<std::string, std::shared_ptr<tracker_element_string>> string_cache_map;
+    fnv_ht_strcache string_cache_map;
 };
 
 namespace Globalreg {
@@ -390,11 +392,10 @@ namespace Globalreg {
             return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
         }
 
-    std::shared_ptr<tracker_element_string> cache_string(const char *string, size_t len);
-    std::shared_ptr<tracker_element_string> cache_string(const std::string& string);
+    std::string *cache_string(const char *string, size_t len);
+    std::string *cache_string(const std::string& string);
 
-    void cache_string_stats(unsigned int& size, unsigned long int& bytes,
-            unsigned long int& bytes_dedupe);
+    void cache_string_stats(unsigned int& size, unsigned long int& bytes);
 }
 
 

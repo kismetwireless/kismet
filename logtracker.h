@@ -170,10 +170,11 @@ public:
         return adler32_checksum("kis_logfile");
     }
 
-    virtual bool open_log(std::string in_path) { 
+    virtual bool open_log(const std::string& in_template, const std::string& in_path) { 
         kis_lock_guard<kis_mutex> lk(log_mutex, "logfile open_log");
 
         set_int_log_path(in_path);
+        set_int_log_template(in_template);
         set_int_log_open(false);
 
         return false; 
@@ -188,6 +189,7 @@ public:
     __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
     __ProxyTrackable(builder, kis_logfile_builder, builder);
     __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
+    __ProxyPrivSplit(log_template, std::string, std::string, std::string, log_template);
     __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
     __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);
 
@@ -198,6 +200,7 @@ protected:
         register_field("kismet.logfile.uuid", "unique log id", &log_uuid);
         register_field("kismet.logfile.description", "log description", &log_description);
         register_field("kismet.logfile.path", "filesystem path to log", &log_path);
+        register_field("kismet.logfile.template", "log name template", &log_template);
         register_field("kismet.logfile.open", "log is currently open", &log_open);
 
     }
@@ -211,6 +214,7 @@ protected:
     std::shared_ptr<tracker_element_string> log_description;
     std::shared_ptr<tracker_element_string> log_path;
     std::shared_ptr<tracker_element_uint8> log_open;
+    std::shared_ptr<tracker_element_string> log_template;
 };
 
 class log_tracker : public tracker_component, public lifetime_global, public deferred_startup, 
@@ -231,6 +235,9 @@ public:
 
     // Register a log type
     int register_log(shared_log_builder in_builder);
+
+    // Expand a template
+    std::string expand_template(const std::string& in_template, const std::string& log_class);
 
     // Open a log
     shared_logfile open_log(std::string in_class);

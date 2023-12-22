@@ -42,7 +42,7 @@
 
 class pcapng_stream_futurebuf : public streaming_agent, public std::enable_shared_from_this<pcapng_stream_futurebuf> {
 public:
-    pcapng_stream_futurebuf(future_chainbuf& buffer, 
+    pcapng_stream_futurebuf(future_chainbuf *buffer, 
             std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
             std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
             size_t backlog_sz,
@@ -52,13 +52,16 @@ public:
 
     virtual void start_stream();
 
+    // Restart the chain on a new buffer; return that buffer once it is assigned
+    virtual future_chainbuf *restart_stream(future_chainbuf *new_buffer);
+
     virtual void stop_stream(std::string in_reason) override;
 
     virtual void block_until_stream_done();
 protected:
     kis_mutex pcap_mutex;
 
-    future_chainbuf& chainbuf;
+    future_chainbuf *chainbuf;
 
     std::promise<void> total_lifetime_promise;
     std::future<void> total_lifetime_ft;
@@ -96,7 +99,7 @@ protected:
 
 class pcapng_stream_packetchain : public pcapng_stream_futurebuf {
 public:
-    pcapng_stream_packetchain(future_chainbuf& buffer, 
+    pcapng_stream_packetchain(future_chainbuf *buffer, 
             std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
             std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
             size_t backlog_sz);

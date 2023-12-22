@@ -60,12 +60,13 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
 
 }
 
-bool kis_ppi_logfile::open_log(std::string in_path) {
+bool kis_ppi_logfile::open_log(const std::string& in_template, const std::string& in_path) {
     // kis_lock_guard<kis_mutex> lk(log_mutex);
     kis_unique_lock<kis_mutex> lk(log_mutex, "open_log");
 
     log_open = false;
     set_int_log_path(in_path);
+    set_int_log_template(in_template);
 
 	dumpfile = NULL;
 	dumper = NULL;

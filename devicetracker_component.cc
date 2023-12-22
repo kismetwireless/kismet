@@ -457,9 +457,7 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.type", "printable device type", &type_string);
     register_field("kismet.device.base.basic_type_set", "bitset of basic type", &basic_type_set);
 
-    crypt_string_alias_id =
-        register_dynamic_field("kismet.device.base.crypt", "printable basic encryption information",
-                &crypt_string_alias);
+    register_field("kismet.device.base.crypt", "printable basic encryption information", &crypt_string);
 
     register_field("kismet.device.base.basic_crypt_set", 
             "bitset of basic encryption", &basic_crypt_set);

@@ -179,9 +179,7 @@ void dot11_tracked_nonce::set_from_eapol(shared_tracker_element in_tracked_eapol
 }
 
 void dot11_probed_ssid::register_fields() {
-    ssid_alias_id =
-        register_dynamic_field("dot11.probedssid.ssid", "probed ssid string",
-                &ssid_alias);
+    register_field("dot11.probedssid.ssid", "probed ssid string", &ssid);
 
     register_field("dot11.probedssid.ssidlen", 
             "probed ssid string length (original bytes)", &ssid_len);
@@ -202,9 +200,7 @@ void dot11_probed_ssid::register_fields() {
     register_field("dot11.probedssid.crypt_bitfield", "Requested encryption set", &crypt_set);
     register_field("dot11.probedssid.crypt_set", "Requested encryption set (legacy)", &crypt_set_old);
 
-    crypt_string_alias_id =
-        register_dynamic_field("dot11.probedssid.crypt_string", "printable encryption information",
-                &crypt_string_alias);
+    register_field("dot11.probedssid.crypt_string", "printable encryption information", &crypt_string);
 
     register_field("dot11.probedssid.wpa_mfp_required",
             "WPA management protection required", &wpa_mfp_required);
@@ -236,9 +232,7 @@ void dot11_probed_ssid::register_fields() {
 }
 
 void dot11_advertised_ssid::register_fields() {
-    ssid_alias_id =
-        register_dynamic_field("dot11.advertisedssid.ssid", "beaconed ssid string",
-                &ssid_alias);
+    register_field("dot11.advertisedssid.ssid", "beaconed ssid string", &ssid);
 
     register_field("dot11.advertisedssid.ssidlen", 
             "beaconed ssid string length (original bytes)", &ssid_len);
@@ -276,9 +270,7 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.crypt_bitfield", "bitfield of encryption options", &crypt_set);
     register_field("dot11.advertisedssid.crypt_set", "legacy bitfield of encryption options", &crypt_set_old);
 
-    crypt_string_alias_id =
-        register_dynamic_field("dot11.advertisedssid.crypt_string", "printable encryption information",
-                &crypt_string_alias);
+    register_field("dot11.advertisedssid.crypt_string", "printable encryption information", &crypt_string);
 
     register_field("dot11.advertisedssid.maxrate", "advertised maximum rate", &maxrate);
     register_field("dot11.advertisedssid.beaconrate", "beacon rate", &beaconrate);

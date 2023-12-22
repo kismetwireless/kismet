@@ -462,7 +462,7 @@ device_tracker::device_tracker() :
                     if (devkey.get_error())
                         throw std::runtime_error("invalid device key");
 
-                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(&con->response_stream(),
                             [this, devkey](std::shared_ptr<kis_packet> packet) -> bool {
                                 auto devinfo = packet->fetch<kis_tracked_device_info>(pack_comp_device);
 

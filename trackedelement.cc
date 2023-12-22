@@ -265,6 +265,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "placeholder";
         case tracker_type::tracker_summary_mapvec:
             return "vector-as-map";
+        case tracker_type::tracker_string_pointer:
+            return "string-pointer";
     }
 
     return "unknown";
@@ -340,6 +342,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_uuid_map";
         case tracker_type::tracker_summary_mapvec:
             return "tracker_summary_mapvec";
+        case tracker_type::tracker_string_pointer:
+            return "tracker_string_pointer";
     }
 
     return "TrackerUnknown";
@@ -410,6 +414,8 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_placeholder_missing;
     if (s == "tracker_uuid_map")
         return tracker_type::tracker_uuid_map;
+    if (s == "tracker_string_pointer")
+        return tracker_type::tracker_string_pointer;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1477,49 +1483,34 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
 
     switch (lhs->get_type()) {
         case tracker_type::tracker_string:
-            // return tracker_element::safe_cast_as<tracker_element_string>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_string>(rhs));
             return static_cast<const tracker_element_string *>(lhs.get())->less_than(*static_cast<const tracker_element_string *>(rhs.get()));
         case tracker_type::tracker_int8:
-            // return tracker_element::safe_cast_as<tracker_element_int8>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int8>(rhs));
             return static_cast<const tracker_element_int8 *>(lhs.get())->less_than(*static_cast<const tracker_element_int8 *>(rhs.get()));
         case tracker_type::tracker_uint8:
-            // return tracker_element::safe_cast_as<tracker_element_uint8>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint8>(rhs));
             return static_cast<const tracker_element_uint8 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint8 *>(rhs.get()));
         case tracker_type::tracker_int16:
-            // return tracker_element::safe_cast_as<tracker_element_int16>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int16>(rhs));
             return static_cast<const tracker_element_int16 *>(lhs.get())->less_than(*static_cast<const tracker_element_int16 *>(rhs.get()));
         case tracker_type::tracker_uint16:
-            // return tracker_element::safe_cast_as<tracker_element_uint16>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint16>(rhs));
             return static_cast<const tracker_element_uint16 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint16 *>(rhs.get()));
         case tracker_type::tracker_int32:
-            // return tracker_element::safe_cast_as<tracker_element_int32>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int32>(rhs));
             return static_cast<const tracker_element_int32 *>(lhs.get())->less_than(*static_cast<const tracker_element_int32 *>(rhs.get()));
         case tracker_type::tracker_uint32:
-            // return tracker_element::safe_cast_as<tracker_element_uint32>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint32>(rhs));
             return static_cast<const tracker_element_uint32 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint32 *>(rhs.get()));
         case tracker_type::tracker_int64:
-            // return tracker_element::safe_cast_as<tracker_element_int64>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int64>(rhs));
             return static_cast<const tracker_element_int64 *>(lhs.get())->less_than(*static_cast<const tracker_element_int64 *>(rhs.get()));
         case tracker_type::tracker_uint64:
-            // return tracker_element::safe_cast_as<tracker_element_uint64>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint64>(rhs));
             return static_cast<const tracker_element_uint64 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint64 *>(rhs.get()));
         case tracker_type::tracker_float:
-            // return tracker_element::safe_cast_as<tracker_element_float>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_float>(rhs));
             return static_cast<const tracker_element_float *>(lhs.get())->less_than(*static_cast<const tracker_element_float *>(rhs.get()));
         case tracker_type::tracker_double:
-            // return tracker_element::safe_cast_as<tracker_element_double>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_double>(rhs));
             return static_cast<const tracker_element_double *>(lhs.get())->less_than(*static_cast<const tracker_element_double *>(rhs.get()));
         case tracker_type::tracker_mac_addr:
-            // return tracker_element::safe_cast_as<tracker_element_mac_addr>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_mac_addr>(rhs));
             return static_cast<const tracker_element_mac_addr *>(lhs.get())->less_than(*static_cast<const tracker_element_mac_addr *>(rhs.get()));
         case tracker_type::tracker_uuid:
-            // return tracker_element::safe_cast_as<tracker_element_uuid>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uuid>(rhs));
             return static_cast<const tracker_element_uuid *>(lhs.get())->less_than(*static_cast<const tracker_element_uuid *>(rhs.get()));
         case tracker_type::tracker_byte_array:
-            // return tracker_element::safe_cast_as<tracker_element_byte_array>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_byte_array>(rhs));
             return static_cast<const tracker_element_byte_array *>(lhs.get())->less_than(*static_cast<const tracker_element_byte_array *>(rhs.get()));
         case tracker_type::tracker_ipv4_addr:
-            // return tracker_element::safe_cast_as<tracker_element_ipv4_addr>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_ipv4_addr>(rhs));
             return static_cast<const tracker_element_ipv4_addr *>(lhs.get())->less_than(*static_cast<const tracker_element_ipv4_addr *>(rhs.get()));
         case tracker_type::tracker_unassigned:
         case tracker_type::tracker_key:
@@ -1540,6 +1531,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_pair_double:
         case tracker_type::tracker_placeholder_missing:
         case tracker_type::tracker_summary_mapvec:
+        case tracker_type::tracker_string_pointer:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1552,49 +1544,36 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
 
     switch (lhs->get_type()) {
         case tracker_type::tracker_string:
-            // return std::static_pointer_cast<tracker_element_string>(lhs)->less_than(*std::static_pointer_cast<tracker_element_string>(rhs));
             return static_cast<const tracker_element_string *>(lhs.get())->less_than(*static_cast<const tracker_element_string *>(rhs.get()));
+        case tracker_type::tracker_string_pointer:
+            return static_cast<const tracker_element_string_ptr *>(lhs.get())->less_than(*static_cast<const tracker_element_string_ptr *>(rhs.get()));
         case tracker_type::tracker_int8:
-            // return std::static_pointer_cast<tracker_element_int8>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int8>(rhs));
             return static_cast<const tracker_element_int8 *>(lhs.get())->less_than(*static_cast<const tracker_element_int8 *>(rhs.get()));
         case tracker_type::tracker_uint8:
-            // return std::static_pointer_cast<tracker_element_uint8>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint8>(rhs));
             return static_cast<const tracker_element_uint8 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint8 *>(rhs.get()));
         case tracker_type::tracker_int16:
-            // return std::static_pointer_cast<tracker_element_int16>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int16>(rhs));
             return static_cast<const tracker_element_int16 *>(lhs.get())->less_than(*static_cast<const tracker_element_int16 *>(rhs.get()));
         case tracker_type::tracker_uint16:
-            // return std::static_pointer_cast<tracker_element_uint16>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint16>(rhs));
             return static_cast<const tracker_element_uint16 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint16 *>(rhs.get()));
         case tracker_type::tracker_int32:
-            // return std::static_pointer_cast<tracker_element_int32>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int32>(rhs));
             return static_cast<const tracker_element_int32 *>(lhs.get())->less_than(*static_cast<const tracker_element_int32 *>(rhs.get()));
         case tracker_type::tracker_uint32:
-            // return std::static_pointer_cast<tracker_element_uint32>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint32>(rhs));
             return static_cast<const tracker_element_uint32 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint32 *>(rhs.get()));
         case tracker_type::tracker_int64:
-            // return std::static_pointer_cast<tracker_element_int64>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int64>(rhs));
             return static_cast<const tracker_element_int64 *>(lhs.get())->less_than(*static_cast<const tracker_element_int64 *>(rhs.get()));
         case tracker_type::tracker_uint64:
-            // return std::static_pointer_cast<tracker_element_uint64>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint64>(rhs));
             return static_cast<const tracker_element_uint64 *>(lhs.get())->less_than(*static_cast<const tracker_element_uint64 *>(rhs.get()));
         case tracker_type::tracker_float:
-            // return std::static_pointer_cast<tracker_element_float>(lhs)->less_than(*std::static_pointer_cast<tracker_element_float>(rhs));
             return static_cast<const tracker_element_float *>(lhs.get())->less_than(*static_cast<const tracker_element_float *>(rhs.get()));
         case tracker_type::tracker_double:
-            // return std::static_pointer_cast<tracker_element_double>(lhs)->less_than(*std::static_pointer_cast<tracker_element_double>(rhs));
             return static_cast<const tracker_element_double *>(lhs.get())->less_than(*static_cast<const tracker_element_double *>(rhs.get()));
         case tracker_type::tracker_mac_addr:
-            // return std::static_pointer_cast<tracker_element_mac_addr>(lhs)->less_than(*std::static_pointer_cast<tracker_element_mac_addr>(rhs));
             return static_cast<const tracker_element_mac_addr *>(lhs.get())->less_than(*static_cast<const tracker_element_mac_addr *>(rhs.get()));
         case tracker_type::tracker_uuid:
-            // return std::static_pointer_cast<tracker_element_uuid>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uuid>(rhs));
             return static_cast<const tracker_element_uuid *>(lhs.get())->less_than(*static_cast<const tracker_element_uuid *>(rhs.get()));
         case tracker_type::tracker_byte_array:
-            // return std::static_pointer_cast<tracker_element_byte_array>(lhs)->less_than(*std::static_pointer_cast<tracker_element_byte_array>(rhs));
             return static_cast<const tracker_element_byte_array *>(lhs.get())->less_than(*static_cast<const tracker_element_byte_array *>(rhs.get()));
         case tracker_type::tracker_ipv4_addr:
-            // return std::static_pointer_cast<tracker_element_ipv4_addr>(lhs)->less_than(*std::static_pointer_cast<tracker_element_ipv4_addr>(rhs));
             return static_cast<const tracker_element_ipv4_addr *>(lhs.get())->less_than(*static_cast<const tracker_element_ipv4_addr *>(rhs.get()));
         case tracker_type::tracker_unassigned:
         case tracker_type::tracker_key:

@@ -206,7 +206,10 @@ enum class tracker_type {
 
     // Serialization "map" which is actually a vector so we can have duplicate instances 
     // of items with the same ID 
-    tracker_summary_mapvec = 32
+    tracker_summary_mapvec = 32,
+
+    // Raw pointer to a string
+    tracker_string_pointer = 33,
 
 };
 
@@ -578,6 +581,91 @@ public:
 
     size_t length() {
         return value.length();
+    }
+
+};
+
+class tracker_element_string_ptr : public tracker_element_core_scalar<std::string *> {
+public:
+    tracker_element_string_ptr() :
+        tracker_element_core_scalar<std::string *>() {
+        value = nullptr;
+    }
+
+    tracker_element_string_ptr(int id) :
+        tracker_element_core_scalar<std::string *>(id) {
+        value = nullptr;
+    }
+
+    tracker_element_string_ptr(int id, std::string *s) :
+        tracker_element_core_scalar<std::string *>(id, s) {
+        value = nullptr;
+    }
+
+    tracker_element_string_ptr(std::string *s) :
+        tracker_element_core_scalar<std::string *>(0, s) {
+        value = nullptr;
+    }
+
+    tracker_element_string_ptr(const tracker_element_string_ptr *p) :
+        tracker_element_core_scalar{p} { 
+        value = nullptr;
+    }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_string_pointer;
+    }
+
+    static tracker_type static_type() {
+        return tracker_type::tracker_string_pointer;
+    }
+
+    void reset() {
+        value = nullptr;
+    }
+
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() override {
+        if (value == nullptr)
+            return "";
+
+        return *value;
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw std::runtime_error(fmt::format("Can not coerce std::string to {}",
+                    get_type_as_string()));
+    }
+
+    virtual void coercive_set(double in_num) override {
+        throw std::runtime_error(fmt::format("Can not coerce double to {}",
+                    get_type_as_string()));
+    }
+
+    virtual void coercive_set(const shared_tracker_element& e) override {
+        throw std::runtime_error(fmt::format("Can not coerce {} to {}",
+                    e->get_type_as_string(), get_type_as_string()));
+    }
+
+    size_t length() {
+        if (value == NULL)
+            return 0;
+
+        return value->length();
     }
 
 };
