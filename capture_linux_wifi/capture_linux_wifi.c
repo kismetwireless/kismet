@@ -1029,6 +1029,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, &chanlist_fetch, &chanlist_fetch_sz);
 
     if (ret < 0 || chanlist_sz == 0) {
+#ifdef HAVE_LINUX_WIRELESS
         snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink, falling "
                 "back to WEXT ioctls.  This interface will not be able to tune to HT channels.",
                 local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
@@ -1091,6 +1092,15 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         free(iw_chanlist);
 
         *chanlist_sz = mod_chan_sz;
+#else
+        snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink and "
+                "was not compiled with WEXT ioctls.  To control this device, try rebuilding "
+                "with the legacy WEXT kernel controls enabled in Kismet.",
+                local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+        cf_send_message(caph, msg, MSGFLAG_ERROR);
+        return -1;
+
+#endif
     } else {
         /* No bands for filtering */
         if (local_wifi->band_any) {
@@ -1155,6 +1165,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     chanset_start_tm = ns_measure_timer_start();
 
     if (!local_wifi->use_mac80211_channels) {
+#ifdef HAVE_LINUX_WIRELESS
         r = iwconfig_set_channel(local_wifi->interface, 
                 channel->control_freq, errstr);
         time_diff = ns_measure_timer_stop(chanset_start_tm);
@@ -1229,6 +1240,20 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         }
 
         return 1;
+#else
+        local_channel_to_str(channel, chanstr);
+        snprintf(msg, STATUS_MAX, "%s %s/%s failed to set channel %s; skipping (%s)", 
+                local_wifi->name, local_wifi->interface, local_wifi->cap_interface,
+                chanstr, "unable to configure via netlink and Kismet not compiled "
+                "with WEXT support");
+
+        if (seqno == 0) {
+            cf_send_error(caph, 0, msg);
+        }
+
+        return 0;
+
+#endif
     } else {
         /* Otherwise we're using mac80211 which means we need to figure out
          * what kind of channel we're setting */
@@ -1262,11 +1287,10 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                              chan_width = 0, 
                              center_freq1 = 0, 
                              center_freq2 = 0;
-                int check_r = 0;
 
                 count++;
 
-                check_r = mac80211_get_frequency_cache(local_wifi->mac80211_ifidx,
+                mac80211_get_frequency_cache(local_wifi->mac80211_ifidx,
                         local_wifi->mac80211_socket, local_wifi->mac80211_id,
                         &control_freq, &chan_type, &chan_width, &center_freq1, &center_freq2,
                         errstr);
@@ -2156,6 +2180,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "rtl88x2bu") == 0) {
+#ifdef HAVE_LINUX_WIRELESS
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88x2bu driver, "
                 "these drivers may have reliability problems, and do not work with VIFs.  "
                 "We'll continue, but there may be errors.", 
@@ -2164,6 +2189,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_wifi->use_mac80211_vif = 0;
         local_wifi->use_mac80211_channels = 0;
         local_wifi->up_before_mode = true;
+#else
+        snprintf(msg, STATUS_MAX, "Interface '%s' requires WEXT controls, but Kismet "
+                "was compiled without WEXT support.", local_wifi->interface);
+        return -1;
+#endif
     } else if (strcmp(driver, "ath10k_pci") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the ath10k_pci "
                 "driver, which is known to report large numbers of invalid packets. "
@@ -2195,11 +2225,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (mac80211_connect(&(local_wifi->mac80211_socket),
                 &(local_wifi->mac80211_id), errstr) < 0) {
+#ifdef HAVE_LINUX_WIRELESS
         /* If we didn't get a mac80211 handle we can't use mac80211, period, fall back
          * to trying to use the legacy ioctls */
         local_wifi->mac80211_socket = NULL;
         local_wifi->use_mac80211_vif = 0;
         local_wifi->use_mac80211_channels = 0;
+#else
+        snprintf(msg, STATUS_MAX, "Interface '%s' requires WEXT controls, but Kismet "
+                "was compiled without WEXT support.", local_wifi->interface);
+        return -1;
+#endif
     }
 
     /* Try to figure out the current mode from netlink if possible; if not, use iwconfig, and
@@ -2220,11 +2256,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if (ret < 0) {
+#ifdef HAVE_LINUX_WIRELESS
         if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
             snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
                     "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
             return -1;
         }
+#else
+        snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
+                "interface '%s': %s", local_wifi->name, local_wifi->interface, 
+                "Interface did not respond to netlink, and Kismet compiled without "
+                "WEXT support");
+        return -1;
+#endif
     }
 
     /* We think we can do something with this interface; if we have support,
@@ -2394,6 +2438,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         if (ret < 0) {
+#ifdef HAVE_LINUX_WIRELESS
             if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
                 release_flock(local_wifi);
 
@@ -2401,6 +2446,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                         "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
                 return -1;
             }
+#else
+            snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
+                    "interface '%s': %s", local_wifi->name, local_wifi->interface, 
+                    "Interface did not respond to netlink, and Kismet compiled without "
+                    "WEXT support");
+            return -1;
+#endif
         }
     }
 
@@ -2508,6 +2560,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 }
 
             } else {
+#ifdef HAVE_LINUX_WIRELESS
                 /* Otherwise do we look like wext? */
                 if (local_wifi->up_before_mode) {
                     if (ifconfig_interface_up(local_wifi->interface, errstr) != 0) {
@@ -2557,6 +2610,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local_wifi->use_mac80211_vif = 0;
                 }
             }
+#else
+            release_flock(local_wifi);
+            snprintf(msg, STATUS_MAX, "%s (%s) could mot set mode via netlink, and Kismet "
+                    "was not compiled with WEXT support.",
+                    local_wifi->name, local_wifi->interface);
+            free(flags);
+            return -1;
+
+#endif
         } else {
             snprintf(errstr2, STATUS_MAX, "%s successfully created monitor interface "
                     "'%s' for interface '%s'", local_wifi->name, local_wifi->cap_interface,
@@ -2683,6 +2745,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
 
             free(flags);
+#ifdef HAVE_LINUX_WIRELESS
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
             release_flock(local_wifi);
 
@@ -2694,6 +2757,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             snprintf(msg, STATUS_MAX, "%s could not not set mode of existing interface, "
                     "unable to put '%s' into monitor mode.", local_wifi->name, local_wifi->interface);
             return -1;
+#else
+        } else if (!local_wifi->use_mac80211_mode) {
+            release_flock(local_wifi);
+
+            snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface '%s' in monitor mode: %s", 
+                    local_wifi->name, local_wifi->cap_interface, local_wifi->interface, 
+                    "Interface can not use netlink controls, but Kismet was not compiled "
+                    "with WEXT support.");
+            cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+            /* We've failed at everything */
+            snprintf(msg, STATUS_MAX, "%s could not not set mode of existing interface, "
+                    "unable to put '%s' into monitor mode.", local_wifi->name, local_wifi->interface);
+            return -1;
+#endif
         } else {
             snprintf(errstr2, STATUS_MAX, "%s %s configured '%s' as monitor mode "
                     "interface instead of using a monitor vif",
@@ -2743,6 +2821,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         if (ret < 0) {
+#ifdef HAVE_LINUX_WIRELESS
             if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
                 release_flock(local_wifi);
 
@@ -2750,7 +2829,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                         "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
                 return -1;
             }
+#else
+            release_flock(local_wifi);
+
+            snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
+                    "mode, something is wrong.  Kismet was not compiled with WEXT "
+                    "support, so can not try legacy controls.", 
+                    local_wifi->name, local_wifi->cap_interface);
+            return -1;
+#endif
         }
+
     }
 
 #ifdef HAVE_LIBNM
@@ -3125,8 +3214,10 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         }
 
         /* Fallback to iwconfig */
+#ifdef HAVE_LINUX_WIRELESS
         if (r < 0)
             r = iwconfig_get_mode(devfile->d_name, errstr, &mode);
+#endif
 
         /* if we succeeded (iwconfig) or if we succeeded and have a valid mode (netlink) */
         if (r >= 0) {
