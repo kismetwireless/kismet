@@ -21,7 +21,7 @@
 
 #include "../config.h"
 
-#ifdef HAVE_LINUX_WIRELESS
+#ifdef SYS_LINUX
 
 /* Fetch if rfkill is enabled on an interface 
  *
