@@ -193,6 +193,13 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
                 "BleedingTooth attacks use over-sized advertisement packets.",
                 phyid);
 
+    alert_flipper_ref =
+        alertracker->activate_configured_alert("FLIPPERZERO",
+                "PROBE", kis_alert_severity::high,
+                "Flipper Zero devices can be used to generate spoofed "
+                "BTLE events which can act as denial of service attacks "
+                "or cause other problems with some Bluetooth devices.", phyid);
+
     packetchain->register_handler(&dissector, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&common_classifier, this, CHAINPOS_CLASSIFIER, -100);
 
@@ -394,6 +401,18 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
             _MSG_INFO("Detected new BTLE device {} {}", common->source, device->get_devicename());
         else
             _MSG_INFO("Detected new BTLE device {}", common->source);
+
+        if (common->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x26") ||
+                common->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x27")) {
+            auto al = fmt::format("A BTLE advertisement packet with a source address "
+                    "matching a Flipper Zero device was seen; The Flipper device is "
+                    "capable of generating BTLE packets which may cause a denial of "
+                    "service or other problems with some BTLE devices.");
+            mphy->alertracker->raise_alert(mphy->alert_flipper_ref, in_pack,
+                    mac_addr{}, device->get_macaddr(), mac_addr{}, mac_addr{},
+                    "FHSS", al);
+        }
+
     }
 
     return 1;

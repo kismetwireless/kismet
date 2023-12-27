@@ -203,6 +203,8 @@ protected:
     std::shared_ptr<tracker_element_string> btdev_bredr;
     std::shared_ptr<tracker_element_string> btdev_btle;
     std::shared_ptr<tracker_element_string> btdev_bt;
+
+    int alert_flipper_ref;
 };
 
 #endif

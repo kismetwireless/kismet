@@ -189,7 +189,7 @@ protected:
 
     bool ignore_random;
 
-    int alert_bleedingtooth_ref;
+    int alert_bleedingtooth_ref, alert_flipper_ref;
 };
 
 #endif

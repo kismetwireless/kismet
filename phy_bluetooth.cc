@@ -92,6 +92,13 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     btdev_btle = devicetracker->get_cached_devicetype("BTLE");
     btdev_bt = devicetracker->get_cached_devicetype("BT");
 
+    alert_flipper_ref =
+        alertracker->activate_configured_alert("FLIPPERZERO",
+                "PROBE", kis_alert_severity::high,
+                "Flipper Zero devices can be used to generate spoofed "
+                "BTLE events which can act as denial of service attacks "
+                "or cause other problems with some Bluetooth devices.", phyid);
+
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_bluetooth", "js/kismet.ui.bluetooth.js");
@@ -161,6 +168,8 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         ss >> json;
 
         auto btaddr_j = json["btaddr"];
+
+        auto new_device = false;
 
         if (btaddr_j.is_null()) 
             throw std::runtime_error("no btaddr in scan report");
@@ -234,6 +243,8 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
                 std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
             btdev->insert(btdev_bluetooth);
+
+            new_device = true;
         }
 
         if (powerlevel_j.is_number())
@@ -257,6 +268,20 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
                 bytehex->from_hex(v);
 
                 btdev_bluetooth->get_service_data_bytes()->insert(u.key(), bytehex);
+            }
+        }
+
+        if (new_device) {
+            if (commoninfo->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x26") ||
+                    commoninfo->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x27")) {
+                auto al = fmt::format("A BTLE advertisement packet with a source address "
+                        "matching a Flipper Zero device was seen; The Flipper device is "
+                        "capable of generating BTLE packets which may cause a denial of "
+                        "service or other problems with some BTLE devices.");
+                btphy->alertracker->raise_alert(btphy->alert_flipper_ref, in_pack,
+                        mac_addr{}, btdev->get_macaddr(), mac_addr{}, mac_addr{},
+                        "FHSS", al);
+
             }
         }
 
