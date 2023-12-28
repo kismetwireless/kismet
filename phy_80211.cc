@@ -4086,16 +4086,16 @@ std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
         ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
 
     if (cryptset & dot11_crypt_akm_1x)
-        ret = string_append(ret, "{}-EAP", WPAVER);
+        ret = string_append(ret, fmt::format("{}-EAP", WPAVER));
 
     if (cryptset & dot11_crypt_akm_1x_ft)
-        ret = string_append(ret, "{}-EAP-FT", WPAVER);
+        ret = string_append(ret, fmt::format("{}-EAP-FT", WPAVER));
 
     if (cryptset & dot11_crypt_akm_1x_suiteb_sha256)
-        ret = string_append(ret, "{}-EAP-SUITEB-SHA256", WPAVER);
+        ret = string_append(ret, fmt::format("{}-EAP-SUITEB-SHA256", WPAVER));
 
     if (cryptset & dot11_crypt_akm_1x_suiteb_sha384)
-        ret = string_append(ret, "{}-EAP-SUITEB-SHA384", WPAVER);
+        ret = string_append(ret, fmt::format("{}-EAP-SUITEB-SHA384", WPAVER));
 
     if (cryptset & dot11_crypt_eap_peap)
         ret = string_append(ret, fmt::format("{}-PEAP", WPAVER));
