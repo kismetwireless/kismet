@@ -1010,10 +1010,13 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         char ***chanlist, size_t *chanlist_sz) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
-    unsigned int *iw_chanlist;
-    size_t chan_sz, mod_chan_sz;
     unsigned int ci, cp;
+#ifdef HAVE_LINUX_WIRELESS
+    unsigned int *iw_chanlist;
     char conv_chan[16];
+    size_t chan_sz; 
+#endif
+    size_t mod_chan_sz;
     unsigned int extended_flags = 0;
     char status[STATUS_MAX];
 
@@ -2609,7 +2612,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
                     local_wifi->use_mac80211_vif = 0;
                 }
-            }
 #else
             release_flock(local_wifi);
             snprintf(msg, STATUS_MAX, "%s (%s) could mot set mode via netlink, and Kismet "
@@ -2619,6 +2621,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
 
 #endif
+            }
         } else {
             snprintf(errstr2, STATUS_MAX, "%s successfully created monitor interface "
                     "'%s' for interface '%s'", local_wifi->name, local_wifi->cap_interface,

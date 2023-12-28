@@ -26,13 +26,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#ifdef HAVE_LINUX_WIRELESS
+/* We need thes defs regardless if we have wext */
 
-#define IW_MAX_PRIV_DEF 256
 /* Wireless extensions monitor mode number */
 #define LINUX_WLEXT_MONITOR 6
 /* Wireless extensions master mode */
 #define LINUX_WLEXT_MASTER  3
+
+#ifdef HAVE_LINUX_WIRELESS
+
+#define IW_MAX_PRIV_DEF 256
 
 /* Max version of wext we know about */
 #define WE_MAX_VERSION			22
