@@ -148,7 +148,8 @@ bool tracker_element_regex_worker::match_element(std::shared_ptr<tracker_element
         for (auto fi : fields) {
             std::string val;
 
-            if (fi->get_type() == tracker_type::tracker_string)
+            if (fi->get_type() == tracker_type::tracker_string ||
+                    fi->get_type() == tracker_type::tracker_string_pointer)
                 val = get_tracker_value<std::string>(fi);
             else if (fi->get_type() == tracker_type::tracker_mac_addr)
                 val = get_tracker_value<mac_addr>(fi).mac_to_string();
@@ -207,7 +208,8 @@ bool tracker_element_stringmatch_worker::match_element(std::shared_ptr<tracker_e
         if (field == nullptr)
             continue;
 
-        if (field->get_type() == tracker_type::tracker_string) {
+        if (field->get_type() == tracker_type::tracker_string ||
+                field->get_type() == tracker_type::tracker_string_pointer) {
             // We can only do a straight string match against string fields
             matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
@@ -259,7 +261,8 @@ bool tracker_element_icasestringmatch_worker::match_element(std::shared_ptr<trac
         if (field == nullptr)
             continue;
 
-        if (field->get_type() == tracker_type::tracker_string) {
+        if (field->get_type() == tracker_type::tracker_string ||
+                field->get_type() == tracker_type::tracker_string_pointer) {
             // We can only do a straight string match against string fields
             matched = icasesearch(get_tracker_value<std::string>(field), query);
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
