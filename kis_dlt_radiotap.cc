@@ -31,6 +31,9 @@
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
+#if defined(SYS_OPENBSD)
+#define ieee80211_radiotap_presence ieee80211_radiotap_type
+#endif
 #endif // Open/Net
 
 #ifdef SYS_FREEBSD
@@ -281,7 +284,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
                     u2.u8 = EXTRACT_LE_8BITS(iter);
                     iter += sizeof(u2.u8);
                     break;
-#endif
+#else
                 case IEEE80211_RADIOTAP_RX_FLAGS:
 					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
 					iter += iter_align;
@@ -304,7 +307,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
                 case IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE:
                     /* Do nothing but acknowledge it */
                     break;
-
+#endif
                 case IEEE80211_RADIOTAP_EXT:
                     /* Do nothing but acknowledge it */
                     break;

@@ -290,10 +290,22 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     /* Try repeatedly to send the packet; go into a thread wait state if
      * the write buffer is full & we'll be woken up as soon as it flushes
      * data out in the main select() loop */
+#if defined(__OpenBSD__)
+    /* OpenBSD has bpf_timeval in pcap_pkthdr */
+    struct timeval ts;
+#endif
     while (1) {
+#if defined(__OpenBSD__)
+        ts.tv_sec = header->ts.tv_sec;
+	ts.tv_usec = header->ts.tv_usec;
+#endif
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
-                        header->ts, 
+#if defined(__OpenBSD__)
+                        ts,
+#else
+                        header->ts,
+#endif
                         local_pcap->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_pcap->pd);

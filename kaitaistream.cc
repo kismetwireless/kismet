@@ -19,7 +19,16 @@
 #define bswap_64(x) _byteswap_uint64(x)
 #else // !__APPLE__ or !_MSC_VER
 #include <endian.h>
+#if defined(__OpenBSD__)
+#define bswap_16(x) swap16(x)
+#define bswap_32(x) swap32(x)
+#define bswap_64(x) swap64(x)
+#define __BYTE_ORDER        BYTE_ORDER
+#define __BIG_ENDIAN    BIG_ENDIAN
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#else // SYS_OPENBSD
 #include <byteswap.h>
+#endif
 #endif
 
 #include <iostream>
