@@ -18,6 +18,10 @@
 
 
 #include "crc32.h"
+#if defined(__OpenBSD__)
+#include "endian.h"
+#define __BYTE_ORDER BYTE_ORDER
+#endif
 
 #ifndef __LITTLE_ENDIAN
   #define __LITTLE_ENDIAN 1234

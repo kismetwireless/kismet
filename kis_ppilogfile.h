@@ -27,7 +27,11 @@
 #include <string>
 
 extern "C" {
+#if defined(__OpenBSD__)
+#include <pcap.h>
+#else
 #include <pcap/pcap.h>
+#endif
 }
 
 #include "globalregistry.h"
