@@ -155,6 +155,7 @@ else
     openbsd*)
         AC_MSG_RESULT(none needed)
         AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+		openbsd="yes"
 		bsd="yes"
         ;;
     netbsd*)
