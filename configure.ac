@@ -1923,6 +1923,7 @@ AC_SUBST(BUILD_CAPTURE_KISMETDB)
 AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
 AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
+AC_SUBST(BUILD_CAPTURE_OPENBSD_WIFI)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
@@ -1952,6 +1953,7 @@ AC_CONFIG_FILES([
     packaging/systemd/debug/kismet-debug.service 
     capture_linux_bluetooth/Makefile 
     capture_linux_wifi/Makefile 
+    capture_openbsd_wifi/Makefile
     capture_osx_corewlan_wifi/Makefile 
     capture_sdr_rtl433/Makefile 
     capture_sdr_rtlamr/Makefile 
@@ -2056,6 +2058,15 @@ elif test "$linux" != "yes"; then
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
 fi
+
+printf " OpenBSD Wi-Fi capture: "
+if test "$openbsd" = "yes"; then
+	echo "yes"
+elif test "$openbsd" != "yes"; then
+	echo "n/a (only OpenBSD)"
+else
+	echo "no"
+ fi
 
 printf "   OSX/Darwin capture : "
 if test "$darwin" = "yes"; then
