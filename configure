@@ -668,7 +668,6 @@ BUILD_CAPTURE_OSX_COREWLAN
 BUILD_CAPTURE_LINUX_BLUETOOTH
 BUILD_CAPTURE_HACKRF_SWEEP
 BUILD_CAPTURE_LINUX_WIFI
-BUILD_CAPTURE_OPENBSD_WIFI
 BUILD_CAPTURE_KISMETDB
 BUILD_CAPTURE_PCAPFILE
 DATASOURCE_BINS
@@ -4954,7 +4953,6 @@ printf "%s\n" "none needed" >&6; }
 
 printf "%s\n" "#define SYS_OPENBSD 1" >>confdefs.h
 
-		openbsd="yes"
 		bsd="yes"
         ;;
     netbsd*)
@@ -17286,15 +17284,6 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
-fi
-
-printf " OpenBSD Wi-Fi capture: "
-if test "$openbsd" = "yes"; then
-	echo "yes"
-elif test "$openbsd" != "yes"; then
-	echo "n/a (only OpenBSD)"
-else
-	echo "no"
 fi
 
 printf "   OSX/Darwin capture : "
