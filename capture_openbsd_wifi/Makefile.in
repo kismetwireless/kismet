@@ -1,0 +1,33 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	../interface_control.c.o \
+	../wifi_ht_channels.c.o \
+	capture_openbsd_wifi.c.o
+
+MONITOR_BIN = kismet_cap_openbsd_wifi
+
+PCAPLIBS=@PCAPLIBS@
+CFLAGS+=@PCAPCFLAGS@
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+

@@ -97,6 +97,9 @@ BUILD_CAPTURE_KISMETDB = @BUILD_CAPTURE_KISMETDB@
 CAPTURE_LINUX_WIFI	= capture_linux_wifi/kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
+CAPTURE_OPENBSD_WIFI	= capture_openbsd_wifi/kismet_cap_openbsd_wifi
+BUILD_CAPTURE_OPENBSD_WIFI = @BUILD_CAPTURE_OPENBSD_WIFI@
+
 CAPTURE_HACKRF_SWEEP_O = \
 	capture_hackrf_sweep.c.o
 CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
@@ -337,6 +340,9 @@ $(CAPTURE_LINUX_WIFI):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_LINUX_BLUETOOTH):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_bluetooth && $(MAKE))
 
+$(CAPTURE_OPENBSD_WIFI):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_openbsd_wifi && $(MAKE))
+
 $(CAPTURE_OSX_COREWLAN): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_osx_corewlan_wifi && $(MAKE))
 
@@ -404,6 +410,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_OPENBSD_WIFI)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_OPENBSD_WIFI) $(BIN)/`basename $(CAPTURE_OPENBSD_WIFI)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
@@ -488,6 +498,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_OPENBSD_WIFI)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_OPENBSD_WIFI) $(BIN)/`basename $(CAPTURE_OPENBSD_WIFI)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
@@ -734,12 +748,14 @@ clean: all-plugins-clean depclean
 	@-rm -f $(CAPTURE_KISMETDB)
 	@-rm -f $(CAPTURE_LINUX_WIFI)
 	@-rm -f $(CAPTURE_LINUX_BLUETOOTH)
+	@-rm -f $(CAPTURE_OPENBSD_WIFI)
 	@-rm -f $(CAPTURE_OSX_COREWLAN)
 	@-rm -f $(CAPTURE_HACKRF_SWEEP)
 	@-rm -f $(LOGTOOL_BINS)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
+	@(cd capture_openbsd_wifi && make clean)
 	@(cd capture_freaklabs_zigbee &&  make clean)
 	@(cd capture_sdr_rtl433 && make clean)
 	@(cd capture_sdr_rtlamr && make clean)

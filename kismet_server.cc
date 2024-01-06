@@ -66,6 +66,7 @@
 #include "datasource_kismetdb.h"
 #include "datasource_linux_wifi.h"
 #include "datasource_linux_bluetooth.h"
+#include "datasource_openbsd_wifi.h"
 #include "datasource_osx_corewlan_wifi.h"
 #include "datasource_rtl433.h"
 #include "datasource_rtlamr.h"
@@ -911,6 +912,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_kismetdb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_linux_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_linux_bluetooth_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_openbsd_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_osx_corewlan_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtl433_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlamr_builder()));
