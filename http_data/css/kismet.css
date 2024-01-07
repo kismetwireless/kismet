@@ -265,3 +265,7 @@ div.dataTables_filter {
   transform: translateY(-50%);
 }
 
+.ui-device-row {
+    height: 32px;
+}
+
