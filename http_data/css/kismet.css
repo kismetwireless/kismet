@@ -266,6 +266,10 @@ div.dataTables_filter {
 }
 
 .ui-device-row {
-    height: 32px;
+    max-height: 32px;
 }
 
+div.grid-full-height,
+div.resizable {
+  min-height: 0;
+}
