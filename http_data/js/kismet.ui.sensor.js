@@ -481,6 +481,15 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     },
                     help: "Reported TPMS pressure in kPa",
                 },
+                {
+                    field: "sensor.device/sensor.device.tpms/sensor.device.tpms.pressure_psi",
+                    title: "Pressure",
+                    filterOnZero: true,
+                    draw: function(opts) {
+                        return opts['value'] + " PSI";
+                    },
+                    help: "Reported TPMS pressure in PSI",
+                },
                 ]
             },
             {
