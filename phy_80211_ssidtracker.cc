@@ -210,7 +210,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
 
         for (const auto& i : fields) {
             if (i.is_string()) {
-                _MSG_DEBUG("ssid summary vec adding {}", i.get<std::string>());
+                // _MSG_DEBUG("ssid summary vec adding {}", i.get<std::string>());
 
                 summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
             } else if (i.is_array()) {
@@ -259,7 +259,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
         if (con->http_variables().find("search[value]") != con->http_variables().end()) {
             search_term = con->http_variables()["search[value]"];
 
-            _MSG_DEBUG("search value {}", search_term);;
+            // _MSG_DEBUG("search value {}", search_term);;
         }
 
         // Search every field we return
