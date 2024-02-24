@@ -19,7 +19,6 @@
         $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet-dark.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/dark.css">');
-        $('head').append('<link rel="stylesheet" type="text/css" href="css/datatables-dark.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/tabulator_midnight.min.css">');
 
         exports.theme = 'dark';
@@ -41,7 +40,6 @@
         $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/light.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css">');
-        $('head').append('<link rel="stylesheet" type="text/css" href="css/datatables.min.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/kismet.css">');
         $('head').append('<link rel="stylesheet" type="text/css" href="css/tabulator.min.css">');
 
