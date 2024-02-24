@@ -414,21 +414,18 @@
                 map_configured = true;
             }
 
-            /*
-            var dt = $('#adsb_planes').DataTable();
-
-            var prev_pos = {
-                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
-                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
-            };
-
-            dt.clear();
-            */
-
             var rows = [];
 
             for (var d = 0; d < data['kismet.adsb.map.devices'].length; d++) {
                 try {
+                    if (!('kismet.device.base.location' in data['kismet.adsb.map.devices'][d])) {
+                        continue;
+                    }
+
+                    if (!('kismet.common.location.last' in data['kismet.adsb.map.devices'][d]['kismet.device.base.location'])) {
+                        continue;
+                    }
+
                     var lat = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][1];
                     var lon = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][0];
                     var heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
@@ -439,9 +436,6 @@
                     var packets = data['kismet.adsb.map.devices'][d]['kismet.device.base.packets.data'];
                     var atype = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.atype_short'];
 
-
-                    // console.log([icao, id, altitude, speed, heading, packets]);
-
                     rows.push({
                         icao: icao,
                         id: id,
@@ -450,10 +444,6 @@
                         hed: heading,
                         msgs: packets,
                     });
-
-                    /*
-                    dt.row.add([icao, id, kismet_units.renderHeightDistanceUnitless(altitude, 0), kismet_units.renderSpeedUnitless(speed, 0, true), heading.toFixed(0), packets]);
-                    */
 
                     if (lat == 0 || lon == 0)
                         continue;
@@ -541,9 +531,11 @@
                         markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'];
                         markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['adsb.device']['adsb.device.callsign'];
 
+                        /*
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
                         markers[key]['marker'].on('click', wrap_closure_click(key));
+                        */
                     }
 
                     markers[key]['altitude'] = altitude;
@@ -589,8 +581,10 @@
                                     smoothFactor: 1,
                                 }).addTo(map);
 
+                                /*
                                 markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
                                 markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
+                                */
                             }
 
                         }
@@ -599,24 +593,29 @@
                         ;
                     }
 
-                /*
-                dt.draw(0);
+                                    /*
+                                    if (moused_icao != null) {
+                                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', 'red');
+                                    }
+                                    */
 
-                if (moused_icao != null) {
-                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', 'red');
-                }
-
-                // Restore our scroll position
-                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
-                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
-                */
-
-                console.log(rows);
-                adsbTabulator.setData(rows);
+                    const p = adsbTabulator.getPage();
+                    console.log("got page", p);
+                    adsbTabulator.replaceData(rows)
+                        .then(() => {
+                            console.log("setting page", p);
+                            adsbTabulator.setPage(p);
+                            if (tid != -1)
+                                clearTimeout(tid);
+                            tid = setTimeout(function() { poll_map(); }, 2000);
+                        })
+                        .catch((e) => {
+                            console.log(e);
+                        });
 
 
                 } catch (error) {
-                    ;
+                    console.log(error);
                 }
 
             }
@@ -644,7 +643,7 @@
                     .done(function(d) {
                         map_cb(d);
                     })
-                    .always(function(d) {
+                    .fail(() => {
                         tid = setTimeout(function() { poll_map(); }, 2000);
                     });
             } else {
