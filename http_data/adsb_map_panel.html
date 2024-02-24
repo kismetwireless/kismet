@@ -274,6 +274,7 @@
         var adsbTabulator = new Tabulator('#adsb_planes', {
             movableColumns: false,
             dataLoader: false,
+            layout: "fitDataStretch",
             sortMode: "local",
             pagination: true,
             paginationMode: "local",
@@ -281,12 +282,12 @@
                 {
                     'field': 'icao',
                     'title': 'ICAO',
-                    'headerSort': true,
+                    'headerSort': false,
                 },
                 {
                     'field': 'id',
                     'title': 'ID',
-                    'headerSort': true,
+                    'headerSort': false,
                 },
                 {
                     'field': 'alt',
@@ -324,6 +325,7 @@
                         }
                     },
                     'hozAlign': 'right',
+                    'headerSort': false,
                 },
                 {
                     'field': 'msgs',
