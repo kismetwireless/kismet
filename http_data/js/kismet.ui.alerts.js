@@ -580,8 +580,12 @@ var InitializeAlertTable = function(element) {
             return `Showing rows ${frow} - ${lrow} of ${alertTableTotal}`;
         },
 
-        /*
         rowFormatter: function(row) {
+            var colors = severity_to_color(row.getData()['original_data']['kismet.alert.severity']);
+            row.getElement().style.backgroundColor = colors[0];
+            row.getElement().style.cOlor = colors[1];
+
+            /*
             for (const ri of DeviceRowHighlights) {
                 if (!ri['enable'])
                     continue;
@@ -594,8 +598,8 @@ var InitializeAlertTable = function(element) {
                     ;
                 }
             }
+            */
         },
-        */
 
         initialSort: [{
             "column": alerttable_prefs["sort"]["column"],
