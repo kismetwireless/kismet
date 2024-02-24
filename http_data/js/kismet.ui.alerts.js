@@ -66,456 +66,720 @@ function severity_to_color(sev) {
 
 }
 
-var alertTid = -1;
-var alert_element;
-var alert_status_element;
-var AlertColumns = new Array();
+var alert_columnlist = new Map();
+var alert_columnlist_hidden = new Map();
 
-exports.AddAlertColumn = function(id, options) {
+var AddAlertColumn = (id, options) => {
     var coldef = {
-        kismetId: id,
-        sTitle: options.sTitle,
-        field: null,
-        fields: null,
+        'kismetId': id,
+        'title': options.title,
+        'description': options.description,
+        'field': null,
+        'fields': null,
+        'sortfield': null,
+        'render': null,
+        'auxdata': null,
+        'mutate': null,
+        'auxmdata': null,
+        'sortable': false,
+        'searchable': false,
+        'width': null,
+        'alignment': null,
     };
 
-    if ('field' in options) {
-        coldef.field = options.field;
-    }
+    if ('field' in options)
+        coldef['field'] = options['field'];
 
-    if ('fields' in options) {
-        coldef.fields = options.fields;
-    }
+    if ('fields' in options)
+        coldef['fields'] = options['fields'];
 
-    if ('description' in options) {
-        coldef.description = options.description;
-    }
-
-    if ('name' in options) {
-        coldef.name = options.name;
-    }
-
-    if ('orderable' in options) {
-        coldef.bSortable = options.orderable;
-    }
-
-    if ('visible' in options) {
-        coldef.bVisible = options.visible;
+    if ('sortfield' in options) {
+        coldef['sortfield'] = options['sortfield'];
     } else {
-        coldef.bVisible = true;
-    }
-
-    if ('selectable' in options) {
-        coldef.user_selectable = options.selectable;
-    } else {
-        coldef.user_selectable = true;
-    }
-
-    if ('searchable' in options) {
-        coldef.bSearchable = options.searchable;
+        coldef['sortfield'] = coldef['field'];
     }
 
     if ('width' in options) {
-        coldef.width = options.width;
+        coldef['width'] = options['width'];
     }
 
-    var f;
-    if (typeof(coldef.field) === 'string') {
-        var fs = coldef.field.split('/');
-        f = fs[fs.length - 1];
-    } else if (Array.isArray(coldef.field)) {
-        f = coldef.field[1];
+    if ('alignment' in options) {
+        coldef['alignment'] = options['alignment'];
     }
 
-    coldef.mData = function(row, type, set) {
-        return kismet.ObjectByString(row, f);
+    if ('render' in options) {
+        coldef['render'] = options['render'];
+    } else {
+        coldef['render'] = (data, rowdata, cell, auxdata) => {
+            return data;
+        }
     }
 
-    if ('renderfunc' in options) {
-        coldef.mRender = options.renderfunc;
-    }
+    if ('auxdata' in options)
+        coldef['auxdata'] = options['auxdata'];
 
-    if ('drawfunc' in options) {
-        coldef.kismetdrawfunc = options.drawfunc;
-    }
+    if ('sortable' in options)
+        coldef['sortable'] = options['sortable'];
 
-    AlertColumns.push(coldef);
+    alert_columnlist.set(id, coldef);
 }
 
-exports.GetAlertColumns = function(showall = false) {
-    var ret = new Array();
+var AddHiddenAlertColumn = (coldef) => {
+    var f;
 
-    var order = kismet.getStorage('kismet.alerttable.columns', []);
-
-    if (order.length == 0) {
-        // sort invisible columns to the end
-        for (var i in AlertColumns) {
-            if (!AlertColumns[i].bVisible)
-                continue;
-            ret.push(AlertColumns[i]);
-        }
-
-        for (var i in AlertColumns) {
-            if (AlertColumns[i].bVisible)
-                continue;
-            ret.push(AlertColumns[i]);
-        }
-
-        return ret;
+    if (typeof(coldef['field']) === 'string') {
+        var fs = coldef['field'].split("/");
+        f = fs[fs.length - 1];
+    } else if (Array.isArray(coldef['field'])) {
+        f = coldef['field'][1];
     }
 
-    for (var oi in order) {
-        var o = order[oi];
+    alert_columnlist_hidden.set(f, coldef);
+}
 
-        if (!o.enable)
-            continue;
+function GenerateAlertFieldList() {
+    var retcols = new Map();
 
-        var sc = AlertColumns.find(function(e, i, a) {
-            if (e.kismetId === o.id)
-                return true;
-            return false;
-        });
-
-        if (sc != undefined && sc.user_selectable) {
-            sc.bVisible = true;
-            ret.push(sc);
+    for (const [k, v] of alert_columnlist_hidden) {
+        if (typeof(v['field']) === 'string') {
+            retcols.set(v, v['field']);
+        } else if (Array.isArray(v['field'])) {
+            retcols.set(v['field'][1], v);
         }
-    }
+    };
 
-    // Fallback if no columns were selected somehow
-    if (ret.length == 0) {
-        // sort invisible columns to the end
-        for (var i in AlertColumns) {
-            if (!AlertColumns[i].bVisible)
-                continue;
-            ret.push(AlertColumns[i]);
-        }
-
-        for (var i in AlertColumns) {
-            if (AlertColumns[i].bVisible)
-                continue;
-            ret.push(AlertColumns[i]);
-        }
-
-        return ret;
-    }
-
-    if (showall) {
-        for (var sci in AlertColumns) {
-            var sc = AlertColumns[sci];
-
-            var rc = ret.find(function(e, i, a) {
-                if (e.kismetId === sc.kismetId)
-                    return true;
-                return false;
-            });
-
-            if (rc == undefined) {
-                sc.bVisible = false;
-                ret.push(sc);
+    for (const [k, c] of alert_columnlist) {
+        if (c['field'] != null) {
+            if (typeof(c['field']) === 'string') {
+                retcols.set(c['field'], c['field']);
+            } else if (Array.isArray(c['field'])) {
+                retcols.set(c['field'][1], c['field']);
             }
         }
 
-        return ret;
-    }
+        if (c['fields'] != null) {
+            for (const cf of c['fields']) {
+                if (typeof(cf) === 'string') {
+                    retcols.set(cf, cf);
+                } else if (Array.isArray(cf)) {
+                    retcols.set(cf[1], cf);
+                }
 
-    for (var sci in AlertColumns) {
-        if (!AlertColumns[sci].user_selectable) {
-            ret.push(AlertColumns[sci]);
+            }
         }
     }
 
-    return ret;
-}
+    var ret = [];
 
-exports.GetAlertColumnMap = function(columns) {
-    var ret = {};
-
-    for (var ci in columns) {
-        var fields = new Array();
-
-        if ('field' in columns[ci])
-            fields.push(columns[ci]['field']);
-
-        if ('fields' in columns[ci])
-            fields.push.apply(fields, columns[ci]['fields']);
-
-        ret[ci] = fields;
-    }
+    for (const [k, v] of retcols) {
+        ret.push(v);
+    };
 
     return ret;
 }
 
-exports.GetAlertFields = function(selected) {
-    var rawret = new Array();
-    var cols = exports.GetAlertColumns();
+function GenerateAlertTabulatorColumn(c) {
+    var col = {
+        'field': c['kismetId'],
+        'title': c['title'],
+        'formatter': (cell, params, onrender) => {
+            try {
+                return c['render'](cell.getValue(), cell.getRow().getData(), cell, onrender, c['auxdata']);
+            } catch (e) {
+                return cell.getValue();
+            }
+        },
+        'headerSort': c['sortable'],
+        /* Don't allow hiding alert columns
+        'headerContextMenu':  [ {
+            'label': "Hide Column",
+            'action': function(e, column) {
+                alerttable_prefs['columns'] = alerttable_prefs['columns'].filter(c => {
+                    return c !== column.getField();
+                });
+                SaveAlertTablePrefs();
 
-    for (var i in cols) {
-        if ('field' in cols[i])
-            rawret.push(cols[i]['field']);
+                alertTabulator.deleteColumn(column.getField())
+                .then(col => {
+                    ScheduleAlertSummary();
+                });
+            }
+        }, ],
+        */
+    };
 
-        if ('fields' in cols[i])
-            rawret.push.apply(rawret, cols[i]['fields']);
+    var colsettings = {};
+    if (c['kismetId'] in alerttable_prefs['colsettings']) {
+        colsettings = alerttable_prefs['colsettings'][c['kismetId']];
     }
 
-    // de-dupe
-    var ret = rawret.filter(function(item, pos, self) {
-        return self.indexOf(item) == pos;
+    if ('width' in colsettings) {
+        col['width'] = colsettings['width'];
+    } else if (c['width'] != null) {
+        col['width'] = c['width'];
+    }
+
+    if (c['alignment'] != null)
+        col['hozAlign'] = c['alignment'];
+
+    return col;
+}
+
+/* Generate the columns for the devicelist tabulator format */
+function GenerateAlertColumns() {
+    var columns = [];
+
+    var columnlist = [];
+    if (alerttable_prefs['columns'].length == 0) {
+        for (const [k, v] of alert_columnlist) {
+            columnlist.push(k);
+        }
+    } else {
+        columnlist = alerttable_prefs['columns'];
+    }
+
+    for (const k of columnlist) {
+        if (!alert_columnlist.has(k)) {
+            continue;
+        }
+
+        const c = alert_columnlist.get(k);
+
+        columns.push(GenerateAlertTabulatorColumn(c));
+    }
+
+    return columns;
+}
+
+var alertTid = -1;
+
+var alerttableHolder = null;
+var alerttableElement = null;
+var alertTabulator = null;
+var alertTablePage = 0;
+var alertTableTotal = 0;
+var alertTableTotalPages = 0;
+var alertTableRefreshBlock = false;
+var alerttable_prefs = {};
+var alertTableRefreshing = false;
+
+var CreateAlertTable = function(element) {
+    element.ready(function() { 
+        InitializeAlertTable(element);
     });
-
-    return ret;
 }
-
 
 function ScheduleAlertSummary() {
+    if (alertTid != -1)
+        clearTimeout(alertTid);
+
+    alertTid = setTimeout(ScheduleAlertSummary, 1000);
+
     try {
-        if (kismet_ui.window_visible && alert_element.is(":visible")) {
-            var dt = alert_element.DataTable();
+        if (!alertTableRefreshing && alertTabulator != null && kismet_ui.window_visible && alerttableElement.is(":visible")) {
+            alertTableRefreshing = true;
 
-            // Save the state.  We can't use proper state saving because it seems to break
-            // the table position
-            kismet.putStorage('kismet.base.alerttable.order', JSON.stringify(dt.order()));
-            kismet.putStorage('kismet.base.alertttable.search', JSON.stringify(dt.search()));
+            var pageSize = alertTabulator.getPageSize();
+            if (pageSize == 0) {
+                throw new Error("Page size 0");
+            }
 
-            // Snapshot where we are, because the 'don't reset page' in ajax.reload
-            // DOES still reset the scroll position
-            var prev_pos = {
-                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
-                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
-            };
-            dt.ajax.reload(function(d) {
-                // Restore our scroll position
-                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
-                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
-            }, false);
+            if (alertTableRefreshBlock) {
+                throw new Error("refresh blocked");
+            }
+
+            var colparams = JSON.stringify({'fields': GenerateAlertFieldList()});
+
+            var postdata = {
+                "json": colparams,
+                "page": alertTablePage,
+                "length": pageSize,
+            }
+
+            if (alert_columnlist.has(alerttable_prefs['sort']['column'])) {
+                var f = alert_columnlist.get(alerttable_prefs['sort']['column']);
+                if (f['sortfield'] != null) {
+                    if (typeof(f['sortfield']) === 'string') {
+                        postdata["sort"] = f['sortfield'];
+                    } else if (Array.isArray(f['sortfield'])) {
+                        postdata["sort"] = f['sortfield'][0];
+                    }
+                } else {
+                    if (typeof(f['field']) === 'string') {
+                        postdata["sort"] = f['sortfield'];
+                    } else if (Array.isArray(f['field'])) {
+                        postdata["sort"] = f['field'][0];
+                    }
+                }
+
+                postdata["sort_dir"] = alerttable_prefs['sort']['dir'];
+            }
+
+            var searchterm = kismet.getStorage('kismet.ui.alertview.search', "");
+            if (searchterm.length > 0) {
+                postdata["search"] = searchterm;
+            }
+
+            $.post(local_uri_prefix + `alerts/alerts_view.json`, postdata, 
+                function(data) { 
+                    alertTableTotal = data["last_row"];
+                    alertTableTotalPages = data["last_page"];
+
+                    // Sanitize the data
+                    if (!'data' in data) {
+                        throw new Error("Missing data in response");
+                    }
+                    var rdata = kismet.sanitizeObject(data["data"]);
+
+                    // Permute the data based on the field list and assign the fields to the ID names
+                    var procdata = [];
+
+                    for (const d of rdata) {
+                        var md = {};
+
+                        md['original_data'] = d;
+
+                        md['alert_key'] = d['kismet.alert.hash'];
+
+                        for (const [k, c] of alert_columnlist) {
+                            if (typeof(c['field']) === 'string') {
+                                var fs = c['field'].split("/");
+                                var fn = fs[fs.length - 1];
+                                if (fn in d)
+                                    md[c['kismetId']] = d[fn];
+                            } else if (Array.isArray(c['field'])) {
+                                if (c['field'][1] in d)
+                                    md[c['kismetId']] = d[c['field'][1]];
+                            }
+
+                            if (c['fields'] != null) {
+                                for (const cf of c['fields']) {
+                                    if (typeof(cf) === 'string') {
+                                        var fs = cf.split("/");
+                                        var fn = fs[fs.length - 1];
+                                        if (fn in d)
+                                            md[fn] = d[fn];
+                                    } else if (Array.isArray(cf)) {
+                                        if (fn[1] in d)
+                                            md[fn[1]] = d[fn[1]]
+                                    }
+
+                                }
+                            }
+
+                        }
+
+                        procdata.push(md);
+                    }
+
+                    alertTabulator.replaceData(procdata);
+
+                    var paginator = $('#alert-table .tabulator-paginator');
+                    paginator.empty();
+
+                    var firstpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'First',
+                        }).html("First")
+                    .on('click', function() {
+                        alertTablePage = 0;
+                        return ScheduleAlertSummary();
+                    });
+                    if (alertTablePage == 0) {
+                        firstpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(firstpage);
+
+                    var prevpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Prev',
+                        }).html("Prev")
+                    .on('click', function() {
+                        alertTablePage = alertTablePage - 1;
+                        return ScheduleAlertSummary();
+                    });
+                    if (alertTablePage < 1) {
+                        prevpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(prevpage);
+
+                    var gen_closure = (pg, pgn) => {
+                        pg.on('click', () => {
+                            alertTablePage = pgn;
+                            return ScheduleAlertSummary();
+                        });
+                    }
+
+                    var fp = alertTablePage - 1;
+                    if (fp <= 1)
+                        fp = 1;
+                    var lp = fp + 4;
+                    if (lp > alertTableTotalPages)
+                        lp = alertTableTotalPages;
+                    for (let p = fp; p <= lp; p++) {
+                        var ppage = 
+                            $('<button>', {
+                                'class': 'tabulator-page',
+                                'type': 'button',
+                                'role': 'button',
+                                'aria-label': `${p}`,
+                            }).html(`${p}`);
+                        gen_closure(ppage, p - 1);
+                        if (alertTablePage == p - 1) {
+                            ppage.attr('disabled', 'disabled');
+                        }
+                        paginator.append(ppage);
+                    }
+
+                    var nextpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Next',
+                        }).html("Next")
+                    .on('click', function() {
+                        alertTablePage = alertTablePage + 1;
+                        return ScheduleAlertSummary();
+                    });
+                    if (alertTablePage >= alertTableTotalPages - 1) {
+                        nextpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(nextpage);
+
+                    var lastpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Last',
+                        }).html("Last")
+                    .on('click', function() {
+                        alertTablePage = alertTableTotalPages - 1;
+                        return ScheduleAlertSummary();
+                    });
+                    if (alertTablePage >= alertTableTotalPages - 1) {
+                        lastpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(lastpage);
+                },
+                "json")
+                .always(() => {
+                    alertTableRefreshing = false;
+                });
         }
 
     } catch (error) {
-        ;
+        alertTableRefreshing = false;
     }
     
-    // Set our timer outside of the datatable callback so that we get called even
-    // if the ajax load fails
-    alertTid = setTimeout(ScheduleAlertSummary, 2000);
+    return;
 }
 
-var alertTableHolder = null;
+function CancelAlertSummary() {
+    clearTimeout(alertTid);
+}
 
-function InitializeAlertTable(element) {
-    var cols = exports.GetAlertColumns();
-    var colmap = exports.GetAlertColumnMap(cols);
-    var fields = exports.GetAlertFields();
+function LoadAlertTablePrefs() {
+    alerttable_prefs = kismet.getStorage('kismet.ui.alerttable.prefs', {
+        "columns": [],
+        "colsettings": {},
+        "sort": {
+            "column": "",
+            "dir": "asc",
+        },
+    });
 
-    var json = {
-        fields: fields,
-        colmap: colmap,
-        datatable: true,
-    };
+    alerttable_prefs = $.extend({
+        "columns": [],
+        "colsettings": {},
+        "sort": {
+            "column": "",
+            "dir": "asc",
+        }, 
+    }, alerttable_prefs);
+}
 
-    alertTableHolder = element;
+function SaveAlertTablePrefs() {
+    kismet.putStorage('kismet.ui.alerttable.prefs', alerttable_prefs);
+}
 
-    if (alert_element != null && $.fn.dataTable.isDataTable(alert_element)) {
-        alert_element.DataTable().clear().destroy();
-        element.empty();
-    }
+var InitializeAlertTable = function(element) {
+    LoadAlertTablePrefs();
 
-    if ($('#alerts', element).length == 0) {
-        alert_element = 
-            $('<table>', {
-                id: 'alerts',
-                class: 'fixeddt stripe hover nowrap pageResize',
-                'cell-spacing': 0,
-                width: '100%',
-            });
-        element.append(alert_element);
-    }
+    alerttableHolder = element;
 
-    alert_element
-        .DataTable({
-            destroy: true,
+    var searchterm = kismet.getStorage('kismet.ui.alertview.search', "");
 
-            scrollResize: true,
-            serverSide: true,
-            processing: true,
+    if ($('#center-alert-extras').length == 0) {
+        var alertviewmenu = $(`<input class="alert_search" type="search" id="alert_search" placeholder="Filter..." value="${searchterm}"></input>`);
+        $('#centerpane-tabs').append($('<div id="center-alert-extras" style="position: absolute; right: 10px; top: 5px; height: 30px; display: flex;">').append(alertviewmenu));
 
-            dom: '<"viewselector">ftip',
-
-            deferRender: true,
-            lengthChange: false,
-
-            ajax: {
-                url: local_uri_prefix + "alerts/alerts_view.json",
-                data: {
-                    json: JSON.stringify(json)
-                },
-                method: 'POST',
-                timeout: 5000,
-            },
-            columns: cols,
-            order: [ [ 0, "desc" ] ],
-            createdRow: function(row, data, index) {
-                row.id = data['kismet.alert.hash'];
-            },
-            drawCallback: function(settings) {
-                var dt = this.api();
-
-                dt.rows({
-                    page: 'current'
-                }).every(function(rowIdx, tableLoop, rowLoop) {
-                    for (var c in AlertColumns) {
-                        var col = AlertColumns[c];
-
-                        if (!('kismetdrawfunc') in col)
-                            continue;
-
-                        try {
-                            col.kismetdrawfunc(col, dt, this);
-                        } catch (error) {
-                            ;
-                        }
-                    }
-
-                    $('td', this.node()).css('background-color', severity_to_color(this.data()['kismet.alert.severity'])[0]);
-                    $('td', this.node()).css('color', severity_to_color(this.data()['kismet.alert.severity'])[1]);
-                });
-            },
+        $('#alert_search').on('keydown', (evt) => {
+            var code = evt.charCode || evt.keyCode;
+            if (code == 27) {
+                $('#alert_search').val('');
+            }
         });
 
-    var alert_dt = alert_element.DataTable();
+        $('#alert_search').on('keyup', $.debounce(300, () => {
+            var searchterm = $('#alert_search').val();
+            kismet.putStorage('kismet.ui.alertview.search', searchterm);
+            ScheduleAlertSummary();
+        }));
+    }
 
-    // Restore the order
-    var saved_order = kismet.getStorage('kismet.base.alerttable.order', "");
-    if (saved_order !== "")
-        alert_dt.order(JSON.parse(saved_order));
+    if ($('#alert-table', element).length == 0) { 
+        alerttableElement =
+            $('<div>', {
+                id: 'alert-table',
+                'cell-spacing': 0,
+                width: '100%',
+                height: '100%',
+            });
 
-    // Restore the search
-    var saved_search = kismet.getStorage('kismet.base.alerttable.search', "");
-    if (saved_search !== "")
-        alert_dt.search(JSON.parse(saved_search));
+        element.append(alerttableElement);
+    }
 
-    // Set an onclick handler to spawn the device details dialog
-    $('tbody', alert_element).on('click', 'tr', function () {
-        exports.AlertDetailWindow(this.id);
-    } );
+    alertTabulator = new Tabulator('#alert-table', {
+        movableColumns: true,
+        columns: GenerateAlertColumns(),
 
-    $('tbody', alert_element)
-        .on( 'mouseenter', 'td', function () {
-            var alert_dt = alert_element.DataTable();
+        // No loading animation/text
+        dataLoader: false,
 
-            if (typeof(alert_dt.cell(this).index()) === 'undefined')
-                return;
+        // Server-side filtering and sorting
+        sortMode: "remote",
+        filterMode: "remote",
 
-            var colIdx = alert_dt.cell(this).index().column;
-            var rowIdx = alert_dt.cell(this).index().row;
+        // Server-side pagination
+        pagination: true,
+        paginationMode: "remote",
 
-            // Remove from all cells
-            $(alert_dt.cells().nodes()).removeClass('kismet-highlight');
-            // Highlight the td in this row
-            $('td', alert_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
-        } );
+        // Override the pagination system to use our local counters, more occurs in
+        // the update timer loop to replace pagination
+        paginationCounter: function(pageSize, currentRow, currentPage, totalRows, totalPages) {
+            if (alertTableTotal == 0) {
+                return "Loading..."
+            }
 
-    return alert_dt;
-}
+            var frow = pageSize * alertTablePage;
+            if (frow == 0)
+                frow = 1;
 
-function ActivateAlertTable() {
-    InitializeAlertTable(alertTableHolder);
+            var lrow = frow + pageSize;
+            if (lrow > alertTableTotal) 
+                lrow = alertTableTotal;
+
+            return `Showing rows ${frow} - ${lrow} of ${alertTableTotal}`;
+        },
+
+        /*
+        rowFormatter: function(row) {
+            for (const ri of DeviceRowHighlights) {
+                if (!ri['enable'])
+                    continue;
+
+                try {
+                    if (ri['selector'](row.getData()['original_data'])) {
+                        row.getElement().style.backgroundColor = ri['color'];
+                    }
+                } catch (e) {
+                    ;
+                }
+            }
+        },
+        */
+
+        initialSort: [{
+            "column": alerttable_prefs["sort"]["column"],
+            "dir": alerttable_prefs["sort"]["dir"],
+        }],
+
+    });
+
+    // Get sort events to hijack for the custom query
+    alertTabulator.on("dataSorted", (sorters) => {
+        if (sorters.length == 0)
+            return;
+
+        var mut = false;
+        if (sorters[0].field != alerttable_prefs['sort']['column']) {
+            alerttable_prefs['sort']['column'] = sorters[0].field;
+            mut = true;
+        }
+
+        if (sorters[0].dir != alerttable_prefs['sort']['dir']) {
+            alerttable_prefs['sort']['dir'] = sorters[0].dir;
+            mut = true;
+        }
+
+        if (mut) {
+            SaveAlertTablePrefs();
+            ScheduleAlertSummary();
+        }
+    });
+
+    // Disable refresh while a menu is open
+    alertTabulator.on("menuOpened", function(component){
+        alertTableRefreshBlock = true;
+    });
+
+    // Reenable refresh when menu is closed
+    alertTabulator.on("menuClosed", function(component){
+        alertTableRefreshBlock = false;
+    });
+
+
+    // Handle row clicks
+    alertTabulator.on("rowClick", (e, row) => {
+        exports.AlertDetailWindow(row.getData()['alert_key']);
+    });
+
+    alertTabulator.on("columnMoved", function(column, columns){
+        var cols = [];
+
+        for (const c of columns) {
+            cols.push(c.getField());
+        }
+
+        alerttable_prefs['columns'] = cols;
+       
+        SaveAlertTablePrefs();
+
+    });
+
+    alertTabulator.on("columnResized", function(column){
+        if (column.getField() in alerttable_prefs['colsettings']) {
+            alerttable_prefs['colsettings'][column.getField()]['width'] = column.getWidth();
+        } else {
+            alerttable_prefs['colsettings'][column.getField()] = {
+                'width': column.getWidth(),
+            }
+        }
+
+        SaveAlertTablePrefs();
+    });
+
+    alertTabulator.on("tableBuilt", function() {
+        ScheduleAlertSummary();
+    });
 }
 
 kismet_ui_tabpane.AddTab({
     id: 'tab_alerts',
     tabTitle: 'Alerts',
     createCallback: function(div) {
-        InitializeAlertTable(div);
-        ScheduleAlertSummary();
+        // InitializeAlertTable(div);
+        alerttableHolder = div;
     },
     activateCallback: function() {
-        ActivateAlertTable();
+        alerttableHolder.ready(() => {
+            InitializeAlertTable(alerttableHolder);
+            $('#center-alert-extras').show();
+        });
+    },
+    deactivateCallback: function() {
+        $('#center-alert-extras').hide();
     },
     priority: -1001,
 }, 'center');
 
-exports.AddAlertColumn('col_header', {
-    sTitle: 'Type',
-    field: 'kismet.alert.header',
-    name: 'Alert type',
+AddAlertColumn('header', {
+    'title': 'Type',
+    'description': 'Alert type',
+    'field': 'kismet.alert.header',
+    'sortable': true,
+    'searchable': true,
 });
 
-exports.AddAlertColumn('col_class', {
-    sTitle: 'Class',
-    field: 'kismet.alert.class',
-    name: 'Class',
+AddAlertColumn('class', {
+    'title': 'Class',
+    'description': 'Alert class',
+    'field': 'kismet.alert.class',
+    'sortable': true,
+    'searchable': true,
 });
 
-exports.AddAlertColumn('col_severity', {
-    sTitle: 'Severity',
-    field: 'kismet.alert.severity',
-    name: 'Severity',
-    renderfunc: function(d, t, r, m) {
-        return severity_to_string(d);
-    }
+AddAlertColumn('severity', {
+    'title': 'Severity',
+    'description': 'Alert severity',
+    'field': 'kismet.alert.severity',
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        return severity_to_string(data);
+    },
 });
 
-exports.AddAlertColumn('col_time', {
-    sTitle: 'Time',
-    field: 'kismet.alert.timestamp',
-    name: 'Timestamp',
-    renderfunc: function(d, t, r, m) {
-        return kismet_ui_base.renderLastTime(d, t, r, m);
-    }
+AddAlertColumn('time', {
+    'title': 'Time',
+    'description': 'Alert timestamp',
+    'field': 'kismet.alert.timestamp',
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        return (new Date(data * 1000).toString()).substring(4, 25);
+    },
 });
 
-exports.AddAlertColumn('col_tx', {
-    sTitle: 'Transmitter',
-    field: 'kismet.alert.transmitter_mac',
-    name: 'Transmitter MAC',
-    renderfunc: function(d, t, r, m) {
-        if (d === "00:00:00:00:00:00")
+AddAlertColumn('txaddr', {
+    'title': 'Transmitter',
+    'description': 'Transmitter MAC',
+    'field': 'kismet.alert.transmitter_mac',
+    'sortable': true,
+    'searchable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (data === "00:00:00:00:00:00")
             return "<i>n/a</i>";
-        return kismet.censorMAC(d);
-    }
+        return kismet.censorMAC(data);
+    },
 });
 
-exports.AddAlertColumn('col_sx', {
-    sTitle: 'Source',
-    field: 'kismet.alert.source_mac',
-    name: 'Source MAC',
-    renderfunc: function(d, t, r, m) {
-        if (d === "00:00:00:00:00:00")
+AddAlertColumn('sxaddr', {
+    'title': 'Source',
+    'description': 'Source MAC',
+    'field': 'kismet.alert.source_mac',
+    'sortable': true,
+    'searchable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (data === "00:00:00:00:00:00")
             return "<i>n/a</i>";
-        return kismet.censorMAC(d);
-    }
+        return kismet.censorMAC(data);
+    },
 });
 
-exports.AddAlertColumn('col_dx', {
-    sTitle: 'Destination',
-    field: 'kismet.alert.dest_mac',
-    name: 'Destination MAC',
-    renderfunc: function(d, t, r, m) {
-        if (d === "00:00:00:00:00:00")
+AddAlertColumn('dxaddr', {
+    'title': 'Destination',
+    'description': 'Destination MAC',
+    'field': 'kismet.alert.dest_mac',
+    'sortable': true,
+    'searchable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (data === "00:00:00:00:00:00")
             return "<i>n/a</i>";
-        if (d === "FF:FF:FF:FF:FF:FF")
-            return "<i>all</i>";
-
-        return kismet.censorMAC(d);
-    }
+        return kismet.censorMAC(data);
+    },
 });
 
-exports.AddAlertColumn('content', {
-    sTitle: 'Alert',
-    field: 'kismet.alert.text',
-    name: 'Alert content',
-    renderfunc: function(d, t, r, m) {
-        return kismet.censorMAC(d);
-    }
+AddAlertColumn('text', {
+    'title': 'Alert',
+    'description': 'Alert content',
+    'field': 'kismet.alert.text',
+    'sortable': true,
+    'searchable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (data === "00:00:00:00:00:00")
+            return "<i>n/a</i>";
+        return kismet.censorMAC(data);
+    },
 });
 
-exports.AddAlertColumn('hash_hidden', {
-    sTitle: 'Hash key',
-    field: 'kismet.alert.hash',
-    searchable: false,
-    visible: false,
-    orderable: false,
-});
+AddHiddenAlertColumn({'field': 'kismet.alert.hash'});
 
 exports.AlertDetails = new Array();
 

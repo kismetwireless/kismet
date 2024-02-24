@@ -10,7 +10,11 @@
     <script src="js/js.storage.min.js"></script>
     <script src="js/kismet.ui.theme.js"></script>
 
-    <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="css/fontawesome.min.css">
+    <link rel="stylesheet" type="text/css" href="css/solid.min.css">
+    <link rel="stylesheet" type="text/css" href="css/regular.min.css">
+    <link rel="stylesheet" type="text/css" href="css/v4-shims.min.css">
+
     <link rel="stylesheet" href="css/leaflet.css" />
     <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
     <link rel="stylesheet" type="text/css" href="css/Control.Loading.css" />
@@ -24,8 +28,7 @@
     <script src="js/kismet.utils.js"></script>
     <script src="js/kismet.units.js"></script>
 
-    <script src="js/datatables.min.js"></script>
-    <script src="js/dataTables.scrollResize.js"></script>
+    <script src="js/tabulator.min.js"></script>
 
     <style>
         :root {
@@ -72,6 +75,8 @@
             background: var(--adsb-sidebar-background);
             z-index: 999;
             padding: 10px;
+            display: flex;
+            flex-direction: column;
         }
 
         .warning {
@@ -165,20 +170,7 @@
 
         <div id="plane-detail" style="padding-top: 10px; height: 75px;"></div>
         <br>
-        <div height="100%" class="resize_wrapper">
-        <table width="100%" id="adsb_planes" style="font-size: 80%">
-            <thead>
-                <tr>
-                    <th>ICAO</th>
-                    <th>ID</th>
-                    <th>Alt</th>
-                    <th>Spd</th>
-                    <th>Hed</th>
-                    <th>Msgs</th>
-                </tr>
-            </thead>
-        </table>
-        </div>
+        <div style="width: 100%; height: 100%; font-size: 80%" id="adsb_planes"></div>
     </div>
 
     <script>
@@ -245,11 +237,8 @@
             local_uri_prefix = KISMET_URI_PREFIX;
 
         var map_configured = false;
-
         var markers = {};
-
         var tid = -1;
-
         var map = null;
 
         function get_alt_color(alt, v_perc=50) {
@@ -281,20 +270,74 @@
         var moused_icao = null;
         var moused_id = null;
 
-        var planes_dt = $('#adsb_planes').DataTable({
-            data: [],
-            searching: false,
-            scrollY: 500,
-            scrollResize: true,
-            scroller: true,
-            paging: true,
-            dom: "ft",
-            createdRow: function(row, data, index) {
-                row.id = `ROW_ICAO_${data[0]}`;
-            },
+        // Datatable with fixed columns
+        var adsbTabulator = new Tabulator('#adsb_planes', {
+            movableColumns: false,
+            dataLoader: false,
+            sortMode: "local",
+            pagination: true,
+            paginationMode: "local",
+            columns: [
+                {
+                    'field': 'icao',
+                    'title': 'ICAO',
+                    'headerSort': true,
+                },
+                {
+                    'field': 'id',
+                    'title': 'ID',
+                    'headerSort': true,
+                },
+                {
+                    'field': 'alt',
+                    'title': 'Alt',
+                    'headerSort': true,
+                    'formatter': (c, p, o) => {
+                        try {
+                            return kismet_units.renderHeightDistanceUnitless(c.getValue());
+                        } catch (e) {
+                            return c.getValue();
+                        }
+                    },
+                    'hozAlign': 'right',
+                },
+                {
+                    'field': 'spd',
+                    'title': 'Spd',
+                    'formatter': (c, p, o) => {
+                        try {
+                            return kismet_units.renderSpeedUnitless(c.getValue());
+                        } catch (e) {
+                            return c.getValue();
+                        }
+                    },
+                    'hozAlign': 'right',
+                },
+                {
+                    'field': 'hed',
+                    'title': 'Hed',
+                    'formatter': (c, p, o) => {
+                        try {
+                            return c.getValue().toFixed();
+                        } catch (e) {
+                            return c.getValue();
+                        }
+                    },
+                    'hozAlign': 'right',
+                },
+                {
+                    'field': 'msgs',
+                    'title': 'Msgs',
+                    'headerSort': true,
+                    'hozAlign': 'right',
+                },
+
+            ],
         });
 
 
+
+        /*
         function wrap_closure_click(k) {
             return function() {
                 $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
@@ -344,6 +387,7 @@
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '18px');
             }
         };
+        */
 
         function map_cb(d) {
             data = kismet.sanitizeObject(d);
@@ -370,6 +414,7 @@
                 map_configured = true;
             }
 
+            /*
             var dt = $('#adsb_planes').DataTable();
 
             var prev_pos = {
@@ -378,6 +423,9 @@
             };
 
             dt.clear();
+            */
+
+            var rows = [];
 
             for (var d = 0; d < data['kismet.adsb.map.devices'].length; d++) {
                 try {
@@ -394,7 +442,18 @@
 
                     // console.log([icao, id, altitude, speed, heading, packets]);
 
+                    rows.push({
+                        icao: icao,
+                        id: id,
+                        alt: altitude,
+                        spd: speed,
+                        hed: heading,
+                        msgs: packets,
+                    });
+
+                    /*
                     dt.row.add([icao, id, kismet_units.renderHeightDistanceUnitless(altitude, 0), kismet_units.renderSpeedUnitless(speed, 0, true), heading.toFixed(0), packets]);
+                    */
 
                     if (lat == 0 || lon == 0)
                         continue;
@@ -540,6 +599,7 @@
                         ;
                     }
 
+                /*
                 dt.draw(0);
 
                 if (moused_icao != null) {
@@ -549,6 +609,10 @@
                 // Restore our scroll position
                 $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
                 $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+                */
+
+                console.log(rows);
+                adsbTabulator.setData(rows);
 
 
                 } catch (error) {

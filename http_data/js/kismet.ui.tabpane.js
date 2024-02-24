@@ -61,6 +61,10 @@ exports.AddTab = function(options, group="south") {
         options.activateCallback = null;
     }
 
+    if (!('deactivateCallback' in options)) { 
+        options.deactivateCallback = null;
+    }
+
     options.expanded = false;
 
     if (group in tabholders) {
@@ -188,6 +192,17 @@ function populateList(div, group) {
     div.tabs({
         heightStyle: 'fill',
         activate: function(e, ui) {
+            var oldid = kismet.getStorage(`kismet.base.${group}.last_tab`, null);
+            if (oldid != null) {
+                for (var c of tabholders[group].TabItems) { 
+                    if (`#${c.id}` == oldid) { 
+                        if (c.deactivateCallback != null) { 
+                            c.deactivateCallback();
+                        }
+                    }
+                }
+            }
+
             var id = $('a', ui.newTab).attr('href');
             kismet.putStorage(`kismet.base.${group}.last_tab`, id);
             for (var c of tabholders[group].TabItems) { 
@@ -201,7 +216,11 @@ function populateList(div, group) {
     });
 
     var lasttab = kismet.getStorage(`kismet.base.${group}.last_tab`, '');
-    $('a[href="' + lasttab + '"]', div).click();
+    if (lasttab == `#${tabholders[group].TabItems[0].id}` && tabholders[group].TabItems[0].activateCallback != null) {
+        tabholders[group].TabItems[0].activateCallback();
+    } else {
+        $('a[href="' + lasttab + '"]', div).click();
+    }
 }
 
 function MoveToExpanded(tab, group) {

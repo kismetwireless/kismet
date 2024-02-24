@@ -1,6 +1,12 @@
 
 "use strict";
 
+kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'METER') {
+        return '<i class="fa fa-house-chimney-user"></i>';
+    }
+});
+
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
     name: "RF Meter Devices",

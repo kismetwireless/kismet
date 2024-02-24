@@ -5,6 +5,13 @@ var local_uri_prefix = "";
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
+kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'ADSB') {
+        return '<i class="fa fa-plane"></i>';
+    }
+});
+
+
 /* Highlight ADSB devices */
 kismet_ui.AddDeviceRowHighlight({
     name: "ADSB Government",

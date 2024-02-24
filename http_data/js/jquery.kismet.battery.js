@@ -57,7 +57,7 @@
             else if (p < 90)
                 baticon.addClass("fa-battery-3");
             else
-                baticon.addClass("fa-battery-4");
+                baticon.addClass("fa-battery-full");
         } else if (c === 'discharging') {
             batoverlay.hide();
 
@@ -96,13 +96,13 @@
         } else if (c === 'charged') {
             batoverlay.show();
             batoverlay.removeClass("battery-blink")
-            baticon.addClass("fa-battery-4");
+            baticon.addClass("fa-battery-full");
             timetext.text("Charged");
             timetext.show();
         } else {
             timetext.text("Unknown");
             timetext.show();
-            baticon.addClass("fa-battery-0");
+            baticon.addClass("fa-battery-empty");
             batoverlay.hide();
         }
 
@@ -133,13 +133,14 @@
             });
 
             baticon = $('<i>', {
-                class: "batpower fa fa-stack-1x fa-refresh fa-spin",
+                class: "fa fa-stack-1x fa-refresh fa-spin",
+                style: "font-size: 14pt;"
             });
 
             batholder.append(baticon);
 
             batoverlay = $('<i>', {
-                class: "batpoweroverlay fa fa-stack-1x fa-bolt fa-inverse"
+                class: "fa fa-stack-1x fa-bolt fa-inverse"
             });
             batholder.append(batoverlay);
             batoverlay.hide();

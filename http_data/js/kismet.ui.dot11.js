@@ -216,6 +216,25 @@ export const CryptToHumanReadable = (cryptset) => {
     return ret.join(" ");
 };
 
+kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'IEEE802.11') {
+
+        if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi AP') {
+            return '<i class="fa fa-wifi"></i>';
+        }
+
+        if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi Client') {
+            return '<i class="fa fa-computer"></i>';
+        }
+
+        if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi Bridged') {
+            return '<i class="fa fa-ethernet"></i>';
+        }
+
+        return '<i class="fa fa-wifi"></i>';
+    }
+});
+
 kismet_ui.AddDeviceView("Wi-Fi Access Points", "phydot11_accesspoints", -10000, "Wi-Fi");
 
 kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
@@ -309,95 +328,76 @@ kismet_ui.AddDeviceRowHighlight({
 });
 
 kismet_ui.AddDeviceColumn('wifi_clients', {
-    sTitle: 'Clients',
-    field: 'dot11.device/dot11.device.num_associated_clients',
-    description: 'Related Wi-Fi devices (associated and bridged)',
-    width: '35px',
-    sClass: "dt-body-right",
+    'title': 'Clients',
+    'description': 'Related Wi-Fi devices (associated and bridged), observed from packets',
+    'field': 'dot11.device/dot11.device.num_associated_clients',
+    'sortable': true,
+    'alignment': 'right',
 });
 
 kismet_ui.AddDeviceColumn('wifi_last_bssid', {
-    sTitle: 'BSSID',
-    field: 'dot11.device/dot11.device.last_bssid',
-    description: 'Last associated BSSID',
-    width: '80px',
-    sortable: true,
-    searchable: true,
-    renderfunc: function(d, t, r, m) {
+    'title': 'BSSID',
+    'description': 'Last associated BSSID',
+    'field': 'dot11.device/dot11.device.last_bssid',
+    'sortable': true,
+    'searchable': true,
+    'render': (data, row, cell, onrender, aux) => {
         try {
-            if (d == 0)
+            if (data == 0 || data === '00:00:00:00:00:00')
                 return '<i>n/a</i>';
         } catch (e) {
             ;
         }
 
-        return kismet.censorMAC(d);
-    }
-});
-
-kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
-    sTitle: 'Uptime',
-    field: 'dot11.device/dot11.device.bss_timestamp',
-    description: 'Estimated device uptime (from BSS timestamp)',
-    width: '5em;',
-    sortable: true,
-    searchable: true,
-    width: "10em",
-    visible: false, // Off by default
-    renderfunc: function(d, t, r, m) {
-        return kismet_ui_base.renderUsecTime(d, t, r, m);
+        return kismet.censorMAC(data);
     },
 });
 
-// Hidden column to fetch qbss state
-kismet_ui.AddDeviceColumn('column_qbss_hidden', {
-    sTitle: 'qbss_available',
-    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss',
-    name: 'qbss_available',
-    searchable: false,
-    visible: false,
-    selectable: false,
-    orderable: false
+kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
+    'title': 'Uptime',
+    'description': 'Estimated device uptime (from BSS timestamp)',
+    'field': 'dot11.device/dot11.device.bss_timestamp',
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        return kismet_ui_base.renderUsecTime(data);
+    },
 });
 
 kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
-    sTitle: 'QBSS Chan Usage',
-    // field: 'dot11.device/dot11.device.bss_timestamp',
-    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
-    description: '802.11e QBSS channel utilization',
-    sortable: true,
-    searchable: true,
-    visible: false,
-    width: "100px",
-    renderfunc: function(d, t, r, m) {
-        var perc = "n/a";
+    'title': 'QBSS Channel Usage',
+    'description': 'Reported channel utilization (802.11e QBSS)',
+    'field': 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
+    'fields': ['dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss'],
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        onrender(() => {
+            var perc = "n/a";
 
-        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
-            if (d == 0)
-                perc = "0%";
-            else
-                perc = Number.parseFloat(d).toPrecision(4) + "%";
-        }
+            if (row['dot11.advertisedssid.dot11e_qbss'] == 1) {
+                if (data == 0)
+                    perc = "0%";
+                else
+                    perc = Number.parseFloat(data).toPrecision(4) + "%";
+            }
 
-        return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + d + '%"></div></div>';
-    }
+            $(cell.getElement()).html(`<div class="percentage-border"><span class="percentage-text">${perc}</span><div class="percentage-fill" style="width:${data}%"></div></div>`);
+        });
+    },
 });
 
 kismet_ui.AddDeviceColumn('wifi_qbss_clients', {
-    sTitle: 'QBSS #',
-    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss_stations',
-    description: '802.11e QBSS user count',
-    sortable: true,
-    visible: false,
-    width: "4em",
-    sClass: "dt-body-right",
-    renderfunc: function(d, t, r, m) {
-        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
-            return d;
+    'title': 'QBSS #',
+    'description': 'Associated client count (reported by AP via 802.11e QBSS)',
+    'field': 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss_stations',
+    'fields': ['dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss'],
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (row['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            return data;
+        } else {
+            return '<i>n/a</i>';
         }
-
-        return "<i>n/a</i>"
-    }
+    },
 });
 
 /* Custom device details for dot11 data */
@@ -2461,459 +2461,710 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     },
 });
 
-var ssid_element;
 
-var SsidColumns  =[];
+var ssid_columnlist = new Map();
+var ssid_columnlist_hidden = new Map();
 
-export const AddSsidColumn = (id, options) => {
-    let coldef = {
-        kismetId: id,
-        sTitle: options.sTitle,
-        field: null,
-        fields: null,
+var AddSsidColumn = (id, options) => {
+    var coldef = {
+        'kismetId': id,
+        'title': options.title,
+        'description': options.description,
+        'field': null,
+        'fields': null,
+        'sortfield': null,
+        'render': null,
+        'auxdata': null,
+        'mutate': null,
+        'auxmdata': null,
+        'sortable': false,
+        'searchable': false,
+        'width': null,
+        'alignment': null,
     };
 
-    if ('field' in options) {
-        coldef.field = options.field;
-    }
+    if ('field' in options)
+        coldef['field'] = options['field'];
 
-    if ('fields' in options) {
-        coldef.fields = options.fields;
-    }
+    if ('fields' in options)
+        coldef['fields'] = options['fields'];
 
-    if ('description' in options) {
-        coldef.description = options.description;
-    }
-
-    if ('name' in options) {
-        coldef.name = options.name;
-    }
-
-    if ('orderable' in options) {
-        coldef.bSortable = options.orderable;
-    }
-
-    if ('visible' in options) {
-        coldef.bVisible = options.visible;
+    if ('sortfield' in options) {
+        coldef['sortfield'] = options['sortfield'];
     } else {
-        coldef.bVisible = true;
-    }
-
-    if ('selectable' in options) {
-        coldef.user_selectable = options.selectable;
-    } else {
-        coldef.user_selectable = true;
-    }
-
-    if ('searchable' in options) {
-        coldef.bSearchable = options.searchable;
+        coldef['sortfield'] = coldef['field'];
     }
 
     if ('width' in options) {
-        coldef.width = options.width;
+        coldef['width'] = options['width'];
     }
 
-    if ('sClass' in options) {
-        coldef.sClass = options.sClass;
+    if ('alignment' in options) {
+        coldef['alignment'] = options['alignment'];
     }
 
-    var f;
-    if (typeof(coldef.field) === 'string') {
-        var fs = coldef.field.split('/');
-        f = fs[fs.length - 1];
-    } else if (Array.isArray(coldef.field)) {
-        f = coldef.field[1];
+    if ('render' in options) {
+        coldef['render'] = options['render'];
+    } else {
+        coldef['render'] = (data, rowdata, cell, auxdata) => {
+            return data;
+        }
     }
 
-    coldef.mData = function(row, type, set) {
-        return kismet.ObjectByString(row, f);
-    }
+    if ('auxdata' in options)
+        coldef['auxdata'] = options['auxdata'];
 
-    if ('renderfunc' in options) {
-        coldef.mRender = options.renderfunc;
-    }
+    if ('sortable' in options)
+        coldef['sortable'] = options['sortable'];
 
-    if ('drawfunc' in options) {
-        coldef.kismetdrawfunc = options.drawfunc;
-    }
-
-    SsidColumns.push(coldef);
+    ssid_columnlist.set(id, coldef);
 }
 
-export const GetSsidColumns = (showall = false) => {
-    var ret = new Array();
+var AddHiddenSsidColumn = (coldef) => {
+    var f;
 
-    var order = kismet.getStorage('kismet.ssidtable.columns', []);
-
-    if (order.length == 0) {
-        // sort invisible columns to the end
-        for (var i in SsidColumns) {
-            if (!SsidColumns[i].bVisible)
-                continue;
-            ret.push(SsidColumns[i]);
-        }
-
-        for (var i in SsidColumns) {
-            if (SsidColumns[i].bVisible)
-                continue;
-            ret.push(SsidColumns[i]);
-        }
-
-        return ret;
+    if (typeof(coldef['field']) === 'string') {
+        var fs = coldef['field'].split("/");
+        f = fs[fs.length - 1];
+    } else if (Array.isArray(coldef['field'])) {
+        f = coldef['field'][1];
     }
 
-    for (var oi in order) {
-        var o = order[oi];
+    ssid_columnlist_hidden.set(f, coldef);
+}
 
-        if (!o.enable)
-            continue;
+function GenerateSsidFieldList() {
+    var retcols = new Map();
 
-        var sc = SsidColumns.find(function(e, i, a) {
-            if (e.kismetId === o.id)
-                return true;
-            return false;
-        });
-
-        if (sc != undefined && sc.user_selectable) {
-            sc.bVisible = true;
-            ret.push(sc);
+    for (const [k, v] of ssid_columnlist_hidden) {
+        if (typeof(v['field']) === 'string') {
+            retcols.set(v, v['field']);
+        } else if (Array.isArray(v['field'])) {
+            retcols.set(v['field'][1], v);
         }
-    }
+    };
 
-    // Fallback if no columns were selected somehow
-    if (ret.length == 0) {
-        // sort invisible columns to the end
-        for (var i in SsidColumns) {
-            if (!SsidColumns[i].bVisible)
-                continue;
-            ret.push(SsidColumns[i]);
-        }
-
-        for (var i in SsidColumns) {
-            if (SsidColumns[i].bVisible)
-                continue;
-            ret.push(SsidColumns[i]);
-        }
-
-        return ret;
-    }
-
-    if (showall) {
-        for (var sci in SsidColumns) {
-            var sc = SsidColumns[sci];
-
-            var rc = ret.find(function(e, i, a) {
-                if (e.kismetId === sc.kismetId)
-                    return true;
-                return false;
-            });
-
-            if (rc == undefined) {
-                sc.bVisible = false;
-                ret.push(sc);
+    for (const [k, c] of ssid_columnlist) {
+        if (c['field'] != null) {
+            if (typeof(c['field']) === 'string') {
+                retcols.set(c['field'], c['field']);
+            } else if (Array.isArray(c['field'])) {
+                retcols.set(c['field'][1], c['field']);
             }
         }
 
-        return ret;
-    }
+        if (c['fields'] != null) {
+            for (const cf of c['fields']) {
+                if (typeof(cf) === 'string') {
+                    retcols.set(cf, cf);
+                } else if (Array.isArray(cf)) {
+                    retcols.set(cf[1], cf);
+                }
 
-    for (var sci in SsidColumns) {
-        if (!SsidColumns[sci].user_selectable) {
-            ret.push(SsidColumns[sci]);
+            }
         }
     }
 
-    return ret;
-}
+    var ret = [];
 
-export const GetSsidColumnMap = (columns) => {
-    var ret = {};
-
-    for (var ci in columns) {
-        var fields = new Array();
-
-        if ('field' in columns[ci])
-            fields.push(columns[ci]['field']);
-
-        if ('fields' in columns[ci])
-            fields.push.apply(fields, columns[ci]['fields']);
-
-        ret[ci] = fields;
-    }
+    for (const [k, v] of retcols) {
+        ret.push(v);
+    };
 
     return ret;
 }
 
-export const GetSsidFields = (selected) => {
-    var rawret = new Array();
-    var cols = GetSsidColumns();
+function GenerateSsidTabulatorColumn(c) {
+    var col = {
+        'field': c['kismetId'],
+        'title': c['title'],
+        'formatter': (cell, params, onrender) => {
+            try {
+                return c['render'](cell.getValue(), cell.getRow().getData(), cell, onrender, c['auxdata']);
+            } catch (e) {
+                return cell.getValue();
+            }
+        },
+        'headerSort': c['sortable'],
+        /* Don't allow hiding alert columns
+        'headerContextMenu':  [ {
+            'label': "Hide Column",
+            'action': function(e, column) {
+                alerttable_prefs['columns'] = alerttable_prefs['columns'].filter(c => {
+                    return c !== column.getField();
+                });
+                SaveAlertTablePrefs();
 
-    for (var i in cols) {
-        if ('field' in cols[i])
-            rawret.push(cols[i]['field']);
+                alertTabulator.deleteColumn(column.getField())
+                .then(col => {
+                    ScheduleAlertSummary();
+                });
+            }
+        }, ],
+        */
+    };
 
-        if ('fields' in cols[i])
-            rawret.push.apply(rawret, cols[i]['fields']);
+    var colsettings = {};
+    if (c['kismetId'] in ssidtable_prefs['colsettings']) {
+        colsettings = ssidtable_prefs['colsettings'][c['kismetId']];
     }
 
-    // de-dupe
-    var ret = rawret.filter(function(item, pos, self) {
-        return self.indexOf(item) == pos;
-    });
+    if ('width' in colsettings) {
+        col['width'] = colsettings['width'];
+    } else if (c['width'] != null) {
+        col['width'] = c['width'];
+    }
 
-    return ret;
+    if (c['alignment'] != null)
+        col['hozAlign'] = c['alignment'];
+
+    return col;
+}
+
+/* Generate the columns for the devicelist tabulator format */
+function GenerateSsidColumns() {
+    var columns = [];
+
+    var columnlist = [];
+    if (ssidtable_prefs['columns'].length == 0) {
+        for (const [k, v] of ssid_columnlist) {
+            columnlist.push(k);
+        }
+    } else {
+        columnlist = ssidtable_prefs['columns'];
+    }
+
+    for (const k of columnlist) {
+        if (!ssid_columnlist.has(k)) {
+            continue;
+        }
+
+        const c = ssid_columnlist.get(k);
+
+        columns.push(GenerateSsidTabulatorColumn(c));
+    }
+
+    return columns;
 }
 
 var ssidTid = -1;
 
-function ScheduleSsidSummary() {
-    try {
-        if (kismet_ui.window_visible && ssid_element.is(":visible")) {
-            var dt = ssid_element.DataTable();
+var ssidtableHolder = null;
+var ssidtableElement = null;
+var ssidTabulator = null;
+var ssidTablePage = 0;
+var ssidTableTotal = 0;
+var ssidTableTotalPages = 0;
+var ssidTableRefreshBlock = false;
+var ssidtable_prefs = {};
+var ssidTableRefreshing = false;
 
-            // Save the state.  We can't use proper state saving because it seems to break
-            // the table position
-            kismet.putStorage('kismet.base.ssidtable.order', JSON.stringify(dt.order()));
-            kismet.putStorage('kismet.base.ssidtable.search', JSON.stringify(dt.search()));
-
-            dt.ajax.reload(function(d) { }, false);
-        }
-
-    } catch (_error) {
-        console.log(error);
-    }
-    
-    // Set our timer outside of the datatable callback so that we get called even
-    // if the ajax load fails
-    ssidTid = setTimeout(ScheduleSsidSummary, 2000);
+var CreateSsidTable = function(element) {
+    element.ready(function() { 
+        InitializeSsidTable(element);
+    });
 }
 
-var ssidtableHolder = null;
+function ScheduleSsidSummary() {
+    if (ssidTid != -1)
+        clearTimeout(ssidTid);
 
-function InitializeSsidTable(element) {
-    var cols = GetSsidColumns();
-    var colmap = GetSsidColumnMap(cols);
-    var fields = GetSsidFields();
+    ssidTid = setTimeout(ScheduleSsidSummary, 1000);
 
-    var json = {
-        fields: fields,
-        colmap: colmap,
-        datatable: true,
-    };
+    try {
+        if (!ssidTableRefreshing && ssidTabulator != null && kismet_ui.window_visible && ssidtableElement.is(":visible")) {
+            ssidTableRefreshing = true;
+
+            var pageSize = ssidTabulator.getPageSize();
+            if (pageSize == 0) {
+                throw new Error("Page size 0");
+            }
+
+            if (ssidTableRefreshBlock) {
+                throw new Error("refresh blocked");
+            }
+
+            var colparams = JSON.stringify({'fields': GenerateSsidFieldList()});
+
+            var postdata = {
+                "json": colparams,
+                "page": ssidTablePage,
+                "length": pageSize,
+            }
+
+            if (ssid_columnlist.has(ssidtable_prefs['sort']['column'])) {
+                var f = ssid_columnlist.get(ssidtable_prefs['sort']['column']);
+                if (f['sortfield'] != null) {
+                    if (typeof(f['sortfield']) === 'string') {
+                        postdata["sort"] = f['sortfield'];
+                    } else if (Array.isArray(f['sortfield'])) {
+                        postdata["sort"] = f['sortfield'][0];
+                    }
+                } else {
+                    if (typeof(f['field']) === 'string') {
+                        postdata["sort"] = f['sortfield'];
+                    } else if (Array.isArray(f['field'])) {
+                        postdata["sort"] = f['field'][0];
+                    }
+                }
+
+                postdata["sort_dir"] = ssidtable_prefs['sort']['dir'];
+            }
+
+            var searchterm = kismet.getStorage('kismet.ui.ssidview.search', "");
+            if (searchterm.length > 0) {
+                postdata["search"] = searchterm;
+            }
+
+            $.post(local_uri_prefix + `phy/phy80211/ssids/views/ssids.json`, postdata, 
+                function(data) { 
+                    ssidTableTotal = data["last_row"];
+                    ssidTableTotalPages = data["last_page"];
+
+                    // Sanitize the data
+                    if (!'data' in data) {
+                        throw new Error("Missing data in response");
+                    }
+                    var rdata = kismet.sanitizeObject(data["data"]);
+
+                    // Permute the data based on the field list and assign the fields to the ID names
+                    var procdata = [];
+
+                    for (const d of rdata) {
+                        var md = {};
+
+                        md['original_data'] = d;
+
+                        md['ssid_key'] = d['dot11.ssidgroup.hash'];
+
+                        for (const [k, c] of ssid_columnlist) {
+                            if (typeof(c['field']) === 'string') {
+                                var fs = c['field'].split("/");
+                                var fn = fs[fs.length - 1];
+                                if (fn in d)
+                                    md[c['kismetId']] = d[fn];
+                            } else if (Array.isArray(c['field'])) {
+                                if (c['field'][1] in d)
+                                    md[c['kismetId']] = d[c['field'][1]];
+                            }
+
+                            if (c['fields'] != null) {
+                                for (const cf of c['fields']) {
+                                    if (typeof(cf) === 'string') {
+                                        var fs = cf.split("/");
+                                        var fn = fs[fs.length - 1];
+                                        if (fn in d)
+                                            md[fn] = d[fn];
+                                    } else if (Array.isArray(cf)) {
+                                        if (fn[1] in d)
+                                            md[fn[1]] = d[fn[1]]
+                                    }
+
+                                }
+                            }
+
+                        }
+
+                        procdata.push(md);
+                    }
+
+                    ssidTabulator.replaceData(procdata);
+
+                    var paginator = $('#ssid-table .tabulator-paginator');
+                    paginator.empty();
+
+                    var firstpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'First',
+                        }).html("First")
+                    .on('click', function() {
+                        ssidTablePage = 0;
+                        return ScheduleSsidSummary();
+                    });
+                    if (ssidTablePage == 0) {
+                        firstpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(firstpage);
+
+                    var prevpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Prev',
+                        }).html("Prev")
+                    .on('click', function() {
+                        ssidTablePage = ssidTablePage - 1;
+                        return ScheduleSsidSummary();
+                    });
+                    if (ssidTablePage < 1) {
+                        prevpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(prevpage);
+
+                    var gen_closure = (pg, pgn) => {
+                        pg.on('click', () => {
+                            ssidTablePage = pgn;
+                            return ScheduleSsidSummary();
+                        });
+                    }
+
+                    var fp = ssidTablePage - 1;
+                    if (fp <= 1)
+                        fp = 1;
+                    var lp = fp + 4;
+                    if (lp > ssidTableTotalPages)
+                        lp = ssidTableTotalPages;
+                    for (let p = fp; p <= lp; p++) {
+                        var ppage = 
+                            $('<button>', {
+                                'class': 'tabulator-page',
+                                'type': 'button',
+                                'role': 'button',
+                                'aria-label': `${p}`,
+                            }).html(`${p}`);
+                        gen_closure(ppage, p - 1);
+                        if (ssidTablePage == p - 1) {
+                            ppage.attr('disabled', 'disabled');
+                        }
+                        paginator.append(ppage);
+                    }
+
+                    var nextpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Next',
+                        }).html("Next")
+                    .on('click', function() {
+                        ssidTablePage = ssidTablePage + 1;
+                        return ScheduleSsidSummary();
+                    });
+                    if (ssidTablePage >= ssidTableTotalPages - 1) {
+                        nextpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(nextpage);
+
+                    var lastpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Last',
+                        }).html("Last")
+                    .on('click', function() {
+                        ssidTablePage = ssidTableTotalPages - 1;
+                        return ScheduleSsidSummary();
+                    });
+                    if (ssidTablePage >= ssidTableTotalPages - 1) {
+                        lastpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(lastpage);
+                },
+                "json")
+                .always(() => {
+                    ssidTableRefreshing = false;
+                });
+        }
+
+    } catch (error) {
+        ssidTableRefreshing = false;
+    }
+    
+    return;
+}
+
+function CancelSsidSummary() {
+    clearTimeout(ssidTid);
+}
+
+function LoadSsidTablePrefs() {
+    ssidtable_prefs = kismet.getStorage('kismet.ui.ssidtable.prefs', {
+        "columns": [],
+        "colsettings": {},
+        "sort": {
+            "column": "",
+            "dir": "asc",
+        },
+    });
+
+    ssidtable_prefs = $.extend({
+        "columns": [],
+        "colsettings": {},
+        "sort": {
+            "column": "",
+            "dir": "asc",
+        }, 
+    }, ssidtable_prefs);
+}
+
+function SaveSsidTablePrefs() {
+    kismet.putStorage('kismet.ui.ssidtable.prefs', ssidtable_prefs);
+}
+
+var InitializeSsidTable = function(element) {
+    LoadSsidTablePrefs();
 
     ssidtableHolder = element;
 
-    if (ssid_element != null && $.fn.dataTable.isDataTable(ssid_element)) { 
-        ssid_element.DataTable().clear().destroy();
-        element.empty();
-    }
+    var searchterm = kismet.getStorage('kismet.ui.ssidview.search', "");
 
-    if ($('#ssids', element).length == 0) { 
-        ssid_element = 
-            $('<table>', {
-                id: 'ssids',
-                class: 'fixeddt stripe hover nowrap pageResize',
-                'cell-spacing': 0,
-                width: '100%',
-            });
-        element.append(ssid_element);
-    }
+    if ($('#center-ssid-extras').length == 0) {
+        var ssidviewmenu = $(`<input class="ssid_search" type="search" id="ssid_search" placeholder="Filter..." value="${searchterm}"></input>`);
+        $('#centerpane-tabs').append($('<div id="center-ssid-extras" style="position: absolute; right: 10px; top: 5px; height: 30px; display: flex;">').append(ssidviewmenu));
 
-    ssid_element
-        .DataTable({
-            destroy: true,
-
-            scrollResize: true,
-            pageResize: true,
-            serverSide: true,
-            processing: true,
-
-            dom: '<"viewselector">ftip',
-
-            deferRender: true,
-            lengthChange: false,
-
-            ajax: {
-                url: local_uri_prefix + "phy/phy80211/ssids/views/ssids.json",
-                data: {
-                    json: JSON.stringify(json)
-                },
-                method: 'POST',
-                timeout: 5000,
-            },
-            columns: cols,
-            columnDefs: [
-                { className: "dt_td", targets: "_all" },
-            ],
-            order: [ [ 0, "desc" ] ],
-            createdRow: function(row, data, index) {
-                row.id = data['dot11.ssidgroup.hash'];
-            },
-            drawCallback: function(settings) {
-                var dt = this.api();
-
-                dt.rows({
-                    page: 'current'
-                }).every(function(rowIdx, tableLoop, rowLoop) {
-                    for (var c in SsidColumns) {
-                        var col = SsidColumns[c];
-
-                        if (!('kismetdrawfunc') in col)
-                            continue;
-
-                        try {
-                            col.kismetdrawfunc(col, dt, this);
-                        } catch (_error) {
-                            // skip
-                        }
-                    }
-                });
-            },
+        $('#ssid_search').on('keydown', (evt) => {
+            var code = evt.charCode || evt.keyCode;
+            if (code == 27) {
+                $('#ssid_search').val('');
+            }
         });
 
-    var ssid_dt = ssid_element.DataTable();
+        $('#ssid_search').on('keyup', $.debounce(300, () => {
+            var searchterm = $('#ssid_search').val();
+            kismet.putStorage('kismet.ui.ssidview.search', searchterm);
+            ScheduleSsidSummary();
+        }));
+    }
 
-    // Restore the order
-    var saved_order = kismet.getStorage('kismet.base.ssidtable.order', "");
-    if (saved_order !== "")
-        ssid_dt.order(JSON.parse(saved_order));
+    if ($('#ssid-table', element).length == 0) { 
+        ssidtableElement =
+            $('<div>', {
+                id: 'ssid-table',
+                'cell-spacing': 0,
+                width: '100%',
+                height: '100%',
+            });
 
-    // Restore the search
-    var saved_search = kismet.getStorage('kismet.base.ssidtable.search', "");
-    if (saved_search !== "")
-        ssid_dt.search(JSON.parse(saved_search));
+        element.append(ssidtableElement);
+    }
 
-    // Set an onclick handler to spawn the device details dialog
-    $('tbody', ssid_element).on('click', 'tr', function () {
-        SsidDetailWindow(this.id);
-    } );
+    ssidTabulator = new Tabulator('#ssid-table', {
+        movableColumns: true,
+        columns: GenerateSsidColumns(),
 
-    $('tbody', ssid_element)
-        .on( 'mouseenter', 'td', function () {
-            var ssid_dt = ssid_element.DataTable();
+        // No loading animation/text
+        dataLoader: false,
 
-            if (typeof(ssid_dt.cell(this).index()) === 'Undefined')
-                return;
+        // Server-side filtering and sorting
+        sortMode: "remote",
+        filterMode: "remote",
 
-            var colIdx = ssid_dt.cell(this).index().column;
-            var rowIdx = ssid_dt.cell(this).index().row;
+        // Server-side pagination
+        pagination: true,
+        paginationMode: "remote",
 
-            // Remove from all cells
-            $(ssid_dt.cells().nodes()).removeClass('kismet-highlight');
-            // Highlight the td in this row
-            $('td', ssid_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
-        } );
+        // Override the pagination system to use our local counters, more occurs in
+        // the update timer loop to replace pagination
+        paginationCounter: function(pageSize, currentRow, currentPage, totalRows, totalPages) {
+            if (ssidTableTotal == 0) {
+                return "Loading..."
+            }
 
-    return ssid_dt;
-}
+            var frow = pageSize * ssidTablePage;
+            if (frow == 0)
+                frow = 1;
 
-function ActivateSsidTable() { 
-    InitializeSsidTable(ssidtableHolder);
+            var lrow = frow + pageSize;
+            if (lrow > ssidTableTotal) 
+                lrow = ssidTableTotal;
+
+            return `Showing rows ${frow} - ${lrow} of ${ssidTableTotal}`;
+        },
+
+        /*
+        rowFormatter: function(row) {
+            for (const ri of DeviceRowHighlights) {
+                if (!ri['enable'])
+                    continue;
+
+                try {
+                    if (ri['selector'](row.getData()['original_data'])) {
+                        row.getElement().style.backgroundColor = ri['color'];
+                    }
+                } catch (e) {
+                    ;
+                }
+            }
+        },
+        */
+
+        initialSort: [{
+            "column": ssidtable_prefs["sort"]["column"],
+            "dir": ssidtable_prefs["sort"]["dir"],
+        }],
+
+    });
+
+    // Get sort events to hijack for the custom query
+    ssidTabulator.on("dataSorted", (sorters) => {
+        if (sorters.length == 0)
+            return;
+
+        var mut = false;
+        if (sorters[0].field != ssidtable_prefs['sort']['column']) {
+            ssidtable_prefs['sort']['column'] = sorters[0].field;
+            mut = true;
+        }
+
+        if (sorters[0].dir != ssidtable_prefs['sort']['dir']) {
+            ssidtable_prefs['sort']['dir'] = sorters[0].dir;
+            mut = true;
+        }
+
+        if (mut) {
+            SaveSsidTablePrefs();
+            ScheduleSsidSummary();
+        }
+    });
+
+    // Disable refresh while a menu is open
+    ssidTabulator.on("menuOpened", function(component){
+        ssidTableRefreshBlock = true;
+    });
+
+    // Reenable refresh when menu is closed
+    ssidTabulator.on("menuClosed", function(component){
+        ssidTableRefreshBlock = false;
+    });
+
+
+    // Handle row clicks
+    ssidTabulator.on("rowClick", (e, row) => {
+        SsidDetailWindow(row.getData()['ssid_key']);
+    });
+
+    ssidTabulator.on("columnMoved", function(column, columns){
+        var cols = [];
+
+        for (const c of columns) {
+            cols.push(c.getField());
+        }
+
+        ssidtable_prefs['columns'] = cols;
+       
+        SaveSsidTablePrefs();
+
+    });
+
+    ssidTabulator.on("columnResized", function(column){
+        if (column.getField() in ssidtable_prefs['colsettings']) {
+            ssidtable_prefs['colsettings'][column.getField()]['width'] = column.getWidth();
+        } else {
+            ssidtable_prefs['colsettings'][column.getField()] = {
+                'width': column.getWidth(),
+            }
+        }
+
+        SaveSsidTablePrefs();
+    });
+
+    ssidTabulator.on("tableBuilt", function() {
+        ScheduleSsidSummary();
+    });
 }
 
 kismet_ui_tabpane.AddTab({
     id: 'dot11_ssids',
     tabTitle: 'SSIDs',
     createCallback: function(div) {
-        InitializeSsidTable(div);
-        ScheduleSsidSummary();
+        // InitializeSsidTable(div);
+        ssidtableHolder = div;
     },
-    activateCallback: function() { 
-        ActivateSsidTable();
+    activateCallback: function() {
+        ssidtableHolder.ready(() => {
+            InitializeSsidTable(ssidtableHolder);
+            $('#center-ssid-extras').show();
+        });
+    },
+    deactivateCallback: function() {
+        $('#center-ssid-extras').hide();
     },
     priority: -1000,
 }, 'center');
 
 AddSsidColumn('col_ssid', {
-    sTitle: 'SSID',
-    field: 'dot11.ssidgroup.ssid',
-    name: 'SSID',
-    // width: '250px',
-    renderfunc: function(d, t, r, m) {
-        if (d.length == 0)
+    'title': 'SSID',
+    'description': 'SSID',
+    'field': 'dot11.ssidgroup.ssid',
+    'sortable': true,
+    'searchable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (data.length == 0) {
             return "<i>Cloaked or Empty SSID</i>";
-        else if (/^ +$/.test(d))
+        } else if (/^ +$/.test(data)) {
             return "<i>Blank SSID</i>";
-        return kismet.censorString(d);
+        }
+
+        return kismet.censorString(data);
     },
 });
 
 AddSsidColumn('col_ssid_len', {
-    sTitle: 'Length',
-    field: 'dot11.ssidgroup.ssid_len',
-    name: 'SSID Length',
-    width: '10px',
-    sClass: "dt-body-right",
+    'title': 'Length',
+    'description': 'SSID name length in bytes',
+    'field': 'dot11.ssidgroup.ssid_len',
+    'sortable': true,
+    'alignment': 'right',    
 });
 
-AddSsidColumn('column_time', {
-    sTitle: 'Last Seen',
-    field: 'dot11.ssidgroup.last_time',
-    description: 'Last-seen time',
-    width: '200px',
-    renderfunc: function(d, t, r, m) {
-        return kismet_ui_base.renderLastTime(d, t, r, m);
+AddSsidColumn('last_seen', {
+    'title': 'Last Seen',
+    'description': 'Last seen time',
+    'field': 'dot11.ssidgroup.last_time',
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        return (new Date(data * 1000).toString()).substring(4, 25);
     },
-    searchable: true,
-    visible: true,
-    orderable: true,
 });
 
-AddSsidColumn('column_first_time', {
-    sTitle: 'First Seen',
-    field: 'dot11.ssidgroup.first_time',
-    description: 'First-seen time',
-    renderfunc: function(d, t, r, m) {
-        return kismet_ui_base.renderLastTime(d, t, r, m);
+AddSsidColumn('first_seen', {
+    'title': 'First Seen',
+    'description': 'First seen time',
+    'field': 'dot11.ssidgroup.first_time',
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        return (new Date(data * 1000).toString()).substring(4, 25);
     },
-    searchable: true,
-    visible: false,
-    orderable: true,
 });
 
-AddSsidColumn('column_crypt', {
-    sTitle: 'Encryption',
-    field: 'dot11.ssidgroup.crypt_string',
-    description: 'Encryption',
-    searchable: true,
-    orderable: true,
+AddSsidColumn('crypt', {
+    'title': 'Encryption',
+    'description': 'Advertised encryption settings',
+    'field': 'dot11.ssidgroup.crypt_string',
+    'seachable': true,
+    'sortable': true,
 });
 
-AddSsidColumn('column_probing', {
-    sTitle: '# Probing',
-    field: 'dot11.ssidgroup.probing_devices_len',
-    description: 'Count of probing devices',
-    orderable: true,
-    width: '40px',
-    sClass: "dt-body-right",
+AddSsidColumn('ssid_probing', {
+    'title': '# Probing',
+    'description': 'Number of devices observed probing for this SSID',
+    'field': 'dot11.ssidgroup.probing_devices_len',
+    'sortable': true,
+    'alignment': 'right',    
 });
 
-AddSsidColumn('column_responding', {
-    sTitle: '# Responding',
-    field: 'dot11.ssidgroup.responding_devices_len',
-    description: 'Count of responding devices',
-    orderable: true,
-    width: '40px',
-    sClass: "dt-body-right",
+AddSsidColumn('ssid_responding', {
+    'title': '# Responding',
+    'description': 'Number of devices observed responding for this SSID',
+    'field': 'dot11.ssidgroup.responding_devices_len',
+    'sortable': true,
+    'alignment': 'right',    
 });
 
-AddSsidColumn('column_advertising', {
-    sTitle: '# Advertising',
-    field: 'dot11.ssidgroup.advertising_devices_len',
-    description: 'Count of advertising devices',
-    orderable: true,
-    width: '40px',
-    sClass: "dt-body-right",
+AddSsidColumn('ssid_advertising', {
+    'title': '# Advertising',
+    'description': 'Number of devices observed advertising for this SSID',
+    'field': 'dot11.ssidgroup.advertising_devices_len',
+    'sortable': true,
+    'alignment': 'right',    
 });
 
-AddSsidColumn('column_hash', {
-    sTitle: 'Hash key',
-    field: 'dot11.ssidgroup.hash',
-    description: 'Hash',
-    searchable: false,
-    visible: false,
-    orderable: false,
-});
+AddHiddenSsidColumn({'field': 'dot11.ssidgroup.hash'});
 
 
 // SSID panel
@@ -2923,7 +3174,7 @@ const AddSsidDetail = function(id, title, pos, options) {
     kismet_ui.AddDetail(SsidDetails, id, title, pos, options);
 }
 
-export const SsidDetailWindow = (key) => {
+const SsidDetailWindow = (key) => {
     kismet_ui.DetailWindow(key, "SSID Details", 
         {
             storage: {},

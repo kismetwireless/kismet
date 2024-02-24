@@ -20,10 +20,6 @@
 <script src="js/simple-expand.min.js"></script>
 <script src="js/jqueryui-editable.min.js"></script>
 
-<script src="js/datatables.min.js"></script>
-<script src="js/dataTables.scrollResize.min.js"></script>
-<script src="js/dataTables.pageResize.js"></script>
-
 <script src="js/jquery.sparkline.min.js"></script>
 
 <script src="js/raphael.min.js"></script>
@@ -60,7 +56,14 @@
 <script src="js/jquery.kismet.gps.js"></script>
 <script src="js/jquery.kismet.packetrate.js"></script>
 
-<link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
+<script src="js/tabulator.min.js"></script>
+<script src="js/jquery.ui.position.min.js"></script>
+<script src="js/jquery.debounce.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="css/fontawesome.min.css">
+<link rel="stylesheet" type="text/css" href="css/regular.min.css">
+<link rel="stylesheet" type="text/css" href="css/solid.min.css">
+<link rel="stylesheet" type="text/css" href="css/v4-shims.min.css">
 
 <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
 <link rel="stylesheet" type="text/css" href="css/morris.css" />
@@ -152,8 +155,6 @@ if (typeof document.addEventListener === "undefined" || hidden === undefined) {
 
 function load_main_ui() {
     load_dynamics().then((res) => {
-    // Don't let DT make alerts
-    $.fn.dataTableExt.sErrMode = "console";
 
     $('#pm_menu').pushmenu({ button : "#pm_open" });
 

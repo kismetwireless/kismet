@@ -1,6 +1,12 @@
 
 "use strict";
 
+kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'RFSENSOR') {
+        return '<i class="fa fa-gauge-high"></i>';
+    }
+});
+
 /* Highlight rtl devices */
 kismet_ui.AddDeviceRowHighlight({
     name: "Sensor Devices",

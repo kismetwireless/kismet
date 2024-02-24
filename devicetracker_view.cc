@@ -550,6 +550,8 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     auto total_sz_elem = std::make_shared<tracker_element_uint64>();
     auto filtered_sz_elem = std::make_shared<tracker_element_uint64>();
 
+    auto max_page_elem = std::make_shared<tracker_element_uint64>();
+
     // Output device list, should be copied into for final output
     auto output_devices_elem = std::make_shared<tracker_element_vector>();
 
@@ -596,6 +598,42 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         // Extract the column number -> column fieldpath data
         auto column_number_map = con->json()["colmap"];
 
+        // Generic pagination
+        auto start_k = con->http_variables().find("page");
+        if (start_k != con->http_variables().end()) {
+            in_window_start = string_to_n<unsigned int>(start_k->second);
+
+            auto length_k = con->http_variables().find("length");
+            if (length_k != con->http_variables().end()) {
+                in_window_len = string_to_n<unsigned int>(length_k->second);
+
+                in_window_start *= in_window_len;
+            } else {
+                length_k = con->http_variables().find("size");
+                if (length_k != con->http_variables().end())
+                    in_window_len = string_to_n<unsigned int>(length_k->second);
+
+                in_window_start *= in_window_len;
+            }
+
+            // Set the window elements for datatables
+            start_elem->set(in_window_start);
+            dt_draw_elem->set(in_dt_draw);
+
+            // Set up the datatables wrapper
+            wrapper_elem = std::make_shared<tracker_element_string_map>();
+            transmit = wrapper_elem;
+
+            wrapper_elem->insert("data", output_devices_elem);
+            wrapper_elem->insert("last_page", max_page_elem);
+            wrapper_elem->insert("last_row", filtered_sz_elem);
+            wrapper_elem->insert("total_row", total_sz_elem);
+
+            // We transmit the wrapper elem
+            transmit = wrapper_elem;
+        } 
+
+        // Handle legacy datatable otpions, if datatable=true
         if (con->json().value("datatable", false)) {
             // Extract from the raw postvars 
             auto start_k = con->http_variables().find("start");
@@ -670,6 +708,28 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
             // We transmit the wrapper elem
             transmit = wrapper_elem;
+        } else {
+            // Otherwise handle generic sort options
+            auto sort_k = con->http_variables().find("sort");
+            if (sort_k != con->http_variables().end()) {
+                order_field = tracker_element_summary(sort_k->second).resolved_path;
+
+                auto dir_k = con->http_variables().find("sort_dir");
+                if (dir_k != con->http_variables().end() && dir_k->second == "asc")
+                    in_order_direction = 1;
+                else
+                    in_order_direction = 0;
+            }
+
+            auto search_k = con->http_variables().find("search");
+            if (search_k != con->http_variables().end())
+                search_term = search_k->second;
+
+            // Search every field we return
+            if (search_term.length() != 0) 
+                for (const auto& svi : summary_vec)
+                    search_paths.push_back(svi->resolved_path);
+
         }
     } catch (const std::exception& e) {
         con->set_status(400);
@@ -725,6 +785,10 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // Apply the filtered length
     filtered_sz_elem->set(next_work_vec->size());
 
+    if (in_window_len > 0) {
+        max_page_elem->set(ceil(((float) next_work_vec->size()) / in_window_len));
+    }
+
     // Slice from the beginning of the list
     if (in_window_start >= next_work_vec->size()) 
         in_window_start = 0;
@@ -743,7 +807,9 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // Update the end
     length_elem->set(ei - si);
 
-    if (in_order_column_num.length() && order_field.size() > 0) {
+    // if (in_order_column_num.length() && order_field.size() > 0) {
+    
+    if (order_field.size() > 0) {
         std::stable_sort(
 #if defined(HAVE_CPP17_PARALLEL)
             std::execution::par_unseq,
@@ -776,6 +842,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         final_devices_vec->push_back(*i);
         output_devices_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
     }
+
 
     // If the transmit wasn't assigned to a wrapper...
     if (transmit == nullptr)

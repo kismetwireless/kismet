@@ -128,6 +128,8 @@ public:
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(serial_time, uint64_t, time_t, time_t, serial_time);
 
+    __Proxy(last_value, int64_t, int64_t, int64_t, last_value);
+
     __ProxyTrackable(minute_vec, tracker_element_vector_double, minute_vec);
     __ProxyTrackable(hour_vec, tracker_element_vector_double, hour_vec);
     __ProxyTrackable(day_vec, tracker_element_vector_double, day_vec);
@@ -152,6 +154,12 @@ public:
         int last_min_bucket = (ltime / 60) % 60;
         // The hour of the day the last known data would go in
         int last_hour_bucket = (ltime / 3600) % 24;
+
+        if (in_time == ltime) {
+            set_last_value(m_agg.combine_element(get_last_value(), in_s));
+        } else {
+            set_last_value(in_s);
+        }
 
         // Allow backfilling w/in the past minute because packets might come out-of-order
         if (in_time < ltime) {
@@ -367,6 +375,8 @@ protected:
         register_field("kismet.common.rrd.last_time", "last time updated", &last_time);
         register_field("kismet.common.rrd.serial_time", "timestamp of serialization", &serial_time);
 
+        register_field("kismet.common.rrd.last_value", "most recent value in rrd", &last_value);
+
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
         register_field("kismet.common.rrd.hour_vec", "past hour values per minute", &hour_vec);
         register_field("kismet.common.rrd.day_vec", "past day values per hour", &day_vec);
@@ -419,6 +429,8 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> serial_time;
+
+    std::shared_ptr<tracker_element_int64> last_value;
 
     std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<tracker_element_vector_double> hour_vec;
@@ -490,6 +502,8 @@ public:
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(serial_time, uint64_t, time_t, time_t, serial_time);
 
+    __Proxy(last_value, int64_t, int64_t, int64_t, last_value);
+
     void add_sample(int64_t in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_minute_rrd add_sample");
 
@@ -501,6 +515,12 @@ public:
 
         // The second slot for the last time
         int last_sec_bucket = ltime % 60;
+
+        if (in_time == ltime) {
+            set_last_value(agg.combine_element(get_last_value(), in_s));
+        } else {
+            set_last_value(in_s);
+        }
 
         // Allow backfilling w/in the past minute because packets might come out-of-order
         if (in_time < ltime) {
@@ -576,6 +596,8 @@ protected:
         register_field("kismet.common.rrd.last_time", "last time updated", &last_time);
         register_field("kismet.common.rrd.serial_time", "time of serialization", &serial_time);
 
+        register_field("kismet.common.rrd.last_value", "last value of rrd", &last_value);
+
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
 
         second_entry_id = 
@@ -607,6 +629,7 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> serial_time;
+    std::shared_ptr<tracker_element_int64> last_value;
     std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<tracker_element_int64> blank_val;
 

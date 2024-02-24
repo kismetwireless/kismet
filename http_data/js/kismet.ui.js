@@ -97,7 +97,7 @@ exports.BuildDeviceViewSelector = function(element) {
     if (selector.length == 0) { 
         selector = $('<select>', {
             name: 'devices_views_select',
-            id: 'devices_views_select'
+            id: 'devices_views_select',
         });
         insert_selector = true;
     } else { 
@@ -144,13 +144,8 @@ exports.BuildDeviceViewSelector = function(element) {
             .addClass("selectoroverflow");
 
         selector.on("selectmenuselect", function(evt, elem) {
-            console.log("selected", elem.item.value);
             kismet.putStorage('kismet.ui.deviceview.selected', elem.item.value);
-
-            if (device_dt != null) {
-                device_dt.ajax.url(local_uri_prefix + "devices/views/" + elem.item.value + "/devices.json");
-                ScheduleDeviceSummary();
-            }
+            ScheduleDeviceSummary();
         });
     }
 
@@ -160,9 +155,9 @@ exports.BuildDeviceViewSelector = function(element) {
 var existing_views = {};
 var view_list_updater_tid = 0;
 
-function deviceview_selector_dynamic_update() {
+function ScheduleDeviceViewListUpdate() {
     clearTimeout(view_list_updater_tid);
-    view_list_updater_tid = setTimeout(deviceview_selector_dynamic_update, 5000);
+    view_list_updater_tid = setTimeout(ScheduleDeviceViewListUpdate, 5000);
 
     if (!exports.window_visible)
         return;
@@ -227,7 +222,8 @@ function deviceview_selector_dynamic_update() {
             });
         });
 }
-deviceview_selector_dynamic_update();
+
+ScheduleDeviceViewListUpdate();
 
 // List of datatable columns we have available
 var DeviceColumns = new Array();
@@ -235,98 +231,130 @@ var DeviceColumns = new Array();
 // Device row highlights, consisting of fields, function, name, and color
 var DeviceRowHighlights = new Array();
 
-/* Add a jquery datatable column that the user can pick from, with various
- * options:
+/* Add a column to the device list which is called by the table renderer 
  *
- * sTitle: datatable column title
- * name: datatable 'name' field (optional)
- * field: Kismet field path, array pair of field path and name, array of fields,
- *  or a function returning one of the above.
- * fields: Multiple fields.  When multiple fields are defined, ONE field MUST be defined in the
- *  'field' parameter.  Additional multiple fields may be defined in this parameter.
- * renderfunc: string name of datatable render function, taking DT arguments
- *  (data, type, row, meta), (optional)
- * drawfunc: string name of a draw function, taking arguments:
- *  dyncolumn - The dynamic column (this)
- *  datatable - A DataTable() object of the table we're operating on
- *  row - The row we're operating on, which should be visible
- *  This will be called during the drawCallback
- *  stage of the table, on visible rows. (optional)
- */
-exports.AddDeviceColumn = function(id, options) {
+ * The formatter should return an object, and is given the cell content and 
+ * row content.
+ *
+ * Formatters define the columns they pull - multiple fields can be added as 
+ * invisible helpers for the current column.
+ *
+ * Required options:
+ * 'title': Column title
+ * 'description': Description for column picker
+ * 'field': Primary field (as single field or Kismet alias array)
+ *
+ * Optional style options:
+ * 'width': Percentage of total column, or pixel width
+ * 'alignment': Text alignment ('leftl', 'center', 'right')
+ * 'sortable': boolean value to enable sorting on this field
+ *
+ * Optional functional options:
+ * 'searchable': Field is included in searches
+ * 'fields': Array of optional fields (as single or Kismet alias array); additional fields are used 
+ *           by some column renderers to process additional information or to ensure that additional
+ *           fields are available; for example the 'channel' column utilizes additional fields to ensure
+ *           the presence of the frequency and phyname fields required to render channels intelligently
+ *           if the basic info is not available.
+ * 'sortfield': Field used for sorting on this column; by default, this is the field passed
+ *              as 'field'
+ * 'render': Render function that accepts field data, row data, raw cell, an onrender callback 
+ *           for manipulating the cell once the dom has rendered, and optional parameter
+ *           data, and returns a formatted result.
+ * 'auxdata': Optional parameter data passed to the render function
+*/
+
+var device_columnlist2 = new Map();
+var device_columnlist_hidden = new Map();
+
+exports.AddDeviceColumn = (id, options) => {
     var coldef = {
-        kismetId: id,
-        sTitle: options.sTitle,
-        field: null,
-        fields: null,
+        'kismetId': id,
+        'title': options.title,
+        'description': options.description,
+        'field': null,
+        'fields': null,
+        'sortfield': null,
+        'render': null,
+        'auxdata': null,
+        'mutate': null,
+        'auxmdata': null,
+        'sortable': false,
+        'searchable': false,
+        'width': null,
+        'alignment': null,
     };
 
-    if ('field' in options) {
-        coldef.field = options.field;
-    }
+    if ('field' in options)
+        coldef['field'] = options['field'];
 
-    if ('fields' in options) {
-        coldef.fields = options.fields;
-    }
+    if ('fields' in options)
+        coldef['fields'] = options['fields'];
 
-    if ('description' in options) {
-        coldef.description = options.description;
-    }
-
-    if ('name' in options) {
-        coldef.name = options.name;
-    }
-
-    if ('orderable' in options) {
-        coldef.bSortable = options.orderable;
-    }
-
-    if ('visible' in options) {
-        coldef.bVisible = options.visible;
+    if ('sortfield' in options) {
+        coldef['sortfield'] = options['sortfield'];
     } else {
-        coldef.bVisible = true;
+        coldef['sortfield'] = coldef['field'];
     }
 
-    if ('selectable' in options) {
-        coldef.user_selectable = options.selectable;
+    if ('width' in options) {
+        coldef['width'] = options['width'];
+    }
+
+    if ('alignment' in options) {
+        coldef['alignment'] = options['alignment'];
+    }
+
+    if ('render' in options) {
+        coldef['render'] = options['render'];
     } else {
-        coldef.user_selectable = true;
+        coldef['render'] = (data, rowdata, cell, auxdata) => {
+            return data;
+        }
     }
 
-    if ('searchable' in options) {
-        coldef.bSearchable = options.searchable;
-    }
+    if ('auxdata' in options)
+        coldef['auxdata'] = options['auxdata'];
 
-    if ('width' in options)
-        coldef.width = options.width;
+    if ('sortable' in options)
+        coldef['sortable'] = options['sortable'];
 
-    if ('sClass' in options)
-        coldef.sClass = options.sClass;
+    device_columnlist2.set(id, coldef);
+}
 
+/* Add a hidden device column that is used for other utility, but not specifically displayed;
+ * for instance the device key column must always be present. 
+ *
+ * Required elements in the column definition:
+ * 'field': Field definition, either string, path, or Kismet simplification array
+ * 'searchable': Boolean, field is included in searches
+ *
+ * */
+exports.AddHiddenDeviceColumn = (coldef) => {
     var f;
-    if (typeof(coldef.field) === 'string') {
-        var fs = coldef.field.split("/");
+
+    if (typeof(coldef['field']) === 'string') {
+        var fs = coldef['field'].split("/");
         f = fs[fs.length - 1];
-    } else if (Array.isArray(coldef.field)) {
-        f = coldef.field[1];
+    } else if (Array.isArray(coldef['field'])) {
+        f = coldef['field'][1];
     }
 
-    // Bypass datatable/jquery pathing
-    coldef.mData = function(row, type, set) {
-        return kismet.ObjectByString(row, f);
-    }
+    device_columnlist_hidden.set(f, coldef);
+}
 
-    // Datatable render function
-    if ('renderfunc' in options) {
-        coldef.mRender = options.renderfunc;
-    }
+/* Always add the device key */
+exports.AddHiddenDeviceColumn({'field': "kismet.device.base.key"});
 
-    // Set an arbitrary draw hook we call ourselves during the draw loop later
-    if ('drawfunc' in options) {
-        coldef.kismetdrawfunc = options.drawfunc;
-    }
+var devicelistIconMatch = [];
 
-    DeviceColumns.push(coldef);
+/* Add an icon matcher; return a html string for the icon (font-awesome or self-embedded svg) 
+ * that is used in the menu/icon column.  Return null if not matched.
+ *
+ * Matcher function 
+ */
+exports.AddDeviceIcon = (matcher) => {
+    devicelistIconMatch.push(matcher);
 }
 
 /* Add a row highlighter for coloring rows; expects an options dictionary containing:
@@ -377,150 +405,6 @@ exports.AddDeviceRowHighlight = function(options) {
 
         return 0;
     });
-}
-
-/* Return columns from the selected list of column IDs */
-exports.GetDeviceColumns = function(showall = false) {
-    var ret = new Array();
-
-    var order = kismet.getStorage('kismet.datatable.columns', []);
-
-    // If we don't have an order saved
-    if (order.length == 0) {
-        // Sort invisible columns to the end
-        for (var i in DeviceColumns) {
-            if (!DeviceColumns[i].bVisible)
-                continue;
-            ret.push(DeviceColumns[i]);
-        }
-        for (var i in DeviceColumns) {
-            if (DeviceColumns[i].bVisible)
-                continue;
-            ret.push(DeviceColumns[i]);
-        }
-        return ret;
-    }
-
-    // Otherwise look for all the columns we have enabled
-    for (var oi in order) {
-        var o = order[oi];
-
-        if (!o.enable)
-            continue;
-
-        // Find the column that matches the ID in the master list of columns
-        var dc = DeviceColumns.find(function(e, i, a) {
-            if (e.kismetId === o.id)
-                return true;
-            return false;
-        });
-
-        if (dc != undefined && dc.user_selectable) {
-            dc.bVisible = true;
-            ret.push(dc);
-        }
-    }
-
-    // If we didn't find anything, default to the normal behavior - something is wrong
-    if (ret.length == 0) {
-        // Sort invisible columsn to the end
-        for (var i in DeviceColumns) {
-            if (!DeviceColumns[i].bVisible)
-                continue;
-            ret.push(DeviceColumns[i]);
-        }
-        for (var i in DeviceColumns) {
-            if (DeviceColumns[i].bVisible)
-                continue;
-            ret.push(DeviceColumns[i]);
-        }
-        return ret;
-    }
-
-    // If we're showing everything, find any other columns we don't have selected,
-    // now that we've added the visible ones in the right order.
-    if (showall) {
-        for (var dci in DeviceColumns) {
-            var dc = DeviceColumns[dci];
-
-            /*
-            if (!dc.user_selectable)
-                continue;
-                */
-
-            var rc = ret.find(function(e, i, a) {
-                if (e.kismetId === dc.kismetId)
-                    return true;
-                return false;
-            });
-
-            if (rc == undefined) {
-                dc.bVisible = false;
-                ret.push(dc);
-            }
-        }
-
-        // Return the list w/out adding the non-user-selectable stuff
-        return ret;
-    }
-
-    // Then append all the columns the user can't select because we need them for
-    // fetching data or providing hidden sorting
-    for (var dci in DeviceColumns) {
-        if (!DeviceColumns[dci].user_selectable) {
-            ret.push(DeviceColumns[dci]);
-        }
-    }
-
-    return ret;
-}
-
-// Generate a map of column number to field array so we can tell Kismet what fields
-// are in what column for sorting
-exports.GetDeviceColumnMap = function(columns) {
-    var ret = {};
-
-    for (var ci in columns) {
-        var fields = new Array();
-
-        if ('field' in columns[ci]) 
-            fields.push(columns[ci]['field']);
-
-        if ('fields' in columns[ci])
-            fields.push.apply(fields, columns[ci]['fields']);
-
-        ret[ci] = fields;
-    }
-
-    return ret;
-}
-
-
-/* Return field arrays for the device list; aggregates fields from device columns,
- * widget columns, and color highlight columns.
- */
-exports.GetDeviceFields = function(selected) {
-    var rawret = new Array();
-    var cols = exports.GetDeviceColumns();
-
-    for (var i in cols) {
-        if ('field' in cols[i] && cols[i]['field'] != null) 
-            rawret.push(cols[i]['field']);
-
-        if ('fields' in cols[i] && cols[i]['fields'] != null) 
-            rawret.push.apply(rawret, cols[i]['fields']);
-    }
-
-    for (var i in DeviceRowHighlights) {
-        rawret.push.apply(rawret, DeviceRowHighlights[i]['fields']);
-    }
-
-    // De-dupe the list of fields/field aliases
-    var ret = rawret.filter(function(item, pos, self) {
-        return self.indexOf(item) == pos;
-    });
-
-    return ret;
 }
 
 exports.AddDetail = function(container, id, title, pos, options) {
@@ -972,260 +856,6 @@ exports.renderTemperature = function(c, precision = 5) {
     }
 }
 
-var deviceTid = -1;
-
-var devicetableHolder = null;
-var devicetableElement = null;
-
-function ScheduleDeviceSummary() {
-    if (deviceTid != -1)
-        clearTimeout(deviceTid);
-
-    try {
-        if (devicetableElement != null && exports.window_visible && devicetableElement.is(":visible")) {
-
-            var dt = devicetableElement.DataTable();
-
-            // Save the state.  We can't use proper state saving because it seems to break
-            // the table position
-            kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
-            kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
-
-            dt.ajax.reload(function(d) { }, false);
-        }
-
-    } catch (error) {
-        console.log(error);
-    }
-    
-    // Set our timer outside of the datatable callback so that we get called even
-    // if the ajax load fails
-    deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
-
-    return;
-}
-
-function CancelDeviceSummary() {
-    clearTimeout(deviceTid);
-}
-
-/* Create the device table */
-exports.CreateDeviceTable = function(element) {
-    // devicetableElement = element;
-    // var statuselement = $('#' + element.attr('id') + '_status');
-    //
-    element.ready(function() { 
-        var dt = exports.InitializeDeviceTable(element);
-
-        dt.draw(false);
-
-        // Start the auto-updating
-        ScheduleDeviceSummary();
-    });
-}
-
-/* Activate the device table & do something */
-exports.ActivateDeviceTable = function() { 
-    exports.InitializeDeviceTable(devicetableHolder);
-}
-
-exports.InitializeDeviceTable = function(element) {
-    /* Make the fields list json and set the wrapper object to aData to make the DT happy */
-    var cols = exports.GetDeviceColumns();
-    var colmap = exports.GetDeviceColumnMap(cols);
-    var fields = exports.GetDeviceFields();
-
-    var json = {
-        fields: fields,
-        colmap: colmap,
-        datatable: true,
-    };
-
-    devicetableHolder = element;
-
-    if (devicetableElement != null && $.fn.dataTable.isDataTable(devicetableElement)) {
-        devicetableElement.DataTable().clear().destroy();
-        element.empty();
-    }
-
-    if ($('#devices', element).length == 0) { 
-        devicetableElement =
-            $('<table>', {
-                id: 'devices-table',
-                class: 'fixeddt stripe hover nowrap pageResize',
-                'cell-spacing': 0,
-                width: '100%',
-            });
-        element.append(devicetableElement);
-    }
-
-    device_dt = devicetableElement
-        .DataTable( {
-
-        destroy: true,
-
-        scrollResize: true,
-        scrollX: "100%",
-
-        pageResize: true,
-        serverSide: true,
-        processing: true,
-
-        // stateSave: true,
-
-        dom: '<"viewselector">ftip',
-
-        deferRender: true,
-        lengthChange: false,
-
-        // Create a complex post to get our summary fields only
-        ajax: {
-            url: local_uri_prefix + "devices/views/" + kismet.getStorage('kismet.ui.deviceview.selected', 'all') + "/devices.json",
-            data: {
-                json: JSON.stringify(json)
-            },
-            error: function(jqxhr, status, error) {
-                // Catch missing views and reset
-                if (jqxhr.status == 404) {
-                    device_dt.ajax.url(local_uri_prefix + "devices/views/all/devices.json");
-                    kismet.putStorage('kismet.ui.deviceview.selected', 'all');
-                    exports.BuildDeviceViewSelector($('div.viewselector'));
-                }
-            },
-            method: "POST",
-            timeout: 5000,
-        },
-
-        // Get our dynamic columns
-        columns: cols,
-
-        columnDefs: [
-            { className: "dt_td", targets: "_all" },
-        ],
-
-        order:
-            [ [ 0, "desc" ] ],
-
-        // Map our ID into the row
-        createdRow : function( row, data, index ) {
-            row.id = data['kismet.device.base.key'];
-            $(row).addClass('ui-device-row');
-        },
-
-        // Opportunistic draw on new rows
-        drawCallback: function( settings ) {
-            var dt = this.api();
-
-            dt.rows({
-                page: 'current'
-            }).every(function(rowIdx, tableLoop, rowLoop) {
-                for (var c in DeviceColumns) {
-                    var col = DeviceColumns[c];
-
-                    if (!('kismetdrawfunc' in col)) {
-                        continue;
-                    }
-
-                    // Call the draw callback if one exists
-                    try {
-                        col.kismetdrawfunc(col, dt, this);
-                    } catch (error) {
-                        ;
-                    }
-                }
-
-                for (var r in DeviceRowHighlights) {
-                    try {
-                        var rowh = DeviceRowHighlights[r];
-
-                        if (rowh['enable']) {
-                            if (rowh['selector'](this.data())) {
-                                $('td', this.node()).css('background-color', rowh['color']);
-                                break;
-                            }
-                        }
-                    } catch (error) {
-                        ;
-                    }
-                }
-            }
-            );
-        }
-
-    });
-
-    // device_dt = element.DataTable();
-    // var dt_base_height = element.height();
-
-    try { 
-        device_dt.stateRestore.state.add("AJAX");
-    } catch (_err) { }
-    
-    // $('div.viewselector').html("View picker");
-    exports.BuildDeviceViewSelector($('div.viewselector'));
-
-    // Restore the order
-    var saved_order = kismet.getStorage('kismet.base.devicetable.order', "");
-    if (saved_order !== "")
-        device_dt.order(JSON.parse(saved_order));
-
-    // Restore the search
-    var saved_search = kismet.getStorage('kismet.base.devicetable.search', "");
-    if (saved_search !== "")
-        device_dt.search(JSON.parse(saved_search));
-
-    // Set an onclick handler to spawn the device details dialog
-    $('tbody', element).on('click', 'tr', function () {
-        kismet_ui.DeviceDetailWindow(this.id);
-
-        // Use the ID above we insert in the row creation, instead of looking in the
-        // device list data
-        // Fetch the data of the row that got clicked
-        // var device_dt = element.DataTable();
-        // var data = device_dt.row( this ).data();
-        // var key = data['kismet.device.base.key'];
-        // kismet_ui.DeviceDetailWindow(key);
-    } );
-
-    $('tbody', element)
-        .on( 'mouseenter', 'td', function () {
-            try {
-                var device_dt = element.DataTable();
-
-                if (typeof(device_dt.cell(this).index()) === 'Undefined')
-                    return;
-
-                var colIdx = device_dt.cell(this).index().column;
-                var rowIdx = device_dt.cell(this).index().row;
-
-                // Remove from all cells
-                $(device_dt.cells().nodes()).removeClass('kismet-highlight');
-                // Highlight the td in this row
-                $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
-            } catch (e) {
-
-            }
-        } );
-
-
-    return device_dt;
-}
-
-exports.ResizeDeviceTable = function(element) {
-    // console.log(element.height());
-    // exports.ResetDeviceTable(element);
-}
-
-exports.ResetDeviceTable = function(element) {
-    CancelDeviceSummary();
-    exports.InitializeDeviceTable(element);
-    ScheduleDeviceSummary();
-}
-
-exports.ResetExistingDeviceTable = function() {
-    exports.ResetDeviceTable(devicetableHolder);
-}
-
 kismet_ui_settings.AddSettingsPane({
     id: 'core_devicelist_columns',
     listTitle: 'Device List Columns',
@@ -1490,6 +1120,668 @@ kismet_ui_settings.AddSettingsPane({
         });
     },
 });
+
+/* Generate the list of fields we request from the server */
+function GenerateDeviceFieldList2() {
+    var retcols = new Map();
+
+    for (const [k, v] of device_columnlist_hidden) {
+        if (typeof(v['field']) === 'string') {
+            retcols.set(v, v['field']);
+        } else if (Array.isArray(v['field'])) {
+            retcols.set(v['field'][1], v);
+        }
+    };
+
+    for (const [k, c] of device_columnlist2) {
+        /*
+        if (devicetable_prefs['columns'].length > 0 &&
+            !devicetable_prefs['columns'].includes(c['kismetId']))
+            continue;
+            */
+
+        if (c['field'] != null) {
+            if (typeof(c['field']) === 'string') {
+                retcols.set(c['field'], c['field']);
+            } else if (Array.isArray(c['field'])) {
+                retcols.set(c['field'][1], c['field']);
+            }
+        }
+
+        if (c['fields'] != null) {
+            for (const cf of c['fields']) {
+                if (typeof(cf) === 'string') {
+                    retcols.set(cf, cf);
+                } else if (Array.isArray(cf)) {
+                    retcols.set(cf[1], cf);
+                }
+
+            }
+        }
+    }
+
+    var ret = [];
+
+    for (const [k, v] of retcols) {
+        ret.push(v);
+    };
+
+    return ret;
+}
+
+/* Generate a single column for the devicelist tabulator format */
+function GenerateDeviceTabulatorColumn(c) {
+    var col = {
+        'field': c['kismetId'],
+        'title': c['title'],
+        'formatter': (cell, params, onrender) => {
+            try {
+                return c['render'](cell.getValue(), cell.getRow().getData(), cell, onrender, c['auxdata']);
+            } catch (e) {
+                return cell.getValue();
+            }
+        },
+        'headerSort': c['sortable'],
+        'headerContextMenu':  [ {
+            'label': "Hide Column",
+            'action': function(e, column) {
+                devicetable_prefs['columns'] = devicetable_prefs['columns'].filter(c => {
+                    return c !== column.getField();
+                });
+                SaveDeviceTablePrefs();
+
+                deviceTabulator.deleteColumn(column.getField())
+                .then(col => {
+                    ScheduleDeviceSummary();
+                });
+            }
+        }, ],
+    };
+
+    var colsettings = {};
+    if (c['kismetId'] in devicetable_prefs['colsettings']) {
+        colsettings = devicetable_prefs['colsettings'][c['kismetId']];
+    }
+
+    if ('width' in colsettings) {
+        col['width'] = colsettings['width'];
+    } else if (c['width'] != null) {
+        col['width'] = c['width'];
+    }
+
+    if (c['alignment'] != null)
+        col['hozAlign'] = c['alignment'];
+
+    return col;
+}
+
+/* Generate the columns for the devicelist tabulator format */
+function GenerateDeviceColumns2() {
+    var columns = [];
+
+    var columnlist = [];
+    if (devicetable_prefs['columns'].length == 0) {
+        for (const [k, v] of device_columnlist2) {
+            columnlist.push(k);
+        }
+    } else {
+        columnlist = devicetable_prefs['columns'];
+    }
+
+    for (const k of columnlist) {
+        if (!device_columnlist2.has(k)) {
+            // console.log("could not find ", k);
+            continue;
+        }
+
+        const c = device_columnlist2.get(k);
+
+        columns.push(GenerateDeviceTabulatorColumn(c));
+    }
+
+    columns.unshift({
+        'title': "",
+        'width': '1px',
+        'headerSort': false,
+        'frozen': true,
+        'hozAlign': 'center',
+        'formatter': (cell, params, onrender) => {
+            // return c['render'](cell.getValue(), cell.getRow().getData(), cell, onrender, c['auxdata']);
+            for (const i of devicelistIconMatch) {
+                try {
+                    var icn = i(cell.getRow().getData());
+                    if (icn != null) {
+                        return icn;
+                    }
+                } catch (e) {
+                    ;
+                }
+            }
+
+            return '<i class="fa fa-question"></i>';
+        },
+        'headerMenu': () => {
+            var colsub = [];
+            var columns = deviceTabulator.getColumns();
+            for (const [k, v] of device_columnlist2) {
+                if (columns.filter(c => { return c.getField() === k; }).length > 0) {
+                    continue;
+                }
+
+                colsub.push({
+                    'label': v['title'],
+                    'action': () => {
+                        devicetable_prefs['columns'].push(v['kismetId']);
+                        SaveDeviceTablePrefs();
+
+                        const c = device_columnlist2.get(v['kismetId']);
+
+                        deviceTabulator.addColumn(GenerateDeviceTabulatorColumn(c))
+                        .then(col => {
+                            ScheduleDeviceSummary();
+                        });
+            
+                    }
+                });
+            }
+
+            var delsub = [];
+            for (const [k, v] of device_columnlist2) {
+                if (columns.filter(c => { return c.getField() === k; }).length == 0) {
+                    continue;
+                }
+
+                delsub.push({
+                    'label': v['title'],
+                    'action': () => {
+                        devicetable_prefs['columns'] = devicetable_prefs['columns'].filter(c => {
+                            return c !== v['kismetId'];
+                        });
+                        SaveDeviceTablePrefs();
+
+                        deviceTabulator.deleteColumn(v['kismetId'])
+                            .then(col => {
+                                ScheduleDeviceSummary();
+                            });
+                    }
+                });
+            }
+
+            if (colsub.length == 0) {
+                colsub.push({
+                    'label': '<i>All columns visible</i>',
+                    'disabled': true,
+                });
+            }
+
+            return [
+                {
+                    'label': "Add Column",
+                    menu: colsub,
+                },
+                {
+                    'label': "Remove Column",
+                    menu: delsub,
+                },
+            ];
+        },
+    });
+
+
+    return columns;
+}
+
+exports.PrepDeviceTable = function(element) {
+    devicetableHolder2 = element;
+}
+
+/* Create the device table */
+exports.CreateDeviceTable = function(element) {
+    element.ready(function() { 
+        exports.InitializeDeviceTable(element);
+    });
+}
+
+var deviceTid2 = -1;
+
+var devicetableHolder2 = null;
+var devicetableElement2 = null;
+var deviceTabulator = null;
+var deviceTablePage = 0;
+var deviceTableTotal = 0;
+var deviceTableTotalPages = 0;
+var deviceTableRefreshBlock = false;
+var deviceTableRefreshing = false;
+
+function ScheduleDeviceSummary() {
+    if (deviceTid2 != -1)
+        clearTimeout(deviceTid2);
+
+    deviceTid2 = setTimeout(ScheduleDeviceSummary, 1000);
+
+    try {
+        if (!deviceTableRefreshing && deviceTabulator != null && exports.window_visible && devicetableElement2.is(":visible")) {
+
+            deviceTableRefreshing = true;
+
+            var pageSize = deviceTabulator.getPageSize();
+            if (pageSize == 0) {
+                throw new Error("Page size 0");
+            }
+
+            if (deviceTableRefreshBlock) {
+                throw new Error("refresh blocked");
+            }
+
+            var colparams = JSON.stringify({'fields': GenerateDeviceFieldList2()});
+
+            var postdata = {
+                "json": colparams,
+                "page": deviceTablePage,
+                "length": pageSize,
+            }
+
+            if (device_columnlist2.has(devicetable_prefs['sort']['column'])) {
+                var f = device_columnlist2.get(devicetable_prefs['sort']['column']);
+                if (f['sortfield'] != null) {
+                    if (typeof(f['sortfield']) === 'string') {
+                        postdata["sort"] = f['sortfield'];
+                    } else if (Array.isArray(f['sortfield'])) {
+                        postdata["sort"] = f['sortfield'][0];
+                    }
+                } else {
+                    if (typeof(f['field']) === 'string') {
+                        postdata["sort"] = f['sortfield'];
+                    } else if (Array.isArray(f['field'])) {
+                        postdata["sort"] = f['field'][0];
+                    }
+                }
+
+                postdata["sort_dir"] = devicetable_prefs['sort']['dir'];
+            }
+
+            var searchterm = kismet.getStorage('kismet.ui.deviceview.search', "");
+            if (searchterm.length > 0) {
+                postdata["search"] = searchterm;
+            }
+
+            var viewname = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
+
+            $.post(local_uri_prefix + `devices/views/${viewname}/devices.json`, postdata, 
+                function(data) { 
+                    deviceTableTotal = data["last_row"];
+                    deviceTableTotalPages = data["last_page"];
+
+                    // Sanitize the data
+                    if (!'data' in data) {
+                        throw new Error("Missing data in response");
+                    }
+                    var rdata = kismet.sanitizeObject(data["data"]);
+
+                    // Permute the data based on the field list and assign the fields to the ID names
+                    var procdata = [];
+
+                    for (const d of rdata) {
+                        var md = {};
+
+                        md['original_data'] = d;
+
+                        md['device_key'] = d['kismet.device.base.key'];
+
+                        for (const [k, c] of device_columnlist2) {
+                            if (typeof(c['field']) === 'string') {
+                                var fs = c['field'].split("/");
+                                var fn = fs[fs.length - 1];
+                                if (fn in d)
+                                    md[c['kismetId']] = d[fn];
+                            } else if (Array.isArray(c['field'])) {
+                                if (c['field'][1] in d)
+                                    md[c['kismetId']] = d[c['field'][1]];
+                            }
+
+                            if (c['fields'] != null) {
+                                for (const cf of c['fields']) {
+                                    if (typeof(cf) === 'string') {
+                                        var fs = cf.split("/");
+                                        var fn = fs[fs.length - 1];
+                                        if (fn in d)
+                                            md[fn] = d[fn];
+                                    } else if (Array.isArray(cf)) {
+                                        if (fn[1] in d)
+                                            md[fn[1]] = d[fn[1]]
+                                    }
+
+                                }
+                            }
+
+                        }
+
+                        procdata.push(md);
+                    }
+
+                    // deviceTabulator.replaceData(data["data"]);
+                    deviceTabulator.replaceData(procdata);
+
+                    var paginator = $('#devices-table2 .tabulator-paginator');
+                    paginator.empty();
+
+                    var firstpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'First',
+                        }).html("First")
+                    .on('click', function() {
+                        deviceTablePage = 0;
+                        return ScheduleDeviceSummary();
+                    });
+                    if (deviceTablePage == 0) {
+                        firstpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(firstpage);
+
+                    var prevpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Prev',
+                        }).html("Prev")
+                    .on('click', function() {
+                        deviceTablePage = deviceTablePage - 1;
+                        return ScheduleDeviceSummary();
+                    });
+                    if (deviceTablePage <= 1) {
+                        prevpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(prevpage);
+
+                    var gen_closure = (pg, pgn) => {
+                        pg.on('click', () => {
+                            deviceTablePage = pgn;
+                            return ScheduleDeviceSummary();
+                        });
+                    }
+
+                    var fp = deviceTablePage - 1;
+                    if (fp <= 1)
+                        fp = 1;
+                    var lp = fp + 4;
+                    if (lp > deviceTableTotalPages)
+                        lp = deviceTableTotalPages;
+                    for (let p = fp; p <= lp; p++) {
+                        var ppage = 
+                            $('<button>', {
+                                'class': 'tabulator-page',
+                                'type': 'button',
+                                'role': 'button',
+                                'aria-label': `${p}`,
+                            }).html(`${p}`);
+                        gen_closure(ppage, p - 1);
+                        if (deviceTablePage == p - 1) {
+                            ppage.attr('disabled', 'disabled');
+                        }
+                        paginator.append(ppage);
+                    }
+
+                    var nextpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Next',
+                        }).html("Next")
+                    .on('click', function() {
+                        deviceTablePage = deviceTablePage + 1;
+                        return ScheduleDeviceSummary();
+                    });
+                    if (deviceTablePage >= deviceTableTotalPages - 1) {
+                        nextpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(nextpage);
+
+                    var lastpage = 
+                        $('<button>', {
+                            'class': 'tabulator-page',
+                            'type': 'button',
+                            'role': 'button',
+                            'aria-label': 'Last',
+                        }).html("Last")
+                    .on('click', function() {
+                        deviceTablePage = deviceTableTotalPages - 1;
+                        return ScheduleDeviceSummary();
+                    });
+                    if (deviceTablePage >= deviceTableTotalPages - 1) {
+                        lastpage.attr('disabled', 'disabled');
+                    }
+                    paginator.append(lastpage);
+                },
+                "json")
+                .always(() => {
+                    deviceTableRefreshing = false;
+                });
+
+            /*
+            var dt = devicetableElement.DataTable();
+
+            // Save the state.  We can't use proper state saving because it seems to break
+            // the table position
+            kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
+            kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
+
+            dt.ajax.reload(function(d) { }, false);
+            */
+        }
+
+    } catch (error) {
+        // console.log(error);
+        deviceTableRefreshing = false;
+    }
+    
+    return;
+}
+
+function CancelDeviceSummary() {
+    clearTimeout(deviceTid2);
+}
+
+var devicetable_prefs = {};
+
+function LoadDeviceTablePrefs() {
+    devicetable_prefs = kismet.getStorage('kismet.ui.devicetable.prefs', {
+        "columns": [],
+        "colsettings": {},
+        "sort": {
+            "column": "",
+            "dir": "asc",
+        },
+    });
+
+    devicetable_prefs = $.extend({
+        "columns": [],
+        "colsettings": {},
+        "sort": {
+            "column": "",
+            "dir": "asc",
+        }, 
+    }, devicetable_prefs);
+}
+
+function SaveDeviceTablePrefs() {
+    kismet.putStorage('kismet.ui.devicetable.prefs', devicetable_prefs);
+}
+
+exports.HideDeviceTab = function() {
+    $('#center-device-extras').hide();
+}
+
+exports.ShowDeviceTab = function() {
+    exports.InitializeDeviceTable(devicetableHolder2);
+    $('#center-device-extras').show();
+}
+
+exports.InitializeDeviceTable = function(element) {
+    LoadDeviceTablePrefs();
+
+    devicetableHolder2 = element;
+
+    var searchterm = kismet.getStorage('kismet.ui.deviceview.search', "");
+
+    if ($('#center-device-extras').length == 0) {
+        var devviewmenu = $(`<form action="#"><span id="device_view_holder"></span></form><input class="device_search" type="search" id="device_search" placeholder="Filter..." value="${searchterm}"></input>`);
+
+        $('#centerpane-tabs').append($('<div id="center-device-extras" style="position: absolute; right: 10px; top: 5px; height: 30px; display: flex;">').append(devviewmenu));
+        exports.BuildDeviceViewSelector($('#device_view_holder', devviewmenu));
+
+        $('#device_search').on('keydown', (evt) => {
+            var code = evt.charCode || evt.keyCode;
+            if (code == 27) {
+                $('#device_search').val('');
+            }
+        });
+
+        $('#device_search').on('keyup', $.debounce(300, () => {
+            var searchterm = $('#device_search').val();
+            kismet.putStorage('kismet.ui.deviceview.search', searchterm);
+            ScheduleDeviceSummary();
+        }));
+    }
+
+    if ($('#devices-table2', element).length == 0) { 
+        devicetableElement2 =
+            $('<div>', {
+                id: 'devices-table2',
+                'cell-spacing': 0,
+                width: '100%',
+                height: '100%',
+            });
+
+        element.append(devicetableElement2);
+    }
+
+    deviceTabulator = new Tabulator('#devices-table2', {
+        movableColumns: true,
+        columns: GenerateDeviceColumns2(),
+
+        // No loading animation/text
+        dataLoader: false,
+
+        // Server-side filtering and sorting
+        sortMode: "remote",
+        filterMode: "remote",
+
+        // Server-side pagination
+        pagination: true,
+        paginationMode: "remote",
+
+        // Override the pagination system to use our local counters, more occurs in
+        // the update timer loop to replace pagination
+        paginationCounter: function(pageSize, currentRow, currentPage, totalRows, totalPages) {
+            if (deviceTableTotal == 0) {
+                return "Loading..."
+            }
+
+            var frow = pageSize * deviceTablePage;
+            if (frow == 0)
+                frow = 1;
+
+            var lrow = frow + pageSize;
+            if (lrow > deviceTableTotal) 
+                lrow = deviceTableTotal;
+
+            return `Showing rows ${frow} - ${lrow} of ${deviceTableTotal}`;
+        },
+
+        rowFormatter: function(row) {
+            for (const ri of DeviceRowHighlights) {
+                if (!ri['enable'])
+                    continue;
+
+                try {
+                    if (ri['selector'](row.getData()['original_data'])) {
+                        row.getElement().style.backgroundColor = ri['color'];
+                    }
+                } catch (e) {
+                    ;
+                }
+            }
+        },
+
+        initialSort: [{
+            "column": devicetable_prefs["sort"]["column"],
+            "dir": devicetable_prefs["sort"]["dir"],
+        }],
+
+    });
+
+    // Get sort events to hijack for the custom query
+    deviceTabulator.on("dataSorted", (sorters) => {
+        if (sorters.length == 0)
+            return;
+
+        var mut = false;
+        if (sorters[0].field != devicetable_prefs['sort']['column']) {
+            devicetable_prefs['sort']['column'] = sorters[0].field;
+            mut = true;
+        }
+
+        if (sorters[0].dir != devicetable_prefs['sort']['dir']) {
+            devicetable_prefs['sort']['dir'] = sorters[0].dir;
+            mut = true;
+        }
+
+        if (mut) {
+            SaveDeviceTablePrefs();
+            ScheduleDeviceSummary();
+        }
+    });
+
+    // Disable refresh while a menu is open
+    deviceTabulator.on("menuOpened", function(component){
+        deviceTableRefreshBlock = true;
+    });
+
+    // Reenable refresh when menu is closed
+    deviceTabulator.on("menuClosed", function(component){
+        deviceTableRefreshBlock = false;
+    });
+
+
+    // Handle row clicks
+    deviceTabulator.on("rowClick", (e, row) => {
+        kismet_ui.DeviceDetailWindow(row.getData()['device_key']);
+    });
+
+    deviceTabulator.on("columnMoved", function(column, columns){
+        var cols = [];
+
+        for (const c of columns) {
+            cols.push(c.getField());
+        }
+
+        devicetable_prefs['columns'] = cols;
+       
+        SaveDeviceTablePrefs();
+
+    });
+
+    deviceTabulator.on("columnResized", function(column){
+        if (column.getField() in devicetable_prefs['colsettings']) {
+            devicetable_prefs['colsettings'][column.getField()]['width'] = column.getWidth();
+        } else {
+            devicetable_prefs['colsettings'][column.getField()] = {
+                'width': column.getWidth(),
+            }
+        }
+
+        SaveDeviceTablePrefs();
+    });
+
+    deviceTabulator.on("tableBuilt", function() {
+        ScheduleDeviceSummary();
+    });
+}
 
 return exports;
 

@@ -154,6 +154,7 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
 
             switch (fi->get_type()) {
                 case tracker_type::tracker_string:
+                case tracker_type::tracker_string_pointer:
                     val = get_tracker_value<std::string>(fi);
                     break;
                 case tracker_type::tracker_mac_addr:
@@ -222,6 +223,7 @@ bool device_tracker_view_stringmatch_worker::match_device(std::shared_ptr<kis_tr
 
         switch (field->get_type()) {
             case tracker_type::tracker_string:
+            case tracker_type::tracker_string_pointer:
                 // We can only do a straight string match against string fields
                 matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
                 break;
@@ -282,6 +284,7 @@ bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<k
 
         switch (field->get_type()) {
             case tracker_type::tracker_string:
+            case tracker_type::tracker_string_pointer:
                 // We can only do a straight string match against string fields
                 matched = icasesearch(get_tracker_value<std::string>(field), query);
                 break;

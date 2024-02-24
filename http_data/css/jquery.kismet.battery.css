@@ -6,7 +6,6 @@ span.battime {
 
 i.batpower {
     font-size: 14pt;
-    font-weight: normal;
 }
 
 @keyframes battery-blink {

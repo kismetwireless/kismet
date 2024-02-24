@@ -885,6 +885,8 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     auto total_sz_elem = std::make_shared<tracker_element_uint64>();
     auto filtered_sz_elem = std::make_shared<tracker_element_uint64>();
 
+    auto max_page_elem = std::make_shared<tracker_element_uint64>();
+
     auto output_alerts_elem = std::make_shared<tracker_element_vector>();
 
     auto dt_draw_elem = std::make_shared<tracker_element_uint64>();
@@ -906,6 +908,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     } catch (const std::exception& e) {
         con->set_status(400);
         fmt::print(os, "Invalid request: {}\n", e.what());
+        return;
     }
 
     unsigned int in_window_start = 0;
@@ -918,78 +921,61 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     try {
         auto column_number_map = con->json()["colmap"];
 
-        if (con->json().value("datatable", false)) {
-            auto start_k = con->http_variables().find("start");
-            if (start_k != con->http_variables().end()) 
-                in_window_start = string_to_n<unsigned int>(start_k->second);
+        // Generic pagination
+        auto start_k = con->http_variables().find("page");
+        if (start_k != con->http_variables().end()) {
+            in_window_start = string_to_n<unsigned int>(start_k->second);
 
             auto length_k = con->http_variables().find("length");
-            if (length_k != con->http_variables().end())
+            if (length_k != con->http_variables().end()) {
                 in_window_len = string_to_n<unsigned int>(length_k->second);
 
-            auto draw_k = con->http_variables().find("draw");
-            if (draw_k != con->http_variables().end())
-                in_dt_draw = string_to_n<unsigned int>(draw_k->second);
+                in_window_start *= in_window_len;
+            } else {
+                length_k = con->http_variables().find("size");
+                if (length_k != con->http_variables().end())
+                    in_window_len = string_to_n<unsigned int>(length_k->second);
 
-            auto search_k = con->http_variables().find("search[value]");
-            if (search_k != con->http_variables().end())
-                search_term = search_k->second;
+                in_window_start *= in_window_len;
+            }
 
-            if (search_term.length() != 0)
-                for (const auto& svi : summary_vec)
-                    search_paths.push_back(svi->resolved_path);
+            // Set the window elements for datatables
+            start_elem->set(in_window_start);
+            dt_draw_elem->set(in_dt_draw);
 
-            auto order_k = con->http_variables().find("order[0][column]");
-            if (order_k != con->http_variables().end())
-                in_order_column_num = order_k->second;
+            auto sort_k = con->http_variables().find("sort");
+            if (sort_k != con->http_variables().end()) {
+                order_field = tracker_element_summary(sort_k->second).resolved_path;
 
-            auto column_index = column_number_map[in_order_column_num];
-            auto orderdir_k = con->http_variables().find("order[0][dir]");
-            if (!column_index.is_null() && orderdir_k != con->http_variables().end()) {
-                if (orderdir_k->second == "asc")
+                auto dir_k = con->http_variables().find("sort_dir");
+                if (dir_k != con->http_variables().end() && dir_k->second == "asc")
                     in_order_direction = 1;
                 else
                     in_order_direction = 0;
-
-                // Resolve the path, we only allow the first one
-                if (column_index.is_array() && column_index.size() > 0) {
-                    if (column_index[0].is_array()) {
-                        // We only allow the first field, but make sure we're not a nested array
-                        if (column_index[0].size() > 0) {
-                            order_field = tracker_element_summary(column_index[0][0].get<std::string>()).resolved_path;
-                        }
-                    } else {
-                        // Otherwise get the first array
-                        if (column_index.size() >= 1) {
-                            order_field = tracker_element_summary(column_index[0].get<std::string>()).resolved_path;
-                        }
-                    }
-                }
             }
 
-            if (in_window_len > 500) 
-                in_window_len = 500;
+            auto search_k = con->http_variables().find("search");
+            if (search_k != con->http_variables().end())
+                search_term = search_k->second;
 
-            // Set the window elements for datatables
-            length_elem->set(in_window_len);
-            start_elem->set(in_window_start);
-            dt_draw_elem->set(in_dt_draw);
+            // Search every field we return
+            if (search_term.length() != 0) 
+                for (const auto& svi : summary_vec)
+                    search_paths.push_back(svi->resolved_path);
 
             // Set up the datatables wrapper
             wrapper_elem = std::make_shared<tracker_element_string_map>();
             transmit = wrapper_elem;
 
-            wrapper_elem->insert("draw", dt_draw_elem);
             wrapper_elem->insert("data", output_alerts_elem);
-            wrapper_elem->insert("recordsTotal", total_sz_elem);
-            wrapper_elem->insert("recordsFiltered", filtered_sz_elem);
-
-            // We transmit the wrapper elem
-            transmit = wrapper_elem;
+            wrapper_elem->insert("last_page", max_page_elem);
+            wrapper_elem->insert("last_row", filtered_sz_elem);
+            wrapper_elem->insert("total_row", total_sz_elem);
         }
     } catch (const std::exception& e) {
         con->set_status(400);
-        fmt::print(os, "Invalid request: {}\n", e.what());
+        fmt::print(os, "Invalid request (pagination): {}\n", e.what());
+        return;
     }
 
     // vector we do work on
@@ -1010,6 +996,10 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
 
     filtered_sz_elem->set(next_work_vec->size());
 
+    if (in_window_len > 0) {
+        max_page_elem->set(ceil(((float) next_work_vec->size()) / in_window_len));
+    }
+
     if (in_window_start >= next_work_vec->size())
         in_window_start = 0;
 
@@ -1027,7 +1017,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     length_elem->set(ei - si);
 
     // Unfortunately we need to do a stable sort to get a consistent display
-    if (in_order_column_num.length() && order_field.size() > 0) {
+    if (order_field.size() > 0) {
         std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
                 [&](shared_tracker_element a, shared_tracker_element b) -> bool {
                 shared_tracker_element fa;

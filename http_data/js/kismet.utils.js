@@ -202,15 +202,7 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     var now;
     var start;
 
-    try {
-        data = rrddata[record];
-
-        if (typeof(data) === 'number')
-            throw(0);
-
-        now = rrddata['kismet.common.rrd.serial_time'];
-        start = rrddata['kismet.common.rrd.last_time'];
-    } catch (e) {
+    if (rrddata == undefined || rrddata[record] == undefined) {
         now = 0;
         start = 0;
 
@@ -230,6 +222,14 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
                 0, 0, 0, 0
             ];
         }
+    } else {
+        data = rrddata[record];
+
+        if (typeof(data) === 'number')
+            throw(0);
+
+        now = rrddata['kismet.common.rrd.serial_time'];
+        start = rrddata['kismet.common.rrd.last_time'];
     }
 
     rrd_len = data.length;

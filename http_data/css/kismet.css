@@ -273,3 +273,11 @@ div.grid-full-height,
 div.resizable {
   min-height: 0;
 }
+
+.tabulator-tableholder {
+    overflow: hidden;
+}
+
+.device_search {
+    margin-left: 10px;
+}
