@@ -599,26 +599,24 @@
                                     }
                                     */
 
-                    const p = adsbTabulator.getPage();
-                    console.log("got page", p);
-                    adsbTabulator.replaceData(rows)
-                        .then(() => {
-                            console.log("setting page", p);
-                            adsbTabulator.setPage(p);
-                            if (tid != -1)
-                                clearTimeout(tid);
-                            tid = setTimeout(function() { poll_map(); }, 2000);
-                        })
-                        .catch((e) => {
-                            console.log(e);
-                        });
-
-
                 } catch (error) {
                     console.log(error);
                 }
 
             }
+
+            const p = adsbTabulator.getPage();
+            adsbTabulator.replaceData(rows)
+                .then(() => {
+                    adsbTabulator.setPage(p);
+                    if (tid != -1)
+                        clearTimeout(tid);
+                    tid = setTimeout(function() { poll_map(); }, 2000);
+                })
+                .catch((e) => {
+                    console.log(e);
+                });
+
 
             for (var k in markers) {
                 if (markers[k]['keep']) {
@@ -644,9 +642,13 @@
                         map_cb(d);
                     })
                     .fail(() => {
+                        if (tid != -1)
+                            clearTimeout(tid);
                         tid = setTimeout(function() { poll_map(); }, 2000);
                     });
             } else {
+                if (tid != -1)
+                    clearTimeout(tid);
                 tid = setTimeout(function() { poll_map(); }, 2000);
             }
         }
