@@ -584,21 +584,6 @@ var InitializeAlertTable = function(element) {
             var colors = severity_to_color(row.getData()['original_data']['kismet.alert.severity']);
             row.getElement().style.backgroundColor = colors[0];
             row.getElement().style.cOlor = colors[1];
-
-            /*
-            for (const ri of DeviceRowHighlights) {
-                if (!ri['enable'])
-                    continue;
-
-                try {
-                    if (ri['selector'](row.getData()['original_data'])) {
-                        row.getElement().style.backgroundColor = ri['color'];
-                    }
-                } catch (e) {
-                    ;
-                }
-            }
-            */
         },
 
         initialSort: [{
