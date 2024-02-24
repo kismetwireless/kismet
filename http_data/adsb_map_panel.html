@@ -294,7 +294,7 @@
                     'headerSort': true,
                     'formatter': (c, p, o) => {
                         try {
-                            return kismet_units.renderHeightDistanceUnitless(c.getValue());
+                            return Math.round(kismet_units.renderHeightDistanceUnitless(c.getValue()));
                         } catch (e) {
                             return c.getValue();
                         }
