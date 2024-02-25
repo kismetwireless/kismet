@@ -353,6 +353,7 @@ function ActivateTab() {
             sortMode: "local",
             pagination: true,
             paginationMode: "local",
+            selectableRows: 1,
             columns: [
                 {
                     'field': 'icao',
@@ -360,7 +361,7 @@ function ActivateTab() {
                     'headerSort': false,
                 },
                 {
-                    'field': 'id',
+                    'field': 'pid',
                     'title': 'ID',
                     'headerSort': false,
                 },
@@ -382,7 +383,7 @@ function ActivateTab() {
                     'title': 'Spd',
                     'formatter': (c, p, o) => {
                         try {
-                            return kismet_units.renderSpeedUnitless(c.getValue());
+                            return Math.round(kismet_units.renderSpeedUnitless(c.getValue()));
                         } catch (e) {
                             return c.getValue();
                         }
@@ -510,8 +511,9 @@ function map_cb(d) {
                 continue;
 
             rows.push({
+                id: icao,
                 icao: icao,
-                id: id,
+                pid: id,
                 alt: altitude,
                 spd: speed,
                 hed: heading,
@@ -586,8 +588,6 @@ function map_cb(d) {
 
             } else {
                 /* Make a new marker */
-
-                console.log("adding marker", lat, lon, icao);
                 var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(map);
                 $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
 
@@ -675,10 +675,19 @@ function map_cb(d) {
     }
 
     const p = adsbTabulator.getPage();
+    const r = adsbTabulator.getSelectedRows();
+    var i = null;
+    if (r.length > 0) {
+        i = r[0].getIndex();
+    }
     adsbTabulator.replaceData(rows)
         .then(() => {
             if (p != 1) {
                 adsbTabulator.setPage(p);
+            }
+
+            if (i != null) {
+                adsbTabulator.selectRow(i);
             }
 
             if (tid != -1)
