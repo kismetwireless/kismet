@@ -1590,7 +1590,9 @@ var devicetable_prefs = {};
 
 function LoadDeviceTablePrefs() {
     devicetable_prefs = kismet.getStorage('kismet.ui.devicetable.prefs', {
-        "columns": [],
+        "columns": ["commonname", "type", "crypt", "last_time", "packet_rrd", 
+            "signal", "channel", "manuf", "wifi_clients", "wifi_bss_uptime", 
+            "wifi_qbss_usage"],
         "colsettings": {},
         "sort": {
             "column": "",
