@@ -413,6 +413,19 @@ function ActivateTab() {
             ],
         });
 
+        adsbTabulator.on("rowClick", (e, row) => {
+            const d = row.getData();
+
+            $('#plane-detail').html(`
+                <b>Flight: </b>${d['callsign']}<br>
+                <b>Model: </b>${d['model'].MiddleShorten(20)}<br> 
+                <b>Operator: </b>${d['operator'].MiddleShorten(20)}<br>
+                <b>Altitude: </b>${kismet_units.renderHeightDistance(d['alt'], 0, true)}<br> 
+                <b>Speed: </b>${kismet_units.renderSpeed(d['spd'], 0)}<br>
+                `);
+
+        });
+
         load_maps = kismet.getStorage('kismet.adsb.maps_ok', false);
 
         if (load_maps)
@@ -516,6 +529,9 @@ function map_cb(d) {
                 spd: speed,
                 hed: heading,
                 msgs: packets,
+                model: data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.model'],
+                operator: data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'],
+                callsign: data['kismet.adsb.map.devices'][d]['adsb.device']['adsb.device.callsign'],
             });
 
 
