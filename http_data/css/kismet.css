@@ -281,3 +281,7 @@ div.resizable {
 .device_search {
     margin-left: 10px;
 }
+
+#devices {
+    overflow: hidden !important;
+}

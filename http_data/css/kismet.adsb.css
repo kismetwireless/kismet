@@ -29,7 +29,7 @@
 .right-sidebar {
     position: absolute;
     top: 10px;
-    bottom: 10px;
+    bottom: 25px;
     right: 10px;
     width: 20%;
     border: 1px solid black;
