@@ -424,6 +424,8 @@ function ActivateTab() {
                 <b>Speed: </b>${kismet_units.renderSpeed(d['spd'], 0)}<br>
                 `);
 
+            $('.adsb-selected-plane').removeClass('adsb-selected-plane');
+            $('#adsb_marker_icon_' + d['key']).addClass('adsb-selected-plane');
         });
 
         load_maps = kismet.getStorage('kismet.adsb.maps_ok', false);
@@ -522,7 +524,7 @@ function map_cb(d) {
                 continue;
 
             rows.push({
-                id: icao,
+                id: kismet.sanitizeId(icao),
                 icao: icao,
                 pid: id,
                 alt: altitude,
@@ -532,10 +534,11 @@ function map_cb(d) {
                 model: data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.model'],
                 operator: data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'],
                 callsign: data['kismet.adsb.map.devices'][d]['adsb.device']['adsb.device.callsign'],
+                key: kismet.sanitizeId(data['kismet.adsb.map.devices'][d]['kismet.device.base.key']),
             });
 
 
-            var key = data['kismet.adsb.map.devices'][d]['kismet.device.base.key'];
+            var key = kismet.sanitizeId(data['kismet.adsb.map.devices'][d]['kismet.device.base.key']);
 
             var icontype = 'fa-plane';
 
@@ -559,7 +562,7 @@ function map_cb(d) {
 
             var myIcon = L.divIcon({
                 className: 'plane-icon', 
-                html: `<div id="adsb_marker_${kismet.sanitizeId(key)}" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_${kismet.sanitizeId(key)}" class="marker-center fa ${icontype}" style="font-size: 18px; color: ${get_alt_color(altitude)};"></div>`,
+                html: `<div id="adsb_marker_${key}" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_${key}" class="marker-center fa ${icontype}" style="font-size: 18px; color: ${get_alt_color(altitude)};"></div>`,
                 iconAnchor: [12, 12],
             });
 
@@ -702,7 +705,7 @@ function map_cb(d) {
                 adsbTabulator.setPage(p);
             }
 
-            if (i != null) {
+            if (i != null && i !== '') {
                 adsbTabulator.selectRow(i);
             }
 

@@ -111,3 +111,12 @@
     background: var(--adsb-sidebar-background-offset);
     overflow: hidden;
 }
+
+@keyframes planezoom {
+  25% {font-size: 32px;}
+}
+
+.adsb-selected-plane {
+    animation: planezoom 5s infinite;
+    text-shadow:1px 1px 10px #fff, 1px 1px 10px #ccc;
+}
