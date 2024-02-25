@@ -354,6 +354,7 @@ function ActivateTab() {
             pagination: true,
             paginationMode: "local",
             selectableRows: 1,
+            selectableRowsPersistence: true,
             columns: [
                 {
                     'field': 'icao',
@@ -415,6 +416,7 @@ function ActivateTab() {
 
         adsbTabulator.on("rowClick", (e, row) => {
             const d = row.getData();
+            // console.log("row selected", d);
 
             $('#plane-detail').html(`
                 <b>Flight: </b>${d['callsign']}<br>
@@ -523,8 +525,10 @@ function map_cb(d) {
             if (lat == 0 || lon == 0)
                 continue;
 
+            var key = kismet.sanitizeId(data['kismet.adsb.map.devices'][d]['kismet.device.base.key']);
+
             rows.push({
-                id: kismet.sanitizeId(icao),
+                id: key,
                 icao: icao,
                 pid: id,
                 alt: altitude,
@@ -538,7 +542,6 @@ function map_cb(d) {
             });
 
 
-            var key = kismet.sanitizeId(data['kismet.adsb.map.devices'][d]['kismet.device.base.key']);
 
             var icontype = 'fa-plane';
 
@@ -619,6 +622,35 @@ function map_cb(d) {
                 markers[key]['model'] = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.model'];
                 markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['adsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'];
                 markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['adsb.device']['adsb.device.callsign'];
+
+                var click_fn = (key) => {
+                    return () => {
+                        const r = adsbTabulator.getRow(key);
+                        if (r == false)
+                            return;
+
+                        const d = r.getData();
+                        if (d == null)
+                            return;
+
+                        $('#plane-detail').html(`
+                            <b>Flight: </b>${d['callsign']}<br>
+                            <b>Model: </b>${d['model'].MiddleShorten(20)}<br> 
+                            <b>Operator: </b>${d['operator'].MiddleShorten(20)}<br>
+                            <b>Altitude: </b>${kismet_units.renderHeightDistance(d['alt'], 0, true)}<br> 
+                            <b>Speed: </b>${kismet_units.renderSpeed(d['spd'], 0)}<br>
+                            `);
+
+                        $('.adsb-selected-plane').removeClass('adsb-selected-plane');
+                        $('#adsb_marker_icon_' + d['key']).addClass('adsb-selected-plane');
+
+                        console.log("selecting row:", key);
+                        adsbTabulator.deselectRow();
+                        adsbTabulator.selectRow(key);
+                    };
+                }
+
+                markers[key]['marker'].on('click', click_fn(key));
 
                 /*
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
@@ -705,7 +737,8 @@ function map_cb(d) {
                 adsbTabulator.setPage(p);
             }
 
-            if (i != null && i !== '') {
+            if (i != null) {
+                console.log("Selecting on replace ", i);
                 adsbTabulator.selectRow(i);
             }
 
