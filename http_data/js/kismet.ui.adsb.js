@@ -462,8 +462,6 @@ var moused_id = null;
 function map_cb(d) {
     var data = kismet.sanitizeObject(d);
 
-    $('#numplanes').html(data['kismet.adsb.map.devices'].length);
-
     if (map == null) {
         var lat1 = data['kismet.adsb.map.min_lat'];
         var lon1 = data['kismet.adsb.map.min_lon'];
@@ -673,6 +671,8 @@ function map_cb(d) {
         }
 
     }
+
+    $('#numplanes').html(rows.length);
 
     const p = adsbTabulator.getPage();
     const r = adsbTabulator.getSelectedRows();
