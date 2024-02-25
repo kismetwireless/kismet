@@ -646,6 +646,7 @@ function map_cb(d) {
 
                         console.log("selecting row:", key);
                         adsbTabulator.deselectRow();
+                        adsbTabulator.setPageToRow(key);
                         adsbTabulator.selectRow(key);
                     };
                 }
