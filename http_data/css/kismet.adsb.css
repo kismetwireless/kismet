@@ -1,0 +1,113 @@
+:root {
+    --adsb-sidebar-background: white;
+    --adsb-sidebar-background-offset: #f9f9f9;
+}
+
+[data-theme="dark"] {
+    --adsb-sidebar-background: #222;
+    --adsb-sidebar-background-offset: #444;
+    --map-tiles-filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.map-tiles {
+    filter: var(--map-tiles-filter, none);
+}
+
+#adsb_live {
+    overflow: hidden !important;
+}
+
+.marker-center {
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+}
+
+.right-sidebar {
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    right: 10px;
+    width: 20%;
+    border: 1px solid black;
+    background: var(--adsb-sidebar-background);
+    z-index: 999;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.warning {
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    right: 25%;
+    left: 25%;
+    border: 1px solid black;
+    background: var(--adsb-sidebar-background);
+    z-index: 10000;
+    padding: 10px;
+}
+
+#adsb_map {
+    width: 100%;
+    height: 100%;
+}
+
+#alt_scale {
+    width: 50%;
+    position: absolute;
+    bottom: 10px;
+    left: 25%;
+    height: 15px;
+    z-index: 999;
+    border: 1px solid black;
+    padding-left: 10px;
+    padding-right: 10px;
+    background: linear-gradient(to right, 
+    hsl(50,100%,50%), 
+    hsl(100,100%,50%), 
+    hsl(150,100%,50%), 
+    hsl(200,100%,50%), 
+    hsl(250,100%,50%), 
+    hsl(300,100%,50%), 
+    hsl(360,100%,50%));
+    text-align: center;
+}
+
+#alt_min {
+    position: absolute;
+    left: 10px;
+}
+
+#alt_mini {
+    position: absolute;
+    left: 25%;
+}
+
+#alt_maxi {
+    position: absolute;
+    left: 75%;
+}
+
+#alt_max {
+    position: absolute;
+    right: 10px;
+}
+
+#alt_title {
+    display: inline-block;
+}
+
+.resize_wrapper {
+    position: relative;
+    box-sizing: border-box;
+    height: calc(100% - 125px);
+    padding: 0.5em 0.5em 1.5em 0.5em;
+    border-radius: 0.5em;
+    background: var(--adsb-sidebar-background-offset);
+    overflow: hidden;
+}
