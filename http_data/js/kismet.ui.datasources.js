@@ -153,7 +153,7 @@ export const ChannelCoverage = () => {
         at: 'center-top',
         of: 'window',
         offsetY: offy,
-    });
+    }).front();
 
     content.tabs({
         heightStyle: 'fill'
@@ -1554,6 +1554,7 @@ export const DataSources2 = () => {
         of: 'window',
         offsetY: offy,
     })
+    .front()
     .contentResize();
 
     ds_state["content"] = content;

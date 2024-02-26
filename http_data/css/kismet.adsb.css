@@ -34,7 +34,7 @@
     width: 20%;
     border: 1px solid black;
     background: var(--adsb-sidebar-background);
-    z-index: 999;
+    z-index: 500;
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -48,7 +48,7 @@
     left: 25%;
     border: 1px solid black;
     background: var(--adsb-sidebar-background);
-    z-index: 10000;
+    z-index: 500;
     padding: 10px;
 }
 
@@ -63,7 +63,7 @@
     bottom: 10px;
     left: 25%;
     height: 15px;
-    z-index: 999;
+    z-index: 500;
     border: 1px solid black;
     padding-left: 10px;
     padding-right: 10px;

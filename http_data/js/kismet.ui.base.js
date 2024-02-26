@@ -1302,7 +1302,8 @@ exports.MemoryMonitor = function() {
         at: 'center-top',
         of: 'window',
         offsetY: offty
-    });
+    })
+    .front();
 
 	kismet_ui_tabpane.AddTab({
 		id: 'memtotals',
@@ -1568,7 +1569,8 @@ exports.PacketQueueMonitor = function() {
         at: 'center-top',
         of: 'window',
         offsetY: offty
-    });
+    })
+    .front();
 
     packetqueue_panel.packetqueue_chart = null;
     packetqueue_panel.datasource_chart = null;
@@ -2422,7 +2424,8 @@ function show_role_help(role) {
         my: 'center',
         at: 'center',
         of: 'window'
-    });
+    })
+    .front();
 }
 
 function delete_role(rolename, elem) {
@@ -2968,7 +2971,8 @@ exports.DeviceSignalDetails = function(key) {
         at: 'center-top',
         of: 'window',
         offsetY: 20
-    });
+    })
+    .front();
 
     var emptyminute = new Array();
     for (var x = 0; x < 60; x++) {
@@ -3778,7 +3782,8 @@ exports.ThermalMonitor = function() {
         at: 'center-top',
         of: 'window',
         offsetY: offty
-    });
+    })
+    .front();
 
     thermal_refresh();
 }

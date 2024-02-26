@@ -251,6 +251,9 @@ function load_main_ui() {
 
 // jquery onload complete
 $(function() {
+    // Set panel z-index above everything
+    jsPanel.ziBase = 5000;
+
     // Set a global timeout
     $.ajaxSetup({
         timeout:5000,
