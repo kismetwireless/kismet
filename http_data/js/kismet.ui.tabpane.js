@@ -216,7 +216,7 @@ function populateList(div, group) {
     });
 
     var lasttab = kismet.getStorage(`kismet.base.${group}.last_tab`, '');
-    if (lasttab == `#${tabholders[group].TabItems[0].id}` && tabholders[group].TabItems[0].activateCallback != null) {
+    if ((lasttab === '' || lasttab === `#${tabholders[group].TabItems[0].id}`) && tabholders[group].TabItems[0].activateCallback != null) {
         tabholders[group].TabItems[0].activateCallback();
     } else {
         $('a[href="' + lasttab + '"]', div).click();
