@@ -347,9 +347,9 @@ function ActivateTab() {
 
         // Datatable with fixed columns
         adsbTabulator = new Tabulator('#adsb_planes', {
+            layout: 'fitColumns',
             movableColumns: false,
             dataLoader: false,
-            layout: "fitDataStretch",
             sortMode: "local",
             pagination: true,
             paginationMode: "local",

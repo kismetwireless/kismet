@@ -548,6 +548,8 @@ var InitializeAlertTable = function(element) {
     }
 
     alertTabulator = new Tabulator('#alert-table', {
+        layout: 'fitDataStretch',
+
         movableColumns: true,
         columns: GenerateAlertColumns(),
 

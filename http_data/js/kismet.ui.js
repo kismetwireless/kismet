@@ -1663,6 +1663,8 @@ exports.InitializeDeviceTable = function(element) {
     }
 
     deviceTabulator = new Tabulator('#devices-table2', {
+        layout: 'fitColumns',
+
         movableColumns: true,
         columns: GenerateDeviceColumns2(),
 
