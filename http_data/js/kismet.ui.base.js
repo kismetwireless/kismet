@@ -2613,7 +2613,7 @@ kismet_ui_settings.AddSettingsPane({
                         $('<button>', {
                             'id': 'addapikeybutton',
                             'class': 'padded',
-                        }).html(`<i class="fa fa-plus"> Create API Key`)
+                        }).html(`<i class="fa fa-plus"></i> Create API Key`)
                     )
                     .append(
                         $('<label>', {
