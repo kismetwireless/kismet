@@ -2944,7 +2944,8 @@ var InitializeSsidTable = function(element) {
     }
 
     ssidTabulator = new Tabulator('#ssid-table', {
-        layout: 'fitColumns',
+        // This doesn't work well at all on small screens
+        // layout: 'fitColumns',
 
         movableColumns: true,
         columns: GenerateSsidColumns(),
