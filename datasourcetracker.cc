@@ -944,9 +944,10 @@ void datasource_tracker::trigger_deferred_startup() {
                     // We use the future stalling function in the pcap future streambuf to hold
                     // this thread in wait until the stream is closed, keeping the http connection
                     // going.  The stream is fed from the packetchain callbacks.
-                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(&con->response_stream(),
-                            nullptr, nullptr,
-                            1024*512);
+                    auto pcapng = 
+						std::make_shared<pcapng_stream_packetchain<pcapng_stream_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
+								pcapng_stream_accept_ftor(), pcapng_stream_select_ftor(),
+								1024*512);
 
                     con->clear_timeout();
                     con->set_target_file("kismet-all-packets.pcapng");
@@ -976,19 +977,9 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     auto dsnum = ds->get_source_number();
 
-                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(&con->response_stream(),
-                            [this, dsnum](std::shared_ptr<kis_packet> packet) -> bool {
-                                auto datasrcinfo = packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
-
-                                if (datasrcinfo == nullptr)
-                                    return false;
-
-                                if (datasrcinfo->ref_source->get_source_number() != dsnum)
-                                    return false;
-
-                                return true;
-                            },
-                            nullptr,
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain<pcapng_datasourcetracker_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
+							pcapng_datasourcetracker_accept_ftor(dsnum),
+							pcapng_stream_select_ftor(),
                             1024*512);
 
                     con->clear_timeout();

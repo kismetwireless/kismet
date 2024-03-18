@@ -997,19 +997,10 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     if (mac.error())
                         throw std::runtime_error("invalid mac");
 
-                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(&con->response_stream(),
-                            [this, mac](std::shared_ptr<kis_packet> packet) -> bool {
-                                auto dot11info = packet->fetch<dot11_packinfo>(pack_comp_80211);
-
-                                if (dot11info == nullptr)
-                                    return false;
-
-                                if (dot11info->bssid_mac == mac)
-                                    return true;
-
-                                return true;
-                            },
-                            nullptr,
+                    auto pcapng = 
+					std::make_shared<pcapng_stream_packetchain<pcapng_phy80211_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
+							pcapng_phy80211_accept_ftor(mac),
+							pcapng_stream_select_ftor(),
                             1024*512);
         
                     con->clear_timeout();

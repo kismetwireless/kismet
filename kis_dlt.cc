@@ -41,6 +41,8 @@ kis_dlt_handler::kis_dlt_handler() :
 
 	pack_comp_linkframe =
 		packetchain->register_packet_component("LINKFRAME");
+    pack_comp_l1data =
+        packetchain->register_packet_component("L1RAW");
 	pack_comp_decap =
 		packetchain->register_packet_component("DECAP");
 	pack_comp_datasrc =

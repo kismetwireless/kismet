@@ -252,7 +252,6 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	kis_wiglecsvlogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
-	pcapng_stream_futurebuf.cc.o \
 	kis_database.cc.o \
 	kismet_server.cc.o 
 

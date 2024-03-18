@@ -42,7 +42,8 @@ protected:
 	int dlt;
 	int chainid;
 	int pack_comp_linkframe, pack_comp_decap, pack_comp_datasrc,
-		pack_comp_radiodata, pack_comp_l1_agg, pack_comp_gps, pack_comp_checksum;
+		pack_comp_radiodata, pack_comp_l1_agg, pack_comp_gps, pack_comp_checksum,
+        pack_comp_l1data;
     std::shared_ptr<packet_chain> packetchain;
 };
 

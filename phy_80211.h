@@ -51,6 +51,7 @@
 #include "gpstracker.h"
 #include "uuid.h"
 #include "streamtracker.h"
+#include "macaddr.h"
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
@@ -671,5 +672,29 @@ protected:
 
     std::shared_ptr<dot11_tracked_device> dot11_builder;
 };
+
+struct pcapng_phy80211_accept_ftor {
+    pcapng_phy80211_accept_ftor(mac_addr in_mac) :
+		mac{in_mac} {
+            auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+			pack_comp_80211 = packetchain->register_packet_component("PHY80211");
+        }
+
+    bool operator()(std::shared_ptr<kis_packet> in_pack) {
+		const auto dot11info = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+
+		if (dot11info == nullptr)
+			return false;
+
+		if (dot11info->bssid_mac == mac)
+			return true;
+
+		return false;
+    }
+
+	int pack_comp_80211;
+	mac_addr mac;
+};
+
 
 #endif

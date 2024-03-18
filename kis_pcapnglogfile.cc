@@ -30,6 +30,8 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
 
     log_duplicate_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_duplicate_packets", true);
+    truncate_duplicate_packets =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_truncate_duplicate_packets", false);
     log_data_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_data_packets", true);
 
@@ -40,6 +42,8 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
     pack_comp_common = packetchain->register_packet_component("COMMON");
+    pack_comp_l1data = packetchain->register_packet_component("L1RAW");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {
@@ -62,26 +66,29 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
         return false;
     }
 
-    pcapng = new pcapng_stream_packetchain(buffer, 
-            [this](std::shared_ptr<kis_packet> in_pack) -> bool {
-                if (in_pack->filtered)
-                    return false;
+    auto l1data_selector = std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)>();
 
-                if (in_pack->duplicate && !log_duplicate_packets)
-                    return false;
-
-                if (!log_data_packets) {
-                    auto ci = in_pack->fetch<kis_common_info>(pack_comp_common);
-
-                    if (ci != nullptr) {
-                        if (ci->type == packet_basic_data) {
-                            return false;
-                        }
-                    }
+    if (truncate_duplicate_packets) {
+        l1data_selector = [this](std::shared_ptr<kis_packet> in_packet) -> std::shared_ptr<kis_datachunk> {
+            if (in_packet->duplicate) {
+                auto target_datachunk = in_packet->fetch<kis_datachunk>(pack_comp_l1data);
+                if (target_datachunk == nullptr) {
+                    auto target_datachunk = in_packet->fetch<kis_datachunk>(pack_comp_linkframe);
                 }
 
-                return true;
-            }, nullptr, 16384);
+                return target_datachunk;
+            }
+
+            return in_packet->fetch<kis_datachunk>(pack_comp_linkframe);
+        };
+    } else {
+        l1data_selector = nullptr;
+    }
+
+    pcapng = new pcapng_stream_packetchain(buffer, 
+            pcapng_logfile_accept_ftor(log_duplicate_packets, log_data_packets),
+            pcapng_logfile_select_ftor(truncate_duplicate_packets),
+            16384);
 
     _MSG_INFO("Opened pcapng log file '{}'", in_path);
 

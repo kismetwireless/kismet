@@ -462,22 +462,11 @@ device_tracker::device_tracker() :
                     if (devkey.get_error())
                         throw std::runtime_error("invalid device key");
 
-                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(&con->response_stream(),
-                            [this, devkey](std::shared_ptr<kis_packet> packet) -> bool {
-                                auto devinfo = packet->fetch<kis_tracked_device_info>(pack_comp_device);
-
-                                if (devinfo == nullptr)
-                                    return false;
-
-                                for (const auto& dri : devinfo->devrefs) {
-                                    if (dri.second->get_key() == devkey)
-                                        return true;
-                                }
-
-                                return true;
-                            },
-                            nullptr,
-                            1024*512);
+                    auto pcapng = 
+						std::make_shared<pcapng_stream_packetchain<pcapng_devicetracker_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
+								pcapng_devicetracker_accept_ftor(devkey),
+								pcapng_stream_select_ftor(),
+								1024*512);
         
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));

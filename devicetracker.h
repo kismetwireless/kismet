@@ -433,5 +433,30 @@ private:
     std::shared_ptr<device_tracker> sharedtracker;
 };
 
+struct pcapng_devicetracker_accept_ftor {
+    pcapng_devicetracker_accept_ftor(device_key in_devkey) :
+		devkey{in_devkey} {
+            auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+			pack_comp_device = packetchain->register_packet_component("DEVICE");
+        }
+
+    bool operator()(std::shared_ptr<kis_packet> in_pack) {
+		const auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
+
+		if (devinfo == nullptr)
+			return false;
+
+		for (const auto& dri : devinfo->devrefs) {
+			if (dri.second->get_key() == devkey)
+				return true;
+		}
+
+		return false;
+    }
+
+	int pack_comp_device;
+	device_key devkey;
+};
+
 #endif
 

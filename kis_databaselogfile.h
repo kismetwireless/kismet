@@ -275,7 +275,7 @@ public:
     }
 };
 
-class pcapng_stream_database : public pcapng_stream_futurebuf {
+class pcapng_stream_database : public pcapng_stream_futurebuf<pcapng_stream_accept_ftor, pcapng_stream_select_ftor> {
 public:
     pcapng_stream_database(future_chainbuf* buffer);
 

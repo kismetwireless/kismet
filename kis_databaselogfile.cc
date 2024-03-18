@@ -1577,8 +1577,8 @@ kis_database_logfile::list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_
 
 pcapng_stream_database::pcapng_stream_database(future_chainbuf* buffer) :
     pcapng_stream_futurebuf(buffer, 
-            nullptr, 
-            nullptr,
+			pcapng_stream_accept_ftor(),
+			pcapng_stream_select_ftor(),
             1024*512,
             true),
     next_pcap_intf_id{0} {
@@ -1647,6 +1647,6 @@ int pcapng_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64
     ts.tv_sec = time_s;
     ts.tv_usec = time_us;
 
-    return pcapng_write_packet(ng_interface_id, ts, data);
+    return pcapng_write_packet(ng_interface_id, ts, data, data.length());
 }
 

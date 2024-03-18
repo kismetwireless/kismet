@@ -25,6 +25,65 @@
 #include "logtracker.h"
 #include "pcapng_stream_futurebuf.h"
 
+struct pcapng_logfile_accept_ftor {
+    pcapng_logfile_accept_ftor(bool in_duplicate, bool in_data) :
+        log_duplicate_packets{in_duplicate},
+        log_data_packets{in_data} {
+            auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+            pack_comp_common = packetchain->register_packet_component("COMMON");
+        }
+
+    bool operator()(std::shared_ptr<kis_packet> in_pack) {
+        if (in_pack->filtered) {
+            return false;
+        }
+
+        if (!log_duplicate_packets && in_pack->duplicate) {
+            return false;
+        }
+
+        if (!log_data_packets) {
+            const auto ci = in_pack->fetch<kis_common_info>(pack_comp_common);
+            if (ci != nullptr) {
+                if (ci->type == packet_basic_data) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    int pack_comp_common;
+
+    bool log_duplicate_packets;
+    bool log_data_packets;
+};
+
+struct pcapng_logfile_select_ftor {
+    pcapng_logfile_select_ftor(bool truncate_duplicate_packets) :
+        truncate_duplicate_packets{truncate_duplicate_packets} {
+        auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+        pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+        pack_comp_l1data = packetchain->register_packet_component("L1RAW");
+    }
+
+    std::shared_ptr<kis_datachunk> operator()(std::shared_ptr<kis_packet> in_packet) {
+        if (truncate_duplicate_packets && in_packet->duplicate) {
+            auto l1data = in_packet->fetch<kis_datachunk>(pack_comp_l1data);
+            if (l1data != nullptr) {
+                return l1data;
+            }
+        }
+
+        return in_packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    }
+
+    bool truncate_duplicate_packets;
+    int pack_comp_linkframe, pack_comp_l1data;
+};
+
+
 class kis_pcapng_logfile : public kis_logfile {
 public:
     kis_pcapng_logfile(shared_log_builder in_builder);
@@ -36,15 +95,16 @@ public:
 protected:
     void rotate_log();
 
-    pcapng_stream_packetchain *pcapng;
+    pcapng_stream_packetchain<pcapng_logfile_accept_ftor, pcapng_logfile_select_ftor> *pcapng;
     future_chainbuf *buffer;
     FILE *pcapng_file;
     std::thread stream_t;
 
     bool log_duplicate_packets;
+    bool truncate_duplicate_packets;
     bool log_data_packets;
 
-    int pack_comp_common;
+    int pack_comp_common, pack_comp_l1data, pack_comp_linkframe;
 };
 
 class pcapng_logfile_builder : public kis_logfile_builder {

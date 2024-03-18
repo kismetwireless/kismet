@@ -551,6 +551,31 @@ protected:
     std::shared_ptr<datasource_tracker> datasourcetracker;
 };
 
+struct pcapng_datasourcetracker_accept_ftor {
+    pcapng_datasourcetracker_accept_ftor(uint64_t in_dsnum) :
+		dsnum{in_dsnum} {
+            auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+			pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+        }
+
+    bool operator()(std::shared_ptr<kis_packet> in_pack) {
+		const auto datasrcinfo = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
+
+		if (datasrcinfo == nullptr) {
+			return false;
+		}
+
+		if (datasrcinfo->ref_source->get_source_number() == dsnum) {
+			return true;
+		}
+
+        return false;
+    }
+
+	int pack_comp_datasrc;
+	uint64_t dsnum;
+};
+
 
 #endif
 

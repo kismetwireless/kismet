@@ -417,6 +417,11 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 0;
 	}
 
+    // Slice the rtap headers off and put them in the l1chunk record
+    auto l1chunk = packetchain->new_packet_component<kis_datachunk>();
+    l1chunk->set_data(linkchunk->substr(0, offset));
+    in_pack->insert(pack_comp_l1data, l1chunk);
+
     decapchunk->set_data(linkchunk->substr(offset, linkchunk->length() - offset - fcs_cut));
 
 	in_pack->insert(pack_comp_radiodata, radioheader);
