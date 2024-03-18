@@ -192,64 +192,66 @@ packet_chain::packet_chain() {
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
     // after any phy demangling and DLT demangling; lock the packet for the rest of the 
     // packet chain
-    register_handler([this](std::shared_ptr<kis_packet> in_pack) -> int {
-        // Lock the hash list, gating all hash comparisons 
-        kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
+    register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+			auto packetchain = reinterpret_cast<packet_chain *>(auxdata);
 
-        auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+			// Lock the hash list, gating all hash comparisons 
+			kis_lock_guard<kis_shared_mutex> lk(packetchain->pack_no_mutex, "hash handler");
 
-        if (chunk == nullptr)
-            return 1;
+			auto chunk = in_pack->fetch<kis_datachunk>(packetchain->pack_comp_decap, packetchain->pack_comp_linkframe);
 
-        if (chunk->data() == nullptr)
-            return 1;
+			if (chunk == nullptr)
+				return 1;
 
-        if (chunk->length() == 0)
-            return 1;
+			if (chunk->data() == nullptr)
+				return 1;
 
-        in_pack->hash = crc32_fast(chunk->data(), chunk->length(), 0);
+			if (chunk->length() == 0)
+				return 1;
 
-        for (unsigned int i = 0; i < 1024; i++) {
-            if (dedupe_list[i].hash == in_pack->hash) {
-                in_pack->duplicate = true;
-                in_pack->packet_no = dedupe_list[i].packno;
-                in_pack->original = dedupe_list[i].original_pkt;
+			in_pack->hash = crc32_fast(chunk->data(), chunk->length(), 0);
 
-                // We have to wait until everything is done being changed in the packet
-                // before we can copy the duplicate decoded state over, grab the lock that
-                // is released at the end of the chain
-                kis_lock_guard<kis_mutex> lg(dedupe_list[i].original_pkt->mutex);
-                for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
-                    auto cp = dedupe_list[i].original_pkt->content_vec[c];
-                    if (cp != nullptr) {
-                        if (cp->unique())
-                            continue;
+			for (unsigned int i = 0; i < 1024; i++) {
+			if (packetchain->dedupe_list[i].hash == in_pack->hash) {
+				in_pack->duplicate = true;
+				in_pack->packet_no = packetchain->dedupe_list[i].packno;
+				in_pack->original = packetchain->dedupe_list[i].original_pkt;
 
-                        in_pack->content_vec[c] = cp;
-                    }
-                }
+				// We have to wait until everything is done being changed in the packet
+				// before we can copy the duplicate decoded state over, grab the lock that
+				// is released at the end of the chain
+				kis_lock_guard<kis_mutex> lg(packetchain->dedupe_list[i].original_pkt->mutex);
+				for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
+					auto cp = packetchain->dedupe_list[i].original_pkt->content_vec[c];
+					if (cp != nullptr) {
+						if (cp->unique())
+							continue;
 
-                // Merge the signal levels
-                if (in_pack->has(pack_comp_l1) && in_pack->has(pack_comp_datasource)) {
-                    auto l1 = in_pack->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
-                    auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
-                    auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
-                    radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
-                }
-            }
-        }
+						in_pack->content_vec[c] = cp;
+					}
+				}
 
-        // Assign a new packet number and cache it in the dedupe
-        if (!in_pack->duplicate) {
-            auto listpos = dedupe_list_pos++ % 1024;
-            in_pack->packet_no = unique_packet_no++;
-            dedupe_list[listpos].hash = in_pack->hash;
-            dedupe_list[listpos].packno = unique_packet_no++;
-            dedupe_list[listpos].original_pkt = in_pack;
-        }
+				// Merge the signal levels
+				if (in_pack->has(packetchain->pack_comp_l1) && in_pack->has(packetchain->pack_comp_datasource)) {
+					auto l1 = in_pack->original->fetch<kis_layer1_packinfo>(packetchain->pack_comp_l1);
+					auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(packetchain->pack_comp_l1_agg);
+					auto datasrc = in_pack->fetch<packetchain_comp_datasource>(packetchain->pack_comp_datasource);
+					radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
+				}
+			}
+			}
 
-        return 1;
-    }, CHAINPOS_LLCDISSECT, -100000);
+			// Assign a new packet number and cache it in the dedupe
+			if (!in_pack->duplicate) {
+				auto listpos = packetchain->dedupe_list_pos++ % 1024;
+				in_pack->packet_no = packetchain->unique_packet_no++;
+				packetchain->dedupe_list[listpos].hash = in_pack->hash;
+				packetchain->dedupe_list[listpos].packno = packetchain->unique_packet_no++;
+				packetchain->dedupe_list[listpos].original_pkt = in_pack;
+			}
+
+			return 1;
+		}, this, CHAINPOS_LLCDISSECT, -100000);
 
 }
 
@@ -450,43 +452,31 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         for (const auto& pcl : llcdissect_chain) {
             if (pcl->callback != nullptr)
                 pcl->callback(pcl->auxdata, packet);
-            else if (pcl->l_callback != nullptr)
-                pcl->l_callback(packet);
         }
 
         for (const auto& pcl : decrypt_chain) {
             if (pcl->callback != nullptr)
                 pcl->callback(pcl->auxdata, packet);
-            else if (pcl->l_callback != nullptr)
-                pcl->l_callback(packet);
         }
 
         for (const auto& pcl : datadissect_chain) {
             if (pcl->callback != nullptr)
                 pcl->callback(pcl->auxdata, packet);
-            else if (pcl->l_callback != nullptr)
-                pcl->l_callback(packet);
         }
 
         for (const auto& pcl : classifier_chain) {
             if (pcl->callback != nullptr)
                 pcl->callback(pcl->auxdata, packet);
-            else if (pcl->l_callback != nullptr)
-                pcl->l_callback(packet);
         }
 
         for (const auto& pcl : tracker_chain) {
             if (pcl->callback != nullptr)
                 pcl->callback(pcl->auxdata, packet);
-            else if (pcl->l_callback != nullptr)
-                pcl->l_callback(packet);
         }
 
         for (const auto& pcl : logging_chain) {
             if (pcl->callback != nullptr)
                 pcl->callback(pcl->auxdata, packet);
-            else if (pcl->l_callback != nullptr)
-                pcl->l_callback(packet);
         }
 
         packet->mutex.unlock();
@@ -528,8 +518,6 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     for (const auto& pcl : postcap_chain) {
         if (pcl->callback != nullptr)
             pcl->callback(pcl->auxdata, in_pack);
-        else if (pcl->l_callback != nullptr)
-            pcl->l_callback(in_pack);
     }
 
     // assign it to a thread
@@ -597,9 +585,7 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     return 1;
 }
 
-int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
-        std::function<int (std::shared_ptr<kis_packet>)> in_l_cb, 
-        int in_chain, int in_prio) {
+int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
 
     kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
 
@@ -608,7 +594,6 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
     // Generate packet, we'll nuke it if it's invalid later
     link->priority = in_prio;
     link->callback = in_cb;
-    link->l_callback = in_l_cb;
     link->auxdata = in_aux;
     link->id = next_handlerid++;
 
@@ -699,11 +684,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
 }
 
 int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
-    return register_int_handler(in_cb, in_aux, NULL, in_chain, in_prio);
-}
-
-int packet_chain::register_handler(std::function<int (std::shared_ptr<kis_packet>)> in_cb, int in_chain, int in_prio) {
-    return register_int_handler(NULL, NULL, in_cb, in_chain, in_prio);
+    return register_int_handler(in_cb, in_aux, in_chain, in_prio);
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {

@@ -406,11 +406,12 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         std::shared_ptr<packet_chain> packetchain =
             Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-        auto this_ref = shared_from_this();
+        // auto this_ref = shared_from_this();
         packet_handler_id = 
-            packetchain->register_handler([this, this_ref](std::shared_ptr<kis_packet> packet) -> int {
-                    return log_packet(packet);
-                }, CHAINPOS_LOGGING, -100);
+            packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> packet) -> int {
+					auto dbl = reinterpret_cast<kis_database_logfile *>(auxdata);
+                    return dbl->log_packet(packet);
+                }, this, CHAINPOS_LOGGING, -100);
     } else {
         packet_handler_id = -1;
         _MSG_INFO("Packets will not be saved to the Kismet database log.");

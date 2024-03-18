@@ -694,10 +694,11 @@ public:
         pcapng_stream_futurebuf<fn_accept, fn_selector>::start_stream();
 
         packethandler_id = 
-            this->packetchain->register_handler([this](std::shared_ptr<kis_packet> packet) {
-                    this->handle_packet(packet);
+            this->packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> packet) {
+					auto pcapng = reinterpret_cast<pcapng_stream_packetchain *>(auxdata);
+                    pcapng->handle_packet(packet);
                     return 1;
-                    }, CHAINPOS_LOGGING, -100);
+				}, this, CHAINPOS_LOGGING, -100);
 
     }
 

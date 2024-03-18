@@ -165,9 +165,10 @@ device_tracker::device_tracker() :
 
 	// Common tracker, very early in the tracker chain
     packetchain_common_id = 
-        packetchain->register_handler([this](std::shared_ptr<kis_packet> in_packet) -> int {
-                return common_tracker(in_packet);
-            }, CHAINPOS_TRACKER, -100);
+        packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_packet) -> int {
+				auto devicetracker = reinterpret_cast<device_tracker *>(auxdata);
+                return devicetracker->common_tracker(in_packet);
+            }, this, CHAINPOS_TRACKER, -100);
 
 
     // Post any events related to the device generated during tracking mode
@@ -176,11 +177,12 @@ device_tracker::device_tracker() :
     // BEGINNING of the chain, we get only the generic device with none of the
     // phy-specific attachments.
     packetchain_tracking_done_id =
-        packetchain->register_handler([this](std::shared_ptr<kis_packet> in_packet) -> int {
-            for (const auto& e : in_packet->process_complete_events)
-                eventbus->publish(e);
-            return 1;
-        }, CHAINPOS_TRACKER, 0x7FFFFFFF);
+        packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_packet) -> int {
+				auto devicetracker = reinterpret_cast<device_tracker *>(auxdata);
+				for (const auto& e : in_packet->process_complete_events)
+					devicetracker->eventbus->publish(e);
+				return 1;
+        }, this, CHAINPOS_TRACKER, 0x7FFFFFFF);
 
     if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);

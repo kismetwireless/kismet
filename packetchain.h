@@ -135,15 +135,15 @@ public:
     typedef int (*pc_callback)(CHAINCALL_PARMS);
     typedef struct {
         int priority;
+
 		packet_chain::pc_callback callback;
-        std::function<int (std::shared_ptr<kis_packet>)> l_callback;
+
         void *auxdata;
 		int id;
     } pc_link;
 
     // Register a callback, aux data, a chain to put it in, and the priority 
     int register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
-    int register_handler(std::function<int (std::shared_ptr<kis_packet>)> in_cb, int in_chain, int in_prio);
     int remove_handler(pc_callback in_cb, int in_chain);
 	int remove_handler(int in_id, int in_chain);
 
@@ -170,9 +170,7 @@ protected:
     void packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue);
 
     // Common function for both insertion methods
-    int register_int_handler(pc_callback in_cb, void *in_aux, 
-            std::function<int (std::shared_ptr<kis_packet>)> in_l_cb, 
-            int in_chain, int in_prio);
+    int register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
 
     int next_componentid, next_handlerid;
 

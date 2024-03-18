@@ -34,10 +34,10 @@ kis_dlt_handler::kis_dlt_handler() :
         Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	chainid = 
-        packetchain->register_handler([this](std::shared_ptr<kis_packet> p) -> int {
-                    return handle_packet(p);
-                },
-                CHAINPOS_POSTCAP, 0);
+        packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> p) -> int {
+                auto dlthandler = reinterpret_cast<kis_dlt_handler *>(auxdata);
+                return dlthandler->handle_packet(p);
+            }, this, CHAINPOS_POSTCAP, 0);
 
 	pack_comp_linkframe =
 		packetchain->register_packet_component("LINKFRAME");
