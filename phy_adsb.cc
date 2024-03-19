@@ -234,68 +234,80 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                             // Do nothing on input
                         });
 
+                struct uptr_t {
+                    std::shared_ptr<kis_net_web_websocket_endpoint> ws;
+                    kis_adsb_phy *adsb;                
+                };
+
+                auto uptr = new uptr_t();
+
+                uptr->ws = ws;
+                uptr->adsb = this;
+
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [this, ws](std::shared_ptr<kis_packet> in_pack) -> int {
+                            [](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+                                auto uptr = reinterpret_cast<struct uptr_t *>(auxdata);
 
-                            if (in_pack->error || in_pack->filtered || in_pack->duplicate)
-                                return 0;
+                                if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+                                    return 0;
 
-                            auto json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                                auto json = in_pack->fetch<kis_json_packinfo>(uptr->adsb->pack_comp_json);
                             
-                            if (json == NULL)
-                                return 0;
+                                if (json == NULL)
+                                    return 0;
 
-                            if (json->type != "adsb")
-                                return 0;
+                                if (json->type != "adsb")
+                                    return 0;
 
-                            std::stringstream ss(json->json_string);
-                            nlohmann::json device_json;
+                                std::stringstream ss(json->json_string);
+                                nlohmann::json device_json;
 
-                            try {
-                                ss >> device_json;
+                                try {
+                                    ss >> device_json;
 
-                                auto adsb_content = hex_to_bytes(device_json["adsb_raw_msg"]);
+                                    auto adsb_content = hex_to_bytes(device_json["adsb_raw_msg"]);
 
-                                if (adsb_content.size() != 7 && adsb_content.size() != 14) {
-                                    _MSG_DEBUG("unexpected content length {}", adsb_content.size());
+                                    if (adsb_content.size() != 7 && adsb_content.size() != 14) {
+                                        _MSG_DEBUG("unexpected content length {}", adsb_content.size());
+                                        return 0;
+                                    }
+
+                                    auto buf = new char[sizeof(adsb_beast_frame) + adsb_content.size()];
+                                    auto frame = reinterpret_cast<adsb_beast_frame_t *>(buf);
+
+                                    frame->esc = 0x1a;
+
+                                    if (adsb_content.size() == 7)
+                                        frame->frametype = '2';
+                                    else if (adsb_content.size() == 14)
+                                        frame->frametype = '3';
+
+                                    struct timeval tv;
+                                    gettimeofday(&tv, 0);
+
+                                    auto mlat_s = reinterpret_cast<uint32_t *>(&frame->mlat_ts);
+                                    auto mlat_us = reinterpret_cast<uint32_t *>(&frame->mlat_ts + 2);
+
+                                    *mlat_s = tv.tv_usec << 4;
+                                    *mlat_us = tv.tv_usec;
+
+                                    frame->signal = 0;
+
+                                    memcpy(frame->modes, adsb_content.data(), adsb_content.size());
+
+                                    uptr->ws->write(std::string(buf, sizeof(adsb_beast_frame) + adsb_content.size()));
+
+                                    delete[] buf;
+
+                                } catch (std::exception& e) {
+                                    delete uptr;
                                     return 0;
                                 }
 
-                                auto buf = new char[sizeof(adsb_beast_frame) + adsb_content.size()];
-                                auto frame = reinterpret_cast<adsb_beast_frame_t *>(buf);
-
-                                frame->esc = 0x1a;
-
-                                if (adsb_content.size() == 7)
-                                    frame->frametype = '2';
-                                else if (adsb_content.size() == 14)
-                                    frame->frametype = '3';
-
-                                struct timeval tv;
-                                gettimeofday(&tv, 0);
-
-                                auto mlat_s = reinterpret_cast<uint32_t *>(&frame->mlat_ts);
-                                auto mlat_us = reinterpret_cast<uint32_t *>(&frame->mlat_ts + 2);
-
-                                *mlat_s = tv.tv_usec << 4;
-                                *mlat_us = tv.tv_usec;
-
-                                frame->signal = 0;
-
-                                memcpy(frame->modes, adsb_content.data(), adsb_content.size());
-
-                                ws->write(std::string(buf, sizeof(adsb_beast_frame) + adsb_content.size()));
-
-                                delete[] buf;
-
-                            } catch (std::exception& e) {
-                                return 0;
-                            }
-
-
-                            return 1;
-                    }, CHAINPOS_LOGGING, 1000);
+                                delete uptr;
+                                return 1;
+                    }, uptr, CHAINPOS_LOGGING, 1000);
 
                 ws->binary();
 
@@ -319,14 +331,26 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                             // Do nothing on input
                         });
 
+                struct uptr_t {
+                    std::shared_ptr<kis_net_web_websocket_endpoint> ws;
+                    kis_adsb_phy *adsb;                
+                };
+
+                auto uptr = new uptr_t();
+
+                uptr->ws = ws;
+                uptr->adsb = this;
+
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [this, ws](std::shared_ptr<kis_packet> in_pack) -> int {
+                            [](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+
+                            auto uptr = reinterpret_cast<struct uptr_t *>(auxdata);
 
                             if (in_pack->error || in_pack->filtered || in_pack->duplicate)
                                 return 0;
 
-                            auto json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                            auto json = in_pack->fetch<kis_json_packinfo>(uptr->adsb->pack_comp_json);
                             
                             if (json == NULL)
                                 return 0;
@@ -343,14 +367,15 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 auto adsb_content = 
                                     fmt::format("*{};\n", device_json["adsb_raw_msg"].get<std::string>());
 
-                                ws->write(adsb_content);
+                                uptr->ws->write(adsb_content);
                             } catch (std::exception& e) {
+                                delete uptr;
                                 return 0;
                             }
 
-
+                            delete uptr;
                             return 1;
-                    }, CHAINPOS_LOGGING, 1000);
+                    }, uptr, CHAINPOS_LOGGING, 1000);
 
                 ws->text();
 
@@ -380,14 +405,28 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                             // Do nothing on input
                         });
 
+                struct uptr_t {
+                    std::shared_ptr<kis_net_web_websocket_endpoint> ws;
+                    kis_adsb_phy *adsb;                
+                    uuid srcuuid;
+                };
+
+                auto uptr = new uptr_t();
+
+                uptr->ws = ws;
+                uptr->adsb = this;
+                uptr->srcuuid = srcuuid;
+
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [this, ws, srcuuid](std::shared_ptr<kis_packet> in_pack) -> int {
+                            [](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+
+                            auto uptr = reinterpret_cast<struct uptr_t *>(auxdata);
 
                             if (in_pack->error || in_pack->filtered || in_pack->duplicate)
                                 return 0;
 
-                            auto json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                            auto json = in_pack->fetch<kis_json_packinfo>(uptr->adsb->pack_comp_json);
                             
                             if (json == nullptr)
                                 return 0;
@@ -395,12 +434,12 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                             if (json->type != "adsb")
                                 return 0;
 
-                            auto src = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+                            auto src = in_pack->fetch<packetchain_comp_datasource>(uptr->adsb->pack_comp_datasource);
 
                             if (src == nullptr)
                                 return 0;
 
-                            if (src->ref_source->get_source_uuid() != srcuuid)
+                            if (src->ref_source->get_source_uuid() != uptr->srcuuid)
                                 return 0;
 
                             std::stringstream ss(json->json_string);
@@ -412,14 +451,15 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 auto adsb_content = 
                                     fmt::format("*{};\n", device_json["adsb_raw_msg"].get<std::string>());
 
-                                ws->write(adsb_content);
+                                uptr->ws->write(adsb_content);
                             } catch (std::exception& e) {
+                                delete uptr;
                                 return 0;
                             }
 
-
+                            delete uptr;
                             return 1;
-                    }, CHAINPOS_LOGGING, 1000);
+                    }, uptr, CHAINPOS_LOGGING, 1000);
 
                 ws->text();
 
