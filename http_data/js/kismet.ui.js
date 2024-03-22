@@ -1595,7 +1595,7 @@ function LoadDeviceTablePrefs() {
             "wifi_qbss_usage"],
         "colsettings": {},
         "sort": {
-            "column": "",
+            "column": "last_time",
             "dir": "asc",
         },
     });
