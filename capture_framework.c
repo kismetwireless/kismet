@@ -1054,11 +1054,12 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 
         if (user != NULL && password != NULL) {
             snprintf(uri, 1024, "%s?user=%s&password=%s", endp_arg, user, password);
+            caph->lwsuri = strdup(uri);
         } else if (token != NULL) {
             snprintf(uri, 1024, "%s?KISMET=%s", endp_arg, token);
+            caph->lwsuri = strdup(uri);
         }
 
-        caph->lwsuri = strdup(uri);
 #endif
 
         ret = 2;
@@ -2675,8 +2676,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                                 }
                             }
                         } else {
-                            kis_simple_ringbuf_read(ipc_iter->out_ringbuf, NULL, (size_t) written_sz);
                             kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                            kis_simple_ringbuf_read(ipc_iter->out_ringbuf, NULL, (size_t) written_sz);
                         }
                     }
                 }
