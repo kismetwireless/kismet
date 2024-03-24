@@ -29,7 +29,8 @@ typedef std::shared_ptr<kis_datasource_adsbproxy> shared_datasource_adsbproxy;
 
 class kis_datasource_adsbproxy : public kis_datasource {
 public:
-    kis_datasource_adsbproxy(shared_datasource_builder in_builder) {
+    kis_datasource_adsbproxy(shared_datasource_builder in_builder) :
+		kis_datasource(in_builder) {
         set_int_source_hardware("adsbproxy");
         set_int_source_ipc_binary("kismet_cap_proxy_adsb");
         suppress_gps = true;
