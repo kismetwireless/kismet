@@ -598,6 +598,7 @@ void kis_datasource::handle_error(const std::string& in_error) {
 }
 
 void kis_datasource::close_source() {
+	set_int_source_running(false);
     return close_external();
 }
 
