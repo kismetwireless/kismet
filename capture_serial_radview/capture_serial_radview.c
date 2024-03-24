@@ -218,7 +218,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (localbaudrate == NULL) {
             snprintf(msg, STATUS_MAX,
-                "nrf51822 could not parse baudrate= option provided in source "
+                "radview could not parse baudrate= option provided in source "
                 "definition");
             return -1;
         }
@@ -235,8 +235,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
-            adler32_csum((unsigned char *) "kismet_cap_nrf_51822",
-                strlen("kismet_cap_nrf_51822")) &
+            adler32_csum((unsigned char *) "kismet_cap_serial_radview",
+                strlen("kismet_cap_serial_radview")) &
                 0xFFFFFFFF,
             adler32_csum((unsigned char *) device, strlen(device)));
         *uuid = strdup(errstr);
@@ -336,6 +336,8 @@ void capture_thread(kis_capture_handler_t *caph) {
             /* Search for newlines, return json record */
             ssize_t newline = 0;
             int fail = 0;
+            struct timeval tv;
+            int r;
 
             while (1) {
                 newline = kis_simple_ringbuf_search_byte(localrad->serial_ringbuf, '\n');
@@ -354,7 +356,27 @@ void capture_thread(kis_capture_handler_t *caph) {
                     break;
                 }
 
-                printf("DEBUG: %.*s\n", newline, buf);
+                buf[newline] = '\0';
+                printf("DEBUG: %s\n", buf);
+
+                gettimeofday(&tv, NULL);
+
+                while (1) {
+                    r = cf_send_json(caph, NULL, NULL, NULL, tv, "radview", (char *) buf);
+
+                    if (r < 0) {
+                        snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localrad->name);
+                        fprintf(stderr, "%s", errstr);
+                        cf_send_error(caph, 0, errstr);
+                        fail = 1;
+                        break;
+                    } else if (r == 0) {
+                        cf_handler_wait_ringbuffer(caph);
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
 
                 kis_simple_ringbuf_peek_free(localrad->serial_ringbuf, buf);
                 kis_simple_ringbuf_read(localrad->serial_ringbuf, NULL, newline + 1);
