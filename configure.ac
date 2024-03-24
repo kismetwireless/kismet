@@ -1757,6 +1757,10 @@ if test "$linux" = "yes"; then
 fi
 
 # All this depends on is serial so we build it all the time
+BUILD_CAPTURE_SERIAL_RADVIEW=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SERIAL_RADVIEW)"
+
+# All this depends on is serial so we build it all the time
 BUILD_CAPTURE_NRF_51822=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 
@@ -1941,6 +1945,7 @@ AC_SUBST(BUILD_CAPTURE_PROXY_ADSB)
 AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_52840)
 AC_SUBST(BUILD_CAPTURE_HAK5_COCONUT)
+AC_SUBST(BUILD_CAPTURE_SERIAL_RADVIEW)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1972,6 +1977,7 @@ AC_CONFIG_FILES([
     capture_proxy_adsb/Makefile
     capture_nrf_52840/Makefile
     capture_hak5_wifi_coconut/Makefile
+	capture_serial_radview/Makefile
     ])
 AC_OUTPUT
 
@@ -2128,6 +2134,13 @@ if test "$BUILD_CAPTURE_RZ_KILLERBEE" = 1; then
         echo "yes";
 else
         echo "no (libusb-1.0 not available)";
+fi
+
+printf "        RADVIEW Serial: "
+if test "$BUILD_CAPTURE_SERIAL_RADVIEW" = 1; then
+        echo "yes";
+else
+        echo "no";
 fi
 
 

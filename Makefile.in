@@ -156,6 +156,9 @@ BUILD_CAPTURE_BLADERF_WIPHY = @BUILD_CAPTURE_BLADERF_WLAN@
 CAPTURE_HAK5_COCONUT = capture_hak5_wifi_coconut/kismet_cap_hak5_wifi_coconut
 BUILD_CAPTURE_HAK5_COCONUT = @BUILD_CAPTURE_HAK5_COCONUT@
 
+CAPTURE_SERIAL_RADVIEW = capture_serial_radview/kismet_cap_serial_radview
+BUILD_CAPTURE_SERIAL_RADVIEW = @BUILD_CAPTURE_SERIAL_RADVIEW@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -393,6 +396,9 @@ $(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_HAK5_COCONUT): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_hak5_wifi_coconut && $(MAKE))
 
+$(CAPTURE_SERIAL_RADVIEW): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_serial_radview && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -457,6 +463,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_HAK5_COCONUT)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_HAK5_COCONUT) $(BIN)/`basename $(CAPTURE_HAK5_COCONUT)` ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SERIAL_RADVIEW) $(BIN)/`basename $(CAPTURE_SERIAL_RADVIEW)` ; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -537,6 +547,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SERIAL_RADVIEW) $(BIN)/`basename $(CAPTURE_SERIAL_RADVIEW)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
@@ -767,6 +781,8 @@ clean: all-plugins-clean depclean
 	@(cd capture_nrf_52840 && make clean)
 	@(cd capture_nxp_kw41z && make clean)
 	@(cd capture_rz_killerbee && make clean)
+	@(cd capture_hak5_wifi_coconut && make clean)
+	@(cd capture_serial_radview && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*
