@@ -1299,6 +1299,11 @@ void *cf_int_signal_thread(void *arg) {
     setitimer(ITIMER_REAL, &itval, NULL);
 #endif
 
+    /* Unblock signals, we handle them here */
+    sigset_t unblock_mask;
+    sigfillset(&unblock_mask);
+    pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
+
     while (!caph->spindown && !caph->shutdown) { 
         r = sigwait(&cf_core_signal_mask, &sig_caught);
 
@@ -3995,7 +4000,36 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         caph->spindown = 0;
         caph->shutdown = 0;
 
-        if (caph->remote_retry && (caph->monitor_pid = fork()) > 0) {
+        if (caph->remote_retry && (caph->monitor_pid = fork() > 0)) {
+            pthread_attr_t attr;
+            pthread_attr_init(&attr);
+            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+            pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+
+            /* Set up signal mask on the monitoring process */
+            sigemptyset(&cf_core_signal_mask);
+
+            sigaddset(&cf_core_signal_mask, SIGINT);
+            sigaddset(&cf_core_signal_mask, SIGQUIT);
+            sigaddset(&cf_core_signal_mask, SIGTERM);
+            sigaddset(&cf_core_signal_mask, SIGHUP);
+            sigaddset(&cf_core_signal_mask, SIGALRM);
+            sigaddset(&cf_core_signal_mask, SIGQUIT);
+            sigaddset(&cf_core_signal_mask, SIGCHLD);
+            sigaddset(&cf_core_signal_mask, SIGSEGV);
+            sigaddset(&cf_core_signal_mask, SIGPIPE);
+
+            /* Set thread mask for all new threads */
+            pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
+
+            /* Launch the signal handling thread */ 
+            if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) < 0) {
+                fprintf(stderr, "%s failed to launch signal maintenance thread in monitoring process\n", caph->capsource_type);
+                cf_send_error(caph, 0, "failed to launch signal thread");
+                cf_handler_spindown(caph);
+                return;
+            }
+
             while (1) {
                 /* Parent loop waiting for spaned process to exit, then restart */
                 pid_t wpid;
@@ -4009,7 +4043,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                         break;
                     }
                 }
-            }
+            } 
         } else {
             if (caph->use_tcp) {
                 if (cf_handler_tcp_remote_connect(caph) < 1) {
