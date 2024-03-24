@@ -249,6 +249,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
+	*ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
     char cap_if[32];
