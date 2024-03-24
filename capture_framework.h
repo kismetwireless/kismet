@@ -273,6 +273,9 @@ struct kis_capture_handler {
     int in_fd;
     int out_fd;
 
+	/* Child process in monitor/relaunch mode */
+	pid_t child_pid;
+
     /* Use legacy tcp mode */
     int use_tcp;
 

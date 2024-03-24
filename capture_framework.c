@@ -1310,6 +1310,9 @@ void *cf_int_signal_thread(void *arg) {
             case SIGTERM:
             case SIGHUP:
             case SIGQUIT:
+                if (caph->child_pid > 0) {
+                    kill(caph->child_pid, SIGINT);
+                }
                 pthread_mutex_lock(&(caph->out_ringbuf_lock));
                 if (caph->capture_running) {
                     pthread_cancel(caph->capturethread);
@@ -4162,7 +4165,6 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
 
     int inpair[2];
     int outpair[2];
-    pid_t child_pid;
 
     if (pipe(inpair) < 0) {
         return NULL;
@@ -4174,13 +4176,13 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         return NULL;
     }
 
-    if ((child_pid = fork()) < 0) {
+    if ((caph->child_pid = fork()) < 0) {
         close(inpair[0]);
         close(inpair[1]);
         close(outpair[0]);
         close(outpair[1]);
         return NULL;
-    } else if (child_pid == 0) { 
+    } else if (caph->child_pid == 0) { 
         sigset_t unblock_mask;
 
         sigfillset(&unblock_mask);
@@ -4201,7 +4203,7 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
     ret->in_fd = inpair[1];
     ret->out_fd = outpair[0];
 
-    ret->pid = child_pid; 
+    ret->pid = caph->child_pid; 
 
     fcntl(ret->in_fd, F_SETFL, fcntl(ret->in_fd, F_GETFL, 0) | O_NONBLOCK);
     fcntl(ret->out_fd, F_SETFL, fcntl(ret->out_fd, F_GETFL, 0) | O_NONBLOCK);
