@@ -140,5 +140,9 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
  */
 void kis_simple_ringbuf_peek_free(kis_simple_ringbuf_t *ringbuf, void *ptr);
 
+/* Search for a byte in the buffer, return the offset; most useful for finding newlines 
+ * in a buffer*/
+ssize_t kis_simple_ringbuf_search_byte(kis_simple_ringbuf_t *ringbuf, unsigned char b);
+
 #endif
 

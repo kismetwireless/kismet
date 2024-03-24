@@ -517,3 +517,14 @@ void kis_simple_ringbuf_peek_free(kis_simple_ringbuf_t *ringbuf, void *ptr) {
     ringbuf->mid_peek = 0;
 }
 
+ssize_t kis_simple_ringbuf_search_byte(kis_simple_ringbuf_t *ringbuf, unsigned char b) {
+    size_t pos = 0;
+
+    for (pos = 0; pos < ringbuf->length; pos++) {
+        if (ringbuf->buffer[((ringbuf->start_pos + pos) % ringbuf->buffer_sz)] == b) {
+            return pos;
+        }
+    }
+
+    return -1;
+}
