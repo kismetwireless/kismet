@@ -871,7 +871,8 @@ int cf_send_json(kis_capture_handler_t *caph,
         KismetExternal__MsgbusMessage *kv_message,
         KismetDatasource__SubSignal *kv_signal,
         KismetDatasource__SubGps *kv_gps,
-        struct timeval ts, char *type, char *json);
+        struct timeval ts, char *type, 
+        char *json);
 
 /* Send a CONFIGRESP with only a success and optional message
  *

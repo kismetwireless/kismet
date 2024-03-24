@@ -716,14 +716,11 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         ds->set_channel(ch, 0,
                                 [&set_success, &set_promise](unsigned int t, bool success, std::string e) mutable {
-                                // _MSG_DEBUG("ds set channel callback {} {} '{}'", t, success, e);
                                 set_success = success;
                                 set_promise.set_value();
                                 });
 
                         set_ft.wait();
-
-                        // _MSG_DEBUG("ds future unlocked, {}", set_success);
 
                         if (set_success) {
                             return ds;
@@ -1015,8 +1012,6 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         kis_lock_guard<kis_mutex> lk(ds_bridge->mutex, "dst websocket rx");
 
-                        // _MSG_DEBUG("incoming packet for ds");
-
                         if (ds_bridge->bridged_ds == nullptr) {
                             ws->close();
                             return;
@@ -1037,7 +1032,6 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 ws->binary();
 
-                // _MSG_DEBUG("Making incoming remote bridge");
                 ds_bridge->bridged_ds = 
                     std::make_shared<dst_incoming_remote>(
                             [this, ds_bridge, ws] (dst_incoming_remote *initiator, std::string in_type, 
@@ -1693,8 +1687,6 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
      
     kis_unique_lock<kis_mutex> lock(dst_lock, "dst open_remote_datasource");
 
-    // _MSG_DEBUG("merging incoming {} {} {}", in_type, in_definition, in_uuid);
-
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
         shared_datasource d = std::static_pointer_cast<kis_datasource>(p);
@@ -1752,8 +1744,6 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         if (b->get_source_type() == in_type) {
             // Explicitly unlock the mutex before we fire the connection handler
             lock.unlock();
-
-            // _MSG_DEBUG("Making a new ds to hold incoming remote");
 
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
@@ -1966,8 +1956,6 @@ dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
-    // _MSG_DEBUG("~dst_incoming_remote");
-
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
@@ -1982,7 +1970,6 @@ bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
     if (command.compare("KDSNEWSOURCE") == 0) {
-        //_MSG_DEBUG("incoming remote got kds newsource");
         handle_packet_newsource(seqno, content);
         return true;
     }

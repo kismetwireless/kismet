@@ -41,7 +41,6 @@ protected:
             open_callback_t in_cb) override {
         kis_datasource::open_interface(in_definition, in_transaction, in_cb);
     }
-
 };
 
 class datasource_radview_builder : public kis_datasource_builder {

@@ -1216,6 +1216,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         set_int_source_retry_attempts(0);
 
     set_int_source_running(report.success().success());
+
     set_int_source_error(!report.success().success());
 
     uint32_t seq = report.success().seqno();
@@ -1458,7 +1459,6 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
     if (report->has_signal()) {
         auto siginfo = handle_sub_signal(report->signal());
         packet->insert(pack_comp_l1info, siginfo);
-        // _MSG_DEBUG("creating l1 chan {} freq {}", siginfo->channel, siginfo->freq_khz);
     }
 
     // GPS
@@ -1535,8 +1535,6 @@ void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
 
     jsoninfo->type = report.type();
     jsoninfo->json_string = report.json();
-
-    // _MSG_DEBUG("JSON data {} {}", jsoninfo->type, jsoninfo->json_string);
 
     packet->insert(pack_comp_json, jsoninfo);
 }
@@ -2038,8 +2036,6 @@ void kis_datasource::handle_source_error() {
         error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int tid) -> int {
                 kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource error_timer lambda");
 
-                // _MSG_DEBUG("Reopen timer tid {} pid {}", tid, getpid());
-
                 if (get_source_retry() == false)
                     return 0;
 
@@ -2100,8 +2096,6 @@ bool kis_datasource::launch_ipc() {
     set_int_source_ipc_pid(-1);
 
     external_binary = get_source_ipc_binary();
-
-    // _MSG_DEBUG("probe running ipc {}", external_binary);
 
     if (run_ipc()) {
         set_int_source_ipc_pid(ipc.pid);
