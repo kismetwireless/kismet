@@ -1310,9 +1310,14 @@ void *cf_int_signal_thread(void *arg) {
             case SIGTERM:
             case SIGHUP:
             case SIGQUIT:
+                if (caph->monitor_pid > 0) {
+                    kill(caph->monitor_pid, SIGINT);
+                }
+
                 if (caph->child_pid > 0) {
                     kill(caph->child_pid, SIGINT);
                 }
+
                 pthread_mutex_lock(&(caph->out_ringbuf_lock));
                 if (caph->capture_running) {
                     pthread_cancel(caph->capturethread);
@@ -3964,7 +3969,6 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_remote_capture(kis_capture_handler_t *caph) {
-    pid_t chpid;
     int status;
 
     /* If we're going into daemon mode, fork-exec and drop out here */
@@ -3991,13 +3995,14 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         caph->spindown = 0;
         caph->shutdown = 0;
 
-        if (caph->remote_retry && (chpid = fork()) > 0) {
+        if (caph->remote_retry && (caph->monitor_pid = fork()) > 0) {
             while (1) {
+                /* Parent loop waiting for spaned process to exit, then restart */
                 pid_t wpid;
 
                 wpid = wait(&status);
 
-                if (wpid == chpid) {
+                if (wpid == caph->monitor_pid) {
                     if (WIFEXITED(status) || WIFSIGNALED(status)) {
                         fprintf(stderr, "INFO: capture process exited %d signal %d\n", 
                                 WEXITSTATUS(status), WTERMSIG(status));
