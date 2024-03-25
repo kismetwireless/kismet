@@ -29,7 +29,9 @@ public:
     virtual ~kis_radiation_phy();
 
     kis_radiation_phy() :
-        kis_phy_handler() { };
+        kis_phy_handler() {
+            indexed = false;
+        };
 
     virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
         return new kis_radiation_phy(in_phyid);

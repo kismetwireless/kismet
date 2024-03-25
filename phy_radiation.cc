@@ -27,6 +27,7 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
     set_phy_name("RADIATION");
+    indexed = false;
 
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();

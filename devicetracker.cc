@@ -1013,6 +1013,11 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
                         }
                         );
             phy_view_map[phy_id] = phy_view;
+
+            if (strongphy->fetch_phy_indexed() == false) {
+                phy_view->set_indexed(false);
+            }
+
             add_view(phy_view);
         }
     }

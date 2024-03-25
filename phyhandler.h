@@ -34,20 +34,23 @@ class kis_phy_handler {
 public:
 	// Create a 'weak' handler which provides enough structure to call create_phy_handler
     kis_phy_handler() :
-        phyname {"NONE"},
-        phyid {-1} { }
+        phyname{"NONE"},
+        phyid{-1},
+        indexed{true} { }
 
     virtual kis_phy_handler *create_phy_handler(int in_phyid) = 0;
 
     kis_phy_handler(int in_phyid) :
-        phyname {"NONE"},
-        phyid {in_phyid} { }
+        phyname{"NONE"},
+        phyid{in_phyid},
+        indexed{true} { }
 
 	virtual ~kis_phy_handler() { }
 
 	std::string fetch_phy_name() { return phyname; }
 	int fetch_phy_id() { return phyid; }
     uint32_t fetch_phyname_hash() { return phyname_hash; }
+    bool fetch_phy_indexed() { return indexed; }
 
     // Called for all instantiated phys when restoring a network object from
     // a stored record; This function is expected to inspect the abstract object
@@ -70,6 +73,7 @@ protected:
     std::string phyname;
     uint32_t phyname_hash;
 	int phyid;
+    bool indexed;
 };
 
 #endif

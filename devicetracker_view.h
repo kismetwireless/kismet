@@ -82,6 +82,7 @@ public:
     __ProxyGet(view_id, std::string, std::string, view_id);
     __ProxyGet(view_description, std::string, std::string, view_description);
     __ProxyGet(list_sz, uint64_t, uint64_t, list_sz);
+    __ProxyGet(view_indexed, bool, bool, view_indexed);
 
     virtual void pre_serialize() override;
     virtual void post_serialize() override;
@@ -114,6 +115,11 @@ public:
 	// Look for an existing device record under read-only shared lock
     std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
 
+    // Set view to non-indexed so the UI knows not to show it in the primary list
+    virtual void set_indexed(bool indexed) {
+        view_indexed->set(indexed);
+    }
+
 protected:
     std::shared_ptr<device_tracker> devicetracker;
 
@@ -123,12 +129,14 @@ protected:
         register_field("kismet.devices.view.id", "View ID/Endpoint", &view_id);
         register_field("kismet.devices.view.description", "List description", &view_description);
         register_field("kismet.devices.view.size", "Number of devices in list", &list_sz);
+        register_field("kismet.devices.view.indexed", "Index view in normal displays", &view_indexed);
 
         // We don't register device_list as a field because we never want to dump it 
         // un-processed; use the view APIs for managing that
     }
 
     std::shared_ptr<tracker_element_string> view_id;
+    std::shared_ptr<tracker_element_uint8> view_indexed;
     std::shared_ptr<tracker_element_uuid> view_uuid;
     std::shared_ptr<tracker_element_string> view_description;
     std::shared_ptr<tracker_element_uint64> list_sz;

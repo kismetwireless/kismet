@@ -43,6 +43,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     view_id->set(in_id);
     view_description->set(in_description);
+    view_indexed->set(true);
 
     device_list = std::make_shared<tracker_element_vector>();
 
@@ -81,6 +82,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     view_id->set(in_id);
     view_description->set(in_description);
+    view_indexed->set(true);
 
     device_list = std::make_shared<tracker_element_vector>();
 

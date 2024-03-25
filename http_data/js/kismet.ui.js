@@ -195,6 +195,9 @@ function ScheduleDeviceViewListUpdate() {
                 if (data[v]['kismet.devices.view.id'] in existing_views)
                     continue;
 
+                if (data[v]['kismet.devices.view.indexed'] == false)
+                    continue;
+
                 if (data[v]['kismet.devices.view.id'].substr(0, 7) === 'seenby-') {
                     var uuid = data[v]['kismet.devices.view.id'].substr(7);
                     ds_promises.push(f_datasource_closure(uuid));
