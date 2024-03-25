@@ -1387,7 +1387,6 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     if (pthread_create(&(caph->capturethread), &attr, 
                 cf_int_capture_thread, caph) < 0) {
-        /* fprintf(stderr, "debug - failed to pthread_create %s\n", strerror(errno)); */
         cf_send_error(caph, 0, "failed to launch capture thread");
         cf_handler_spindown(caph);
         return -1;
@@ -1397,8 +1396,6 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_unlock(&(caph->handler_lock));
     
-    /* fprintf(stderr, "debug - capture thread launched\n"); */
-
     return 1;
 }
 
@@ -2850,7 +2847,6 @@ cap_loop_fail:
 
     /* Kill anything pending */
     pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
-
     return rv;
 }
 
@@ -4000,41 +3996,11 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         caph->spindown = 0;
         caph->shutdown = 0;
 
-        if (caph->remote_retry && (caph->monitor_pid = fork() > 0)) {
-            pthread_attr_t attr;
-            pthread_attr_init(&attr);
-            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-            pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
-
-            /* Set up signal mask on the monitoring process */
-            sigemptyset(&cf_core_signal_mask);
-
-            sigaddset(&cf_core_signal_mask, SIGINT);
-            sigaddset(&cf_core_signal_mask, SIGQUIT);
-            sigaddset(&cf_core_signal_mask, SIGTERM);
-            sigaddset(&cf_core_signal_mask, SIGHUP);
-            sigaddset(&cf_core_signal_mask, SIGALRM);
-            sigaddset(&cf_core_signal_mask, SIGQUIT);
-            sigaddset(&cf_core_signal_mask, SIGCHLD);
-            sigaddset(&cf_core_signal_mask, SIGSEGV);
-            sigaddset(&cf_core_signal_mask, SIGPIPE);
-
-            /* Set thread mask for all new threads */
-            pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
-
-            /* Launch the signal handling thread */ 
-            if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) < 0) {
-                fprintf(stderr, "%s failed to launch signal maintenance thread in monitoring process\n", caph->capsource_type);
-                cf_send_error(caph, 0, "failed to launch signal thread");
-                cf_handler_spindown(caph);
-                return;
-            }
-
+        if (caph->remote_retry && ((caph->monitor_pid = fork()) > 0)) {
             while (1) {
                 /* Parent loop waiting for spaned process to exit, then restart */
                 pid_t wpid;
-
-                wpid = wait(&status);
+                wpid = waitpid(caph->monitor_pid, &status, 0);
 
                 if (wpid == caph->monitor_pid) {
                     if (WIFEXITED(status) || WIFSIGNALED(status)) {

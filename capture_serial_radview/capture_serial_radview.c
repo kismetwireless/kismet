@@ -312,7 +312,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (buf_avail == 0) {
             snprintf(errstr, STATUS_MAX, "%s serial read buffer full; possibly incorrect radview "
                     "firmware; expected JSON records.", localrad->name);
-            printf("DEBUG: %s\n", errstr);
+            /* printf("DEBUG: %s\n", errstr); */
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
             break;
         }
@@ -326,7 +326,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             if (errno && errno != EINTR && errno != EAGAIN) {
                 snprintf(errstr, STATUS_MAX, "%s serial port error: %s", localrad->name,
                         strerror(errno));
-                printf("DEBUG: %s\n", errstr);
+                /* printf("DEBUG: %s\n", errstr); */
                 cf_send_message(caph, errstr, MSGFLAG_ERROR);
                 break;
             }
@@ -346,18 +346,15 @@ void capture_thread(kis_capture_handler_t *caph) {
 
                 peeked_sz = kis_simple_ringbuf_peek_zc(localrad->serial_ringbuf, (void **) &buf, newline);
 
-                printf("DEBUG: newline %ld peeked %luu\n", newline, peeked_sz);
-
                 if (peeked_sz < newline) {
                     snprintf(errstr, STATUS_MAX, "%s unable to fetch output from buffer.", localrad->name);
-                    printf("DEBUG: %s\n", errstr);
+                    /* printf("DEBUG: %s\n", errstr); */
                     cf_send_message(caph, errstr, MSGFLAG_ERROR);
                     fail = 1;
                     break;
                 }
 
                 buf[newline] = '\0';
-                printf("DEBUG: %s\n", buf);
 
                 gettimeofday(&tv, NULL);
 
