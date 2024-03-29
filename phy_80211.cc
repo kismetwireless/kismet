@@ -1775,15 +1775,19 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->bssid_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
-                dot11info->bssid_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && 
-                    (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
-                    dot11info->bssid_dev->get_channel().length() == 0)) {
-                try {
-                    dot11info->bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
-                } catch (const std::runtime_error& e) {
-                    ;
+            // Only apply channel when we're to-ds
+
+            if (dot11info->distrib == distrib_to) {
+                if (dot11info->channel != "0" && dot11info->channel != "") {
+                    dot11info->bssid_dev->set_channel(dot11info->channel);
+                } else if (pack_l1info != NULL && 
+                        (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
+                         dot11info->bssid_dev->get_channel().length() == 0)) {
+                    try {
+                        dot11info->bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                    } catch (const std::runtime_error& e) {
+                        ;
+                    }
                 }
             }
 
