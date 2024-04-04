@@ -330,7 +330,7 @@ exports.ShowSettings = function(starter) {
 
     settingspanel = $.jsPanel({
         id: 'settings',
-        headerTitle: '<i class="fa fa-gear" /> Settings',
+        headerTitle: '<i class="fa fa-gear"></i> Settings',
         paneltype: 'modal',
         headerControls: {
             controls: 'closeonly',

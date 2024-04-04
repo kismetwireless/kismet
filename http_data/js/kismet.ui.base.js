@@ -1285,7 +1285,7 @@ exports.MemoryMonitor = function() {
 
     memory_panel = $.jsPanel({
         id: 'memory',
-        headerTitle: '<i class="fa fa-tasks" /> Memory use',
+        headerTitle: '<i class="fa fa-tasks"></i> Memory use',
         headerControls: {
             controls: 'closeonly',
             iconfont: 'jsglyph',
@@ -1552,7 +1552,7 @@ exports.PacketQueueMonitor = function() {
 
     packetqueue_panel = $.jsPanel({
         id: 'packetqueue',
-        headerTitle: '<i class="fa fa-area-chart" /> Packet Rates',
+        headerTitle: '<i class="fa fa-area-chart"></i> Packet Rates',
         headerControls: {
             controls: 'closeonly',
             iconfont: 'jsglyph',
@@ -2955,7 +2955,7 @@ exports.DeviceSignalDetails = function(key) {
 
     var devsignal_panel = $.jsPanel({
         id: 'devsignal' + key,
-        headerTitle: '<i class="fa fa-signal" /> Signal',
+        headerTitle: '<i class="fa fa-signal"></i> Signal',
         headerControls: {
             iconfont: 'jsglyph',
         },

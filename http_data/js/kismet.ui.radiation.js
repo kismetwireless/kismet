@@ -47,7 +47,7 @@ function radiationWindow() {
 
     rad_panel = $.jsPanel({
         id: 'radiation',
-        headerTitle: '<i class="fa fa-circle-radiation" /> Radiation',
+        headerTitle: '<i class="fa fa-circle-radiation"></i> Radiation',
         headerControls: {
             controls: 'closeonly',
             iconfont: 'jsglyph',

@@ -124,7 +124,7 @@ export const ChannelCoverage = () => {
 
     channelcoverage_panel = $.jsPanel({
         id: 'channelcoverage',
-        headerTitle: '<i class="fa fa-bar-chart-o" /> Channel Coverage',
+        headerTitle: '<i class="fa fa-bar-chart-o"></i> Channel Coverage',
         headerControls: {
             iconfont: 'jsglyph',
             minimize: 'remove',
@@ -1513,7 +1513,7 @@ export const DataSources2 = () => {
 
     ds_state['panel'] = $.jsPanel({
         id: 'datasources',
-        headerTitle: '<i class="fa fa-cogs" /> Data Sources',
+        headerTitle: '<i class="fa fa-cogs"></i> Data Sources',
         headerControls: {
             iconfont: 'jsglyph',
             minimize: 'remove',
