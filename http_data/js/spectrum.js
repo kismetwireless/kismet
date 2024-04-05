@@ -118,7 +118,7 @@
                         "<div class='sp-alpha'><div class='sp-alpha-inner'><div class='sp-alpha-handle'></div></div></div>",
                     "</div>",
                     "<div class='sp-input-container sp-cf'>",
-                        "<input class='sp-input' type='text' spellcheck='false'  />",
+                        "<input class='sp-input' type='text' spellcheck='false'></input>",
                     "</div>",
                     "<div class='sp-initial sp-thumb sp-cf'></div>",
                     "<div class='sp-button-container sp-cf'>",
@@ -140,10 +140,10 @@
                 c += (tinycolor.equals(color, current)) ? " sp-thumb-active" : "";
                 var formattedString = tiny.toString(opts.preferredFormat || "rgb");
                 var swatchStyle = rgbaSupport ? ("background-color:" + tiny.toRgbString()) : "filter:" + tiny.toFilter();
-                html.push('<span title="' + formattedString + '" data-color="' + tiny.toRgbString() + '" class="' + c + '"><span class="sp-thumb-inner" style="' + swatchStyle + ';" /></span>');
+                html.push('<span title="' + formattedString + '" data-color="' + tiny.toRgbString() + '" class="' + c + '"><span class="sp-thumb-inner" style="' + swatchStyle + ';"></span>');
             } else {
                 var cls = 'sp-clear-display';
-                html.push($('<div />')
+                html.push($('<div></div>')
                     .append($('<span data-color="" style="background-color:transparent;" class="' + cls + '"></span>')
                         .attr('title', opts.noColorSelectedText)
                     )
@@ -1190,7 +1190,7 @@
     $.fn.spectrum.defaults = defaultOpts;
     $.fn.spectrum.inputTypeColorSupport = function inputTypeColorSupport() {
         if (typeof inputTypeColorSupport._cachedResult === "undefined") {
-            var colorInput = $("<input type='color'/>")[0]; // if color element is supported, value will default to not null
+            var colorInput = $("<input type='color'></input>")[0]; // if color element is supported, value will default to not null
             inputTypeColorSupport._cachedResult = colorInput.type === "color" && colorInput.value !== "";
         }
         return inputTypeColorSupport._cachedResult;

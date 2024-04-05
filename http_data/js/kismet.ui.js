@@ -579,7 +579,7 @@ exports.DeviceDetailWindow = function(key) {
                             var accordion = $('div#accordion', content);
 
                             if (accordion.length == 0) {
-                                accordion = $('<div />', {
+                                accordion = $('<div></div>', {
                                     id: 'accordion'
                                 });
 
@@ -758,7 +758,7 @@ exports.HealthCheck = function() {
                         },
                         contentSize: "auto auto",
                         paneltype: 'modal',
-                        content: '<div style="padding: 10px;"><h3><i class="fa fa-exclamation-triangle" style="color: red;" /> Sorry!</h3><p>Cannot connect to the Kismet webserver.  Make sure Kismet is still running on this host!<p><i class="fa fa-refresh fa-spin" style="margin-right: 5px" /> Connecting to the Kismet server...</div>',
+                        content: '<div style="padding: 10px;"><h3><i class="fa fa-exclamation-triangle" style="color: red;"></i> Sorry!</h3><p>Cannot connect to the Kismet webserver.  Make sure Kismet is still running on this host!<p><i class="fa fa-refresh fa-spin" style="margin-right: 5px"></i> Connecting to the Kismet server...</div>',
                     });
                 }
 
