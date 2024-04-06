@@ -139,6 +139,13 @@ protected:
         register_field("radiation.sensor.datasource", "Datasource", &src_alias);
     }
 
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
+        tracker_component::reserve_fields(e);
+
+        cps_rrd->update_before_serialize(false);
+        usv_rrd->update_before_serialize(false);
+    }
+
     std::shared_ptr<tracker_element_vector_double> aggregate_spectrum;
     std::shared_ptr<tracker_element_int64> aggregate_spectrum_start;
     std::shared_ptr<tracker_element_int64> aggregate_spectrum_end;
