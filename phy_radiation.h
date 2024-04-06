@@ -21,9 +21,10 @@
 #define __PHY_RADIATION_H__
 
 #include "config.h"
-#include "globalregistry.h"
-#include "phyhandler.h"
 #include "configfile.h"
+#include "globalregistry.h"
+#include "kis_datasource.h"
+#include "phyhandler.h"
 
 class geiger_device : public tracker_component {
 public:
@@ -33,7 +34,7 @@ public:
             reserve_fields(nullptr);
 
             rolling_sz = 
-                Globalreg::globalreg->kismet_config->fetch_opt_uint("geiger_spectrum_history", 4096);
+                Globalreg::globalreg->kismet_config->fetch_opt_uint("geiger_spectrum_history", 60*60*24);
         }
 
     geiger_device(int in_id) :
@@ -42,7 +43,7 @@ public:
             reserve_fields(nullptr);
 
             rolling_sz = 
-                Globalreg::globalreg->kismet_config->fetch_opt_uint("geiger_spectrum_history", 4096);
+                Globalreg::globalreg->kismet_config->fetch_opt_uint("geiger_spectrum_history", 60*60*24);
         }
 
     geiger_device(int in_id, std::shared_ptr<tracker_element_map> e) :
@@ -51,7 +52,7 @@ public:
             reserve_fields(e);
 
             rolling_sz = 
-                Globalreg::globalreg->kismet_config->fetch_opt_uint("geiger_spectrum_history", 4096);
+                Globalreg::globalreg->kismet_config->fetch_opt_uint("geiger_spectrum_history", 60*60*24);
         }
 
     geiger_device(const geiger_device *p):
@@ -59,9 +60,9 @@ public:
             rolling_sz = p->rolling_sz;
 
             __ImportField(aggregate_spectrum, p);
-            __ImportField(detector_uuid, p);
             __ImportField(cps_rrd, p);
             __ImportField(usv_rrd, p);
+            __ImportField(src_alias, p);
         }
 
     void insert_cps_record(time_t ts, double cps, const std::vector<double>& spectrum) {
@@ -73,6 +74,9 @@ public:
         if (aggregate_spectrum->size() == 0) {
             aggregate_spectrum->set(spectrum);
             spectrum_rolling_log.push_back(spectrum);
+            spectrum_rolling_log_time.push_back(ts);
+            aggregate_spectrum_start->set(ts);
+            aggregate_spectrum_end->set(ts);
             return;
         }
 
@@ -80,8 +84,19 @@ public:
             del = true;
             del_vec = spectrum_rolling_log.front();
             spectrum_rolling_log.pop_front();
+            spectrum_rolling_log_time.pop_front();
+
+            if (aggregate_spectrum_start->get() < spectrum_rolling_log_time.front()) {
+                aggregate_spectrum_start->set(spectrum_rolling_log_time.front());
+            }
         }
+
         spectrum_rolling_log.push_back(spectrum);
+        spectrum_rolling_log_time.push_back(ts);
+
+        if (aggregate_spectrum_end->get() < ts) {
+            aggregate_spectrum_end->set(ts);
+        }
 
         for (unsigned int x = 0; x < spectrum.size(); x++) {
             if (x >= aggregate_spectrum->size()) {
@@ -98,28 +113,44 @@ public:
 
     }
 
-    __Proxy(detector_uuid, uuid, uuid, uuid, detector_uuid);
     __Proxy(detector_type, std::string, std::string, std::string, detector_type);
+
+    void set_src_alias(std::shared_ptr<kis_datasource> src) {
+        src_alias->set(src);
+    }
+
+    template<typename T>
+    std::shared_ptr<T> get_src_alias() {
+        return static_cast<T>(src_alias->get());
+    }
 
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
         register_field("radiation.sensor.aggregate_spectrum", "Aggregated spectrum over time", &aggregate_spectrum);
-        register_field("radiation.sensor.uuid", "Detector UUID", &detector_uuid);
+        register_field("radiation.sensor.aggregate_spectrum_start", "First timestamp in aggregate spectrum", &aggregate_spectrum_start);
+        register_field("radiation.sensor.aggregate_spectrum_end", "Last timestamp in aggregate spectrum", &aggregate_spectrum_end);
+
         register_field("radiation.sensor.cps_rrd", "Counts-per-second RRD", &cps_rrd);
         register_field("radiation.sensor.usv_rrd", "uSV dosage RRD (if available)", &usv_rrd);
         register_field("radiation.sensor.type", "Detector type/brand", &detector_type);
 
+        register_field("radiation.sensor.datasource", "Datasource", &src_alias);
     }
 
     std::shared_ptr<tracker_element_vector_double> aggregate_spectrum;
-    std::shared_ptr<tracker_element_uuid> detector_uuid;
+    std::shared_ptr<tracker_element_int64> aggregate_spectrum_start;
+    std::shared_ptr<tracker_element_int64> aggregate_spectrum_end;
+
     std::shared_ptr<tracker_element_string> detector_type;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> cps_rrd;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> usv_rrd;
 
+    std::shared_ptr<tracker_element_alias> src_alias;
+
     std::list<std::vector<double>> spectrum_rolling_log;
+    std::list<time_t> spectrum_rolling_log_time;
 
     unsigned int rolling_sz;
 };
@@ -141,11 +172,14 @@ public:
 
     static int packet_handler(CHAINCALL_PARMS);
 
+    static std::string event_radiation() { return "RADIATION"; }
 protected:
     kis_mutex rad_mutex;
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<datasource_tracker> datasourcetracker;
+    std::shared_ptr<event_bus> eventbus;
 
     std::shared_ptr<tracker_element_uuid_map> geiger_counters;
 
@@ -153,6 +187,8 @@ protected:
         pack_comp_datasrc;
 
     uint16_t geiger_device_id;
+
+    int event_timer;
 };
 
 

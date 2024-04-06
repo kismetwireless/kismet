@@ -19,10 +19,12 @@
 
 #include "config.h"
 
-#include "phy_radiation.h"
+#include "datasourcetracker.h"
 #include "devicetracker.h"
-#include "macaddr.h"
+#include "kis_databaselogfile.h"
 #include "kis_httpd_registry.h"
+#include "macaddr.h"
+#include "phy_radiation.h"
 
 kis_radiation_phy::kis_radiation_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -38,6 +40,10 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<packet_chain>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    datasourcetracker =
+        Globalreg::fetch_mandatory_global_as<datasource_tracker>();
+    eventbus = 
+        Globalreg::fetch_mandatory_global_as<event_bus>();
 
 	pack_comp_common = 
 		packetchain->register_packet_component("COMMON");
@@ -63,6 +69,33 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
     httpd->register_route("/radiation/sensors/all_sensors", {"GET", "POST"},
             httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(geiger_counters, rad_mutex));
+
+    auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+    event_timer =
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, nullptr, 1, 
+                [this](int) -> int {
+                    auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
+                    auto lg = kis_lock_guard<kis_mutex>(rad_mutex);
+                    if (kismetdb != nullptr) {
+                        struct timeval tv;
+                        gettimeofday(&tv, nullptr);
+
+                        std::stringstream js;
+
+                        Globalreg::globalreg->entrytracker->serialize("json", js, geiger_counters, NULL);
+
+                        kismetdb->log_snapshot(nullptr, tv, "RADIATION", js.str());
+                    }
+
+                    auto evt = eventbus->get_eventbus_event(event_radiation());
+                    for (const auto& gc : *geiger_counters) {
+                        evt->get_event_content()->insert(gc.first.as_string(), gc.second);
+                    }
+                    eventbus->publish(evt);
+
+                    return 1;
+
+                });
 }
 
 kis_radiation_phy::~kis_radiation_phy() {
@@ -114,7 +147,11 @@ int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
         auto gk = radphy->geiger_counters->find(datasrc->ref_source->get_source_uuid());
         if (gk == radphy->geiger_counters->end()) {
             rv = std::make_shared<geiger_device>(radphy->geiger_device_id);
-            rv->set_detector_uuid(datasrc->ref_source->get_source_uuid());
+
+            // Minor hoops to jump through; the packet source ref is a raw pointer not a shared
+            // pointer, so we need to get the shared from the DST.
+            rv->set_src_alias(radphy->datasourcetracker->find_datasource(datasrc->ref_source->get_source_uuid()));
+
             rv->set_detector_type("Radview");
             radphy->geiger_counters->insert(datasrc->ref_source->get_source_uuid(), rv);
         } else {
