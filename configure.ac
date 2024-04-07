@@ -48,6 +48,7 @@ BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
+BUILD_CAPTURE_RADIACODE=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -1750,6 +1751,13 @@ if test "$have_usb" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_TI_CC_2531)"
 fi
 
+BUILD_CAPTURE_RADIACODE=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_RADIACODE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_RADIACODE)"
+fi
+
+
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
     BUILD_CAPTURE_LINUX_BLUETOOTH=1
@@ -1946,6 +1954,7 @@ AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_52840)
 AC_SUBST(BUILD_CAPTURE_HAK5_COCONUT)
 AC_SUBST(BUILD_CAPTURE_SERIAL_RADVIEW)
+AC_SUBST(BUILD_CAPTURE_RADIACODE)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1978,6 +1987,7 @@ AC_CONFIG_FILES([
     capture_nrf_52840/Makefile
     capture_hak5_wifi_coconut/Makefile
 	capture_serial_radview/Makefile
+	capture_radiacode/Makefile
     ])
 AC_OUTPUT
 
@@ -2143,6 +2153,12 @@ else
         echo "no";
 fi
 
+printf "         Radiacode USB: "
+if test "$BUILD_CAPTURE_RADIACODE" = 1; then
+        echo "yes";
+else
+        echo "no (libUSB not available)";
+fi
 
 printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then

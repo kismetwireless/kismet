@@ -61,6 +61,7 @@ capture_rz_killerbee/kismet_cap_rz_killerbee
 capture_hak5_wifi_coconut/kismet_cap_hak5_wifi_coconut
 capture_bladerf_wiphy/kismet_cap_bladerf_wiphy
 capture_serial_radview/kismet_cap_serial_radview
+capture_radiacode/kismet_cap_radiacode_usb
 kismet_cap_pcapfile
 kismet_cap_kismetdb
 

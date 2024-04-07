@@ -89,6 +89,7 @@
 #include "datasource_hak5_wifi_coconut.h"
 #include "datasource_mqtt.h"
 #include "datasource_radview.h"
+#include "datasource_radiacode.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -933,6 +934,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_hak5_wifi_coconut_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_mqtt_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radview_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radiacode_usb_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();
