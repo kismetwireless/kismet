@@ -303,6 +303,11 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
 
 void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt, 
         unsigned int fix, double in_speed, double in_heading) {
+
+    if (fix < 2) {
+        return;
+    }
+
     add_loc(in_lat, in_lon, in_alt, fix, in_speed, in_heading);
 
     if (avg_loc == nullptr) {
@@ -351,6 +356,10 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt, 
         unsigned int fix, double in_speed, double in_heading) {
+
+    if (fix < 2) {
+        return;
+    }
 
     if (fix > get_fix()) {
         set_fix(fix);
