@@ -12,9 +12,21 @@
 #define RADIA_PID   0xF123
 
 #define RADIA_VS_DATA_BUF		256
+#define RADIA_VS_CONFIGURATION	2
 #define RADIA_VS_SPECTRUM		512
 #define RADIA_VS_ENERGY_CALIB	514
 #define RADIA_VS_SPEC_ACCUM		517
+
+/* WARNING
+ *
+ * In general this code makes some bad assumptions.  It has to assume that it is 
+ * on a little-endian system.  It has to assume that floats are 32bits.  
+ * 
+ * The radiacode devices makes some bad decisions in the binary protocol which
+ * are difficult to solve in pure C.  With the assumption that the number of 
+ * users for the radiacode is pretty small, for now the code will just roll
+ * with those requirements, but it may present a problem in the future.
+ */
 
 typedef struct {
 	uint8_t sequence;
@@ -85,6 +97,14 @@ typedef struct {
 } radiacode_data_report_t;
 
 int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data); 
+int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config_len);
+
+typedef struct {
+	uint16_t ts_le;
+	float a0_le;
+	float a1_le;
+	float a2_le;
+} __attribute__ ((packed)) radiacode_spectrum_header;
 
 #endif
 

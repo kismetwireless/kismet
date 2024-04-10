@@ -59,7 +59,40 @@ typedef struct {
     kis_capture_handler_t *caph;
 
 	radiacode_comms_t comms;
+
+	char *config;
+	size_t config_len;
+
+	int spectrum_version;
 } local_radiacode_t;
+
+/* Search for a value in a block of newline-delimited text */
+int find_config_val(const char *val, const char *data, size_t data_len, 
+		char **ret_val, ssize_t *ret_len) {
+	char *termpos, *nlpos;
+
+	termpos = strstr(data, val);
+
+	while ((size_t) (termpos - data) < (data_len - strlen(val) - 1)) {
+		if (termpos != data && termpos[-1] != '\n') {
+			termpos = strstr(termpos + 1, val);
+			continue;
+		}
+
+		if (termpos[strlen(val)] != '=') {
+			termpos = strstr(termpos + 1, val);
+			continue;
+		}
+
+        nlpos = strstr(termpos, "\n");
+
+        *ret_val = termpos + strlen(val) + 1;
+        *ret_len = (size_t) (nlpos - termpos) - strlen(val) - 1;
+        return 1;
+	}
+
+    return -1;
+}
 
 char *radiacode_transport_execute(radiacode_comms_t *comms, 
 		radiacode_request_t *cmd, size_t len, ssize_t *ret_len) {
@@ -81,6 +114,9 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 					(unsigned char *) cmd, len, &txamt, timeout)) != 0) {
 		snprintf(errstr, STATUS_MAX, "%s failed to write command to usb: %s",
 				localrad->name, libusb_strerror((enum libusb_error) r));
+
+		fprintf(stderr, "%s\n", errstr);
+
 		cf_send_message(localrad->caph, errstr, MSGFLAG_ERROR);
 		*ret_len = -1;
 		return NULL;
@@ -89,9 +125,9 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 	/* Read the result of the command, which will include the length of the full
 	 * response which we will then need to allocate and read */
 	errstr[0] = 0;
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 5; i++) {
 		if ((r = libusb_bulk_transfer(localrad->usb_handle, 0x81, 
-						(unsigned char *) rbuf, 256, &txamt, timeout)) != 0) {
+						(unsigned char *) rbuf, 256, &txamt, timeout)) < 0) {
 			/* Save the last error code */
 			snprintf(errstr, STATUS_MAX, "%s failed to read results from usb: %s",
 					localrad->name, libusb_strerror((enum libusb_error) r));
@@ -100,7 +136,7 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 			break;
 		}
 
-		usleep(500);
+		usleep(1000);
 	}
 
 	if (strlen(errstr) != 0) {
@@ -373,6 +409,9 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 	char *resp;
 	ssize_t resp_len;
 
+	char sinkbuf[256];
+	int sink_len;
+
     /* Try to open it */
     r = libusb_open(localrad->matched_dev, &localrad->usb_handle);
     if (r < 0) {
@@ -382,6 +421,10 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
     }
 
     if (libusb_kernel_driver_active(localrad->usb_handle, 0)) {
+		snprintf(errstr, STATUS_MAX, "Radiacode %s %u/%u appears to be claimed by a kernel driver, "
+				"attempting to detatch.", localrad->name, localrad->busno, localrad->devno);
+		cf_send_message(caph, errstr, MSGFLAG_INFO);
+
         r = libusb_detach_kernel_driver(localrad->usb_handle, 0); 
 
         if (r < 0) {
@@ -391,6 +434,11 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
             return -1;
         }
     }
+
+	/* With a reset command, the radiacode usb stack appears to have a chance of crashing
+	 * until disconnected and power cycled.  Unfortunately, without the reset, it appears to
+	 * frequently fail and ignore startup commands entirely.  */
+	libusb_reset_device(localrad->usb_handle);
 
     /* config */
     r = libusb_set_configuration(localrad->usb_handle, 1);
@@ -419,17 +467,28 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
         }
     }
 
-	// self.execute(b'\x07\x00', b'\x01\xff\x12\xff')
-	
+	/* It appears the radiacode needs to sink all pending io on open before
+	 * issueing commands, spin burning data until we time out */
+	while (1) {
+		r = libusb_bulk_transfer(localrad->usb_handle, 0x81,
+				(unsigned char *) sinkbuf, 256, &sink_len, 500);
+		if (r == LIBUSB_ERROR_TIMEOUT) {
+			break;
+		}
+	}
+			
 	resp =
 		radiacode_execute(&localrad->comms, 
 				"\x07\x00", 
 				"\x01\xff\x12\xff", 4, &resp_len);
-	if (resp != NULL) {
-		free(resp);
+
+	if (resp == NULL) {
 		snprintf(errstr, STATUS_MAX, "Unable to initialize Radiacode USB device");
 		return -1;
 	}
+
+	free(resp);
+	resp = NULL;
 
 	radiacode_version_t version;
 	if (radiacode_fw_version(&localrad->comms, &version) < 0) {
@@ -440,10 +499,32 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 	if (version.target_major < 4 || version.target_minor < 8) {
 		snprintf(errstr, STATUS_MAX, "Old firmware version found; please update the Radiacode device using the phone app.");
 		return -1;
+	} else {
+		snprintf(errstr, STATUS_MAX, "%s %03d/%03d Radiacode running firmware %u.%u\n", 
+				localrad->name, localrad->busno, localrad->devno,
+				version.target_major, version.target_minor);
+		cf_send_message(localrad->caph, errstr, MSGFLAG_INFO);
+	}
+
+	r = radiacode_get_config(&localrad->comms, &localrad->config, &localrad->config_len);
+	if (r < 0) {
+		snprintf(errstr, STATUS_MAX, "%s %03d/%03d Radiacode failed to fetch "
+				"device configuration block\n", 
+				localrad->name, localrad->busno, localrad->devno);
+		return -1;
+	}
+
+	r = find_config_val("SpecFormatVersion", localrad->config, localrad->config_len,
+			&resp, &resp_len);
+	if (r >= 0 && resp_len > 0) {
+		localrad->spectrum_version = resp[0] - '0';
+		fprintf(stderr, "DEBUG - specformatversion %d\n", localrad->spectrum_version);
 	}
 
 	radiacode_data_report_t rtdata;
 	radiacode_get_data(&localrad->comms, &rtdata);
+
+	fprintf(stderr, "DEBUG - got CPS %f SV %f\n", rtdata.count_rate, rtdata.dose_rate);
 
     return 1;
 }
@@ -692,6 +773,9 @@ int main(int argc, char *argv[]) {
         .interface = NULL,
 		.usb_ctx = NULL,
 		.usb_handle = NULL,
+		.config = NULL,
+		.config_len = 0,
+		.spectrum_version = 0,
     };
 
 	memset(&localrad.comms, 0, sizeof(radiacode_comms_t));

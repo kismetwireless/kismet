@@ -58,6 +58,13 @@ char *radiacode_execute(radiacode_comms_t *comms,
 	tx_req->le_req_len = htole32(sizeof(radiacode_request_t) + args_len - 4);
 	memcpy(tx_req->request, args, args_len);
 
+	/*
+	for (unsigned int x = 0; x < sizeof(radiacode_request_t) + args_len; x++) {
+		fprintf(stderr, "%02x ", ((char *) tx_req)[x] & 0xFF);
+	}
+	fprintf(stderr, "\n");
+	*/
+
 	resp = 
 		radiacode_transport_execute(comms, tx_req, 
 				sizeof(radiacode_request_t) + args_len,
@@ -108,7 +115,6 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 
 	/* Hack to apparently work around a newer firmware bug */
 	if (retlen != 0 && data_len - offt == retlen + 1 && data[offt + retlen] == 0x00) {
-		fprintf(stderr, "DEBUG - firmware hack\n");
 		retlen = retlen - 1;
 	}
 
@@ -200,9 +206,11 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 
 	snprintf(ret_ver->target_date, min(32, str_len + 1), "%s", resp + resp_offt + 1);
 
+	/*
 	fprintf(stderr, "DEBUG - radiacode boot %u.%u (%s) fw %u.%u (%s)\n",
 			ret_ver->boot_major, ret_ver->boot_minor, ret_ver->boot_date, 
 			ret_ver->target_major, ret_ver->target_minor, ret_ver->target_date);
+			*/
 
 
 	return 1;
@@ -260,3 +268,18 @@ int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_da
 	free(data);
 	return 1;
 }
+
+int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config_len) {
+	ssize_t data_len;
+
+	*config = radiacode_read_request(comms, RADIA_VS_CONFIGURATION, &data_len);
+
+	if (*config == NULL || data_len <= 0) {
+		return -ENOMEM;
+	}
+
+	*config_len = data_len;
+
+	return 1;
+}
+
