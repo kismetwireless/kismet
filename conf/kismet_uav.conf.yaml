@@ -226,3 +226,11 @@
     ssid: ^FPV_WIFI__[0-9A-F]{4}$
     mac: 
         - 58:04:54:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: dji_m1p
+    name: DJI
+    model: Mavic 1 Pro
+    ssid: ^Mavic-[0-9A-Fa-f]{6}$
+    mac: 
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00
