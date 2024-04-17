@@ -70,7 +70,6 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
         //size
         conv_header->length = sizeof(_802_15_4_tap); 
 
-
         // Put the modified data into the packet & fill in the rest of the base data info
         auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
@@ -81,6 +80,7 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
             packet->ts.tv_usec = report.time_usec();
         }
 
+        packet->original_len = conv_buf_len;
         packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;

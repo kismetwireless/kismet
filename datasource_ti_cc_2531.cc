@@ -21,6 +21,10 @@
 void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
         const KismetDatasource::SubPacket& report) {
 
+    if (!report.has_data()) {
+        return;
+    }
+
     auto& rxdata = report.data();
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
@@ -78,6 +82,9 @@ void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         conv_header->tlv[2].length = kis_htole16(3);
         conv_header->tlv[2].value = kis_htole32(channel);
 
+        //size
+        conv_header->length = sizeof(_802_15_4_tap); 
+
         // Put the modified data into the packet & fill in the rest of the base data info
         auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
@@ -88,8 +95,16 @@ void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
             packet->ts.tv_usec = report.time_usec();
         }
 
-        // Override the DLT if we have one
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
+
+        if (report.has_cap_size()) {
+            if (report.cap_size() == 0)
+                packet->original_len = report.data().length();
+            else
+                packet->original_len = report.cap_size();
+        } else {
+            packet->original_len = report.data().length();
+        }
 
         packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
