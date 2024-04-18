@@ -58,8 +58,8 @@
 #include "kis_endian.h"
 #include "remote_announcement.h"
 
-#include "protobuf_c/kismet.pb-c.h"
-#include "protobuf_c/datasource.pb-c.h"
+#include "kismet.pb-c.h"
+#include "datasource.pb-c.h"
 
 int unshare(int);
 

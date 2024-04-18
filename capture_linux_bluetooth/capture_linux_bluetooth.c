@@ -59,7 +59,7 @@
 #include "../simple_ringbuf_c.h"
 #include "../capture_framework.h"
 
-#include "../protobuf_c/linuxbluetooth.pb-c.h"
+#include "linuxbluetooth.pb-c.h"
 
 /* Unique instance data passed around by capframework */
 typedef struct {

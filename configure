@@ -714,6 +714,7 @@ PROTOCCBIN
 PROTOCFLAGS
 PROTOLIBS
 PROTOCBIN
+PROTOBUF_C_DIR
 protocc
 libprotobufc_LIBS
 libprotobufc_CFLAGS
@@ -852,6 +853,7 @@ with_libprelude_prefix
 enable_libwebsockets
 with_protoc
 with_protocc
+enable_force_protoc_c
 enable_btgeiger
 enable_bladerf
 enable_libnm
@@ -1549,6 +1551,7 @@ Optional Features:
   --disable-libwebsockets Disable C-based libwebsockets, this will only impact
                           building remote capture sources. The Kismet server
                           will still have websockets support.
+  --force-protoc-c        Force building C protobufs with protoc-c
   --enable-btgeiger       Enable custom BTLE connected geiger counter input
   --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libnm         Disable libnm networkmanager support
@@ -14135,6 +14138,79 @@ else
     PROTOCCBIN=$with_protocc
 fi
 
+# As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
+# protobufs-c and making it impossible to run protoc-c to compile protobufs into .c/.h pairs.
+#
+# Fortunately, the protobufs-c implementation is quite generous in ways the C++ implemetnation is not, which
+# lets us package a precompiled protobufs-c-1.5.0 output of the protobufs files.  This compiles fine
+# cross-platform and with protobufs-c runtimes from 1.3.0 to 1.5.0 (tested) and 1.0.0 to 1.5.0 (by definition)
+# which should cover every platform.
+#
+# Perform a compile test with the same restrictions as the 1.5.0 definitions to be sure, and allow an override to
+# always compile protobufs-c definitions, even when they might fail.
+PROTOBUF_C_DIR="protobuf_c"
+
+# Check whether --enable-force-protoc-c was given.
+if test ${enable_force_protoc_c+y}
+then :
+  enableval=$enable_force_protoc_c; case "${enableval}" in
+      yes) force_protocc=yes ;;
+        *) force_protocc=no ;;
+	 esac
+else $as_nop
+  force_protocc=no
+
+fi
+
+
+if test "$force_protocc" = "no"
+then :
+
+    PROTOBUF_C_DIR="protobuf_c_1005000"
+
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking protobufs-c 1.5.0 compatibility" >&5
+printf %s "checking protobufs-c 1.5.0 compatibility... " >&6; }
+    OCFL="$CFLAGS"
+    CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <protobuf-c/protobuf-c.h>
+
+int
+main (void)
+{
+
+            #if PROTOBUF_C_VERSION_NUMBER < 1000000
+            # error System libprotobuf-c older than 1.0.0
+            #elif 1005000 < PROTOBUF_C_MIN_COMPILER_VERSION
+            # error System libprotobuf-c incompatible with 1.5.0
+            #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"
+then :
+  compat_libprotoc=yes
+else $as_nop
+  compat_libprotoc=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+    if test "$have_pipe2" = "yes"; then
+    	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+    else
+    	as_fn_error $? "NO - use --force-proto-c to force protobuf-c recompilation" "$LINENO" 5
+    fi
+    CFLAGS="$OCFL"
+
+fi
+
+
+
 
 
 
@@ -14157,7 +14233,7 @@ else $as_nop
 fi
 
 
-if test "x$want_btgeiger" == "xyes"
+if test "x$want_btgeiger" = "xyes"
 then :
 
        if test "x$want_python" != "xyes"

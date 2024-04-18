@@ -497,10 +497,11 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 	}
 
 	if (version.target_major < 4 || version.target_minor < 8) {
-		snprintf(errstr, STATUS_MAX, "Old firmware version found; please update the Radiacode device using the phone app.");
+		snprintf(errstr, STATUS_MAX, "Old firmware version (%u.%u) found; please update the Radiacode device to at "
+                "least 4.8 using the phone app.", version.target_major, version.target_minor);
 		return -1;
 	} else {
-		snprintf(errstr, STATUS_MAX, "%s %03d/%03d Radiacode running firmware %u.%u\n", 
+		snprintf(errstr, STATUS_MAX, "%s %03d/%03d Radiacode running firmware %u.%u", 
 				localrad->name, localrad->busno, localrad->devno,
 				version.target_major, version.target_minor);
 		cf_send_message(localrad->caph, errstr, MSGFLAG_INFO);
@@ -520,11 +521,6 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 		localrad->spectrum_version = resp[0] - '0';
 		fprintf(stderr, "DEBUG - specformatversion %d\n", localrad->spectrum_version);
 	}
-
-	radiacode_data_report_t rtdata;
-	radiacode_get_data(&localrad->comms, &rtdata);
-
-	fprintf(stderr, "DEBUG - got CPS %f SV %f\n", rtdata.count_rate, rtdata.dose_rate);
 
     return 1;
 }
@@ -666,101 +662,66 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
-
-    ssize_t amt_read;
-    size_t maxread = 0;
-    uint8_t *buf;
-    size_t buf_avail;
-    size_t peeked_sz;
-
     char errstr[STATUS_MAX];
+
+    radiacode_data_report_t data_report;
+    char json[1024];
+
+    int r;
+    struct timeval tv;
+
+    int fail = 0;
 
     while (1) {
         if (caph->spindown) {
             break;
         }
 
-#if 0
-        buf_avail = kis_simple_ringbuf_available(localrad->serial_ringbuf);
-
-        if (buf_avail == 0) {
-            snprintf(errstr, STATUS_MAX, "%s serial read buffer full; possibly incorrect radview "
-                    "firmware; expected JSON records.", localrad->name);
-            /* printf("DEBUG: %s\n", errstr); */
+        r = radiacode_get_data(&localrad->comms, &data_report);
+        if (r < 0) {
+            snprintf(errstr, STATUS_MAX, "%s error fetching data from Radiacode device",
+                    localrad->name);
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
             break;
         }
 
-        maxread = kis_simple_ringbuf_reserve_zcopy(localrad->serial_ringbuf, (void **) &buf, buf_avail);
-        amt_read = read(localrad->fd, buf, maxread);
+        fprintf(stderr, "DEBUG - got CPS %f SV %f\n", data_report.count_rate, data_report.dose_rate);
 
-        if (amt_read <= 0) {
-            kis_simple_ringbuf_commit(localrad->serial_ringbuf, buf, 0);
+        snprintf(json, 1024, "{"
+                "\"cps\": %f, "
+                "\"sv\": %f, "
+                "\"cps_err\": %u,"
+                "\"sv_err\": %u"
+                "}",
+                data_report.count_rate,
+                data_report.dose_rate,
+                data_report.count_rate_err,
+                data_report.dose_rate_err);
 
-            if (errno && errno != EINTR && errno != EAGAIN) {
-                snprintf(errstr, STATUS_MAX, "%s serial port error: %s", localrad->name,
-                        strerror(errno));
-                /* printf("DEBUG: %s\n", errstr); */
-                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        gettimeofday(&tv, NULL);
+
+        while (1) {
+            r = cf_send_json(caph, NULL, NULL, NULL, tv, "radiacode", (char *) json);
+
+            if (r < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localrad->name);
+                fprintf(stderr, "%s", errstr);
+                cf_send_error(caph, 0, errstr);
+                fail = 1;
                 break;
-            }
-        } else {
-            kis_simple_ringbuf_commit(localrad->serial_ringbuf, buf, amt_read);
-
-            /* Search for newlines, return json record */
-            ssize_t newline = 0;
-            int fail = 0;
-            struct timeval tv;
-            int r;
-
-            while (1) {
-                newline = kis_simple_ringbuf_search_byte(localrad->serial_ringbuf, '\n');
-                if (newline <= 0)
-                    break;
-
-                peeked_sz = kis_simple_ringbuf_peek_zc(localrad->serial_ringbuf, (void **) &buf, newline);
-
-                if (peeked_sz < newline) {
-                    snprintf(errstr, STATUS_MAX, "%s unable to fetch output from buffer.", localrad->name);
-                    /* printf("DEBUG: %s\n", errstr); */
-                    cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                    fail = 1;
-                    break;
-                }
-
-                buf[newline] = '\0';
-
-                gettimeofday(&tv, NULL);
-
-                while (1) {
-                    r = cf_send_json(caph, NULL, NULL, NULL, tv, "radview", (char *) buf);
-
-                    if (r < 0) {
-                        snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localrad->name);
-                        fprintf(stderr, "%s", errstr);
-                        cf_send_error(caph, 0, errstr);
-                        fail = 1;
-                        break;
-                    } else if (r == 0) {
-                        cf_handler_wait_ringbuffer(caph);
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-
-                kis_simple_ringbuf_peek_free(localrad->serial_ringbuf, buf);
-                kis_simple_ringbuf_read(localrad->serial_ringbuf, NULL, newline + 1);
-
+            } else if (r == 0) {
+                cf_handler_wait_ringbuffer(caph);
                 continue;
-            }
-
-            if (fail) {
+            } else {
                 break;
             }
         }
 
-#endif
+        if (fail) {
+            break;
+        }
+
+        usleep(750000);
     }
 
     cf_handler_spindown(caph);

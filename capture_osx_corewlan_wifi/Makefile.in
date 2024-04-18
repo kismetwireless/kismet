@@ -27,13 +27,13 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+	$(CC) -I../@PROTOBUF_C_DIR@ $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -I../@PROTOBUF_C_DIR@ -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 %.m.o: %.m
-	$(CLANG) $(CFLAGS) $(CPPFLAGS) -c $(FRAMEWORKS) $*.m -o $@
+	$(CLANG) -I../@PROTOBUF_C_DIR@ $(CFLAGS) $(CPPFLAGS) -c $(FRAMEWORKS) $*.m -o $@
 
 .PRECIOUS: %.c.d
 

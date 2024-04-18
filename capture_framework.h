@@ -59,8 +59,8 @@
 
 #include "simple_ringbuf_c.h"
 
-#include "protobuf_c/kismet.pb-c.h"
-#include "protobuf_c/datasource.pb-c.h"
+#include "kismet.pb-c.h"
+#include "datasource.pb-c.h"
 
 struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;

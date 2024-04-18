@@ -1280,6 +1280,52 @@ else
     PROTOCCBIN=$with_protocc
 fi
 
+# As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
+# protobufs-c and making it impossible to run protoc-c to compile protobufs into .c/.h pairs.  
+#
+# Fortunately, the protobufs-c implementation is quite generous in ways the C++ implemetnation is not, which 
+# lets us package a precompiled protobufs-c-1.5.0 output of the protobufs files.  This compiles fine 
+# cross-platform and with protobufs-c runtimes from 1.3.0 to 1.5.0 (tested) and 1.0.0 to 1.5.0 (by definition)
+# which should cover every platform.  
+#
+# Perform a compile test with the same restrictions as the 1.5.0 definitions to be sure, and allow an override to
+# always compile protobufs-c definitions, even when they might fail.
+PROTOBUF_C_DIR="protobuf_c"
+
+AC_ARG_ENABLE([force-protoc-c],
+    AS_HELP_STRING([--force-protoc-c], [Force building C protobufs with protoc-c]),
+	[case "${enableval}" in
+      yes) force_protocc=yes ;;
+        *) force_protocc=no ;;
+	 esac],
+	[force_protocc=no]
+)
+
+AS_IF([test "$force_protocc" = "no"], [
+    PROTOBUF_C_DIR="protobuf_c_1005000"
+    
+    AC_MSG_CHECKING([protobufs-c 1.5.0 compatibility])
+    OCFL="$CFLAGS"
+    CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <protobuf-c/protobuf-c.h>
+    		]], [[
+            #if PROTOBUF_C_VERSION_NUMBER < 1000000
+            # error System libprotobuf-c older than 1.0.0
+            #elif 1005000 < PROTOBUF_C_MIN_COMPILER_VERSION
+            # error System libprotobuf-c incompatible with 1.5.0
+            #endif
+    		]])],[compat_libprotoc=yes],[compat_libprotoc=no])
+    if test "$have_pipe2" = "yes"; then
+    	AC_MSG_RESULT([yes])
+    else
+    	AC_MSG_ERROR(NO - use --force-proto-c to force protobuf-c recompilation)
+    fi
+    CFLAGS="$OCFL"
+])
+
+
+AC_SUBST(PROTOBUF_C_DIR)
 AC_SUBST(PROTOCBIN)
 AC_SUBST(PROTOLIBS)
 AC_SUBST(PROTOCFLAGS)
@@ -1298,7 +1344,7 @@ AC_ARG_ENABLE(btgeiger,
     [want_btgeiger=no]
 )
 
-AS_IF([test "x$want_btgeiger" == "xyes"], [
+AS_IF([test "x$want_btgeiger" = "xyes"], [
        AS_IF([test "x$want_python" != "xyes"], [
               AC_MSG_ERROR([Can not enable btgeiger without enabling python])
               ])

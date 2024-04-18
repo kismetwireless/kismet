@@ -67,16 +67,16 @@ PROTOBUF_CPP_H = \
 	protobuf_cpp/eventbus.pb.h 
 
 PROTOBUF_C_O = \
-	protobuf_c/kismet.pb-c.c.o \
-	protobuf_c/datasource.pb-c.c.o \
-	protobuf_c/linuxbluetooth.pb-c.c.o \
-	protobuf_c/eventbus.pb-c.c.o
+	@PROTOBUF_C_DIR@/kismet.pb-c.c.o \
+	@PROTOBUF_C_DIR@/datasource.pb-c.c.o \
+	@PROTOBUF_C_DIR@/linuxbluetooth.pb-c.c.o \
+	@PROTOBUF_C_DIR@/eventbus.pb-c.c.o
 
 PROTOBUF_C_H = \
-	protobuf_c/kismet.pb-c.h \
-	protobuf_c/datasource.pb-c.h \
-	protobuf_c/linuxbluetooth.pb-c.h \
-	protobuf_c/eventbus.pb-c.h
+	@PROTOBUF_C_DIR@/kismet.pb-c.h \
+	@PROTOBUF_C_DIR@/datasource.pb-c.h \
+	@PROTOBUF_C_DIR@/linuxbluetooth.pb-c.h \
+	@PROTOBUF_C_DIR@/eventbus.pb-c.h
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
@@ -749,10 +749,15 @@ depclean:
 	@-rm -f bluetooth_parsers/*.d
 	@-rm -f dot11_parsers/*.d
 	@-rm -f log_tools/*.d
+	@-rm -f @PROTOBUF_C_DIR@/*.d
+	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
 	@-rm -f version.c
 	@-rm -f *.o *.mo
+	@-rm -f protobuf_cpp/*.o
+	@-rm -f protobuf_c/*.o
+	@-rm -f @PROTOBUF_C_DIR@/*.o
 	@-rm -f dot11_parsers/*.o
 	@-rm -f bluetooth_parsers/*.o
 	@-rm -f log_tools/*.o
@@ -786,6 +791,7 @@ clean: all-plugins-clean depclean
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*
+
 	@-rm -f protobuf_c/*.pb-c.*
 
 distclean: clean
@@ -839,7 +845,10 @@ protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
 protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
-protobuf_c/%.pb-c.c.o: %.pb-c.c 
+# Protobuf C dir can include prebuilt protobuf-c implmentations if protobufs/protobufs-c are broken
+@PROTOBUF_C_DIR@/%.pb-c.c.o: %.pb-c.c 
+
+# Only use protoc-c on the dynamic protobuf_c directory
 protobuf_c/%.pb-c.c: protobuf_definitions/%.proto
 	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
@@ -859,7 +868,7 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 %.cc.d: %.cc $(PROTOBUF_CPP_H_TARGET)
 	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) -MT $*.cc.o $*.cc -MF $*.cc.d
 
-.PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h
+.PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h @PROTOBUF_C_DIR@/%.pb-c.c @PROTOBUF_C_DIR@/%.pb-c.h
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))

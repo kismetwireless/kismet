@@ -36,10 +36,10 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) -c $*.c -o $@
+	$(CC) -I../@PROTOBUF_C_DIR@ $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -I../@PROTOBUF_C_DIR@ -MM $(CFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 .PRECIOUS: %.c.d
 
