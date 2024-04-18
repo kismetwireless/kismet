@@ -1,0 +1,5 @@
+This directory contains pre-compiled versions of the protobuf headers for protobuf-c 1.3.3,
+the most common distributed version.
+
+Due to changes in the main protobuf library, the latest versions of protobufs cannot be 
+used with proto-c to compile to C headers, so this stop-gap measure is necessary.
