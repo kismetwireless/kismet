@@ -14087,7 +14087,9 @@ then :
 
 fi
 
-if test x"$with_protocc" == "x"; then
+if test "x$with_protocc" = "x"
+then :
+
     PROTOCCBIN="protoc-c"
     # Extract the first word of "protoc-c", so it can be a program name with args.
 set dummy protoc-c; ac_word=$2
@@ -14131,11 +14133,17 @@ printf "%s\n" "no" >&6; }
 fi
 
 
-    if test x"$protocc" != x"yes"; then
+    if test x"$protocc" != "xyes"
+then :
+
         as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
-    fi
-else
+
+fi
+
+else $as_nop
+
     PROTOCCBIN=$with_protocc
+
 fi
 
 # As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
@@ -14172,6 +14180,7 @@ then :
 printf %s "checking protobufs-c 1.5.0 compatibility... " >&6; }
     OCFL="$CFLAGS"
     CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
+    echo $CFLAGS
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -14199,12 +14208,17 @@ else $as_nop
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
-    if test "$have_pipe2" = "yes"; then
+    if test "$compat_libprotoc" = "yes"
+then :
+
     	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-    else
+
+else $as_nop
+
     	as_fn_error $? "NO - use --force-proto-c to force protobuf-c recompilation" "$LINENO" 5
-    fi
+
+fi
     CFLAGS="$OCFL"
 
 fi

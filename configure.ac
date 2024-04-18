@@ -1270,15 +1270,15 @@ AC_ARG_WITH(protocc,
 	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
 	[ PROTOCCBIN=$withval ]
 	)
-if test x"$with_protocc" == "x"; then
+AS_IF([test "x$with_protocc" = "x"], [
     PROTOCCBIN="protoc-c"
     AC_CHECK_PROG(protocc, [protoc-c], yes)
-    if test x"$protocc" != x"yes"; then
+    AS_IF([test x"$protocc" != "xyes"], [
         AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
-    fi
-else
+    ])
+],[
     PROTOCCBIN=$with_protocc
-fi
+])
 
 # As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
 # protobufs-c and making it impossible to run protoc-c to compile protobufs into .c/.h pairs.  
@@ -1307,6 +1307,7 @@ AS_IF([test "$force_protocc" = "no"], [
     AC_MSG_CHECKING([protobufs-c 1.5.0 compatibility])
     OCFL="$CFLAGS"
     CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
+    echo $CFLAGS
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
             #include <protobuf-c/protobuf-c.h>
     		]], [[
@@ -1316,11 +1317,11 @@ AS_IF([test "$force_protocc" = "no"], [
             # error System libprotobuf-c incompatible with 1.5.0
             #endif
     		]])],[compat_libprotoc=yes],[compat_libprotoc=no])
-    if test "$have_pipe2" = "yes"; then
+    AS_IF([test "$compat_libprotoc" = "yes"], [
     	AC_MSG_RESULT([yes])
-    else
+    ], [
     	AC_MSG_ERROR(NO - use --force-proto-c to force protobuf-c recompilation)
-    fi
+    ])
     CFLAGS="$OCFL"
 ])
 
