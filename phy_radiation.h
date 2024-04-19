@@ -65,6 +65,11 @@ public:
             __ImportField(src_alias, p);
         }
 
+    void insert_cps_usv(time_t ts, double cps, double usv) {
+        cps_rrd->add_sample(cps, ts);
+        usv_rrd->add_sample(usv, ts);
+    }
+
     void insert_cps_record(time_t ts, double cps, const std::vector<double>& spectrum) {
         cps_rrd->add_sample(cps, ts);
 

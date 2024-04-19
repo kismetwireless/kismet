@@ -163,6 +163,50 @@ int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
         return 1;
     }
 
+    // Radiacode gives dosage information as well as cps.  Once written it 
+    // should also provide spectrum.
+    if (json->type == "radiacode") {
+
+        nlohmann::json json_;
+        std::vector<double> spectrum;
+        double cps;
+        double sv;
+
+        try {
+            std::stringstream ss(json->json_string);
+            ss >> json_;
+
+            cps = json_["cps"].get<double>();
+            sv = json_["sv"].get<double>();
+
+        } catch (const std::exception& e) {
+            _MSG_DEBUG("JSON parsing error: {}", e.what());
+            return 0;
+        }
+
+        // _MSG_DEBUG("Radiacode JSON: {}", json->json_string);
+
+        auto lk = kis_lock_guard<kis_mutex>(radphy->rad_mutex, "radphy update");
+
+        std::shared_ptr<geiger_device> rv;
+        auto gk = radphy->geiger_counters->find(datasrc->ref_source->get_source_uuid());
+        if (gk == radphy->geiger_counters->end()) {
+            rv = std::make_shared<geiger_device>(radphy->geiger_device_id);
+
+            rv->set_src_alias(radphy->datasourcetracker->find_datasource(datasrc->ref_source->get_source_uuid()));
+
+            rv->set_detector_type("Radiacode");
+            radphy->geiger_counters->insert(datasrc->ref_source->get_source_uuid(), rv);
+        } else {
+            rv = std::static_pointer_cast<geiger_device>(gk->second);
+        }
+
+        // Radiacode reports sv in 1/10000ths
+        rv->insert_cps_usv(in_pack->ts.tv_sec, cps, sv * 10000);
+
+        return 1;
+    }
+
     /*
     if (json->type != "radiation")
         return 0;
