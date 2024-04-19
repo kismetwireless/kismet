@@ -649,6 +649,7 @@ ac_includes_default="\
 ac_header_cxx_list=
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+BUILD_CAPTURE_ANTSDR_DRONEID
 BUILD_CAPTURE_USB_RADIACODE
 BUILD_CAPTURE_SERIAL_RADVIEW
 BUILD_CAPTURE_HAK5_COCONUT
@@ -4815,6 +4816,7 @@ BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
 BUILD_CAPTURE_USB_RADIACODE=0
+BUILD_CAPTURE_ANTSDR_DRONEID=1
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -13773,6 +13775,9 @@ fi
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
 BUILD_CAPTURE_PCAPFILE=1
 
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_ANTSDR_DRONEID)"
+BUILD_CAPTUE_ANTSDR_DRONEID=1
+
 BUILD_CAPTURE_LINUX_WIFI=0
 if test "$linux" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
@@ -16005,11 +16010,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_bt_geiger/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile capture_proxy_adsb/Makefile capture_nrf_52840/Makefile capture_hak5_wifi_coconut/Makefile capture_serial_radview/Makefile capture_radiacode/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_bt_geiger/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile capture_proxy_adsb/Makefile capture_nrf_52840/Makefile capture_hak5_wifi_coconut/Makefile capture_serial_radview/Makefile capture_radiacode/Makefile capture_antsdr_droneid/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16725,6 +16731,7 @@ do
     "capture_hak5_wifi_coconut/Makefile") CONFIG_FILES="$CONFIG_FILES capture_hak5_wifi_coconut/Makefile" ;;
     "capture_serial_radview/Makefile") CONFIG_FILES="$CONFIG_FILES capture_serial_radview/Makefile" ;;
     "capture_radiacode/Makefile") CONFIG_FILES="$CONFIG_FILES capture_radiacode/Makefile" ;;
+    "capture_antsdr_droneid/Makefile") CONFIG_FILES="$CONFIG_FILES capture_antsdr_droneid/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -17531,6 +17538,13 @@ if test "$BUILD_CAPTURE_PROXY_ADSB" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "        ANTSDR DroneID: "
+if test "$BUILD_CAPTURE_ANTSDR_DRONEID" = 1; then
+	echo "yes";
+else
+	echo "no";
 fi
 
 printf "         bladeRF-wiphy: "

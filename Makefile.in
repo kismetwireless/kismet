@@ -162,6 +162,9 @@ BUILD_CAPTURE_SERIAL_RADVIEW = @BUILD_CAPTURE_SERIAL_RADVIEW@
 CAPTURE_USB_RADIACODE = capture_radiacode/kismet_cap_radiacode_usb
 BUILD_CAPTURE_USB_RADIACODE = @BUILD_CAPTURE_USB_RADIACODE@
 
+CAPTURE_ANTSDR_DRONEID = capture_antsdr_droneid/kismet_cap_antsdr_droneid
+BUILD_CAPTURE_ANTSDR_DRONEID = @BUILD_CAPTURE_ANTSDR_DRONEID@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -405,6 +408,9 @@ $(CAPTURE_SERIAL_RADVIEW): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_USB_RADIACODE): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_radiacode && $(MAKE))
 
+$(CAPTURE_ANTSDR_DRONEID): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_antsdr_droneid && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -600,6 +606,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEE)"x = "1"x; then \
 		(cd capture_freaklabs_zigbee && $(MAKE) install) \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_ANTSDR_DRONEID)"x = "1"x; then \
+		(cd capture_antsdr_droneid && $(MAKE) install) \
 	fi;
 
 	mkdir -p $(LIB)/pkgconfig
@@ -803,6 +813,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_hak5_wifi_coconut && make clean)
 	@(cd capture_serial_radview && make clean)
 	@(cd capture_radiacode && make clean)
+	@(cd capture_antsdr_droneid && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*
