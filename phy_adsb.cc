@@ -774,6 +774,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_pa
 
         gpsinfo->tv = packet->ts;
 
+        packet->insert(pack_comp_gps, gpsinfo);
         devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_LOCATION), "ADSB Transmitter");
     }
