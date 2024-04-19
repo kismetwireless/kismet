@@ -249,7 +249,9 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY);
 
             if (drone_lat != 0 && drone_lon != 0) {
-                auto gpsinfo = in_pack->fetch_or_add<kis_gps_packinfo>(uavphy->pack_comp_gps);
+                // We have to make a new component here, not fetch the existing one; otherwise we 
+                // clobber the global gps record!
+                auto gpsinfo = uavphy->packetchain->new_packet_component<kis_gps_packinfo>();
                 gpsinfo->lat = drone_lat;
                 gpsinfo->lon = drone_lon;
 
@@ -274,6 +276,8 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                     gpsinfo->fix = 3;
 
                 gpsinfo->tv = in_pack->ts;
+
+                in_pack->insert(uavphy->pack_comp_gps, gpsinfo);
 
                 flags |= UCD_UPDATE_LOCATION;
             }

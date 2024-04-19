@@ -471,7 +471,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                         ant_droneid->speed_u,
                         ant_droneid->rssi);
 
-                fprintf(stderr, "DEBUG: %s\n", json);
+                /* fprintf(stderr, "DEBUG: %s\n", json); */
 
                 gettimeofday(&tv, NULL);
 

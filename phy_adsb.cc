@@ -761,6 +761,8 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_pa
         adsbdev->update_location = false;
 
         // Update the common device with location if we've got a location record now
+        // We have to make a new component here, not fetch the existing one; otherwise we 
+        // clobber the global gps record!
         auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
         gpsinfo->lat = adsbdev->lat;
