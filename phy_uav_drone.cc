@@ -19,11 +19,14 @@
 
 #include "config.h"
 
-#include "phy_uav_drone.h"
-#include "phy_80211.h"
-#include "kis_httpd_registry.h"
+#include <cmath>
+
 #include "devicetracker.h"
+#include "kis_httpd_registry.h"
+#include "manuf.h"
 #include "messagebus.h"
+#include "phy_80211.h"
+#include "phy_uav_drone.h"
 
 void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
 #if defined(HAVE_LIBPCRE1)
@@ -99,7 +102,7 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
 }
 
 
-Kis_UAV_Phy::Kis_UAV_Phy(int in_phyid) :
+kis_uav_phy::kis_uav_phy(int in_phyid) :
     kis_phy_handler(in_phyid) { 
 
     phyname = "UAV";
@@ -115,6 +118,12 @@ Kis_UAV_Phy::Kis_UAV_Phy(int in_phyid) :
         packetchain->register_packet_component("PHY80211");
     pack_comp_device =
         packetchain->register_packet_component("DEVICE");
+    pack_comp_json = 
+        packetchain->register_packet_component("JSON");
+    pack_comp_meta =
+        packetchain->register_packet_component("METABLOB");
+	pack_comp_gps =
+        packetchain->register_packet_component("GPS");
 
     uav_device_id =
         Globalreg::globalreg->entrytracker->register_field("uav.device",
@@ -124,9 +133,12 @@ Kis_UAV_Phy::Kis_UAV_Phy(int in_phyid) :
     manuf_match_vec =
         std::make_shared<tracker_element_vector>();
 
+    dji_manuf =
+        Globalreg::globalreg->manufdb->make_manuf("DJI");
+
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
-    packetchain->register_handler(Kis_UAV_Phy::CommonClassifier, this, CHAINPOS_TRACKER, 65535);
+    packetchain->register_handler(kis_uav_phy::common_classifier, this, CHAINPOS_TRACKER, 65535);
 
     // Register js module for UI
     auto httpregistry = 
@@ -145,12 +157,12 @@ Kis_UAV_Phy::Kis_UAV_Phy(int in_phyid) :
 
 }
 
-Kis_UAV_Phy::~Kis_UAV_Phy() {
+kis_uav_phy::~kis_uav_phy() {
 
 }
 
 
-void Kis_UAV_Phy::load_phy_storage(shared_tracker_element in_storage, shared_tracker_element in_device) {
+void kis_uav_phy::load_phy_storage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 
@@ -169,15 +181,159 @@ void Kis_UAV_Phy::load_phy_storage(shared_tracker_element in_storage, shared_tra
     }
 }
 
-int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
-    Kis_UAV_Phy *uavphy = (Kis_UAV_Phy *) auxdata;
+int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
+    kis_uav_phy *uavphy = (kis_uav_phy *) auxdata;
 
 	auto commoninfo = in_pack->fetch<kis_common_info>(uavphy->pack_comp_common);
     auto dot11info = in_pack->fetch<dot11_packinfo>(uavphy->pack_comp_80211);
 	auto devinfo = in_pack->fetch<kis_tracked_device_info>(uavphy->pack_comp_device);
+    auto json = in_pack->fetch<kis_json_packinfo>(uavphy->pack_comp_json);
 
-    if (devinfo == nullptr || commoninfo == nullptr || dot11info == nullptr)
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
+        return 0;
+    }
+
+    // Handle JSON packets from droneid rf
+    if (json != nullptr) {
+        if (json->type != "antsdr-droneid") {
+            return 1;
+        }
+
+        std::stringstream ss(json->json_string);
+        nlohmann::json device_json;
+
+        try {
+            ss >> device_json;
+
+            auto serial_no = device_json["serial_number"].get<std::string>();
+            auto dev_type = device_json["device_type"].get<std::string>();
+            auto drone_lat = device_json["drone_lat"].get<double>();
+            auto drone_lon = device_json["drone_lon"].get<double>();
+            auto app_lat = device_json["app_lat"].get<double>();
+            auto app_lon = device_json["app_lon"].get<double>();
+            auto drone_height = device_json["drone_height"].get<double>();
+            auto drone_alt = device_json["drone_height"].get<double>();
+            auto home_lat = device_json["home_lat"].get<double>();
+            auto home_lon = device_json["home_lon"].get<double>();
+            auto freq = device_json["freq"].get<double>();
+            auto speed_e = device_json["speed_e"].get<double>();
+            auto speed_n = device_json["speed_n"].get<double>();
+            auto speed_u = device_json["speed_u"].get<double>();
+
+            uint8_t bytes[6];
+            uint16_t *pfx = (uint16_t *) bytes;
+            uint32_t *srcs = (uint32_t *) (bytes + 2);
+
+            memset(bytes, 0, 6);
+            *srcs = adler32_checksum(serial_no);
+            *pfx = adler32_checksum(dev_type);
+
+            auto dronemac = mac_addr(bytes, 6);
+
+            auto common = 
+                in_pack->fetch_or_add<kis_common_info>(uavphy->pack_comp_common);
+
+            commoninfo->type = packet_basic_data;
+            commoninfo->phyid = uavphy->fetch_phy_id();
+            commoninfo->datasize = 0;
+
+            commoninfo->freq_khz = freq * 1000;
+
+            commoninfo->source = dronemac;
+            commoninfo->transmitter = dronemac;
+
+            auto flags = 
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                 UCD_UPDATE_SEENBY);
+
+            if (drone_lat != 0 && drone_lon != 0) {
+                auto gpsinfo = in_pack->fetch_or_add<kis_gps_packinfo>(uavphy->pack_comp_gps);
+                gpsinfo->lat = drone_lat;
+                gpsinfo->lon = drone_lon;
+
+                // Absolute altitude of drone, not height from takeoff
+                gpsinfo->alt = drone_alt;
+              
+                // velocity vector to radians to degrees
+                auto heading_r = std::atan2(speed_e, speed_n);
+                gpsinfo->heading = heading_r * (180.0f / M_PI);
+                if (gpsinfo->heading < 0) {
+                    gpsinfo->heading += 360;
+                }
+
+                // speed is the magnitude of the ENU velocity vector,
+                // because we generally don't track the vertical speed
+                // in other situations (adsb, wifi) we only take the EN
+                // vector for 2d speed over ground here
+                gpsinfo->speed =
+                    std::sqrt((speed_e * speed_e) + (speed_n * speed_n));
+
+                if (drone_alt != 0)
+                    gpsinfo->fix = 3;
+
+                gpsinfo->tv = in_pack->ts;
+
+                flags |= UCD_UPDATE_LOCATION;
+            }
+
+            auto basedev = 
+                uavphy->devicetracker->update_common_device(commoninfo, 
+                        commoninfo->source, uavphy, in_pack,
+                        flags, "DRONEID");
+
+            if (basedev == nullptr) {
+                return 0;
+            }
+
+            auto lg = kis_lock_guard<kis_mutex>(uavphy->devicetracker->get_devicelist_mutex(), "uav rf droneid");
+
+            basedev->set_manuf(uavphy->dji_manuf);
+            basedev->set_tracker_type_string(uavphy->devicetracker->get_cached_devicetype("DJI UAV"));
+            basedev->set_devicename(fmt::format("{}-{}", dev_type, serial_no));
+
+            auto uavdev = basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
+
+            if (uavdev == nullptr) {
+                uavdev = std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                basedev->insert(uavdev);
+
+                uavdev->set_uav_manufacturer("DJI");
+                uavdev->set_uav_model(dev_type);
+                uavdev->set_uav_match_type("DroneID");
+                uavdev->set_uav_serialnumber(serial_no);
+            }
+
+            if (home_lat != 0 && home_lon != 0) {
+                auto homeloc = uavdev->get_home_location();
+                homeloc->set(home_lat, home_lon);
+                homeloc->set_fix(2);
+            }
+
+            if (app_lat != 0 && app_lon != 0) {
+                auto apploc = uavdev->get_app_location();
+                apploc->set(app_lat, app_lon);
+                apploc->set_fix(2);
+            }
+
+            // For now, work towards combining locational tracking; ultimately we want ADSB-beaconed airplanes, drones, and any 
+            // other known-location devices to be organized the same way.  There is probably no use in trying to shove the 
+            // antsdr telemetry into a uav-telem record
+
+        } catch (const std::exception& e) {
+            _MSG_DEBUG("antsdr-droneid json error: {}", e.what());
+            return 0;
+        }
+
         return 1;
+    }
+
+    // Otherwise we're looking for droneid in dot11 beacons, or wifi drones 
+    // that match the ssid/mac filters; drop a record along the dot11 device 
+    // record
+
+    if (devinfo == nullptr || commoninfo == nullptr || dot11info == nullptr) {
+        return 1;
+    }
 
     kis_lock_guard<kis_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");
 
@@ -246,7 +402,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     if (tvec->size() > 128)
                         tvec->erase(tvec->begin());
 
-                    uavdev->set_uav_match_type("DroneID");
+                    uavdev->set_uav_match_type("DroneID WiFi");
 
                     if (uavdev->get_uav_manufacturer() == "")
                         uavdev->set_uav_manufacturer("DJI");
@@ -281,10 +437,10 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     }
 
                     uavdev->set_uav_serialnumber(munge_to_printable(flightpurpose->serialnumber()));
-                    uavdev->set_uav_match_type("DroneID");
+                    uavdev->set_uav_match_type("DroneID WiFi");
 
                     if (uavdev->get_uav_manufacturer() == "")
-                        uavdev->set_uav_manufacturer("DJI/DroneID");
+                        uavdev->set_uav_manufacturer("DJI");
                 } 
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - unable to parse droneid frame - %s\n", e.what());
@@ -322,7 +478,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     return 1;
 }
 
-bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
+bool kis_uav_phy::parse_manuf_definition(std::string in_def) {
     kis_lock_guard<kis_mutex> lk(uav_mutex);
 
     size_t cpos = in_def.find(':');

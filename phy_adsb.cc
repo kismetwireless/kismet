@@ -762,7 +762,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_pa
         adsbdev->update_location = false;
 
         // Update the common device with location if we've got a location record now
-        auto gpsinfo = std::make_shared<kis_gps_packinfo>();
+        auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
         gpsinfo->lat = adsbdev->lat;
         gpsinfo->lon = adsbdev->lon;
@@ -773,9 +773,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_pa
         if (adsbdev->alt != 0)
             gpsinfo->fix = 3;
 
-        gettimeofday(&gpsinfo->tv, NULL);
-
-        packet->insert(pack_comp_gps, gpsinfo);
+        gpsinfo->tv = packet->ts;
 
         devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_LOCATION), "ADSB Transmitter");
@@ -899,7 +897,7 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, std::shared_ptr<kis_packet>
         adsbdev->update_location = false;
 
         // Update the common device with location if we've got a location record now
-        auto gpsinfo = std::make_shared<kis_gps_packinfo>();
+        auto gpsinfo = packet->fetch_or_add<kis_gps_packinfo>(pack_comp_gps);
 
         gpsinfo->lat = adsbdev->lat;
         gpsinfo->lon = adsbdev->lon;

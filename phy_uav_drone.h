@@ -400,21 +400,21 @@ protected:
 };
 
 /* Frankenphy which absorbs other phys */
-class Kis_UAV_Phy : public kis_phy_handler {
+class kis_uav_phy : public kis_phy_handler {
 public:
-    virtual ~Kis_UAV_Phy();
+    virtual ~kis_uav_phy();
 
-    Kis_UAV_Phy() :
+    kis_uav_phy() :
         kis_phy_handler() { }
 
     virtual kis_phy_handler *create_phy_handler(int in_phyid) {
-        return new Kis_UAV_Phy(in_phyid);
+        return new kis_uav_phy(in_phyid);
     }
 
-    Kis_UAV_Phy(int in_phyid);
+    kis_uav_phy(int in_phyid);
 
     // Common classifier to make new UAV records
-    static int CommonClassifier(CHAINCALL_PARMS);
+    static int common_classifier(CHAINCALL_PARMS);
 
     // Restore stored UAV records
     virtual void load_phy_storage(shared_tracker_element in_storage,
@@ -429,11 +429,14 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
-    int pack_comp_common, pack_comp_80211, pack_comp_device;
+    int pack_comp_common, pack_comp_80211, pack_comp_device, pack_comp_json,
+        pack_comp_meta, pack_comp_gps;
 
     int uav_device_id;
 
     std::shared_ptr<tracker_element_vector> manuf_match_vec;
+
+    std::shared_ptr<tracker_element_string> dji_manuf;
 };
 
 #endif

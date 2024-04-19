@@ -90,6 +90,7 @@
 #include "datasource_mqtt.h"
 #include "datasource_radview.h"
 #include "datasource_radiacode.h"
+#include "datasource_antsdr_droneid.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -898,7 +899,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_sensor_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Zwave_Phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_bluetooth_phy()));
-    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_UAV_Phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_uav_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Mousejack_Phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_btle_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meter_phy()));
@@ -935,6 +936,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_mqtt_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radview_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radiacode_usb_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_antsdr_droneid_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();
