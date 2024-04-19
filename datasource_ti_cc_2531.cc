@@ -97,15 +97,7 @@ void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        if (report.has_cap_size()) {
-            if (report.cap_size() == 0)
-                packet->original_len = report.data().length();
-            else
-                packet->original_len = report.cap_size();
-        } else {
-            packet->original_len = report.data().length();
-        }
-
+        packet->original_len = conv_buf_len;
         packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
