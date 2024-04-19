@@ -10,9 +10,13 @@ div.k-s-list {
     height: 100%;
     overflow-x: hidden;
     overflow-y: scroll;
-    width: 25%;
     padding-top: 10px;
-    padding-bottom: 10px
+    padding-bottom: 10px;
+
+    display: flex;
+    flex-direction: column;
+
+    flex: "25%";
 }
 
 div.k-s-pane-holder {

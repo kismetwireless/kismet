@@ -2172,10 +2172,14 @@ kismet_ui_settings.AddSettingsPane({
         $.get(local_uri_prefix + "plugins/all_plugins.json")
         .done(function(data) {
             elem.empty();
+
+            elem.append('<form><fieldset id="fs_plugins"><legend>Plugins</legend><div id="plugin-content"></div></fieldset></form>')
     
             if (data.length == 0) {
-                elem.append($('<i>').html('No plugins loaded...'));
+                $('#plugin-content', elem).html('No plugins loaded...');
             }
+
+            var pdiv = $('#plugin-content', elem);
 
             for (var pi in data) {
                 var pl = data[pi];
@@ -2188,7 +2192,7 @@ kismet_ui_settings.AddSettingsPane({
                     sharedlib.html("No native code");
                 }
 
-                elem.append(
+                pdiv.append(
                     $('<div>', { 
                         class: 'k-b-s-plugin-title',
                     })
@@ -2490,12 +2494,11 @@ kismet_ui_settings.AddSettingsPane({
             data = kismet.sanitizeObject(data);
             elem.empty();
 
-            var tb = $('<table>', {
-                'class': 'apitable',
-                'id': 'apikeytable',
-            })
+            elem.append('<form><fieldset id="fs_apikeys"><legend>API Keys</legend><table class="apitable" id="apikeytable"></table></fieldset></form>');
 
-            .append(
+            let tb = $('#apikeytable', elem);
+
+            tb.append(
                 $('<tr>')
                 .append(
                     $('<th>', {
@@ -2519,8 +2522,6 @@ kismet_ui_settings.AddSettingsPane({
                     $('<th>')
                 )
             );
-
-            elem.append(tb);
 
             if (data.length == 0) {
                 tb.append(
