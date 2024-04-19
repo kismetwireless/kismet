@@ -649,7 +649,7 @@ ac_includes_default="\
 ac_header_cxx_list=
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
-BUILD_CAPTURE_RADIACODE
+BUILD_CAPTURE_USB_RADIACODE
 BUILD_CAPTURE_SERIAL_RADVIEW
 BUILD_CAPTURE_HAK5_COCONUT
 BUILD_CAPTURE_NRF_52840
@@ -4814,7 +4814,7 @@ BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
-BUILD_CAPTURE_RADIACODE=0
+BUILD_CAPTURE_USB_RADIACODE=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -14180,7 +14180,6 @@ then :
 printf %s "checking protobufs-c 1.5.0 compatibility... " >&6; }
     OCFL="$CFLAGS"
     CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
-    echo $CFLAGS
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -15587,10 +15586,10 @@ if test "$have_usb" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_TI_CC_2531)"
 fi
 
-BUILD_CAPTURE_RADIACODE=0
+BUILD_CAPTURE_USB_RADIACODE=0
 if test "$have_usb" = "yes"; then
-    BUILD_CAPTURE_RADIACODE=1
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_RADIACODE)"
+    BUILD_CAPTURE_USB_RADIACODE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USB_RADIACODE)"
 fi
 
 
@@ -17476,7 +17475,7 @@ else
 fi
 
 printf "         Radiacode USB: "
-if test "$BUILD_CAPTURE_RADIACODE" = 1; then
+if test "$BUILD_CAPTURE_USB_RADIACODE" = 1; then
         echo "yes";
 else
         echo "no (libUSB not available)";

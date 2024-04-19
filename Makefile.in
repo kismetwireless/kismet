@@ -159,6 +159,9 @@ BUILD_CAPTURE_HAK5_COCONUT = @BUILD_CAPTURE_HAK5_COCONUT@
 CAPTURE_SERIAL_RADVIEW = capture_serial_radview/kismet_cap_serial_radview
 BUILD_CAPTURE_SERIAL_RADVIEW = @BUILD_CAPTURE_SERIAL_RADVIEW@
 
+CAPTURE_USB_RADIACODE = capture_radiacode/kismet_cap_radiacode_usb
+BUILD_CAPTURE_USB_RADIACODE = @BUILD_CAPTURE_USB_RADIACODE@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -399,6 +402,9 @@ $(CAPTURE_HAK5_COCONUT): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_SERIAL_RADVIEW): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_serial_radview && $(MAKE))
 
+$(CAPTURE_USB_RADIACODE): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_radiacode && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -467,6 +473,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SERIAL_RADVIEW) $(BIN)/`basename $(CAPTURE_SERIAL_RADVIEW)` ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_USB_RADIACODE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_USB_RADIACODE) $(BIN)/`basename $(CAPTURE_USB_RADIACODE)` ; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -551,6 +561,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SERIAL_RADVIEW) $(BIN)/`basename $(CAPTURE_SERIAL_RADVIEW)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_USB_RADIACODE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_USB_RADIACODE) $(BIN)/`basename $(CAPTURE_USB_RADIACODE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
@@ -788,6 +802,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_rz_killerbee && make clean)
 	@(cd capture_hak5_wifi_coconut && make clean)
 	@(cd capture_serial_radview && make clean)
+	@(cd capture_radiacode && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*
