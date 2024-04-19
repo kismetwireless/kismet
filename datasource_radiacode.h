@@ -75,11 +75,11 @@ public:
         set_source_type("radiacode-usb");
         set_source_description("Radiacode geiger counter");
 
-        set_probe_capable(false);
-        set_list_capable(false);
+        set_probe_capable(true);
+        set_list_capable(true);
         set_local_capable(true);
         set_remote_capable(true);
-        set_passive_capable(true);
+        set_passive_capable(false);
         set_tune_capable(false);
         set_hop_capable(false);
     }
