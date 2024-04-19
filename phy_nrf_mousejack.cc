@@ -177,7 +177,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     if (nrf == NULL) {
         _MSG_INFO("Detected new nRF cordless input device (mouse, keyboard, etc) {}",
                 common->source.mac_to_string());
-        nrf = std::make_shared<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
+        nrf = Globalreg::globalreg->entrytracker->get_shared_instance_as<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
         device->insert(nrf);
     }
 

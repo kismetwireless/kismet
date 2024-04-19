@@ -224,8 +224,8 @@ bool Kis_RTL433_Phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     bool newrtl = false;
 
     if (rtlholder == NULL) {
-        rtlholder =
-            std::make_shared<tracker_element_map>(rtl433_holder_id);
+        // This is the only time it is safe to use make_shared because it's a generic map
+        rtlholder = std::make_shared<tracker_element_map>(rtl433_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -234,8 +234,7 @@ bool Kis_RTL433_Phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         rtlholder->get_sub_as<rtl433_tracked_common>(rtl433_common_id);
 
     if (commondev == NULL) {
-        commondev =
-            std::make_shared<rtl433_tracked_common>(rtl433_common_id);
+        commondev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_common>(rtl433_common_id);
         rtlholder->insert(commondev);
 
         commondev->set_model(dn);
@@ -461,8 +460,7 @@ void Kis_RTL433_Phy::add_weather_station(nlohmann::json json,
         rtlholder->get_sub_as<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
 
     if (weatherdev == nullptr) {
-        weatherdev = 
-            std::make_shared<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
+        weatherdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
         rtlholder->insert(weatherdev);
     }
 
@@ -518,8 +516,7 @@ void Kis_RTL433_Phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
         rtlholder->get_sub_as<rtl433_tracked_thermometer>(rtl433_thermometer_id);
 
     if (thermdev == NULL) {
-        thermdev = 
-            std::make_shared<rtl433_tracked_thermometer>(rtl433_thermometer_id);
+        thermdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_thermometer>(rtl433_thermometer_id);
         rtlholder->insert(thermdev);
     }
 
@@ -546,8 +543,7 @@ void Kis_RTL433_Phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
         rtlholder->get_sub_as<rtl433_tracked_tpms>(rtl433_tpms_id);
 
     if (tpmsdev == NULL) {
-        tpmsdev = 
-            std::make_shared<rtl433_tracked_tpms>(rtl433_tpms_id);
+        tpmsdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_tpms>(rtl433_tpms_id);
         rtlholder->insert(tpmsdev);
     }
 
@@ -584,8 +580,7 @@ void Kis_RTL433_Phy::add_switch(nlohmann::json json, std::shared_ptr<tracker_ele
         rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
 
     if (switchdev == nullptr) {
-        switchdev = 
-            std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
+        switchdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_switch>(rtl433_switch_id);
         rtlholder->insert(switchdev);
     }
 
@@ -626,8 +621,7 @@ void Kis_RTL433_Phy::add_insteon(nlohmann::json json, std::shared_ptr<tracker_el
             rtlholder->get_sub_as<rtl433_tracked_insteon>(rtl433_insteon_id);
 
     if (insteondev == NULL) {
-        insteondev =
-            std::make_shared<rtl433_tracked_insteon>(rtl433_insteon_id);
+        insteondev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_insteon>(rtl433_insteon_id);
         rtlholder->insert(insteondev);
     }
 
@@ -664,8 +658,7 @@ void Kis_RTL433_Phy::add_lightning(nlohmann::json json, std::shared_ptr<tracker_
         rtlholder->get_sub_as<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
 
     if (lightningdev == NULL) {
-        lightningdev = 
-            std::make_shared<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
+        lightningdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
         rtlholder->insert(lightningdev);
     }
 

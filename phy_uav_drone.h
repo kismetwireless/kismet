@@ -68,6 +68,23 @@ public:
         reserve_fields(e);
     }
 
+    uav_tracked_telemetry(const uav_tracked_telemetry *p):
+        tracker_component{p} {
+            
+            __ImportField(location, p);
+            __ImportField(telem_ts, p);
+            __ImportField(yaw, p);
+            __ImportField(pitch, p);
+            __ImportField(roll, p);
+            __ImportField(height, p);
+            __ImportField(v_north, p);
+            __ImportField(v_east, p);
+            __ImportField(v_up, p);
+            __ImportField(motor_on, p);
+            __ImportField(airborne, p);
+        
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("uav_tracked_telemetry");
     }
@@ -299,6 +316,21 @@ public:
         reserve_fields(e);
     }
 
+    uav_tracked_device(const uav_tracked_device *p) :
+        tracker_component{p} {
+            __ImportField(uav_manufacturer, p);
+            __ImportField(uav_model, p);
+            __ImportField(uav_serialnumber, p);
+            __ImportField(uav_telem_history, p);
+            __ImportId(telem_history_entry_id, p);
+            __ImportId(last_telem_loc_id, p);
+            __ImportField(home_location, p);
+            __ImportField(app_location, p);
+            __ImportId(matched_rule_id, p);
+
+            reserve_fields(nullptr);
+        }
+
     virtual ~uav_tracked_device() { }
 
     virtual uint32_t get_signature() const override {
@@ -316,7 +348,7 @@ public:
     __Proxy(uav_model, std::string, std::string, std::string, uav_model);
     __Proxy(uav_serialnumber, std::string, std::string, std::string, uav_serialnumber);
     
-    __ProxyDynamicTrackable(last_telem_loc, uav_tracked_telemetry, last_telem_loc, last_telem_loc_id);
+    __ProxyDynamicTrackable(last_telem_loc, tracker_element_alias, last_telem_loc, last_telem_loc_id);
 
     std::shared_ptr<uav_tracked_telemetry> new_telemetry() {
         return std::make_shared<uav_tracked_telemetry>(telem_history_entry_id);
@@ -326,11 +358,10 @@ public:
 
     __Proxy(uav_match_type, std::string, std::string, std::string, uav_match_type);
 
-    __ProxyDynamicTrackable(home_location, kis_tracked_location_triplet, 
-            home_location, home_location_id);
-    __ProxyDynamicTrackable(app_location, kis_tracked_location_triplet, 
-            app_location, app_location_id);
-    __ProxyDynamicTrackable(matched_type, uav_manuf_match, matched_type, matched_type_id);
+    __ProxyTrackable(home_location, kis_tracked_location_triplet, home_location);
+    __ProxyTrackable(app_location, kis_tracked_location_triplet, app_location);
+
+    __ProxyDynamicTrackable(matched_rule, tracker_element_alias, matched_rule, matched_rule_id);
 
 protected:
     virtual void register_fields() override {
@@ -339,33 +370,27 @@ protected:
         register_field("uav.manufacturer", "Manufacturer", &uav_manufacturer);
         register_field("uav.model", "Model", &uav_model);
         register_field("uav.serialnumber", "Serial number", &uav_serialnumber);
-
-        last_telem_loc_id =
-            register_field("uav.last_telemetry", "Last drone telemetry location", &last_telem_loc);
-
         register_field("uav.telemetry_history", "Previous telemetry location data", &uav_telem_history);
 
+        last_telem_loc_id =
+            register_dynamic_field("uav.last_telemetry", "Last drone telemetry location", &last_telem_loc);
+
         telem_history_entry_id =
-            register_field("uav.telemetry_entry",
-                    tracker_element_factory<uav_tracked_telemetry>(),
-                    "historical telemetry");
+            register_field("uav.telemetry_entry", tracker_element_factory<uav_tracked_telemetry>(), "historical telemetry");
 
         register_field("uav.match_type", "Match type (drone characteristics)", &uav_match_type);
 
-        home_location_id =
-            register_field("uav.telemetry.home_location", "UAV takeoff/home location",
-                    &home_location);
+        register_field("uav.telemetry.home_location", "UAV takeoff/home location", &home_location);
+        register_field("uav.telemetry.app_location", "UAV app/operator location", &app_location);
 
-        app_location_id =
-            register_field("uav.telemetry.app_location", "UAV app/operator location",
-                    &app_location);
-
-        matched_type_id =
-            register_field("uav.type", "Matched device", &matched_type);
+        matched_rule_id =
+            register_dynamic_field("uav.type", "Matching rules for Wi-Fi devices", &matched_rule);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
+
+        _MSG_DEBUG("reserve_fields home id {} app id {}", home_location->get_id(), app_location->get_id());
 
         if (e != NULL) {
             for (auto l = uav_telem_history->begin(); l != uav_telem_history->end(); ++l) {
@@ -381,22 +406,19 @@ protected:
     std::shared_ptr<tracker_element_string> uav_model;
     std::shared_ptr<tracker_element_string> uav_serialnumber;
 
-    std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
-    int last_telem_loc_id;
+    std::shared_ptr<tracker_element_alias> last_telem_loc;
+    uint16_t last_telem_loc_id;
 
     std::shared_ptr<tracker_element_vector> uav_telem_history;
-
-    int telem_history_entry_id;
+    uint16_t telem_history_entry_id;
 
     std::shared_ptr<tracker_element_string> uav_match_type;
 
     std::shared_ptr<kis_tracked_location_triplet> home_location;
-    int home_location_id;
     std::shared_ptr<kis_tracked_location_triplet> app_location;
-    int app_location_id;
 
-    std::shared_ptr<uav_manuf_match> matched_type;
-    int matched_type_id;
+    std::shared_ptr<tracker_element_alias> matched_rule;
+    uint16_t matched_rule_id;
 };
 
 /* Frankenphy which absorbs other phys */

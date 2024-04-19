@@ -360,7 +360,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         device->get_sub_as<btle_tracked_device>(mphy->btle_device_id);
 
     if (btle_dev == nullptr) {
-        btle_dev = std::make_shared<btle_tracked_device>(mphy->btle_device_id);
+        btle_dev = Globalreg::globalreg->entrytracker->get_shared_instance_as<btle_tracked_device>(mphy->btle_device_id);
         device->insert(btle_dev);
 
         new_dev = true;

@@ -211,14 +211,14 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             auto drone_lon = device_json["drone_lon"].get<double>();
             auto app_lat = device_json["app_lat"].get<double>();
             auto app_lon = device_json["app_lon"].get<double>();
-            auto drone_height = device_json["drone_height"].get<double>();
-            auto drone_alt = device_json["drone_height"].get<double>();
+            // auto drone_height = device_json["drone_height"].get<double>();
+            auto drone_alt = device_json["drone_alt"].get<double>();
             auto home_lat = device_json["home_lat"].get<double>();
             auto home_lon = device_json["home_lon"].get<double>();
             auto freq = device_json["freq"].get<double>();
             auto speed_e = device_json["speed_e"].get<double>();
             auto speed_n = device_json["speed_n"].get<double>();
-            auto speed_u = device_json["speed_u"].get<double>();
+            // auto speed_u = device_json["speed_u"].get<double>();
 
             uint8_t bytes[6];
             uint16_t *pfx = (uint16_t *) bytes;
@@ -230,8 +230,10 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
 
             auto dronemac = mac_addr(bytes, 6);
 
-            auto common = 
-                in_pack->fetch_or_add<kis_common_info>(uavphy->pack_comp_common);
+            if (commoninfo == nullptr) {
+                commoninfo = 
+                    in_pack->fetch_or_add<kis_common_info>(uavphy->pack_comp_common);
+            }
 
             commoninfo->type = packet_basic_data;
             commoninfo->phyid = uavphy->fetch_phy_id();
@@ -294,24 +296,28 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             auto uavdev = basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
             if (uavdev == nullptr) {
-                uavdev = std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                uavdev = 
+                    Globalreg::globalreg->entrytracker->get_shared_instance_as<uav_tracked_device>(uavphy->uav_device_id);
+
                 basedev->insert(uavdev);
 
                 uavdev->set_uav_manufacturer("DJI");
                 uavdev->set_uav_model(dev_type);
-                uavdev->set_uav_match_type("DroneID");
+                uavdev->set_uav_match_type("DroneID RF");
                 uavdev->set_uav_serialnumber(serial_no);
+
+                _MSG_INFO("Detected new DJI DroneID RF UAV {} serial {}", dev_type, serial_no);
             }
 
             if (home_lat != 0 && home_lon != 0) {
                 auto homeloc = uavdev->get_home_location();
-                homeloc->set(home_lat, home_lon);
+                homeloc->set_location(home_lat, home_lon);
                 homeloc->set_fix(2);
             }
 
             if (app_lat != 0 && app_lon != 0) {
                 auto apploc = uavdev->get_app_location();
-                apploc->set(app_lat, app_lon);
+                apploc->set_location(app_lat, app_lon);
                 apploc->set_fix(2);
             }
 
@@ -362,8 +368,8 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                             basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
                         if (uavdev == nullptr) {
-                            uavdev =
-                                std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                            uavdev = 
+                                Globalreg::globalreg->entrytracker->get_shared_instance_as<uav_tracked_device>(uavphy->uav_device_id);
                             basedev->insert(uavdev);
                         }
 
@@ -380,8 +386,8 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                         basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
                     if (uavdev == nullptr) {
-                        uavdev =
-                            std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                        uavdev = 
+                            Globalreg::globalreg->entrytracker->get_shared_instance_as<uav_tracked_device>(uavphy->uav_device_id);
                         basedev->insert(uavdev);
                     }
 
@@ -393,7 +399,8 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                     telem->from_droneid_flight_reg(flightinfo);
                     telem->set_telem_timestamp(ts_to_double(in_pack->ts));
 
-                    uavdev->set_tracker_last_telem_loc(telem);
+                    auto ltr = uavdev->get_last_telem_loc();
+                    ltr->set(telem);
 
                     auto tvec = uavdev->get_uav_telem_history();
 
@@ -413,13 +420,13 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                     // Set the home location
                     if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
                         auto homeloc = uavdev->get_home_location();
-                        homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
+                        homeloc->set_location(flightinfo->home_lat(), flightinfo->home_lon());
                         homeloc->set_fix(2);
                     }
 
                     if (flightinfo->app_lat() != 0 && flightinfo->app_lon() != 0) {
                         auto apploc = uavdev->get_app_location();
-                        apploc->set(flightinfo->app_lat(), flightinfo->app_lon());
+                        apploc->set_location(flightinfo->app_lat(), flightinfo->app_lon());
                         apploc->set_fix(2);
                     }
 
@@ -431,8 +438,8 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                         basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
                     if (uavdev == NULL) {
-                        uavdev =
-                            std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                        uavdev = 
+                            Globalreg::globalreg->entrytracker->get_shared_instance_as<uav_tracked_device>(uavphy->uav_device_id);
                         basedev->insert(uavdev);
                     }
 
@@ -443,7 +450,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                         uavdev->set_uav_manufacturer("DJI");
                 } 
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - unable to parse droneid frame - %s\n", e.what());
+                _MSG_DEBUG("Unable to parse droneid frame - {}", e.what());
             }
         }
         
@@ -458,14 +465,15 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                         basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
                     if (uavdev == nullptr) {
-                        uavdev =
-                            std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                        uavdev = 
+                            Globalreg::globalreg->entrytracker->get_shared_instance_as<uav_tracked_device>(uavphy->uav_device_id);
                         basedev->insert(uavdev);
                         uavdev->set_uav_manufacturer(m->get_uav_manuf_name());
                         uavdev->set_uav_model(m->get_uav_manuf_model());
                     }
 
-                    uavdev->set_tracker_matched_type(m);
+                    auto mtr = uavdev->get_matched_rule();
+                    mtr->set(m);
 
                     uavdev->set_uav_match_type("UAV Fingerprint");
 

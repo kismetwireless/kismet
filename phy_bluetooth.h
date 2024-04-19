@@ -122,6 +122,10 @@ public:
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
+
+        register_field("bluetooth.device.major_class", "bt major class", &device_major_class);
+        register_field("bluetooth.device.minor_class", "bt device minor class", &device_minor_class);
+
         register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("bluetooth.device.solicitation_uuid_vec", 
 				"advertised solicitation UUIDs", &solicitation_uuid_vec);
@@ -137,6 +141,9 @@ protected:
     }
 
     std::shared_ptr<tracker_element_uint8> bt_device_type;
+
+    std::shared_ptr<tracker_element_string> device_major_class;
+    std::shared_ptr<tracker_element_string> device_minor_class;
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
 	std::shared_ptr<tracker_element_vector> solicitation_uuid_vec;

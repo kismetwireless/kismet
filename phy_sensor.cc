@@ -259,8 +259,8 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     bool newrtl = false;
 
     if (rtlholder == NULL) {
-        rtlholder =
-            std::make_shared<tracker_element_map>(sensor_holder_id);
+        // make_shared valid here becausse it's just a map
+        rtlholder = std::make_shared<tracker_element_map>(sensor_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -269,8 +269,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         rtlholder->get_sub_as<sensor_tracked_common>(sensor_common_id);
 
     if (commondev == NULL) {
-        commondev =
-            std::make_shared<sensor_tracked_common>(sensor_common_id);
+        commondev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_common>(sensor_common_id);
         rtlholder->insert(commondev);
 
         commondev->set_model(dn);
@@ -546,8 +545,7 @@ void kis_sensor_phy::add_weather_station(nlohmann::json json,
         rtlholder->get_sub_as<sensor_tracked_weatherstation>(sensor_weatherstation_id);
 
     if (weatherdev == nullptr) {
-        weatherdev = 
-            std::make_shared<sensor_tracked_weatherstation>(sensor_weatherstation_id);
+        weatherdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_weatherstation>(sensor_weatherstation_id);
         rtlholder->insert(weatherdev);
     }
 
@@ -627,8 +625,7 @@ void kis_sensor_phy::add_thermometer(nlohmann::json json, std::shared_ptr<tracke
         rtlholder->get_sub_as<sensor_tracked_thermometer>(sensor_thermometer_id);
 
     if (thermdev == NULL) {
-        thermdev = 
-            std::make_shared<sensor_tracked_thermometer>(sensor_thermometer_id);
+        thermdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_thermometer>(sensor_thermometer_id);
         rtlholder->insert(thermdev);
     }
 
@@ -651,8 +648,7 @@ void kis_sensor_phy::add_tpms(nlohmann::json json, std::shared_ptr<tracker_eleme
         rtlholder->get_sub_as<sensor_tracked_tpms>(sensor_tpms_id);
 
     if (tpmsdev == NULL) {
-        tpmsdev = 
-            std::make_shared<sensor_tracked_tpms>(sensor_tpms_id);
+        tpmsdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_tpms>(sensor_tpms_id);
         rtlholder->insert(tpmsdev);
     }
 
@@ -701,8 +697,7 @@ void kis_sensor_phy::add_switch(nlohmann::json json, std::shared_ptr<tracker_ele
         rtlholder->get_sub_as<sensor_tracked_switch>(sensor_switch_id);
 
     if (switchdev == nullptr) {
-        switchdev = 
-            std::make_shared<sensor_tracked_switch>(sensor_switch_id);
+        switchdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_switch>(sensor_switch_id);
         rtlholder->insert(switchdev);
     }
 
@@ -743,8 +738,7 @@ void kis_sensor_phy::add_insteon(nlohmann::json json, std::shared_ptr<tracker_el
             rtlholder->get_sub_as<sensor_tracked_insteon>(sensor_insteon_id);
 
     if (insteondev == NULL) {
-        insteondev =
-            std::make_shared<sensor_tracked_insteon>(sensor_insteon_id);
+        insteondev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_insteon>(sensor_insteon_id);
         rtlholder->insert(insteondev);
     }
 
@@ -781,8 +775,7 @@ void kis_sensor_phy::add_lightning(nlohmann::json json, std::shared_ptr<tracker_
         rtlholder->get_sub_as<sensor_tracked_lightningsensor>(sensor_lightning_id);
 
     if (lightningdev == NULL) {
-        lightningdev = 
-            std::make_shared<sensor_tracked_lightningsensor>(sensor_lightning_id);
+        lightningdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_lightningsensor>(sensor_lightning_id);
         rtlholder->insert(lightningdev);
     }
 
@@ -810,8 +803,7 @@ void kis_sensor_phy::add_moisture(nlohmann::json json, std::shared_ptr<tracker_e
         rtlholder->get_sub_as<sensor_tracked_moisture>(sensor_moisture_id);
 
     if (mdev == nullptr) {
-        mdev = 
-            std::make_shared<sensor_tracked_moisture>(sensor_moisture_id);
+        mdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_moisture>(sensor_moisture_id);
         rtlholder->insert(mdev);
     }
 
@@ -836,8 +828,7 @@ void kis_sensor_phy::add_aqi(nlohmann::json json, std::shared_ptr<tracker_elemen
         rtlholder->get_sub_as<sensor_tracked_aqi>(sensor_aqi_id);
 
     if (mdev == nullptr) {
-        mdev = 
-            std::make_shared<sensor_tracked_aqi>(sensor_aqi_id);
+        mdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<sensor_tracked_aqi>(sensor_aqi_id);
         rtlholder->insert(mdev);
     }
 

@@ -240,7 +240,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             _MSG_INFO("{}", newdevstr.str());
 
             btdev_bluetooth = 
-                std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+                Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
             btdev->insert(btdev_bluetooth);
 
@@ -424,8 +424,8 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
             ss << " (" << btpi->name << ")";
         _MSG(ss.str(), MSGFLAG_INFO);
 
-        btdev =
-            std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+        btdev = 
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
         basedev->insert(btdev);
     }

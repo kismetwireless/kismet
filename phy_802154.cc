@@ -425,8 +425,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     if (source_kis_802154 == NULL) {
         _MSG_INFO(
             "Detected new 802.15.4 device {}", common->source.mac_to_string());
-        source_kis_802154 = std::make_shared<kis_802154_tracked_device>(
-            mphy->kis_802154_device_entry_id);
+        source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
         source_dev->insert(source_kis_802154);
     }
 
@@ -445,8 +444,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     if (dest_kis_802154 == NULL) {
         _MSG_INFO(
             "Detected new 802.15.4 device {}", common->dest.mac_to_string());
-        dest_kis_802154 = std::make_shared<kis_802154_tracked_device>(
-            mphy->kis_802154_device_entry_id);
+        dest_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
         dest_dev->insert(dest_kis_802154);
     }
 

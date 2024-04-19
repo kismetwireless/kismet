@@ -175,8 +175,7 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         basedev->get_sub_as<tracked_meter>(tracked_meter_id);
 
     if (meterdev == nullptr) {
-        meterdev = 
-            std::make_shared<tracked_meter>(tracked_meter_id);
+        meterdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<tracked_meter>(tracked_meter_id);
 
         basedev->set_manuf(meter_manuf);
 
@@ -431,8 +430,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         basedev->get_sub_as<tracked_meter>(tracked_meter_id);
 
     if (meterdev == nullptr) {
-        meterdev = 
-            std::make_shared<tracked_meter>(tracked_meter_id);
+        meterdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<tracked_meter>(tracked_meter_id);
 
         basedev->set_manuf(meter_manuf);
 

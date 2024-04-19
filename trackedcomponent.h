@@ -884,6 +884,7 @@ public:
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(this));
+        dup->set_id(this->get_id());
         return std::move(dup);
     }
 

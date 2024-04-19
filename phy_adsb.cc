@@ -640,8 +640,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_pa
         basedev->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
 
     if (adsbdev == NULL) {
-        adsbdev = 
-            std::make_shared<adsb_tracked_adsb>(adsb_adsb_id);
+        adsbdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<adsb_tracked_adsb>(adsb_adsb_id);
         basedev->insert(adsbdev);
         new_adsb = true;
 
@@ -943,8 +942,7 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_pa
             rtlholder->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
 
         if (adsbdev == NULL) {
-            adsbdev = 
-                std::make_shared<adsb_tracked_adsb>(adsb_adsb_id);
+            adsbdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<adsb_tracked_adsb>(adsb_adsb_id);
             rtlholder->insert(adsbdev);
             new_adsb = true;
 
