@@ -573,6 +573,10 @@ commoninstall: $(INSTBINS)
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_USB_RADIACODE) $(BIN)/`basename $(CAPTURE_USB_RADIACODE)`; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_ANTSDR_DRONEID)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_ANTSDR_DRONEID) $(BIN)/`basename $(CAPTURE_ANTSDR_DRONEID)`; \
+	fi;
+
 	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
@@ -606,10 +610,6 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEE)"x = "1"x; then \
 		(cd capture_freaklabs_zigbee && $(MAKE) install) \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_ANTSDR_DRONEID)"x = "1"x; then \
-		(cd capture_antsdr_droneid && $(MAKE) install) \
 	fi;
 
 	mkdir -p $(LIB)/pkgconfig
