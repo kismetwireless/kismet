@@ -88,9 +88,7 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
                     }
 
                     auto evt = eventbus->get_eventbus_event(event_radiation());
-                    for (const auto& gc : *geiger_counters) {
-                        evt->get_event_content()->insert(gc.first.as_string(), gc.second);
-                    }
+                    evt->get_event_content()->insert(event_radiation(), geiger_counters);
                     eventbus->publish(evt);
 
                     return 1;
