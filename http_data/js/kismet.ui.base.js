@@ -105,8 +105,6 @@ exports.OpenEventbusWs = function() {
     exports.eventbus_ws = new WebSocket(ws_url);
     
     exports.eventbus_ws.onclose = function(event) {
-        console.log("eventbus ws closed");
-
         setTimeout(function() { exports.OpenEventbusWs(); }, 500);
     };
 
