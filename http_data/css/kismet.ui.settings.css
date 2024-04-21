@@ -45,6 +45,7 @@ div.k-s-list-item {
     padding-top: 2px;
     padding-bottom: 2px;
     padding-left: 10px;
+    padding-right: 10px;
 }
 
 div.k-s-list-item:hover {
