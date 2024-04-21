@@ -1,4 +1,5 @@
 #include <kaitai/kaitaistream.h>
+#include <kaitai/exceptions.h>
 
 #if defined(__APPLE__)
 #include <machine/endian.h>
@@ -17,18 +18,18 @@
 #define bswap_16(x) _byteswap_ushort(x)
 #define bswap_32(x) _byteswap_ulong(x)
 #define bswap_64(x) _byteswap_uint64(x)
-#else // !__APPLE__ or !_MSC_VER
-#include <endian.h>
-#if defined(__OpenBSD__)
-#define bswap_16(x) swap16(x)
-#define bswap_32(x) swap32(x)
-#define bswap_64(x) swap64(x)
-#define __BYTE_ORDER        BYTE_ORDER
+#elif defined(__QNX__) // __QNX__
+#include <sys/param.h>
+#include <gulliver.h>
+#define bswap_16(x) ENDIAN_RET16(x)
+#define bswap_32(x) ENDIAN_RET32(x)
+#define bswap_64(x) ENDIAN_RET64(x)
+#define __BYTE_ORDER    BYTE_ORDER
 #define __BIG_ENDIAN    BIG_ENDIAN
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
-#else // SYS_OPENBSD
+#else // !__APPLE__ or !_MSC_VER or !__QNX__
+#include <endian.h>
 #include <byteswap.h>
-#endif
 #endif
 
 #include <iostream>
@@ -331,7 +332,7 @@ uint64_t kaitai::kstream::read_bits_int_be(int n) {
         res = m_bits >> -bits_needed; // shift unneeded bits out
     }
 
-    uint64_t mask = (UINT64_C(1) << m_bits_left) - 1; // `m_bits_left` is in range 0..7, so `(1 << 64)` does not have to be considered
+    uint64_t mask = (static_cast<uint64_t>(1) << m_bits_left) - 1; // `m_bits_left` is in range 0..7, so `(1 << 64)` does not have to be considered
     m_bits &= mask;
 
     return res;
@@ -375,7 +376,7 @@ uint64_t kaitai::kstream::read_bits_int_le(int n) {
     m_bits_left = -bits_needed & 7; // `-bits_needed mod 8`
 
     if (n < 64) {
-        uint64_t mask = (UINT64_C(1) << n) - 1;
+        uint64_t mask = (static_cast<uint64_t>(1) << n) - 1;
         res &= mask;
     }
     // if `n == 64`, do nothing
@@ -592,6 +593,24 @@ void kaitai::kstream::unsigned_to_decimal(uint64_t number, char *buffer) {
     *buffer = '\0';
 }
 
+int64_t kaitai::kstream::string_to_int(const std::string& str, int base) {
+    char *str_end;
+
+    errno = 0;
+    int64_t res = strtoll(str.c_str(), &str_end, base);
+
+    // Check for successful conversion and throw an exception if the entire string was not converted
+    if (str_end != str.c_str() + str.size()) {
+        throw std::invalid_argument("string_to_int");
+    }
+
+    if (errno == ERANGE) {
+        throw std::out_of_range("string_to_int");
+    }
+
+    return res;
+}
+
 std::string kaitai::kstream::reverse(std::string val) {
     std::reverse(val.begin(), val.end());
 
@@ -636,14 +655,14 @@ uint8_t kaitai::kstream::byte_array_max(const std::string val) {
 #include <cerrno>
 #include <stdexcept>
 
-std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) {
-    iconv_t cd = iconv_open(KS_STR_DEFAULT_ENCODING, src_enc.c_str());
+std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src_enc) {
+    iconv_t cd = iconv_open(KS_STR_DEFAULT_ENCODING, src_enc);
 
     if (cd == (iconv_t)-1) {
         if (errno == EINVAL) {
-            throw std::runtime_error("bytes_to_str: invalid encoding pair conversion requested");
+            throw unknown_encoding(src_enc);
         } else {
-            throw std::runtime_error("bytes_to_str: error opening iconv");
+            throw bytes_to_str_error("error opening iconv");
         }
     }
 
@@ -655,7 +674,9 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
     std::string dst(dst_len, ' ');
     size_t dst_left = dst_len;
 
-    char *src_ptr = &src[0];
+    // NB: this should be const char *, but for some reason iconv() requires non-const in its 2nd argument,
+    // so we force it with a cast.
+    char *src_ptr = const_cast<char*>(src.data());
     char *dst_ptr = &dst[0];
 
     while (true) {
@@ -674,8 +695,12 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
                 // of memory, thus our previous pointer "dst" will be invalid; re-point
                 // it using "dst_used".
                 dst_ptr = &dst[dst_used];
+            } else if (errno == EILSEQ) {
+                throw illegal_seq_in_encoding("EILSEQ");
+            } else if (errno == EINVAL) {
+                throw illegal_seq_in_encoding("EINVAL");
             } else {
-                throw std::runtime_error("bytes_to_str: iconv error");
+                throw bytes_to_str_error(to_string(errno));
             }
         } else {
             // conversion successful
@@ -685,15 +710,174 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
     }
 
     if (iconv_close(cd) != 0) {
-        throw std::runtime_error("bytes_to_str: iconv close error");
+        throw bytes_to_str_error("iconv close error");
     }
 
     return dst;
 }
 #elif defined(KS_STR_ENCODING_NONE)
-std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) {
+std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src_enc) {
     return src;
 }
+#elif defined(KS_STR_ENCODING_WIN32API)
+#include <windows.h>
+#include <limits>
+
+// Unbreak std::numeric_limits<T>::max, as otherwise MSVC substitutes "useful" max() macro.
+#undef max
+
+int kaitai::kstream::encoding_to_win_codepage(const char *src_enc) {
+    std::string enc(src_enc);
+    if (enc == "UTF-8") {
+        return CP_UTF8;
+    } else if (enc == "UTF-16LE") {
+        return KAITAI_CP_UTF16LE;
+    } else if (enc == "UTF-16BE") {
+        return KAITAI_CP_UTF16BE;
+    } else if (enc == "IBM437") {
+        return 437;
+    } else if (enc == "IBM850") {
+        return 850;
+    } else if (enc == "SHIFT_JIS") {
+        return 932;
+    } else if (enc == "GB2312") {
+        return 936;
+    } else if (enc == "ASCII") {
+        return 20127;
+    } else if (enc == "EUC-JP") {
+        return 20932;
+    } else if (enc == "ISO-8859-1") {
+        return 28591;
+    } else if (enc == "ISO-8859-2") {
+        return 28592;
+    } else if (enc == "ISO-8859-3") {
+        return 28593;
+    } else if (enc == "ISO-8859-4") {
+        return 28594;
+    } else if (enc == "ISO-8859-5") {
+        return 28595;
+    } else if (enc == "ISO-8859-6") {
+        return 28596;
+    } else if (enc == "ISO-8859-7") {
+        return 28597;
+    } else if (enc == "ISO-8859-8") {
+        return 28598;
+    } else if (enc == "ISO-8859-9") {
+        return 28599;
+    } else if (enc == "ISO-8859-10") {
+        return 28600;
+    } else if (enc == "ISO-8859-11") {
+        return 28601;
+    } else if (enc == "ISO-8859-13") {
+        return 28603;
+    } else if (enc == "ISO-8859-14") {
+        return 28604;
+    } else if (enc == "ISO-8859-15") {
+        return 28605;
+    } else if (enc == "ISO-8859-16") {
+        return 28606;
+    }
+
+    return KAITAI_CP_UNSUPPORTED;
+}
+
+std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src_enc) {
+    // Step 1: convert encoding name to codepage number
+    int codepage = encoding_to_win_codepage(src_enc);
+    if (codepage == KAITAI_CP_UNSUPPORTED) {
+        throw unknown_encoding(src_enc);
+    }
+    return bytes_to_str(src, codepage);
+}
+
+std::string kaitai::kstream::bytes_to_str(const std::string src, int codepage) {
+    // Shortcut: if we're already in UTF-8, no need to convert anything
+    if (codepage == CP_UTF8) {
+        return src;
+    }
+    // If `src` is empty, no conversion is needed either (in fact, the Win32 functions we use, i.e.
+    // MultiByteToWideChar and WideCharToMultiByte, fail with ERROR_INVALID_PARAMETER when they
+    // encounter an empty string, so we avoid this by returning early)
+    if (src.empty()) {
+        return src;
+    }
+
+    // Step 2: convert bytes to UTF-16 ("wide char") string
+    std::wstring utf16;
+    int32_t utf16_len;
+    int32_t src_len;
+    if (src.length() > std::numeric_limits<int32_t>::max()) {
+        throw bytes_to_str_error("buffers longer than int32_t are unsupported");
+    } else {
+        src_len = static_cast<int32_t>(src.length());
+    }
+
+    switch (codepage) {
+    case KAITAI_CP_UTF16LE:
+        // If our source is already UTF-16LE, just copy it
+
+        if (src_len % 2 != 0) {
+            throw illegal_seq_in_encoding("incomplete");
+        }
+
+        utf16_len = src_len / 2;
+        utf16 = std::wstring((wchar_t*)src.c_str(), utf16_len);
+        break;
+    case KAITAI_CP_UTF16BE:
+        // If our source is in UTF-16BE, convert it to UTF-16LE by swapping bytes
+
+        if (src_len % 2 != 0) {
+            throw illegal_seq_in_encoding("incomplete");
+        }
+
+        utf16_len = src_len / 2;
+
+        utf16 = std::wstring(utf16_len, L'\0');
+        for (int32_t i = 0; i < utf16_len; i++) {
+            utf16[i] = (static_cast<uint8_t>(src[i * 2]) << 8) | static_cast<uint8_t>(src[i * 2 + 1]);
+        }
+        break;
+    default:
+        // Calculate the length of the UTF-16 string
+        utf16_len = MultiByteToWideChar(codepage, 0, src.c_str(), src_len, 0, 0);
+        if (utf16_len == 0) {
+            throw bytes_to_str_error("MultiByteToWideChar length calculation error");
+        }
+
+        // Convert to UTF-16 string
+        utf16 = std::wstring(utf16_len, L'\0');
+        if (MultiByteToWideChar(codepage, MB_ERR_INVALID_CHARS, src.c_str(), src_len, &utf16[0], utf16_len) == 0) {
+            auto err = GetLastError();
+            if (err == ERROR_NO_UNICODE_TRANSLATION) {
+                throw illegal_seq_in_encoding("MultiByteToWideChar");
+            } else {
+                throw bytes_to_str_error("MultiByteToWideChar conversion error");
+            }
+        }
+    }
+
+    // Step 3: convert UTF-16 string to UTF-8 string
+
+    // Calculate the length of the UTF-8 string
+    int utf8_len = WideCharToMultiByte(CP_UTF8, 0, &utf16[0], utf16_len, 0, 0, 0, 0);
+    if (utf8_len == 0) {
+        throw bytes_to_str_error("WideCharToMultiByte length calculation error");
+    }
+
+    // Convert to UTF-8 string
+    std::string utf8(utf8_len, '\0');
+    if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, &utf16[0], utf16_len, &utf8[0], utf8_len, 0, 0) == 0) {
+        auto err = GetLastError();
+        if (err == ERROR_NO_UNICODE_TRANSLATION) {
+            throw illegal_seq_in_encoding("WideCharToMultiByte");
+        } else {
+            throw bytes_to_str_error("WideCharToMultiByte conversion error");
+        }
+    }
+
+    return utf8;
+}
+
 #else
-#error Need to decide how to handle strings: please define one of: KS_STR_ENCODING_ICONV, KS_STR_ENCODING_NONE
+#error Need to decide how to handle strings: please define one of: KS_STR_ENCODING_ICONV, KS_STR_ENCODING_WIN32API, KS_STR_ENCODING_NONE
 #endif
