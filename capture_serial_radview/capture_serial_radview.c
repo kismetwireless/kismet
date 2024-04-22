@@ -195,6 +195,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     localrad->interface = strndup(placeholder, placeholder_len);
 
+    if (strstr(localrad->interface, "radview") != localrad->interface) {
+        return -1;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         localrad->name = strndup(placeholder, placeholder_len);
     } else {
