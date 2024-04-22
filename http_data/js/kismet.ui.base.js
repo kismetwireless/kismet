@@ -1960,6 +1960,7 @@ kismet_ui_settings.AddSettingsPane({
                     })
                     .html("Icon and Text")
                 )
+                .append($('<div class="k-s-list-div"><input type="checkbox" id="gps-stacked"><label for="gps-stacked">Stack GPS coordinates in toolbar</label></div>'))
             )
         );
 
@@ -1977,6 +1978,12 @@ kismet_ui_settings.AddSettingsPane({
             $('#gps_text', elem).attr('checked', 'checked');
         }
 
+        if (kismet.getStorage('kismet.ui.gps.stack', true)) {
+            $('#gps-stacked', elem).attr('checked', 'checked');
+        } 
+
+        $('#gps-stacked').checkboxradio();
+
         $('#set_gps', elem).controlgroup();
     },
     save: function(elem) {
@@ -1992,6 +1999,8 @@ kismet_ui_settings.AddSettingsPane({
             kismet.putStorage('kismet.ui.gps.icon', 'True');
             kismet.putStorage('kismet.ui.gps.text', 'False');
         }
+
+        kismet.putStorage('kismet.ui.gps.stack', $('#gps-stacked', elem).is(':checked'));
     }
 })
 

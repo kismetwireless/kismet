@@ -59,8 +59,6 @@ kismet_ui_iconbar.AddIconbarItem({
                 let cps = d['radiation.sensor.cps_rrd']['kismet.common.rrd.last_value'];
                 let usv = d['radiation.sensor.usv_rrd']['kismet.common.rrd.last_value'];
 
-                console.log(cps, usv);
-
                 if (max_cps < cps) {
                     max_cps = cps;
                 }
@@ -95,19 +93,22 @@ kismet_ui_settings.AddSettingsPane({
         config.append('<p><b>CAUTION</b>: Radiation exposure counts and dosages are dependent on the radiation detector used.  Most radiation detectors have maximum speeds at which detection can reliably occur.  Each radiation detectors <i>must be properly calibrated</i> and properly oriented for detection.</p>');
         config.append('<p><i>BE SAFE.</i>  <b>NEVER</b> trust the Kismet display of radiation data for personal safety!</p>');
 
-        config.append('<div><input type="checkbox" id="r_showcps"><span>Show counts per second</span></div>');
-        config.append('<div><input type="checkbox" id="r_showusv"><span>Show uSv per second</span></div>');
+        config.append('<div><input type="checkbox" id="r_showcps"><label for="r_showcps">Show counts per second in toolbar</label></div>');
+        config.append('<div><input type="checkbox" id="r_showusv"><label for="r_showusv">Show uSv per second in toolbar</labeln></div>');
 
         let show_cps = kismet.getStorage('kismet.ui.radiation.showcps', false);
         let show_usv = kismet.getStorage('kismet.ui.radiation.showusv', false);
 
         if (show_cps) {
-            $('#r_showcps', elem).prop('checked', true);
+            $('#r_showcps', elem).prop('checked', 'checked');
         }
 
         if (show_usv) {
-            $('#r_showusv', elem).prop('checked', true);
+            $('#r_showusv', elem).prop('checked', 'checked');
         }
+
+        $('#r_showcps', elem).checkboxradio();
+        $('#r_showusv', elem).checkboxradio();
 
         $('form', elem).on('change', () => {
             kismet_ui_settings.SettingsModified();

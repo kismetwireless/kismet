@@ -87,3 +87,35 @@ span.kg-header-close {
     font-weight: bold;
     color: red;
 }
+
+.gpsbutton {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.gps-side-by-side {
+    display: flex !important;
+    flex-direction: row !important;
+
+    align-items: center;
+    justify-content: center;
+}
+
+.gps-dual-stack {
+    display: flex;
+    flex-direction: column;
+
+    margin-left: 2px;
+    margin-right: 2px;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 10px;
+}
+
+.gps-toolbar-x {
+    margin-left: 2px;
+    margin-right: 2px;
+}
