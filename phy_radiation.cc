@@ -72,7 +72,7 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
 
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     event_timer =
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, nullptr, 1, 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 3, nullptr, 1, 
                 [this](int) -> int {
                     auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
                     auto lg = kis_lock_guard<kis_mutex>(rad_mutex);

@@ -519,7 +519,7 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 			&resp, &resp_len);
 	if (r >= 0 && resp_len > 0) {
 		localrad->spectrum_version = resp[0] - '0';
-		fprintf(stderr, "DEBUG - specformatversion %d\n", localrad->spectrum_version);
+		// fprintf(stderr, "DEBUG - specformatversion %d\n", localrad->spectrum_version);
 	}
 
     return 1;
@@ -685,7 +685,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        fprintf(stderr, "DEBUG - got CPS %f SV %f\n", data_report.count_rate, data_report.dose_rate);
+        // fprintf(stderr, "DEBUG - got CPS %f SV %f\n", data_report.count_rate, data_report.dose_rate);
 
         snprintf(json, 1024, "{"
                 "\"cps\": %f, "
