@@ -49,7 +49,6 @@ typedef struct {
 
     kis_capture_handler_t *caph;
 
-    kis_simple_ringbuf_t *tcp_ringbuf;
     int client_fd;
 
 } local_droneid_t;
@@ -331,6 +330,9 @@ void capture_thread(kis_capture_handler_t *caph) {
         uint32_t rssi;
     } __attribute__ ((packed));
 
+    const ssize_t tcp_buf_max = 4096;
+    char tcp_buf[tcp_buf_max];
+
     char json[2048];
 
     int r;
@@ -339,14 +341,11 @@ void capture_thread(kis_capture_handler_t *caph) {
     int fail = 0;
 
     ssize_t amt_read;
-    size_t maxread = 0;
-    size_t buf_avail;
 
-    char *buf;
     struct antsdr_frame *ant_frame;
     struct antsdr_droneid *ant_droneid;
 
-    size_t peeked_sz;
+    uint8_t pkt_type;
     size_t pkt_len;
 
     while (1) {
@@ -354,151 +353,113 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        buf_avail = kis_simple_ringbuf_available(localdrone->tcp_ringbuf);
-
-        if (buf_avail <= sizeof(struct antsdr_frame)) {
-            snprintf(errstr, STATUS_MAX, "%s tcp ringbuffer is full; possibly "
-                    "invalid data from the antsdr?", localdrone->name);
-            cf_send_message(caph, errstr, MSGFLAG_ERROR);
-            break;
-        }
-
-        maxread = 
-            kis_simple_ringbuf_reserve_zcopy(localdrone->tcp_ringbuf,
-                    (void **) &buf, buf_avail);
-
-        amt_read = recv(localdrone->client_fd, buf, maxread, 0);
+        /* read the header */
+        amt_read = recv(localdrone->client_fd, tcp_buf, sizeof(struct antsdr_frame), 0);
 
         if (amt_read <= 0) {
-            kis_simple_ringbuf_commit(localdrone->tcp_ringbuf, buf, 0);
-
             if (errno && errno != EINTR && errno != EAGAIN) {
                 snprintf(errstr, STATUS_MAX, "%s tcp connection error: %s",
                         localdrone->name, strerror(errno));
                 cf_send_message(caph, errstr, MSGFLAG_ERROR);
                 break;
             }
-        } else {
-            kis_simple_ringbuf_commit(localdrone->tcp_ringbuf, buf, amt_read);
 
-            // Process pending data
-            while (1) {
-                if (kis_simple_ringbuf_used(localdrone->tcp_ringbuf) < sizeof(struct antsdr_frame)) {
-                    break;
-                }
+            continue;
+        }
 
-                peeked_sz = kis_simple_ringbuf_peek_zc(localdrone->tcp_ringbuf, (void **) &buf, sizeof(struct antsdr_frame));
+        ant_frame = (struct antsdr_frame *) tcp_buf;
 
-                if (peeked_sz < sizeof(struct antsdr_frame)) {
-                    snprintf(errstr, STATUS_MAX, "%s unable to fetch output from buffer",
-                            localdrone->name);
-                    cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                    fail = 1;
-                    break;
-                }
-    
-                ant_frame = (struct antsdr_frame *) buf;
+        if (ant_frame->length + sizeof(struct antsdr_frame) > tcp_buf_max) {
+            snprintf(errstr, STATUS_MAX, "%s tcp connection error: impossibly large droneid report",
+                    localdrone->name);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            break;
+        }
 
-                pkt_len = sizeof(struct antsdr_frame) + ant_frame->length;
+        pkt_len = ant_frame->length;
+        pkt_type = ant_frame->packet_type;
 
-                if (kis_simple_ringbuf_used(localdrone->tcp_ringbuf) < pkt_len) {
-                    kis_simple_ringbuf_peek_free(localdrone->tcp_ringbuf, buf);
-                    break;
-                }
+        /* Read the rest of the packet */
+        amt_read = recv(localdrone->client_fd, tcp_buf, pkt_len, 0);
 
-                kis_simple_ringbuf_peek_free(localdrone->tcp_ringbuf, buf);
+        if (amt_read <= 0) {
+            if (errno && errno != EINTR && errno != EAGAIN) {
+                snprintf(errstr, STATUS_MAX, "%s tcp connection error: %s",
+                        localdrone->name, strerror(errno));
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                break;
+            }
 
-                peeked_sz = kis_simple_ringbuf_peek_zc(localdrone->tcp_ringbuf, (void **) &buf, pkt_len);
+            continue;
+        }
 
-                if (peeked_sz < pkt_len) {
-                    snprintf(errstr, STATUS_MAX, "%s unable to fetch output from buffer",
-                            localdrone->name);
-                    cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                    fail = 1;
-                    break;
-                }
+        /* Only handle 0x1 */
+        if (pkt_type != 0x01) {
+            continue;
+        }
 
-                if (ant_frame->packet_type != 0x01) {
-                    kis_simple_ringbuf_peek_free(localdrone->tcp_ringbuf, buf);
-                    kis_simple_ringbuf_read(localdrone->tcp_ringbuf, NULL, pkt_len);
-                    continue;
-                }
+        ant_droneid = (struct antsdr_droneid *) tcp_buf;
 
-                ant_droneid = (struct antsdr_droneid *) ant_frame->data;
+        /* Possibly 'encrypted' droneid has invalid data and 
+         * presents as non-utf8 string data, for now reject 
+         * it. */
+        if (!is_valid_utf8(ant_droneid->serial, 64) ||
+                !is_valid_utf8(ant_droneid->device_type, 64)) {
+            continue;
+        }
 
-                /* Possibly 'encrypted' droneid has invalid data and 
-                 * presents as non-utf8 string data, for now reject 
-                 * it. */
-                if (!is_valid_utf8(ant_droneid->serial, 64) ||
-                    !is_valid_utf8(ant_droneid->device_type, 64)) {
-                    kis_simple_ringbuf_peek_free(localdrone->tcp_ringbuf, buf);
-                    kis_simple_ringbuf_read(localdrone->tcp_ringbuf, NULL, pkt_len);
-                    continue;
-                }
+        snprintf(json, 2048, "{"
+                "\"serial_number\": \"%.64s\","
+                "\"device_type\": \"%.64s\","
+                "\"device_type_8\": %d,"
+                "\"app_lat\": %f,"
+                "\"app_lon\": %f,"
+                "\"drone_lat\": %f,"
+                "\"drone_lon\": %f,"
+                "\"drone_height\": %f,"
+                "\"drone_alt\": %f,"
+                "\"home_lat\": %f,"
+                "\"home_lon\": %f,"
+                "\"freq\": %f,"
+                "\"speed_e\": %f,"
+                "\"speed_n\": %f,"
+                "\"speed_u\": %f,"
+                "\"rssi\": %u"
+                "}",
+                ant_droneid->serial,
+                ant_droneid->device_type,
+                ant_droneid->device_type_8,
+                ant_droneid->app_lat,
+                ant_droneid->app_lon,
+                ant_droneid->drone_lat,
+                ant_droneid->drone_lon,
+                ant_droneid->height,
+                ant_droneid->altitude,
+                ant_droneid->home_lat,
+                ant_droneid->home_lon,
+                ant_droneid->freq,
+                ant_droneid->speed_e,
+                ant_droneid->speed_n,
+                ant_droneid->speed_u,
+                ant_droneid->rssi);
 
-                snprintf(json, 2048, "{"
-                        "\"serial_number\": \"%.64s\","
-                        "\"device_type\": \"%.64s\","
-                        "\"device_type_8\": %d,"
-                        "\"app_lat\": %f,"
-                        "\"app_lon\": %f,"
-                        "\"drone_lat\": %f,"
-                        "\"drone_lon\": %f,"
-                        "\"drone_height\": %f,"
-                        "\"drone_alt\": %f,"
-                        "\"home_lat\": %f,"
-                        "\"home_lon\": %f,"
-                        "\"freq\": %f,"
-                        "\"speed_e\": %f,"
-                        "\"speed_n\": %f,"
-                        "\"speed_u\": %f,"
-                        "\"rssi\": %u"
-                        "}",
-                        ant_droneid->serial,
-                        ant_droneid->device_type,
-                        ant_droneid->device_type_8,
-                        ant_droneid->app_lat,
-                        ant_droneid->app_lon,
-                        ant_droneid->drone_lat,
-                        ant_droneid->drone_lon,
-                        ant_droneid->height,
-                        ant_droneid->altitude,
-                        ant_droneid->home_lat,
-                        ant_droneid->home_lon,
-                        ant_droneid->freq,
-                        ant_droneid->speed_e,
-                        ant_droneid->speed_n,
-                        ant_droneid->speed_u,
-                        ant_droneid->rssi);
+        gettimeofday(&tv, NULL);
 
-                /* fprintf(stderr, "DEBUG: %s\n", json); */
-
-                gettimeofday(&tv, NULL);
-
-                while (1) {
-                    r = cf_send_json(caph, NULL, NULL, NULL, tv, "antsdr-droneid", (char *) json);
+        while (1) {
+            r = cf_send_json(caph, NULL, NULL, NULL, tv, "antsdr-droneid", (char *) json);
 
 
-                    if (r < 0) {
-                        snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localdrone->name);
-                        fprintf(stderr, "ERROR: %s", errstr);
-                        cf_send_error(caph, 0, errstr);
-                        fail = 1;
-                        break;
-                    } else if (r == 0) {
-                        cf_handler_wait_ringbuffer(caph);
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-
-                kis_simple_ringbuf_peek_free(localdrone->tcp_ringbuf, buf);
-                kis_simple_ringbuf_read(localdrone->tcp_ringbuf, NULL, pkt_len);
-
-                if (fail == 1) {
-                    break;
-                }
+            if (r < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localdrone->name);
+                fprintf(stderr, "ERROR: %s", errstr);
+                cf_send_error(caph, 0, errstr);
+                fail = 1;
+                break;
+            } else if (r == 0) {
+                cf_handler_wait_ringbuffer(caph);
+                continue;
+            } else {
+                break;
             }
         }
 
@@ -515,7 +476,6 @@ int main(int argc, char *argv[]) {
         .caph = NULL,
         .name = NULL,
         .interface = NULL,
-        .tcp_ringbuf = NULL,
         .client_fd = -1,
     };
 
@@ -528,7 +488,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    localdrone.tcp_ringbuf = kis_simple_ringbuf_create(8192); 
     localdrone.caph = caph;
 
     cf_handler_set_userdata(caph, &localdrone);
