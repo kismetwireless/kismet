@@ -60,7 +60,7 @@ public:
         return adler32_checksum("zwave_tracked_device");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());

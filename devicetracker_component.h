@@ -63,7 +63,7 @@ public:
     kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_ip_data(const kis_tracked_ip_data *ip);
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -93,7 +93,7 @@ public:
     kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_signal_data(const kis_tracked_signal_data *);
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -156,7 +156,7 @@ public:
     kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_seenby_data(const kis_tracked_seenby_data *);
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -226,7 +226,7 @@ public:
         return adler32_checksum("kis_tracked_data_bins");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -404,7 +404,7 @@ public:
         return adler32_checksum("kis_tracked_device_base");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());

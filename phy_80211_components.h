@@ -89,7 +89,7 @@ public:
         return adler32_checksum("dot11_tracked_eapol");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -161,7 +161,7 @@ public:
         return adler32_checksum("dot11_tracked_nonce");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -273,7 +273,7 @@ public:
         return adler32_checksum("dot11_tracked_ssid_alert");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -345,7 +345,7 @@ public:
         return adler32_checksum("dot11_11d_tracked_range_info");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -404,7 +404,7 @@ public:
         return adler32_checksum("dot11_tracked_ietag");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -489,7 +489,7 @@ public:
         return adler32_checksum("dot11_probed_ssid");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -702,7 +702,7 @@ public:
         return adler32_checksum("dot11_advertised_ssid");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -1001,7 +1001,7 @@ public:
         return adler32_checksum("dot11_client");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -1253,7 +1253,7 @@ public:
         return adler32_checksum("dot11_tracked_device");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());

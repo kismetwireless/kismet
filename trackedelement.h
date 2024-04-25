@@ -239,7 +239,7 @@ public:
     };
 
     // Factory-style for easily making more of the same if we're subclassed
-    virtual std::shared_ptr<tracker_element> clone_type() {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept {
         return nullptr;
     }
 
@@ -416,7 +416,7 @@ public:
         throw std::runtime_error("cannot coercively set aliases");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -483,7 +483,7 @@ public:
     virtual void coercive_set(const shared_tracker_element& in_elem) override = 0;
 
     // We don't define cloning, subclasses have to do that
-    virtual std::shared_ptr<tracker_element> clone_type() override = 0;
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override = 0;
 
     P& get() {
         return value;
@@ -569,7 +569,7 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -639,7 +639,7 @@ public:
         return true;
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -692,7 +692,7 @@ public:
         return tracker_type::tracker_byte_array;
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -825,7 +825,7 @@ public:
         throw(std::runtime_error("Cannot coercive_set a devicekey from an element"));
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -875,7 +875,7 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -931,7 +931,7 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -999,7 +999,7 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -1107,7 +1107,7 @@ public:
         }
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -1309,7 +1309,7 @@ public:
         return T;
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -1606,7 +1606,7 @@ public:
         return TT;
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -1758,7 +1758,7 @@ public:
         return TT;
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
@@ -1840,7 +1840,7 @@ public:
         return tracker_type::tracker_placeholder_missing;
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());

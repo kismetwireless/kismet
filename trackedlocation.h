@@ -47,7 +47,7 @@ public:
     kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_location_triplet(const kis_tracked_location_triplet*);
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>(this);
         r->set_id(this->get_id());
@@ -123,7 +123,7 @@ public:
     kis_tracked_location_full(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_location_full(const kis_tracked_location_full *);
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>(this);
         r->set_id(this->get_id());
@@ -169,7 +169,7 @@ public:
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_location(const kis_tracked_location *);
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         // auto r = Globalreg::new_from_pool<this_t>(this);
         auto r = std::make_shared<this_t>(this);
@@ -278,7 +278,7 @@ public:
             reserve_fields(nullptr);
         }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
@@ -385,7 +385,7 @@ public:
         return adler32_checksum("kis_location_rrd");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::shared_ptr<this_t>(new this_t(this));
         dup->set_id(this->get_id());

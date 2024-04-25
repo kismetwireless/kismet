@@ -120,7 +120,7 @@ public:
         return adler32_checksum("sensor_tracked_common");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -192,7 +192,7 @@ public:
         return adler32_checksum("sensor_tracked_thermometer");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -241,7 +241,7 @@ public:
         return adler32_checksum("sensor_tracked_weatherstation");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -335,7 +335,7 @@ public:
         return adler32_checksum("sensor_tracked_lightningsensor");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -395,7 +395,7 @@ public:
         return adler32_checksum("sensor_tracked_tpms");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -461,7 +461,7 @@ public:
         return adler32_checksum("sensor_tracked_switch");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -529,7 +529,7 @@ public:
         return adler32_checksum("sensor_tracked_insteon");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -584,7 +584,7 @@ public:
         return adler32_checksum("sensor_tracked_moisture");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -631,7 +631,7 @@ public:
         return adler32_checksum("sensor_tracked_aqi");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());

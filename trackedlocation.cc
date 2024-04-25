@@ -25,7 +25,7 @@
 #include "gpstracker.h"
 
 kis_tracked_location_triplet::kis_tracked_location_triplet() :
-    tracker_component(0) { 
+    tracker_component() { 
 
     register_fields();
     reserve_fields(NULL);
@@ -145,7 +145,7 @@ void kis_tracked_location_triplet::reserve_fields(std::shared_ptr<tracker_elemen
 
 
 kis_tracked_location_full::kis_tracked_location_full() :
-    kis_tracked_location_triplet(0) {
+    kis_tracked_location_triplet() {
 
     register_fields();
     reserve_fields(NULL);

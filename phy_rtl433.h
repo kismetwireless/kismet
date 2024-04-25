@@ -117,7 +117,7 @@ public:
         return adler32_checksum("rtl433_tracked_common");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -186,7 +186,7 @@ public:
         return adler32_checksum("rtl433_tracked_thermometer");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -243,7 +243,7 @@ public:
         return adler32_checksum("rtl433_tracked_weatherstation");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -334,7 +334,7 @@ public:
         return adler32_checksum("rtl433_tracked_lightningsensor");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -387,7 +387,7 @@ public:
         return adler32_checksum("rtl433_tracked_tpms");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -444,7 +444,7 @@ public:
         return adler32_checksum("rtl433_tracked_switch");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
@@ -512,7 +512,7 @@ public:
         return adler32_checksum("rtl433_tracked_insteon");
     }
 
-    virtual std::shared_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = std::make_shared<this_t>();
         r->set_id(this->get_id());
