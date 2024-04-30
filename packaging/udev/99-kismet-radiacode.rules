@@ -1,0 +1,1 @@
+ATTR{idVendor}=="0483", ATTR{idProduct}=="f123", SYMLINK+="radiacode-%k", MODE="660", GROUP="plugdev"
