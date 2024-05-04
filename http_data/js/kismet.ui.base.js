@@ -1455,8 +1455,10 @@ function memorydisplay_refresh() {
         var dev_linedata =
             kismet.RecalcRrdData2(data['kismet.system.devices.rrd'], rrdtype);
 
-        $('#k_mm_devs', memory_panel.mem_content).html(`${dev_linedata[dev_linedata.length - 1]} devices`);
+        $('#k_mm_devs', memory_panel.mem_content).html(`${Math.trunc(dev_linedata[dev_linedata.length - 1])} devices`);
         $('#k_mm_ram', memory_panel.mem_content).html(`${mem_linedata[mem_linedata.length - 1]} MB`);
+
+        let graph_step = kismet.getStorage('kismet.ui.graph.stepped', false);
 
         if (memory_chart == null) {
             var datasets = [
@@ -1467,6 +1469,7 @@ function memorydisplay_refresh() {
                     borderColor: kismet_theme.sparkline_multi_a,
                     backgroundColor: 'transparent',
                     data: mem_linedata,
+                    stepped: graph_step,
                 },
                 {
                     label: 'Devices',
@@ -1475,6 +1478,7 @@ function memorydisplay_refresh() {
                     borderColor: kismet_theme.sparkline_multi_b,
                     backgroundColor: 'rgba(100, 100, 255, 0.33)',
                     data: dev_linedata,
+                    stepped: graph_step,
                 }
             ];
 
@@ -1639,6 +1643,8 @@ function packetqueuedisplay_refresh() {
         var processing_linedata =
             kismet.RecalcRrdData2(data['kismet.packetchain.processed_packets_rrd'], rrdtype);
 
+        let step = kismet.getStorage('kismet.ui.graph.stepped', false);
+
         var datasets = [
             {
                 label: 'Processed',
@@ -1647,6 +1653,7 @@ function packetqueuedisplay_refresh() {
                 backgroundColor: 'transparent',
                 data: processing_linedata,
                 pointStyle: 'cross',
+                stepped: step,
             },
             {
                 label: 'Incoming packets (peak)',
@@ -1654,6 +1661,7 @@ function packetqueuedisplay_refresh() {
                 borderColor: kismet_theme.graphBasicColor,
                 backgroundColor: kismet_theme.graphBasicBackgroundColor,
                 data: peak_linedata,
+                stepped: step,
             },
             {
                 label: 'Incoming packets (1 min avg)',
@@ -1662,6 +1670,7 @@ function packetqueuedisplay_refresh() {
                 backgroundColor: 'transparent',
                 data: rate_linedata,
                 pointStyle: 'rect',
+                stepped: step,
             },
             {
                 label: 'Queue',
@@ -1670,6 +1679,7 @@ function packetqueuedisplay_refresh() {
                 backgroundColor: 'transparent',
                 data: queue_linedata,
                 pointStyle: 'cross',
+                stepped: step,
             },
             {
                 label: 'Dropped / error packets',
@@ -1678,6 +1688,7 @@ function packetqueuedisplay_refresh() {
                 backgroundColor: 'transparent',
                 data: drop_linedata,
                 pointStyle: 'star',
+                stepped: step,
             },
             {
                 label: 'Duplicates',
@@ -1686,6 +1697,7 @@ function packetqueuedisplay_refresh() {
                 backgroundColor: 'transparent',
                 data: dupe_linedata,
                 pointStyle: 'triangle',
+                stepped: step,
             },
         ];
 
@@ -1781,6 +1793,8 @@ function datasourcepackets_refresh() {
             }
         }
 
+        let step = kismet.getStorage('kismet.ui.graph.stepped', false);
+
         for (var source of data) {
             var color = parseInt(255 * (num / data.length))
 
@@ -1809,6 +1823,7 @@ function datasourcepackets_refresh() {
                 "borderColor": `hsl(${color}, 100%, 50%)`,
                 "data": linedata,
                 "fill": false,
+                "stepped": step,
             });
 
             num = num + 1;
@@ -1899,6 +1914,36 @@ function datasourcepackets_refresh() {
 };
 
 // Settings options
+
+kismet_ui_settings.AddSettingsPane({
+    id: 'graph_settings',
+    listTitle: "Graph Options",
+    create: (elem) => {
+        elem.append('<form><fieldset id="fs_graph"><legend>Graph Options</legend><div id="graphconfig"></div></fieldset></form>');
+
+        let config = $('#graphconfig', elem);
+
+        config.append('<div><input type="checkbox" id="g_step"><label for="g_step">Use stepped graphs</label></div>');
+        config.append('<p>Stepped graphs have a blockier representation of the same data.  By default, graphs are displayed in linear mode, which typically shows a more sloped representation of changes.</p>');
+
+        let graph_step = kismet.getStorage('kismet.ui.graph.stepped', false);
+
+        if (graph_step) {
+            $('#g_step', elem).prop('checked', 'checked');
+        }
+
+        $('#g_step', elem).checkboxradio();
+
+        $('form', elem).on('change', () => {
+            kismet_ui_settings.SettingsModified();
+        });
+
+    },
+    save: (elem) => {
+        kismet.putStorage('kismet.ui.graph.stepped', $('#g_step', elem).is(':checked'));
+
+    }
+})
 
 kismet_ui_settings.AddSettingsPane({
     id: 'gps_topbar',
