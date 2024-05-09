@@ -122,6 +122,7 @@ void kis_datasource_ticc2540::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         packet->ts.tv_usec = report.time_usec();
     }
 
+    packet->original_len = conv_buf_len;
     packet->set_data(conv_buf, conv_buf_len);
     datachunk->set_data(packet->data);
     datachunk->dlt = KDLT_BTLE_RADIO;
