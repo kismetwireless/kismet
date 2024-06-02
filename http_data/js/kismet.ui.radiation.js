@@ -277,7 +277,6 @@ function radiationWindow() {
                     }))
                 )
             );
-
         },
         priority: -1002,
     }, 'rad-tabs');
@@ -286,7 +285,31 @@ function radiationWindow() {
         id: 'rad-usv',
         tabTitle: 'Dosage',
         createCallback: (div) => {
+            div.append($('<div>', {
+                    class: 'rad-flex-stack rad-flex-box',
+                })
+                    .append($('<div>', {
+                        class: 'k-rad-graph-title'
+                    }).html('Past Minute'))
+                    .append($('<div>', {
+                            style: 'width: 100%; min-height: 200px; height: 250px;'
+                        })
+                            .append($('<canvas>', {
+                                id: 'k-rad-usv-m-canvas',
+                            }))
+                    )
 
+                    .append($('<div>', {
+                        class: 'k-rad-graph-title'
+                    }).html('Past Hour'))
+                    .append($('<div>', {
+                            style: 'width: 100%; min-height: 200px; height: 250px;'
+                        })
+                            .append($('<canvas>', {
+                                id: 'k-rad-usv-h-canvas',
+                            }))
+                    )
+            );
         },
         priority: -1001,
     }, 'rad-tabs');
@@ -312,6 +335,9 @@ function updateRadiationData() {
         let rad_m_datasets = [];
         let rad_h_datasets = [];
 
+        let rad_usv_m_datasets = [];
+        let rad_usv_h_datasets = [];
+
         for (const sk in data) {
             let cps = data[sk]['radiation.sensor.cps_rrd']['kismet.common.rrd.last_value'];
             let usv = data[sk]['radiation.sensor.usv_rrd']['kismet.common.rrd.last_value'];
@@ -336,6 +362,15 @@ function updateRadiationData() {
 
             rad_m_datasets.push({label: sk, data: rad_m_linedata, stepped: step});
             rad_h_datasets.push({label: sk, data: rad_h_linedata, stepped: step});
+
+            let rad_usv_m_linedata =
+                kismet.RecalcRrdData2(data[sk]['radiation.sensor.usv_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+            let rad_usv_h_linedata =
+                kismet.RecalcRrdData2(data[sk]['radiation.sensor.usv_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+            rad_usv_m_datasets.push({label: sk, data: rad_usv_m_linedata, stepped: step});
+            rad_usv_h_datasets.push({label: sk, data: rad_usv_h_linedata, stepped: step});
         }
 
         if (rad_panel.rad_cps_chart_m == null) {
@@ -349,10 +384,6 @@ function updateRadiationData() {
                     pointtitles.push(' ');
                 }
             }
-
-            // We need to fill the labels even though we don't use them
-            let labels = Array.apply(null, Array(500)).map(function (x, i) { return i; })
-
             rad_panel.rad_cps_chart_m = new Chart(canvas_e, {
                 type: 'line',
                 data: {
@@ -393,10 +424,6 @@ function updateRadiationData() {
                     pointtitles.push(' ');
                 }
             }
-
-            // We need to fill the labels even though we don't use them
-            let labels = Array.apply(null, Array(500)).map(function (x, i) { return i; })
-
             rad_panel.rad_cps_chart_h = new Chart(canvas_e, {
                 type: 'line',
                 data: {
@@ -426,6 +453,87 @@ function updateRadiationData() {
             rad_panel.rad_cps_chart_h.update('none');
         }
 
+        if (rad_panel.rad_usv_chart_m == null) {
+            let canvas_e = $('#k-rad-usv-m-canvas', rad_panel.content);
+
+            let pointtitles = new Array();
+            for (let x = 60; x > 0; x--) {
+                if (x % 5 === 0) {
+                    pointtitles.push(x + 's');
+                } else {
+                    pointtitles.push(' ');
+                }
+            }
+
+            rad_panel.rad_usv_chart_m = new Chart(canvas_e, {
+                type: 'line',
+                data: {
+                    labels: pointtitles,
+                    datasets: rad_usv_m_datasets,
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            position: "left",
+                            title: {
+                                text: 'uSv',
+                                display: true,
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                            }
+                        },
+                    },
+                },
+            });
+        } else {
+            rad_panel.rad_usv_chart_m.data.datasets = rad_usv_m_datasets;
+            rad_panel.rad_usv_chart_m.update('none');
+        }
+
+        if (rad_panel.rad_usv_chart_h == null) {
+            let canvas_e = $('#k-rad-usv-h-canvas', rad_panel.content);
+
+            let pointtitles = new Array();
+            for (let x = 60; x > 0; x--) {
+                if (x % 5 === 0) {
+                    pointtitles.push(x + 'm');
+                } else {
+                    pointtitles.push(' ');
+                }
+            }
+
+            rad_panel.rad_usv_chart_h = new Chart(canvas_e, {
+                type: 'line',
+                data: {
+                    labels: pointtitles,
+                    datasets: rad_usv_h_datasets,
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            position: "left",
+                            title: {
+                                text: 'uSv',
+                                display: true,
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                            }
+                        },
+                    },
+                },
+            });
+        } else {
+            rad_panel.rad_usv_chart_h.data.datasets = rad_usv_h_datasets;
+            rad_panel.rad_usv_chart_h.update('none');
+        }
 /*
             if (rad_panel.rad_spectrum_chart == null) {
                 var canvas = $('#k-rad-spectrum-canvas');
