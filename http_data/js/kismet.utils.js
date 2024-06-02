@@ -119,7 +119,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         }
     }
 
-    var rrd_len = data.length;
+    let rrd_len = data.length;
 
     // Each type value is the number of seconds in each bin of the array
     //
@@ -133,13 +133,13 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     // until we reach "now".
 
     // Adjusted data we return
-    var adj_data = new Array();
+    let adj_data = new Array();
 
     // Check if we're past the recording bounds of the rrd for this type, if we
     // are, we don't have to do any shifting or any manipulation, we just fill
     // the array with zeroes.
     if ((now - start) > (type * rrd_len)) {
-        for (var ri = 0; ri < rrd_len; ri++) {
+        for (let ri = 0; ri < rrd_len; ri++) {
             adj_data.push(0);
         }
     } else {
@@ -149,9 +149,9 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         // 'then' and 'now', rescale the array to start at 'now', and fill
         // in the time we got no data with zeroes
         
-        var start_bin = (Math.floor(start / type) % rrd_len) + 1;
-        var now_bin = (Math.floor(now / type) % rrd_len) + 1;
-        var sec_offt = Math.max(0, now - start);
+        let start_bin = (Math.floor(start / type) % rrd_len) + 1;
+        let now_bin = (Math.floor(now / type) % rrd_len) + 1;
+        let sec_offt = Math.max(0, now - start);
 
         /*
         console.log("we think we start in bin" + start_bin);
@@ -161,8 +161,8 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         // Walk the entire array, starting with 'now', and copy zeroes
         // when we fall into the blank spot between 'start' and 'now' when we
         // know we received no data
-        for (var ri = 0; ri < rrd_len; ri++) {
-            var slot = (now_bin + ri) % rrd_len;
+        for (let ri = 0; ri < rrd_len; ri++) {
+            let slot = (now_bin + ri) % rrd_len;
 
             if (slot >= start_bin && slot < now_bin)
                 adj_data.push(0);
@@ -174,7 +174,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     // If we have a transform function in the options, call it, otherwise
     // return the shifted RRD entry
     if ('transform' in opt && typeof(opt.transform) === 'function') {
-        var cbopt = {};
+        let cbopt = {};
 
         if ('transformopt' in opt)
             cbopt = opt.transformopt;
@@ -186,7 +186,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
 }
 
 exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
-    var record;
+    let record = "";
 
     if (type == exports.RRD_SECOND)
         record = "kismet.common.rrd.minute_vec";
@@ -197,10 +197,10 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     else
         record = "kismet.common.rrd.minute_vec";
 
-    var data = [];
-    var rrd_len;
-    var now;
-    var start;
+    let data = [];
+    let rrd_len;
+    let now;
+    let start;
 
     if (rrddata == undefined || rrddata[record] == undefined) {
         now = 0;
@@ -246,13 +246,13 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     // until we reach "now".
 
     // Adjusted data we return
-    var adj_data = new Array();
+    let adj_data = new Array();
 
     // Check if we're past the recording bounds of the rrd for this type, if we
     // are, we don't have to do any shifting or any manipulation, we just fill
     // the array with zeroes.
     if ((now - start) > (type * rrd_len)) {
-        for (var ri = 0; ri < rrd_len; ri++) {
+        for (let ri = 0; ri < rrd_len; ri++) {
             adj_data.push(0);
         }
     } else {
@@ -262,23 +262,20 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
         // 'then' and 'now', rescale the array to start at 'now', and fill
         // in the time we got no data with zeroes
         
-        var start_bin = (Math.floor(start / type) % rrd_len) + 1;
-        var now_bin = (Math.floor(now / type) % rrd_len) + 1;
-        var sec_offt = Math.max(0, now - start);
+        let start_bin = (Math.floor(start / type) % rrd_len) + 1;
+        let now_bin = (Math.floor(now / type) % rrd_len) + 1;
+        let sec_offt = Math.max(0, now - start);
 
-        /*
-        console.log("we think we start in bin" + start_bin);
-        console.log("we think now is bin" + now_bin);
-        */
+        let fill_val = rrddata['kismet.common.rrd.blank_val']
 
         // Walk the entire array, starting with 'now', and copy zeroes
         // when we fall into the blank spot between 'start' and 'now' when we
         // know we received no data
-        for (var ri = 0; ri < rrd_len; ri++) {
-            var slot = (now_bin + ri) % rrd_len;
+        for (let ri = 0; ri < rrd_len; ri++) {
+            let slot = (now_bin + ri) % rrd_len;
 
             if (slot >= start_bin && slot < now_bin)
-                adj_data.push(0);
+                adj_data.push(fill_val);
             else
                 adj_data.push(data[slot]);
         }
@@ -287,7 +284,7 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     // If we have a transform function in the options, call it, otherwise
     // return the shifted RRD entry
     if ('transform' in opt && typeof(opt.transform) === 'function') {
-        var cbopt = {};
+        let cbopt = {};
 
         if ('transformopt' in opt)
             cbopt = opt.transformopt;
@@ -298,24 +295,82 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     return adj_data;
 }
 
-// 'drag' the last value of the RRD forwards over zeroes
+// 'drag' the last value of the RRD forwards over zeroes.
+// This manipulates the data to "look" better in a display, at the cost of veracity of the contents,
+// but for visualization this is where we want to be
 exports.RrdDrag = function(data, opt, rrd) {
-    var ret = new Array();
+
+    // Find empty elements in the array
+    // If there are no elements before the empty slot, fill with the next non-zero element
+    // If there are elements before and after the empty slot, fill with the average of the bounding elements
+    // If there are no elements after the empty slot, fill with the last valid value
+
+    const nilval = rrd['kismet.common.rrd.blank_val'] ;
+    let last = nilval;
+    let last_pos = -1;
+    let fill_start = -1;
+
+    for (let ri = 0; ri < data.length; ri++) {
+        if (data[ri] !== nilval) {
+            if (fill_start != -1) {
+                let fill = last;
+
+                if (last === nilval) {
+                    fill = data[ri];
+                } else {
+                    fill = (last + data[ri]) / 2;
+                }
+
+                for (var ii = fill_start; ii < ri; ii++) {
+                    data[ii] = fill;
+                }
+            }
+
+            last = data[ri];
+            continue;
+        }
+
+        if (fill_start === -1) {
+            fill_start = ri;
+        }
+
+        // Handle the last element being blank
+        if (ri === data.length - 1) {
+            if (fill_start != -1) {
+                let fill = last;
+
+                if (last === nilval) {
+                    fill = data[ri];
+                } else {
+                    fill = (last + data[ri]) / 2;
+                }
+
+                for (var ii = fill_start; ii < ri; ii++) {
+                    data[ii] = fill;
+                }
+            }
+
+            data[ri] = last;
+        }
+    }
+
+    return data;
+
+/*
+    var ret = new Array()
 
     var last = 0;
     var last_pos = -1;
 
-    for (var ri = 0; ri < data.length; ri++) {
-        if (data[ri] != rrd['kismet.common.rrd.blank_val']) {
+    for (var ri = data.length - 1; ri >= 0; ri--) {
+        if (data[ri] !== rrd['kismet.common.rrd.blank_val']) {
             last = data[ri];
             last_pos = ri;
             break;
         }
-
-        ret.push(0);
     }
 
-    if (last_pos == -1)
+    if (last_pos === -1)
         return ret;
 
     if ('backfill' in opt && opt['backfill'] == true) {
@@ -331,6 +386,7 @@ exports.RrdDrag = function(data, opt, rrd) {
 
         ret.push(data[ri]);
     }
+    */
 
     return ret;
 }

@@ -1,7 +1,7 @@
 
 "use strict";
 
-var local_uri_prefix = ""; 
+let local_uri_prefix = "";
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
@@ -122,18 +122,30 @@ kismet_ui_settings.AddSettingsPane({
     }
 })
 
-var rad_update_tid;
-var rad_panel = null;
-var rad_hps_chart = null;
-var rad_usv_chart = null;
-var rad_spectrum_chart = null;
+let rad_update_tid;
+let rad_panel = null;
+
+/*
 var rad_content = 
     $('<div class="k-rad-contentdiv">')
+    .append($('<div>Counts per Second (CPS)</div>'))
     .append($('<canvas>', {
+        id: 'k-rad-cps-canvas',
+        class: 'k-rad-cps-canvas',
+    }))
+    .append($('<div>Dose per Second (uSv)</div>'))
+    .append($('<canvas>', {
+        id: 'k-rad-usv-canvas',
+        class: 'k-rad-usv-canvas',
+    }))
+    .append($('<div>Energy Spectrum</div>'))
+    .append($('<canvas style="width: 100%; height: 200px;">', {
         id: 'k-rad-spectrum-canvas',
         class: 'k-rad-spectrum-canvas',
     }));
-
+    */
+let rad_content =
+    $('<div class="k-rad-contentdiv"><div id="rad-tabs" class="tabs-min"></div>');
 
 function radiationWindow() {
     let w = $(window).width() * 0.75;
@@ -147,7 +159,7 @@ function radiationWindow() {
     }
 
     rad_panel = $.jsPanel({
-        id: 'radiation',
+        id: 'radiation-panel',
         headerTitle: '<i class="fa fa-circle-radiation"></i> Radiation',
         headerControls: {
             controls: 'closeonly',
@@ -156,18 +168,116 @@ function radiationWindow() {
         content: rad_content,
         onclosed: () => {
             clearTimeout(rad_update_tid);
-            rad_spectrum_chart = null;
+            rad_panel = null;
         },
     }).resize({
         width: w,
-        height: h
+        height: h,
     }).reposition({
         my: 'center-top',
         at: 'center-top',
         of: 'window',
-        offsetY: offty
+        offsetY: offty,
     })
     .front();
+
+    rad_panel.rad_spectrum_chart = null;
+
+    rad_panel.rad_cps_chart_m = null;
+    rad_panel.rad_cps_chart_h = null;
+    rad_panel.rad_cps_chart_d = null;
+
+    rad_panel.rad_usv_chart_m = null;
+    rad_panel.rad_usv_chart_h = null;
+    rad_panel.rad_usv_chart_d = null;
+
+    kismet_ui_tabpane.AddTab({
+        id: 'rad-summary',
+        tabTitle: 'Summary',
+        createCallback: (div) => {
+            div.append($('<div>', {
+                class: 'rad-flex-stack rad-flex-box',
+            })
+                .append($('<div>', {
+                    class: 'rad-flex-row',
+                })
+                    .append($('<div>', {
+                        class: 'rad-flex-header',
+                    }).html('Counts Per Second'))
+                    .append($('<div>', {
+                            id: 'rad-summary-cps',
+                        }))
+                )
+
+                .append($('<div>', {
+                        class: 'rad-flex-row',
+                    })
+                        .append($('<div>', {
+                            class: 'rad-flex-header',
+                        }).html('Dosage (uSv)'))
+                        .append($('<div>', {
+                            id: 'rad-summary-usv',
+                        }))
+                )
+            )
+            div.append($('<div>', {
+                class: 'rad-flex-stack rad-flex-box',
+            })
+                .append($('<p>'))
+                .append($('<p>').html('<b>CPS</b> or <b>Counts Per Second</b> is a raw count of events per second ' +
+                'registered by a radiation detector.  Different sensors are sensitive to particles of different ' +
+                'energy levels, and may be more sensitive to some energy levels than others.'))
+                .append($('<p>').html('CPS can not be directly converted to a dosage level, but can be a ' +
+                'general indication of radioactivity in an area.'))
+                .append($('<p>').html('<b>Dosage</b> is reported in <i>micro-sieverts</i> or <b>uSv</b>. ' +
+                'Dose can only be reported by a radiation detector which has been internally calibrated to calculate ' +
+                'dose from count events.'))
+                .append($('<p>').html('<i><b>Never</b> use the values reported in Kismet for determining ' +
+                'if an area is radiologically safe.  Kismet integrates with sampling hardware for information ' +
+                'and logging purposes, never use this information to determine if you are safe!</i>'))
+            )
+        },
+        priority: -1003,
+    }, 'rad-tabs');
+
+    kismet_ui_tabpane.AddTab({
+        id: 'rad-cps',
+        tabTitle: 'Counts',
+        createCallback: (div) => {
+            div.append($('<div>', {
+                class: 'rad-flex-stack rad-flex-box',
+            })
+                .append($('<div>', {
+                    class: 'k-rad-graph-title'
+                }).html('Past Minute'))
+                .append($('<canvas>', {
+                    id: 'k-rad-cps-m-canvas',
+                    class: 'k-rad-cps-canvas',
+                }))
+
+                .append($('<div>', {
+                    class: 'k-rad-graph-title'
+                }).html('Past Hour'))
+                .append($('<canvas>', {
+                    id: 'k-rad-cps-h-canvas',
+                    class: 'k-rad-cps-canvas',
+                }))
+            );
+
+        },
+        priority: -1002,
+    }, 'rad-tabs');
+
+    kismet_ui_tabpane.AddTab({
+        id: 'rad-usv',
+        tabTitle: 'Dosage',
+        createCallback: (div) => {
+
+        },
+        priority: -1001,
+    }, 'rad-tabs');
+
+    kismet_ui_tabpane.MakeTabPane($('#rad-tabs', rad_content), 'rad-tabs');
 
     updateRadiationData();
 }
@@ -175,25 +285,141 @@ function radiationWindow() {
 function updateRadiationData() {
     clearTimeout(rad_update_tid);
 
+    if (rad_panel == null) {
+        return;
+    }
+
     $.get(local_uri_prefix + "radiation/sensors/all_sensors.json")
     .done(function(data) {
         data = kismet.sanitizeObject(data);
 
-        for (const sk in data) {
-            var datasets = [
-                {
-                    label: sk,
-                    data: data[sk]['radiation.sensor.aggregate_spectrum'],
-                }
-            ];
+        let step = kismet.getStorage('kismet.ui.graph.stepped', false);
 
-            if (rad_spectrum_chart == null) {
+        let rad_m_datasets = [];
+        let rad_h_datasets = [];
+
+        for (const sk in data) {
+            let cps = data[sk]['radiation.sensor.cps_rrd']['kismet.common.rrd.last_value'];
+            let usv = data[sk]['radiation.sensor.usv_rrd']['kismet.common.rrd.last_value'];
+
+            if (cps !== 0) {
+                $('#rad-summary-cps').html(cps);
+            } else {
+                $('#rad-summary-cps').html('<i>n/a</i>')
+            }
+
+            if (usv !== 0) {
+                $('#rad-summary-usv').html(usv);
+            } else {
+                $('#rad-summary-usv').html('<i>n/a</i>');
+            }
+
+            let rad_m_linedata =
+                kismet.RecalcRrdData2(data[sk]['radiation.sensor.cps_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+            let rad_h_linedata =
+                kismet.RecalcRrdData2(data[sk]['radiation.sensor.cps_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
+
+            rad_m_datasets.push({label: sk, data: rad_m_linedata, stepped: step});
+            rad_h_datasets.push({label: sk, data: rad_h_linedata, stepped: step});
+        }
+
+        if (rad_panel.rad_cps_chart_m == null) {
+            let canvas_e = $('#k-rad-cps-m-canvas', rad_panel.content);
+
+            let pointtitles = new Array();
+            for (let x = 60; x > 0; x--) {
+                if (x % 5 === 0) {
+                    pointtitles.push(x + 's');
+                } else {
+                    pointtitles.push(' ');
+                }
+            }
+
+            // We need to fill the labels even though we don't use them
+            let labels = Array.apply(null, Array(500)).map(function (x, i) { return i; })
+
+            rad_panel.rad_cps_chart_m = new Chart(canvas_e, {
+                type: 'line',
+                data: {
+                    labels: pointtitles,
+                    datasets: rad_m_datasets,
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            position: "left",
+                            title: {
+                                text: 'Count',
+                                display: true,
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                            }
+                        },
+                    },
+                },
+            });
+        } else {
+            rad_panel.rad_cps_chart_m.data.datasets = rad_m_datasets;
+            rad_panel.rad_cps_chart_m.update('none');
+        }
+
+        if (rad_panel.rad_cps_chart_h == null) {
+            let canvas_e = $('#k-rad-cps-h-canvas', rad_panel.content);
+
+            let pointtitles = new Array();
+            for (let x = 60; x > 0; x--) {
+                if (x % 5 === 0) {
+                    pointtitles.push(x + 'm');
+                } else {
+                    pointtitles.push(' ');
+                }
+            }
+
+            // We need to fill the labels even though we don't use them
+            let labels = Array.apply(null, Array(500)).map(function (x, i) { return i; })
+
+            rad_panel.rad_cps_chart_h = new Chart(canvas_e, {
+                type: 'line',
+                data: {
+                    labels: pointtitles,
+                    datasets: rad_h_datasets,
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            position: "left",
+                            title: {
+                                text: 'Count',
+                                display: true,
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                            }
+                        },
+                    },
+                },
+            });
+        } else {
+            rad_panel.rad_cps_chart_h.data.datasets = rad_h_datasets;
+            rad_panel.rad_cps_chart_h.update('none');
+        }
+
+/*
+            if (rad_panel.rad_spectrum_chart == null) {
                 var canvas = $('#k-rad-spectrum-canvas');
 
                 // We need to fill the labels even though we don't use them
                 var labels = Array.apply(null, Array(500)).map(function (x, i) { return i; })
 
-                rad_spectrum_chart = new Chart(canvas, {
+                rad_panel.rad_spectrum_chart = new Chart(canvas, {
                     type: 'bar',
                     data: {
                         labels: labels,
@@ -229,7 +455,7 @@ function updateRadiationData() {
                 rad_spectrum_chart.data.datasets[0].data = data[sk]['radiation.sensor.aggregate_spectrum'];
                 rad_spectrum_chart.update('none');
             }
-        }
+            */
     })
     .always(() => {
         rad_update_tid = setTimeout(() => {
