@@ -201,6 +201,7 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     let rrd_len;
     let now;
     let start;
+    let fill_val = 0;
 
     if (rrddata == undefined || rrddata[record] == undefined) {
         now = 0;
@@ -227,6 +228,8 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
 
         if (typeof(data) === 'number')
             throw(0);
+
+        // fill_val = rrddata['kismet.common.rrd.blank_val'];
 
         now = rrddata['kismet.common.rrd.serial_time'];
         start = rrddata['kismet.common.rrd.last_time'];
@@ -265,8 +268,6 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
         let start_bin = (Math.floor(start / type) % rrd_len) + 1;
         let now_bin = (Math.floor(now / type) % rrd_len) + 1;
         let sec_offt = Math.max(0, now - start);
-
-        let fill_val = rrddata['kismet.common.rrd.blank_val']
 
         // Walk the entire array, starting with 'now', and copy zeroes
         // when we fall into the blank spot between 'start' and 'now' when we
