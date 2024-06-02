@@ -258,3 +258,11 @@ div.cellright {
 #devices-table {
     height: 100% !important;
 }
+
+#packetqueue {
+    height: 100%;
+}
+
+#datasources-graph {
+    height: 100%;
+}

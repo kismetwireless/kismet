@@ -170,6 +170,14 @@ function radiationWindow() {
             clearTimeout(rad_update_tid);
             rad_panel = null;
         },
+        resizable: {
+            stop: function(event, ui) {
+                let tabs = $('#rad-tabs', this.content);
+                try {
+                    tabs.tabs('refresh');
+                } catch (e) { }
+            }
+        },
     }).resize({
         width: w,
         height: h,

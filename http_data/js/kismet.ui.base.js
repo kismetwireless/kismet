@@ -1291,7 +1291,15 @@ exports.MemoryMonitor = function() {
         content: content,
         onclosed: function() {
             clearTimeout(memoryupdate_tid);
-        }
+        },
+        resizable: {
+            stop: function(event, ui) {
+                let tabs = $('#mem-tabs', this.content);
+                try {
+                    tabs.tabs('refresh');
+                } catch (e) { }
+            }
+        },
     }).resize({
         width: w,
         height: h
@@ -1562,15 +1570,23 @@ exports.PacketQueueMonitor = function() {
         content: content,
         onclosed: function() {
             clearTimeout(packetqueue_panel.packetqueueupdate_tid);
-        }
+        },
+        resizable: {
+            stop: function(event, ui) {
+                let tabs = $('#pqm-tabs', this.content);
+                try {
+                    tabs.tabs('refresh');
+                } catch (e) { console.log(e); }
+            }
+        },
     }).resize({
         width: w,
-        height: h
+        height: h,
     }).reposition({
         my: 'center-top',
         at: 'center-top',
         of: 'window',
-        offsetY: offty
+        offsetY: offty,
     })
     .front();
 
@@ -1579,10 +1595,75 @@ exports.PacketQueueMonitor = function() {
 
     var f_pqm_packetqueue = function(div) {
         packetqueue_panel.pq_content = div;
+
+        packetqueue_panel.pq_content.append(
+            $('<div>', {
+                style: 'width: 100%; height: 95%',
+            })
+                .append(
+                    $('<canvas>', {
+                        id: 'pq-canvas',
+                        style: 'margin: 10px;',
+                    })
+                )
+        );
     };
 
     var f_pqm_ds = function(div) {
         packetqueue_panel.ds_content = div;
+
+        packetqueue_panel.ds_content.append(
+            $('<div>', {
+                "style": "position: absolute; top: 0px; right: 10px; float: right;"
+            })
+                .append(
+                    $('<select>', {
+                        "id": "pq_ds_type",
+                    })
+                        .append(
+                            $('<option>', {
+                                "value": "pps",
+                                "selected": "selected",
+                            }).text("Packets")
+                        )
+                        .append(
+                            $('<option>', {
+                                "value": "bps",
+                            }).text("Data (kB)")
+                        )
+                )
+                .append(
+                    $('<select>', {
+                        "id": "pq_ds_range",
+                    })
+                        .append(
+                            $('<option>', {
+                                "value": "second",
+                                "selected": "selected",
+                            }).text("Past Minute")
+                        )
+                        .append(
+                            $('<option>', {
+                                "value": "hour",
+                            }).text("Past Hour")
+                        )
+                        .append(
+                            $('<option>', {
+                                "value": "day",
+                            }).text("Past Day")
+                        )
+                )
+        ).append(
+            $('<div>', {
+                style: 'width: 100%; height: 100%;'
+            })
+                .append(
+                    $('<canvas>', {
+                        "id": "dsg-canvas",
+                    })
+                )
+        );
+
     };
 
     kismet_ui_tabpane.AddTab({
@@ -1702,15 +1783,6 @@ function packetqueuedisplay_refresh() {
         ];
 
         if (packetqueue_panel.packetqueue_chart == null) {
-            packetqueue_panel.pq_content.append(
-                $('<canvas>', {
-                    "id": "pq-canvas",
-                    "width": "100%",
-                    "height": "100%",
-                    "class": "k-mm-canvas",
-                })
-            );
-
             var canvas = $('#pq-canvas', packetqueue_panel.pq_content);
 
             packetqueue_panel.packetqueue_chart = new Chart(canvas, {
@@ -1831,57 +1903,7 @@ function datasourcepackets_refresh() {
         }
 
         if (packetqueue_panel.datasource_chart == null) {
-            packetqueue_panel.ds_content.append(
-                $('<div>', {
-                    "style": "position: absolute; top: 0px; right: 10px; float: right;"
-                })
-                .append(
-                    $('<select>', {
-                        "id": "pq_ds_type",
-                    })
-                    .append(
-                        $('<option>', {
-                            "value": "pps",
-                            "selected": "selected",
-                        }).text("Packets")
-                    )
-                    .append(
-                        $('<option>', {
-                            "value": "bps",
-                        }).text("Data (kB)")
-                    )
-                )
-                .append(
-                    $('<select>', {
-                        "id": "pq_ds_range",
-                    })
-                    .append(
-                        $('<option>', {
-                            "value": "second",
-                            "selected": "selected",
-                        }).text("Past Minute")
-                    )
-                    .append(
-                        $('<option>', {
-                            "value": "hour",
-                        }).text("Past Hour")
-                    )
-                    .append(
-                        $('<option>', {
-                            "value": "day",
-                        }).text("Past Day")
-                    )
-                )
-            ).append(
-                $('<canvas>', {
-                    "id": "dsg-canvas",
-                    "width": "100%",
-                    "height": "100%",
-                    "class": "k-mm-canvas",
-                })
-            );
-
-            packetqueue_panel.datasource_chart = 
+            packetqueue_panel.datasource_chart =
                 new Chart($('#dsg-canvas', packetqueue_panel.ds_content), {
                 "type": "line",
                 "options": {
@@ -3819,10 +3841,13 @@ exports.ThermalMonitor = function() {
         onclosed: function() {
             clearTimeout(thermal_panel.thermalupdate_tid);
         },
-        resizeable: { 
-            stop: function(event, ui) { 
-                $('div#accordion', ui.element).accordion('refresh');
-            },
+        resizable: {
+            stop: function(event, ui) {
+                let tabs = $('#pqm-tabs', this.content);
+                try {
+                    $('div#accordion', this.content).accordion('refresh');
+                } catch (e) { }
+            }
         },
     }).resize({
         width: w,
