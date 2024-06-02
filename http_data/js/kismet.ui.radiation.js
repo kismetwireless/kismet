@@ -250,18 +250,24 @@ function radiationWindow() {
                 .append($('<div>', {
                     class: 'k-rad-graph-title'
                 }).html('Past Minute'))
-                .append($('<canvas>', {
-                    id: 'k-rad-cps-m-canvas',
-                    class: 'k-rad-cps-canvas',
-                }))
+                .append($('<div>', {
+                    style: 'width: 100%; min-height: 200px; height: 250px;'
+                })
+                    .append($('<canvas>', {
+                        id: 'k-rad-cps-m-canvas',
+                    }))
+                )
 
                 .append($('<div>', {
                     class: 'k-rad-graph-title'
                 }).html('Past Hour'))
-                .append($('<canvas>', {
-                    id: 'k-rad-cps-h-canvas',
-                    class: 'k-rad-cps-canvas',
-                }))
+                .append($('<div>', {
+                    style: 'width: 100%; min-height: 200px; height: 250px;'
+                })
+                    .append($('<canvas>', {
+                        id: 'k-rad-cps-h-canvas',
+                    }))
+                )
             );
 
         },
