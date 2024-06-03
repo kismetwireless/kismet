@@ -60,7 +60,7 @@ public:
             shared_tracker_element in_device __attribute__((unused))) { }
 
     // Allow phys to override if the device is part of this phy
-    virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
+    virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) {
         return false;
     }
 

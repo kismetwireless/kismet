@@ -63,6 +63,9 @@ public:
             __ImportField(cps_rrd, p);
             __ImportField(usv_rrd, p);
             __ImportField(src_alias, p);
+
+            cps_rrd->update_before_serialize(false);
+            usv_rrd->update_before_serialize(false);
         }
 
     void insert_cps_usv(time_t ts, double cps, double usv) {

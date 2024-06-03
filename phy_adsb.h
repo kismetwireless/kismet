@@ -161,13 +161,13 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
-    bool process_adsb_hex(nlohmann::json& in_json, std::shared_ptr<kis_packet> packet);
+    bool json_to_rtl(nlohmann::json& in_json, const std::shared_ptr<kis_packet>& packet);
+    bool process_adsb_hex(nlohmann::json& in_json, const std::shared_ptr<kis_packet>& packet);
 
     bool is_adsb(nlohmann::json json);
 
-    std::shared_ptr<adsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
-            nlohmann::json json, std::shared_ptr<kis_tracked_device_base> rtlholder);
+    std::shared_ptr<adsb_tracked_adsb> add_adsb(const std::shared_ptr<kis_packet>& packet,
+            nlohmann::json json, const std::shared_ptr<kis_tracked_device_base>& rtlholder);
 
     static uint32_t modes_checksum_table[];
 
@@ -177,7 +177,8 @@ protected:
     int cpr_nl(double lat);
     int cpr_n(double lat, int odd);
     double cpr_dlon(double lat, int odd);
-    void decode_cpr(std::shared_ptr<adsb_tracked_adsb> adsb, std::shared_ptr<kis_packet> packet);
+    void decode_cpr(const std::shared_ptr<adsb_tracked_adsb>& adsb,
+        const std::shared_ptr<kis_packet>& packet);
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;

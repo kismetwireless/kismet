@@ -41,7 +41,7 @@
 // threads
 
 struct pcapng_stream_accept_ftor {
-    bool operator()(std::shared_ptr<kis_packet>) {
+    bool operator()(const std::shared_ptr<kis_packet>&) {
         return true;
     }
 };
@@ -52,7 +52,7 @@ struct pcapng_stream_select_ftor {
         pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     }
 
-    std::shared_ptr<kis_datachunk> operator()(std::shared_ptr<kis_packet> in_packet) {
+    std::shared_ptr<kis_datachunk> operator()(const std::shared_ptr<kis_packet>& in_packet) {
         return in_packet->fetch<kis_datachunk>(pack_comp_linkframe);
     }
 
@@ -369,7 +369,7 @@ protected:
 
     }
 
-    virtual int pcapng_write_packet(std::shared_ptr<kis_packet> in_packet, 
+    virtual int pcapng_write_packet(const std::shared_ptr<kis_packet>& in_packet,
             std::shared_ptr<kis_datachunk> in_data) {
         kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
@@ -638,7 +638,7 @@ protected:
 
     }
 
-    virtual void handle_packet(std::shared_ptr<kis_packet> in_packet) {
+    virtual void handle_packet(const std::shared_ptr<kis_packet>& in_packet) {
         std::shared_ptr<kis_datachunk> target_datachunk;
 
         if (get_stream_paused())
@@ -694,7 +694,7 @@ public:
         pcapng_stream_futurebuf<fn_accept, fn_selector>::start_stream();
 
         packethandler_id = 
-            this->packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> packet) {
+            this->packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) {
 					auto pcapng = reinterpret_cast<pcapng_stream_packetchain *>(auxdata);
                     pcapng->handle_packet(packet);
                     return 1;

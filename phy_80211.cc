@@ -1105,12 +1105,12 @@ int kis_80211_phy::load_wepkeys() {
 }
 
 
-bool kis_80211_phy::device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
+bool kis_80211_phy::device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) {
     return (dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id) != nullptr);
 }
 
 std::shared_ptr<dot11_tracked_device> kis_80211_phy::fetch_dot11_record(
-        std::shared_ptr<kis_tracked_device_base> dev) {
+        const std::shared_ptr<kis_tracked_device_base>& dev) {
     return dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 }
 
@@ -2514,11 +2514,11 @@ void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
     wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
-void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
-        std::shared_ptr<dot11_tracked_device> dot11dev,
-        std::shared_ptr<kis_packet> in_pack,
-        std::shared_ptr<dot11_packinfo> dot11info,
-        std::shared_ptr<kis_gps_packinfo> pack_gpsinfo) {
+void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo) {
 
     std::shared_ptr<dot11_advertised_ssid> ssid;
         
@@ -3218,11 +3218,11 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     }
 }
 
-void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
-        std::shared_ptr<dot11_tracked_device> dot11dev,
-        std::shared_ptr<kis_packet> in_pack,
-        std::shared_ptr<dot11_packinfo> dot11info,
-        std::shared_ptr<kis_gps_packinfo> pack_gpsinfo) {
+void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo) {
 
     // We're called under device list lock so we only lock the device we're interacting with
 
@@ -3412,14 +3412,14 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 }
 
 // Associate a client device and a dot11 access point
-void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssiddev,
-        std::shared_ptr<dot11_tracked_device> bssiddot11,
-        std::shared_ptr<kis_tracked_device_base> clientdev,
-        std::shared_ptr<dot11_tracked_device> clientdot11,
-        std::shared_ptr<kis_packet> in_pack, 
-        std::shared_ptr<dot11_packinfo> dot11info,
-        std::shared_ptr<kis_gps_packinfo> pack_gpsinfo,
-        std::shared_ptr<kis_data_packinfo> pack_datainfo) {
+void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base>& bssiddev,
+        const std::shared_ptr<dot11_tracked_device>& bssiddot11,
+        const std::shared_ptr<kis_tracked_device_base>& clientdev,
+        const std::shared_ptr<dot11_tracked_device>& clientdot11,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo,
+        const std::shared_ptr<kis_data_packinfo>& pack_datainfo) {
 
     // Sanity check
     if (bssiddev == nullptr || bssiddot11 == nullptr || clientdev == nullptr || clientdot11 == nullptr)
@@ -3607,12 +3607,12 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
     }
 }
 
-void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
-        std::shared_ptr<dot11_tracked_device> bssid_dot11,
-        std::shared_ptr<kis_tracked_device_base> dest_dev,
-        std::shared_ptr<dot11_tracked_device> dest_dot11,
-        std::shared_ptr<kis_packet> in_pack,
-        std::shared_ptr<dot11_packinfo> dot11info) {
+void kis_80211_phy::process_wpa_handshake(const std::shared_ptr<kis_tracked_device_base>& bssid_dev,
+        const std::shared_ptr<dot11_tracked_device>& bssid_dot11,
+        const std::shared_ptr<kis_tracked_device_base>& dest_dev,
+        const std::shared_ptr<dot11_tracked_device>& dest_dot11,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
 
     std::shared_ptr<dot11_tracked_eapol> eapol = packet_dot11_eapol_handshake(in_pack, bssid_dot11);
 
@@ -4131,9 +4131,9 @@ std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
 }
 
 
-void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con, 
-        std::shared_ptr<kis_tracked_device_base> dev, 
-        std::shared_ptr<dot11_tracked_device> dot11dev, 
+void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con,
+        const std::shared_ptr<kis_tracked_device_base>& dev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
         mac_addr target_mac, std::string mode) {
 
     // Hardcode the pcap header

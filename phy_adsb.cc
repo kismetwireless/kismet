@@ -246,7 +246,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
 
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+                            [](void *auxdata, const std::shared_ptr<kis_packet>& in_pack) -> int {
                                 auto uptr = reinterpret_cast<struct uptr_t *>(auxdata);
 
                                 if (in_pack->error || in_pack->filtered || in_pack->duplicate)
@@ -343,7 +343,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
 
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+                            [](void *auxdata, const std::shared_ptr<kis_packet>& in_pack) -> int {
 
                             auto uptr = reinterpret_cast<struct uptr_t *>(auxdata);
 
@@ -419,7 +419,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
 
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
+                            [](void *auxdata, const std::shared_ptr<kis_packet>& in_pack) -> int {
 
                             auto uptr = reinterpret_cast<struct uptr_t *>(auxdata);
 
@@ -503,7 +503,7 @@ mac_addr kis_adsb_phy::icao_to_mac(uint32_t icao) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
+bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<kis_packet>& packet) {
 	auto hex_j = json["adsb"];
 	
 	if (hex_j.is_null() || !hex_j.is_string()) {
@@ -784,7 +784,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, std::shared_ptr<kis_pa
     return true;
 }
 
-bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, std::shared_ptr<kis_packet> packet) {
+bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_packet>& packet) {
     std::string err;
     std::string v;
 
@@ -933,8 +933,8 @@ bool kis_adsb_phy::is_adsb(nlohmann::json json) {
     return false;
 }
 
-std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(std::shared_ptr<kis_packet> packet,
-        nlohmann::json json, std::shared_ptr<kis_tracked_device_base> rtlholder) {
+std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(const std::shared_ptr<kis_packet>& packet,
+        nlohmann::json json, const std::shared_ptr<kis_tracked_device_base>& rtlholder) {
 
     auto icao_j = json["icao"];
     bool new_adsb = false;
@@ -1175,8 +1175,8 @@ double kis_adsb_phy::cpr_dlon(double lat, int odd) {
     return 360.0 / cpr_n(lat, odd);
 }
 
-void kis_adsb_phy::decode_cpr(std::shared_ptr<adsb_tracked_adsb> adsb,
-        std::shared_ptr<kis_packet> packet) {
+void kis_adsb_phy::decode_cpr(const std::shared_ptr<adsb_tracked_adsb>& adsb,
+        const std::shared_ptr<kis_packet>& packet) {
     /* This algorithm comes from:
      * http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
      *

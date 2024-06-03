@@ -229,7 +229,7 @@ kis_btle_phy::~kis_btle_phy() {
     packetchain->remove_handler(&dissector, CHAINPOS_LLCDISSECT);
 }
 
-bool kis_btle_phy::device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
+bool kis_btle_phy::device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) {
     return (dev->get_sub_as<btle_tracked_device>(btle_device_id) != nullptr);
 }
 

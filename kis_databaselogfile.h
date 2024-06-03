@@ -98,34 +98,34 @@ public:
     }
 
     // Log a vector of multiple devices, replacing any old device records
-    virtual int log_device(std::shared_ptr<kis_tracked_device_base> in_device);
+    virtual int log_device(const std::shared_ptr<kis_tracked_device_base>& in_device);
 
     // Device logs are non-streaming; we need to know the last time we generated
     // device logs so that we can update just the logs we need.
     virtual time_t get_last_device_log_ts() { return last_device_log; }
 
     // Log a packet
-    virtual int log_packet(std::shared_ptr<kis_packet> in_packet);
+    virtual int log_packet(const std::shared_ptr<kis_packet>& in_packet);
 
     // Log data that isn't a packet; this is a slightly more clunky API because we 
     // can't derive the data from the simple packet interface.  GPS may be null,
     // and other attributes may be empty, if that data is not available
-    virtual int log_data(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv, 
-            std::string phystring, mac_addr devmac, uuid datasource_uuid, 
-            std::string type, std::string json);
+    virtual int log_data(const std::shared_ptr<kis_gps_packinfo>& gps, const struct timeval& tv,
+            const std::string& phystring, const mac_addr& devmac, const uuid& datasource_uuid,
+            const std::string& type, const std::string& json);
 
     // Log datasources
-    virtual int log_datasources(shared_tracker_element in_datasource_vec);
+    virtual int log_datasources(const shared_tracker_element& in_datasource_vec);
     // Log a single datasource
-    virtual int log_datasource(shared_tracker_element in_datasource);
+    virtual int log_datasource(const shared_tracker_element& in_datasource);
 
     // Log an alert; takes a standard tracked_alert element
-    virtual int log_alert(std::shared_ptr<tracked_alert> in_alert);
+    virtual int log_alert(const std::shared_ptr<tracked_alert>& in_alert);
 
     // Log snapshotted data; Slightly clunkier API since it has to allow for
     // entirely generic data
-    virtual int log_snapshot(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv,
-            std::string snaptype, std::string json);
+    virtual int log_snapshot(const std::shared_ptr<kis_gps_packinfo>& gps, struct timeval tv,
+            const std::string& snaptype, const std::string& json);
 
     static void usage(const char *argv0);
 

@@ -560,7 +560,7 @@ uint64_t kis_80211_phy::wfa_auth_conv(ie221_wfa_mgmt cipher) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
+int kis_80211_phy::packet_dot11_dissector(const std::shared_ptr<kis_packet>& in_pack) {
     if (in_pack->error) {
         return 0;
     }
@@ -1492,8 +1492,8 @@ eap_end:
 }
 
 std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_dot11_ie_list(
-        std::shared_ptr<kis_packet> in_pack, 
-        std::shared_ptr<dot11_packinfo> packinfo) {
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& packinfo) {
     if (packinfo->ie_tags_listed != nullptr)
         return packinfo->ie_tags_listed;
 
@@ -1567,8 +1567,8 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
     return packinfo->ie_tags_listed;
 }
 
-int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack, 
-        std::shared_ptr<dot11_packinfo> packinfo) {
+int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& packinfo) {
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
                 packinfo->subtype == packet_sub_beacon ||
@@ -2525,8 +2525,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack
     return 1;
 }
 
-std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_packinfo> in_packinfo,
-        std::shared_ptr<kis_datachunk> in_chunk,
+std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<dot11_packinfo>& in_packinfo,
+        const std::shared_ptr<kis_datachunk>& in_chunk,
         unsigned char *in_key, int in_key_len,
         unsigned char *in_id) {
 
@@ -2645,7 +2645,7 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_p
     return manglechunk;
 }
 
-int kis_80211_phy::packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack) {
+int kis_80211_phy::packet_wep_decryptor(const std::shared_ptr<kis_packet>& in_pack) {
     std::shared_ptr<kis_datachunk> manglechunk;
 
     if (in_pack->error)
@@ -2710,7 +2710,7 @@ int kis_80211_phy::packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack) {
     return 1;
 }
 
-int kis_80211_phy::packet_dot11_wps_m3(std::shared_ptr<kis_packet> in_pack) {
+int kis_80211_phy::packet_dot11_wps_m3(const std::shared_ptr<kis_packet>& in_pack) {
     if (in_pack->error) {
         return 0;
     }
@@ -2811,8 +2811,8 @@ int kis_80211_phy::packet_dot11_wps_m3(std::shared_ptr<kis_packet> in_pack) {
 }
 
 std::shared_ptr<dot11_tracked_eapol> 
-kis_80211_phy::packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
-                                            std::shared_ptr<dot11_tracked_device> dot11dev) {
+kis_80211_phy::packet_dot11_eapol_handshake(const std::shared_ptr<kis_packet>& in_pack,
+    const std::shared_ptr<dot11_tracked_device>& dot11dev) {
 
     if (in_pack->error) {
         return NULL;

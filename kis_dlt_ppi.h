@@ -46,7 +46,7 @@ public:
 	virtual ~kis_dlt_ppi() { };
 
 protected:
-	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) override;
+	virtual int handle_packet(const std::shared_ptr<kis_packet>& in_pack) override;
 };
 
 #endif

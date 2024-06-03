@@ -39,8 +39,8 @@
 
 class SortLinkPriority {
 public:
-    inline bool operator() (const std::shared_ptr<packet_chain::pc_link> x, 
-                            const std::shared_ptr<packet_chain::pc_link> y) const {
+    inline bool operator() (const std::shared_ptr<packet_chain::pc_link>& x,
+                            const std::shared_ptr<packet_chain::pc_link>& y) const {
         if (x->priority < y->priority)
             return 1;
         return 0;
@@ -189,6 +189,9 @@ packet_chain::packet_chain() {
     tracker_chain_update = false;
     logging_chain_update = false;
 
+    // Because dedupe has to actually store references to packets, we run it outside of the chain functions
+
+#if 0
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
     // after any phy demangling and DLT demangling; lock the packet for the rest of the 
     // packet chain
@@ -252,6 +255,7 @@ packet_chain::packet_chain() {
 
 			return 1;
 		}, this, CHAINPOS_LLCDISSECT, -100000);
+#endif
 
 }
 
@@ -448,6 +452,54 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         // Lock the individual packet to make sure no competing processing threads
         // manipulate it while we're processing
         packet->mutex.lock();
+
+        // Lock the hash list, gating all hash comparisons
+        auto no_lk = kis_unique_lock<kis_shared_mutex>(pack_no_mutex, "hash handler");
+
+        const auto& chunk = packet->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
+            packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
+
+            for (unsigned int i = 0; i < 1024; i++) {
+                if (dedupe_list[i].hash == packet->hash) {
+                    packet->duplicate = true;
+                    packet->packet_no = dedupe_list[i].packno;
+                    packet->original = dedupe_list[i].original_pkt;
+
+                    // We have to wait until everything is done being changed in the packet
+                    // before we can copy the duplicate decoded state over, grab the lock that
+                    // is released at the end of the chain
+                    kis_lock_guard<kis_mutex> lg(dedupe_list[i].original_pkt->mutex);
+                    for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
+                        auto cp = dedupe_list[i].original_pkt->content_vec[c];
+                        if (cp != nullptr) {
+                            if (cp->unique())
+                                continue;
+
+                            packet->content_vec[c] = cp;
+                        }
+                    }
+
+                    // Merge the signal levels
+                    if (packet->has(pack_comp_l1) && packet->has(pack_comp_datasource)) {
+                        auto l1 = packet->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
+                        auto radio_agg = packet->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
+                        auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+                        radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
+                    }
+                }
+            }
+
+            // Assign a new packet number and cache it in the dedupe
+            if (!packet->duplicate) {
+                auto listpos = dedupe_list_pos++ % 1024;
+                packet->packet_no = unique_packet_no++;
+                dedupe_list[listpos].hash = packet->hash;
+                dedupe_list[listpos].packno = unique_packet_no++;
+                dedupe_list[listpos].original_pkt = packet;
+            }
+        }
 
         for (const auto& pcl : llcdissect_chain) {
             if (pcl->callback != nullptr)

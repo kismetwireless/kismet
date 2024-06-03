@@ -134,7 +134,7 @@ device_tracker::device_tracker() :
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
 
-    std::shared_ptr<packet_chain> packetchain =
+    packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	// Register global packet components used by the device tracker and
@@ -165,7 +165,7 @@ device_tracker::device_tracker() :
 
 	// Common tracker, very early in the tracker chain
     packetchain_common_id = 
-        packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_packet) -> int {
+        packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& in_packet) -> int {
 				auto devicetracker = reinterpret_cast<device_tracker *>(auxdata);
                 return devicetracker->common_tracker(in_packet);
             }, this, CHAINPOS_TRACKER, -100);
@@ -177,7 +177,7 @@ device_tracker::device_tracker() :
     // BEGINNING of the chain, we get only the generic device with none of the
     // phy-specific attachments.
     packetchain_tracking_done_id =
-        packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_packet) -> int {
+        packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& in_packet) -> int {
 				auto devicetracker = reinterpret_cast<device_tracker *>(auxdata);
 				for (const auto& e : in_packet->process_complete_events)
 					devicetracker->eventbus->publish(e);
@@ -862,10 +862,10 @@ void device_tracker::trigger_deferred_startup() {
     all_view =
         std::make_shared<device_tracker_view>("all", 
                 "All devices",
-                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
+                [](const std::shared_ptr<kis_tracked_device_base>&) -> bool {
                     return true;
                 },
-                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
+                [](const std::shared_ptr<kis_tracked_device_base>&) -> bool {
                     return true;
                 });
     add_view(all_view);
@@ -881,13 +881,13 @@ device_tracker::~device_tracker() {
     Globalreg::globalreg->devicetracker = NULL;
     Globalreg::globalreg->remove_global(global_name());
 
-    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     if (packetchain != nullptr) {
         packetchain->remove_handler(packetchain_common_id, CHAINPOS_TRACKER);
         packetchain->remove_handler(packetchain_tracking_done_id, CHAINPOS_TRACKER);
     }
 
-    auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+    timetracker = Globalreg::fetch_global_as<time_tracker>();
     if (timetracker != nullptr) {
         timetracker->remove_timer(device_idle_timer);
         timetracker->remove_timer(max_devices_timer);
@@ -1014,7 +1014,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
                         );
             phy_view_map[phy_id] = phy_view;
 
-            if (strongphy->fetch_phy_indexed() == false) {
+            if (!strongphy->fetch_phy_indexed()) {
                 phy_view->set_indexed(false);
             }
 
@@ -1266,7 +1266,7 @@ std::shared_ptr<kis_tracked_device_base>
             device->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
         }
 
-        if (pack_common != NULL) {
+        if (pack_common != nullptr) {
             if (pack_common->error)
                 device->inc_error_packets();
 

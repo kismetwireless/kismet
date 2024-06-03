@@ -38,7 +38,7 @@ kis_dlt_btle_radio::kis_dlt_btle_radio() :
     _MSG("Registering support for DLT_BTLE_RADIO packet header decoding", MSGFLAG_INFO);
 }
 
-int kis_dlt_btle_radio::handle_packet(std::shared_ptr<kis_packet> in_pack) {
+int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;

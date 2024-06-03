@@ -43,7 +43,7 @@ kis_dlt_ppi::kis_dlt_ppi() :
         _MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
     }
 
-int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
+int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
     if (decapchunk != nullptr) {

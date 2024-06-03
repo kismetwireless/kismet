@@ -173,7 +173,7 @@ public:
     static uint32_t calc_btle_crc(uint32_t crc_init, const char *data, size_t len);
     static uint32_t reverse_bits(const uint32_t val);
 
-    virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) override;
+    virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 
 protected:
     std::shared_ptr<packet_chain> packetchain;

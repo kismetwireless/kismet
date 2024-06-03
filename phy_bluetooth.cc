@@ -108,11 +108,11 @@ kis_bluetooth_phy::~kis_bluetooth_phy() {
     packetchain->remove_handler(&common_classifier_bluetooth, CHAINPOS_CLASSIFIER);
 }
 
-bool kis_bluetooth_phy::device_is_a(std::shared_ptr<kis_tracked_device_base> dev) {
+bool kis_bluetooth_phy::device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) {
     return (dev->get_sub_as<bluetooth_tracked_device>(bluetooth_device_entry_id) != nullptr);
 }
-std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::fetch_bluetooth_record(
-        std::shared_ptr<kis_tracked_device_base> dev) {
+
+std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::fetch_bluetooth_record(const std::shared_ptr<kis_tracked_device_base>& dev) {
     return dev->get_sub_as<bluetooth_tracked_device>(bluetooth_device_entry_id);
 }
 

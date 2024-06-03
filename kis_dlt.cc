@@ -34,7 +34,7 @@ kis_dlt_handler::kis_dlt_handler() :
         Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	chainid = 
-        packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> p) -> int {
+        packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& p) -> int {
                 auto dlthandler = reinterpret_cast<kis_dlt_handler *>(auxdata);
                 return dlthandler->handle_packet(p);
             }, this, CHAINPOS_POSTCAP, 0);
@@ -59,10 +59,7 @@ kis_dlt_handler::kis_dlt_handler() :
 }
 
 kis_dlt_handler::~kis_dlt_handler() {
-    auto packetchain = 
-        Globalreg::fetch_global_as<packet_chain>();
-
-	if (packetchain != nullptr) 
+	if (packetchain != nullptr)
 		packetchain->remove_handler(chainid, CHAINPOS_POSTCAP);
 }
 

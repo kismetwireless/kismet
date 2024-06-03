@@ -408,7 +408,7 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
 
         // auto this_ref = shared_from_this();
         packet_handler_id = 
-            packetchain->register_handler([](void *auxdata, std::shared_ptr<kis_packet> packet) -> int {
+            packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) -> int {
 					auto dbl = reinterpret_cast<kis_database_logfile *>(auxdata);
                     return dbl->log_packet(packet);
                 }, this, CHAINPOS_LOGGING, -100);
@@ -773,7 +773,7 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     sqlite3_finalize(msg_stmt);
 }
 
-int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
+int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_base>& d) {
     if (!db_enabled)
         return 0;
 
@@ -901,7 +901,7 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     return 1;
 }
 
-int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
+int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack) {
     if (!db_enabled) {
         return 0;
     }
@@ -1088,9 +1088,9 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
     return 1;
 }
 
-int kis_database_logfile::log_data(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv, 
-        std::string phystring, mac_addr devmac, uuid datasource_uuid, 
-        std::string type, std::string json) {
+int kis_database_logfile::log_data(const std::shared_ptr<kis_gps_packinfo>& gps,
+        const struct timeval& tv, const std::string& phystring, const mac_addr& devmac,
+        const uuid& datasource_uuid, const std::string& type, const std::string& json) {
 
     if (!db_enabled)
         return 0;
@@ -1168,13 +1168,13 @@ int kis_database_logfile::log_data(std::shared_ptr<kis_gps_packinfo> gps, struct
     return 1;
 }
 
-int kis_database_logfile::log_datasources(shared_tracker_element in_datasource_vec) {
+int kis_database_logfile::log_datasources(const shared_tracker_element& in_datasource_vec) {
     int r;
 
     if (!db_enabled)
         return 0;
 
-    for (auto ds : *(std::static_pointer_cast<tracker_element_vector>(in_datasource_vec))) {
+    for (const auto& ds : *(std::static_pointer_cast<tracker_element_vector>(in_datasource_vec))) {
         r = log_datasource(ds);
 
         if (r < 0)
@@ -1184,7 +1184,7 @@ int kis_database_logfile::log_datasources(shared_tracker_element in_datasource_v
     return 1;
 }
 
-int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
+int kis_database_logfile::log_datasource(const shared_tracker_element& in_datasource) {
     if (!db_enabled)
         return 0;
 
@@ -1250,7 +1250,7 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
     return 1;
 }
 
-int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
+int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_alert) {
     if (!db_enabled)
         return 0;
 
@@ -1324,8 +1324,8 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     return 1;
 }
 
-int kis_database_logfile::log_snapshot(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv,
-        std::string snaptype, std::string json) {
+int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& gps, struct timeval tv,
+        const std::string& snaptype, const std::string& json) {
 
     if (!db_enabled)
         return 0;

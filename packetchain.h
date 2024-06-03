@@ -97,7 +97,7 @@
 
 #define CHAINCALL_PARMS \
     void *auxdata __attribute__ ((unused)), \
-    std::shared_ptr<kis_packet> in_pack
+    const std::shared_ptr<kis_packet>& in_pack
 
 class kis_packet;
 

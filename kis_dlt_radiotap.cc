@@ -130,7 +130,7 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 #define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
-int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
+int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     if (in_pack->has(pack_comp_decap))
         return 1;
 

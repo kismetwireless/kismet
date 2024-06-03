@@ -188,9 +188,9 @@ public:
     virtual void load_phy_storage(shared_tracker_element in_storage, 
             shared_tracker_element in_device) override;
 
-    virtual bool device_is_a(std::shared_ptr<kis_tracked_device_base> dev) override;
+    virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 
-    std::shared_ptr<bluetooth_tracked_device> fetch_bluetooth_record(std::shared_ptr<kis_tracked_device_base> dev);
+    std::shared_ptr<bluetooth_tracked_device> fetch_bluetooth_record(const std::shared_ptr<kis_tracked_device_base>& dev);
 
 protected:
     std::shared_ptr<alert_tracker> alertracker;

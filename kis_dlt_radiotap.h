@@ -50,7 +50,7 @@ public:
 	virtual ~kis_dlt_radiotap() { };
 
 protected:
-	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) override;
+	virtual int handle_packet(const std::shared_ptr<kis_packet>& in_pack) override;
 
     unsigned int update_crc32_80211(unsigned int crc, const char *data,
             int len, unsigned int poly);
