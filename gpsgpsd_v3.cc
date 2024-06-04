@@ -149,8 +149,7 @@ void kis_gps_gpsd_v3::start_connect(const boost::system::error_code& error,
     } else {
         boost::asio::async_connect(socket, endpoints,
                 boost::asio::bind_executor(strand_, 
-                    [self = shared_from_this()](const boost::system::error_code& ec, 
-                        tcp::resolver::iterator endpoint) {
+                    [self = shared_from_this()](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
                         self->handle_connect(ec, endpoint);
                     }));
     }
@@ -244,12 +243,17 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
         if (error.value() == boost::asio::error::operation_aborted)
             return;
 
-        if (error.value() == boost::asio::error::eof)
+        if (error.value() == boost::asio::error::not_found) {
+            // We didn't get a newline w/in our buffer size, clear the buffer and re-try
+            in_buf.consume(in_buf.size() + 1);
+            return;
+        } else if (error.value() == boost::asio::error::eof) {
             _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - GPSD closed "
                     "the connection", host, port);
-        else
-            _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", 
+        } else {
+            _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}",
                     host, port, error.message());
+        }
 
         close_impl();
         handle_error();

@@ -68,7 +68,7 @@ protected:
     tcp::socket socket;
 
     boost::asio::strand<boost::asio::io_context::executor_type> strand_;
-    boost::asio::streambuf in_buf{4096};
+    boost::asio::streambuf in_buf{8192};
 
     std::string host, port;
 
