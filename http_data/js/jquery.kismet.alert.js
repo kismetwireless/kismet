@@ -9,46 +9,57 @@
 //
 
 (function ($) {
-    var local_uri_prefix = "";
+    let renderMac = (data) => {
+        try {
+            if (data === 0 || data === '00:00:00:00:00:00')
+                return '<i>n/a</i>';
+        } catch (e) {
+            ;
+        }
+
+        return kismet.censorMAC(data);
+    }
+
+    let local_uri_prefix = "";
     if (typeof(KISMET_URI_PREFIX) !== 'undefined')
         local_uri_prefix = KISMET_URI_PREFIX;
 
-    var base_options = { 
+    let base_options = {
         use_color: true,
         max_backlog: 50,
     };
 
-    var options = base_options;
+    let options = base_options;
 
-    var timerid = -1;
+    let timerid = -1;
 
-    var element = null;
+    let element = null;
 
-    var alerticon = null;
-    var alertbg = null;
-    var alertnum = null;
+    let alerticon = null;
+    let alertbg = null;
+    let alertnum = null;
 
-    var alertclick = null;
+    let alertclick = null;
 
     // Last time from the server
-    var last_time = 0;
+    let last_time = 0;
 
     // Last time we closed the alert window
-    var last_closed_time = 0;
+    let last_closed_time = 0;
 
-    var dialog = null;
+    let dialog = null;
 
-    var alert_list = new Array();
+    let alert_list = new Array();
 
-    var storage = null;
+    let storage = null;
 
     function update_tooltips() {
-        var num_new = 0;
+        let num_new = 0;
 
-        var new_plural = 's';
-        var total_plural = 's';
+        let new_plural = 's';
+        let total_plural = 's';
 
-        for (var x = 0; x < alert_list.length; x++) {
+        for (let x = 0; x < alert_list.length; x++) {
             if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
                 break;
             }
@@ -56,7 +67,7 @@
             num_new++;
         }
 
-        var num_total = alert_list.length - num_new;
+        let num_total = alert_list.length - num_new;
 
         if (num_new <= 1)
             new_plural = '';
@@ -80,7 +91,7 @@
     }
 
     // Close the alert panel if we click outside it
-    var close_dialog_outside = function(e) {
+    let close_dialog_outside = function(e) {
         if (e == null ||
             (e != null && $(e.target).closest('#alertdialog').length == 0)) {
 
@@ -108,7 +119,7 @@
         }
     }
 
-    var open_dialog = function(e) {
+    let open_dialog = function(e) {
         if (dialog != null) {
             close_dialog_outside(e);
 
@@ -116,12 +127,12 @@
             return;
         }
 
-        var fullscreen = false;
+        let fullscreen = false;
 
-        var nominal_w = 400;
-        var nominal_h = ($(window).height() / 3) * 2;
+        let nominal_w = 400;
+        let nominal_h = ($(window).height() / 3) * 2;
 
-        var pos = { };
+        let pos = { };
 
         if ($(window).width() < 450) {
             nominal_w = $(window).width() - 5;
@@ -139,14 +150,14 @@
             fullscreen = true;
         } else {
             // Position under the element
-            var off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
+            let off_y = (nominal_h / 2) + (element.outerHeight() / 2) + 3;
 
             // left-ish of the icon
-            var off_x = (nominal_w / 5) * 2;
+            let off_x = (nominal_w / 5) * 2;
             off_x *= -1;
 
             // Where the outer border lands
-            var outerborder = off_x + (nominal_w / 2);
+            let outerborder = off_x + (nominal_w / 2);
 
             pos = {
                 of: element,
@@ -159,19 +170,19 @@
 
 
         // Make the list of alerts
-        var listholder = $('<div>', {
+        let listholder = $('<div>', {
             class: "ka-alert-list",
             id: "ka-alert-list"
         });
 
-        for (var x = 0; x < options.max_backlog; x++) {
-            var d = $('<div>', {
+        for (let x = 0; x < options.max_backlog; x++) {
+            let d = $('<div>', {
                 class: "ka-alert-line"
             });
             listholder.append(d);
         }
 
-        var alert_popup_content = 
+        let alert_popup_content =
             $('<div>', {
                 class: "ka-dialog-content"
             })
@@ -270,7 +281,7 @@
         e.stopImmediatePropagation();
     }
 
-    var merge_alerts = function(alerts) {
+    let merge_alerts = function(alerts) {
         alertbg.addClass('ka-top-bg-alert');
 
         $.merge(alerts, alert_list);
@@ -284,19 +295,19 @@
         update_tooltips();
     }
 
-    var alert_refresh = function(fetchtime = last_time) {
+    let alert_refresh = function(fetchtime = last_time) {
         $.get(local_uri_prefix + "alerts/wrapped/last-time/" + fetchtime + "/alerts.json")
             .done(function(data) {
                 data = kismet.sanitizeObject(data);
 
-                // Reverse, combine in the data var, slice and assign to the alert list
+                // Reverse, combine in the data let, slice and assign to the alert list
                 data['kismet.alert.list'].reverse();
                 merge_alerts(data['kismet.alert.list']);
             })
     }
 
-    var populate_alert_content = function(c, showall = false) {
-        var divs = $('div.ka-alert-line', c);
+    let populate_alert_content = function(c, showall = false) {
+        let divs = $('div.ka-alert-line', c);
 
         if (showall) {
             last_closed_time = 0;
@@ -325,7 +336,7 @@
             divs.empty();
             divs.hide();
 
-            for (var x = 0; x < alert_list.length; x++) {
+            for (let x = 0; x < alert_list.length; x++) {
                 // Stop when we get to old ones
                 if (alert_list[x]['kismet.alert.timestamp'] <= last_closed_time) {
                     // Set the text to 'show all'
@@ -333,9 +344,9 @@
                     break;
                 }
 
-                var d = divs.eq(x);
+                let d = divs.eq(x);
 
-                var ds = (new Date(alert_list[x]['kismet.alert.timestamp'] * 1000).toString()).substring(4, 25);
+                let ds = (new Date(alert_list[x]['kismet.alert.timestamp'] * 1000).toString()).substring(4, 25);
 
                 // Build the content of each alert line
                 d.append(
@@ -373,7 +384,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .html(kismet_ui_base.renderMac(alert_list[x]['kismet.alert.source_mac']))
+                            .html(renderMac(alert_list[x]['kismet.alert.source_mac']))
                         )
                         .append(
                             $('<i>', {
@@ -384,7 +395,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .html(kismet_ui_base.renderMac(alert_list[x]['kismet.alert.dest_mac']))
+                            .html(renderMac(alert_list[x]['kismet.alert.dest_mac']))
                         )
                     )
                 );
@@ -436,7 +447,7 @@
         }
 
         // Make the headerbar icon
-        var alertholder = $('span.fa-stack', this);
+        let alertholder = $('span.fa-stack', this);
 
         if (alertholder.length != 0) {
             alertholder.empty();
