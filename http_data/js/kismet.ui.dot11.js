@@ -218,7 +218,6 @@ export const CryptToHumanReadable = (cryptset) => {
 
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'IEEE802.11') {
-
         if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi AP') {
             return '<i class="fa fa-wifi"></i>';
         }

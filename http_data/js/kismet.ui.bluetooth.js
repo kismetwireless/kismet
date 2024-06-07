@@ -1,5 +1,16 @@
 "use strict";
 
+kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'Bluetooth' ||
+        row['original_data']['kismet.device.base.phyname'] === 'BTLE') {
+        if (kismet_theme.theme === 'dark') {
+            return '<img src="images/bluetooth-solid-icon-dark.svg" height="20px" width="20px">';
+        } else {
+            return '<img src="images/bluetooth-solid-icon.svg" height="20px" width="20px">';
+        }
+    }
+});
+
 kismet_ui.AddDeviceRowHighlight({
     name: "Bluetooth Device",
     description: "Highlight all Bluetooth devices",
