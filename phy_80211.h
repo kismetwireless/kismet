@@ -484,7 +484,7 @@ public:
 
     // Convert a frequency in KHz to an IEEE 80211 channel name; MAY THROW AN EXCEPTION
     // if this cannot be converted or is an invalid frequency
-    static const std::string khz_to_channel(const double in_khz);
+    static std::string khz_to_channel(const double in_khz);
 
     const std::string dot11_wpa_handshake_event = "DOT11_WPA_HANDSHAKE";
     const std::string dot11_wpa_handshake_event_base = "DOT11_WPA_HANDSHAKE_BASEDEV";

@@ -1028,7 +1028,7 @@ kis_80211_phy::~kis_80211_phy() {
     timetracker->remove_timer(device_idle_timer);
 }
 
-const std::string kis_80211_phy::khz_to_channel(const double in_khz) {
+std::string kis_80211_phy::khz_to_channel(const double in_khz) {
     if (in_khz == 0)
         throw std::runtime_error("invalid freq");
 
@@ -1119,7 +1119,7 @@ std::shared_ptr<dot11_tracked_device> kis_80211_phy::fetch_dot11_record(
 int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     // packetnum++;
 
-    kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
+    auto *d11phy = (kis_80211_phy *) auxdata;
 
     // Don't process errors, blocked, or dupes;  Filter them in survey mode
     //
@@ -1344,11 +1344,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->bssid_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (dot11info->channel != "0" && !dot11info->channel.empty()) {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
-                    dot11info->bssid_dev->get_channel().length() == 0)) {
+                    dot11info->bssid_dev->get_channel().empty())) {
                 try {
                     dot11info->bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1458,7 +1458,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dot11->set_last_bssid(mac_addr());
             }
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->source_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != nullptr && 
                     (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
@@ -1777,11 +1777,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             // Only apply channel when we're to-ds
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && 
                     (pack_l1info->freq_khz != dot11info->bssid_dev->get_frequency() ||
-                     dot11info->bssid_dev->get_channel().length() == 0)) {
+                     dot11info->bssid_dev->get_channel().empty())) {
                 try {
                     dot11info->bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1853,7 +1853,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
             if (dot11info->distrib == distrib_to) {
-                if (dot11info->channel != "0" && dot11info->channel != "") {
+                if (!dot11info->channel.empty() && dot11info->channel != "0") {
                     dot11info->source_dev->set_channel(dot11info->channel);
                 } else if (pack_l1info != NULL && 
                         (pack_l1info->freq_khz != dot11info->source_dev->get_frequency() ||
@@ -2009,7 +2009,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
+            if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->transmit_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != nullptr && 
                     (pack_l1info->freq_khz != dot11info->transmit_dev->get_frequency() ||
@@ -2111,7 +2111,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 }
 
 int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
-    kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
+    auto *d11phy = (kis_80211_phy *) auxdata;
 
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
@@ -2219,7 +2219,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         bssid_dot11->set_last_bssid(bssid_dev->get_macaddr());
 
-        if (pack_l1info->channel != "" && pack_l1info->channel != "0") {
+        if (!pack_l1info->channel.empty() && pack_l1info->channel != "0") {
             bssid_dev->set_channel(pack_l1info->channel);
         } else if (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
                 bssid_dev->get_channel().length() == 0) {
