@@ -779,7 +779,7 @@ device_tracker::device_tracker() :
     httpd->register_route("/phy/all_phys", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
-                    return all_phys_endp_handler(con);
+                    return all_phys_endp_handler(std::move(con));
             }));
 
     // Open and upgrade the DB, default path
@@ -789,13 +789,13 @@ device_tracker::device_tracker() :
     new_datasource_evt_id = 
         eventbus->register_listener(datasource_tracker::event_new_datasource(),
                 [this](std::shared_ptr<eventbus_event> evt) {
-                    handle_new_datasource_event(evt);
+                    handle_new_datasource_event(std::move(evt));
                 });
 
     new_device_evt_id = 
         eventbus->register_listener(device_tracker::event_new_device(),
                 [this](std::shared_ptr<eventbus_event> evt) {
-                    handle_new_device_event(evt);
+                    handle_new_device_event(std::move(evt));
                 });
 
     devicefound_timeout =
@@ -878,7 +878,7 @@ device_tracker::~device_tracker() {
         eventbus->remove_listener(new_device_evt_id);
     }
 
-    Globalreg::globalreg->devicetracker = NULL;
+    Globalreg::globalreg->devicetracker = nullptr;
     Globalreg::globalreg->remove_global(global_name());
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
@@ -1036,7 +1036,7 @@ void device_tracker::update_full_refresh() {
     full_refresh_time = (time_t) Globalreg::globalreg->last_tv_sec;
 }
 
-std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
+std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(const device_key& in_key) {
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device");
 
 	device_itr i = tracked_map.find(in_key);
@@ -1047,7 +1047,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key
 	return NULL;
 }
 
-std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_key in_key) {
+std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(const device_key& in_key) {
 	device_itr i = tracked_map.find(in_key);
 
 	if (i != tracked_map.end())
@@ -1057,7 +1057,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_
 }
 
 // Fetch one or more devices by mac address or mac mask
-std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devices(mac_addr in_mac) {
+std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devices(const mac_addr& in_mac) {
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
     std::vector<std::shared_ptr<kis_tracked_device_base>> ret;
    
@@ -1069,7 +1069,7 @@ std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devi
     return ret;
 }
 
-int device_tracker::common_tracker(std::shared_ptr<kis_packet> in_pack) {
+int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
     kis_lock_guard<kis_mutex> lk(phy_mutex, "device_tracker common_tracker");
 
     // All the statistics counters are atomic.
@@ -1143,9 +1143,9 @@ int device_tracker::common_tracker(std::shared_ptr<kis_packet> in_pack) {
 // the access point, source, and destination devices), only the specific common device 
 // being passed will be updated.
 std::shared_ptr<kis_tracked_device_base> 
-    device_tracker::update_common_device(std::shared_ptr<kis_common_info> pack_common, 
-            mac_addr in_mac, kis_phy_handler *in_phy, std::shared_ptr<kis_packet> in_pack, 
-            unsigned int in_flags, std::string in_basic_type) {
+    device_tracker::update_common_device(const std::shared_ptr<kis_common_info>& pack_common,
+            const mac_addr& in_mac, kis_phy_handler *in_phy, const std::shared_ptr<kis_packet>& in_pack,
+            unsigned int in_flags, const std::string& in_basic_type) {
 
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
@@ -1292,7 +1292,7 @@ std::shared_ptr<kis_tracked_device_base>
         bool set_freq = false;
 
         if (pack_common != nullptr) {
-            if (pack_common->channel != "0" && pack_common->channel != "") {
+            if (!pack_common->channel.empty() && pack_common->channel != "0") {
                 set_channel = true;
                 device->set_channel(pack_common->channel);
             }
@@ -1305,13 +1305,11 @@ std::shared_ptr<kis_tracked_device_base>
         }
 
         if (pack_l1info != nullptr) {
-            if (set_channel == false && 
-                    pack_l1info->channel != "0" && pack_l1info->channel != "") {
+            if (set_channel == false && !pack_l1info->channel.empty() && pack_l1info->channel != "0") {
                 device->set_channel(pack_l1info->channel);
             }
 
-            if (set_freq == false && 
-                    pack_l1info->freq_khz != 0) {
+            if (set_freq == false && pack_l1info->freq_khz != 0) {
                 device->set_frequency(pack_l1info->freq_khz);
                 device->inc_frequency_count((int) pack_l1info->freq_khz);
             }
@@ -1324,7 +1322,7 @@ std::shared_ptr<kis_tracked_device_base>
     if (((in_flags & UCD_UPDATE_LOCATION) || 
          ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
             pack_gpsinfo != NULL && (device_location_signal_threshold == 0 || 
-                ( device_location_signal_threshold != 0 && pack_l1info != NULL &&
+                ( device_location_signal_threshold != 0 && pack_l1info != nullptr &&
                   pack_l1info->signal_dbm >= device_location_signal_threshold))) {
 
         auto devloc = device->get_location();
@@ -1368,12 +1366,12 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
 	// Update seenby records for time, frequency, packets
-	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
+	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != nullptr) {
         double f = -1;
 
-        packinfo_sig_combo *sc = NULL;
+        packinfo_sig_combo *sc = nullptr;
 
-        if (pack_l1info != NULL)
+        if (pack_l1info != nullptr)
             f = pack_l1info->freq_khz;
 
         if (track_persource_history) {
@@ -1388,11 +1386,11 @@ std::shared_ptr<kis_tracked_device_base>
         if (map_seenby_views)
             update_view_device(device);
 
-        if (sc != NULL)
+        if (sc != nullptr)
             delete(sc);
 	}
 
-    if (pack_common != NULL)
+    if (pack_common != nullptr)
         device->add_basic_crypt(pack_common->basic_crypt_set);
 
     if (pack_tags != nullptr) { 
@@ -1434,8 +1432,8 @@ std::shared_ptr<kis_tracked_device_base>
 }
 
 // Sort based on internal kismet ID
-bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
-	std::shared_ptr<kis_tracked_device_base> b) {
+bool devicetracker_sort_internal_id(const std::shared_ptr<kis_tracked_device_base>& a,
+	const std::shared_ptr<kis_tracked_device_base>& b) {
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
@@ -1455,14 +1453,16 @@ std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(
 
 // Simple std::sort comparison function to order by the least frequently
 // seen devices
-bool devicetracker_sort_lastseen(std::shared_ptr<tracker_element> a, std::shared_ptr<tracker_element> b) {
+bool devicetracker_sort_lastseen(const std::shared_ptr<tracker_element>& a,
+    const std::shared_ptr<tracker_element>& b) {
+    
     if (a == nullptr)
         return true;
     if (b == nullptr)
         return true;
 
-    return static_cast<kis_tracked_device_base *>(a.get())->get_last_time() <
-        static_cast<kis_tracked_device_base *>(b.get())->get_last_time();
+    return dynamic_cast<kis_tracked_device_base *>(a.get())->get_last_time() <
+        dynamic_cast<kis_tracked_device_base *>(b.get())->get_last_time();
 }
 
 void device_tracker::timetracker_event(int eventid) {
@@ -1707,7 +1707,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = static_cast<device_tracker_view *>(i.get());
+        auto vi = dynamic_cast<device_tracker_view *>(i.get());
         vi->new_device(in_device);
     }
 }
@@ -1716,7 +1716,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = static_cast<device_tracker_view *>(i.get());
+        auto vi = dynamic_cast<device_tracker_view *>(i.get());
         vi->update_device(in_device);
     }
 }
@@ -1725,7 +1725,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
-        auto vi = static_cast<device_tracker_view *>(i.get());
+        auto vi = dynamic_cast<device_tracker_view *>(i.get());
         vi->remove_device(in_device);
     }
 }
@@ -1885,7 +1885,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
 }
 
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
-        std::string in_username) {
+        const std::string& in_username) {
 
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_user_name");
 
@@ -1935,7 +1935,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 }
 
 void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
-        std::string in_tag, std::string in_content) {
+        const std::string& in_tag, const std::string& in_content) {
 
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_tag");
 

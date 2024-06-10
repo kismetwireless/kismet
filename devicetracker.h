@@ -116,14 +116,14 @@ public:
     void update_full_refresh();
 
 	// Look for an existing device record under read-only shared lock
-    std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
+    std::shared_ptr<kis_tracked_device_base> fetch_device(const device_key& in_key);
 
     // Fetch one or more devices by mac address or mac mask
-    std::vector<std::shared_ptr<kis_tracked_device_base>> fetch_devices(mac_addr in_mac);
+    std::vector<std::shared_ptr<kis_tracked_device_base>> fetch_devices(const mac_addr& in_mac);
 
     // Look for an existing device record, without lock - must be called under some form of existing
     // lock to be safely used
-    std::shared_ptr<kis_tracked_device_base> fetch_device_nr(device_key in_key);
+    std::shared_ptr<kis_tracked_device_base> fetch_device_nr(const device_key& in_key);
 
     // Do work on all devices, this applies to the 'all' device view
     std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker);
@@ -185,18 +185,18 @@ public:
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
-            std::shared_ptr<kis_common_info> pack_common,
-            mac_addr in_mac, kis_phy_handler *phy, 
-            std::shared_ptr<kis_packet> in_pack, unsigned int in_flags,
-            std::string in_basic_type);
+            const std::shared_ptr<kis_common_info>& pack_common,
+            const mac_addr& in_mac, kis_phy_handler *phy,
+            const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
+            const std::string& in_basic_type);
 
     // Set the common name of a device (and log it in the database for future runs)
     void set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
-            std::string in_username);
+            const std::string& in_username);
 
     // Set an arbitrary tag (and log it in the database for future runs)
     void set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
-            std::string in_tag, std::string in_content);
+            const std::string& in_tag, const std::string& in_content);
 
     // CLI extension
     static void usage(const char *name);
@@ -247,7 +247,7 @@ protected:
     void timetracker_event(int eventid);
 
 	// Common classifier for keeping phy counts
-	int common_tracker(std::shared_ptr<kis_packet>);
+	int common_tracker(const std::shared_ptr<kis_packet>&);
 
     unsigned long new_datasource_evt_id, new_device_evt_id;
 
