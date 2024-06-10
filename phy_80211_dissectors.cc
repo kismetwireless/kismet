@@ -1536,7 +1536,7 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
         }
     }
 
-    for (auto ie_tag : *(packinfo->ie_tags->tags())) {
+    for (const auto& ie_tag : *(packinfo->ie_tags->tags())) {
         if (ie_tag->tag_num() == 150) {
             try {
                 ie_tag->tag_data_stream()->seek(0);
@@ -1615,7 +1615,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
     // bool seen_mcsrates = false;
     unsigned int wmmtspec_responses = 0;
 
-    for (auto ie_tag : *(packinfo->ie_tags->tags())) {
+    for (const auto& ie_tag : *(packinfo->ie_tags->tags())) {
         auto hash = std::hash<std::string>{};
 
         if (ie_tag->tag_num() == 150) {
@@ -2413,13 +2413,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
 						auto ietags = Globalreg::new_from_pool<dot11_wfa_p2p_ie>();
                         ietags->parse(wfa->wfa_content_stream());
 
-                        for (auto ie_tag : *(ietags->tags())) {
+                        for (const auto& wfa_ie_tag : *(ietags->tags())) {
                             if (ie_tag->tag_num() == 12) {
                                 // Affected code in rtlwifi:
                                 // noa_num = (noa_len - 2) / 13;
                                 // if (noa_num > P2P_MAX_NOA_NUM) 
                                 // and P2P_MAX_NOA_NUM is 2, therefor:
-                                if (ie_tag->tag_len() > 28) {
+                                if (wfa_ie_tag->tag_len() > 28) {
                                     alertracker->raise_alert(alert_rtlwifi_p2p_ref, in_pack,
                                             packinfo->bssid_mac, packinfo->source_mac, 
                                             packinfo->dest_mac, packinfo->other_mac,
@@ -2440,7 +2440,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                     vendor->vendor_tag_stream()->seek(0);
                     wps->parse(vendor->vendor_tag_stream());
 
-                    for (auto wpselem : *(wps->wps_elements())) {
+                    for (const auto& wpselem : *(wps->wps_elements())) {
                         auto version = wpselem->sub_element_version();
                         if (version != NULL) {
                             packinfo->wps_version = version->version();

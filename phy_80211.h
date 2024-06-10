@@ -416,13 +416,13 @@ public:
     // Strong constructor
     kis_80211_phy(int in_phyid);
 
-    uint64_t wpa_rsn_pairwise_conv(ie48_rsn_cipher cipher);
-    uint64_t wpa_rsn_group_conv(ie48_rsn_cipher cipher);
-    uint64_t wpa_rsn_auth_conv(ie48_rsn_mgmt cipher);
+    static uint64_t wpa_rsn_pairwise_conv(ie48_rsn_cipher cipher);
+    static uint64_t wpa_rsn_group_conv(ie48_rsn_cipher cipher);
+    static uint64_t wpa_rsn_auth_conv(ie48_rsn_mgmt cipher);
 
-    uint64_t wfa_pairwise_conv(ie221_wfa_cipher cipher);
-    uint64_t wfa_group_conv(ie221_wfa_cipher cipher);
-    uint64_t wfa_auth_conv(ie221_wfa_mgmt cipher);
+    static uint64_t wfa_pairwise_conv(ie221_wfa_cipher cipher);
+    static uint64_t wfa_group_conv(ie221_wfa_cipher cipher);
+    static uint64_t wfa_auth_conv(ie221_wfa_mgmt cipher);
 
 
     // Dot11 decoders, wep decryptors, etc
