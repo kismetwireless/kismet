@@ -32,8 +32,8 @@ BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_KISMETDB=1
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
-BUILD_CAPTURE_SDR_RTL433=1
-BUILD_CAPTURE_SDR_RTLAMR=1
+BUILD_CAPTURE_SDR_RTL433=0
+BUILD_CAPTURE_SDR_RTLAMR=0
 BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_BT_GEIGER=0
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
@@ -41,6 +41,7 @@ BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
 BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
+BUILD_CAPTURE_SDR_RTL433V2=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
@@ -1783,6 +1784,30 @@ if test x"$have_ubertooth" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_UBERTOOTH_ONE)"
 fi
 
+AC_ARG_ENABLE([librtlsdr],
+    AS_HELP_STRING([--disable-librtlsdr], [Disable librtlsdr support and any librtlsdr based data sources]),
+	[case "${enableval}" in
+	  no) want_rtlsdr=no ;;
+	   *) want_rtlsdr=yes ;;
+	 esac],
+	[want_rtlsdr=yes]
+)
+
+AS_IF([test "x$want_rtlsdr" != "xno"], [
+    PKG_CHECK_MODULES([librtlsdr], [librtlsdr], have_librtlsdr_pkg=yes)
+
+    if test x"$have_librtlsdr_pkg" != "xyes"; then
+        AC_MSG_ERROR([missing librtlsdr])
+    else
+        LIBRTLLIBS=`pkg-config --libs librtlsdr`
+        LIBRTLCFLAGS=`pkg-config --cflags librtlsdr`
+
+        have_rtlsdr="yes"
+    fi
+])
+AC_SUBST(LIBRTLLIBS)
+AC_SUBST(LIBRTLCFLAGS)
+
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_NRF_MOUSEJACK=1
@@ -1805,6 +1830,12 @@ BUILD_CAPTURE_USB_RADIACODE=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_USB_RADIACODE=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USB_RADIACODE)"
+fi
+
+BUILD_CAPTURE_SDR_RTL433V2=0
+if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
+    BUILD_CAPTURE_SDR_RTL433V2=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433V2)"
 fi
 
 
@@ -1989,6 +2020,7 @@ AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OPENBSD_WIFI)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
+AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_BT_GEIGER)
@@ -2024,6 +2056,7 @@ AC_CONFIG_FILES([
     capture_sdr_rtl433/Makefile 
     capture_sdr_rtlamr/Makefile 
     capture_sdr_rtladsb/Makefile 
+    capture_sdr_rtl433_v2/Makefile 
     capture_bt_geiger/Makefile 
     capture_freaklabs_zigbee/Makefile 
     capture_nrf_mousejack/Makefile 
@@ -2227,6 +2260,19 @@ if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "    RTL-SDR RTL_433 V2: "
+if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then
+	echo "yes";
+else
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
 fi
 
 printf "        RTL-SDR RTLAMR: "

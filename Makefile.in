@@ -114,6 +114,9 @@ BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
 BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
 
+CAPTURE_SDR_RTL433V2 = capture_sdr_rtl433_v2/kismet_cap_sdr_rtl433_v2
+BUILD_CAPTURE_SDR_RTL433V2 = @BUILD_CAPTURE_SDR_RTL433V2@
+
 CAPTURE_SDR_RTLAMR = capture_sdr_rtlamr/kismet_cap_sdr_rtlamr
 BUILD_CAPTURE_SDR_RTLAMR = @BUILD_CAPTURE_SDR_RTLAMR@
 
@@ -231,7 +234,8 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
-	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
+	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtl433_v2.cc.o \ 
+	datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
@@ -356,6 +360,9 @@ $(CAPTURE_OSX_COREWLAN): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 
 $(CAPTURE_SDR_RTL433): FORCE
 	(cd capture_sdr_rtl433 && $(MAKE))
+
+$(CAPTURE_SDR_RTL433V2): FORCE
+	(cd capture_sdr_rtl433_v2 && $(MAKE))
 
 $(CAPTURE_SDR_RTLAMR): FORCE
 	(cd capture_sdr_rtlamr && $(MAKE))
