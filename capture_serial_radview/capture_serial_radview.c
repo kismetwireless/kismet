@@ -217,8 +217,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
         localbaudrate = (unsigned int *) malloc(sizeof(unsigned int));
+
         *localbaudrate = atoi(localbaudratestr);
+
         free(localbaudratestr);
+        localbaudratestr = NULL;
 
         if (localbaudrate == NULL) {
             snprintf(msg, STATUS_MAX,
@@ -228,6 +231,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         localrad->baudrate = get_baud(*localbaudrate);
+
+        free(localbaudrate);
+        localbaudrate = NULL;
     } else {
         localrad->baudrate = D_BAUDRATE;
     }

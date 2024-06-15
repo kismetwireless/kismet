@@ -30,7 +30,7 @@
 #include <zlib.h>
 
 #include "../capture_framework.h"
-#include "simple_ringbuf_c.h"
+#include "../simple_ringbuf_c.h"
 
 typedef struct {
     cf_ipc_t *ipc_433;
@@ -43,6 +43,8 @@ typedef struct {
     pthread_mutex_t rtl433_valid_cond_mutex;
 
     unsigned long freq;
+
+    char *name;
 
     /* Argv list */
     char **rtl_argv;
@@ -85,60 +87,69 @@ unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
 }
 
 int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) {
-    char *buf, *buf_start;
-    size_t peek_sz;
-    size_t buf_avail;
-    size_t pos;
-    size_t consume_pos = 0;
-    struct timeval tv;
-    int r;
     local_rtl433_t *local433 = (local_rtl433_t *) caph->userdata;
+    ssize_t newline = 0;
+    size_t peeked_sz = 0;
+    char *buf;
+    int fail = 0;
+    struct timeval tv;
+    char errstr[STATUS_MAX];
+    int r;
 
-    buf_avail = kis_simple_ringbuf_used(ipc->in_ringbuf);
-    peek_sz = kis_simple_ringbuf_peek(ipc->in_ringbuf, (void **) &buf, buf_avail);
-    buf_start = buf;
-
-    if (peek_sz == 0)
-        return 0; 
-
-    /* 
-     * Blindly repackage the output per-line and send it to Kismet.  We don't bother 
-     * parsing to see if it's actually JSON here because then we'd need a C JSON 
-     * library, etc, when we can just send it to Kismet and let it ignore it if it's 
+    /*
+     * Blindly repackage the output per-line and send it to Kismet.  We don't bother
+     * parsing to see if it's actually JSON here because then we'd need a C JSON
+     * library, etc, when we can just send it to Kismet and let it ignore it if it's
      * no good.
      *
-     * We CAN NOT go into a loop waiting for the output tcp/ipc buffer to flush as we're 
+     * We DO NOT go into a loop waiting for the output tcp/ipc buffer to flush as we're
      * being called as part of the main IO thread.
      */
 
-    for (pos = 0; pos < peek_sz; pos++) {
-        if (buf[pos] != '\n' && buf[pos] != '\0')
-            continue; 
-
-        buf[pos] = '\0';
-
-        gettimeofday(&tv, NULL);
-
-        r = cf_send_json(caph, NULL, NULL, NULL, tv, "rtl433", buf_start);
-
-        if (r < 0) {
-            cf_send_error(caph, 0, "unable to send JSON frame");
-            pthread_cond_broadcast(&local433->rtl433_valid_cond);
-            cf_handler_spindown(caph);
-            break;
-        } else if (r == 0) {
-            ipc->retry_rx = 1;
+    while (!fail) {
+        /* Exit w/out error */
+        newline = kis_simple_ringbuf_search_byte(ipc->in_ringbuf, '\n');
+        if (newline <= 0) {
             break;
         }
 
-        consume_pos = pos;
-        buf_start = &buf[pos + 1];
+        peeked_sz = kis_simple_ringbuf_peek_zc(ipc->in_ringbuf, (void **) &buf, newline);
+
+        if (peeked_sz < newline) {
+            snprintf(errstr, STATUS_MAX, "%s unable to fetch rtl_433 data from buffer", local433->name);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            fail = 1;
+            break;
+        }
+
+        buf[newline] = '\0';
+        gettimeofday(&tv, NULL);
+
+        /*
+         * Since we're part of the core IO loop, not a capture thread, we need to
+         * just fail if the tx buffer is full.
+         *
+         * Since rtl433 json RX is pretty slow, this shouldn't be a major problem
+         */
+        r = cf_send_json(caph, NULL, NULL, NULL, tv, "rtl433", (char *) buf);
+        if (r < 0) {
+            snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame to Kismet", local433->name);
+            fprintf(stderr, "%s", errstr);
+            cf_send_error(caph, 0, errstr);
+            fail = 1;
+            break;
+        }
+
+        kis_simple_ringbuf_peek_free(ipc->in_ringbuf, buf);
+        kis_simple_ringbuf_read(ipc->in_ringbuf, NULL, newline + 1);
+
+        continue;
     }
 
-    kis_simple_ringbuf_peek_free(ipc->in_ringbuf, buf);
-
-    if (consume_pos > 0) {
-        kis_simple_ringbuf_read(ipc->in_ringbuf, NULL, consume_pos);
+    if (fail) {
+        /* Unlock the capture thread and die */
+        pthread_cond_broadcast(&local433->rtl433_valid_cond);
+        cf_handler_spindown(caph);
     }
 
     return 0;
@@ -162,9 +173,9 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
     for (i = 0; i < num_radios; i++) { 
         (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
         memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
-        snprintf(buf, "rtl433-%u", i);
-        interfaces[i]->interface = strdup(buf);
-        interfaces[i]->hardware = strdup("rtlsdr");
+        snprintf(buf, 256, "rtl433-%u", i);
+        (*interfaces)[i]->interface = strdup(buf);
+        (*interfaces)[i]->hardware = strdup("rtlsdr");
     }
 
     return num_radios;
@@ -266,7 +277,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     } else {
         uint32_t hash;
 
-        snprintf(buf, STATUS_MAX, "%d%s%s%s", manuf_buf, product_buf, serial_buf);
+        snprintf(buf, STATUS_MAX, "%s%s%s", manuf_buf, product_buf, serial_buf);
         hash = adler32_csum((unsigned char *) buf, strlen(buf));
 
         snprintf(buf, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
@@ -288,7 +299,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int placeholder_len;
     char *interface;
     char *subinterface;
-    char errstr[STATUS_MAX];
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
@@ -362,11 +372,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     interface = NULL;
 
     snprintf(buf, STATUS_MAX, "rtl433-%d", num_device);
+    local433->name = strdup(buf);
     (*ret_interface)->capif = strdup(buf);
     (*ret_interface)->hardware = strdup("rtlsdr");
 
-    if (rtlsdr_get_device_usb_strings(num_device, manuf_buf,
-                product_buf, serial_buf) != 0) { 
+    if (rtlsdr_get_device_usb_strings(num_device, manuf_buf, product_buf, serial_buf) != 0) {
         snprintf(msg, STATUS_MAX, "Unable to find rtl433 device");
         return 0;
     }
@@ -376,12 +386,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } else {
         uint32_t hash;
 
-        snprintf(buf, STATUS_MAX, "%d%s%s%s", manuf_buf, product_buf, serial_buf);
+        snprintf(buf, STATUS_MAX, "%s%s%s", manuf_buf, product_buf, serial_buf);
         hash = adler32_csum((unsigned char *) buf, strlen(buf));
 
         snprintf(buf, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433", 
-                    strlen("kismet_cap_sdr_rtl433")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433_v2",
+                    strlen("kismet_cap_sdr_rtl433_v2")) & 0xFFFFFFFF,
                 hash & 0xFFFFFFFF);
         *uuid = strdup(buf);
     }
@@ -459,6 +469,7 @@ int main(int argc, char *argv[]) {
     local_rtl433_t local433 = {
         .ipc_433 = NULL,
         .freq = 433920000,
+        .name = NULL,
        .rtl_argv = NULL,
     };
 
