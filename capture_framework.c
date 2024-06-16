@@ -1359,14 +1359,17 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 
     sigemptyset(&cf_core_signal_mask);
 
+    /*
     sigaddset(&cf_core_signal_mask, SIGINT);
     sigaddset(&cf_core_signal_mask, SIGQUIT);
     sigaddset(&cf_core_signal_mask, SIGTERM);
     sigaddset(&cf_core_signal_mask, SIGHUP);
+    sigaddset(&cf_core_signal_mask, SIGSEGV);
+     */
+
     sigaddset(&cf_core_signal_mask, SIGALRM);
     sigaddset(&cf_core_signal_mask, SIGQUIT);
     sigaddset(&cf_core_signal_mask, SIGCHLD);
-    sigaddset(&cf_core_signal_mask, SIGSEGV);
     sigaddset(&cf_core_signal_mask, SIGPIPE);
 
     /* Set thread mask for all new threads */
@@ -2549,7 +2552,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             ipc_iter = caph->ipc_list;
 
             while (ipc_iter != NULL) {
-                if (spindown == 0) { 
+                if (spindown == 0) {
                     FD_SET(ipc_iter->out_fd, &rset);
                     if (max_fd < ipc_iter->out_fd)
                         max_fd = ipc_iter->out_fd;
@@ -2578,7 +2581,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             if (spindown == 0) {
                 /* Only set rset if we're not spinning down */
                 FD_SET(read_fd, &rset);
-                max_fd = read_fd;
+                if (max_fd < read_fd)
+                    max_fd = read_fd;
             }
 
             /* Inspect the write buffer - do we have data? */
@@ -4224,7 +4228,10 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         return NULL;
     }
 
-    if ((caph->child_pid = fork()) < 0) {
+    caph->child_pid = fork();
+
+    if (caph->child_pid < 0) {
+        fprintf(stderr, "FATAL: Failed to fork IPC process\n");
         close(inpair[0]);
         close(inpair[1]);
         close(outpair[0]);
@@ -4232,70 +4239,71 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         close(errpair[0]);
         close(errpair[1]);
         return NULL;
-    } else if (caph->child_pid == 0) { 
+    } else if (caph->child_pid == 0) {
         sigset_t unblock_mask;
-
         sigfillset(&unblock_mask);
         pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
 
+        dup2(inpair[0], STDIN_FILENO);
+        close(inpair[0]);
         close(inpair[1]);
-        close(errpair[0]);
+
+        dup2(outpair[1], STDOUT_FILENO);
+        close(outpair[1]);
         close(outpair[0]);
 
-        dup2(inpair[0], STDIN_FILENO);
-        dup2(outpair[1], STDOUT_FILENO);
         dup2(errpair[1], STDERR_FILENO);
-
-        close(inpair[0]);
-        close(outpair[1]);
         close(errpair[1]);
+        close(errpair[0]);
 
         execvp(argv[0], argv);
+
+        return NULL;
+    } else {
+        close(inpair[0]);
+        close(errpair[1]);
+        close(outpair[1]);
+
+        ret = (cf_ipc_t *) malloc(sizeof(cf_ipc_t));
+        memset(ret, 0, sizeof(cf_ipc_t));
+
+        ret->in_fd = inpair[1];
+        ret->out_fd = outpair[0];
+        ret->err_fd = errpair[0];
+
+        ret->pid = caph->child_pid;
+
+        fcntl(ret->in_fd, F_SETFL, fcntl(ret->in_fd, F_GETFL, 0) | O_NONBLOCK);
+        fcntl(ret->out_fd, F_SETFL, fcntl(ret->out_fd, F_GETFL, 0) | O_NONBLOCK);
+        fcntl(ret->err_fd, F_SETFL, fcntl(ret->err_fd, F_GETFL, 0) | O_NONBLOCK);
+
+        pthread_mutexattr_init(&mutexattr);
+        pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&(ret->out_ringbuf_lock), &mutexattr);
+
+        /* Ungracefully die if we're out of memory */
+        ret->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
+        if (ret->in_ringbuf == NULL) {
+            fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (in)\n");
+            exit(1);
+        }
+
+        /* Ungracefully die if we're out of memory */
+        ret->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
+        if (ret->out_ringbuf == NULL) {
+            fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (out)\n");
+            exit(1);
+        }
+
+        /* Ungracefully die if we're out of memory */
+        ret->err_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
+        if (ret->err_ringbuf == NULL) {
+            fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (err)\n");
+            exit(1);
+        }
+
+        return ret;
     }
-
-    close(inpair[0]);
-    close(errpair[1]);
-    close(outpair[1]);
-
-    ret = (cf_ipc_t *) malloc(sizeof(cf_ipc_t));
-    memset(ret, 0, sizeof(cf_ipc_t));
-
-    ret->in_fd = inpair[1];
-    ret->out_fd = outpair[0];
-    ret->err_fd = errpair[0];
-
-    ret->pid = caph->child_pid; 
-
-    fcntl(ret->in_fd, F_SETFL, fcntl(ret->in_fd, F_GETFL, 0) | O_NONBLOCK);
-    fcntl(ret->out_fd, F_SETFL, fcntl(ret->out_fd, F_GETFL, 0) | O_NONBLOCK);
-    fcntl(ret->err_fd, F_SETFL, fcntl(ret->err_fd, F_GETFL, 0) | O_NONBLOCK);
-
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&(ret->out_ringbuf_lock), &mutexattr);
-
-    /* Ungracefully die if we're out of memory */
-    ret->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
-    if (ret->in_ringbuf == NULL) {
-        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (in)\n");
-        exit(1);
-    }
-
-    /* Ungracefully die if we're out of memory */
-    ret->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
-    if (ret->out_ringbuf == NULL) {
-        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (out)\n");
-        exit(1);
-    }
-
-    /* Ungracefully die if we're out of memory */
-    ret->err_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
-    if (ret->err_ringbuf == NULL) {
-        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (err)\n");
-        exit(1);
-    }
-
-    return ret;
 }
 
 void cf_ipc_free(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
@@ -4303,6 +4311,7 @@ void cf_ipc_free(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
 
     pthread_mutex_lock(&ipc->out_ringbuf_lock);
     kis_simple_ringbuf_free(ipc->out_ringbuf);
+    kis_simple_ringbuf_free(ipc->err_ringbuf);
     pthread_mutex_unlock(&ipc->out_ringbuf_lock);
 
     pthread_mutex_destroy(&ipc->out_ringbuf_lock);
@@ -4311,6 +4320,8 @@ void cf_ipc_free(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
         close(ipc->in_fd);
     if (ipc->out_fd >= 0)
         close(ipc->out_fd);
+    if (ipc->err_fd >= 0)
+        close(ipc->err_fd);
 
     free(ipc);
 }
