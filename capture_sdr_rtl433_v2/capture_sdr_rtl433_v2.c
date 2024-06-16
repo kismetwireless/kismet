@@ -52,7 +52,7 @@ typedef struct {
 
 unsigned int human_to_hz(const char *in_str, unsigned int in_len) { 
     char *fixedstr = NULL; 
-    char scale[4];
+    char scale[5];
     double f;
     int r;
 
@@ -61,7 +61,7 @@ unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
 
     fixedstr = strndup(in_str, in_len);
 
-    r = sscanf("%lf%3s", fixedstr, &f, &scale);
+    r = sscanf(fixedstr, "%lf%4s", &f, scale);
 
     if (r == 2) { 
         if (strcasestr("mhz", scale) != NULL) {
@@ -83,7 +83,6 @@ unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
         free(fixedstr);
 
     return 0;
-
 }
 
 int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) {
@@ -124,6 +123,8 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
 
         buf[newline] = '\0';
         gettimeofday(&tv, NULL);
+
+        printf("debug - %s\n", buf);
 
         /*
          * Since we're part of the core IO loop, not a capture thread, we need to
@@ -281,8 +282,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         hash = adler32_csum((unsigned char *) buf, strlen(buf));
 
         snprintf(buf, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433", 
-                    strlen("kismet_cap_sdr_rtl433")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433_v2",
+                    strlen("kismet_cap_sdr_rtl433_v2")) & 0xFFFFFFFF,
                 hash & 0xFFFFFFFF);
         *uuid = strdup(buf);
     }
@@ -459,7 +460,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 void capture_thread(kis_capture_handler_t *caph) {
     local_rtl433_t *local433 = (local_rtl433_t *) caph->userdata;
 
-    pthread_cond_wait(&local433->rtl433_valid_cond, 
+    pthread_cond_wait(&local433->rtl433_valid_cond,
             &local433->rtl433_valid_cond_mutex);
     pthread_mutex_unlock(&local433->rtl433_valid_cond_mutex);
 
