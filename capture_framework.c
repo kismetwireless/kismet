@@ -1461,7 +1461,6 @@ void *cf_int_chanhop_thread(void *arg) {
         pthread_mutex_lock(&caph->handler_lock);
 
         if (caph->channel_hop_rate == 0 || caph->chancontrol_cb == NULL) {
-            // fprintf(stderr, "debug - hop rate 0 or no chancontrol\n");
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             return NULL;
@@ -1478,16 +1477,13 @@ void *cf_int_chanhop_thread(void *arg) {
             cf_handler_spindown(caph);
             return NULL;
         } else if (r == 0) {
-            // fprintf(stderr, "debug - got an error at position %lu\n", hoppos % caph->channel_hop_list_sz);
-
-            // Append to the linked list
+            /* Append to the linked list */
             struct cf_channel_error *err;
             int err_seen = 0;
 
             for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
                     err != NULL; err = err->next) {
                 if (err->channel_pos == (hoppos % caph->channel_hop_list_sz)) {
-                    // fprintf(stderr, "debug - already saw an error here\n");
                     err_seen = 1;
                     break;
                 }
@@ -1495,7 +1491,6 @@ void *cf_int_chanhop_thread(void *arg) {
 
             // Only add error positions we haven't seen in error before
             if (!err_seen) {
-                // fprintf(stderr, "debug - making new error record\n");
                 err = (struct cf_channel_error *) malloc(sizeof(struct cf_channel_error));
                 err->channel_pos = hoppos % caph->channel_hop_list_sz;
                 err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
@@ -1521,8 +1516,6 @@ void *cf_int_chanhop_thread(void *arg) {
             size_t i, ni;
             struct cf_channel_error *err, *errnext;
 
-            // fprintf(stderr, "debug - hop fail, cleaning up\n");
-
             /* Safety net */
             if (caph->channel_hop_failure_list_sz == caph->channel_hop_list_sz) {
                 snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
@@ -1534,7 +1527,6 @@ void *cf_int_chanhop_thread(void *arg) {
             }
 
             if (caph->channel_hop_failure_list_sz > caph->channel_hop_list_sz) {
-                // fprintf(stderr, "debug - sending fail\n");
                 snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
                         "in error state, but there were more error channels (%lu) than "
                         "assigned channels (%lu), something is wrong internally.",
@@ -1554,8 +1546,6 @@ void *cf_int_chanhop_thread(void *arg) {
             channel_hop_list_new = (char **) malloc(sizeof(char *) * new_sz);
             custom_channel_hop_list_new = (void **) malloc(sizeof(void *) * new_sz);
 
-            // fprintf(stderr, "debug - allocating new channel list %lu\n", new_sz);
-
             for (i = 0, ni = 0; i < caph->channel_hop_list_sz && ni < new_sz; i++) {
                 int err_seen = 0;
 
@@ -1569,14 +1559,11 @@ void *cf_int_chanhop_thread(void *arg) {
 
                 /* If it's in error, free it */
                 if (err_seen) {
-                    // fprintf(stderr, "debug - freeing from %lu\n", i);
                     free(caph->channel_hop_list[i]);
                     if (caph->chanfree_cb != NULL) 
                         (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
                     continue;
                 }
-
-                // fprintf(stderr, "debug - copying channel from %lu to %lu\n", i, ni);
 
                 /* Otherwise move the pointer to our new list */
                 channel_hop_list_new[ni] = caph->channel_hop_list[i];
@@ -1584,7 +1571,6 @@ void *cf_int_chanhop_thread(void *arg) {
                 ni++;
             }
 
-            // fprintf(stderr, "debug - nuking old hop list\n");
             /* Remove the old lists and swap in the new ones */
             free(caph->channel_hop_list);
             free(caph->custom_channel_hop_list);
@@ -1600,7 +1586,6 @@ void *cf_int_chanhop_thread(void *arg) {
             cf_send_configresp(caph, 0, 1, errstr, NULL);
 
 
-            // fprintf(stderr, "debug - clearing out old list\n");
             /* Clear out the old list */
             err = (struct cf_channel_error *) caph->channel_hop_failure_list;
             while (err != NULL) {
@@ -2265,6 +2250,12 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
         return -1;
     }
 
+    sock_flags = fcntl(client_fd, F_GETFL, 0);
+    fcntl(client_fd, F_SETFL, sock_flags | O_NONBLOCK);
+
+    sock_flags = fcntl(client_fd, F_GETFD, 0);
+    fcntl(client_fd, F_SETFD, sock_flags | FD_CLOEXEC);
+
     memset(&local_sock, 0, sizeof(local_sock));
     local_sock.sin_family = AF_INET;
     local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -2294,9 +2285,6 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
             return -1;
         }
     }
-
-    sock_flags = fcntl(client_fd, F_GETFL, 0);
-    fcntl(client_fd, F_SETFL, sock_flags | O_NONBLOCK | FD_CLOEXEC);
 
     caph->tcp_fd = client_fd;
 
@@ -2562,17 +2550,21 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             while (ipc_iter != NULL) {
                 if (spindown == 0) { 
-                    FD_SET(ipc_iter->in_fd, &rset);
-                    if (max_fd < ipc_iter->in_fd)
-                        max_fd = ipc_iter->in_fd; 
+                    FD_SET(ipc_iter->out_fd, &rset);
+                    if (max_fd < ipc_iter->out_fd)
+                        max_fd = ipc_iter->out_fd;
+
+                    FD_SET(ipc_iter->err_fd, &rset);
+                    if (max_fd < ipc_iter->err_fd)
+                        max_fd = ipc_iter->err_fd;
                 }
 
                 pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
 
                 if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
-                    FD_SET(ipc_iter->out_fd, &wset);
-                    if (max_fd < ipc_iter->out_fd)
-                        max_fd = ipc_iter->out_fd;
+                    FD_SET(ipc_iter->in_fd, &wset);
+                    if (max_fd < ipc_iter->in_fd)
+                        max_fd = ipc_iter->in_fd;
                 }
 
                 pthread_mutex_unlock(&ipc_iter->out_ringbuf_lock);
@@ -2618,7 +2610,6 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             if (ret == 0)
                 continue;
 
-
             pthread_mutex_lock(&caph->handler_lock);
 
             ipc_iter = caph->ipc_list;
@@ -2630,8 +2621,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     ipc_iter->rx_callback(caph, ipc_iter, 0);
                 }
 
-                /* Handle read ops into the buffer */
-                if (FD_ISSET(ipc_iter->in_fd, &rset)) {
+                /* Handle stdout ops into the buffer */
+                if (FD_ISSET(ipc_iter->out_fd, &rset)) {
                     while (kis_simple_ringbuf_available(ipc_iter->in_ringbuf)) {
                         ssize_t amt_read;
                         size_t maxread = 0;
@@ -2641,7 +2632,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         buf_avail = kis_simple_ringbuf_available(ipc_iter->in_ringbuf);
                         maxread = kis_simple_ringbuf_reserve_zcopy(ipc_iter->in_ringbuf, (void **) &buf, buf_avail);
 
-                        amt_read = read(ipc_iter->in_fd, buf, maxread);
+                        amt_read = read(ipc_iter->out_fd, buf, maxread);
 
                         if (amt_read <= 0) { 
                             kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, 0);
@@ -2651,6 +2642,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                                     ipc_iter->term_callback(caph, ipc_iter, -1);
                                 }
                             }
+
+                            break;
                         } else { 
                             kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, amt_read);
                             amt_read = kis_simple_ringbuf_used(ipc_iter->in_ringbuf);
@@ -2658,41 +2651,84 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                             if (ipc_iter->rx_callback != NULL) { 
                                 ipc_iter->retry_rx = 0;
                                 ipc_iter->rx_callback(caph, ipc_iter, amt_read);
+                            } else {
+                                /* If there is no handler, throw the data out */
+                                kis_simple_ringbuf_clear(ipc_iter->in_ringbuf);
                             }
                         }
                     }
                 }
 
-                pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
+                if (FD_ISSET(ipc_iter->err_fd, &rset)) {
+                    while (kis_simple_ringbuf_available(ipc_iter->err_ringbuf)) {
+                        ssize_t amt_read;
+                        size_t maxread = 0;
+                        uint8_t *buf;
+                        size_t buf_avail;
 
-                if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
-                    ssize_t written_sz = 0;
-                    size_t peeked_sz = 0;
-                    uint8_t *peek_buf = NULL;
+                        buf_avail = kis_simple_ringbuf_available(ipc_iter->err_ringbuf);
+                        maxread = kis_simple_ringbuf_reserve_zcopy(ipc_iter->err_ringbuf, (void **) &buf, buf_avail);
 
-                    peeked_sz = kis_simple_ringbuf_peek_zc(ipc_iter->out_ringbuf, (void **) &peek_buf, 0);
+                        amt_read = read(ipc_iter->err_fd, buf, maxread);
 
-                    /* Don't know how we'd get here... */
-                    if (peeked_sz == 0) {
-                        kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
-                    } else {
-                        written_sz = write(ipc_iter->out_fd, peek_buf, peeked_sz);
+                        if (amt_read <= 0) {
+                            kis_simple_ringbuf_commit(ipc_iter->err_ringbuf, buf, 0);
 
-                        if (written_sz < 0) {
-                            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                                kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                            if (errno != EINTR && errno != EAGAIN) {
                                 if (ipc_iter->term_callback != NULL) {
                                     ipc_iter->term_callback(caph, ipc_iter, -1);
                                 }
                             }
+
+                            break;
                         } else {
-                            kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
-                            kis_simple_ringbuf_read(ipc_iter->out_ringbuf, NULL, (size_t) written_sz);
+                            kis_simple_ringbuf_commit(ipc_iter->err_ringbuf, buf, amt_read);
+                            amt_read = kis_simple_ringbuf_used(ipc_iter->err_ringbuf);
+
+                            if (ipc_iter->err_callback != NULL) {
+                                ipc_iter->err_callback(caph, ipc_iter, amt_read);
+                            } else {
+                                /* If there is no handler, throw the data out */
+                                kis_simple_ringbuf_clear(ipc_iter->err_ringbuf);
+                            }
                         }
                     }
                 }
 
-                pthread_mutex_unlock(&ipc_iter->out_ringbuf_lock);
+                /* Write anything queued to the stdin of the forked process */
+                if (FD_ISSET(ipc_iter->in_fd, &wset)) {
+                    pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
+
+                    if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
+                        ssize_t written_sz = 0;
+                        size_t peeked_sz = 0;
+                        uint8_t *peek_buf = NULL;
+
+                        peeked_sz = kis_simple_ringbuf_peek_zc(ipc_iter->out_ringbuf, (void **) &peek_buf, 0);
+
+                        /* Don't know how we'd get here... */
+                        if (peeked_sz == 0) {
+                            kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                        } else {
+                            written_sz = write(ipc_iter->in_fd, peek_buf, peeked_sz);
+
+                            if (written_sz < 0) {
+                                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                                    kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                                    if (ipc_iter->term_callback != NULL) {
+                                        ipc_iter->term_callback(caph, ipc_iter, -1);
+                                    }
+                                }
+
+                            } else {
+                                kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+                                kis_simple_ringbuf_read(ipc_iter->out_ringbuf, NULL, (size_t) written_sz);
+                            }
+                        }
+                    }
+
+                    pthread_mutex_unlock(&ipc_iter->out_ringbuf_lock);
+                }
 
                 ipc_iter = ipc_iter->next;
             }
@@ -2716,23 +2752,21 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     if (maxread > 1024)
                         maxread = 1024;
 
-                    /* If it looks like we're doing remote cap over tcp, use recv because
-                     * OSX seems to ignore O_NONBLOCK; on the other hand, if it's IPC over
-                     * pipes, we HAVE to use read because recv will fail! */
-                    if (caph->remote_host != NULL)
-                        amt_read = recv(read_fd, rbuf, maxread, MSG_DONTWAIT);
-                    else
+                    if (caph->remote_host != NULL) {
+                        // amt_read = recv(read_fd, rbuf, maxread, MSG_DONTWAIT);
+                        amt_read = recv(read_fd, rbuf, maxread, 0);
+                    } else {
                         amt_read = read(read_fd, rbuf, maxread);
+                    }
 
-                    if (amt_read <= 0) {
+                    if (amt_read == 0) {
+                        fprintf(stderr, "FATAL: Remote side closed read pipe\n");
+                        rv = -1;
+                        goto cap_loop_fail;
+                    } else if (amt_read < 0) {
+                        /* Detect nonblocking */
                         if (errno != EINTR && errno != EAGAIN) {
-                            /* Bail entirely */
-                            if (amt_read == 0) {
-                                fprintf(stderr, "FATAL: Remote side closed read pipe\n");
-                            } else {
-                                fprintf(stderr, "FATAL:  Error during read(): %s\n", 
-                                        strerror(errno));
-                            }
+                            fprintf(stderr, "FATAL:  Error during read(): %s\n", strerror(errno));
                             rv = -1;
                             goto cap_loop_fail;
                         } else {
@@ -2779,13 +2813,13 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     continue;
                 }
 
-                /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
-
                 /* Same nonsense as before - send on tcp, write on pipes */
-                if (caph->remote_host != NULL)
-                    written_sz = send(write_fd, peek_buf, peeked_sz, MSG_DONTWAIT);
-                else
+                if (caph->remote_host != NULL) {
+                    // written_sz = send(write_fd, peek_buf, peeked_sz, MSG_DONTWAIT);
+                    written_sz = send(write_fd, peek_buf, peeked_sz, 0);
+                } else {
                     written_sz = write(write_fd, peek_buf, peeked_sz);
+                }
 
                 if (written_sz < 0) {
                     if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -4170,6 +4204,7 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
 
     int inpair[2];
     int outpair[2];
+    int errpair[2];
 
     if (pipe(inpair) < 0) {
         return NULL;
@@ -4181,11 +4216,21 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         return NULL;
     }
 
+    if (pipe(errpair) < 0) {
+        close(inpair[0]);
+        close(inpair[1]);
+        close(outpair[0]);
+        close(outpair[1]);
+        return NULL;
+    }
+
     if ((caph->child_pid = fork()) < 0) {
         close(inpair[0]);
         close(inpair[1]);
         close(outpair[0]);
         close(outpair[1]);
+        close(errpair[0]);
+        close(errpair[1]);
         return NULL;
     } else if (caph->child_pid == 0) { 
         sigset_t unblock_mask;
@@ -4194,12 +4239,22 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
 
         close(inpair[1]);
+        close(errpair[0]);
         close(outpair[0]);
+
+        dup2(inpair[0], STDIN_FILENO);
+        dup2(outpair[1], STDOUT_FILENO);
+        dup2(errpair[1], STDERR_FILENO);
+
+        close(inpair[0]);
+        close(outpair[1]);
+        close(errpair[1]);
 
         execvp(argv[0], argv);
     }
 
     close(inpair[0]);
+    close(errpair[1]);
     close(outpair[1]);
 
     ret = (cf_ipc_t *) malloc(sizeof(cf_ipc_t));
@@ -4207,11 +4262,13 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
 
     ret->in_fd = inpair[1];
     ret->out_fd = outpair[0];
+    ret->err_fd = errpair[0];
 
     ret->pid = caph->child_pid; 
 
     fcntl(ret->in_fd, F_SETFL, fcntl(ret->in_fd, F_GETFL, 0) | O_NONBLOCK);
     fcntl(ret->out_fd, F_SETFL, fcntl(ret->out_fd, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(ret->err_fd, F_SETFL, fcntl(ret->err_fd, F_GETFL, 0) | O_NONBLOCK);
 
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
@@ -4220,14 +4277,21 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
     /* Ungracefully die if we're out of memory */
     ret->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
     if (ret->in_ringbuf == NULL) {
-        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer\n");
+        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (in)\n");
         exit(1);
     }
 
     /* Ungracefully die if we're out of memory */
     ret->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
     if (ret->out_ringbuf == NULL) {
-        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer\n");
+        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (out)\n");
+        exit(1);
+    }
+
+    /* Ungracefully die if we're out of memory */
+    ret->err_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
+    if (ret->err_ringbuf == NULL) {
+        fprintf(stderr, "FATAL:  Cannot allocate process ringbuffer (err)\n");
         exit(1);
     }
 
@@ -4257,6 +4321,10 @@ void cf_ipc_signal(kis_capture_handler_t *caph, cf_ipc_t *ipc, int signal) {
 
 void cf_ipc_set_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_data cb) { 
     ipc->rx_callback = cb;
+}
+
+void cf_ipc_set_err_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_data cb) {
+    ipc->err_callback = cb;
 }
 
 void cf_ipc_set_term(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_term cb) { 

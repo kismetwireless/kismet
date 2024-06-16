@@ -974,15 +974,18 @@ struct cf_ipc {
 
     int in_fd;
     int out_fd;
+    int err_fd;
 
     kis_simple_ringbuf_t *in_ringbuf;
     kis_simple_ringbuf_t *out_ringbuf;
+    kis_simple_ringbuf_t *err_ringbuf;
 
     int retry_rx;
 
     pthread_mutex_t out_ringbuf_lock;
 
     cf_callback_ipc_data rx_callback;
+    cf_callback_ipc_data err_callback;
     cf_callback_ipc_term term_callback;
 
     struct cf_ipc *next;
