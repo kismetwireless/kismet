@@ -350,12 +350,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         /* Is this a serial #? */
-        num_device = rtlsdr_get_index_by_serial(subinterface);
+        num_device = rtlsdr_get_index_by_serial(subinterface + 1);
 
         if (num_device >= 0) { 
             matched_device = 1;
         } else { 
-            if (sscanf(subinterface, "%u", &num_device) == 1) { 
+            if (sscanf(subinterface + 1, "%u", &num_device) == 1) {
                 if (rtlsdr_get_device_name(num_device) != NULL) { 
                     matched_device = 1;
                 }
@@ -419,16 +419,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     snprintf(buf, STATUS_MAX, "%lu", local433->freq);
 
+    /* Aggregate any additional arguments and add to num_args */
+
     local433->rtl_argv = (char **) malloc(sizeof(char *) * (num_args + 1));
 
-    local433->rtl_argv[0] = strdup("rtl_433");
-    local433->rtl_argv[1] = strdup("-F");
-    local433->rtl_argv[2] = strdup("json");
-    local433->rtl_argv[3] = strdup("-M");
-    local433->rtl_argv[4] = strdup("level");
-    local433->rtl_argv[5] = strdup("-f");
-    local433->rtl_argv[6] = strdup(buf);
-    n = 7;
+    n = 0;
+    local433->rtl_argv[n++] = strdup("rtl_433");
+    local433->rtl_argv[n++] = strdup("-d");
+    snprintf(buf, STATUS_MAX, "%u", num_device);
+    local433->rtl_argv[n++] = strdup(buf);
+    local433->rtl_argv[n++] = strdup("-F");
+    local433->rtl_argv[n++] = strdup("json");
+    local433->rtl_argv[n++] = strdup("-M");
+    local433->rtl_argv[n++] = strdup("level");
+    local433->rtl_argv[n++] = strdup("-f");
+    snprintf(buf, STATUS_MAX, "%lu", local433->freq);
+    local433->rtl_argv[n++] = strdup(buf);
 
     /* Add any other future arguments */
 
