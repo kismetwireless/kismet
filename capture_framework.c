@@ -1247,6 +1247,7 @@ void *cf_int_capture_thread(void *arg) {
  * if not tracked elsewhere.
  */
 void cf_process_child_signals(kis_capture_handler_t *caph) {
+    printf("debug - process child signals\n");
     while (1) {
         int pid_status;
         pid_t caught_pid;
@@ -2552,6 +2553,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             ipc_iter = caph->ipc_list;
 
             while (ipc_iter != NULL) {
+                if (ipc_iter->running == 0) {
+                    ipc_iter = ipc_iter->next;
+                    continue;
+                }
+
                 if (spindown == 0) {
                     FD_SET(ipc_iter->out_fd, &rset);
                     if (max_fd < ipc_iter->out_fd)
@@ -2619,14 +2625,19 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             ipc_iter = caph->ipc_list;
 
             while (ipc_iter != NULL) {
-                /* If the IPC handler wants to be re-called, do it immediately 
+                if (ipc_iter->running == 0) {
+                    ipc_iter = ipc_iter->next;
+                    continue;
+                }
+
+                /* If the IPC handler wants to be re-called, do it immediately
                  * regardless of incoming data */
                 if (ipc_iter->retry_rx && ipc_iter->rx_callback != NULL) {
                     ipc_iter->rx_callback(caph, ipc_iter, 0);
                 }
 
                 /* Handle stdout ops into the buffer */
-                if (FD_ISSET(ipc_iter->out_fd, &rset)) {
+                if (FD_ISSET(ipc_iter->out_fd, &rset) && ipc_iter->running) {
                     while (kis_simple_ringbuf_available(ipc_iter->in_ringbuf)) {
                         ssize_t amt_read;
                         size_t maxread = 0;
@@ -2638,13 +2649,21 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
                         amt_read = read(ipc_iter->out_fd, buf, maxread);
 
-                        if (amt_read <= 0) { 
+                        if (amt_read == 0) {
+                            kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, 0);
+                            if (ipc_iter->term_callback != NULL) {
+                                ipc_iter->term_callback(caph, ipc_iter, -1);
+                            }
+                            ipc_iter->running = 0;
+                            break;
+                        } else if (amt_read < 0) {
                             kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, 0);
 
                             if (errno != EINTR && errno != EAGAIN) {
                                 if (ipc_iter->term_callback != NULL) {
                                     ipc_iter->term_callback(caph, ipc_iter, -1);
                                 }
+                                ipc_iter->running = 0;
                             }
 
                             break;
@@ -2663,7 +2682,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     }
                 }
 
-                if (FD_ISSET(ipc_iter->err_fd, &rset)) {
+                if (FD_ISSET(ipc_iter->err_fd, &rset) && ipc_iter->running) {
                     while (kis_simple_ringbuf_available(ipc_iter->err_ringbuf)) {
                         ssize_t amt_read;
                         size_t maxread = 0;
@@ -2675,13 +2694,21 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
                         amt_read = read(ipc_iter->err_fd, buf, maxread);
 
-                        if (amt_read <= 0) {
+                        if (amt_read == 0) {
+                            kis_simple_ringbuf_commit(ipc_iter->err_ringbuf, buf, 0);
+                            if (ipc_iter->term_callback != NULL) {
+                                ipc_iter->term_callback(caph, ipc_iter, -1);
+                            }
+                            ipc_iter->running = 0;
+                            break;
+                        } else if (amt_read < 0) {
                             kis_simple_ringbuf_commit(ipc_iter->err_ringbuf, buf, 0);
 
                             if (errno != EINTR && errno != EAGAIN) {
                                 if (ipc_iter->term_callback != NULL) {
                                     ipc_iter->term_callback(caph, ipc_iter, -1);
                                 }
+                                ipc_iter->running = 0;
                             }
 
                             break;
@@ -2700,7 +2727,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 }
 
                 /* Write anything queued to the stdin of the forked process */
-                if (FD_ISSET(ipc_iter->in_fd, &wset)) {
+                if (FD_ISSET(ipc_iter->in_fd, &wset) && ipc_iter->running) {
                     pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
 
                     if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
@@ -2722,6 +2749,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                                     if (ipc_iter->term_callback != NULL) {
                                         ipc_iter->term_callback(caph, ipc_iter, -1);
                                     }
+                                    ipc_iter->running = 0;
                                 }
 
                             } else {
@@ -4266,6 +4294,8 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
 
         ret = (cf_ipc_t *) malloc(sizeof(cf_ipc_t));
         memset(ret, 0, sizeof(cf_ipc_t));
+
+        ret->running = 1;
 
         ret->in_fd = inpair[1];
         ret->out_fd = outpair[0];

@@ -972,6 +972,8 @@ typedef void (*cf_callback_ipc_term)(kis_capture_handler_t *, cf_ipc_t *, int rc
 struct cf_ipc {
     pid_t pid;
 
+    int running;
+
     int in_fd;
     int out_fd;
     int err_fd;
