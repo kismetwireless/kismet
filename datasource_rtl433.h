@@ -76,8 +76,10 @@ public:
         set_local_capable(true);
         set_remote_capable(true);
         set_passive_capable(false);
-        set_tune_capable(true);
-        set_hop_capable(true);
+
+        // We can't live-tune or hop
+        set_tune_capable(false);
+        set_hop_capable(false);
     }
 };
 
