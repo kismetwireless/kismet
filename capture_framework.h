@@ -993,6 +993,9 @@ struct cf_ipc {
     struct cf_ipc *next;
 };
 
+#define wrap_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
+#define wrap_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
+
 /* Find a program in $PATH 
  *
  * Search the $PATH environment for the given executable, and see if it IS executable. 
