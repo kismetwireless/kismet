@@ -111,20 +111,24 @@ BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 CAPTURE_OSX_COREWLAN = capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 
-CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
-BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
+# CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
+# BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
 
-CAPTURE_SDR_RTL433V2 = capture_sdr_rtl433_v2/kismet_cap_sdr_rtl433_v2
+# CAPTURE_SDR_RTLAMR = capture_sdr_rtlamr/kismet_cap_sdr_rtlamr
+# BUILD_CAPTURE_SDR_RTLAMR = @BUILD_CAPTURE_SDR_RTLAMR@
+
+# CAPTURE_SDR_RTLADSB = capture_sdr_rtladsb/kismet_cap_sdr_rtladsb
+# BUILD_CAPTURE_SDR_RTLADSB = @BUILD_CAPTURE_SDR_RTLADSB@
+
+# CAPTURE_BT_GEIGER = capture_bt_geiger/kismet_cap_bt_geiger
+# BUILD_CAPTURE_BT_GEIGER = @BUILD_CAPTURE_BT_GEIGER@
+#
+CAPTURE_SDR_RTL433V2 = capture_sdr_rtl433_v2/kismet_cap_sdr_rtl433
 BUILD_CAPTURE_SDR_RTL433V2 = @BUILD_CAPTURE_SDR_RTL433V2@
 
-CAPTURE_SDR_RTLAMR = capture_sdr_rtlamr/kismet_cap_sdr_rtlamr
-BUILD_CAPTURE_SDR_RTLAMR = @BUILD_CAPTURE_SDR_RTLAMR@
+CAPTURE_SDR_RTLADSBV2 = capture_sdr_rtladsb_v2/kismet_cap_sdr_rtladsb
+BUILD_CAPTURE_SDR_RTLADSBV2 = @BUILD_CAPTURE_SDR_RTLADSBV2@
 
-CAPTURE_SDR_RTLADSB = capture_sdr_rtladsb/kismet_cap_sdr_rtladsb
-BUILD_CAPTURE_SDR_RTLADSB = @BUILD_CAPTURE_SDR_RTLADSB@
-
-CAPTURE_BT_GEIGER = capture_bt_geiger/kismet_cap_bt_geiger
-BUILD_CAPTURE_BT_GEIGER = @BUILD_CAPTURE_BT_GEIGER@
 
 CAPTURE_FREAKLABS_ZIGBEE = capture_freaklabs_zigbee/kismet_cap_freaklabs_zigbee
 BUILD_CAPTURE_FREAKLABS_ZIGBEE = @BUILD_CAPTURE_FREAKLABS_ZIGBEE@
@@ -234,8 +238,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
-	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtl433_v2.cc.o \
-	datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
+	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
@@ -358,20 +361,23 @@ $(CAPTURE_OPENBSD_WIFI):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_OSX_COREWLAN): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_osx_corewlan_wifi && $(MAKE))
 
-$(CAPTURE_SDR_RTL433): FORCE
-	(cd capture_sdr_rtl433 && $(MAKE))
+# $(CAPTURE_SDR_RTL433): FORCE
+# 	(cd capture_sdr_rtl433 && $(MAKE))
+# 
+# $(CAPTURE_SDR_RTLAMR): FORCE
+# 	(cd capture_sdr_rtlamr && $(MAKE))
+# 
+# $(CAPTURE_SDR_RTLADSB): FORCE
+# 	(cd capture_sdr_rtladsb && $(MAKE))
+# 
+# $(CAPTURE_BT_GEIGER): FORCE
+# 	(cd capture_bt_geiger && $(MAKE))
 
 $(CAPTURE_SDR_RTL433V2): FORCE
 	(cd capture_sdr_rtl433_v2 && $(MAKE))
 
-$(CAPTURE_SDR_RTLAMR): FORCE
-	(cd capture_sdr_rtlamr && $(MAKE))
-
-$(CAPTURE_SDR_RTLADSB): FORCE
-	(cd capture_sdr_rtladsb && $(MAKE))
-
-$(CAPTURE_BT_GEIGER): FORCE
-	(cd capture_bt_geiger && $(MAKE))
+$(CAPTURE_SDR_RTLADSBV2): FORCE
+	(cd capture_sdr_rtladsb_v2 && $(MAKE))
 
 $(CAPTURE_HACKRF_SWEEP):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
@@ -599,21 +605,21 @@ commoninstall: $(INSTBINS)
 		cp capture_hak5_wifi_coconut/libwifiuserspace/firmware/rt2870.bin $(SHARE)/firmware/ ; \
 	fi;
 
-	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
-		(cd capture_sdr_rtl433 && $(MAKE) install) \
-	fi;
+	# @if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
+	# 	(cd capture_sdr_rtl433 && $(MAKE) install) \
+	# fi;
 
-	@if test "$(BUILD_CAPTURE_SDR_RTLAMR)"x = "1"x; then \
-		(cd capture_sdr_rtlamr && $(MAKE) install) \
-	fi;
+	# @if test "$(BUILD_CAPTURE_SDR_RTLAMR)"x = "1"x; then \
+	# 	(cd capture_sdr_rtlamr && $(MAKE) install) \
+	# fi;
 
-	@if test "$(BUILD_CAPTURE_SDR_RTLADSB)"x = "1"x; then \
-		(cd capture_sdr_rtladsb && $(MAKE) install) \
-	fi;
+	# @if test "$(BUILD_CAPTURE_SDR_RTLADSB)"x = "1"x; then \
+	# 	(cd capture_sdr_rtladsb && $(MAKE) install) \
+	# fi;
 
-	@if test "$(BUILD_CAPTURE_BT_GEIGER)"x = "1"x; then \
-		(cd capture_bt_geiger && $(MAKE) install) \
-	fi;
+	# @if test "$(BUILD_CAPTURE_BT_GEIGER)"x = "1"x; then \
+	# 	(cd capture_bt_geiger && $(MAKE) install) \
+	# fi;
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEE)"x = "1"x; then \
 		(cd capture_freaklabs_zigbee && $(MAKE) install) \
@@ -806,9 +812,9 @@ clean: all-plugins-clean depclean
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_openbsd_wifi && make clean)
 	@(cd capture_freaklabs_zigbee &&  make clean)
-	@(cd capture_sdr_rtl433 && make clean)
-	@(cd capture_sdr_rtlamr && make clean)
-	@(cd capture_sdr_rtladsb && make clean)
+	# @(cd capture_sdr_rtl433 && make clean)
+	# @(cd capture_sdr_rtlamr && make clean)
+	# @(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ti_cc_2531 && make clean)

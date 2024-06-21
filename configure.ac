@@ -34,7 +34,7 @@ BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=0
 BUILD_CAPTURE_SDR_RTLAMR=0
-BUILD_CAPTURE_SDR_RTLADSB=1
+BUILD_CAPTURE_SDR_RTLADSB=0
 BUILD_CAPTURE_BT_GEIGER=0
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
@@ -42,6 +42,7 @@ BUILD_CAPTURE_TI_CC_2540=0
 BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_SDR_RTL433V2=0
+BUILD_CAPTURE_SDR_RTLADSBV2=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
@@ -1838,6 +1839,11 @@ if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433V2)"
 fi
 
+BUILD_CAPTURE_SDR_RTLADSBV2=0
+if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
+    BUILD_CAPTURE_SDR_RTLADSBV2=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTLADSBV2)"
+fi
 
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
@@ -2020,10 +2026,11 @@ AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OPENBSD_WIFI)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
-AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_BT_GEIGER)
+AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
+AC_SUBST(BUILD_CAPTURE_SDR_RTLADSBV2)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 AC_SUBST(BUILD_CAPTURE_TI_CC_2540)
@@ -2053,13 +2060,11 @@ AC_CONFIG_FILES([
     capture_linux_wifi/Makefile 
     capture_openbsd_wifi/Makefile
     capture_osx_corewlan_wifi/Makefile 
-    capture_sdr_rtl433/Makefile 
-    capture_sdr_rtlamr/Makefile 
-    capture_sdr_rtladsb/Makefile 
-    capture_sdr_rtl433_v2/Makefile 
     capture_bt_geiger/Makefile 
     capture_freaklabs_zigbee/Makefile 
     capture_nrf_mousejack/Makefile 
+    capture_sdr_rtl433_v2/Makefile 
+    capture_sdr_rtladsb_v2/Makefile 
     capture_ti_cc_2540/Makefile 
     capture_ti_cc_2531/Makefile 
     capture_ubertooth_one/Makefile 
@@ -2262,19 +2267,6 @@ else
 	echo "no (python modules are disabled)";
 fi
 
-printf "    RTL-SDR RTL_433 V2: "
-if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then
-	echo "yes";
-else
-    if test "$have_usb" != "yes"; then
-	    echo "no (libusb not available)";
-    elif test "$have_rtlsdr" != "yes"; then
-        echo "no (librtlsdr not available)";
-    else
-        echo "no (not available)";
-    fi
-fi
-
 printf "        RTL-SDR RTLAMR: "
 if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
         echo "yes";
@@ -2308,6 +2300,32 @@ if test "$BUILD_CAPTURE_PROXY_ADSB" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "    RTL-SDR RTL_433 V2: "
+if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then
+	echo "yes";
+else
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
+fi
+
+printf "       RTL-SDR ADSB V2: "
+if test "$BUILD_CAPTURE_SDR_RTLADSBV2" = 1; then
+	echo "yes";
+else
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
 fi
 
 printf "        ANTSDR DroneID: "
