@@ -241,7 +241,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         }
 
         /* Is this a serial #? */
-        num_device = rtlsdr_get_index_by_serial(subinterface);
+        num_device = rtlsdr_get_index_by_serial(subinterface + 1);
 
         if (num_device >= 0) { 
             matched_device = 1;
@@ -282,8 +282,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         hash = adler32_csum((unsigned char *) buf, strlen(buf));
 
         snprintf(buf, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433_v2",
-                    strlen("kismet_cap_sdr_rtl433_v2")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433",
+                    strlen("kismet_cap_sdr_rtl433")) & 0xFFFFFFFF,
                 hash & 0xFFFFFFFF);
         *uuid = strdup(buf);
     }
@@ -391,8 +391,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         hash = adler32_csum((unsigned char *) buf, strlen(buf));
 
         snprintf(buf, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433_v2",
-                    strlen("kismet_cap_sdr_rtl433_v2")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) "kismet_cap_sdr_rtl433",
+                    strlen("kismet_cap_sdr_rtl433")) & 0xFFFFFFFF,
                 hash & 0xFFFFFFFF);
         *uuid = strdup(buf);
     }
@@ -466,7 +466,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 void capture_thread(kis_capture_handler_t *caph) {
     local_rtl433_t *local433 = (local_rtl433_t *) caph->userdata;
 
-    pthread_cond_wait(&local433->rtl433_valid_cond,
+    wrap_cond_wait(&local433->rtl433_valid_cond,
             &local433->rtl433_valid_cond_mutex);
     pthread_mutex_unlock(&local433->rtl433_valid_cond_mutex);
 
