@@ -2,7 +2,7 @@ include ../Makefile.inc
 
 MONITOR_OBJS = \
 	capture_sdr_rtl433_v2.c.o
-MONITOR_BIN = kismet_cap_sdr_rtl433_v2
+MONITOR_BIN = kismet_cap_sdr_rtl433
 
 all: $(MONITOR_BIN)
 
