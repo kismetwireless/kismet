@@ -124,8 +124,6 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
         buf[newline] = '\0';
         gettimeofday(&tv, NULL);
 
-        printf("debug - %s\n", buf);
-
         /*
          * Since we're part of the core IO loop, not a capture thread, we need to
          * just fail if the tx buffer is full.
@@ -149,7 +147,6 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
 
     if (fail) {
         /* Unlock the capture thread and die */
-        printf("debug - fail\n");
         pthread_cond_broadcast(&local433->rtl433_valid_cond);
         cf_handler_spindown(caph);
     }
