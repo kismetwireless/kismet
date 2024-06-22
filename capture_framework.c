@@ -1802,8 +1802,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
             kismet_datasource__open_source__free_unpacked(open_cmd, NULL);
 
             if (caph->remote_host) {
-                fprintf(stderr, "INFO: %s:%u starting capture...\n",
-                        caph->remote_host, caph->remote_port);
+                fprintf(stderr, "INFO: %s:%u starting capture...\n", caph->remote_host, caph->remote_port);
             }
 
             if (cbret >= 0) {
@@ -2204,13 +2203,11 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     cps = NULL;
 
     if (caph->probe_cb == NULL) {
-        fprintf(stderr, "FATAL - unable to connect as remote source when no probe callback "
-                "provided.\n");
+        fprintf(stderr, "FATAL - unable to connect as remote source when no probe callback provided.\n");
         return -1;
     }
 
-    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, 
-            NULL, &cpi, &cps);
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, NULL, &cpi, &cps);
 
     if (cpi != NULL)
         cf_params_interface_free(cpi);
