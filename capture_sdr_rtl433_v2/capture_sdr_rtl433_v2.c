@@ -124,13 +124,15 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
         buf[newline] = '\0';
         gettimeofday(&tv, NULL);
 
+        printf("debug - %s\n", buf);
+
         /*
          * Since we're part of the core IO loop, not a capture thread, we need to
          * just fail if the tx buffer is full.
          *
          * Since rtl433 json RX is pretty slow, this shouldn't be a major problem
          */
-        r = cf_send_json(caph, NULL, NULL, NULL, tv, "rtl433", (char *) buf);
+        r = cf_send_json(caph, NULL, NULL, NULL, tv, "RTL433", (char *) buf);
         if (r < 0) {
             snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame to Kismet", local433->name);
             fprintf(stderr, "%s", errstr);
@@ -147,6 +149,7 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
 
     if (fail) {
         /* Unlock the capture thread and die */
+        printf("debug - fail\n");
         pthread_cond_broadcast(&local433->rtl433_valid_cond);
         cf_handler_spindown(caph);
     }
@@ -161,7 +164,7 @@ void ipc_handle_terminate(kis_capture_handler_t *caph, cf_ipc_t *ipc, int rc) {
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
                   cf_params_list_interface_t ***interfaces) {
-    int num_radios = rtlsdr_get_device_count();
+    unsigned int num_radios = rtlsdr_get_device_count();
     int i;
     char buf[256];
 
@@ -193,6 +196,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
+    unsigned int num_devices = 0;
 	int matched_device = 0;
 	int num_device = 0;
 
@@ -226,6 +230,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
+    num_devices = rtlsdr_get_device_count();
+
     /* Alias 'rtl433' to 'rtl433-0' */
     if (strlen(interface) == strlen("rtl433")) {
         matched_device = 1;
@@ -244,8 +250,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         if (num_device >= 0) { 
             matched_device = 1;
         } else { 
-            if (sscanf(subinterface, "%u", &num_device) == 1) { 
-                if (rtlsdr_get_device_name(num_device) != NULL) { 
+            if (sscanf(subinterface, "%d", &num_device) == 1) {
+                if (num_device >= 0 && num_device < num_devices) {
                     matched_device = 1;
                 }
             }
@@ -265,8 +271,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     (*ret_interface)->capif = strdup(buf);
     (*ret_interface)->hardware = strdup("rtlsdr");
 
-    if (rtlsdr_get_device_usb_strings(num_device, manuf_buf,
-                product_buf, serial_buf) != 0) { 
+    if (rtlsdr_get_device_usb_strings(num_device, manuf_buf, product_buf, serial_buf) != 0) {
         snprintf(msg, STATUS_MAX, "Unable to find rtl433 device");
         return 0;
     }
@@ -302,6 +307,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
+    uint32_t num_devices = 0;
+
 	int matched_device = 0;
 	int num_device = 0;
 
@@ -335,6 +342,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return 0;
     }
 
+    num_devices = rtlsdr_get_device_count();
+
     /* Alias 'rtl433' to 'rtl433-0' */
     if (strlen(interface) == strlen("rtl433")) {
         matched_device = 1;
@@ -350,11 +359,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* Is this a serial #? */
         num_device = rtlsdr_get_index_by_serial(subinterface + 1);
 
-        if (num_device >= 0) { 
+        if (num_device >= 0) {
             matched_device = 1;
-        } else { 
-            if (sscanf(subinterface + 1, "%u", &num_device) == 1) {
-                if (rtlsdr_get_device_name(num_device) != NULL) { 
+        } else {
+            if (sscanf(subinterface + 1, "%d", &num_device) == 1) {
+                if (num_device >= 0 && num_device < num_devices) {
                     matched_device = 1;
                 }
             }

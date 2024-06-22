@@ -92,18 +92,39 @@ typedef struct {
 
     int quality;
     int allowed_errors;
+    int pass_non_crc;
 
-    int adsb_frame[14];
+    uint8_t adsb_frame[14];
 
     int do_exit;
 
     uint8_t buffer[DEFAULT_BUF_LENGTH];
 
     int gain;
-
     int ppm;
-
 } local_adsb_t;
+
+uint32_t modes_checksum_table[] = {
+        0x3935ea, 0x1c9af5, 0xf1b77e, 0x78dbbf, 0xc397db, 0x9e31e9,
+        0xb0e2f0, 0x587178, 0x2c38bc, 0x161c5e, 0x0b0e2f, 0xfa7d13,
+        0x82c48d, 0xbe9842, 0x5f4c21, 0xd05c14, 0x682e0a, 0x341705,
+        0xe5f186, 0x72f8c3, 0xc68665, 0x9cb936, 0x4e5c9b, 0xd8d449,
+        0x939020, 0x49c810, 0x24e408, 0x127204, 0x093902, 0x049c81,
+        0xfdb444, 0x7eda22, 0x3f6d11, 0xe04c8c, 0x702646, 0x381323,
+        0xe3f395, 0x8e03ce, 0x4701e7, 0xdc7af7, 0x91c77f, 0xb719bb,
+        0xa476d9, 0xadc168, 0x56e0b4, 0x2b705a, 0x15b82d, 0xf52612,
+        0x7a9309, 0xc2b380, 0x6159c0, 0x30ace0, 0x185670, 0x0c2b38,
+        0x06159c, 0x030ace, 0x018567, 0xff38b7, 0x80665f, 0xbfc92b,
+        0xa01e91, 0xaff54c, 0x57faa6, 0x2bfd53, 0xea04ad, 0x8af852,
+        0x457c29, 0xdd4410, 0x6ea208, 0x375104, 0x1ba882, 0x0dd441,
+        0xf91024, 0x7c8812, 0x3e4409, 0xe0d800, 0x706c00, 0x383600,
+        0x1c1b00, 0x0e0d80, 0x0706c0, 0x038360, 0x01c1b0, 0x00e0d8,
+        0x00706c, 0x003836, 0x001c1b, 0xfff409, 0x000000, 0x000000,
+        0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+        0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+        0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+        0x000000, 0x000000, 0x000000, 0x000000
+};
 
 /* Find the nearest supported gain */
 int nearest_gain(rtlsdr_dev_t *dev, int target_gain) {
@@ -222,8 +243,44 @@ uint16_t single_manchester(kis_capture_handler_t *caph, uint16_t a,
 }
 
 inline uint16_t min16(uint16_t a, uint16_t b) { return a < b ? a : b; }
-
 inline uint16_t max16(uint16_t a, uint16_t b) { return a > b ? a : b; }
+
+uint32_t modes_checksum(const uint8_t *buf, size_t len) {
+    uint32_t crc = 0;
+    size_t offset = 0;
+
+    if (len < 7)
+        return 0;
+
+    if (len != 14)
+        offset = 112 - 56;
+
+    for (unsigned int j = 0; j < len * 8; j++) {
+        uint8_t b = j / 8;
+        uint8_t bit = j % 8;
+        uint8_t mask = 1 << (7 - bit);
+
+        if (buf[b] & mask) {
+            crc ^= modes_checksum_table[j + offset];
+        }
+    }
+
+    return (crc & 0x00FFFFFF);
+}
+
+uint32_t adsb_msg_get_crc(const uint8_t *buf, size_t len) {
+    if (len < 7) {
+        return 0;
+    }
+
+    uint32_t crc = 0;
+
+    crc = buf[len - 3] << 16;
+    crc |= buf[len - 2] << 8;
+    crc |= buf[len - 1];
+
+    return crc & 0x00FFFFFF;
+}
 
 /* returns 0/1 for preamble at index i */
 int preamble(uint16_t *buf, int i) {
@@ -310,6 +367,7 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
     struct timeval tv;
     char adsb_char[(14*2) + 1];
     char json[256];
+    uint32_t crc1, crc2;
 
     for (i = 0; i < len; i++) {
         if (buf[i] > 1) {
@@ -347,6 +405,13 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
             continue;
         }
 
+        crc1 = adsb_msg_get_crc(adsb->adsb_frame, frame_len / 8);
+        crc2 = modes_checksum(adsb->adsb_frame, frame_len / 8);
+
+        if (crc1 != crc2) {
+            continue;
+        }
+
         df = (adsb->adsb_frame[0] >> 3) & 0x1f;
         if (adsb->quality == 0 && !(df == 11 || df == 17 || df == 18 || df == 19)) {
             continue;
@@ -359,8 +424,6 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
         snprintf(json, 256, "{\"adsb\": \"*%s;\"}", adsb_char);
 
         /* Transmit the adsb frame as a JSON */
-
-        printf("debug - %s\n", json);
 
         gettimeofday(&tv, NULL);
 
@@ -413,7 +476,7 @@ static void *rtlsdr_demod_thread(void *arg) {
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg, 
         cf_params_list_interface_t ***interfaces) {
-    int num_radios = rtlsdr_get_device_count();
+    unsigned int num_radios = rtlsdr_get_device_count();
     int i;
     char buf[256];
 
@@ -445,6 +508,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
+    unsigned int num_devices = 0;
     int matched_device = 0;
     int num_device = 0;
 
@@ -473,6 +537,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
+    num_devices = rtlsdr_get_device_count();
+
     if (strlen(interface) == strlen("rtladsb")) {
         matched_device = 1;
         num_device = 0;
@@ -491,7 +557,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             matched_device = 1;
         } else {
             if (sscanf(subinterface, "%u", &num_device) == 1) {
-                if (rtlsdr_get_device_name(num_device) != NULL) {
+                if (num_device >= 0 && num_device < num_devices) {
                     matched_device = 1;
                 }
             }
@@ -555,6 +621,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char *interface;
     char *subinterface;
 
+    unsigned int num_devices = 0;
     int matched_device = 0;
     int num_device = 0;
 
@@ -580,6 +647,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return 0;
     }
 
+    num_devices = rtlsdr_get_device_count();
+
     if (strlen(interface) == strlen("rtladsb")) {
         matched_device = 1;
         num_device = 0;
@@ -598,7 +667,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             matched_device = 1;
         } else {
             if (sscanf(subinterface + 1, "%u", &num_device) == 1) {
-                if (rtlsdr_get_device_name(num_device) != NULL) {
+                if (num_device >= 0 && num_device < num_devices) {
                     matched_device = 1;
                 }
             }
@@ -662,6 +731,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         free(tmp);
         tmp = NULL;
+    }
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "pass_invalid", definition)) > 0) {
+        if (strncmp(placeholder, "true", placeholder_len) == 0) {
+            adsb->pass_non_crc = 1;
+        }
     }
 
     r = rtlsdr_open(&adsb->dev, num_device);
@@ -762,7 +837,8 @@ int main(int argc, char *argv[]) {
     local_adsb_t local_adsb = {
         .dev = NULL,
         .quality = 10, 
-        .allowed_errors = 5, 
+        .allowed_errors = 5,
+        .pass_non_crc = 0,
         .do_exit = 0,
         .gain = AUTO_GAIN, 
         .ppm = 0,
