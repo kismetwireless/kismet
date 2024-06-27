@@ -49,21 +49,25 @@ AC_DEFUN([AX_CHECK_OPENSSL], [
               ;;
             esac
         ], [
-            # if pkg-config is installed and openssl has installed a .pc file,
-            # then use that information and don't search ssldirs
-            AC_CHECK_TOOL([PKG_CONFIG], [pkg-config])
-            if test x"$PKG_CONFIG" != x""; then
-                OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
-                if test $? = 0; then
-                    OPENSSL_LIBS=`$PKG_CONFIG openssl --libs-only-l 2>/dev/null`
-                    OPENSSL_INCLUDES=`$PKG_CONFIG openssl --cflags-only-I 2>/dev/null`
-                    found=true
+            if test x"$SSL_DIRS" == x""; then
+                # if pkg-config is installed and openssl has installed a .pc file,
+                # then use that information and don't search ssldirs
+                AC_CHECK_TOOL([PKG_CONFIG], [pkg-config])
+                if test x"$PKG_CONFIG" != x""; then
+                    OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
+                    if test $? = 0; then
+                        OPENSSL_LIBS=`$PKG_CONFIG openssl --libs-only-l 2>/dev/null`
+                        OPENSSL_INCLUDES=`$PKG_CONFIG openssl --cflags-only-I 2>/dev/null`
+                        found=true
+                    fi
                 fi
-            fi
 
-            # no such luck; use some default ssldirs
-            if ! $found; then
-                ssldirs="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr"
+                # no such luck; use some default ssldirs
+                if ! $found; then
+                    ssldirs="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr"
+                fi
+            else
+                ssldirs="$SSL_DIRS"
             fi
         ]
         )

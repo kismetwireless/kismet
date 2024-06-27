@@ -32,11 +32,6 @@ BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_KISMETDB=1
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
-BUILD_CAPTURE_SDR_RTL433=0
-BUILD_CAPTURE_SDR_RTLAMR=0
-BUILD_CAPTURE_SDR_RTLADSB=0
-BUILD_CAPTURE_BT_GEIGER=0
-BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
 BUILD_CAPTURE_TI_CC_2531=0
@@ -47,15 +42,22 @@ BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
-BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
 BUILD_CAPTURE_USB_RADIACODE=0
 BUILD_CAPTURE_ANTSDR_DRONEID=1
 
+# deprecated
+BUILD_CAPTURE_SDR_RTL433=0
+BUILD_CAPTURE_SDR_RTLAMR=0
+BUILD_CAPTURE_SDR_RTLADSB=0
+BUILD_CAPTURE_BT_GEIGER=0
+BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
+BUILD_CAPTURE_PROXY_ADSB=0
+
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
-BUILD_PYTHON_MODULES=1
+BUILD_PYTHON_MODULES=0
 
 # Liberated from ethereal's configure.in
 #
@@ -292,9 +294,31 @@ BASE_DIR=`(
 )`
 AC_SUBST(BASE_DIR)
 
-
 # Check for endian
 AC_C_BIGENDIAN
+
+# Check for brew
+want_homebrew=no
+AC_ARG_ENABLE([homebrew],
+    AS_HELP_STRING([--enable-homebrew], [Automatically enable detecting libraries from homebrew on macOS]),
+    [case "${enableval}" in
+        no) want_homebrew=no ;;
+        *) want_homebrew=yes ;;
+    esac],
+    [want_homebrew=no]
+)
+
+AS_IF([test x"$want_homebrew" != x""],
+    [
+        AC_MSG_CHECKING([for paths from homebrew])
+        AC_MSG_RESULT([ok])
+
+        LDFLAGS="-L`brew --prefix`/lib $LDFLAGS"
+        CPPFLAGS="-I`brew --prefix`/include -I`brew --prefix openssl`/include $CPPFLAGS"
+        SSL_DIRS=`brew --prefix openssl`
+    ],
+    []
+)
 
 # Enable thread debugging
 AC_ARG_ENABLE([mutex-name-debug],
@@ -350,11 +374,11 @@ AC_ARG_ENABLE([protobuflite],
 want_python=yes
 AC_ARG_ENABLE([python-tools],
     AS_HELP_STRING([--disable-python-tools], [Disable building Python modules and Python-only data sources]),
-	[case "${enableval}" in
-	  no) want_python=no ;;
-	   *) want_python=yes ;;
-	 esac],
-	[want_python=yes]
+       [case "${enableval}" in
+         no) want_python=no ;;
+          *) want_python=yes ;;
+        esac],
+       [want_python=yes]
 )
 
 PYTHON=python3
@@ -366,34 +390,12 @@ AC_ARG_WITH([python-interpreter],
 AS_IF([test "x$with_python_interpreter" != "x"],
     [
         PYTHON=$with_python_interpreter
-    ], 
+    ],
     []
 )
 
-if test "$want_python"x == "no"x; then
-    BUILD_PYTHON_MODULES=0
-    BUILD_CAPTURE_SDR_RTL433=0
-    BUILD_CAPTURE_SDR_RTLAMR=0
-    BUILD_CAPTURE_SDR_RTLADSB=0
-    BUILD_CAPTURE_BT_GEIGER=0
-    BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
-    BUILD_CAPTURE_PROXY_ADSB=0
-    AC_MSG_WARN([Disabling Python and Python-related tools])
-else
-    if test "$PYTHON_VERSION" == 3; then
-        AC_PYTHON3_MODULE(setuptools)
-    fi
-
-    if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        AC_MSG_ERROR([Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version])
-    else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
-        fi
-fi
 AC_SUBST(PYTHON)
 AC_SUBST(PYTHON_VERSION)
-AC_SUBST(BUILD_PYTHON_MODULES)
-
 
 # HAVE_LIBHACKRF=0
 # HAVE_LIBFFTW3=0
@@ -2060,9 +2062,7 @@ AC_CONFIG_FILES([
     capture_linux_wifi/Makefile 
     capture_openbsd_wifi/Makefile
     capture_osx_corewlan_wifi/Makefile 
-    capture_bt_geiger/Makefile 
-    capture_freaklabs_zigbee/Makefile 
-    capture_nrf_mousejack/Makefile 
+    capture_nrf_mousejack/Makefile
     capture_sdr_rtl433_v2/Makefile 
     capture_sdr_rtladsb_v2/Makefile 
     capture_ti_cc_2540/Makefile 
@@ -2251,56 +2251,7 @@ else
 fi
 
 printf "        Python Modules: "
-if test "$BUILD_PYTHON_MODULES" = 1; then
-	echo "yes";
-else
-	echo "no (will not build Python based sources)";
-fi
-
-printf "    Python interpreter: "
-echo $PYTHON
-
-printf "       RTL-SDR RTL_433: "
-if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
-	echo "yes";
-else
-	echo "no (python modules are disabled)";
-fi
-
-printf "        RTL-SDR RTLAMR: "
-if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
-        echo "yes";
-else
-        echo "no (python modules are disabled)";
-fi
-
-printf "       RTL-SDR RTLADSB: "
-if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
-        echo "yes";
-else
-        echo "no (python modules are disabled)";
-fi
-
-printf "    BTLE Geiger Sensor: "
-if test "$BUILD_CAPTURE_BT_GEIGER" = 1; then
-        echo "yes";
-else
-        echo "no (not explicitly enabled)";
-fi
-
-printf "      Freaklabs Zigbee: "
-if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
-	echo "yes";
-else
-	echo "no (python modules are disabled)";
-fi
-
-printf "            ADSB Proxy: "
-if test "$BUILD_CAPTURE_PROXY_ADSB" = 1; then
-	echo "yes";
-else
-	echo "no (python modules are disabled)";
-fi
+	echo "no (deprecated)";
 
 printf "    RTL-SDR RTL_433 V2: "
 if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then
