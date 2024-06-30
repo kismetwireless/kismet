@@ -65,6 +65,7 @@ capture_radiacode/kismet_cap_radiacode_usb
 capture_antsdr_droneid/kismet_cap_antsdr_droneid
 capture_sdr_rtl433_v2/kismet_cap_sdr_rtl433
 capture_sdr_rtladsb_v2/kismet_cap_sdr_rtladsb
+capture_freaklabs_zigbee_v2/kismet_cap_freaklabs_zigbee
 kismet_cap_pcapfile
 kismet_cap_kismetdb
 

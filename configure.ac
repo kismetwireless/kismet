@@ -38,6 +38,7 @@ BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_SDR_RTL433V2=0
 BUILD_CAPTURE_SDR_RTLADSBV2=0
+BUILD_CATPURE_FREAKLABS_ZIGBEEV2=1
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
@@ -1857,7 +1858,7 @@ fi
 BUILD_CAPTURE_SERIAL_RADVIEW=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SERIAL_RADVIEW)"
 
-# All this depends on is serial so we build it all the time
+# All these depend on is serial, so we build them all the time
 BUILD_CAPTURE_NRF_51822=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 
@@ -1866,6 +1867,9 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
 
 BUILD_CAPTURE_NRF_52840=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_52840)"
+
+BUILD_CAPTURE_FREAKLABS_ZIGBEEV2=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_FREAKLABS_ZIGBEEV2)"
 
 BUILD_CAPTURE_RZ_KILLERBEE=0
 if test "$have_usb" = "yes"; then
@@ -2033,7 +2037,7 @@ AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_BT_GEIGER)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSBV2)
-AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
+AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEEV2)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 AC_SUBST(BUILD_CAPTURE_TI_CC_2540)
 AC_SUBST(BUILD_CAPTURE_TI_CC_2531)
@@ -2064,7 +2068,8 @@ AC_CONFIG_FILES([
     capture_osx_corewlan_wifi/Makefile 
     capture_nrf_mousejack/Makefile
     capture_sdr_rtl433_v2/Makefile 
-    capture_sdr_rtladsb_v2/Makefile 
+    capture_sdr_rtladsb_v2/Makefile
+    capture_freaklabs_zigbee_v2/Makefile
     capture_ti_cc_2540/Makefile 
     capture_ti_cc_2531/Makefile 
     capture_ubertooth_one/Makefile 
@@ -2224,6 +2229,13 @@ fi
 
 printf "  NXP KW41Z BLE/Zigbee: "
 if test "$BUILD_CAPTURE_NXP_KW41Z" = 1; then
+        echo "yes";
+else
+        echo "no";
+fi
+
+printf "   Freaklabs Zigbee V2: "
+if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEEV2" = 1; then
         echo "yes";
 else
         echo "no";
