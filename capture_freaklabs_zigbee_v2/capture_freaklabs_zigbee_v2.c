@@ -52,6 +52,10 @@ typedef struct {
     kis_capture_handler_t *caph;
 } local_freaklabs_t;
 
+typedef struct {
+    unsigned int channel;
+} local_channel_t;
+
 int get_baud(int baud) {
     switch (baud) {
         case 9600:
@@ -93,6 +97,113 @@ int get_baud(int baud) {
         default:
             return -1;
     }
+}
+
+int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t *cmd,
+                  size_t len) {
+    char errstr[STATUS_MAX];
+    ssize_t fz_cmd_len;
+
+    typedef struct {
+        uint8_t magic[sizeof(magic)];
+        uint8_t version;
+        uint8_t cmd[0];
+    } __attribute__((packed)) fz_cmd;
+
+    fz_cmd *zcmd = NULL;
+
+    fz_cmd_len = sizeof(fz_cmd) + len;
+
+    zcmd = (fz_cmd *) malloc(fz_cmd_len);
+    memcpy(zcmd->magic, magic, sizeof(magic));
+    zcmd->version = 1;
+    memcpy(zcmd->cmd, cmd, len);
+
+    if (write(freak->fd, (unsigned char *) zcmd, fz_cmd_len) != fz_cmd_len) {
+        snprintf(errstr, STATUS_MAX, "%s failed to write command magic - %s",
+                 freak->name, strerror(errno));
+        cf_send_error(caph, 0, errstr);
+        cf_handler_spindown(caph);
+        return -1;
+    }
+
+    return 1;
+}
+
+int set_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t channel) {
+    int r;
+
+    typedef struct {
+        uint8_t cmd;
+        uint8_t pad;
+        uint8_t channel;
+    } __attribute__((packed)) fz_channel;
+
+    fz_channel zchan;
+
+    zchan.cmd = FZ_CMD_SET_CHANNEL;
+    zchan.pad = 1;
+    zchan.channel = channel;
+
+    r = write_command(caph, freak, (uint8_t *) &zchan, sizeof(fz_channel));
+
+    return r;
+}
+
+uint8_t get_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak) {
+    int r;
+    uint8_t get_chan = FZ_CMD_GET_CHANNEL;
+
+    r = write_command(caph, freak, &get_chan, 1);
+
+    return r;
+}
+
+
+void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+    local_channel_t *ret_localchan;
+    unsigned int parsechan;
+    char errstr[STATUS_MAX];
+
+    if (sscanf(chanstr, "%u", &parsechan) != 1) {
+        snprintf(errstr, STATUS_MAX, "unable to parse channel; freaklabs channels are integers");
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        return NULL;
+    }
+
+    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    ret_localchan->channel = parsechan;
+
+    return ret_localchan;
+}
+
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
+    local_freaklabs_t *localfreak = (local_freaklabs_t *) caph->userdata;
+    local_channel_t *channel = (local_channel_t *) privchan;
+
+    char errstr[STATUS_MAX];
+
+    if (privchan == NULL) {
+        return 0;
+    }
+
+    if ((localfreak->band == 0 && channel->channel != 0) ||
+            (localfreak->band == 1 && channel->channel > 11) ||
+            (localfreak->band == 2 && (channel->channel < 12 || channel->channel > 26))) {
+        snprintf(errstr, STATUS_MAX, "invalid channel for this freaklabs device");
+        cf_send_warning(caph, errstr);
+        return 1;
+    }
+
+    if (set_channel(caph, localfreak, channel->channel) < 0) {
+        snprintf(errstr, STATUS_MAX, "failed to set channel %u", channel->channel);
+        cf_send_warning(caph, errstr);
+        return 1;
+    }
+
+    localfreak->channel = channel->channel;
+
+    return 1;
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
@@ -328,66 +439,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
-int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t *cmd,
-                  size_t len) {
-    char errstr[STATUS_MAX];
-    ssize_t fz_cmd_len;
-
-    typedef struct {
-        uint8_t magic[sizeof(magic)];
-        uint8_t version;
-        uint8_t cmd[0];
-    } __attribute__((packed)) fz_cmd;
-
-    fz_cmd *zcmd = NULL;
-
-    fz_cmd_len = sizeof(fz_cmd) + len;
-
-    zcmd = (fz_cmd *) malloc(fz_cmd_len);
-    memcpy(zcmd->magic, magic, sizeof(magic));
-    zcmd->version = 1;
-    memcpy(zcmd->cmd, cmd, len);
-
-    if (write(freak->fd, (unsigned char *) zcmd, fz_cmd_len) != fz_cmd_len) {
-        snprintf(errstr, STATUS_MAX, "%s failed to write command magic - %s",
-                 freak->name, strerror(errno));
-        cf_send_error(caph, 0, errstr);
-        cf_handler_spindown(caph);
-        return -1;
-    }
-
-    return 1;
-}
-
-int set_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t channel) {
-    int r;
-
-    typedef struct {
-        uint8_t cmd;
-        uint8_t pad;
-        uint8_t channel;
-    } __attribute__((packed)) fz_channel;
-
-    fz_channel zchan;
-
-    zchan.cmd = FZ_CMD_SET_CHANNEL;
-    zchan.pad = 1;
-    zchan.channel = channel;
-
-    r = write_command(caph, freak, (uint8_t *) &zchan, sizeof(fz_channel));
-
-    return r;
-}
-
-uint8_t get_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak) {
-    int r;
-    uint8_t get_chan = FZ_CMD_GET_CHANNEL;
-
-    r = write_command(caph, freak, &get_chan, 1);
-
-    return r;
-}
-
 void capture_thread(kis_capture_handler_t *caph) {
     local_freaklabs_t *localfreak = (local_freaklabs_t *) caph->userdata;
 
@@ -561,10 +612,9 @@ int main(int argc, char *argv[]) {
     cf_handler_set_userdata(caph, &localfreak);
 
     cf_handler_set_open_cb(caph, open_callback);
-    cf_handler_set_probe_cb(caph, probe_callback); /**/
-    /* Channel callbacks */
-    /* cf_handler_set_chantranslate_cb(caph, chantranslate_callback); */
-    /* cf_handler_set_chancontrol_cb(caph, chancontrol_callback); */
+    cf_handler_set_probe_cb(caph, probe_callback);
+    cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
+    cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
