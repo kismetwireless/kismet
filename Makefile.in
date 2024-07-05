@@ -497,6 +497,18 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_USB_RADIACODE) $(BIN)/`basename $(CAPTURE_USB_RADIACODE)` ; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_SDR_RTL433V2)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTL433V2) $(BIN)/`basename $(CAPTURE_SDR_RTL433V2)` ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SDR_RTLADSBV2)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTLADSBV2) $(BIN)/`basename $(CAPTURE_SDR_RTLADSBV2)` ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEEV2)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_FREAKLABS_ZIGBEEV2) $(BIN)/`basename $(CAPTURE_FREAKLABS_ZIGBEEV2)` ; \
+	fi;
+
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
@@ -604,24 +616,16 @@ commoninstall: $(INSTBINS)
 		cp capture_hak5_wifi_coconut/libwifiuserspace/firmware/rt2870.bin $(SHARE)/firmware/ ; \
 	fi;
 
-	# @if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
-	# 	(cd capture_sdr_rtl433 && $(MAKE) install) \
-	# fi;
+	@if test "$(BUILD_CAPTURE_SDR_RTL433V2)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTL433V2) $(BIN)/`basename $(CAPTURE_SDR_RTL433V2)`; \
+	fi;
 
-	# @if test "$(BUILD_CAPTURE_SDR_RTLAMR)"x = "1"x; then \
-	# 	(cd capture_sdr_rtlamr && $(MAKE) install) \
-	# fi;
-
-	# @if test "$(BUILD_CAPTURE_SDR_RTLADSB)"x = "1"x; then \
-	# 	(cd capture_sdr_rtladsb && $(MAKE) install) \
-	# fi;
-
-	# @if test "$(BUILD_CAPTURE_BT_GEIGER)"x = "1"x; then \
-	# 	(cd capture_bt_geiger && $(MAKE) install) \
-	# fi;
+	@if test "$(BUILD_CAPTURE_SDR_RTLADSBV2)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTLADSBV2) $(BIN)/`basename $(CAPTURE_SDR_RTLADSBV2)`; \
+	fi;
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEEV2)"x = "1"x; then \
-		(cd capture_freaklabs_zigbee_v2 && $(MAKE) install) \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_FREAKLABS_ZIGBEEV2) $(BIN)/`basename $(CAPTURE_FREAKLABS_ZIGBEEV2)`; \
 	fi;
 
 	mkdir -p $(LIB)/pkgconfig
