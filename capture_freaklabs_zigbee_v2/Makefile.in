@@ -1,0 +1,27 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	capture_freaklabs_zigbee_v2.c.o
+MONITOR_BIN = kismet_cap_freaklabs_zigbee
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS)
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) -I../@PROTOBUF_C_DIR@ $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -I../@PROTOBUF_C_DIR@ -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+

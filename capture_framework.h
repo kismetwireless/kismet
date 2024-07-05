@@ -972,21 +972,29 @@ typedef void (*cf_callback_ipc_term)(kis_capture_handler_t *, cf_ipc_t *, int rc
 struct cf_ipc {
     pid_t pid;
 
+    int running;
+
     int in_fd;
     int out_fd;
+    int err_fd;
 
     kis_simple_ringbuf_t *in_ringbuf;
     kis_simple_ringbuf_t *out_ringbuf;
+    kis_simple_ringbuf_t *err_ringbuf;
 
     int retry_rx;
 
     pthread_mutex_t out_ringbuf_lock;
 
     cf_callback_ipc_data rx_callback;
+    cf_callback_ipc_data err_callback;
     cf_callback_ipc_term term_callback;
 
     struct cf_ipc *next;
 };
+
+#define wrap_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
+#define wrap_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
 
 /* Find a program in $PATH 
  *
