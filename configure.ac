@@ -303,13 +303,13 @@ want_homebrew=no
 AC_ARG_ENABLE([homebrew],
     AS_HELP_STRING([--enable-homebrew], [Automatically enable detecting libraries from homebrew on macOS]),
     [case "${enableval}" in
-        no) want_homebrew=no ;;
-        *) want_homebrew=yes ;;
+        yes) want_homebrew=yes ;;
+        *) want_homebrew=no ;;
     esac],
     [want_homebrew=no]
 )
 
-AS_IF([test x"$want_homebrew" != x""],
+AS_IF([test x"$want_homebrew" != x"no"],
     [
         AC_MSG_CHECKING([for paths from homebrew])
         AC_MSG_RESULT([ok])

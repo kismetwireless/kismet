@@ -662,7 +662,9 @@ BUILD_CAPTURE_UBERTOOTH_ONE
 BUILD_CAPTURE_TI_CC_2531
 BUILD_CAPTURE_TI_CC_2540
 BUILD_CAPTURE_NRF_MOUSEJACK
-BUILD_CAPTURE_FREAKLABS_ZIGBEE
+BUILD_CAPTURE_FREAKLABS_ZIGBEEV2
+BUILD_CAPTURE_SDR_RTLADSBV2
+BUILD_CAPTURE_SDR_RTL433V2
 BUILD_CAPTURE_BT_GEIGER
 BUILD_CAPTURE_SDR_RTLADSB
 BUILD_CAPTURE_SDR_RTLAMR
@@ -680,6 +682,10 @@ KSLIBS
 suidgroup
 libmosquitto_LIBS
 libmosquitto_CFLAGS
+LIBRTLCFLAGS
+LIBRTLLIBS
+librtlsdr_LIBS
+librtlsdr_CFLAGS
 LIBBTBBCFLAGS
 LIBBTBBLIBS
 LIBUBERTOOTHCFLAGS
@@ -753,7 +759,6 @@ CXXLIBS
 LIBMLIB
 PTHREAD_LIBS
 PTHREAD_CFLAGS
-BUILD_PYTHON_MODULES
 PYTHON_VERSION
 PYTHON
 ALLTARGETS
@@ -833,6 +838,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_homebrew
 enable_mutex_name_debug
 enable_capture_tools_only
 enable_element_typesafety
@@ -862,6 +868,7 @@ with_netlink_tiny
 enable_libusb
 enable_wifi_coconut
 enable_ubertooth
+enable_librtlsdr
 enable_mosquitto
 enable_lmsensors
 with_suidgroup
@@ -907,6 +914,8 @@ libnl1_CFLAGS
 libnl1_LIBS
 libusb_CFLAGS
 libusb_LIBS
+librtlsdr_CFLAGS
+librtlsdr_LIBS
 libmosquitto_CFLAGS
 libmosquitto_LIBS'
 
@@ -1529,6 +1538,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-homebrew       Automatically enable detecting libraries from
+                          homebrew on macOS
   --disable-mutex-name-debug
                           Disable naming of mutexes to help in debugging,
                           debugging will use slightly more RAM
@@ -1560,6 +1571,8 @@ Optional Features:
                           sources
   --enable-wifi-coconut   Enable Hak5 WiFi Coconut userspace
   --disable-ubertooth     Disable Ubertooth One support
+  --disable-librtlsdr     Disable librtlsdr support and any librtlsdr based
+                          data sources
   --disable-mosquitto     Disable MQTT support
   --disable-lmsensors     Disable lmsensors support
   --disable-optimization        disable -Ox gcc optimization
@@ -1640,6 +1653,10 @@ Some influential environment variables:
   libusb_CFLAGS
               C compiler flags for libusb, overriding pkg-config
   libusb_LIBS linker flags for libusb, overriding pkg-config
+  librtlsdr_CFLAGS
+              C compiler flags for librtlsdr, overriding pkg-config
+  librtlsdr_LIBS
+              linker flags for librtlsdr, overriding pkg-config
   libmosquitto_CFLAGS
               C compiler flags for libmosquitto, overriding pkg-config
   libmosquitto_LIBS
@@ -4799,28 +4816,33 @@ BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_KISMETDB=1
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
-BUILD_CAPTURE_SDR_RTL433=1
-BUILD_CAPTURE_SDR_RTLAMR=1
-BUILD_CAPTURE_SDR_RTLADSB=1
-BUILD_CAPTURE_BT_GEIGER=0
-BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
 BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
+BUILD_CAPTURE_SDR_RTL433V2=0
+BUILD_CAPTURE_SDR_RTLADSBV2=0
+BUILD_CATPURE_FREAKLABS_ZIGBEEV2=1
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
-BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
 BUILD_CAPTURE_USB_RADIACODE=0
 BUILD_CAPTURE_ANTSDR_DRONEID=1
 
+# deprecated
+BUILD_CAPTURE_SDR_RTL433=0
+BUILD_CAPTURE_SDR_RTLAMR=0
+BUILD_CAPTURE_SDR_RTLADSB=0
+BUILD_CAPTURE_BT_GEIGER=0
+BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
+BUILD_CAPTURE_PROXY_ADSB=0
+
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
-BUILD_PYTHON_MODULES=1
+BUILD_PYTHON_MODULES=0
 
 # Liberated from ethereal's configure.in
 #
@@ -10261,7 +10283,6 @@ BASE_DIR=`(
 )`
 
 
-
 # Check for endian
 ac_header= ac_cache=
 for ac_item in $ac_header_cxx_list
@@ -10526,6 +10547,35 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
  esac
 
 
+# Check for brew
+want_homebrew=no
+# Check whether --enable-homebrew was given.
+if test ${enable_homebrew+y}
+then :
+  enableval=$enable_homebrew; case "${enableval}" in
+        yes) want_homebrew=yes ;;
+        *) want_homebrew=no ;;
+    esac
+else $as_nop
+  want_homebrew=no
+
+fi
+
+
+if test x"$want_homebrew" != x"no"
+then :
+
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for paths from homebrew" >&5
+printf %s "checking for paths from homebrew... " >&6; }
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: ok" >&5
+printf "%s\n" "ok" >&6; }
+
+        LDFLAGS="-L`brew --prefix`/lib $LDFLAGS"
+        CPPFLAGS="-I`brew --prefix`/include -I`brew --prefix openssl`/include $CPPFLAGS"
+        SSL_DIRS=`brew --prefix openssl`
+
+fi
+
 # Enable thread debugging
 # Check whether --enable-mutex-name-debug was given.
 if test ${enable_mutex_name_debug+y}
@@ -10604,9 +10654,9 @@ want_python=yes
 if test ${enable_python_tools+y}
 then :
   enableval=$enable_python_tools; case "${enableval}" in
-	  no) want_python=no ;;
-	   *) want_python=yes ;;
-	 esac
+         no) want_python=no ;;
+          *) want_python=yes ;;
+        esac
 else $as_nop
   want_python=yes
 
@@ -10630,49 +10680,6 @@ then :
         PYTHON=$with_python_interpreter
 
 fi
-
-if test "$want_python"x == "no"x; then
-    BUILD_PYTHON_MODULES=0
-    BUILD_CAPTURE_SDR_RTL433=0
-    BUILD_CAPTURE_SDR_RTLAMR=0
-    BUILD_CAPTURE_SDR_RTLADSB=0
-    BUILD_CAPTURE_BT_GEIGER=0
-    BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
-    BUILD_CAPTURE_PROXY_ADSB=0
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Disabling Python and Python-related tools" >&5
-printf "%s\n" "$as_me: WARNING: Disabling Python and Python-related tools" >&2;}
-else
-    if test "$PYTHON_VERSION" == 3; then
-
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking python3 module: setuptools" >&5
-printf %s "checking python3 module: setuptools... " >&6; }
-	python3 -c "import setuptools" 2>/dev/null
-	if test $? -eq 0;
-	then
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-		eval HAVE_PYMOD_SETUPTOOLS=yes
-	else
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-		eval HAVE_PYMOD_SETUPTOOLS=no
-		#
-		if test -n ""
-		then
-			as_fn_error $? "failed to find required module setuptools" "$LINENO" 5
-			exit 1
-		fi
-	fi
-
-    fi
-
-    if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        as_fn_error $? "Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version" "$LINENO" 5
-    else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
-        fi
-fi
-
 
 
 
@@ -12823,9 +12830,10 @@ then :
 
 else $as_nop
 
-            # if pkg-config is installed and openssl has installed a .pc file,
-            # then use that information and don't search ssldirs
-            if test -n "$ac_tool_prefix"; then
+            if test x"$SSL_DIRS" == x""; then
+                # if pkg-config is installed and openssl has installed a .pc file,
+                # then use that information and don't search ssldirs
+                if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
 set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -12927,18 +12935,21 @@ else
   PKG_CONFIG="$ac_cv_prog_PKG_CONFIG"
 fi
 
-            if test x"$PKG_CONFIG" != x""; then
-                OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
-                if test $? = 0; then
-                    OPENSSL_LIBS=`$PKG_CONFIG openssl --libs-only-l 2>/dev/null`
-                    OPENSSL_INCLUDES=`$PKG_CONFIG openssl --cflags-only-I 2>/dev/null`
-                    found=true
+                if test x"$PKG_CONFIG" != x""; then
+                    OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
+                    if test $? = 0; then
+                        OPENSSL_LIBS=`$PKG_CONFIG openssl --libs-only-l 2>/dev/null`
+                        OPENSSL_INCLUDES=`$PKG_CONFIG openssl --cflags-only-I 2>/dev/null`
+                        found=true
+                    fi
                 fi
-            fi
 
-            # no such luck; use some default ssldirs
-            if ! $found; then
-                ssldirs="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr"
+                # no such luck; use some default ssldirs
+                if ! $found; then
+                    ssldirs="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr"
+                fi
+            else
+                ssldirs="$SSL_DIRS"
             fi
 
 
@@ -15573,6 +15584,127 @@ if test x"$have_ubertooth" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_UBERTOOTH_ONE)"
 fi
 
+# Check whether --enable-librtlsdr was given.
+if test ${enable_librtlsdr+y}
+then :
+  enableval=$enable_librtlsdr; case "${enableval}" in
+	  no) want_rtlsdr=no ;;
+	   *) want_rtlsdr=yes ;;
+	 esac
+else $as_nop
+  want_rtlsdr=yes
+
+fi
+
+
+if test "x$want_rtlsdr" != "xno"
+then :
+
+
+pkg_failed=no
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for librtlsdr" >&5
+printf %s "checking for librtlsdr... " >&6; }
+
+if test -n "$librtlsdr_CFLAGS"; then
+    pkg_cv_librtlsdr_CFLAGS="$librtlsdr_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"librtlsdr\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "librtlsdr") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_librtlsdr_CFLAGS=`$PKG_CONFIG --cflags "librtlsdr" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$librtlsdr_LIBS"; then
+    pkg_cv_librtlsdr_LIBS="$librtlsdr_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"librtlsdr\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "librtlsdr") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_librtlsdr_LIBS=`$PKG_CONFIG --libs "librtlsdr" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        librtlsdr_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "librtlsdr" 2>&1`
+        else
+	        librtlsdr_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "librtlsdr" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$librtlsdr_PKG_ERRORS" >&5
+
+	as_fn_error $? "Package requirements (librtlsdr) were not met:
+
+$librtlsdr_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables librtlsdr_CFLAGS
+and librtlsdr_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
+elif test $pkg_failed = untried; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	{ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables librtlsdr_CFLAGS
+and librtlsdr_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
+else
+	librtlsdr_CFLAGS=$pkg_cv_librtlsdr_CFLAGS
+	librtlsdr_LIBS=$pkg_cv_librtlsdr_LIBS
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	have_librtlsdr_pkg=yes
+fi
+
+    if test x"$have_librtlsdr_pkg" != "xyes"; then
+        as_fn_error $? "missing librtlsdr" "$LINENO" 5
+    else
+        LIBRTLLIBS=`pkg-config --libs librtlsdr`
+        LIBRTLCFLAGS=`pkg-config --cflags librtlsdr`
+
+        have_rtlsdr="yes"
+    fi
+
+fi
+
+
+
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_NRF_MOUSEJACK=1
@@ -15597,6 +15729,17 @@ if test "$have_usb" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USB_RADIACODE)"
 fi
 
+BUILD_CAPTURE_SDR_RTL433V2=0
+if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
+    BUILD_CAPTURE_SDR_RTL433V2=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433V2)"
+fi
+
+BUILD_CAPTURE_SDR_RTLADSBV2=0
+if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
+    BUILD_CAPTURE_SDR_RTLADSBV2=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTLADSBV2)"
+fi
 
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
@@ -15608,7 +15751,7 @@ fi
 BUILD_CAPTURE_SERIAL_RADVIEW=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SERIAL_RADVIEW)"
 
-# All this depends on is serial so we build it all the time
+# All these depend on is serial, so we build them all the time
 BUILD_CAPTURE_NRF_51822=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 
@@ -15617,6 +15760,9 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
 
 BUILD_CAPTURE_NRF_52840=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_52840)"
+
+BUILD_CAPTURE_FREAKLABS_ZIGBEEV2=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_FREAKLABS_ZIGBEEV2)"
 
 BUILD_CAPTURE_RZ_KILLERBEE=0
 if test "$have_usb" = "yes"; then
@@ -16011,11 +16157,13 @@ sharedatadir=${sharedatadir}
 
 
 
+
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_bt_geiger/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile capture_proxy_adsb/Makefile capture_nrf_52840/Makefile capture_hak5_wifi_coconut/Makefile capture_serial_radview/Makefile capture_radiacode/Makefile capture_antsdr_droneid/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_nrf_mousejack/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_freaklabs_zigbee_v2/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile capture_proxy_adsb/Makefile capture_nrf_52840/Makefile capture_hak5_wifi_coconut/Makefile capture_serial_radview/Makefile capture_radiacode/Makefile capture_antsdr_droneid/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16713,12 +16861,10 @@ do
     "capture_linux_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_wifi/Makefile" ;;
     "capture_openbsd_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_openbsd_wifi/Makefile" ;;
     "capture_osx_corewlan_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_osx_corewlan_wifi/Makefile" ;;
-    "capture_sdr_rtl433/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtl433/Makefile" ;;
-    "capture_sdr_rtlamr/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtlamr/Makefile" ;;
-    "capture_sdr_rtladsb/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtladsb/Makefile" ;;
-    "capture_bt_geiger/Makefile") CONFIG_FILES="$CONFIG_FILES capture_bt_geiger/Makefile" ;;
-    "capture_freaklabs_zigbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_freaklabs_zigbee/Makefile" ;;
     "capture_nrf_mousejack/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_mousejack/Makefile" ;;
+    "capture_sdr_rtl433_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtl433_v2/Makefile" ;;
+    "capture_sdr_rtladsb_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtladsb_v2/Makefile" ;;
+    "capture_freaklabs_zigbee_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_freaklabs_zigbee_v2/Makefile" ;;
     "capture_ti_cc_2540/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ti_cc_2540/Makefile" ;;
     "capture_ti_cc_2531/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ti_cc_2531/Makefile" ;;
     "capture_ubertooth_one/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ubertooth_one/Makefile" ;;
@@ -17467,6 +17613,13 @@ else
         echo "no";
 fi
 
+printf "   Freaklabs Zigbee V2: "
+if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEEV2" = 1; then
+        echo "yes";
+else
+        echo "no";
+fi
+
 printf "          RZ KILLERBEE: "
 if test "$BUILD_CAPTURE_RZ_KILLERBEE" = 1; then
         echo "yes";
@@ -17489,55 +17642,32 @@ else
 fi
 
 printf "        Python Modules: "
-if test "$BUILD_PYTHON_MODULES" = 1; then
+	echo "no (deprecated)";
+
+printf "    RTL-SDR RTL_433 V2: "
+if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then
 	echo "yes";
 else
-	echo "no (will not build Python based sources)";
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
 fi
 
-printf "    Python interpreter: "
-echo $PYTHON
-
-printf "       RTL-SDR RTL_433: "
-if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
+printf "       RTL-SDR ADSB V2: "
+if test "$BUILD_CAPTURE_SDR_RTLADSBV2" = 1; then
 	echo "yes";
 else
-	echo "no (python modules are disabled)";
-fi
-
-printf "        RTL-SDR RTLAMR: "
-if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
-        echo "yes";
-else
-        echo "no (python modules are disabled)";
-fi
-
-printf "       RTL-SDR RTLADSB: "
-if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
-        echo "yes";
-else
-        echo "no (python modules are disabled)";
-fi
-
-printf "    BTLE Geiger Sensor: "
-if test "$BUILD_CAPTURE_BT_GEIGER" = 1; then
-        echo "yes";
-else
-        echo "no (not explicitly enabled)";
-fi
-
-printf "      Freaklabs Zigbee: "
-if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
-	echo "yes";
-else
-	echo "no (python modules are disabled)";
-fi
-
-printf "            ADSB Proxy: "
-if test "$BUILD_CAPTURE_PROXY_ADSB" = 1; then
-	echo "yes";
-else
-	echo "no (python modules are disabled)";
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
 fi
 
 printf "        ANTSDR DroneID: "
