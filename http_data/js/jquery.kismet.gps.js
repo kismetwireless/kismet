@@ -180,7 +180,6 @@
 
         if (last_gps == null ||
             (last_gps != null &&
-                (last_gps['kismet.common.location.valid'] == 0) ||
                 (last_gps['kismet.common.location.fix'] < 2))) {
                     $('#gpsstatus', gps_popup_content).html('No GPS available');
                     $('#time', gps_popup_content).html('n/a');
@@ -243,8 +242,7 @@
             ;
         }
 
-        if (last_gps?.['kismet.common.location.valid'] != 0 &&
-            last_gps?.['kismet.common.location.fix'] >= 2) {
+        if (last_gps?.['kismet.common.location.fix'] >= 2) {
             if (last_gps['kismet.common.location.fix'] == 2) {
                 $('#gpsstatus', gps_popup_content).html('GPS locked (2d)');
                 $('#altitude', gps_popup_content).html('n/a');
@@ -267,7 +265,6 @@
         }
 
         if (last_gps == null ||
-            (last_gps != null && last_gps['kismet.common.location.valid'] == 0) ||
             (last_gps != null && last_gps['kismet.common.location.fix'] < 2)) {
             gpsicon.removeClass('kg-icon-3d');
             gpsicon.removeClass('kg-icon-2d');
