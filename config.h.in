@@ -126,6 +126,12 @@
 /* libpcre2 regex support */
 #undef HAVE_LIBPCRE2
 
+/* librtlsdr bias-tee support */
+#undef HAVE_LIBRTLSDR_BIAS_T
+
+/* librtlsdr bias-tee-gpio support */
+#undef HAVE_LIBRTLSDR_BIAS_T_GPIO
+
 /* libsqlite3 database support */
 #undef HAVE_LIBSQLITE3
 

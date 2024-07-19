@@ -15699,6 +15699,93 @@ fi
         LIBRTLCFLAGS=`pkg-config --cflags librtlsdr`
 
         have_rtlsdr="yes"
+
+        OLIBS="$LIBS"
+        LIBS="$LIBS $LIBRTLLIBS"
+
+        OCFL="$CFLAGS"
+        CFLAGS="$CFLAGS $LIBRTLCFLAGS"
+
+        rtlsdr_bias_tee=no
+        rtlsdr_bias_tee_gpio=no
+
+	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <rtl-sdr.h>
+
+int
+main (void)
+{
+
+
+            rtlsdr_set_bias_tee(nullptr, 1);
+
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"
+then :
+
+                rtlsdr_bias_tee=yes
+
+else $as_nop
+
+                rtlsdr_bias_tee=no
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+
+	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <rtl-sdr.h>
+
+int
+main (void)
+{
+
+
+            rtlsdr_set_bias_tee_gpio(nullptr, 0, 1);
+
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"
+then :
+
+                rtlsdr_bias_tee_gpio=yes
+
+else $as_nop
+
+                rtlsdr_bias_tee_gpio=no
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+
+
+        LIBS="$OLIBS"
+        CFLAGS="$OCFL"
+
+        if test "$rtlsdr_bias_tee"x = "yes"x; then
+
+printf "%s\n" "#define HAVE_LIBRTLSDR_BIAS_T 1" >>confdefs.h
+
+        fi
+
+        if test "$rtlsdr_bias_tee_gpio"x = "yes"x; then
+
+printf "%s\n" "#define HAVE_LIBRTLSDR_BIAS_T_GPIO 1" >>confdefs.h
+
+        fi
     fi
 
 fi

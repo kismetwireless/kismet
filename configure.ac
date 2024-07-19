@@ -1807,6 +1807,55 @@ AS_IF([test "x$want_rtlsdr" != "xno"], [
         LIBRTLCFLAGS=`pkg-config --cflags librtlsdr`
 
         have_rtlsdr="yes"
+
+        OLIBS="$LIBS"
+        LIBS="$LIBS $LIBRTLLIBS"
+
+        OCFL="$CFLAGS"
+        CFLAGS="$CFLAGS $LIBRTLCFLAGS"
+
+        rtlsdr_bias_tee=no
+        rtlsdr_bias_tee_gpio=no
+
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <rtl-sdr.h>
+			]], [[
+            
+            rtlsdr_set_bias_tee(nullptr, 1);
+
+			return 0;
+			]])],
+            [
+                rtlsdr_bias_tee=yes
+            ],[
+                rtlsdr_bias_tee=no
+            ])
+
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <rtl-sdr.h>
+			]], [[
+            
+            rtlsdr_set_bias_tee_gpio(nullptr, 0, 1);
+
+			return 0;
+			]])],
+            [
+                rtlsdr_bias_tee_gpio=yes
+            ],[
+                rtlsdr_bias_tee_gpio=no
+            ])
+
+
+        LIBS="$OLIBS"
+        CFLAGS="$OCFL"
+
+        if test "$rtlsdr_bias_tee"x = "yes"x; then
+            AC_DEFINE(HAVE_LIBRTLSDR_BIAS_T, 1, librtlsdr bias-tee support)
+        fi
+
+        if test "$rtlsdr_bias_tee_gpio"x = "yes"x; then
+            AC_DEFINE(HAVE_LIBRTLSDR_BIAS_T_GPIO, 1, librtlsdr bias-tee-gpio support)
+        fi
     fi
 ])
 AC_SUBST(LIBRTLLIBS)
