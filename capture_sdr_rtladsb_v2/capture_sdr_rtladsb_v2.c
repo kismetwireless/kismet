@@ -16,6 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     This ADSB code was derived from the ADSB code of librtlsdr,
+
+    Kismet additions,
+    Copyright (C) 2024 by Mike Kershaw <dragorn@kismetwireless.net>
  
     rtl-sdr, turns your Realtek RTL2832 based DVB dongle into a SDR receiver
 
@@ -29,7 +32,7 @@
 /* 
  * Interface format:  rtladsb, rtlsdb-[devnum], rtladsb-[serial]
  *
- * Parameters: gain=xyz, ppm=xyz, uuid=xyz
+ * Parameters: gain=xyz, ppm=xyz, uuid=xyz, biast=bool, biastgpio=#, pass_invalid=bool
  *
  */
 
@@ -102,6 +105,9 @@ typedef struct {
 
     int gain;
     int ppm;
+
+    int bias_tee;
+    int bias_tee_gpio;
 } local_adsb_t;
 
 uint32_t modes_checksum_table[] = {
@@ -739,6 +745,40 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    if ((placeholder_len = cf_find_flag(&placeholder, "biast", definition)) > 0) {
+#ifdef HAVE_LIBRTLSDR_BIAS_T
+        if (strncmp(placeholder, "true", placeholder_len) == 0) {
+            adsb->bias_tee = 1;
+        }
+#else
+        snprintf(msg, STATUS_MAX, "%s: the version of librtlsdr used does not support the bias-tee control", interface); 
+        return -1;
+
+#endif
+    }
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "biastgpio", definition)) > 0) {
+#ifdef HAVE_LIBRTLSDR_BIAS_T
+        tmp = strndup(placeholder, placeholder_len);
+
+        if (sscanf(tmp, "%d", &adsb->bias_tee_gpio) != 1) { 
+            snprintf(msg, STATUS_MAX, "%s: expected biastgpio=[GPIO#]", interface); 
+            free(tmp);
+            return -1;
+        }
+
+        adsb->bias_tee = 2;
+
+        free(tmp);
+        tmp = NULL;
+#else
+        snprintf(msg, STATUS_MAX, "%s: the version of librtlsdr used does not support the bias-tee control", interface); 
+        return -1;
+
+#endif
+    }
+
+
     r = rtlsdr_open(&adsb->dev, num_device);
     if (r < 0) {
         snprintf(msg, STATUS_MAX, "%s: failed to open device %s", interface, (*ret_interface)->capif);
@@ -796,6 +836,29 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+#ifdef HAVE_LIBRTLSDR_BIAS_T
+    if (adsb->bias_tee == 1) {
+        r = rtlsdr_set_bias_tee(adsb->dev, 1);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "%s: could not enable bias-tee power on %s", 
+                    interface, (*ret_interface)->capif);
+            return -1;
+        }
+    }
+#endif
+
+#ifdef HAVE_LIBRTLSDR_BIAS_T_GPIO
+    if (adsb->bias_tee == 2) {
+        r = rtlsdr_set_bias_tee_gpio(adsb->dev, adsb->bias_tee_gpio, 1);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "%s: could not enable bias-tee power for "
+                    "gpio %d on %s", interface, adsb->bias_tee_gpio, 
+                    (*ret_interface)->capif);
+            return -1;
+        }
+    }
+#endif
+
     r = rtlsdr_reset_buffer(adsb->dev);
     if (r < 0) {
         snprintf(msg, STATUS_MAX, "%s: could not reset buffer on %s", interface, (*ret_interface)->capif);
@@ -842,6 +905,8 @@ int main(int argc, char *argv[]) {
         .do_exit = 0,
         .gain = AUTO_GAIN, 
         .ppm = 0,
+        .bias_tee = 0,
+        .bias_tee_gpio = 0,
     };
 
 
