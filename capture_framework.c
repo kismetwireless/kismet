@@ -174,7 +174,8 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
         }
 
         /* Compare the flag */
-        if (strncasecmp(flag, flagpos, (equals - flagpos)) == 0) {
+        if (strncasecmp(flag, flagpos, (equals - flagpos)) == 0 &&
+                strlen(flag) == (equals - flagpos)) {
             /* Find the next comma */
             comma = strstr(equals, ",");
             /* Find the next quote */
@@ -195,6 +196,7 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
                     *ret_value = quote + 1;
                     return (equote - (quote + 1));
                 } else {
+                    /* */
                 }
             }
 
