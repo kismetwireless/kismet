@@ -312,6 +312,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      */
     int band = 2;
 
+    *ret_spectrum = NULL;
+    *ret_interface = cf_params_interface_new();
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return -1;
@@ -428,7 +431,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
-    for (int i = s_chan; i < s_chan - n_chans; i++) {
+    for (int i = s_chan; i < s_chan + n_chans; i++) {
         char chstr[3];
         snprintf(chstr, 3, "%d", i);
         (*ret_interface)->channels[i - s_chan] = strdup(chstr);
