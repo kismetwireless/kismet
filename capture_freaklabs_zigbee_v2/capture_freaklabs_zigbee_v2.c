@@ -188,8 +188,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     }
 
     if ((localfreak->band == 0 && channel->channel != 0) ||
-            (localfreak->band == 1 && channel->channel > 11) ||
-            (localfreak->band == 2 && (channel->channel < 12 || channel->channel > 26))) {
+            (localfreak->band == 1 && channel->channel >= 11) ||
+            (localfreak->band == 2 && (channel->channel < 11 || channel->channel > 26))) {
         snprintf(errstr, STATUS_MAX, "invalid channel for this freaklabs device");
         cf_send_warning(caph, errstr);
         return 1;
@@ -400,8 +400,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     localfreak->newtio.c_oflag = 0;
 
     /* newtio.c_lflag = ICANON; */
+    /* Don't set a timeout, just block
     localfreak->newtio.c_cc[VTIME] = 5; // 0.5 seconds
     localfreak->newtio.c_cc[VMIN] = 0;
+    */
 
     /* flush and set up */
     if (tcsetattr(localfreak->fd, TCSANOW, &localfreak->newtio)) {
