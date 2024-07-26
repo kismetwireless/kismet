@@ -439,6 +439,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->channels_len = n_chans;
 
+    localfreak->band = band;
+
     return 1;
 }
 
