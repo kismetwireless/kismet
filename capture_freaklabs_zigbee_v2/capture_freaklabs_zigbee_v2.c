@@ -382,28 +382,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    tcgetattr(localfreak->fd, &localfreak->oldtio); /* save current serial port settings */
-    bzero(&localfreak->newtio, sizeof(localfreak->newtio)); /* clear struct for new port settings */
+    tcgetattr(localfreak->fd, &localfreak->oldtio);
+    bzero(&localfreak->newtio, sizeof(localfreak->newtio));
 
-    /* set the baud rate and flags */
-#if defined(SYS_OPENBSD)
-    localfreak->newtio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-    cfsetspeed(&localfreak->newtio, localfreak->baudrate);
-#else
-    localfreak->newtio.c_cflag = localfreak->baudrate | CRTSCTS | CS8 | CLOCAL | CREAD;
-#endif
+    cfmakeraw(&localfreak->newtio);
 
-    /* ignore parity errors */
-    localfreak->newtio.c_iflag = IGNPAR;
-
-    /* raw output */
-    localfreak->newtio.c_oflag = 0;
-
-    /* newtio.c_lflag = ICANON; */
-    /* Don't set a timeout, just block
-    localfreak->newtio.c_cc[VTIME] = 5; // 0.5 seconds
+    /* one second timeout, no minimum */
+    localfreak->newtio.c_cc[VTIME] = 10;
     localfreak->newtio.c_cc[VMIN] = 0;
-    */
+
+    cfsetspeed(&localfreak->newtio, localfreak->baudrate);
 
     /* flush and set up */
     if (tcsetattr(localfreak->fd, TCSANOW, &localfreak->newtio)) {
@@ -412,7 +400,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    if (tcflush(localfreak->fd, TCIFLUSH)) {
+    if (tcflush(localfreak->fd, TCIOFLUSH)) {
         snprintf(msg, STATUS_MAX, "%s failed to flush serial device - %s",
                  localfreak->name, strerror(errno));
         return -1;
@@ -446,6 +434,25 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
+/* Work around serial port oddness and keep spinning reading from the serial 
+ * device until we get the amount of data we want or until it errors out. */
+int spin_read(int fd, uint8_t *buf, size_t len) {
+    ssize_t read_so_far = 0;
+    int r;
+
+    while (read_so_far < len) {
+        r = read(fd, buf + read_so_far, len - read_so_far);
+
+        if (r <= 0) {
+            return r;
+        }
+
+        read_so_far += r;
+    }
+   
+    return read_so_far;
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_freaklabs_t *localfreak = (local_freaklabs_t *) caph->userdata;
 
@@ -473,12 +480,10 @@ void capture_thread(kis_capture_handler_t *caph) {
         pkt_len = 0;
 
         if (caph->spindown) {
-            /* set the port back to normal */
-            tcsetattr(localfreak->fd, TCSANOW, &localfreak->oldtio);
             break;
         }
 
-        r = read(localfreak->fd, buf, sizeof(fz_hdr));
+        r = spin_read(localfreak->fd, buf, sizeof(fz_hdr));
 
         if (r < 0) {
             snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
@@ -512,7 +517,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             pkt_len = hdr->version;
         } else {
             /* two-byte header of command and length */
-            r = read(localfreak->fd, buf, sizeof(fz_cmd_hdr));
+            r = spin_read(localfreak->fd, buf, sizeof(fz_cmd_hdr));
 
             if (r < 0) {
                 snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
@@ -542,17 +547,15 @@ void capture_thread(kis_capture_handler_t *caph) {
                 pkt_len = cmd_hdr->val;
             }
 
-            /* Other frame types / corrupted data gets ignored */
+            /* Other frame types get ignored */
         }
 
-        /* Try to read the full packet; if there's no known length still, bail.
-         * A zigbee packet should never be more than 127 bytes, our buffer is 256,
-         * and a uint8 can never be more than 256, so no upper bounds checks */
         if (pkt_len == 0) {
             continue;
         }
 
-        r = read(localfreak->fd, buf, pkt_len);
+        /* Read into packet buffer; buffer is always big enough to hold a uint8 length so no extra checks */
+        r = spin_read(localfreak->fd, buf, pkt_len);
 
         if (r < 0) {
             snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
@@ -593,6 +596,10 @@ void capture_thread(kis_capture_handler_t *caph) {
             }
         }
     }
+
+    /* set the port back to normal */
+    tcsetattr(localfreak->fd, TCSANOW, &localfreak->oldtio);
+
     cf_handler_spindown(caph);
 }
 
