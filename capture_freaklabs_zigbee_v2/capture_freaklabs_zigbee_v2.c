@@ -437,19 +437,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 /* Work around serial port oddness and keep spinning reading from the serial 
  * device until we get the amount of data we want or until it errors out. */
 int spin_read(int fd, uint8_t *buf, size_t len) {
-    ssize_t read_so_far = 0;
+    size_t read_so_far = 0;
     int r;
 
     while (read_so_far < len) {
         r = read(fd, buf + read_so_far, len - read_so_far);
 
-        if (r <= 0) {
+        if (r < 0) {
             return r;
         }
 
         read_so_far += r;
     }
-   
+  
     return read_so_far;
 }
 
@@ -605,6 +605,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
 int main(int argc, char *argv[]) {
     local_freaklabs_t localfreak = {
+        .baudrate = B57600,
         .caph = NULL,
         .name = NULL,
         .interface = NULL,
