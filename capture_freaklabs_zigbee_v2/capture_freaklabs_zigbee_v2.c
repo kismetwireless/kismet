@@ -105,7 +105,7 @@ int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t
     ssize_t fz_cmd_len;
 
     typedef struct {
-        uint8_t magic[sizeof(magic)];
+        uint8_t cmd_magic[sizeof(magic)];
         uint8_t version;
         uint8_t cmd[0];
     } __attribute__((packed)) fz_cmd;
@@ -115,12 +115,12 @@ int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t
     fz_cmd_len = sizeof(fz_cmd) + len;
 
     zcmd = (fz_cmd *) malloc(fz_cmd_len);
-    memcpy(zcmd->magic, magic, sizeof(magic));
+    memcpy(zcmd->cmd_magic, magic, sizeof(magic));
     zcmd->version = 1;
     memcpy(zcmd->cmd, cmd, len);
 
     if (write(freak->fd, (unsigned char *) zcmd, fz_cmd_len) != fz_cmd_len) {
-        snprintf(errstr, STATUS_MAX, "%s failed to write command magic - %s",
+        snprintf(errstr, STATUS_MAX, "%s failed to send command - %s",
                  freak->name, strerror(errno));
         cf_send_error(caph, 0, errstr);
         cf_handler_spindown(caph);
@@ -144,6 +144,11 @@ int set_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t c
     zchan.cmd = FZ_CMD_SET_CHANNEL;
     zchan.pad = 1;
     zchan.channel = channel;
+
+    /* The freaklabs takes 150uS to set the channel and return; the channel 
+     * assignment result gets set during the main read loop so currently 
+     * we blindly set the channel and wait for the hw to accept it and 
+     * update the channel there */
 
     r = write_command(caph, freak, (uint8_t *) &zchan, sizeof(fz_channel));
 
@@ -385,9 +390,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     tcgetattr(localfreak->fd, &localfreak->oldtio);
     bzero(&localfreak->newtio, sizeof(localfreak->newtio));
 
-    cfmakeraw(&localfreak->newtio);
+    /* Set up raw IO */
+    localfreak->newtio.c_cflag |= CLOCAL;
+    localfreak->newtio.c_cflag |= CREAD;
 
-    /* one second timeout, no minimum */
+    localfreak->newtio.c_cflag &= ~ECHO;
+    localfreak->newtio.c_cflag &= ~ECHOE;
+
+    localfreak->newtio.c_cflag &= ~PARENB;
+    localfreak->newtio.c_cflag &= ~CSTOPB;
+    localfreak->newtio.c_cflag &= ~CSIZE;
+    localfreak->newtio.c_cflag |= CS8;
+
+    localfreak->newtio.c_oflag = 0;
+
     localfreak->newtio.c_cc[VTIME] = 10;
     localfreak->newtio.c_cc[VMIN] = 0;
 
