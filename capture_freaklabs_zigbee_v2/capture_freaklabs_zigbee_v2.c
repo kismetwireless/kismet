@@ -170,6 +170,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     unsigned int parsechan;
     char errstr[STATUS_MAX];
 
+    printf("translate %s\n", chanstr);
+
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
         snprintf(errstr, STATUS_MAX, "unable to parse channel; freaklabs channels are integers");
         cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -193,9 +195,9 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     }
 
     if ((localfreak->band == 0 && channel->channel != 0) ||
-            (localfreak->band == 1 && channel->channel >= 11) ||
+            (localfreak->band == 1 && (channel == 0 || channel->channel >= 11)) ||
             (localfreak->band == 2 && (channel->channel < 11 || channel->channel > 26))) {
-        snprintf(errstr, STATUS_MAX, "invalid channel for this freaklabs device");
+        snprintf(errstr, STATUS_MAX, "invalid channel for this freaklabs device (%u not in band %u)", channel->channel, localfreak->band);
         cf_send_warning(caph, errstr);
         return 1;
     }
@@ -221,8 +223,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     char errstr[STATUS_MAX];
     char *device = NULL;
 
-    /* 0: 800mhz
-     * 1: 900mhz (0-11)
+    /* 0: 800mhz (0)
+     * 1: 900mhz (1-10)
      * 2: 2.4ghz (11-27)
      */
     int band = 2;
@@ -278,8 +280,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         n_chans = 1;
         s_chan = 0;
     } else if (band == 1) {
-        n_chans = 11;
-        s_chan = 0;
+        n_chans = 10;
+        s_chan = 1;
     } else if (band == 2) {
         n_chans = 16;
         s_chan = 11;
@@ -429,8 +431,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         n_chans = 1;
         s_chan = 0;
     } else if (band == 1) {
-        n_chans = 11;
-        s_chan = 0;
+        n_chans = 10;
+        s_chan = 1;
     } else if (band == 2) {
         n_chans = 16;
         s_chan = 11;
