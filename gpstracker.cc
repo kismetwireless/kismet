@@ -51,7 +51,7 @@ gps_tracker::gps_tracker() :
 gps_tracker::~gps_tracker() {
     Globalreg::globalreg->remove_global("GPSTRACKER");
 
-    // Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
+    Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
 
     timetracker->remove_timer(log_snapshot_timer);
     timetracker->remove_timer(event_timer_id);
@@ -73,7 +73,7 @@ void gps_tracker::trigger_deferred_startup() {
         Globalreg::globalreg->packetchain->register_packet_component("NOGPS");
 
     // Register the packet chain hook - deprecated, now handled in datasources
-    // Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this, CHAINPOS_POSTCAP, -100);
+    Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this, CHAINPOS_POSTCAP, -100);
 
     // Manage logging
     log_snapshot_timer = -1;
