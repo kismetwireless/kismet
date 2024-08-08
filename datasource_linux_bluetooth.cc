@@ -22,6 +22,7 @@
 #include "json_adapter.h"
 #include "phy_bluetooth.h"
 #include "messagebus.h"
+#include "kis_gps.h"
 #include "protobuf_cpp/linuxbluetooth.pb.h"
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
@@ -76,6 +77,9 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
+    if (gpstracker == nullptr)
+        gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+
     auto packet = packetchain->generate_packet();
 
     auto bpi = packetchain->new_packet_component<bluetooth_packinfo>();
@@ -90,6 +94,20 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     if (report.has_gps()) {
         auto gpsinfo = handle_sub_gps(report.gps());
         packet->insert(pack_comp_gps, gpsinfo);
+    } else if (suppress_gps) {
+        auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
+        packet->insert(pack_comp_no_gps, nogpsinfo);
+    } else if (device_gps != nullptr) {
+        auto gpsinfo = device_gps->get_location();
+
+        if (gpsinfo != nullptr)
+            packet->insert(pack_comp_gps, gpsinfo);
+    } else {
+        auto gpsloc = gpstracker->get_best_location();
+
+        if (gpsloc != nullptr) {
+            packet->insert(pack_comp_gps, std::move(gpsloc));
+        }
     }
 
     if (clobber_timestamp && get_source_remote()) {
