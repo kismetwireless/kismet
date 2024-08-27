@@ -983,7 +983,7 @@ a.ui-button:active,
 	border: 1px solid #003eff;
 	background: #007fff;
 	font-weight: normal;
-	color: #ffffff;
+	color: #2b2b2b;
 }
 .ui-icon-background,
 .ui-state-active .ui-icon-background {
@@ -993,7 +993,7 @@ a.ui-button:active,
 .ui-state-active a,
 .ui-state-active a:link,
 .ui-state-active a:visited {
-	color: #ffffff;
+	color: #2b2b2b;
 	text-decoration: none;
 }
 
