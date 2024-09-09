@@ -546,10 +546,10 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 
     if (caph->hopping_running) {
         pthread_cancel(caph->hopthread);
-        pthread_cancel(caph->signalthread);
         caph->hopping_running = 0;
     }
 
+    pthread_cancel(caph->signalthread);
 
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
@@ -1249,7 +1249,6 @@ void *cf_int_capture_thread(void *arg) {
  * if not tracked elsewhere.
  */
 void cf_process_child_signals(kis_capture_handler_t *caph) {
-    printf("debug - process child signals\n");
     while (1) {
         int pid_status;
         pid_t caught_pid;
@@ -1258,6 +1257,10 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
 
         if ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
             pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+            if (caph->shutdown) {
+                continue;
+            }
 
             ipc = caph->ipc_list;
 
@@ -2904,10 +2907,12 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 cap_loop_fail:
     /* Kill the capture thread */
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
     if (caph->capture_running) {
         pthread_cancel(caph->capturethread);
         caph->capture_running = 0;
     }
+
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
     /* Kill anything pending */
