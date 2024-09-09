@@ -957,7 +957,7 @@ int main(int argc, char *argv[]) {
 
     cf_handler_loop(caph);
 
-    // fprintf(stderr, "debug - fell out of handler loop\n");
+    cf_handler_shutdown(caph);
 
     return 0;
 }

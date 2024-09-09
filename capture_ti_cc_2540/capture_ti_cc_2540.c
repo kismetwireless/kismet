@@ -839,6 +839,9 @@ int main(int argc, char *argv[]) {
     cf_drop_most_caps(caph);
 
     cf_handler_loop(caph);
+
+    cf_handler_shutdown(caph);
+
     libusb_exit(localticc2540.libusb_ctx);
     
     return 0;

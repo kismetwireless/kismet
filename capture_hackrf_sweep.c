@@ -420,6 +420,8 @@ int main(int argc, char *argv[]) {
 
     cf_handler_loop(caph);
 
+    cf_handler_shutdown(caph);
+
     cf_handler_free(caph);
 
     return 1;

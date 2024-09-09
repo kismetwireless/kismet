@@ -697,7 +697,11 @@ int main(int argc, char *argv[]) {
 	cf_drop_most_caps(caph);
 
 	cf_handler_loop(caph);
+
 	libusb_exit(localrz_killerbee.libusb_ctx);
+
+    cf_handler_shutdown(caph);
+
 
 	return 0;
 }

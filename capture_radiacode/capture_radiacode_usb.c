@@ -783,5 +783,9 @@ int main(int argc, char *argv[]) {
 
     cf_handler_loop(caph);
 
+    cf_handler_shutdown(caph);
+
+    libusb_exit(localrad.usb_ctx);
+
     return 0;
 }
