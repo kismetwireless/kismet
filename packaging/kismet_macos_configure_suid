@@ -19,7 +19,11 @@ if [ $(whoami) != "root" ]; then
     exit
 fi
 
-BIN=/opt/homebrew/bin/kismet_cap_osx_corewlan_wifi
+if [[ $(arch) == "arm64" || $(arch) == "arm64e" ]]; then
+    BIN=/opt/homebrew/bin/kismet_cap_osx_corewlan_wifi
+else
+    BIN=/usr/local/bin/kismet_cap_osx_corewlan_wifi
+fi
 
 TARGET=$(readlink -f ${BIN})
 USER=$(stat -f '%u' ${TARGET})
