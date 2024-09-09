@@ -64,13 +64,13 @@ unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
     r = sscanf(fixedstr, "%lf%4s", &f, scale);
 
     if (r == 2) { 
-        if (strcasestr("mhz", scale) != NULL) {
+        if (strcasecmp("mhz", scale) != 0) {
             free(fixedstr);
             return f * 1000 * 1000;
-        } else if (strcasestr("khz", scale) != NULL) {
+        } else if (strcasecmp("khz", scale) != 0) {
             free(fixedstr);
             return f * 1000;
-        } else if (strcasestr("hz", scale) != NULL) {
+        } else if (strcasecmp("hz", scale) != 0) {
             free(fixedstr);
             return f;
         }
