@@ -2342,18 +2342,16 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                             packinfo->channel, al);
                 }
 
-                // Look for DJI DroneID OUIs
                 if (vendor->vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
+                    // Look for DJI DroneID OUIs
 					auto droneid = Globalreg::new_from_pool<dot11_ie_221_dji_droneid>();
                     vendor->vendor_tag_stream()->seek(0);
                     droneid->parse(vendor->vendor_tag_stream());
 
                     packinfo->droneid = droneid;
-                }
-
-                // Look for MS/WFA WPA
-                if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() && 
+                } else if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
+                    // Look for MS/WFA WPA
 					auto wpa = Globalreg::new_from_pool<dot11_ie_221_wfa_wpa>();
                     vendor->vendor_tag_stream()->seek(0);
                     wpa->parse(vendor->vendor_tag_stream());
@@ -2380,20 +2378,16 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                         packinfo->cryptset |= dot11_crypt_general_wpa3;
 
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-                }
-
-                // Look for cisco client MFP
-                if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
+                } else if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
                         vendor->vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
+                    // Look for cisco client MFP
 					auto mfp = Globalreg::new_from_pool<dot11_ie_221_cisco_client_mfp>();
                     vendor->vendor_tag_stream()->seek(0);
                     mfp->parse(vendor->vendor_tag_stream());
 
                     packinfo->cisco_client_mfp = mfp->client_mfp();
-                }
-
-                // Look for wpa owe transitional tags
-                if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
+                } else if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
+                    // Look for wpa owe transitional tags
                     if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
 						auto owe_trans = Globalreg::new_from_pool<dot11_ie_221_owe_transition>();
                         vendor->vendor_tag_stream()->seek(0);
@@ -2401,10 +2395,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                         packinfo->owe_transition = owe_trans;
                         packinfo->cryptset |= crypt_wpa_owe;
                     }
-                }
-
-                // Look for WFA p2p to check the rtlwifi exploit
-                if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
+                } else if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
+                    // Look for WFA p2p to check the rtlwifi exploit
 					auto wfa = Globalreg::new_from_pool<dot11_ie_221_wfa>();
                     vendor->vendor_tag_stream()->seek(0);
                     wfa->parse(vendor->vendor_tag_stream());
@@ -2431,11 +2423,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                             }
                         }
                     }
-                }
-
-                // Look for WPS MS
-                if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
+                } else if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
+                    // Look for WPS MS
 					auto wps = Globalreg::new_from_pool<dot11_ie_221_ms_wps>();
                     vendor->vendor_tag_stream()->seek(0);
                     wps->parse(vendor->vendor_tag_stream());
@@ -2509,6 +2499,19 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                             packinfo->wps_uuid_e = munge_to_printable(euuid->str());
                             continue;
                         }
+                    }
+                } else if (vendor->vendor_oui_int() == 0x00000b86 && vendor->vendor_oui_type() == 1) {
+                    // Aruba/HP AP name field
+                    
+                    vendor->vendor_tag_stream()->seek(0);
+
+                    vendor->vendor_tag_stream()->read_bytes(1);
+                    auto sub = vendor->vendor_tag_stream()->read_u1();
+
+                    if (sub == 3) {
+                        vendor->vendor_tag_stream()->read_bytes(1);
+                        auto name = vendor->vendor_tag_stream()->read_bytes_full();
+                        packinfo->beacon_info = munge_to_printable(name);
                     }
                 }
             } catch (const std::exception &e) {
