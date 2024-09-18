@@ -11,7 +11,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
 
-AC_PREREQ(2.57)
+AC_PREREQ([2.72])
 
 # Check for host type
 AC_CANONICAL_HOST
@@ -23,7 +23,7 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_CPP
 
-AC_LANG_CPLUSPLUS
+AC_LANG([C++])
 
 BUILD_CAPTURE_LINUX_WIFI=0
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
@@ -34,7 +34,7 @@ BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
-BUILD_CAPTURE_TI_CC_2531=0
+BUILD_CAPTURE_TI_CC_2531=1
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_SDR_RTL433V2=0
 BUILD_CAPTURE_SDR_RTLADSBV2=0
@@ -45,8 +45,10 @@ BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
+BUILD_CAPTURE_CATSNIFFER_ZIGBEE=1
 BUILD_CAPTURE_USB_RADIACODE=0
 BUILD_CAPTURE_ANTSDR_DRONEID=1
+BUILD_CAPTURE_TI_CC_2531=1
 
 # deprecated
 BUILD_CAPTURE_SDR_RTL433=0
@@ -240,7 +242,7 @@ else
 fi
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
@@ -769,9 +771,7 @@ else
   if test "$pf_argv_set" = "no"; then
     AC_CACHE_CHECK(whether __progname and __progname_full are available,
 		    pf_cv_var_progname,
-		    AC_TRY_LINK([extern char *__progname, *__progname_full;],
-			[__progname = "foo"; __progname_full = "foo bar";],
-			pf_cv_var_progname="yes", pf_cv_var_progname="no"))
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM([[extern char *__progname, *__progname_full;]], [[__progname = "foo"; __progname_full = "foo bar";]])],[pf_cv_var_progname="yes"],[pf_cv_var_progname="no"]))
 
     if test "$pf_cv_var_progname" = "yes"; then
 	AC_DEFINE(HAVE___PROGNAME, 1, __PROGNAME glibc macro available)
@@ -1917,6 +1917,9 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
 BUILD_CAPTURE_NRF_52840=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_52840)"
 
+BUILD_CAPTURE_CATSNIFFER_ZIGBEE=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CATSNIFFER_ZIGBEE)"
+
 BUILD_CAPTURE_FREAKLABS_ZIGBEEV2=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_FREAKLABS_ZIGBEEV2)"
 
@@ -2096,6 +2099,7 @@ AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
 AC_SUBST(BUILD_CAPTURE_PROXY_ADSB)
 AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_52840)
+AC_SUBST(BUILD_CAPTURE_CATSNIFFER_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_HAK5_COCONUT)
 AC_SUBST(BUILD_CAPTURE_SERIAL_RADVIEW)
 AC_SUBST(BUILD_CAPTURE_USB_RADIACODE)
@@ -2128,6 +2132,7 @@ AC_CONFIG_FILES([
     capture_bladerf_wiphy/Makefile
     capture_proxy_adsb/Makefile
     capture_nrf_52840/Makefile
+    capture_catsniffer_zigbee/Makefile
     capture_hak5_wifi_coconut/Makefile
 	capture_serial_radview/Makefile
 	capture_radiacode/Makefile
@@ -2353,7 +2358,12 @@ if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
 else
 	echo "no (bladeRF support not explicitly enabled)";
 fi
-
+printf "         catsniffer-zigbee: "
+if test "$BUILD_CAPTURE_CATSNIFFER_ZIGBEE" = 1; then
+	echo "yes";
+else
+	echo "no";
+fi
 printf "     Hak5 WiFi Coconut: "
 if test "$BUILD_CAPTURE_HAK5_COCONUT" = 1; then
 	echo "yes";
