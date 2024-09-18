@@ -182,6 +182,8 @@ class dot11_packinfo : public packet_component {
 
             beacon_interval = 0;
 
+            beacon_info = "";
+
             ccx_txpower = 0;
             cisco_client_mfp = false;
 
