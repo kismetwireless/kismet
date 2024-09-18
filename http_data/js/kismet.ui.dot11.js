@@ -399,6 +399,20 @@ kismet_ui.AddDeviceColumn('wifi_qbss_clients', {
     },
 });
 
+kismet_ui.AddDeviceColumn('wifi_beacon_name', {
+    'title': 'Wi-Fi Beacon Vendor Name',
+    'description': 'Additional name / hardware identifier added by some vendors',
+    'field': 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.beacon_info',
+    'sortable': true,
+    'render': (data, row, cell, onrender, aux) => {
+        if (data.length === 0) {
+            return '<i>n/a</i>'
+        } else {
+            return kismet.censorString(data);
+        }
+    },
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
