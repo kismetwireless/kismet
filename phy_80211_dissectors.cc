@@ -2518,6 +2518,18 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                     vendor->vendor_tag_stream()->read_bytes(1);
                     auto name = vendor->vendor_tag_stream()->read_bytes_full();
                     packinfo->beacon_info = munge_to_printable(name);
+                } else if (vendor->vendor_oui_int() == 0x00001174 && vendor->vendor_oui_type() == 0) {
+                    // Mojo / Arista AP name
+                    
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+                    auto sub = vendor->vendor_tag_stream()->read_u1();
+
+                    if (sub == 6) {
+                        vendor->vendor_tag_stream()->read_bytes(1);
+                        auto name = vendor->vendor_tag_stream()->read_bytes_full();
+                        packinfo->beacon_info = munge_to_printable(name);
+                    }
                 }
             } catch (const std::exception &e) {
                 // fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
