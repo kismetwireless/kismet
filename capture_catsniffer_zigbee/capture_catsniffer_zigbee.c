@@ -843,7 +843,7 @@ int main(int argc, char *argv[]) {
     };
 
     printf("Calling cf_handler_init(\"catsniffer\").\n");
-    kis_capture_handler_t *caph = cf_handler_init("catsniffer");
+    kis_capture_handler_t *caph = cf_handler_init("catsniffer_zigbee");
 
     if (caph == NULL) {
         fprintf(stderr,
