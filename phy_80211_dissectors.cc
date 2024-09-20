@@ -2550,6 +2550,20 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                         auto name = vendor->vendor_tag_stream()->read_bytes(len);
                         packinfo->beacon_info = munge_to_printable(name);
                     }
+                } else if (vendor->vendor_oui_int() == 0x0000090f && vendor->vendor_oui_type() == 10) {
+                    // Fortinet
+                    
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+
+                    auto subtype = vendor->vendor_tag_stream()->read_u1();
+                    auto type = vendor->vendor_tag_stream()->read_u1();
+
+                    if (subtype == 10 && type == 1) {
+                        auto len = vendor->vendor_tag_stream()->read_u1();
+                        auto name = vendor->vendor_tag_stream()->read_bytes(len);
+                        packinfo->beacon_info = munge_to_printable(name);
+                    }
                 }
             } catch (const std::exception &e) {
                 // fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
