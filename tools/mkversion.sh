@@ -13,7 +13,7 @@ if test $# -ge 2; then
     VERSION_MINOR=$(echo "$2" | cut -f 2 -d\-)
     VERSION_TINY=$(echo "$2" | cut -f 3 -d\-)
 else
-    VERSION_MAJOR=$(date '+%y')
+    VERSION_MAJOR=$(date '+%Y')
     VERSION_MINOR=$(date '+%m')
     VERSION_TINY="0"
 fi
