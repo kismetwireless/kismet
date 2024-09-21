@@ -81,7 +81,7 @@ PROTOBUF_C_H = \
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
 	$(PROTOBUF_C_O) \
-	simple_ringbuf_c.c.o capture_framework.c.o 
+	simple_ringbuf_c.c.o version.c.o capture_framework.c.o 
 DATASOURCE_COMMON_A = libkismetdatasource.a
 
 CAPTURE_PCAPFILE_O = \
@@ -180,6 +180,7 @@ LOGTOOL_KISMETDB_STRIP_O = \
 
 LOGTOOL_KISMETDB_WIGLE = log_tools/kismetdb_to_wiglecsv
 LOGTOOL_KISMETDB_WIGLE_O = \
+	version.c.o \
 	log_tools/kismetdb_to_wiglecsv.cc.o \
 	sqlite3_cpp11.cc.o 
 
