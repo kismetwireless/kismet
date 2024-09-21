@@ -151,9 +151,11 @@ bool kis_database::database_create_master_table() {
         return false;
     }
 
-    std::string kversion = Globalreg::globalreg->version_major + "." + 
-        Globalreg::globalreg->version_minor + "." +
-        Globalreg::globalreg->version_tiny;
+    auto kversion = fmt::format("{}.{}.{}-{}", 
+            Globalreg::globalreg->version_major,
+            Globalreg::globalreg->version_minor,
+            Globalreg::globalreg->version_tiny,
+            Globalreg::globalreg->version_git_rev);
 
     sqlite3_bind_text(stmt, 1, kversion.c_str(), kversion.length(), 0);
     sqlite3_bind_int(stmt, 2, 0);

@@ -15,7 +15,7 @@ if test $# -ge 2; then
 else
     VERSION_MAJOR=$(date '+%y')
     VERSION_MINOR=$(date '+%m')
-    VERSION_TINY='git'
+    VERSION_TINY="0"
 fi
 
 cat << EOF > version.c

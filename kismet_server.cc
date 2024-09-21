@@ -560,7 +560,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (r < 0) break;
 
         if (r == 'v') {
-            printf("Kismet %s-%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+            printf("Kismet %s.%s.%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
             exit(1);
         } else if (r == 'h') {
             usage(argv[0]);
