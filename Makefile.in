@@ -279,6 +279,13 @@ ALL	= @ALLTARGETS@
 
 INSTBINS = $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS)
 
+# Detect date from variables or now
+ifdef SOURCE_DATE_EPOCH
+	BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" 2>/dev/null || date -u)
+else
+	BUILD_DATE ?= $(shell date -u)
+endif
+
 all:	$(ALL)
 
 all-with-plugins:
@@ -286,26 +293,27 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-# Autogen the version file
-ifdef SOURCE_DATE_EPOCH
-	BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" 2>/dev/null || date -u)
-else
-	BUILD_DATE ?= $(shell date)
-endif
-version.c:	FORCE
-	@{ $(GIT) rev-parse --short HEAD 2>/dev/null || echo "non-git-release"; } | awk ' BEGIN {print "#include \"version.h\""} {print "const char *VERSION_GIT_COMMIT = \"" $$0"\";"} END {}' > version.c
-	@echo "$(BUILD_DATE)" | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
+# Build a version using the SOURCE_DATE_EPOCH environment variable, or current timestamp, 
+# and a named version.  Failure to run this script results in building as the latest.
+version-%:
+	@./tools/mkversion.sh "$(BUILD_DATE)" $*
 
-# Force remove version.c.o since it's left behind owned by root as part of suidinstall, which screws
-# up a lot of builds for people; we assume we can `rm -f` it
+# Build a version file for the current time and git
+version:
+	@./tools/mkversion.sh
+
+# If the builder hasn't run `make version-maj-min-tiny` then assume we're building git and 
+# generate it as a git based on the requested timestamp (or now)
+version.c:
+	./tools/mkversion.sh "$(BUILD_DATE)"
+
+# This is no longer a special thing but keep it separate for now
 version.c.o : version.c version.c.d
-	@rm -f version.c.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c version.c -o version.c.o
 
 $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO)) version.c.o
 	@rm -f kismet
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
-
 
 
 $(LOGTOOL_KISMETDB_STRIP):	$(LOGTOOL_KISMETDB_STRIP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O))
@@ -761,7 +769,7 @@ release-%:
 	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
 	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
-	@./tools/make_version_h.py $* > version.h
+	@./tools/mkversion.sh "$(BUILD_DATE)" "$*"
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
@@ -772,7 +780,7 @@ subrelease-%:
 	@echo $*
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
 	@git pull origin kismet-`echo $* | cut -d- -f1,2`
-	@./tools/make_version_h.py $* > version.h
+	@./tools/mkversion.sh "$(BUILD_DATE)" "$*"
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
