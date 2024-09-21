@@ -929,10 +929,13 @@ int main(int argc, char *argv[]) {
     cf_handler_set_listdevices_cb(caph, list_callback); 
     cf_handler_set_capture_cb(caph, capture_thread); 
 
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+    int r = cf_handler_parse_opts(caph, argc, argv);
+    if (r == 0) {
+        return 0;
+    } else if (r < 0) {
         cf_print_help(caph, argv[0]);
         return -1;
-    } 
+    }
 
     cf_handler_remote_capture(caph); 
 

@@ -3412,7 +3412,10 @@ int main(int argc, char *argv[]) {
      * it does nothing and hurts nothing on 5ghz */
     cf_handler_set_hop_shuffle_spacing(caph, 4);
 
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+    int r = cf_handler_parse_opts(caph, argc, argv);
+    if (r == 0) {
+        return 0;
+    } else if (r < 0) {
         cf_print_help(caph, argv[0]);
         return -1;
     }
