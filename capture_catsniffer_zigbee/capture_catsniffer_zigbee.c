@@ -1,4 +1,4 @@
-//Usage: sudo ./kismet_cap_ti_cc_2531  --source=catsniffer:device=/dev/ttyACM0 --connect localhost:3501 --tcp --disable-retry
+//Usage: sudo ./kismet_cap_catsniffer_zigbee  --source=catsniffer:device=/dev/ttyACM0 --connect localhost:3501 --tcp --disable-retry
 
 #define _GNU_SOURCE
 
