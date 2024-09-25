@@ -139,7 +139,7 @@ public:
         set_probe_capable(true);
         fprintf(stderr, "Debug: Probe capability set to true\n");
 
-        set_list_capable(true);
+        set_list_capable(false);
         fprintf(stderr, "Debug: List capability set to true\n");
 
         set_local_capable(true);
