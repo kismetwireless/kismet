@@ -2357,7 +2357,7 @@ if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
 else
 	echo "no (bladeRF support not explicitly enabled)";
 fi
-printf "         catsniffer-zigbee: "
+printf "     catsniffer-zigbee: "
 if test "$BUILD_CAPTURE_CATSNIFFER_ZIGBEE" = 1; then
 	echo "yes";
 else
