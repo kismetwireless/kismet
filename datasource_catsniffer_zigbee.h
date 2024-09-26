@@ -99,7 +99,7 @@ public:
     }
 
     datasource_catsniffer_zigbee_builder() :
-        kis_datasource_builder() {
+        kis_datasource_builder(0) {
 
         // Debugging: Indicate that the default constructor is being called
         fprintf(stderr, "Debug: Default datasource_catsniffer_zigbee_builder constructor called\n");
