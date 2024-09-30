@@ -16,10 +16,18 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_35_tpc.h"
 
 void dot11_ie_35_tpc::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_txpower = p_io->read_u1();
 }
 
+void dot11_ie_35_tpc::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
 
+    m_txpower = p_io.read_u1();
+}

@@ -30,6 +30,7 @@ public:
     ~dot11_ie_113_mesh_config() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t path_select_pro() const {
         return m_path_select_proto;

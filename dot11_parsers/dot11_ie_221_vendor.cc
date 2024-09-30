@@ -16,14 +16,27 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_221_vendor.h"
 
 void dot11_ie_221_vendor::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_vendor_oui = p_io->read_bytes(3);
     m_vendor_tag = p_io->read_bytes_full();
-    m_vendor_tag_stream.reset(new kaitai::kstream(m_vendor_tag));
 
     if (m_vendor_tag.length() >= 1)
         m_vendor_oui_type = m_vendor_tag[0];
 }
 
+void dot11_ie_221_vendor::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_vendor_oui = p_io.read_bytes(3);
+    m_vendor_tag = p_io.read_bytes_full();
+
+    if (m_vendor_tag.length() >= 1)
+        m_vendor_oui_type = m_vendor_tag[0];
+
+}

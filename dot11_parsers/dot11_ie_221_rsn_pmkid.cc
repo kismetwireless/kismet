@@ -16,9 +16,20 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_221_rsn_pmkid.h"
 
 void dot11_ie_221_rsn_pmkid::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_vendor_type = p_io->read_u1();
     m_pmkid = p_io->read_bytes_full();
+}
+
+void dot11_ie_221_rsn_pmkid::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_vendor_type = p_io.read_u1();
+    m_pmkid = p_io.read_bytes_full();
 }

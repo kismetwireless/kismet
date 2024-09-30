@@ -39,6 +39,7 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     unsigned int cisco_ccx_txpower() {
         return m_txpower;

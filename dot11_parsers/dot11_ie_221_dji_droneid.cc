@@ -17,6 +17,8 @@
 */
 
 #include "globalregistry.h"
+#include "util.h"
+
 #include "dot11_ie_221_dji_droneid.h"
 
 void dot11_ie_221_dji_droneid::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -26,32 +28,58 @@ void dot11_ie_221_dji_droneid::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_subcommand = p_io->read_u1();
 
     m_raw_record_data = p_io->read_bytes_full();
-    m_raw_record_data_stream.reset(new kaitai::kstream(m_raw_record_data));
 
     if (subcommand() == subcommand_flightreg) {
         auto fr = Globalreg::new_from_pool<dji_subcommand_flight_reg>();
-        fr->parse(m_raw_record_data_stream);
+        fr->parse(raw_record_data());
         m_record = fr;
     } else if (subcommand() == subcommand_flightpurpose) {
         auto fp = Globalreg::new_from_pool<dji_subcommand_flight_purpose>();
-        fp->parse(m_raw_record_data_stream);
+        fp->parse(raw_record_data());
         m_record = fp;
     }
 }
 
-void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_version = p_io->read_u1();
+void dot11_ie_221_dji_droneid::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_vendor_type = p_io.read_u1();
+    m_unk1 = p_io.read_u1();
+    m_unk2 = p_io.read_u1();
+    m_subcommand = p_io.read_u1();
+
+    m_raw_record_data = p_io.read_bytes_full();
+
+    if (subcommand() == subcommand_flightreg) {
+        auto fr = Globalreg::new_from_pool<dji_subcommand_flight_reg>();
+        fr->parse(raw_record_data());
+        m_record = fr;
+    } else if (subcommand() == subcommand_flightpurpose) {
+        auto fp = Globalreg::new_from_pool<dji_subcommand_flight_purpose>();
+        fp->parse(raw_record_data());
+        m_record = fp;
+    }
+}
+
+void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_version = p_io.read_u1();
 
     /* None of the decodes seem proper and there is no way to validate any of the additional data, 
      * including if height/altitude is swapped, so decode the little we CAN reliably read from
      * whatever they seem to be sending
      */
 
-    m_seq = p_io->read_u2le();
-    m_state_info = p_io->read_u2le();
-    m_serialnumber = p_io->read_bytes(16);
-    m_raw_lon = p_io->read_s4le();
-    m_raw_lat = p_io->read_s4le();
+    m_seq = p_io.read_u2le();
+    m_state_info = p_io.read_u2le();
+    m_serialnumber = p_io.read_bytes(16);
+    m_raw_lon = p_io.read_s4le();
+    m_raw_lat = p_io.read_s4le();
 
     /*
     switch (m_version) {
@@ -105,15 +133,19 @@ void dot11_ie_221_dji_droneid::dji_subcommand_flight_reg::parse(std::shared_ptr<
     */
 }
 
-void dot11_ie_221_dji_droneid::dji_subcommand_flight_purpose::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_serialnumber = p_io->read_bytes(16);
-    m_drone_id_len = p_io->read_u1();
+void dot11_ie_221_dji_droneid::dji_subcommand_flight_purpose::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_serialnumber = p_io.read_bytes(16);
+    m_drone_id_len = p_io.read_u1();
     // Fixed size but obey the length field
-    m_drone_id = p_io->read_bytes(10).substr(0, drone_id_len());
+    m_drone_id = p_io.read_bytes(10).substr(0, drone_id_len());
     // Length field, but DJI also mis-transmits this due to a sw bug, so we use 'the rest of
     // the buffer' instead of the 100 bytes or so it's supposed to be, then adjust
     // for the length specified
-    m_purpose_len = p_io->read_u1();
-    m_purpose = p_io->read_bytes_full().substr(0, purpose_len());
+    m_purpose_len = p_io.read_u1();
+    m_purpose = p_io.read_bytes_full().substr(0, purpose_len());
 }
 

@@ -16,12 +16,21 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_221_wfa.h"
 
 void dot11_ie_221_wfa::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_wfa_subtype = p_io->read_u1();
-
     m_wfa_content = p_io->read_bytes_full();
-    m_wfa_content_stream.reset(new kaitai::kstream(m_wfa_content));
+}
+
+void dot11_ie_221_wfa::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_wfa_subtype = p_io.read_u1();
+    m_wfa_content = p_io.read_bytes_full();
 }
 

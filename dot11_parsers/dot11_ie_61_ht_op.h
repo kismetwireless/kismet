@@ -37,6 +37,7 @@ public:
     ~dot11_ie_61_ht_op() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t primary_channel() const {
         return m_primary_channel;

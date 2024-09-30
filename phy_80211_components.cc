@@ -430,10 +430,8 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
     if (tag->tag_num() == 150) {
         try {
-            tag->tag_data_stream()->seek(0);
-
             dot11_ie_150_vendor tag150;
-            tag150.parse(tag->tag_data_stream());
+            tag150.parse(tag->tag_data());
 
             set_tag_oui(tag150.vendor_oui_int());
 
@@ -451,10 +449,8 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
         }
     } else if (tag->tag_num() == 221) {
         try {
-            tag->tag_data_stream()->seek(0);
-
             dot11_ie_221_vendor tag221;
-            tag221.parse(tag->tag_data_stream());
+            tag221.parse(tag->tag_data());
 
             set_tag_oui(tag221.vendor_oui_int());
 
@@ -472,10 +468,8 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
         }
     } else if (tag->tag_num() == 255) {
         try {
-            tag->tag_data_stream()->seek(0);
-
             dot11_ie_255_ext tag255;
-            tag255.parse(tag->tag_data_stream());
+            tag255.parse(tag->tag_data());
 
             set_tag_vendor_or_sub(tag255.subtag_num());
             

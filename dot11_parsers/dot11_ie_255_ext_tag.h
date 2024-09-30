@@ -31,23 +31,19 @@ public:
     ~dot11_ie_255_ext() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t subtag_num() const {
         return m_subtag_num;
     }
 
-    std::string tag_data() const {
+    constexpr17 const std::string& tag_data() const {
         return m_subtag_data;
-    }
-
-    std::shared_ptr<kaitai::kstream> tag_data_stream() const {
-        return m_subtag_data_stream;
     }
 
 protected:
     uint8_t m_subtag_num;
     std::string m_subtag_data;
-    std::shared_ptr<kaitai::kstream> m_subtag_data_stream;
 };
 
 #endif /* ifndef DOT11_IE_255_EXT_TAG */

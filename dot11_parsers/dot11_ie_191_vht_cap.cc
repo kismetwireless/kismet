@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_191_vht_cap.h"
 
 void dot11_ie_191_vht_cap::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -26,3 +28,14 @@ void dot11_ie_191_vht_cap::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_tx_mcs_set = p_io->read_u2le();
 }
 
+void dot11_ie_191_vht_cap::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_vht_capabilities = p_io.read_u4le();
+    m_rx_mcs_map = p_io.read_u2le();
+    m_rx_mcs_set = p_io.read_u2le();
+    m_tx_mcs_map = p_io.read_u2le();
+    m_tx_mcs_set = p_io.read_u2le();
+}

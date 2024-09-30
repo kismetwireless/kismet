@@ -48,6 +48,7 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t vendor_subtype() const {
         return m_vendor_subtype;
@@ -124,9 +125,9 @@ public:
         wpa_v1_cipher() {}
         ~wpa_v1_cipher() {}
 
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
+        void parse(kaitai::kstream& p_io);
 
-        std::string oui() const {
+        constexpr17 const std::string& oui() const {
             return m_oui;
         }
 

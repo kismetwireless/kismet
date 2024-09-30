@@ -46,6 +46,7 @@ public:
     ~dot11_ie_48_rsn() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint16_t rsn_version() const {
         return m_rsn_version;
@@ -139,12 +140,11 @@ public:
         };
 
         dot11_ie_48_rsn_rsn_cipher() { }
-
         ~dot11_ie_48_rsn_rsn_cipher() { }
 
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
+        void parse(kaitai::kstream& p_io);
 
-        std::string cipher_suite_oui() const {
+        const std::string& cipher_suite_oui() const {
             return m_cipher_suite_oui;
         }
 
@@ -192,9 +192,9 @@ public:
         dot11_ie_48_rsn_rsn_management() { }
         ~dot11_ie_48_rsn_rsn_management() { }
 
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
+        void parse(kaitai::kstream& p_io);
 
-        std::string management_suite_oui() const {
+        constexpr17 const std::string& management_suite_oui() const {
             return m_management_suite_oui;
         }
 
@@ -220,12 +220,13 @@ public:
     ~dot11_ie_48_rsn_partial() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint16_t rsn_version() const {
         return m_rsn_version;
     }
 
-    std::string group_cipher() const {
+    constexpr17 const std::string& group_cipher() const {
         return m_group_cipher;
     }
 

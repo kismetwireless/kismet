@@ -39,6 +39,7 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 bool client_mfp() {
         return m_client_mfp;

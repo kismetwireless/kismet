@@ -38,6 +38,7 @@ public:
     ~dot11_ie_221_ms_wmm() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t wme_subtype() const {
         return m_wme_subtype;

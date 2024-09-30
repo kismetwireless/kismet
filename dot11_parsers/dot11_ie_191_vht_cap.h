@@ -43,6 +43,7 @@ public:
     ~dot11_ie_191_vht_cap() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint32_t vht_capabilities() const {
         return m_vht_capabilities;
