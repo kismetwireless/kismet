@@ -40,6 +40,7 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t vendor_type() const {
         return m_vendor_type;
@@ -49,7 +50,7 @@ public:
         return m_bssid;
     }
 
-    std::string ssid() const {
+    constexpr17 const std::string& ssid() const {
         return m_ssid;
     }
 

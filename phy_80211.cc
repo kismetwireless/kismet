@@ -2965,7 +2965,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             if (meshcap != dot11info->ie_tags->tags_map()->end()) {
                 try {
                     auto mc = Globalreg::new_from_pool<dot11_ie_113_mesh_config>();
-                    mc->parse(meshcap->second->tag_data_stream());
+                    mc->parse(meshcap->second->tag_data());
 
                     ssid->set_mesh_forwarding(mc->mesh_forwarding());
                     ssid->set_mesh_peerings(mc->num_peerings());
@@ -2979,7 +2979,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             if (tpc != dot11info->ie_tags->tags_map()->end()) {
                 try {
                     auto tpc_ie = Globalreg::new_from_pool<dot11_ie_35_tpc>();
-                    tpc_ie->parse(tpc->second->tag_data_stream());
+                    tpc_ie->parse(tpc->second->tag_data());
 
                     ssid->set_adv_tx_power(tpc_ie->txpower());
                 } catch (...) { 

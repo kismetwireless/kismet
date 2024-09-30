@@ -17,21 +17,38 @@
 */
 
 #include "globalregistry.h"
+#include "util.h"
+
 #include "dot11_ie_45_ht_cap.h"
 
 void dot11_ie_45_ht_cap::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_ht_capabilities = p_io->read_u2le();
     m_ampdu = p_io->read_u1();
     m_mcs = Globalreg::new_from_pool<dot11_ie_45_rx_mcs>();
-    m_mcs->parse(p_io);
+    m_mcs->parse(*p_io);
     m_ht_extended_caps = p_io->read_u2be();
     m_txbf_caps = p_io->read_u4be();
     m_asel_caps = p_io->read_u1();
 }
 
-void dot11_ie_45_ht_cap::dot11_ie_45_rx_mcs::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_rx_mcs = p_io->read_bytes(10);
-    m_supported_data_rate = p_io->read_u2le();
-    m_txflags = p_io->read_u4be();
+void dot11_ie_45_ht_cap::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_ht_capabilities = p_io.read_u2le();
+    m_ampdu = p_io.read_u1();
+    m_mcs = Globalreg::new_from_pool<dot11_ie_45_rx_mcs>();
+    m_mcs->parse(p_io);
+    m_ht_extended_caps = p_io.read_u2be();
+    m_txbf_caps = p_io.read_u4be();
+    m_asel_caps = p_io.read_u1();
+
+}
+
+void dot11_ie_45_ht_cap::dot11_ie_45_rx_mcs::parse(kaitai::kstream& p_io) {
+    m_rx_mcs = p_io.read_bytes(10);
+    m_supported_data_rate = p_io.read_u2le();
+    m_txflags = p_io.read_u4be();
 }
 

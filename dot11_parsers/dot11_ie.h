@@ -41,15 +41,11 @@ public:
     typedef std::vector<std::shared_ptr<dot11_ie_tag>> shared_ie_tag_vector;
     typedef std::unordered_map<uint8_t, std::shared_ptr<dot11_ie_tag>> shared_ie_tag_map;
 
-    dot11_ie() {
-
-    }
-
-    ~dot11_ie() {
-
-    }
+    dot11_ie() { }
+    ~dot11_ie() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(kaitai::kstream& p_io);
 
     std::shared_ptr<shared_ie_tag_vector> tags() const {
         return m_tags;
@@ -75,6 +71,7 @@ public:
         ~dot11_ie_tag() { }
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
+        void parse(kaitai::kstream& p_io);
 
         constexpr17 uint8_t tag_num() const {
             return m_tag_num;
@@ -84,26 +81,20 @@ public:
             return m_tag_len;
         }
 
-        std::string tag_data() const {
+        const std::string& tag_data() const {
             return m_tag_data;
-        }
-
-        std::shared_ptr<kaitai::kstream> tag_data_stream() const {
-            return m_tag_data_stream;
         }
 
         void reset() {
             m_tag_num = 0;
             m_tag_len = 0;
             m_tag_data = "";
-            m_tag_data_stream.reset();
         }
 
     protected:
         uint8_t m_tag_num;
         uint8_t m_tag_len;
         std::string m_tag_data;
-        std::shared_ptr<kaitai::kstream> m_tag_data_stream;
     };
 
 };

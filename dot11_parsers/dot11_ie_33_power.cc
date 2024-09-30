@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_33_power.h"
 
 void dot11_ie_33_power::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -23,3 +25,11 @@ void dot11_ie_33_power::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_max_power = p_io->read_u1();
 }
 
+void dot11_ie_33_power::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_min_power = p_io.read_u1();
+    m_max_power = p_io.read_u1();
+}

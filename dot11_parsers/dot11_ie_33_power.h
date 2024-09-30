@@ -40,6 +40,7 @@ public:
     ~dot11_ie_33_power() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t min_power() const {
         return m_min_power;

@@ -36,6 +36,7 @@ public:
     ~dot11_ie_35_tpc() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t txpower() const {
         return m_txpower;

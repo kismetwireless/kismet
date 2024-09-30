@@ -32,10 +32,10 @@
 class dot11_ie_54_mobility {
 public:
     dot11_ie_54_mobility() { }
-
     ~dot11_ie_54_mobility() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint16_t mobility_domain() const {
         return m_mobility_domain;

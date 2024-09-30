@@ -44,6 +44,7 @@ public:
     };
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 ch_channel_width channel_width() const {
         return (ch_channel_width) m_channel_width;

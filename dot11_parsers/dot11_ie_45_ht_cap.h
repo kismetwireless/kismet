@@ -39,6 +39,7 @@ public:
     ~dot11_ie_45_ht_cap() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint16_t ht_capabilities() const {
         return m_ht_capabilities;
@@ -140,15 +141,10 @@ protected:
 public:
     class dot11_ie_45_rx_mcs {
     public:
-        dot11_ie_45_rx_mcs() {
+        dot11_ie_45_rx_mcs() { }
+        ~dot11_ie_45_rx_mcs() { }
 
-        }
-
-        ~dot11_ie_45_rx_mcs() {
-
-        }
-
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
+        void parse(kaitai::kstream& p_io);
 
         std::string rx_mcs() const {
             return m_rx_mcs;

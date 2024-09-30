@@ -53,9 +53,10 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-    void parse_channels();
+	void parse(const std::string& data);
+    void parse_channels(const std::string& data);
 
-    std::string country_code() const {
+    const std::string& country_code() const {
         return m_country_code;
     }
 
@@ -68,7 +69,6 @@ public:
     }
 
 protected:
-    std::shared_ptr<kaitai::kstream> p_io_c;
     std::string m_country_code;
     uint8_t m_environment;
     std::shared_ptr<shared_dot11d_country_triplet_vector> m_country_list;
@@ -81,7 +81,7 @@ public:
         dot11d_country_triplet() {}
         ~dot11d_country_triplet() {}
 
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
+		void parse(kaitai::kstream& p_io);
 
         constexpr17 uint8_t first_channel() const {
             return m_first_channel;

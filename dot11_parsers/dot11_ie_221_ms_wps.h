@@ -41,6 +41,7 @@ public:
     ~dot11_ie_221_ms_wps() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t vendor_subtype() const {
         return m_vendor_subtype;
@@ -102,7 +103,7 @@ public:
         wps_de_sub_element() {};
         ~wps_de_sub_element() {};
 
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
+        void parse(kaitai::kstream& p_io);
 
         constexpr17 wps_de_type_e wps_de_type() const {
             return (wps_de_type_e) m_wps_de_type;
@@ -112,12 +113,8 @@ public:
             return m_wps_de_len;
         }
 
-        std::string wps_de_content() const {
+        constexpr17 const std::string& wps_de_content() const {
             return m_wps_de_content;
-        }
-
-        std::shared_ptr<kaitai::kstream> wps_de_content_data_stream() const {
-            return m_wps_de_content_data_stream;
         }
 
         std::shared_ptr<wps_de_sub_common> sub_element() const {
@@ -198,7 +195,6 @@ public:
             m_wps_de_type = 0;
             m_wps_de_len = 0;
             m_wps_de_content = "";
-            m_wps_de_content_data_stream.reset();
             m_sub_element.reset();
         }
 
@@ -206,7 +202,6 @@ public:
         uint16_t m_wps_de_type;
         uint16_t m_wps_de_len;
         std::string m_wps_de_content;
-        std::shared_ptr<kaitai::kstream> m_wps_de_content_data_stream;
         std::shared_ptr<wps_de_sub_common> m_sub_element;
 
     public:
@@ -215,7 +210,7 @@ public:
             wps_de_sub_common() { };
             virtual ~wps_de_sub_common() { };
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) { }
+            virtual void parse(const std::string& data) { }
 
             virtual void reset() = 0;
         };
@@ -225,7 +220,7 @@ public:
             wps_de_sub_string() { }
             virtual ~wps_de_sub_string() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             std::string str() const {
                 return m_str;
@@ -244,7 +239,7 @@ public:
             wps_de_sub_rfband() { }
             virtual ~wps_de_sub_rfband() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             constexpr17 uint8_t rfband() const {
                 return m_rfband;
@@ -271,7 +266,7 @@ public:
             wps_de_sub_state() { }
             virtual ~wps_de_sub_state() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             constexpr17 uint8_t state() const {
                 return m_state;
@@ -294,9 +289,9 @@ public:
             wps_de_sub_uuid_e() { }
             virtual ~wps_de_sub_uuid_e() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
-            std::string str() const {
+            constexpr17 const std::string& str() const {
                 return m_uuid;
             }
 
@@ -313,7 +308,7 @@ public:
             wps_de_sub_primary_type() { }
             virtual ~wps_de_sub_primary_type() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             constexpr17 uint16_t category() const {
                 return m_category;
@@ -344,7 +339,7 @@ public:
             wps_de_sub_vendor_extension() { }
             virtual ~wps_de_sub_vendor_extension() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             std::string vendor_id() const {
                 return m_vendor_id;
@@ -381,7 +376,7 @@ public:
             wps_de_sub_version() { }
             virtual ~wps_de_sub_version() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             constexpr17 uint8_t version() const {
                 return m_version;
@@ -400,7 +395,7 @@ public:
             wps_de_sub_ap_setup() { }
             virtual ~wps_de_sub_ap_setup() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             constexpr17 uint8_t ap_setup_locked() const {
                 return m_ap_setup_locked;
@@ -419,7 +414,7 @@ public:
             wps_de_sub_config_methods() { }
             virtual ~wps_de_sub_config_methods() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
             constexpr17 uint16_t wps_config_methods() const {
                 return m_config_methods;
@@ -438,9 +433,9 @@ public:
             wps_de_sub_generic() { }
             virtual ~wps_de_sub_generic() { }
 
-            virtual void parse(std::shared_ptr<kaitai::kstream> p_io) override;
+            virtual void parse(const std::string& data) override;
 
-            std::string wps_de_data() const {
+            constexpr17 const std::string& wps_de_data() const {
                 return m_wps_de_data;
             }
 

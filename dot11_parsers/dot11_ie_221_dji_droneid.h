@@ -45,6 +45,8 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+
+#include "fmt.h"
 #include "multi_constexpr.h"
 
 class dot11_ie_221_dji_droneid {
@@ -67,6 +69,7 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t vendor_type() const {
         return m_vendor_type;
@@ -84,7 +87,7 @@ public:
         return (e_dji_subcommand_type) m_subcommand;
     }
 
-    std::string raw_record_data() const {
+    constexpr17 const std::string& raw_record_data() const {
         return m_raw_record_data;
     }
 
@@ -110,7 +113,6 @@ public:
         m_unk2 = 0;
         m_subcommand = 0;
         m_raw_record_data = "";
-        m_raw_record_data_stream.reset();
         m_record.reset();
     }
 
@@ -120,7 +122,6 @@ protected:
     uint8_t m_unk2;
     uint8_t m_subcommand;
     std::string m_raw_record_data;
-    std::shared_ptr<kaitai::kstream> m_raw_record_data_stream;
     std::shared_ptr<dji_subcommand_common> m_record;
 
 public:
@@ -129,7 +130,7 @@ public:
         dji_subcommand_common() { }
         virtual ~dji_subcommand_common() { }
 
-        virtual void parse(std::shared_ptr<kaitai::kstream> p_io __attribute__((unused))) { }
+        virtual void parse(const std::string& data __attribute__((unused))) { }
     };
 
     class dji_subcommand_flight_reg : public dji_subcommand_common {
@@ -137,7 +138,7 @@ public:
         dji_subcommand_flight_reg() { }
         virtual ~dji_subcommand_flight_reg() { }
 
-        virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
+        virtual void parse(const std::string& data);
 
         const uint8_t version() const {
             return m_version;
@@ -151,7 +152,7 @@ public:
             return m_state_info;
         }
 
-        const std::string serialnumber() const {
+        constexpr17 const std::string& serialnumber() const {
             return m_serialnumber;
         }
 
@@ -470,9 +471,9 @@ public:
         dji_subcommand_flight_purpose() { }
         virtual ~dji_subcommand_flight_purpose() { }
 
-        virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
+        virtual void parse(const std::string& data);
 
-        std::string serialnumber() {
+        constexpr17 const std::string& serialnumber() {
             return m_serialnumber;
         }
 
@@ -480,7 +481,7 @@ public:
             return m_drone_id_len;
         }
 
-        std::string drone_id() {
+        constexpr17 const std::string& drone_id() {
             return m_drone_id;
         }
 
@@ -488,7 +489,7 @@ public:
             return m_purpose_len;
         }
 
-        std::string purpose() {
+        constexpr17 const std::string& purpose() {
             return m_purpose;
         }
 

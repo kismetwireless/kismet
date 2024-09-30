@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_113_mesh_config.h"
 
 void dot11_ie_113_mesh_config::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -28,3 +30,16 @@ void dot11_ie_113_mesh_config::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_capability_info = p_io->read_u1();
 }
 
+void dot11_ie_113_mesh_config::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_path_select_proto = p_io.read_u1();
+    m_path_select_metric = p_io.read_u1();
+    m_congestion_control = p_io.read_u1();
+    m_sync_method = p_io.read_u1();
+    m_auth_protocol = p_io.read_u1();
+    m_formation_info = p_io.read_u1();
+    m_capability_info = p_io.read_u1();
+}

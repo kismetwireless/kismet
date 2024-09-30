@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_52_rmm_neighbor.h"
 
 void dot11_ie_52_rmm::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -24,5 +26,17 @@ void dot11_ie_52_rmm::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_operating_class = p_io->read_u1();
     m_channel_number = p_io->read_u1();
     m_phy_type = p_io->read_u1();
+}
+
+void dot11_ie_52_rmm::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    m_bssid = p_io.read_bytes(6);
+    m_bssid_info = p_io.read_u4le();
+    m_operating_class = p_io.read_u1();
+    m_channel_number = p_io.read_u1();
+    m_phy_type = p_io.read_u1();
 }
 

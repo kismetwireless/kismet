@@ -78,25 +78,24 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
     
     constexpr17 uint8_t wfa_subtype() const {
         return m_wfa_subtype;
     }
 
-    std::shared_ptr<kaitai::kstream> wfa_content_stream() const {
-        return m_wfa_content_stream;
-    }
+	constexpr17 const std::string& wfa_content() const {
+		return m_wfa_content;
+	}
 
     void reset() {
         m_wfa_subtype = 0;
         m_wfa_content = "";
-        m_wfa_content_stream.reset();
     }
 
 protected:
     uint8_t m_wfa_subtype;
     std::string m_wfa_content;
-    std::shared_ptr<kaitai::kstream> m_wfa_content_stream;
 };
 
 

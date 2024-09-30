@@ -39,8 +39,9 @@ public:
     ~dot11_ie_52_rmm() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
-    std::string bssid() const {
+    constexpr17 const std::string& bssid() const {
         return m_bssid;
     }
 

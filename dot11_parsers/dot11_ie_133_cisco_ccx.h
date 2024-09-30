@@ -37,12 +37,13 @@ public:
     ~dot11_ie_133_cisco_ccx() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
-    std::string ccx_unk1() const {
+    constexpr17 const std::string& ccx_unk1() const {
         return m_ccx_unk1;
     }
 
-    std::string ap_name() const {
+    constexpr17 const std::string& ap_name() const {
         return m_ap_name;
     }
 
@@ -50,7 +51,7 @@ public:
         return m_station_count;
     }
 
-    std::string ccx_unk2() const {
+    constexpr17 const std::string& ccx_unk2() const {
         return m_ccx_unk2;
     }
 

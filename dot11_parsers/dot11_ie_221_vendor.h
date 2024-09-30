@@ -38,17 +38,14 @@ public:
     ~dot11_ie_221_vendor() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
-    std::string vendor_oui() const {
+    constexpr17 const std::string& vendor_oui() const {
         return m_vendor_oui;
     }
 
-    std::string vendor_tag() const {
+    constexpr17 const std::string& vendor_tag() const {
         return m_vendor_tag;
-    }
-
-    std::shared_ptr<kaitai::kstream> vendor_tag_stream() const {
-        return m_vendor_tag_stream;
     }
 
     // Process the vendor tag 
@@ -66,18 +63,14 @@ public:
     void reset() {
         m_vendor_oui = "";
         m_vendor_tag = "";
-        m_vendor_tag_stream.reset();
         m_vendor_oui_type = 0;
     }
 
 protected:
     std::string m_vendor_oui;
     std::string m_vendor_tag;
-    std::shared_ptr<kaitai::kstream> m_vendor_tag_stream;
     uint8_t m_vendor_oui_type;
-
 };
-
 
 #endif
 

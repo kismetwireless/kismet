@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "util.h"
+
 #include "dot11_ie_221_cisco_client_mfp.h"
 
 void dot11_ie_221_cisco_client_mfp::parse(std::shared_ptr<kaitai::kstream> p_io) {
@@ -26,3 +28,13 @@ void dot11_ie_221_cisco_client_mfp::parse(std::shared_ptr<kaitai::kstream> p_io)
     m_client_mfp = (l_mfp & 0x01);
 }
 
+void dot11_ie_221_cisco_client_mfp::parse(const std::string& data) {
+	membuf d_membuf(data.data(), data.data() + data.length());
+	std::istream is(&d_membuf);
+	kaitai::kstream p_io(&is);
+
+    p_io.read_u1();
+
+    uint8_t l_mfp = p_io.read_u1();
+    m_client_mfp = (l_mfp & 0x01);
+}

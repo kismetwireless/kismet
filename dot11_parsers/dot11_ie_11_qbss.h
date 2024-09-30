@@ -38,6 +38,7 @@ public:
     ~dot11_ie_11_qbss() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string &data);
 
     constexpr17 uint16_t station_count() const {
         return m_station_count;

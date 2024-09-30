@@ -38,12 +38,13 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t vendor_type() const {
         return m_vendor_type;
     }
 
-    std::string pmkid() const {
+    constexpr17 const std::string& pmkid() const {
         return m_pmkid;
     }
 
