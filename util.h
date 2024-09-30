@@ -76,6 +76,7 @@
 // Munge a string to printable - printable assumed to be either a UTF8 string, or 
 // a pure ascii string if we can't confirm that it's UTF8
 std::string munge_to_printable(const std::string& in_str) noexcept;
+std::string munge_to_printable(const char *begin, size_t len) noexcept;
 
 std::string str_lower(const std::string& in_str);
 std::string str_upper(const std::string& in_str);
@@ -350,28 +351,28 @@ protected:
 };
 
 // Basic override of a stream buf to allow us to operate purely from memory
-struct membuf : std::streambuf {
-	membuf(char *begin, char *end) : begin(begin), end(end) {
-		this->setg(begin, begin, end);
+struct membuf : public std::streambuf {
+	membuf(const char *begin, const char *end) : begin(begin), end(end) {
+		this->setg(const_cast<char *>(begin), const_cast<char *>(begin), const_cast<char *>(end));
 	}
 
 	virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir, 
 			std::ios_base::openmode which = std::ios_base::in) override {
-        if (dir == std::ios_base::cur)
-            gbump(off);
+		if (dir == std::ios_base::cur)
+			gbump(off);
 		else if (dir == std::ios_base::end)
-			setg(begin, end+off, end);
+			setg(const_cast<char *>(begin), const_cast<char *>(end+off), const_cast<char *>(end));
 		else if (dir == std::ios_base::beg)
-			setg(begin, begin+off, end);
+			setg(const_cast<char *>(begin), const_cast<char *>(begin+off), const_cast<char *>(end));
 
 		return gptr() - eback();
 	}
 
 	virtual pos_type seekpos(std::streampos pos, std::ios_base::openmode mode) override {
-        return seekoff(pos - pos_type(off_type(0)), std::ios_base::beg, mode);
+		return seekoff(pos - pos_type(off_type(0)), std::ios_base::beg, mode);
 	}
 
-	char *begin, *end;
+	const char *begin, *end;
 };
 
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
