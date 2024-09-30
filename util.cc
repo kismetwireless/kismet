@@ -198,10 +198,10 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 
 /* sanitize_extra_space and sanitize_string taken from nlohmann's jsonhpp library,
    Copyright 2013-2015 Niels Lohmann. and under the MIT license */
-std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
+std::size_t munge_extra_space(const char *s, size_t len, bool utf8) noexcept {
     std::size_t result = 0;
 
-    for (size_t i = 0; i < s.size(); i++) {
+    for (size_t i = 0; i < len; i++) {
         u_char c = s[i];
 
         switch (c & 0xFF) {
@@ -240,8 +240,8 @@ std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
     return result;
 }
 
-std::string munge_to_printable(const std::string& s) noexcept {
-	return munge_to_printable(s.data(), s.length());
+std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
+	return munge_extra_space(s.data(), s.length(), utf8);
 }
 
 std::string munge_to_printable(const char *s, size_t len) noexcept {
@@ -343,6 +343,11 @@ std::string munge_to_printable(const char *s, size_t len) noexcept {
 
     return result;
 }
+
+std::string munge_to_printable(const std::string& s) noexcept {
+	return munge_to_printable(s.data(), s.length());
+}
+
 
 std::string str_lower(const std::string& in_str) {
     std::string retstr(in_str);
