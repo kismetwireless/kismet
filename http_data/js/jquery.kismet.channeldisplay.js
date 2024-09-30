@@ -31,7 +31,7 @@
             data = kismet.sanitizeObject(data);
 
             var devtitles = new Array();
-            var devnums = new Array();
+            var datasets = new Array();
 
             // Chart type from radio buttons
             var charttype = $("input[name='graphtype']:checked", state.graphtype).val();
@@ -45,7 +45,6 @@
             // historical line chart
             if (charttype === 'history') {
                 var pointtitles = new Array();
-                var datasets = new Array();
                 var title = "";
 
                 var rrd_data = null;
@@ -221,6 +220,7 @@
                 // which is what we probably really want
 
                 var freqsort = Object.keys(data['kismet.channeltracker.frequency_map']).sort();
+                var devnums = new Array();
 
                 for (var fk of freqsort) {
                     var slot_now =
@@ -236,6 +236,13 @@
 
                     devnums.push(dev_now);
                 }
+
+                datasets.push({
+                    label: "Active devices per channel",
+                    backgroundColor: kismet_theme.graphBasicColor,
+                    data: devnums,
+                    borderWidth: 1,
+                });
 
                 state.devgraph_canvas.show();
                 state.timegraph_canvas.hide();
@@ -258,14 +265,7 @@
                         },
                         data: {
                             labels: devtitles,
-                            datasets: [
-                                {
-                                    label: "Active devices per channel",
-                                    backgroundColor: kismet_theme.graphBasicColor,
-                                    data: devnums,
-                                    borderWidth: 1,
-                                }
-                            ],
+                            datasets: datasets
                         }
                     };
 
@@ -273,7 +273,7 @@
                         device_options);
 
                 } else {
-                    state.devgraph_chart.data.datasets = devnums;
+                    state.devgraph_chart.data.datasets = datasets;
                     state.devgraph_chart.data.labels = devtitles;
                     state.devgraph_chart.update();
                 }
