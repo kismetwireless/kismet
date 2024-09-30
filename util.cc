@@ -241,6 +241,10 @@ std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
 }
 
 std::string munge_to_printable(const std::string& s) noexcept {
+	return munge_to_printable(s.data(), s.length());
+}
+
+std::string munge_to_printable(const char *s, size_t len) noexcept {
     const auto utf8 = is_valid_utf8(s);
     const auto space = munge_extra_space(s, utf8);
     if (space == 0) {
@@ -248,10 +252,10 @@ std::string munge_to_printable(const std::string& s) noexcept {
     }
 
     // create a result string of necessary size
-    std::string result(s.size() + space, '\\');
+    std::string result(len + space, '\\');
     std::size_t pos = 0;
 
-    for (size_t i = 0; i < s.size(); i++) {
+    for (size_t i = 0; i < len; i++) {
         u_char c = s[i];
 
         switch (c) {
