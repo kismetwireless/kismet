@@ -222,7 +222,7 @@ public:
 
             virtual void parse(const std::string& data) override;
 
-            std::string str() const {
+            constexpr const std::string& str() const {
                 return m_str;
             }
 
