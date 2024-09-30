@@ -179,9 +179,9 @@ bool kis_wiglecsv_logfile::open_log(const std::string& in_template, const std::s
     _MSG_INFO("Opened wiglecsv log file '{}'", in_path);
 
     // CSV headers
-    fmt::print(csvfile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2},model=Kismet,release={0}.{1}.{2},"
+    fmt::print(csvfile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,release={0}.{1}.{2}-{3},"
             "device=kismet,display=kismet,board=kismet,brand=kismet\n", 
-            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
     fmt::print(csvfile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,Type\n");
 

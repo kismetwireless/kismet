@@ -90,7 +90,7 @@ Systemmonitor::Systemmonitor() :
 
     status->insert(Globalreg::globalreg->server_uuid);
 
-    status->set_server_version(fmt::format("{}-{}-{}", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY));
+    status->set_server_version(fmt::format("{}.{}.{}-{}", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT));
     status->set_server_git(VERSION_GIT_COMMIT);
     status->set_build_time(VERSION_BUILD_TIME);
 

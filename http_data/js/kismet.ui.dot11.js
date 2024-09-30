@@ -1249,7 +1249,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     draw: function(opts) { 
                         return kismet.censorString(opts['value']);
                     },
-                    help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
+                    help: "Some access points, typically enterprise-class devices such as those from Cisco, Aruba/HP, Mist, Ruckus, Arista, Aerohive, Extreme, and Mojo, can include custom device names in the beacons.  Typically this is used by the network administrators to map where access points are deployed or to indicate the name of the physical device.",
                 },
                 {
                     field: "dot11.advertisedssid.dot11s.gateway",
@@ -2099,7 +2099,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             {
                 field: "dot11.device/dot11.device.client_map",
                 id: "client_behavior_header",
-                help: "A Wi-Fi device may be a client of multiple networks over time, but can only be actively associated with a single access point at once.  Clients typically are able to roam between access points with the same name (SSID).",
+                help: "A Wi-Fi device may be a client of multiple networks over time, but can only be actively associated with a single access point at once.  Clients typically are able to roam between access points with the same advertised name (SSID).",
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);

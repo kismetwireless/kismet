@@ -19,9 +19,9 @@
 #ifndef __KISVERSION_H__
 #define __KISVERSION_H__
 
-#define VERSION_MAJOR	"2023"
-#define VERSION_MINOR	"00"
-#define VERSION_TINY	"GIT"
+extern const char *VERSION_MAJOR;
+extern const char *VERSION_MINOR;
+extern const char *VERSION_TINY;
 
 extern const char *VERSION_GIT_COMMIT;
 extern const char *VERSION_BUILD_TIME;

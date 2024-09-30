@@ -61,6 +61,8 @@
 #include "kismet.pb-c.h"
 #include "datasource.pb-c.h"
 
+#include "version.h"
+
 int unshare(int);
 
 uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
@@ -819,6 +821,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "endpoint", required_argument, 0, 17},
         { "ssl-certificate", required_argument, 0, 18},
         { "help", no_argument, 0, 'h'},
+        { "version", no_argument, 0, 'v'},
         { 0, 0, 0, 0 }
     };
 
@@ -832,12 +835,15 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     int ret = 0;
 
     while (1) {
-        int r = getopt_long(argc, argv, "h-", longopt, &option_idx);
+        int r = getopt_long(argc, argv, "vh-", longopt, &option_idx);
 
         if (r < 0)
             break;
 
-        if (r == 'h') {
+        if (r == 'v') {
+            printf("%s.%s.%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
+            return 0;
+        } else if (r == 'h') {
             ret = -2;
             goto cleanup;
         } else if (r == 1) {
@@ -1147,7 +1153,8 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
                 " --list                       List supported devices detected\n"
 				" --autodetect [uuid:optional] Look for a Kismet server in announcement mode, optionally \n"
 				"                              waiting for a specific server UUID to be seen.  Requires \n"
-				"                              a Kismet server configured for announcement mode.\n",
+				"                              a Kismet server configured for announcement mode.\n"
+                " --version                    Print version and exit.\n",
                 argv0, argv0);
     }
 

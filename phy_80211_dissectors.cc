@@ -2504,13 +2504,64 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                     // Aruba/HP AP name field
                     
                     vendor->vendor_tag_stream()->seek(0);
-
                     vendor->vendor_tag_stream()->read_bytes(1);
                     auto sub = vendor->vendor_tag_stream()->read_u1();
 
                     if (sub == 3) {
                         vendor->vendor_tag_stream()->read_bytes(1);
                         auto name = vendor->vendor_tag_stream()->read_bytes_full();
+                        packinfo->beacon_info = munge_to_printable(name);
+                    }
+                } else if (vendor->vendor_oui_int() == 0x005c5b35 && vendor->vendor_oui_type() == 1) {
+                    // Mist Systems AP name
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+                    auto name = vendor->vendor_tag_stream()->read_bytes_full();
+                    packinfo->beacon_info = munge_to_printable(name);
+                } else if (vendor->vendor_oui_int() == 0x00001174 && vendor->vendor_oui_type() == 0) {
+                    // Mojo / Arista AP name
+                    
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+                    auto sub = vendor->vendor_tag_stream()->read_u1();
+
+                    if (sub == 6) {
+                        vendor->vendor_tag_stream()->read_bytes(1);
+                        auto name = vendor->vendor_tag_stream()->read_bytes_full();
+                        packinfo->beacon_info = munge_to_printable(name);
+                    }
+                } else if (vendor->vendor_oui_int() == 0x00001392 && vendor->vendor_oui_type() == 3) {
+                    // Ruckus AP name
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+                    auto name = vendor->vendor_tag_stream()->read_bytes_full();
+                    packinfo->beacon_info = munge_to_printable(name);
+                } else if (vendor->vendor_oui_int() == 0x00001977 && vendor->vendor_oui_type() == 33) {
+                    // Extreme / Aerohive
+                    
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+
+                    auto version = vendor->vendor_tag_stream()->read_u1();
+                    auto subtype = vendor->vendor_tag_stream()->read_u1();
+
+                    if (version == 1 && subtype == 0) {
+                        auto len = vendor->vendor_tag_stream()->read_u1();
+                        auto name = vendor->vendor_tag_stream()->read_bytes(len);
+                        packinfo->beacon_info = munge_to_printable(name);
+                    }
+                } else if (vendor->vendor_oui_int() == 0x0000090f && vendor->vendor_oui_type() == 10) {
+                    // Fortinet
+                    
+                    vendor->vendor_tag_stream()->seek(0);
+                    vendor->vendor_tag_stream()->read_bytes(1);
+
+                    auto subtype = vendor->vendor_tag_stream()->read_u1();
+                    auto type = vendor->vendor_tag_stream()->read_u1();
+
+                    if (subtype == 10 && type == 1) {
+                        auto len = vendor->vendor_tag_stream()->read_u1();
+                        auto name = vendor->vendor_tag_stream()->read_bytes(len);
                         packinfo->beacon_info = munge_to_printable(name);
                     }
                 }
