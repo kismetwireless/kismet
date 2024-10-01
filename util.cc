@@ -196,6 +196,42 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 
 #endif
 
+bool is_valid_utf8(const char *subject, size_t length) {
+    int i, ix, nb, j;
+
+    for (i = 0, ix = length; i < ix; i++) {
+        auto c = (unsigned char) subject[i];
+
+        if (0x00 <= c && c <= 0x7f) {
+            nb = 0;
+        } else if ((c & 0xE0) == 0xC0) {
+            nb = 1;
+        } else if ( c==0xed && i < (ix - 1) && 
+                ((unsigned char) subject[i+1] & 0xa0) == 0xa0) {
+            return false; 
+        } else if ((c & 0xF0) == 0xE0) {
+            nb = 2;
+        } else if ((c & 0xF8) == 0xF0) {
+            nb = 3; 
+        } else {
+            return false;
+        }
+
+        for (j = 0; j < nb && i < ix; j++) { 
+            if ((++i == ix) || (((unsigned char) subject[i] & 0xC0) != 0x80)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool is_valid_utf8(const std::string& subject) {
+	return is_valid_utf8(subject.data(), subject.size());
+}
+
+
 /* sanitize_extra_space and sanitize_string taken from nlohmann's jsonhpp library,
    Copyright 2013-2015 Niels Lohmann. and under the MIT license */
 std::size_t munge_extra_space(const char *s, size_t len, bool utf8) noexcept {
@@ -241,12 +277,17 @@ std::size_t munge_extra_space(const char *s, size_t len, bool utf8) noexcept {
 }
 
 std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
-	return munge_extra_space(s.data(), s.length(), utf8);
+	return munge_extra_space(s.data(), s.size(), utf8);
 }
 
 std::string munge_to_printable(const char *s, size_t len) noexcept {
-    const auto utf8 = is_valid_utf8(s);
+	if (len == 0) {
+		return "";
+	}
+
+    const auto utf8 = is_valid_utf8(s, len);
     const auto space = munge_extra_space(s, utf8);
+
     if (space == 0) {
         return s;
     }
@@ -1239,37 +1280,6 @@ void thread_set_process_name(const std::string& name) {
 #else
 void thread_set_process_name(const std::string& name) { }
 #endif
-
-bool is_valid_utf8(const std::string& subject) {
-    int i, ix, nb, j;
-
-    for (i = 0, ix = subject.length(); i < ix; i++) {
-        auto c = (unsigned char) subject[i];
-
-        if (0x00 <= c && c <= 0x7f) {
-            nb = 0;
-        } else if ((c & 0xE0) == 0xC0) {
-            nb = 1;
-        } else if ( c==0xed && i < (ix - 1) && 
-                ((unsigned char) subject[i+1] & 0xa0) == 0xa0) {
-            return false; 
-        } else if ((c & 0xF0) == 0xE0) {
-            nb = 2;
-        } else if ((c & 0xF8) == 0xF0) {
-            nb = 3; 
-        } else {
-            return false;
-        }
-
-        for (j = 0; j < nb && i < ix; j++) { 
-            if ((++i == ix) || (((unsigned char) subject[i] & 0xC0) != 0x80)) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
 
 bool iequals(const std::string& a, const std::string& b) {
     return std::equal(a.begin(), a.end(),

@@ -2478,11 +2478,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
                             continue;
                         }
 
+#if 0
                         auto euuid = wpselem->sub_element_uuid_e();
                         if (euuid != nullptr) {
                             packinfo->wps_uuid_e = munge_to_printable(euuid->str());
                             continue;
                         }
+#endif
                     }
                 } else if (vendor->vendor_oui_int() == 0x00000b86 && vendor->vendor_oui_type() == 1) {
                     // Aruba/HP AP name field
@@ -3045,7 +3047,7 @@ kis_80211_phy::packet_dot11_eapol_handshake(const std::shared_ptr<kis_packet>& i
                 }
 
 				auto ietags = Globalreg::new_from_pool<dot11_ie>();
-                ietags->parse(rsnkey->wpa_key_data_stream());
+                ietags->parse(rsnkey->wpa_key_data());
 
                 for (auto ie_tag : *(ietags->tags())) {
                     if (ie_tag->tag_num() == 221) {

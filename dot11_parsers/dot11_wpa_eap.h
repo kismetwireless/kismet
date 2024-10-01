@@ -46,6 +46,7 @@ public:
     ~dot11_wpa_eap() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
 
     constexpr17 uint8_t dot1x_version() const {
         return m_dot1x_version;
@@ -59,12 +60,8 @@ public:
         return m_dot1x_len;
     }
 
-    std::string dot1x_data() const {
+    constexpr const std::string& dot1x_data() const {
         return m_dot1x_data;
-    }
-
-    std::shared_ptr<kaitai::kstream> dot1x_data_stream() const {
-        return m_dot1x_data_stream;
     }
 
     std::shared_ptr<dot1x_common> dot1x_content() const {
@@ -74,13 +71,13 @@ public:
     std::shared_ptr<dot1x_eap_packet> dot1x_content_eap_packet() const {
         if (dot1x_type() == dot1x_type_eap_packet) 
             return std::static_pointer_cast<dot1x_eap_packet>(dot1x_content());
-        return NULL;
+        return nullptr;
     }
 
     std::shared_ptr<dot1x_key> dot1x_content_key() const {
         if (dot1x_type() == dot1x_type_eap_key)
             return std::static_pointer_cast<dot1x_key>(dot1x_content());
-        return NULL;
+        return nullptr;
     }
 
 protected:
@@ -88,7 +85,6 @@ protected:
     uint8_t m_dot1x_type;
     uint16_t m_dot1x_len;
     std::string m_dot1x_data;
-    std::shared_ptr<kaitai::kstream> m_dot1x_data_stream;
     std::shared_ptr<dot1x_common> m_dot1x_content;
 
 public:
@@ -111,17 +107,14 @@ public:
         virtual ~dot1x_key() { }
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
+		void parse(const std::string& data);
 
         constexpr17 dot1x_key_type_e key_descriptor_type() const {
             return (dot1x_key_type_e) m_key_descriptor_type;
         }
 
-        std::string key_content_data() const {
+        constexpr17 const std::string& key_content_data() const {
             return m_key_content_data;
-        }
-
-        std::shared_ptr<kaitai::kstream> key_content_data_stream() const {
-            return m_key_content_data_stream;
         }
 
         std::shared_ptr<dot1x_key_common> key_content() const {
@@ -131,13 +124,12 @@ public:
         std::shared_ptr<eapol_key_rsn> key_content_eapolrsn() const {
             if (key_descriptor_type() == dot1x_key_type_eapol_rsn)
                 return std::static_pointer_cast<eapol_key_rsn>(key_content());
-            return NULL;
+            return nullptr;
         }
 
     protected:
         uint8_t m_key_descriptor_type;
         std::string m_key_content_data;
-        std::shared_ptr<kaitai::kstream> m_key_content_data_stream;
         std::shared_ptr<dot1x_key_common> m_key_content;
 
     public:
@@ -153,6 +145,7 @@ public:
             virtual ~eapol_key_rsn() {}
 
             void parse(std::shared_ptr<kaitai::kstream> p_io);
+			void parse(const std::string& data);
 
             constexpr17 uint16_t key_info() const {
                 return m_key_info;
@@ -166,23 +159,23 @@ public:
                 return m_replay_counter;
             }
 
-            std::string wpa_key_nonce() const {
+            constexpr17 const std::string& wpa_key_nonce() const {
                 return m_wpa_key_nonce;
             } 
 
-            std::string wpa_key_iv() const {
+            constexpr17 const std::string& wpa_key_iv() const {
                 return m_wpa_key_iv;
             }
 
-            std::string wpa_key_rsc() const {
+            constexpr17 const std::string& wpa_key_rsc() const {
                 return m_wpa_key_rsc;
             }
 
-            std::string wpa_key_id() const {
+            constexpr17 const std::string& wpa_key_id() const {
                 return m_wpa_key_id;
             }
 
-            std::string wpa_key_mic() const {
+            constexpr17 const std::string& wpa_key_mic() const {
                 return m_wpa_key_mic;
             }
 
@@ -190,12 +183,8 @@ public:
                 return m_wpa_key_data_len;
             }
 
-            std::string wpa_key_data() const {
+            constexpr17 const std::string& wpa_key_data() const {
                 return m_wpa_key_data;
-            }
-
-            std::shared_ptr<kaitai::kstream> wpa_key_data_stream() const {
-                return m_wpa_key_data_stream;
             }
 
             enum eapol_key_descriptor_version {
@@ -255,7 +244,6 @@ public:
             std::string m_wpa_key_mic;
             uint16_t m_wpa_key_data_len;
             std::string m_wpa_key_data;
-            std::shared_ptr<kaitai::kstream> m_wpa_key_data_stream;
         };
 
     };
@@ -278,6 +266,7 @@ public:
         virtual ~dot1x_eap_packet() {}
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
+		void parse(const std::string& data);
 
         constexpr17 eapol_type_e eapol_type() const {
             return (eapol_type_e) m_eapol_type;
@@ -295,12 +284,8 @@ public:
             return (eapol_expanded_type_e) m_eapol_expanded_type;
         }
 
-        std::string eapol_content_data() const {
+        constexpr17 const std::string& eapol_content_data() const {
             return m_eapol_content_data;
-        }
-
-        std::shared_ptr<kaitai::kstream> p_io() const {
-            return m_eapol_content_data_stream;
         }
 
         std::shared_ptr<eapol_content_common> eapol_content() const {
@@ -319,7 +304,6 @@ public:
         uint16_t m_eapol_len;
         uint8_t m_eapol_expanded_type;
         std::string m_eapol_content_data;
-        std::shared_ptr<kaitai::kstream> m_eapol_content_data_stream;
         std::shared_ptr<eapol_content_common> m_eapol_content;
 
     public:
@@ -346,6 +330,7 @@ public:
             virtual ~eapol_extended_wpa_wps() { }
 
             void parse(std::shared_ptr<kaitai::kstream> p_io);
+			void parse(const std::string& data);
 
             std::string vendor_id() const {
                 return m_vendor_id;
@@ -411,7 +396,7 @@ public:
                 eapol_wpa_field() { }
                 ~eapol_wpa_field() { }
 
-                void parse(std::shared_ptr<kaitai::kstream> p_io);
+                void parse(kaitai::kstream& p_io);
 
                 constexpr17 eapol_wpa_field_type_e type() const {
                     return (eapol_wpa_field_type_e) m_type;
@@ -421,12 +406,8 @@ public:
                     return m_len;
                 }
 
-                std::string content_data() const {
+                constexpr17 const std::string& content_data() const {
                     return m_content_data;
-                }
-
-                std::shared_ptr<kaitai::kstream> content_data_stream() const {
-                    return m_content_data_stream;
                 }
 
                 std::shared_ptr<eapol_field_common> content() const {
@@ -479,7 +460,6 @@ public:
                 uint16_t m_type;
                 uint16_t m_len;
                 std::string m_content_data;
-                std::shared_ptr<kaitai::kstream> m_content_data_stream;
                 std::shared_ptr<eapol_field_common> m_content;
 
             public:
@@ -494,7 +474,7 @@ public:
                     eapol_field_version() { }
                     virtual ~eapol_field_version() { }
 
-                    void parse(std::shared_ptr<kaitai::kstream> p_io);
+                    void parse(const std::string& data);
 
                     uint8_t version() {
                         return m_version;
@@ -519,6 +499,7 @@ public:
                     virtual ~eapol_field_message_type() {}
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
+					void parse(const std::string& data);
 
                     constexpr17 messagetype_e messagetype() const {
                         return (messagetype_e) m_messagetype;
@@ -534,6 +515,7 @@ public:
                     virtual ~eapol_field_uuid() {}
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
+					void parse(const std::string& data);
 
                     std::string uuid() const {
                         return m_uuid;
@@ -549,6 +531,7 @@ public:
                     virtual ~eapol_field_auth_type_flags() {}
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
+					void parse(const std::string& data);
 
                     constexpr17 uint16_t flags() const {
                         return m_flags;
@@ -580,6 +563,7 @@ public:
                     virtual ~eapol_field_encryption_type_flags() {}
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
+					void parse(const std::string& data);
 
                     constexpr17 uint16_t flags() const {
                         return m_flags;
@@ -611,6 +595,7 @@ public:
                     virtual ~eapol_field_connection_type_flags() {}
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
+					void parse(const std::string& data);
 
                     constexpr17 uint8_t flags() const {
                         return m_flags;
@@ -634,6 +619,7 @@ public:
                     virtual ~eapol_field_config_methods() {}
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
+					void parse(const std::string& data);
 
                     constexpr17 uint16_t flags() const {
                         return m_flags;
