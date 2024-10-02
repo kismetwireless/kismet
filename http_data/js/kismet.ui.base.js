@@ -336,6 +336,14 @@ kismet_ui.AddDeviceColumn("packet_rrd", {
     }
 });
 
+kismet_ui.AddDeviceColumn("packets", {
+    'title': 'Total packets',
+    'desscription': 'Total packets',
+    'field': 'kismet.device.base.packets.total',
+    'sortable': true,
+    'searchable': false,
+});
+
 kismet_ui.AddHiddenDeviceColumn({'field': 'kismet.device.base.phyname', 'searchable': true});
 kismet_ui.AddHiddenDeviceColumn({'field': 'kismet.device.base.macaddr', 'searchable': true});
 
