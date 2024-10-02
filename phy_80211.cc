@@ -2528,8 +2528,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         return;
     }
 
-    // If we've processed an identical ssid, don't waste time parsing again, just tweak
-    // the few fields we need to update
+    // If we've processed an identical set of beacon IE tags, don't waste time parsing again, 
+	// just update the last-seen time and the number of beacons seen this second
     if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
         ssid = dot11dev->get_last_adv_ssid();
 
@@ -2546,7 +2546,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
     dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
-    // If we fail parsing...
+	// Parse the new set of IE tags
     if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
         return;
     }

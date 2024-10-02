@@ -1565,6 +1565,10 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
 
 int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& in_pack,
         const std::shared_ptr<dot11_packinfo>& packinfo) {
+
+	// Called opportunistically by the main dot11 processor when the checksum over all IE 
+	// tags has changed
+
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
                 packinfo->subtype == packet_sub_beacon ||
@@ -1585,6 +1589,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
 
+	// Do a first-order processing of the tags to make sure it's a valid frame
     if (packinfo->ie_tags == nullptr) {
         membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]), 
                 (char *) &(chunk->data()[chunk->length()]));
@@ -1605,10 +1610,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& 
     auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     // Track if we've seen some of these tags already
-    // bool seen_ssid = false;
-    // bool seen_basicrates = false;
-    // bool seen_extendedrates = false;
-    // bool seen_mcsrates = false;
     unsigned int wmmtspec_responses = 0;
 
     for (const auto& ie_tag : *(packinfo->ie_tags->tags())) {
