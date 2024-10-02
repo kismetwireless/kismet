@@ -1200,6 +1200,11 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
                     title: "Last Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
+				{
+					field: "kismet.common.seenby.num_packets",
+					title: "Packets",
+					empty: "0",
+				},
                 ]
             }]
         });
