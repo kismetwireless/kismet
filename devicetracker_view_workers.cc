@@ -89,6 +89,8 @@ device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in
         throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
                     (int) erroroffset, (char *) buffer));
     }
+
+	match_data = pcre2_match_data_create_from_pattern(re, NULL);
 }
 
 device_tracker_view_regex_worker::pcre_filter::~pcre_filter() {
@@ -179,12 +181,12 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
             int ovector[128];
 
             rc = pcre_exec(i->re, i->study, val.c_str(), val.length(), 0, 0, ovector, 128);
-#else
 
+#else
             rc = pcre2_match(i->re, (PCRE2_SPTR8) val.c_str(), val.length(), 
                     0, 0, i->match_data, NULL);
-
 #endif
+
             // Stop matching as soon as we find a hit
             if (rc >= 0) {
                 matched = true;
