@@ -261,6 +261,8 @@ int main(int argc, char *argv[]) {
                 throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
                             (int) erroroffset, (char *) buffer));
             }
+
+			match_data = pcre2_match_data_create_from_pattern(re, NULL);
         }
 
         ~pcre_filter() {
