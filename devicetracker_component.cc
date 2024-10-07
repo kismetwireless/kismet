@@ -30,6 +30,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#include "datasourcetracker.h"
 #include "devicetracker_component.h"
 #include "kis_datasource.h"
 
@@ -341,7 +342,8 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<trac
 kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *p) :
     tracker_component{p} {
 
-        __ImportId(src_uuid_id, p);
+		__ImportField(src_uuid, p);
+		__ImportField(datasource_alias, p);
 
         __ImportField(first_time, p);
         __ImportField(last_time, p);
@@ -350,9 +352,14 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *
         __ImportId(freq_khz_map_id, p);
         __ImportId(signal_data_id, p);
 
+
         reserve_fields(nullptr);
     }
 
+void kis_tracked_seenby_data::set_datasource_alias(std::shared_ptr<kis_datasource> src) {
+	src_uuid->set(src->get_tracker_source_uuid());
+	datasource_alias->set(src);
+}
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
     auto m = get_tracker_freq_khz_map();
@@ -368,8 +375,8 @@ void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
 void kis_tracked_seenby_data::register_fields() {
     tracker_component::register_fields();
 
-    src_uuid_id =
-        register_dynamic_field("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
+	register_field("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
+	register_field("kismet.common.seenby.source", "datasource", &datasource_alias);
 
     register_field("kismet.common.seenby.first_time", "first time seen time_t", &first_time);
     register_field("kismet.common.seenby.last_time", "last time seen time_t", &last_time);
@@ -410,23 +417,24 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
 
     // Make a new seenby record
     if (seenby_iter == seenby_map->end()) {
-        seenby = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_tracked_seenby_data>(seenby_val_id);
+		auto resolved_src = Globalreg::globalreg->datasourcetracker->find_datasource(source->get_source_uuid());
+		if (resolved_src != nullptr) {
+			seenby = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_tracked_seenby_data>(seenby_val_id);
 
-        auto sb_uuid = seenby->get_src_uuid();
-        sb_uuid->set(source->get_tracker_source_uuid());
+			seenby->set_datasource_alias(resolved_src);
 
-        seenby->set_first_time(tv_sec);
-        seenby->set_last_time(tv_sec);
-        seenby->set_num_packets(1);
+			seenby->set_first_time(tv_sec);
+			seenby->set_last_time(tv_sec);
+			seenby->set_num_packets(1);
 
-        if (frequency > 0)
-            seenby->inc_frequency_count(frequency);
+			if (frequency > 0)
+				seenby->inc_frequency_count(frequency);
 
-        if (siginfo != NULL)
-            (seenby->get_signal_data())->append_signal(*siginfo, update_rrd, tv_sec);
+			if (siginfo != NULL)
+				(seenby->get_signal_data())->append_signal(*siginfo, update_rrd, tv_sec);
 
-        seenby_map->insert(source->get_source_key(), seenby);
-
+			seenby_map->insert(source->get_source_key(), seenby);
+		}
     } else {
         auto seenby_r = static_cast<kis_tracked_seenby_data *>(seenby_iter->second.get());
 

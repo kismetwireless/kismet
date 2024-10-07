@@ -1176,19 +1176,30 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
                 id: "seenby_group",
                 groupIterate: true,
                 iterateTitle: function(opts) {
+                    var this_name = opts['value'][opts['index']]['kismet.common.seenby.source']['kismet.datasource.name'];
                     var this_uuid = opts['value'][opts['index']]['kismet.common.seenby.uuid'];
-                    $.get(`${local_uri_prefix}datasource/by-uuid/${this_uuid}/source.json`)
-                    .done(function(dsdata) {
-                        dsdata = kismet.sanitizeObject(dsdata);
-                        opts['title'].html(`${dsdata['kismet.datasource.name']} (${dsdata['kismet.datasource.capture_interface']}) ${dsdata['kismet.datasource.uuid']}`);
-                    })
-                    return opts['value'][opts['index']]['kismet.common.seenby.uuid'];
+					return `${this_name} (${this_uuid})`;
                 },
                 fields: [
                 {
                     field: "kismet.common.seenby.uuid",
                     title: "UUID",
-                    empty: "<i>None</i>"
+                    empty: "<i>Unknown</i>"
+                },
+                {
+                    field: "kismet.common.seenby.source/kismet.datasource.name",
+                    title: "Name",
+                    empty: "<i>Unknown</i>"
+                },
+                {
+                    field: "kismet.common.seenby.source/kismet.datasource.hardware",
+                    title: "Hardware",
+                    empty: "<i>Unknown</i>"
+                },
+                {
+                    field: "kismet.common.seenby.source/kismet.datasource.interface",
+                    title: "Interface",
+                    empty: "<i>Unknown</i>"
                 },
                 {
                     field: "kismet.common.seenby.first_time",

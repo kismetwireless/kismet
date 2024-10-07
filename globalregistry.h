@@ -51,6 +51,7 @@ class alert_tracker;
 class time_tracker;
 class config_file;
 class plugin_tracker;
+class datasource_tracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
 class kis_pollable;
@@ -222,8 +223,15 @@ public:
 	// Critical failure elements
     std::vector<critical_fail> critfail_vec;
 
+	// A handful of elements are registered statically in the global registry because they need to be 
+	// referenced by fast-lifetime objects, like packets and tracked elements, where the cost of 
+	// doing a lookup on the globals map could be prohibitive
+
     // Field name tracking
     entry_tracker *entrytracker;
+
+	// Datasource tracker
+	datasource_tracker *datasourcetracker;
     
     global_registry();
 

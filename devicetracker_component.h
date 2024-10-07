@@ -163,7 +163,8 @@ public:
         return r;
     }
 
-    __ProxyDynamicTrackable(src_uuid, tracker_element_alias, src_uuid, src_uuid_id);
+	void set_datasource_alias(std::shared_ptr<kis_datasource> src);
+
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
@@ -177,8 +178,11 @@ public:
 protected:
     virtual void register_fields() override;
 
+	// Leave an alias to the datasource uuid for compatibility with older parsers, even though we're going to 
+	// embed the entire datasource now
     std::shared_ptr<tracker_element_alias> src_uuid;
-    uint16_t src_uuid_id;
+
+	std::shared_ptr<tracker_element_alias> datasource_alias;
 
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;

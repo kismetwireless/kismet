@@ -314,6 +314,7 @@ public:
         Globalreg::globalreg->insert_global(global_name(), mon);
         Globalreg::globalreg->register_deferred_global(mon);
         mon->datasourcetracker = mon;
+		Globalreg::globalreg->datasourcetracker = mon.get();
         return mon;
     }
 
