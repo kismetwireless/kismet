@@ -123,7 +123,7 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
             rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
     if (r < 0)
       printf("resp bulk transfer r %i\n", r);
-    printf("resp bulk transfer complete\n";
+    printf("resp bulk transfer complete\n");
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
