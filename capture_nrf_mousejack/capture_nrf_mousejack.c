@@ -64,6 +64,7 @@ typedef struct {
 
 int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    char *msg;
     uint8_t *cmdbuf = NULL;
     int actual_length;
     int r;
@@ -79,8 +80,10 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
 
     free(cmdbuf);
 
-    if ( r < 0 )
+    if ( r < 0 ) {
       snprintf(msg, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
+      snprintf(msg, STATUS_MAX, "mousejack command buffer was %u", cmdbuf);
+    }
 
     return r;
 }
