@@ -174,7 +174,11 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 
     pthread_mutex_lock(&(localnrf->usb_mutex));
 
+    // Shouldn't we care what r is here instead of immediately overwriting it?
     r = nrf_send_command_nb(caph, MOUSEJACK_RECEIVE_PAYLOAD, NULL, 0);
+    if (r < 0)
+      printf("sent command to rx payload but got %i", r);
+    printf("attempting bulk transfer rx payload");
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
 
