@@ -725,7 +725,8 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
-    libusb_exit(localnrf.libusb_ctx);
+    //some thread is still using this when it fails so just don't destroy it and hope to figure out what is using it
+    //libusb_exit(localnrf.libusb_ctx);
 
     return 0;
 }
