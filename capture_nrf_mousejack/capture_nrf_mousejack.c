@@ -184,7 +184,10 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     r = nrf_send_command_nb(caph, MOUSEJACK_RECEIVE_PAYLOAD, NULL, 0);
     if (r < 0)
       printf("sent command to rx payload but got %i\n", r);
-    printf("attempting bulk transfer rx payload with rx_buf: %d, rx_max: %i, actual_len: %i\n", rx_buf, rx_max, actual_len);
+    if (nullptr != rx_buf) {
+      printf("rx_buf is NOT null\n")
+    } else {
+      printf("rx_buf is null\n")
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
     if (r < 0) {
