@@ -169,7 +169,7 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 
     r = nrf_send_command_nb(caph, MOUSEJACK_RECEIVE_PAYLOAD, NULL, 0);
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
-            rx_buf, rx_max, &actual_len, 0);
+            rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
