@@ -79,6 +79,9 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
 
     free(cmdbuf);
 
+    if ( r < 0 )
+      snprintf(msg, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
+
     return r;
 }
 
@@ -106,7 +109,6 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
     r = nrf_send_command_nb(caph, request, data, len);
 
     if (r < 0) {
-        printf("command send failed\n");
         pthread_mutex_unlock(&(localnrf->usb_mutex));
         return r;
     }
