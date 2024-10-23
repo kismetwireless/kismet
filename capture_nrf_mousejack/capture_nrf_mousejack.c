@@ -75,15 +75,15 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
     if (len > 0) 
         memcpy(cmdbuf + 1, data, len);
 
+    printf("sending command %i\n", cmdbuf);
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
             cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
 
     if ( r < 0 ) {
-      printf("command send failed. command was:\n");
-      printf(cmdbuf);
       snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
       snprintf(errstr, STATUS_MAX, "mousejack command buffer was %u", cmdbuf);
     }
+    printf("got response %i\n", r;
 
     free(cmdbuf);
 
