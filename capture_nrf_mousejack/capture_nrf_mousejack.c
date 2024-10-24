@@ -118,7 +118,7 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
         return r;
     }
 
-    printf("attempting bulk transfer resp with rx_buf: %02x, rx_max: 64, actual_length: %i\n", (unsigned int)rx_buf, actual_length);
+    printf("attempting bulk transfer resp with rx_buf: %02x, rx_max: 64, actual_length: %d\n", (unsigned int)rx_buf, actual_length);
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
     if (r < 0) {
@@ -189,6 +189,7 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     } else {
       printf("rx_buf is null\n");
     }
+    printf("attempting bulk transfer payload with rx_max: %d, actual_length: %d\n", rx_max, actual_length);
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
     if (r < 0) {
