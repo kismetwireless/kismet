@@ -88,7 +88,9 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
       snprintf(errstr, STATUS_MAX, "mousejack command buffer was %02x", (unsigned int)cmdbuf);
     }
     #if USB_DEBUG > 0
-    printf("got response %u\n", r);
+    else {
+      printf("got response %u\n", r);
+    }
     #endif
 
     free(cmdbuf);
@@ -96,6 +98,7 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
     return r;
 }
 
+/* Nothing calls this function?
 int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     int r;
@@ -108,6 +111,7 @@ int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data
 
     return r;
 }
+*/
 
 int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uint8_t *data,
         size_t len) {
@@ -129,13 +133,8 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
     #endif
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
-    #if USB_DEBUG > 0
-    if (r < 0) {
-      printf("resp bulk transfer r %i\n", r);
-    } else {
-      printf("resp bulk transfer complete\n");
-    }
-    #endif
+    if (r < 0) 
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
@@ -190,27 +189,17 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 
     pthread_mutex_lock(&(localnrf->usb_mutex));
 
-    // Shouldn't we care what r is here instead of immediately overwriting it?
     r = nrf_send_command_nb(caph, MOUSEJACK_RECEIVE_PAYLOAD, NULL, 0);
-    #if USB_DEBUG > 0
-    if (r < 0)
-      printf("sent command to rx payload but got %i\n", r);
-    if (rx_buf != NULL) {
-      printf("rx_buf is NOT null\n");
-    } else {
-      printf("rx_buf is null\n");
+    if (r < 0) {
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
+      pthread_mutex_unlock(&(localnrf->usb_mutex));
+      return r;
     }
-    printf("attempting bulk transfer payload with rx_max: %d, actual_len: %d\n", rx_max, actual_len);
-    #endif
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
-    #if USB_DEBUG > 0
     if (r < 0) {
-      printf("bulk transfer rx payload but got %i\n", r);
-    } else {
-      printf("completed bulk transfer rx payload\n");
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
     }
-    #endif
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
