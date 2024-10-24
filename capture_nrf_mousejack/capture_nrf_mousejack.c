@@ -119,6 +119,7 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
     int r;
     unsigned char rx_buf[64];
     int actual_length;
+    char errstr[STATUS_MAX];
 
     pthread_mutex_lock(&(localnrf->usb_mutex));
     r = nrf_send_command_nb(caph, request, data, len);
@@ -183,6 +184,7 @@ int nrf_enter_sniffer_mode(kis_capture_handler_t *caph, uint8_t *address, size_t
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     int actual_len, r;
+    char errstr[STATUS_MAX];
 
     pthread_mutex_lock(&(localnrf->usb_mutex));
 
