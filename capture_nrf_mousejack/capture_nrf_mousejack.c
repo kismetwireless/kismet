@@ -81,7 +81,7 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
 
     if ( r < 0 ) {
       snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
-      snprintf(errstr, STATUS_MAX, "mousejack command buffer was %u", cmdbuf);
+      snprintf(errstr, STATUS_MAX, "mousejack command buffer was %02x", (unsigned int)cmdbuf);
     }
     //printf("got response %u\n", r);
 
