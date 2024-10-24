@@ -128,12 +128,9 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
         return r;
     }
 
-    #if USB_DEBUG > 0
-    printf("attempting bulk transfer resp with rx_buf: %02x, rx_max: 64, actual_length: %d\n", (unsigned int)rx_buf, actual_length);
-    #endif
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
-    if (r < 0) 
+    if (r < 0)
       snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
@@ -563,7 +560,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     nrf_enter_promisc_mode(caph, NULL, 0);
     nrf_enable_pa(caph);
-    //libusb_set_option(localnrf.libusb_ctx, LIBUSB_OPTION_LOG_LEVEL, level)
 
     return 1;
 }
@@ -752,7 +748,7 @@ int main(int argc, char *argv[]) {
     cf_handler_shutdown(caph);
 
     // Force the mutex unlock before exiting, maybe?
-    pthread_mutex_unlock(&(localnrf.usb_mutex));
+    // pthread_mutex_unlock(&(localnrf.usb_mutex));
     libusb_exit(localnrf.libusb_ctx);
 
     return 0;
