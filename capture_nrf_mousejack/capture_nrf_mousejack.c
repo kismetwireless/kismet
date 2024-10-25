@@ -749,6 +749,11 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
+    // Let libusb gracefully shut itself down
+    sleep(NRF_USB_TIMEOUT);
+    timeval t = { 0, 0 };
+    libusb_handle_events_timeout_completed(localnrf.libusb_ctx, &t, Q_NULLPTR);
+    // Maybe?
     libusb_exit(localnrf.libusb_ctx);
 
     return 0;
