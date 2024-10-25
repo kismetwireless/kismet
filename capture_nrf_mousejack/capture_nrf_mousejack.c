@@ -751,7 +751,7 @@ int main(int argc, char *argv[]) {
     cf_handler_shutdown(caph);
 
     // Let libusb gracefully shut itself down
-    sleep(NRF_USB_TIMEOUT);
+    usleep(NRF_USB_TIMEOUT);
     struct timeval t = { 0, 0 };
     r = libusb_handle_events_timeout_completed(localnrf.libusb_ctx, &t, 0);
     if (r<0)
