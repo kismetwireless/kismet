@@ -383,6 +383,7 @@ struct kis_capture_handler {
 
     /* Signal reaping thread */
     pthread_t signalthread;
+	int signal_running;
 
     /* Non-hopping channel */
     char *channel;

@@ -464,6 +464,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 
     ch->capture_running = 0;
     ch->hopping_running = 0;
+	ch->signal_running = 0;
 
     ch->channel = NULL;
     ch->channel_hop_list = NULL;
@@ -551,7 +552,10 @@ void cf_handler_free(kis_capture_handler_t *caph) {
         caph->hopping_running = 0;
     }
 
-    pthread_cancel(caph->signalthread);
+	if (caph->signal_running) {
+		pthread_cancel(caph->signalthread);
+		caph->signal_running = 0;
+	}
 
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
@@ -1394,6 +1398,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
         cf_handler_spindown(caph);
         return -1;
     }
+	caph->signal_running = 1;
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->capture_running) {

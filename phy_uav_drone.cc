@@ -65,6 +65,8 @@ void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
         throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
                     (int) erroroffset, (char *) buffer));
     }
+
+	match_data = pcre2_match_data_create_from_pattern(re, NULL);
 #else
     throw std::runtime_error("Cannot set PCRE match for SSID; Kismet was not compiled with PCRE "
             "support");
