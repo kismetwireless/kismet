@@ -558,7 +558,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    libusb_set_configuration(localnrf->nrf_handle, 0);
+    r = libusb_set_configuration(localnrf->nrf_handle, 0);
+    if (r < 0)
+        snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
 
     nrf_enter_promisc_mode(caph, NULL, 0);
     nrf_enable_pa(caph);
@@ -705,6 +707,7 @@ int main(int argc, char *argv[]) {
 
     r = libusb_init(&localnrf.libusb_ctx);
     if (r < 0) {
+        snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf.busno, localnrf.devno, libusb_strerror((enum libusb_error) r));
         return -1;
     }
 
@@ -756,9 +759,9 @@ int main(int argc, char *argv[]) {
     r = libusb_handle_events_timeout_completed(localnrf.libusb_ctx, &t, 0);
     if (r<0)
       snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf.busno, localnrf.devno, libusb_strerror((enum libusb_error) r));
+    libusb_close(localnrf.nrf_handle);
     // Maybe?
     libusb_exit(localnrf.libusb_ctx);
-
     return 0;
 }
 
