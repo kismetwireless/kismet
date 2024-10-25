@@ -749,8 +749,6 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
-    // Force the mutex unlock before exiting, maybe?
-    // pthread_mutex_unlock(&(localnrf.usb_mutex));
     libusb_exit(localnrf.libusb_ctx);
 
     return 0;
