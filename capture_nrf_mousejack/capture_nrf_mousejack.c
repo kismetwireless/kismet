@@ -759,8 +759,6 @@ int main(int argc, char *argv[]) {
     r = libusb_handle_events_timeout_completed(localnrf.libusb_ctx, &t, 0);
     if (r<0)
       snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf.busno, localnrf.devno, libusb_strerror((enum libusb_error) r));
-    libusb_close(localnrf.nrf_handle);
-    // Maybe?
     libusb_exit(localnrf.libusb_ctx);
     return 0;
 }
