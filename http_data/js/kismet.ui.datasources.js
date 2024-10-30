@@ -527,6 +527,49 @@ kismet_ui_sidebar.AddSidebarItem({
 
 var ds_state = {};
 
+function alpha_insert(container, clss, index, data) {
+	var prev = null;
+	var after = null;
+
+	$(clss, container).each((i, v) => {
+		if (prev != null) {
+			return;
+		}
+
+		if ($(v).data(index) === undefined) {
+			return;
+		}
+
+		var lt = String.prototype.localeCompare.call($(data).data(index).toLowerCase(), 
+			$(v).data(index).toLowerCase());
+
+		// Insert before the current item if less than, and stop processing
+		if (lt < 0) {
+			prev = v;
+			after = null;
+			return;
+		}
+
+		// Keep incrementing the after item, if we're greater than or equal
+		after = v;
+	});
+
+	// If we have a prev item, we insert before
+	if (prev != null) {
+		$(prev).before(data);
+		return;
+	}
+
+	// If we have an after item, we insert after
+	if (after != null) {
+		$(after).after(data);
+		return;
+	}
+
+	// otherwise just append
+	$(container).append(data);
+}
+
 function update_datasource2(data) {
     if (!"ds_content" in ds_state)
         return;
@@ -654,6 +697,7 @@ function update_datasource2(data) {
             idiv = $('<div>', {
                 id: intf['kismet.datasource.probed.interface'],
                 class: 'accordion interface',
+				'data-sortpname': intf['kismet.datasource.probed.interface'],
                 })
             .append(
                 $('<h3>', {
@@ -706,7 +750,8 @@ function update_datasource2(data) {
 
             idiv.accordion({ collapsible: true, active: false });
 
-            ds_state['ds_content'].append(idiv);
+            // ds_state['ds_content'].append(idiv);
+			alpha_insert(ds_state['ds_content'], '.interface', 'sortpname', sdiv);
         }
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
@@ -761,6 +806,7 @@ function update_datasource2(data) {
             sdiv = $('<div>', {
                 id: source['kismet.datasource.uuid'],
                 class: 'accordion source',
+				'data-sortname': source['kismet.datasource.name'],
                 })
             .append(
                 $('<h3>', {
@@ -829,7 +875,9 @@ function update_datasource2(data) {
 
             sdiv.accordion({ collapsible: true, active: false });
 
-            ds_state['ds_content'].append(sdiv);
+			alpha_insert(ds_state['ds_content'], '.source', 'sortname', sdiv);
+
+            // ds_state['ds_content'].append(sdiv);
         }
 
         if (typeof(source['kismet.datasource.packets_rrd']) !== 'undefined' &&
