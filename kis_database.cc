@@ -266,8 +266,10 @@ sqlite3_stmt *kis_database_binder::make_query(sqlite3 *db, std::string base) {
 
         r = sqlite3_prepare(db, q_final.c_str(), q_final.length(), &stmt, &pz);
 
-        if (r != SQLITE_OK) 
-            throw std::runtime_error(fmt::format("Unable to prepare database query: {}", sqlite3_errmsg(db)));
+        if (r != SQLITE_OK) {
+            const auto e = fmt::format("Unable to prepare database query: {}", sqlite3_errmsg(db));
+            throw std::runtime_error(e);
+        }
 
         return stmt;
     }
@@ -289,16 +291,19 @@ sqlite3_stmt *kis_database_binder::make_query(sqlite3 *db, std::string base) {
 
     r = sqlite3_prepare(db, q_final.c_str(), q_final.length(), &stmt, &pz);
 
-    if (r != SQLITE_OK) 
-        throw std::runtime_error(fmt::format("Unable to prepare database query: {}", sqlite3_errmsg(db)));
+    if (r != SQLITE_OK) {
+        const auto e = fmt::format("Unable to prepare database query: {}", sqlite3_errmsg(db));
+        throw std::runtime_error(e);
+    }
 
     int fpos = 1;
     for (auto i : bindings) {
         r = i->bind_query(stmt, fpos);
 
-        if (r != SQLITE_OK)
-            throw std::runtime_error(fmt::format("Unable to bind field {} to query: {}", fpos, 
-                        sqlite3_errmsg(db)));
+        if (r != SQLITE_OK) {
+            const auto e = fmt::format("Unable to bind field {} to query: {}", fpos, sqlite3_errmsg(db));
+            throw std::runtime_error(e);
+        }
 
         fpos++;
     }

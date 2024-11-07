@@ -57,9 +57,11 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
     for (const auto& m : con->json()["devices"]) {
         mac_addr ma{m.get<std::string>()};
 
-        if (ma.state.error) 
-            throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                        con->escape_html(m.get<std::string>())));
+        if (ma.state.error) {
+            const auto e = fmt::format("Invalid MAC address '{}' in 'devices' list",
+                        con->escape_html(m.get<std::string>()));
+            throw std::runtime_error(e);
+        }
 
         macs.push_back(ma);
     }
@@ -125,9 +127,10 @@ std::shared_ptr<tracker_element> device_tracker::multikey_endp_handler(shared_co
     for (const auto& k : con->json()["devices"]) {
         device_key ka{k.get<std::string>()};
 
-        if (ka.get_error()) 
-            throw std::runtime_error(fmt::format("Invalid device key '{}' in 'devices' list",
-                        con->escape_html(k)));
+        if (ka.get_error())  {
+            const auto e = fmt::format("Invalid device key '{}' in 'devices' list", con->escape_html(k));
+            throw std::runtime_error(e);
+        }
 
         keys.push_back(ka);
     }

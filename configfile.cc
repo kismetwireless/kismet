@@ -627,8 +627,10 @@ std::string header_value_config::get_value(const std::string& in_str) {
     
     auto vi = content_map.find(in_str);
 
-    if (vi == content_map.end())
-        throw std::runtime_error(fmt::format("no such key in content map: {}", in_str));
+    if (vi == content_map.end()) {
+        const auto e = fmt::format("no such key in content map: {}", in_str);
+        throw std::runtime_error(e);
+    }
 
     return vi->second;
 }
