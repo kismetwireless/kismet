@@ -10200,6 +10200,18 @@ printf "%s\n" "#define HAVE_CXX11 1" >>confdefs.h
 #     fi
 fi
 
+# GCC13/14 seem to have over-aggressive/known bad dangling reference detection.
+# This gets SUPER noisy in libfmt.
+if test x"$GCC_MAJOR" = x"13" -o x"$GCC_MAJOR" = x"14"
+then :
+
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: setting -Wno-dangling-reference for gcc${GCC_MAJOR}" >&5
+printf "%s\n" "$as_me: WARNING: setting -Wno-dangling-reference for gcc${GCC_MAJOR}" >&2;}
+        CPPFLAGS="${CPPFLAGS} -Wno-dangling-reference"
+
+fi
+
+
 
 
 CXXFLAGS="$CXXFLAGS -O3"
