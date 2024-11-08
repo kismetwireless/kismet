@@ -477,7 +477,8 @@ struct mac_addr {
     }
 
     inline std::string mac_full_to_string() const {
-        return fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
+        const auto s = fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
+        return s;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);

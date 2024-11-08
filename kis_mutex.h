@@ -236,20 +236,24 @@ public:
     }
 
     void lock(const std::string& op = "UNKNOWN") {
-        if (locked)
-            throw std::runtime_error(fmt::format("invalid use: thread {} attempted to lock "
-                        "unique lock {} when already locked for {}", 
-                        std::this_thread::get_id(), mutex.get_name(), op));
+        if (locked) {
+            const auto e = fmt::format("invalid use: thread {} attempted to lock "
+                    "unique lock {} when already locked for {}", 
+                    std::this_thread::get_id(), mutex.get_name(), op);
+            throw std::runtime_error(e);
+        }
         mutex.lock();
         locked = true;
 
     }
 
     bool try_lock(const std::string& op = "UNKNOWN") {
-        if (locked)
-            throw std::runtime_error(fmt::format("invalid use: thread {} attempted to try_lock "
-                        "unique lock {} when already locked for {}", 
-                        std::this_thread::get_id(), mutex.get_name(), op));
+        if (locked) {
+            const auto e = fmt::format("invalid use: thread {} attempted to try_lock "
+                    "unique lock {} when already locked for {}", 
+                    std::this_thread::get_id(), mutex.get_name(), op);
+            throw std::runtime_error(e);
+        }
 
         // auto r = mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT));
         auto r = mutex.try_lock();
@@ -259,10 +263,12 @@ public:
     }
 
     void unlock() {
-        if (!locked)
-            throw std::runtime_error(fmt::format("unvalid use:  thread{} attempted to unlock "
-                        "unique lock {} when not locked", std::this_thread::get_id(), 
-                        mutex.get_name()));
+        if (!locked) {
+            const auto e = fmt::format("unvalid use:  thread{} attempted to unlock "
+                    "unique lock {} when not locked", std::this_thread::get_id(), 
+                    mutex.get_name());
+            throw std::runtime_error(e);
+        }
 
         mutex.unlock();
         locked = false;
@@ -303,20 +309,24 @@ public:
     }
 
     void lock(const std::string& op = "UNKNOWN") {
-        if (locked)
-            throw std::runtime_error(fmt::format("invalid use: thread {} attempted to lock "
-                        "unique lock {} when already locked for {}", 
-                        std::this_thread::get_id(), mutex.get_name(), op));
+        if (locked) {
+            const auto e = fmt::format("invalid use: thread {} attempted to lock "
+                    "unique lock {} when already locked for {}", 
+                    std::this_thread::get_id(), mutex.get_name(), op);
+            throw std::runtime_error(e);
+        }
         mutex.shared_lock();
         locked = true;
 
     }
 
     void unlock() {
-        if (!locked)
-            throw std::runtime_error(fmt::format("unvalid use:  thread{} attempted to unlock "
-                        "unique lock {} when not locked", std::this_thread::get_id(), 
-                        mutex.get_name()));
+        if (!locked) {
+            const auto e = fmt::format("unvalid use:  thread{} attempted to unlock "
+                    "unique lock {} when not locked", std::this_thread::get_id(), 
+                    mutex.get_name());
+            throw std::runtime_error(e);
+        }
 
         mutex.shared_unlock();
         locked = false;
