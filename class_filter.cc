@@ -274,8 +274,10 @@ void class_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_http
             mac_addr m(i.key());
             bool v = i.value();
 
-            if (m.state.error) 
-                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'", con->escape_html(i.key())));
+            if (m.state.error) {
+                const auto e = fmt::format("Invalid MAC address: '{}'", con->escape_html(i.key()));
+                throw std::runtime_error(e);
+            }
 
             auto phy_k = con->uri_params().find(":phyname");
             set_filter(m, phy_k->second, v);
@@ -308,8 +310,10 @@ void class_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_ht
         for (const auto& i : filter) {
             mac_addr m(i.get<std::string>());
 
-            if (m.state.error) 
-                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'", con->escape_html(i)));
+            if (m.state.error) {
+                const auto e = fmt::format("Invalid MAC address: '{}'", con->escape_html(i));
+                throw std::runtime_error(e);
+            }
 
             auto phy_k = con->uri_params().find(":phyname");
             remove_filter(m, phy_k->second);

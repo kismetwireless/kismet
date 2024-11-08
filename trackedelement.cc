@@ -134,11 +134,12 @@ void tracker_element_string::coercive_set(double in_num) {
 }
 
 void tracker_element_string::coercive_set(const shared_tracker_element& e) {
-    if (e->is_stringable())
+    if (e->is_stringable()) {
         coercive_set(e->as_string());
-    else
-        throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                    e->get_type_as_string(), get_type_as_string()));
+    } else {
+        const auto es = fmt::format("Could not coerce {} to {}", e->get_type_as_string(), get_type_as_string());
+        throw std::runtime_error(es);
+    }
 }
 
 bool tracker_element_string::less_than(const tracker_element_string& rhs) const {
@@ -165,8 +166,8 @@ void tracker_element_uuid::coercive_set(const shared_tracker_element& e) {
             coercive_set(static_cast<tracker_element_uuid *>(e.get())->get().uuid_to_string());
             break;
         default:
-            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                        e->get_type_as_string(), get_type_as_string()));
+            const auto es = fmt::format("Could not coerce {} to {}", e->get_type_as_string(), get_type_as_string());
+            throw std::runtime_error(es);
     }
 }
 
@@ -190,8 +191,8 @@ void tracker_element_mac_addr::coercive_set(const shared_tracker_element& e) {
             coercive_set(static_cast<tracker_element_mac_addr *>(e.get())->get().mac_to_string());
             break;
         default:
-            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                        e->get_type_as_string(), get_type_as_string()));
+            const auto es = fmt::format("Could not coerce {} to {}", e->get_type_as_string(), get_type_as_string());
+            throw std::runtime_error(es);
     }
 }
 
@@ -444,8 +445,9 @@ template<> std::string get_tracker_value(const shared_tracker_element& e) {
         return e->as_string();
 
 #ifdef TE_TYPE_SAFETY
-    throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
-                "as a string", e->get_id(), e->get_type_as_string()));
+    const auto es = fmt::format("invalid trackedelement access id {}, cannot use a {} "
+            "as a string", e->get_id(), e->get_type_as_string());
+    throw std::runtime_error(es);
 #endif
 
     return "";
@@ -1477,9 +1479,11 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs) {
 
     // Only allow equal compares
-    if (lhs->get_type() != rhs->get_type())
-        throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
-                    "{} < {}", lhs->get_type_as_string(), rhs->get_type_as_string()));
+    if (lhs->get_type() != rhs->get_type()) {
+        const auto e = fmt::format("Attempted to compare two non-equal field types, "
+                "{} < {}", lhs->get_type_as_string(), rhs->get_type_as_string());
+        throw std::runtime_error(e);
+    }
 
     switch (lhs->get_type()) {
         case tracker_type::tracker_string:
@@ -1532,8 +1536,8 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_placeholder_missing:
         case tracker_type::tracker_summary_mapvec:
         case tracker_type::tracker_string_pointer:
-            throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
-                        lhs->get_type_as_string()));
+            const auto e = fmt::format("Attempted to compare a complex field type, {}", lhs->get_type_as_string());
+            throw std::runtime_error(e);
     }
 
     return false;

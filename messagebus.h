@@ -184,7 +184,7 @@ public:
         return "MESSAGE";
     }
 
-    void inject_message(const std::string& msg, int flags) {
+    void inject_message(const std::string msg, int flags) {
         // Force fatal messages out to stderr immediately
         if (flags & MSGFLAG_FATAL) {
             fprintf(stderr, "FATAL: %s\n", msg.c_str());

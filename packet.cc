@@ -61,10 +61,12 @@ kis_packet::~kis_packet() {
 }
    
 void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_component> data) {
-	if (index >= MAX_PACKET_COMPONENTS) 
-        throw std::runtime_error(fmt::format("Attempted to reference packet component index {} "
+	if (index >= MAX_PACKET_COMPONENTS) {
+        const auto e = fmt::format("Attempted to reference packet component index {} "
                     "outside of the maximum bounds {}; this implies the pack_comp_x or _PCM "
-                    "index is corrupt.", index, MAX_PACKET_COMPONENTS));
+                    "index is corrupt.", index, MAX_PACKET_COMPONENTS);
+        throw std::runtime_error(e);
+    }
 
 	content_vec[index] = data;
 
