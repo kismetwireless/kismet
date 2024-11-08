@@ -264,7 +264,7 @@ public:
 
     void unlock() {
         if (!locked) {
-            const auto e = fmt::format("unvalid use:  thread{} attempted to unlock "
+            const auto e = fmt::format("invalid use:  thread{} attempted to unlock "
                     "unique lock {} when not locked", std::this_thread::get_id(), 
                     mutex.get_name());
             throw std::runtime_error(e);
