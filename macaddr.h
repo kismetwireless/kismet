@@ -236,7 +236,7 @@ struct mac_addr {
 
     // Convert a string to a positional search fragment, places fragment
     // in ret_term and length of fragment in ret_len
-    inline static bool prepare_search_term(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
+    static bool prepare_search_term(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
         short unsigned int byte;
         int nbyte = 0;
         const char *in = s.c_str();
@@ -389,11 +389,11 @@ struct mac_addr {
         return (longmac >> (8 - (state.len + 1) * 8) & 0x01);
     }
 
-    inline std::string as_string() const {
+    std::string as_string() const {
         return mac_to_string();
     }
 
-    inline std::string mac_to_string() const {
+    std::string mac_to_string() const {
         switch (state.len) {
             case 0:
                 return fmt::format("{:02X}", 
@@ -432,7 +432,7 @@ struct mac_addr {
         }
     }
 
-    inline std::string mac_mask_to_string() const {
+    std::string mac_mask_to_string() const {
         auto longmask = bits_to_mask(maskbits);
         switch (state.len) {
             case 0:
@@ -476,7 +476,7 @@ struct mac_addr {
         return longmac;
     }
 
-    inline std::string mac_full_to_string() const {
+    std::string mac_full_to_string() const {
         const auto s = fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
         return s;
     }
