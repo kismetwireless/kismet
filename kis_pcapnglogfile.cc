@@ -87,8 +87,7 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
     pcapng = new pcapng_stream_packetchain(buffer, 
             pcapng_logfile_accept_ftor(log_duplicate_packets, log_data_packets),
-            pcapng_logfile_select_ftor(truncate_duplicate_packets),
-            16384);
+            pcapng_logfile_select_ftor(truncate_duplicate_packets), (size_t) 16384);
 
     _MSG_INFO("Opened pcapng log file '{}'", in_path);
 
