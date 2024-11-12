@@ -466,9 +466,7 @@ device_tracker::device_tracker() :
 
                     auto pcapng = 
 						std::make_shared<pcapng_stream_packetchain<pcapng_devicetracker_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
-								pcapng_devicetracker_accept_ftor(devkey),
-								pcapng_stream_select_ftor(),
-								1024*512);
+								pcapng_devicetracker_accept_ftor(devkey), pcapng_stream_select_ftor(), (size_t) 1024*512);
         
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));

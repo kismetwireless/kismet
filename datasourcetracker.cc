@@ -943,8 +943,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     // going.  The stream is fed from the packetchain callbacks.
                     auto pcapng = 
 						std::make_shared<pcapng_stream_packetchain<pcapng_stream_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
-								pcapng_stream_accept_ftor(), pcapng_stream_select_ftor(),
-								1024*512);
+								pcapng_stream_accept_ftor(), pcapng_stream_select_ftor(), (size_t) 1024*512);
 
                     con->clear_timeout();
                     con->set_target_file("kismet-all-packets.pcapng");
@@ -976,8 +975,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     auto pcapng = std::make_shared<pcapng_stream_packetchain<pcapng_datasourcetracker_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
 							pcapng_datasourcetracker_accept_ftor(dsnum),
-							pcapng_stream_select_ftor(),
-                            1024*512);
+							pcapng_stream_select_ftor(), (size_t) 1024*512);
 
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-datasource-{}-{}.pcapng", 
