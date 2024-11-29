@@ -262,7 +262,7 @@ public:
         std::shared_ptr<kis_database_logfile> logfile =
             Globalreg::fetch_mandatory_global_as<kis_database_logfile>("DATABASELOG");
         logfile->set_database_builder(builder);
-        return logfile;
+        return std::static_pointer_cast<kis_logfile>(logfile);
     }
 
     virtual void initialize() {

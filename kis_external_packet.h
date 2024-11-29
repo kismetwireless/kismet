@@ -75,9 +75,10 @@ struct kismet_external_frame_v2 {
 } __attribute__((packed));
 typedef struct kismet_external_frame_v2 kismet_external_frame_v2_t;
 
+/* all v3 multi-byte fields are sent as network endian */
 
 #define KIS_EXTERNAL_V3_SIG         0xA9A9
-typedef struct _kismet_v3_header {
+typedef struct kismet_external_frame_v3 {
     /* Common Kismet signature */
     uint32_t signature;
 
@@ -94,16 +95,21 @@ typedef struct _kismet_v3_header {
 
     /* Success/fail code, if relevant; otherwise 0 and padding */
     uint16_t code;
-    /* Length of data portion, not counting this header block */
+    /* Length of packet, *including this header length* to account for 
+     * repeated fieldset blocks expanding the header. */
     uint16_t length;
 
-    /* Field set (primary); if a field set indicates an overflow, additional field sets will be placed immediately
-     * following the first fieldset, before fields are supplied. */
+    /* Primary field set (for this packet type).  
+     * Sub blocks may contain additional field sets.
+     * 
+     * If an overflow is indicated, additional field sets will be placed immediately
+     * following the first fieldset, before the data fields.
+     */
     uint32_t fieldset;
 
     /* Blob containing fields; fields are encoded in the order they are defined, and aligned to 32bits */
     uint8_t data[0];
-} __attribute__((packed)) kismet_v3_header_t;
+} __attribute__((packed)) kismet_external_frame_v3_t;
 
 /* Sub-block header.  Sub-blocks are repeated groups of fields
  * used in multiple messages.  Sub blocks are treated as a complete
@@ -178,7 +184,7 @@ typedef struct _kismet_v3_sub_string {
  *    uint16_t pad0;
  *    uint32_t seqno;
  *    uint16_t code;
- *    uint16_t length; - total length of data
+ *    uint16_t length; - total length 
  *
  *    uint32_t fieldset; - PROBE_REPORT fields =
  *      KIS_EXTERNAL_V3_KDS_PROBE_REPORT_SUB_MSG |
@@ -259,7 +265,10 @@ typedef struct _kismet_v3_sub_string {
  *
  * Wrap the message subblock as a single frame
 */
-#define KIS_EXTERNA_V3_MESSAGE_FIELD_MSGBLOCK       (1 << 0)
+/* u8, aligned to u32 */
+#define KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE        (1 << 0)
+/* string block */
+#define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING      (1 << 1)
 
 /* KDS_CHANNEL_HOP_BLOCK
  *
