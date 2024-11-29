@@ -156,6 +156,8 @@ typedef struct _kismet_v3_sub_string {
 #define KIS_EXTERNAL_V3 CMD_PONG                3
 #define KIS_EXTERNAL_V3_CMD_SHUTDOWN            4
 #define KIS_EXTERNAL_V3_CMD_MESSAGE             5
+#define KIS_EXTERNAL_V3_CMD_ERROR               6
+
 
 /* datasource commands */
 #define KIS_EXTERNAL_V3_KDS_PROBEREQ        10
@@ -266,9 +268,19 @@ typedef struct _kismet_v3_sub_string {
  * Wrap the message subblock as a single frame
 */
 /* u8, aligned to u32 */
-#define KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE        (1 << 0)
+#define KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE          (1 << 0)
 /* string block */
-#define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING      (1 << 1)
+#define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING        (1 << 1)
+
+/* KIS_EXTERNAL_V3_CMD_ERROR 
+ *
+ * sequence number in frame header references the request which 
+ * failed, or 0 
+ *
+ * error code in frame header contains the error result 
+ */ 
+/* string block */ 
+#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING          (1 << 0)
 
 /* KDS_CHANNEL_HOP_BLOCK
  *
