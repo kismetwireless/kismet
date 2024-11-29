@@ -3008,109 +3008,175 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     return -1;
 }
 
-int cf_send_rb_packet(kis_capture_handler_t *caph, const char *command, uint32_t seqno,
-        uint8_t *data, size_t len) {
+/* prepare a memory mapped region for a packet based on a provided 
+ * size; returns a pointer to the complete frame for the caller to 
+ * then populate the inner data record.
+ *
+ * after packet creation is complete, it must be committed for 
+ * transmit with cf_commit_rb_packet.
+ *
+ * the capture framework handler is locked for the duration until the 
+ * commit is called.
+ */
+kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph, 
+        unsigned int command, uint32_t seqno, uint16_t code, uint32_t fieldset, 
+        size_t len) {
 
     /* Frame we'll be sending */
-    kismet_external_frame_v2_t *frame;
-    /* Size of serialized command data */
+    kismet_external_frame_v3_t *frame;
+    /* Size of assembled command data buffer */
     size_t rs_sz;
     /* Buffer holding all of it */
     uint8_t *send_buffer;
 
-    /* Directly inject into the ringbuffer with a zero-copy */
+    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer 
+     * handles non-zero-copy end of buffer situations */
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
-            len + sizeof(kismet_external_frame_v2_t));
+            len + sizeof(kismet_external_frame_v3_t));
 
-    if (rs_sz != len + sizeof(kismet_external_frame_v2_t)) {
-        // fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", len);
-        free(data);
+    if (rs_sz != len + sizeof(kismet_external_frame_v3_t)) {
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-        return 0;
+        return NULL;
     }
 
     /* Map to the tx frame */
-    frame = (kismet_external_frame_v2_t *) send_buffer;
+    frame = (kismet_external_frame_v3_t *) send_buffer;
 
     /* Set the signature and data size */
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
-    frame->data_sz = htonl(len);
-
-    frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
-    frame->frame_version = htons(2);
+    frame->v3_sentinel = htons(KIS_EXTERNAL_V3_SIG);
+    frame->v3_version = htons(3);
 
     frame->seqno = htonl(seqno);
 
-    strncpy(frame->command, command, 32);
+    frame->pkt_type = htons(command);
+    frame->pad0 = 0;
+
+    frame->code = htonl(code);
+    frame->length = htonl(rs_sz);
+
+    /* For now, no producer comes even close to overflowing the fieldset; 
+     * if they do in the future, they'll be responsible for including the 
+     * additional fieldsets inside the data record, probably */
+    frame->fieldset = htonl(fieldset);
+
+    return frame;
+}
+
+void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame) {
+    kis_simple_ringbuf_commit(caph->out_ringbuf, frame, ntohs(frame->length));
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+}
+
+/* Send a generic packet; pre-assembled packet content must be provided 
+ * and is copied into a packet.  More efficiency-centric callers should 
+ * call prep/commit and assemble into a zero-copy instance. */
+int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command, 
+        uint32_t seqno, uint16_t code, uint32_t fieldset, 
+        uint8_t *data, size_t len) {
+
+    /* Frame we'll be sending */
+    kismet_external_frame_v3_t *frame = 
+        cf_prep_rb_packet(caph, command, seqno, code, fieldset, len);
+
+    /* free calling data and unlock if we failed */
+    if (frame == NULL) {
+        free(data);
+        return 0;
+    }
 
     memcpy(frame->data, data, len);
 
-    kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
-
-    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    cf_commit_rb_packet(caph, frame);
 
     free(data);
 
-    return rs_sz;
+    return 1;
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-int cf_send_ws_packet(kis_capture_handler_t *caph, const char *command, uint32_t seqno,
-        uint8_t *data, size_t len) {
+/* Prepare a websockets command in an allocated buffer.  Because websockets 
+ * use a packet-buffer system instead of a ring buffer, the advantages aren't 
+ * as large as on the ringbuffer backed ipc, but this can prevent an 
+ * excess packet copy event */
+struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph, 
+        unsigned int command, uint32_t seqno, uint16_t code, 
+        uint32_t fieldset, size_t len) {
+    /* msg record */
+    struct cf_ws_msg *ws_msg;
+
     /* Frame we'll be sending */
-    kismet_external_frame_v2_t *frame;
-    /* message buffer */
-    struct cf_ws_msg wsmsg;
+    kismet_external_frame_v3_t *frame;
 
     int n;
 
-    pthread_mutex_lock(&caph->out_ringbuf_lock);
+    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer 
+     * handles non-zero-copy end of buffer situations */
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     n = lws_ring_get_count_free_elements(caph->lwsring);
     if (n == 0) {
-        free(data);
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
-        return 0;
+        return NULL;
     }
 
-    wsmsg.payload = (char *) malloc(LWS_PRE + len + sizeof(kismet_external_frame_v2_t));
-    if (wsmsg.payload == NULL) {
-        free(data);
+    ws_msg = (struct cf_ws_msg *) malloc(sizeof(struct cf_ws_msg));
+    memset(ws_msg, 0, sizeof(struct cf_ws_msg));
+
+    ws_msg->payload = (char *) malloc(LWS_PRE + len + sizeof(kismet_external_frame_v3_t));
+    if (ws_msg->payload == NULL) {
         fprintf(stderr, "FATAL: Failed to allocate ws buffer\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
-        return -1;
+        return NULL;
     }
 
+    ws_msg->len = len + sizeof(kismet_external_frame_v3_t);
+
     /* Map to the tx frame */
-    frame = (kismet_external_frame_v2_t *) (wsmsg.payload + LWS_PRE);
+    frame = (kismet_external_frame_v3_t *) ws_msg->payload;
 
     /* Set the signature and data size */
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
-    frame->data_sz = htonl(len);
-
-    frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
-    frame->frame_version = htons(2);
+    frame->v3_sentinel = htons(KIS_EXTERNAL_V3_SIG);
+    frame->v3_version = htons(3);
 
     frame->seqno = htonl(seqno);
-    strncpy(frame->command, command, 32);
 
-    memcpy(frame->data, data, len);
+    frame->pkt_type = htons(command);
+    frame->pad0 = 0;
 
-    wsmsg.len = len + sizeof(kismet_external_frame_v2_t);
+    frame->code = htonl(code);
+    frame->length = htonl(len + sizeof(kismet_external_frame_v3_t));
 
-    n = (int) lws_ring_insert(caph->lwsring, &wsmsg, 1);
+    /* For now, no producer comes even close to overflowing the fieldset; 
+     * if they do in the future, they'll be responsible for including the 
+     * additional fieldsets inside the data record, probably */
+    frame->fieldset = htonl(fieldset);
+
+    return ws_msg;
+}
+
+int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg) {
+    int n;
+
+    /* performing the insert here causes a memcpy of the wsmsg struct, 
+     * so we're now able to (and must) destroy our copy */
+    n = lws_ring_insert(caph->lwsring, wsmsg, 1);
+
+    /* free the holder, the data content will be freed when the websocket 
+     * ringbuffer triggers the element delete */
+    free(wsmsg);
+
     if (n != 1) {
-        free(data);
         fprintf(stderr, "FATAL:  Failed to queue ws message\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         lws_cancel_service(caph->lwscontext);
         return -1;
     }
-
-    free(data);
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
@@ -3119,12 +3185,134 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, const char *command, uint32_t
         lws_callback_on_writable(caph->lwsclientwsi);
     pthread_mutex_unlock(&caph->handler_lock);
 
+    return 0;
+}
+
+
+/* Send a websocket packet; pre-assembled packet content must be provided and 
+ * is copied into the packet.  More efficiency-centric callers should consider 
+ * calling prep/commit to omit an extra copy */
+int cf_send_ws_packet(kis_capture_handler_t *caph, unsigned int command, uint32_t seqno,
+        uint16_t code, uint32_t fieldset, uint8_t *data, size_t len) {
+
+    struct cf_ws_msg *wsmsg;
+    kismet_external_frame_v3_t *frame;
+    int n;
+
+    wsmsg = cf_prep_ws_packet(caph, command, seqno, code, fieldset, len);
+    if (wsmsg == NULL) {
+        free(data);
+        return 0;
+    }
+
+    frame = (kismet_external_frame_v3_t *) wsmsg->payload;
+
+    memcpy(frame->data, data, len);
+
+    free(data);
+
+    n = cf_commit_ws_packet(caph, wsmsg);
+    if (n != 0) {
+        return n;
+    }
+
     return 1;
 }
 
 #endif
 
-int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *data, size_t len) {
+static void cf_free_rb_meta(kis_capture_handler_t *caph, 
+        struct _cf_frame_metadata *meta) {
+    kis_simple_ringbuf_commit(caph->out_ringbuf, meta->frame, 0);
+}
+
+#ifdef HAVE_LIBWEBSOCKETS
+static void cf_free_ws_meta(kis_capture_handler_t *caph, 
+        struct _cf_frame_metadata *meta) {
+    free(meta->frame);
+    free(meta->metadata);
+}
+#endif
+
+cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
+        unsigned int command, uint32_t seqno, uint16_t code, 
+        uint32_t fieldset, size_t len) {
+
+    cf_frame_metadata *meta = NULL;
+
+    if (caph->use_tcp || caph->use_ipc) {
+        kismet_external_frame_v3_t *frame = 
+            cf_prep_rb_packet(caph, command, seqno, code, fieldset, len);
+
+        if (frame == NULL) {
+            return NULL;
+        }
+            
+        
+        meta = (cf_frame_metadata *) malloc(sizeof(cf_frame_metadata));
+        memset(meta, 0, sizeof(cf_frame_metadata));
+
+        meta->free_record = cf_free_rb_meta;
+
+        meta->frame = frame;
+
+        return meta;
+#ifdef HAVE_LIBWEBSOCKETS
+    } else if (caph->use_ws) {
+        struct cf_ws_msg *ws_msg = 
+            cf_prep_ws_packet(caph, command, seqno, code, fieldset, len);
+
+        if (ws_msg == NULL) {
+            return NULL;
+        }
+
+        meta = (cf_frame_metadata *) malloc(sizeof(cf_frame_metadata));
+        memset(meta, 0, sizeof(cf_frame_metadata));
+
+        meta->free_record = cf_free_ws_meta;
+
+        meta->metadata = ws_msg;
+        meta->frame = (kismet_external_frame_v3_t *) ws_msg->payload;
+
+        return meta;
+#endif
+    } else {
+        fprintf(stderr, "ERROR:  cf_send_packet with unknown connection type\n");
+        return NULL;
+    }
+
+}
+
+void cf_cancel_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta) {
+    if (meta == NULL) {
+        pthread_mutex_unlock(&caph->out_ringbuf_lock);
+        return;
+    }
+
+    if (meta->free_record != NULL) {
+        (meta->free_record)(caph, meta);
+    }
+
+    free(meta);
+
+    pthread_mutex_unlock(&caph->out_ringbuf_lock);
+}
+
+int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta) {
+
+    if (caph->use_tcp || caph->use_ipc) {
+        cf_commit_rb_packet(caph, meta->frame);
+        return 0;
+#ifdef HAVE_LIBWEBSOCKETS
+    } else if (caph->use_ws) {
+        return cf_commit_ws_packet(caph, (struct cf_ws_msg *) meta->metadata);
+#endif
+    }
+
+    return 0;
+}
+
+uint32_t cf_get_next_seqno(kis_capture_handler_t *caph) {
     uint32_t seqno;
 
     /* Lock the handler and get the next sequence number */
@@ -3134,11 +3322,18 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *d
     seqno = caph->seqno;
     pthread_mutex_unlock(&(caph->handler_lock));
 
+    return seqno;
+}
+
+int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype,
+        uint16_t code, uint32_t fieldset, uint8_t *data, size_t len) {
+    uint32_t seqno = cf_get_next_seqno(caph);
+
     if (caph->use_tcp || caph->use_ipc) {
-        return cf_send_rb_packet(caph, packtype, seqno, data, len);
+        return cf_send_rb_packet(caph, packtype, seqno, code, fieldset, data, len);
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
-        return cf_send_ws_packet(caph, packtype, seqno, data, len);
+        return cf_send_ws_packet(caph, packtype, seqno, code, fieldset, data, len);
 #endif
     } else {
         fprintf(stderr, "ERROR:  cf_send_packet with unknown connection type\n");
@@ -3147,28 +3342,38 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *d
 }
 
 int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
-    KismetExternal__MsgbusMessage kemsg;
-    uint8_t *buf;
-    size_t len;
+    struct msg_v3 {
+        uint8_t msg_type;
+        uint8_t pad0;
+        uint16_t pad1;
+        kismet_v3_sub_string stringdata;
+    } *buf_msg;
 
-    kismet_external__msgbus_message__init(&kemsg);
+    int buf_len = sizeof(struct msg_v3) + ks_proto_v3_pad(strlen(msg));
 
-    kemsg.msgtext = strdup(msg);
-    kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) flags;
+    uint32_t he_flagset = 0;
+    uint32_t seqno = cf_get_next_seqno(caph);
+    cf_frame_metadata *meta = NULL;
 
-    len = kismet_external__msgbus_message__get_packed_size(&kemsg);
-    buf = (uint8_t *) malloc(len);
+    he_flagset = 
+        KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE |
+        KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING;
 
-    if (buf == NULL) {
-        free(kemsg.msgtext);
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, 
+                he_flagset, buf_len);
+
+    if (meta == NULL) {
         return -1;
     }
 
-    kismet_external__msgbus_message__pack(&kemsg, buf);
+    buf_msg = (struct msg_v3 *) meta->frame->data;
 
-    free(kemsg.msgtext);
+    buf_msg->stringdata.length = strlen(msg);
+    memcpy(buf_msg->stringdata.data, msg, strlen(msg));
 
-    return cf_send_packet(caph, "MESSAGE", buf, len);
+
+    return cf_commit_packet(caph, meta);
 }
 
 int cf_send_warning(kis_capture_handler_t *caph, const char *warning) {

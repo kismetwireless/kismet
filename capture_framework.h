@@ -59,8 +59,7 @@
 
 #include "simple_ringbuf_c.h"
 
-#include "kismet.pb-c.h"
-#include "datasource.pb-c.h"
+#include "kis_external_packet.h"
 
 struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;
@@ -663,7 +662,6 @@ void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown 
 void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture cb);
 
 
-
 /* Set random data blob */
 void cf_handler_set_userdata(kis_capture_handler_t *capf, void *userdata);
 
@@ -739,6 +737,58 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph);
  */
 int cf_handler_loop(kis_capture_handler_t *caph);
 
+
+/* Frame metadata, passed around by the prepare/commit system. 
+ * Callers should only expect *frame to be available or sensical. */
+typedef struct _cf_frame_metadata {
+    void *metadata;
+    void (*free_record)(kis_capture_handler_t *caph, 
+            struct _cf_frame_metadata *meta);
+    kismet_external_frame_v3_t *frame;
+} cf_frame_metadata;
+
+
+/* Prepare a frame; it may go over IPC, TCP, or websockets.
+ *
+ * The packet *must* be committed for transmission or cancelled.
+ *
+ * For the duration of the packet being prepared, the capture framework 
+ * handler will be locked.
+ *
+ * Returns:
+ *  cf_frame_metadata   *frame is considered valid for use 
+ *  NULL                Unable to prepare frame
+ */
+cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
+        unsigned int command, uint32_t seqno, uint16_t code, 
+        uint32_t fieldset, size_t len);
+
+/* Cancel a frame; this frees any memory associated with it and 
+ * unlocks the capture framework */ 
+void cf_cancel_packet(kis_capture_handler_t *caph, 
+        cf_frame_metadata *meta);
+
+/* Commit a frame, this queues the frame for transmission and 
+ * unlocks the capture framework. 
+ *
+ * At the end of queing, the meta data is freed and is no longer 
+ * valid for use.
+ *
+ * Returns: 
+ *  0       No error 
+ *  other   Queuing could not be completed.
+ */
+int cf_commit_packet(kis_capture_handler_t *caph, 
+        cf_frame_metadata *meta);
+
+/* Lock-safe way to get the next sequence number 
+ *
+ * Returns:
+ *  Next sequence number 
+ */ 
+uint32_t cf_get_next_seqno(kis_capture_handler_t *caph);
+
+
 /* Send a blob of data.  This must be a formatted packet created by one of the
  * other functions.
  *
@@ -764,8 +814,8 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
-        uint8_t *data, size_t len);
+int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype,
+        uint16_t code, uint32_t fieldset, uint8_t *data, size_t len);
 
 /* Send a MESSAGE
  * Can be called from any thread.
