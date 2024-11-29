@@ -3377,63 +3377,37 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
 }
 
 int cf_send_warning(kis_capture_handler_t *caph, const char *warning) {
-    KismetDatasource__WarningReport kewarning;
-    uint8_t *buf;
-    size_t len;
-
-    kismet_datasource__warning_report__init(&kewarning);
-
-    kewarning.warning = strdup(warning);
-
-    len = kismet_datasource__warning_report__get_packed_size(&kewarning);
-    buf = (uint8_t *) malloc(len);
-
-    if (buf == NULL) {
-        free(kewarning.warning);
-        return -1;
-    }
-
-    kismet_datasource__warning_report__pack(&kewarning, buf);
-
-    free(kewarning.warning);
-
-    return cf_send_packet(caph, "KDSWARNINGREPORT", buf, len);
+    return cf_send_message(caph, warning, KIS_EXTERNAL_V3_MSG_ERROR);
 }
 
 int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *msg) {
-    KismetDatasource__ErrorReport keerror;
-    KismetDatasource__SubSuccess kesuccess;
-    KismetExternal__MsgbusMessage kemsg;
+    struct err_v3 {
+        kismet_v3_sub_string stringdata;
+    } *buf_msg;
 
-    kismet_datasource__error_report__init(&keerror);
-    kismet_datasource__sub_success__init(&kesuccess);
-    kismet_external__msgbus_message__init(&kemsg);
+    int buf_len = sizeof(struct err_v3) + ks_proto_v3_pad(strlen(msg));
 
-    kesuccess.success = false;
-    kesuccess.seqno = in_seqno;
+    uint32_t he_flagset = 0;
+    cf_frame_metadata *meta = NULL;
 
-    kemsg.msgtext = strdup(msg);
-    kemsg.msgtype = MSGFLAG_ERROR;
+    he_flagset = 
+        KIS_EXTERNAL_V3_ERROR_FIELD_STRING;
 
-    keerror.success = &kesuccess;
-    keerror.message = &kemsg;
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, in_seqno, 1, 
+                he_flagset, buf_len);
 
-    uint8_t *buf;
-    size_t len;
-
-    len = kismet_datasource__error_report__get_packed_size(&keerror);
-    buf = (uint8_t *) malloc(len);
-
-    if (buf == NULL) {
-        free(kemsg.msgtext);
+    if (meta == NULL) {
         return -1;
     }
 
-    kismet_datasource__error_report__pack(&keerror, buf);
+    buf_msg = (struct err_v3 *) meta->frame->data;
 
-    free(kemsg.msgtext);
+    buf_msg->stringdata.length = strlen(msg);
+    memcpy(buf_msg->stringdata.data, msg, strlen(msg));
 
-    return cf_send_packet(caph, "KDSERRORREPORT", buf, len);
+
+    return cf_commit_packet(caph, meta);
 }
 
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
