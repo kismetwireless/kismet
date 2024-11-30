@@ -457,10 +457,10 @@ typedef struct _kismet_v3_sub_string {
  * report sub-blocks
  * */
 
-/* uint32 */
+/* uint16, padded to 32 */
 #define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_NUMIFS        (1 << 0)
 /* Array of [N] instances of interface sub blocks */
-#define KDS_INTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST        (1 << 1)
+#define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST        (1 << 1)
 
 
 
