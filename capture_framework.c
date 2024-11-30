@@ -3412,112 +3412,153 @@ int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *ms
 
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, cf_params_list_interface_t **interfaces, size_t len) {
-    KismetDatasource__InterfacesReport keinterfaces;
-    KismetDatasource__SubSuccess kesuccess;
-    KismetExternal__MsgbusMessage kemsg;
-    KismetDatasource__SubInterface **kesubinterfaces = NULL;
 
-    kismet_datasource__interfaces_report__init(&keinterfaces);
-    kismet_datasource__sub_success__init(&kesuccess);
-    kismet_external__msgbus_message__init(&kemsg);
+    /* An interface list is an array of interface blocks.
+     *
+     * Each interface block is 4 string blocks.
+     *
+     * list 
+     *  uint16 num_interfaces
+     *  uint16 pad0
+     *  interface[n]
+     *      uint32 fieldset 
+     *      uint16 length 
+     *      uint16 pad 
+     *      uint16 iface_strlen 
+     *      uint16 pad 
+     *      uint8  iface string, padded
+     *
+     *      uint16 flags_strlen 
+     *      uint16 pad 
+     *      uint8 flags string, padded
+     *      
+     *      uint16 hw_strlen 
+     *      uint16 pad 
+     *      uint8 hw string, padded 
+     */
 
-    uint8_t *buf;
-    size_t buf_len;
+    struct ifacelist_v3 {
+        uint16_t num_ifaces;
+        uint16_t pad0;
+        uint8_t data[0];
+    } *buf_iflist;
+
+    struct iface_v3 {
+        uint32_t fieldset;
+        uint16_t length;
+        uint16_t pad0;
+        uint8_t data[0];
+    } *iface_block;
+
+    /* string block we iterate with */ 
+    kismet_v3_sub_string *string_block = NULL;
 
     size_t i;
 
-    bool fault = false;
+    /* Interface list offset for string blocks */
+    size_t offt = 0;
 
-    if (len > 0) {
-        kesubinterfaces = 
-            (KismetDatasource__SubInterface **) malloc(sizeof(KismetDatasource__SubInterface *) * len);
+    /* capiface not sent for listed interfaces */
+    uint32_t iface_fieldset = 
+        KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE |
+        KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS |
+        KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW;
 
-        if (kesubinterfaces == NULL) {
-            return -1;
-        }
+    /* Initial content length, num_ifaces + pad */
+    size_t iface_content_length = sizeof(struct ifacelist_v3);
 
-        for (i = 0; i < len; i++) {
-            kesubinterfaces[i] = 
-                (KismetDatasource__SubInterface *) malloc(sizeof(KismetDatasource__SubInterface));
+    uint32_t seqno;
 
-            if (kesubinterfaces[i] == NULL) {
-                fault = true;
-                break;
-            }
+    int n;
 
-            kismet_datasource__sub_interface__init(kesubinterfaces[i]);
-           
-            /* Use the allocated data; we don't need to free it ourselves */
-            kesubinterfaces[i]->interface = interfaces[i]->interface;
-            kesubinterfaces[i]->flags = interfaces[i]->flags;
-            kesubinterfaces[i]->hardware = interfaces[i]->hardware;
-        }
-
-        if (fault) {
-            for (i = 0; i < len; i++) {
-                if (kesubinterfaces[i] == NULL)
-                    break;
-
-                free(kesubinterfaces[i]);
-            }
-
-            free(kesubinterfaces);
-
-            return -1;
-        }
-
-        keinterfaces.n_interfaces = len;
-        keinterfaces.interfaces = kesubinterfaces;
-    }
-
+    /* Send messages independently */ 
     if (msg != NULL) {
-        kemsg.msgtext = strdup(msg);
-
         if (success) {
-            kemsg.msgtype = MSGFLAG_INFO;
-
             if (caph->verbose)
                 fprintf(stderr, "INFO: %s\n", msg);
-
         } else {
-            kemsg.msgtype = MSGFLAG_ERROR;
-
             if (caph->verbose)
                 fprintf(stderr, "ERROR: %s\n", msg);
         }
 
-        keinterfaces.message = &kemsg;
+        /* Send errors tied to this sequence number and exit */
+        if (!success) {
+            n = cf_send_error(caph, seqno, msg);
+            return n;
+        } else {
+            /* Send messages independently not tied to this sequence, 
+             * they're just informational */
+            n = cf_send_message(caph, msg, MSGFLAG_INFO);
+            if (n != 0) {
+                return n;
+            }
+        }
     }
 
-    kesuccess.success = success;
-    kesuccess.seqno = seq;
-    keinterfaces.success = &kesuccess;
+    /* Calculate the length of all interfaces */
+    for (i = 0; i < len; i++) {
+        iface_content_length += sizeof(struct iface_v3);
 
-    buf_len = kismet_datasource__interfaces_report__get_packed_size(&keinterfaces);
-    buf = (uint8_t *) malloc(buf_len);
+        iface_content_length += 
+            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->interface));
+        iface_content_length +=
+            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->flags));
+        iface_content_length += 
+            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->hardware));
+    }
 
-    if (buf == NULL) {
-        free(kemsg.msgtext);
+    uint32_t he_flagset = 0;
+    cf_frame_metadata *meta = NULL;
+
+    he_flagset = 
+        KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_NUMIFS |
+        KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST;
+
+    seqno = cf_get_next_seqno(caph);
+
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, seqno, 1, 
+                he_flagset, iface_content_length);
+
+    if (meta == NULL) {
         return -1;
     }
 
-    kismet_datasource__interfaces_report__pack(&keinterfaces, buf);
+    buf_iflist = (struct ifacelist_v3 *) meta->frame->data;
 
-    if (msg)
-        free(kemsg.msgtext);
+    buf_iflist->num_ifaces = len;
+    buf_iflist->pad0 = 0;
 
-    /* We don't need to get rid of the contents of these, they're sharing memory
-     * with the interface report coming in */
     for (i = 0; i < len; i++) {
-        if (kesubinterfaces[i] == NULL)
-            break;
+        iface_block = (struct iface_v3 *) buf_iflist->data + offt; 
+        offt += sizeof(struct iface_v3);
 
-        free(kesubinterfaces[i]);
+        iface_block->fieldset = htonl(iface_fieldset);
+        iface_block->length = 
+            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->interface)) + 
+            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->flags)) + 
+            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->hardware));
+
+        string_block = (kismet_v3_sub_string *) buf_iflist->data + offt;
+        string_block->length = strlen(interfaces[i]->interface);
+        string_block->pad0 = 0;
+        memcpy(string_block->data, interfaces[i]->interface, strlen(interfaces[i]->interface));
+        offt += ks_proto_v3_strblock_padlen(strlen(interfaces[i]->interface));
+
+        string_block = (kismet_v3_sub_string *) buf_iflist->data + offt;
+        string_block->length = strlen(interfaces[i]->flags);
+        string_block->pad0 = 0;
+        memcpy(string_block->data, interfaces[i]->flags, strlen(interfaces[i]->flags));
+        offt += ks_proto_v3_strblock_padlen(strlen(interfaces[i]->flags));
+
+        string_block = (kismet_v3_sub_string *) buf_iflist->data + offt;
+        string_block->length = strlen(interfaces[i]->hardware);
+        string_block->pad0 = 0;
+        memcpy(string_block->data, interfaces[i]->hardware, strlen(interfaces[i]->hardware));
+        offt += ks_proto_v3_strblock_padlen(strlen(interfaces[i]->hardware));
     }
 
-    free(kesubinterfaces);
-
-    return cf_send_packet(caph, "KDSINTERFACESREPORT", buf, buf_len);
+    return cf_commit_packet(caph, meta);
 }
 
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, 
