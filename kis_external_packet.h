@@ -75,10 +75,12 @@ struct kismet_external_frame_v2 {
 } __attribute__((packed));
 typedef struct kismet_external_frame_v2 kismet_external_frame_v2_t;
 
-/* all v3 multi-byte fields are sent as network endian */
-
 #define KIS_EXTERNAL_V3_SIG         0xA9A9
 typedef struct kismet_external_frame_v3 {
+    /* v3 fields sent as network endian. 
+     * v3 content sent as a msgpack blob.
+     */
+
     /* Common Kismet signature */
     uint32_t signature;
 
@@ -95,65 +97,98 @@ typedef struct kismet_external_frame_v3 {
 
     /* Success/fail code, if relevant; otherwise 0 and padding */
     uint16_t code;
-    /* Length of packet, *including this header length* to account for 
-     * repeated fieldset blocks expanding the header. */
+    /* Length of data component of frame, not including this header */
     uint16_t length;
 
-    /* Primary field set (for this packet type).  
-     * Sub blocks may contain additional field sets.
-     * 
-     * If an overflow is indicated, additional field sets will be placed immediately
-     * following the first fieldset, before the data fields.
-     */
-    uint32_t fieldset;
-
-    /* Blob containing fields; fields are encoded in the order they are defined, and aligned to 32bits */
+    /* msgpack content */
     uint8_t data[0];
 } __attribute__((packed)) kismet_external_frame_v3_t;
 
-/* Sub-block header.  Sub-blocks are repeated groups of fields
- * used in multiple messages.  Sub blocks are treated as a complete
- * field at the top level. */
-typedef struct _kismet_v3_sub_block {
-    /* If the field set indicates an overflow, additional field sets will
-     * follow this primary field set, before any additional fields. */
-    uint32_t fieldset;
 
-    /* sub-block length for validation */
-    uint16_t length;
-    uint16_t padding;
+/* 
+ * v3 replaces protobufs with msgpack for a simpler mechanism serializing 
+ * and deserializing, and to remove the compile time requirements from 
+ * protobufs. 
+ *
+ * v3 header 
+ *
+ *    The v3 header is compatible with the v2 header in the first bytes, so that 
+ *    a v2 processor will be able to detect that this is not a protocol for it 
+ *    to handle. 
+ *
+ *    The packet type is converted to an integer to optimize comparisons and 
+ *    transmission size. 
+ *
+ *    The header is aligned to 32bits for quicker extraction.
+ *
+ *    The error code is moved into the packet header, as room was available in 
+ *    the padding regardless.
+ *
+ * v3 data content 
+ *
+ *    The v3 data blob is a msgpack packed element.  
+ *    
+ *    The first value in the data blob is a uint32 field set which indicates 
+ *    what fields are being used. 
+ *
+ *    If more than 32 fields are required, the field overflow bit is set. 
+ *    Additional field sets are then packed immediately after the current 
+ *    field set. 
+ *
+ * v3 sub-blocks 
+ *
+ *    Some fields are defined as sub-blocks; a sub block is serialized in-line 
+ *    at the field location.
+ *
+ *    A sub-block starts with a uint32 field set, with the same rules as the 
+ *    top level field set.
+ *
+ *    The second field of a sub block is a uint32 length field so that parsers 
+ *    can skip the remainder if they are unable to process it.
+ *
+ */
 
-    uint8_t data[0];
-} kismet_v3_sub_block;
+/* Example frame: 
+ *
+ *  uint32_t signature = 0xdecafbad;
+ *  uint16_t v3_sentinel = 0xa9a9;
+ *  uint16_t v3_version = 3;
+ *  uint16_t pkt_type = CMD_MESSAGE;
+ *  uint16_t pad0 = 0;
+ *  uint32_t seqno = 0;
+ *  uint16_t code = 0;
+ *  uint16_t length = <length of msgpack stream>;
+ *  data = [msgpack] 
+ *      uint32 fieldset = MSG_FIELD_TYPE | MSG_FIELD_MESSAGE
+ *      uint8 type 
+ *      string message
+ *
+ *
+ * Example data with sub-blocks: 
+ * 
+ * pkt_type = KDS_PACKET
+ * data = [msgpack]
+ *      uint32 fieldset = DATA_REPORT_FIELD_SIGNALBLOCK | DATA_REPORT_FIELD_PACKETBLOCK
+ *      -- Start of signal sub block.  Each block gets a fieldset denoting the inner fields  -- 
+ *      uint32 fieldset = SIGNAL_FIELD_DBM | SIGNAL_FIELD_FREQ_KHZ 
+ *      uint32 signal 
+ *      uint32 frequency 
+ *      -- End of signal sub block --
+ *      -- Start of packet sub block -- 
+ *      uint32 fieldset = PACKET_FIELD_DLT | PACKET_FIELD_TS | PACKET_FIELD_LENGTH ...
+ *      uint32 dlt 
+ *      uint64 ts 
+ *      uint32 Length 
+ *      ...
+ *      -- End of packet sub block --
+ *
+ */
 
-/* strings are always represented as a u16 length aligned to 32 bit, followed by the string content,
- * also aligned to 32 bit.  Strings are always truncated to the specified length, so null termination is
- * optional. */
-typedef struct _kismet_v3_sub_string {
-    uint16_t length;
-    uint16_t pad0;
-    char data[0];
-} kismet_v3_sub_string;
-
-/* Double to fixed precision converters; the proper converter is picked for the data type used, and will be
- * documented in the field name.  Fixed representations are all 4 bytes. */
-
-/* FIXED_3_6:  Error estimates, angular rotation, beamwidth, gain */
-#define FLOAT_TO_FIXED3_6(flt)      ((uint32_t) (flt * 1000000))
-#define FLOAT_FROM_FIXED3_6(fxd)    ((double) (fxd / (double) 1000000))
-
-/* FIXED_3_7: Latitude and longitude */
-#define FLOAT_TO_FIXED3_7(flt)      (((int32_t) ((flt) * (double) 10000000)) + ((int32_t) 180 * 10000000))
-#define FLOAT_FROM_FIXED3_7(fxd)    ((double) ((double) (fxd - (180 * 10000000)) / 10000000))
-
-/* Altitude, offsets, velocity, acceleration */
-#define FLOAT_TO_FIXED6_4(flt)      ((uint32_t) (((int32_t) ((flt) * (double) 10000)) + ((int32_t) 180000 * 10000)))
-#define FLOAT_FROM_FIXED6_4(fxd)    ((double) ((double) (fxd - (180000 * 10000)) / 10000))
 
 /* core commands */
 #define KIS_EXTERNAL_V3_CMD_REGISTER            1
 #define KIS_EXTERNAL_V3_CMD_PING                2
-#define KIS_EXTERNAL_V3 CMD_PONG                3
+#define KIS_EXTERNAL_V3_CMD_PONG                3
 #define KIS_EXTERNAL_V3_CMD_SHUTDOWN            4
 #define KIS_EXTERNAL_V3_CMD_MESSAGE             5
 #define KIS_EXTERNAL_V3_CMD_ERROR               6
@@ -168,6 +203,7 @@ typedef struct _kismet_v3_sub_string {
 #define KIS_EXTERNAL_V3_KDS_LISTREPORT      15
 #define KIS_EXTERNAL_V3_KDS_PACKET          16
 
+
 /* Overflow field flag common to all blocks */
 #define KIS_EXTERNAL_V3_FIELD_OVERFLOW      (1 << 31)
 
@@ -176,55 +212,16 @@ typedef struct _kismet_v3_sub_string {
 #define KIS_EXTERNAL_V3_SHUTDOWN_STRING     (1 << 0)
 
 /*
- *  Example command frame:
- *
- *  - Common frame
- *    uint32_t signature;
- *    uint16_t v3_sentinel;
- *    uint16_t v3_version;
- *    uint16_t pkt_type = 11; - PROBE_REPORT
- *    uint16_t pad0;
- *    uint32_t seqno;
- *    uint16_t code;
- *    uint16_t length; - total length 
- *
- *    uint32_t fieldset; - PROBE_REPORT fields =
- *      KIS_EXTERNAL_V3_KDS_PROBE_REPORT_SUB_MSG |
- *      KIS_EXTERNAL_V3_KDS_PROBE_REPORT_SUB_CHANNELS |
- *      ...
- *
- *    - data
- *      - KIS_EXTERNAL_V3_KDS_PROBE_REPORT_SUB_MSG sub-block
- *      | uint32_t fieldset; - MSG subblock fields =
- *      |   KIS_EXTERNAL_V3_SUB_MESSAGE_TYPE |
- *      |   KIS_EXTERNAL_V3_SUB_MESSAGE_STRING
- *      | uint16_t length; - length of subblock
- *      | uint16_t padding;
- *      | - sub_data
- *      |   - uint32_t sub_msg_type; - MSG_INFO etc
- *      |   - uint16_t msg_str_len;
- *      |   - uint16_t msg_str_pad;
- *      |   - uint8_t msg[...];
- *      | - padding (allocated and zeroed to 4-byte boundary
- *      - KIS_EXTERNAL_V3_KDS_PROBE_REPORT_SUB_CHANNELS block
- *      | - uint32_t fieldset; SUB_CHANNELS fieldset =
- *      |   KIS_EXTERNAL_V3_SUB_CHANLIST_STRING
- *      | - uint16_t length; - length of sub
- *      | - uint16_t padding;
- *      | - sub data
- *      |   - uint16_t stringlen
- *      |   - uint16_t pad
- *      |   - uint8_t msg[...];
- *      |   - padding (allocated and zeroed to 4-byte boundary)
  */
 
 /* Generic sub-blocks */
 
 /* Message sub block */
-/* u8, aligned to u32 */
+/* u8 */
 #define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_TYPE        (1 << 0)
-/* string block */
+/* string */
 #define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_STRING      (1 << 1)
+
 
 /* Sub-blocks used in datasources
  *
@@ -250,27 +247,30 @@ typedef struct _kismet_v3_sub_string {
  *
  * Register a helper
  */
-/* string block */
+/* string */
 #define KIS_EXTERNAL_V3_REGISTER_FIELD_SUBSYSTEM    (1 << 0)
 
 /* KIS_EXTERNAL_V3_CMD_PING - no content required */
 /* KIS_EXTERNAL_V3_CMD_PONG - no content required */
 
+
 /* KIS_EXTERNAL_V3_CMD_SHUTDOWN
  *
  * Shut down the connection (KS->DS or DS->KS)
  */
-/* string block */
+/* string */
 #define KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON       (1 << 0)
+
 
 /* KIS_EXTERNAL_V3_CMD_MESSAGE
  *
  * Wrap the message subblock as a single frame
 */
-/* u8, aligned to u32 */
+/* u8 */
 #define KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE          (1 << 0)
-/* string block */
+/* string */
 #define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING        (1 << 1)
+
 
 /* KIS_EXTERNAL_V3_CMD_ERROR 
  *
@@ -279,41 +279,50 @@ typedef struct _kismet_v3_sub_string {
  *
  * error code in frame header contains the error result 
  */ 
-/* string block */ 
-#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING          (1 << 0)
+/* string */
+#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING                  (1 << 0)
+
 
 /* KDS_CHANNEL_HOP_BLOCK
  *
  * Channel hop directive
  */
-/* string block */
+/* string */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL       (1 << 0)
-/* float6_4, u32 */
+/* float */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE          (1 << 1)
-/* u8, aligned as u32 */
+/* bool */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE       (1 << 2)
-/* u32 */
+/* uint16 */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP          (1 << 3)
-/* u32 */
+/* uint16 */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET        (1 << 4)
+/* array[string] */ 
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANLIST      (1 << 5)
+
 
 /* KIDS_CHANNEL_GPS_BLOCK */
-/* float3_7, u32 lat, float3_t, u32 lon, u64 total */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_2D                (1 << 0)
-/* float6_4 u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT               (1 << 1)
-/* float6_4 u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED             (1 << 2)
-/* float3_6 u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING           (1 << 3)
-/* float3_6 u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION         (1 << 4)
-/* u64+u64 time_sec time_usec */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TIMESTAMP         (1 << 5)
-/* string block */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE              (1 << 6)
-/* string block */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME              (1 << 7)
+/* double */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT               (1 << 0)
+/* double */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON               (1 << 1)
+/* float */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT               (1 << 2)
+/* float */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED             (1 << 3)
+/* float */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING           (1 << 4)
+/* float */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION         (1 << 5)
+/* u64 */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TIMESTAMP_S       (1 << 6)
+/* u64 */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TIMESTAMP_US      (1 << 7)
+/* string */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE              (1 << 8)
+/* string */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME              (1 << 9)
+
 
 /* KDS_INTERFACE_BLOCK */
 /* string block */
@@ -327,6 +336,7 @@ typedef struct _kismet_v3_sub_string {
 
 /* Spectrum sub block TBD */
 
+
 /* KDS_SIGNAL_BLOCK  */
 /* u32 signal dbm */
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM     (1 << 0)
@@ -335,33 +345,39 @@ typedef struct _kismet_v3_sub_string {
 /* u32 signal rssi */
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI    (1 << 2)
 /* u32 noise rssi */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE RSSI     (1 << 3)
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI     (1 << 3)
 /* u64 frequency in khz */
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ       (1 << 4)
 /* u64 data rate, in whatever the datasource thinks data rat */
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE       (1 << 5)
-/* string block, channel as defined by the source */
+/* string */
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL        (1 << 6)
+
 
 /* KDS_PACKET_BLOCK */
 /* u32 DLT */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT            (1 << 0)
-/* u64+u64 sec:usec timestamp */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS             (1 << 1)
+/* u64 */
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S           (1 << 1)
+/* u64 */
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US          (1 << 2)
 /* u32 reported length */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH         (1 << 2)
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH         (1 << 3)
 /* u32 captured length */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CAPLENGTH      (1 << 3)
-/* *u8 padded to 32 boundary */
-#define KIS_EXTERNA_V3_KDS_SUB_PACKET_FIELD_CONTENT         (1 << 4)
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CAPLENGTH      (1 << 4)
+/* string/binary */
+#define KIS_EXTERNA_V3_KDS_SUB_PACKET_FIELD_CONTENT         (1 << 5)
+
 
 /* KDS_JSON_BLOCK */
-/* string block, type/identifier */
+/* string, type/identifier */
 #define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE             (1 << 0)
-/* u64+u64 sec:usec timestamp */
-#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS               (1 << 1)
-/* string block, json blob */
-#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON             (1 << 2)
+/* u64 */
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S           (1 << 1)
+/* u64 */
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US          (1 << 2)
+/* string, json blob */
+#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON             (1 << 3)
 
 
 /* KIS_EXTERNAL_V3_KDS_PACKET
@@ -390,8 +406,9 @@ typedef struct _kismet_v3_sub_string {
  *
  * Does this datasource handle this source definition?
  * */
-/* string block */
+/* string */
 #define KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITON        (1 << 0)
+
 
 
 /* KIS_EXTERNAL_V3_KDS_PROBEREPORT
@@ -401,12 +418,13 @@ typedef struct _kismet_v3_sub_string {
  * */
 /* message sub-block */
 #define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_MSGBLOCK     (1 << 0)
-/* channels as string */
+/* array[string] */
 #define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_CHANNELS     (1 << 1)
 /* single channel as string */
 #define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_CHANNEL      (1 << 2)
 /* channel hop sub-block */
 #define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_CHANHOPBLOCK (1 << 3)
+
 
 
 /* KIS_EXTERNAL_V3_KDS_OPENREQ
@@ -416,6 +434,7 @@ typedef struct _kismet_v3_sub_string {
  * */
 /* source definition, as string */
 #define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_SOURCEDEFINITION  (1 << 0)
+
 
 
 /* KIS_EXTERNAL_V3_KDS_OPENREPORT
@@ -439,6 +458,7 @@ typedef struct _kismet_v3_sub_string {
 #define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_UUID                (1 << 6)
 
 
+
 /* KIS_EXTERNAL_V3_KDS_LISTREQ
  *
  * KS -> Datasource
@@ -447,6 +467,7 @@ typedef struct _kismet_v3_sub_string {
  *
  * No content.
  */
+
 
 
 /* KIS_EXTERNAL_V3_KDS_LISTREPORT
@@ -463,12 +484,6 @@ typedef struct _kismet_v3_sub_string {
 #define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST        (1 << 1)
 
 
-
-/* Generic padding calculator */
-#define ks_proto_v3_pad(x)  (x + (x % 4))
-
-/* Calculate the size of a string block */
-size_t ks_proto_v3_strblock_padlen(size_t str_length);
 
 
 /* Error codes from capture binaries */
