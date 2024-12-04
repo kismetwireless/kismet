@@ -755,13 +755,18 @@ typedef struct _cf_frame_metadata {
  * For the duration of the packet being prepared, the capture framework 
  * handler will be locked.
  *
+ * The estimated length must be long enough to contain the serialized 
+ * data, and can not be grown dynamically. 
+ *
+ * The packet must be committed with the final size of the payload.
+ *
  * Returns:
  *  cf_frame_metadata   *frame is considered valid for use 
  *  NULL                Unable to prepare frame
  */
 cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
         unsigned int command, uint32_t seqno, uint16_t code, 
-        uint32_t fieldset, size_t len);
+        size_t estimated_len);
 
 /* Cancel a frame; this frees any memory associated with it and 
  * unlocks the capture framework */ 
@@ -771,6 +776,9 @@ void cf_cancel_packet(kis_capture_handler_t *caph,
 /* Commit a frame, this queues the frame for transmission and 
  * unlocks the capture framework. 
  *
+ * The final length of the content is updated in the protoco frame 
+ * before transmission.
+ *
  * At the end of queing, the meta data is freed and is no longer 
  * valid for use.
  *
@@ -778,8 +786,8 @@ void cf_cancel_packet(kis_capture_handler_t *caph,
  *  0       No error 
  *  other   Queuing could not be completed.
  */
-int cf_commit_packet(kis_capture_handler_t *caph, 
-        cf_frame_metadata *meta);
+int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta, 
+        size_t final_len);
 
 /* Lock-safe way to get the next sequence number 
  *
@@ -815,7 +823,7 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
  *  1   Success
  */
 int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype,
-        uint16_t code, uint32_t fieldset, uint8_t *data, size_t len);
+        uint16_t code, uint8_t *data, size_t len);
 
 /* Send a MESSAGE
  * Can be called from any thread.
