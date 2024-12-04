@@ -61,6 +61,8 @@
 #include "kismet.pb-c.h"
 #include "datasource.pb-c.h"
 
+#include "mpack/mpack.h"
+
 #include "version.h"
 
 int unshare(int);
@@ -3012,15 +3014,18 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
  * size; returns a pointer to the complete frame for the caller to 
  * then populate the inner data record.
  *
+ * the provided estimated length must be large enough to hold the 
+ * serialized content of the data.
+ *
  * after packet creation is complete, it must be committed for 
- * transmit with cf_commit_rb_packet.
+ * transmit with cf_commit_rb_packet, with the final length.
  *
  * the capture framework handler is locked for the duration until the 
  * commit is called.
  */
 kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph, 
-        unsigned int command, uint32_t seqno, uint16_t code, uint32_t fieldset, 
-        size_t len) {
+        unsigned int command, uint32_t seqno, uint16_t code, 
+        size_t estimated_len) {
 
     /* Frame we'll be sending */
     kismet_external_frame_v3_t *frame;
@@ -3035,9 +3040,9 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
-            len + sizeof(kismet_external_frame_v3_t));
+            estimated_len + sizeof(kismet_external_frame_v3_t));
 
-    if (rs_sz != len + sizeof(kismet_external_frame_v3_t)) {
+    if (rs_sz != estimated_len + sizeof(kismet_external_frame_v3_t)) {
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         return NULL;
     }
@@ -3056,18 +3061,18 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     frame->pad0 = 0;
 
     frame->code = htonl(code);
-    frame->length = htonl(rs_sz);
 
-    /* For now, no producer comes even close to overflowing the fieldset; 
-     * if they do in the future, they'll be responsible for including the 
-     * additional fieldsets inside the data record, probably */
-    frame->fieldset = htonl(fieldset);
+    // frame->length = htons(len);
 
     return frame;
 }
 
-void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame) {
-    kis_simple_ringbuf_commit(caph->out_ringbuf, frame, ntohs(frame->length));
+void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame, 
+        size_t final_length) {
+    frame->length = ntohs(final_length);
+
+    kis_simple_ringbuf_commit(caph->out_ringbuf, frame, 
+            final_length + sizeof(kismet_external_frame_v3_t));
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 }
 
@@ -3075,12 +3080,11 @@ void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t
  * and is copied into a packet.  More efficiency-centric callers should 
  * call prep/commit and assemble into a zero-copy instance. */
 int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command, 
-        uint32_t seqno, uint16_t code, uint32_t fieldset, 
-        uint8_t *data, size_t len) {
+        uint32_t seqno, uint16_t code, uint8_t *data, size_t len) {
 
     /* Frame we'll be sending */
     kismet_external_frame_v3_t *frame = 
-        cf_prep_rb_packet(caph, command, seqno, code, fieldset, len);
+        cf_prep_rb_packet(caph, command, seqno, code, len);
 
     /* free calling data and unlock if we failed */
     if (frame == NULL) {
@@ -3090,7 +3094,7 @@ int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command,
 
     memcpy(frame->data, data, len);
 
-    cf_commit_rb_packet(caph, frame);
+    cf_commit_rb_packet(caph, frame, len);
 
     free(data);
 
@@ -3098,13 +3102,16 @@ int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command,
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-/* Prepare a websockets command in an allocated buffer.  Because websockets 
- * use a packet-buffer system instead of a ring buffer, the advantages aren't 
- * as large as on the ringbuffer backed ipc, but this can prevent an 
- * excess packet copy event */
+/* Prepare a websockets command in an allocated buffer.  
+ *
+ * Websockets use a queue of allocated buffers, so the advantages aren't as 
+ * large as for the tcp rb, but this still prevents excess memory copies
+ *
+ * The packet must be concluded with cf_commit_rb_packet with the final size.
+ */
 struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph, 
         unsigned int command, uint32_t seqno, uint16_t code, 
-        uint32_t fieldset, size_t len) {
+        size_t estimated_len) {
     /* msg record */
     struct cf_ws_msg *ws_msg;
 
@@ -3127,14 +3134,14 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
     ws_msg = (struct cf_ws_msg *) malloc(sizeof(struct cf_ws_msg));
     memset(ws_msg, 0, sizeof(struct cf_ws_msg));
 
-    ws_msg->payload = (char *) malloc(LWS_PRE + len + sizeof(kismet_external_frame_v3_t));
+    ws_msg->payload = (char *) malloc(LWS_PRE + estimated_len + sizeof(kismet_external_frame_v3_t));
     if (ws_msg->payload == NULL) {
         fprintf(stderr, "FATAL: Failed to allocate ws buffer\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         return NULL;
     }
 
-    ws_msg->len = len + sizeof(kismet_external_frame_v3_t);
+    // ws_msg->len = len + sizeof(kismet_external_frame_v3_t);
 
     /* Map to the tx frame */
     frame = (kismet_external_frame_v3_t *) ws_msg->payload;
@@ -3150,18 +3157,19 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
     frame->pad0 = 0;
 
     frame->code = htonl(code);
-    frame->length = htonl(len + sizeof(kismet_external_frame_v3_t));
-
-    /* For now, no producer comes even close to overflowing the fieldset; 
-     * if they do in the future, they'll be responsible for including the 
-     * additional fieldsets inside the data record, probably */
-    frame->fieldset = htonl(fieldset);
+    // frame->length = htons(len);
 
     return ws_msg;
 }
 
-int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg) {
+int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, size_t final_len) {
+    kismet_external_frame_v3_t *frame;
     int n;
+
+    wsmsg->len = final_len + sizeof(kismet_external_frame_v3_t);
+
+    frame = (kismet_external_frame_v3_t *) wsmsg->payload;
+    frame->length = htons(final_len);
 
     /* performing the insert here causes a memcpy of the wsmsg struct, 
      * so we're now able to (and must) destroy our copy */
@@ -3193,13 +3201,13 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg) {
  * is copied into the packet.  More efficiency-centric callers should consider 
  * calling prep/commit to omit an extra copy */
 int cf_send_ws_packet(kis_capture_handler_t *caph, unsigned int command, uint32_t seqno,
-        uint16_t code, uint32_t fieldset, uint8_t *data, size_t len) {
+        uint16_t code, uint8_t *data, size_t len) {
 
     struct cf_ws_msg *wsmsg;
     kismet_external_frame_v3_t *frame;
     int n;
 
-    wsmsg = cf_prep_ws_packet(caph, command, seqno, code, fieldset, len);
+    wsmsg = cf_prep_ws_packet(caph, command, seqno, code, len);
     if (wsmsg == NULL) {
         free(data);
         return 0;
@@ -3211,7 +3219,7 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, unsigned int command, uint32_
 
     free(data);
 
-    n = cf_commit_ws_packet(caph, wsmsg);
+    n = cf_commit_ws_packet(caph, wsmsg, len);
     if (n != 0) {
         return n;
     }
@@ -3236,13 +3244,13 @@ static void cf_free_ws_meta(kis_capture_handler_t *caph,
 
 cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
         unsigned int command, uint32_t seqno, uint16_t code, 
-        uint32_t fieldset, size_t len) {
+        size_t estimated_len) {
 
     cf_frame_metadata *meta = NULL;
 
     if (caph->use_tcp || caph->use_ipc) {
         kismet_external_frame_v3_t *frame = 
-            cf_prep_rb_packet(caph, command, seqno, code, fieldset, len);
+            cf_prep_rb_packet(caph, command, seqno, code, estimated_len);
 
         if (frame == NULL) {
             return NULL;
@@ -3260,7 +3268,7 @@ cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
         struct cf_ws_msg *ws_msg = 
-            cf_prep_ws_packet(caph, command, seqno, code, fieldset, len);
+            cf_prep_ws_packet(caph, command, seqno, code, estimated_len);
 
         if (ws_msg == NULL) {
             return NULL;
@@ -3298,14 +3306,14 @@ void cf_cancel_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta) {
     pthread_mutex_unlock(&caph->out_ringbuf_lock);
 }
 
-int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta) {
+int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta, size_t final_len) {
 
     if (caph->use_tcp || caph->use_ipc) {
-        cf_commit_rb_packet(caph, meta->frame);
+        cf_commit_rb_packet(caph, meta->frame, final_len);
         return 0;
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
-        return cf_commit_ws_packet(caph, (struct cf_ws_msg *) meta->metadata);
+        return cf_commit_ws_packet(caph, (struct cf_ws_msg *) meta->metadata, final_len);
 #endif
     }
 
@@ -3325,15 +3333,15 @@ uint32_t cf_get_next_seqno(kis_capture_handler_t *caph) {
     return seqno;
 }
 
-int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype,
-        uint16_t code, uint32_t fieldset, uint8_t *data, size_t len) {
+int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype, uint16_t code, 
+        uint8_t *data, size_t len) {
     uint32_t seqno = cf_get_next_seqno(caph);
 
     if (caph->use_tcp || caph->use_ipc) {
-        return cf_send_rb_packet(caph, packtype, seqno, code, fieldset, data, len);
+        return cf_send_rb_packet(caph, packtype, seqno, code, data, len);
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
-        return cf_send_ws_packet(caph, packtype, seqno, code, fieldset, data, len);
+        return cf_send_ws_packet(caph, packtype, seqno, code, data, len);
 #endif
     } else {
         fprintf(stderr, "ERROR:  cf_send_packet with unknown connection type\n");
@@ -3342,38 +3350,41 @@ int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype,
 }
 
 int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
-    struct msg_v3 {
-        uint8_t msg_type;
-        uint8_t pad0;
-        uint16_t pad1;
-        kismet_v3_sub_string stringdata;
-    } *buf_msg;
+    /* Estimate the length of the buffer as the length of the string, the 
+     * size of the flags, the string type, and some slop room */
+    size_t est_len = (strlen(msg) + 4 + 4) * 1.25;
+    size_t final_len = 0;
 
-    int buf_len = sizeof(struct msg_v3) + ks_proto_v3_pad(strlen(msg));
-
-    uint32_t he_flagset = 0;
     uint32_t seqno = cf_get_next_seqno(caph);
     cf_frame_metadata *meta = NULL;
 
-    he_flagset = 
-        KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE |
-        KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING;
+    mpack_writer_t writer;
 
     meta = 
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, 
-                he_flagset, buf_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, est_len);
 
     if (meta == NULL) {
         return -1;
     }
 
-    buf_msg = (struct msg_v3 *) meta->frame->data;
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
-    buf_msg->stringdata.length = strlen(msg);
-    memcpy(buf_msg->stringdata.data, msg, strlen(msg));
+    mpack_build_map(&writer);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE);
+    mpack_write_u8(&writer, flags);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING);
+    mpack_write_str(&writer, msg, strlen(msg));
+    mpack_complete_map(&writer);
 
+    final_len = mpack_writer_buffer_used(&writer);
 
-    return cf_commit_packet(caph, meta);
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        fprintf(stderr, "FATAL: Mpack couldn't finish serializing message\n");
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 int cf_send_warning(kis_capture_handler_t *caph, const char *warning) {
@@ -3381,91 +3392,57 @@ int cf_send_warning(kis_capture_handler_t *caph, const char *warning) {
 }
 
 int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *msg) {
-    struct err_v3 {
-        kismet_v3_sub_string stringdata;
-    } *buf_msg;
+    size_t est_len = 0;
+    size_t final_len = 0;
 
-    int buf_len = sizeof(struct err_v3) + ks_proto_v3_pad(strlen(msg));
+    mpack_writer_t writer;
 
-    uint32_t he_flagset = 0;
     cf_frame_metadata *meta = NULL;
 
-    he_flagset = 
-        KIS_EXTERNAL_V3_ERROR_FIELD_STRING;
+    if (msg != NULL) {
+        est_len = (strlen(msg) + 4) * 1.25;
+    } else {
+        est_len = 24;
+    }
 
     meta = 
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, in_seqno, 1, 
-                he_flagset, buf_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, in_seqno, 1, est_len);
 
     if (meta == NULL) {
         return -1;
     }
 
-    buf_msg = (struct err_v3 *) meta->frame->data;
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
-    buf_msg->stringdata.length = strlen(msg);
-    memcpy(buf_msg->stringdata.data, msg, strlen(msg));
+    mpack_build_map(&writer);
 
+    if (msg != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_ERROR_FIELD_STRING);
+        mpack_write_cstr(&writer, msg);
+    }
 
-    return cf_commit_packet(caph, meta);
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        fprintf(stderr, "FATAL: Mpack couldn't finish serializing error\n");
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, cf_params_list_interface_t **interfaces, size_t len) {
+    size_t est_len = 24;
+    size_t final_len = 0;
 
-    /* An interface list is an array of interface blocks.
-     *
-     * Each interface block is 4 string blocks.
-     *
-     * list 
-     *  uint16 num_interfaces
-     *  uint16 pad0
-     *  interface[n]
-     *      uint32 fieldset 
-     *      uint16 length 
-     *      uint16 pad 
-     *      uint16 iface_strlen 
-     *      uint16 pad 
-     *      uint8  iface string, padded
-     *
-     *      uint16 flags_strlen 
-     *      uint16 pad 
-     *      uint8 flags string, padded
-     *      
-     *      uint16 hw_strlen 
-     *      uint16 pad 
-     *      uint8 hw string, padded 
-     */
-
-    struct ifacelist_v3 {
-        uint16_t num_ifaces;
-        uint16_t pad0;
-        uint8_t data[0];
-    } *buf_iflist;
-
-    struct iface_v3 {
-        uint32_t fieldset;
-        uint16_t length;
-        uint16_t pad0;
-        uint8_t data[0];
-    } *iface_block;
-
-    /* string block we iterate with */ 
-    kismet_v3_sub_string *string_block = NULL;
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
 
     size_t i;
-
-    /* Interface list offset for string blocks */
-    size_t offt = 0;
-
-    /* capiface not sent for listed interfaces */
-    uint32_t iface_fieldset = 
-        KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE |
-        KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS |
-        KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW;
-
-    /* Initial content length, num_ifaces + pad */
-    size_t iface_content_length = sizeof(struct ifacelist_v3);
 
     uint32_t seqno;
 
@@ -3481,184 +3458,344 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
                 fprintf(stderr, "ERROR: %s\n", msg);
         }
 
-        /* Send errors tied to this sequence number and exit */
-        if (!success) {
-            n = cf_send_error(caph, seqno, msg);
+    }
+
+    /* Send errors tied to this sequence number and exit */
+    if (!success) {
+        n = cf_send_error(caph, seqno, msg);
+        return n;
+    } else {
+        /* Send messages independently not tied to this sequence, 
+         * they're just informational */
+        n = cf_send_message(caph, msg, MSGFLAG_INFO);
+        if (n != 0) {
             return n;
-        } else {
-            /* Send messages independently not tied to this sequence, 
-             * they're just informational */
-            n = cf_send_message(caph, msg, MSGFLAG_INFO);
-            if (n != 0) {
-                return n;
-            }
         }
     }
 
-    /* Calculate the length of all interfaces */
-    for (i = 0; i < len; i++) {
-        iface_content_length += sizeof(struct iface_v3);
+    est_len += 4 * len;
 
-        iface_content_length += 
-            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->interface));
-        iface_content_length +=
-            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->flags));
-        iface_content_length += 
-            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->hardware));
+    /* Calculate the length of all interface data */
+    for (i = 0; i < len; i++) {
+        if (interfaces[i]->interface != NULL) {
+            est_len += strlen(interfaces[i]->interface);
+        }
+
+        if (interfaces[i]->flags != NULL) {
+            est_len += strlen(interfaces[i]->flags);
+        }
+
+        if (interfaces[i]->hardware != NULL) {
+            est_len += strlen(interfaces[i]->hardware);
+        }
     }
 
-    uint32_t he_flagset = 0;
-    cf_frame_metadata *meta = NULL;
+    est_len = est_len * 1.15;
 
-    he_flagset = 
-        KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_NUMIFS |
-        KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST;
-
-    seqno = cf_get_next_seqno(caph);
+    if (seq != 0) {
+        seqno = seq;
+    } else {
+        seqno = cf_get_next_seqno(caph);
+    }
 
     meta = 
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, seqno, 1, 
-                he_flagset, iface_content_length);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_LISTREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
         return -1;
     }
 
-    buf_iflist = (struct ifacelist_v3 *) meta->frame->data;
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
-    buf_iflist->num_ifaces = len;
-    buf_iflist->pad0 = 0;
+    mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST);
+    mpack_start_array(&writer, len);
 
     for (i = 0; i < len; i++) {
-        iface_block = (struct iface_v3 *) buf_iflist->data + offt; 
-        offt += sizeof(struct iface_v3);
+        mpack_build_map(&writer);
 
-        iface_block->fieldset = htonl(iface_fieldset);
-        iface_block->length = 
-            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->interface)) + 
-            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->flags)) + 
-            ks_proto_v3_strblock_padlen(strlen(interfaces[i]->hardware));
+        if (interfaces[i]->interface != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE);
+            mpack_write_cstr(&writer, interfaces[i]->interface);
+        }
 
-        string_block = (kismet_v3_sub_string *) buf_iflist->data + offt;
-        string_block->length = strlen(interfaces[i]->interface);
-        string_block->pad0 = 0;
-        memcpy(string_block->data, interfaces[i]->interface, strlen(interfaces[i]->interface));
-        offt += ks_proto_v3_strblock_padlen(strlen(interfaces[i]->interface));
+        if (interfaces[i]->flags != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS);
+            mpack_write_cstr(&writer, interfaces[i]->flags);
+        }
 
-        string_block = (kismet_v3_sub_string *) buf_iflist->data + offt;
-        string_block->length = strlen(interfaces[i]->flags);
-        string_block->pad0 = 0;
-        memcpy(string_block->data, interfaces[i]->flags, strlen(interfaces[i]->flags));
-        offt += ks_proto_v3_strblock_padlen(strlen(interfaces[i]->flags));
+        if (interfaces[i]->hardware != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            mpack_write_cstr(&writer, interfaces[i]->hardware);
+        }
 
-        string_block = (kismet_v3_sub_string *) buf_iflist->data + offt;
-        string_block->length = strlen(interfaces[i]->hardware);
-        string_block->pad0 = 0;
-        memcpy(string_block->data, interfaces[i]->hardware, strlen(interfaces[i]->hardware));
-        offt += ks_proto_v3_strblock_padlen(strlen(interfaces[i]->hardware));
+        mpack_finish_map(&writer);
     }
 
-    return cf_commit_packet(caph, meta);
+    mpack_finish_array(&writer);
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
+        fprintf(stderr, "FATAL: Mpack couldn't finish serializing list report\n");
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, 
         unsigned int success, const char *msg, 
         cf_params_interface_t *interface, cf_params_spectrum_t *spectrum) {
 
-    KismetDatasource__ProbeSourceReport keprobe;
-    KismetDatasource__SubSuccess kesuccess;
-    KismetExternal__MsgbusMessage kemsg;
-    KismetDatasource__SubChannels kechannels;
-    KismetDatasource__SubChanset kechanset;
-    KismetDatasource__SubSpecset kespecset;
+    size_t est_len = 24;
+    size_t final_len = 0;
 
-    uint8_t *buf;
-    size_t buf_len;
-    
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
 
-    kismet_datasource__probe_source_report__init(&keprobe);
-    kismet_datasource__sub_success__init(&kesuccess);
-    kismet_external__msgbus_message__init(&kemsg);
-    kismet_datasource__sub_channels__init(&kechannels);
-    kismet_datasource__sub_chanset__init(&kechanset);
-    kismet_datasource__sub_specset__init(&kespecset);
+    size_t i;
 
-    /* Always set the success */
-    kesuccess.success = success;
-    kesuccess.seqno = seq;
+    uint32_t seqno;
 
-    keprobe.success = &kesuccess;
+    int n;
 
-    if (success) {
-        if (caph->verbose)
-            fprintf(stderr, "INFO: %s\n", msg);
+    /* Send messages independently */ 
+    if (msg != NULL) {
+        if (success) {
+            if (caph->verbose)
+                fprintf(stderr, "INFO: %s\n", msg);
+        } else {
+            if (caph->verbose)
+                fprintf(stderr, "ERROR: %s\n", msg);
+        }
+
+    }
+
+    /* Send errors tied to this sequence number and exit */
+    if (!success) {
+        n = cf_send_error(caph, seqno, msg);
+        return n;
     } else {
-        if (caph->verbose)
-            fprintf(stderr, "ERROR: %s\n", msg);
+        /* Send messages independently not tied to this sequence, 
+         * they're just informational */
+        n = cf_send_message(caph, msg, MSGFLAG_INFO);
+        if (n != 0) {
+            return n;
+        }
     }
 
     if (interface != NULL) {
-        if (interface->chanset != NULL) {
-            kechanset.channel = interface->chanset;
-            keprobe.channel = &kechanset;
+        est_len += 16;
+
+        if (interface->capif != NULL) {
+            est_len += strlen(interface->capif);
         }
-        
-        if (interface->channels_len != 0) {
-            kechannels.n_channels = interface->channels_len;
-            kechannels.channels = interface->channels;
-            keprobe.channels = &kechannels;
+
+        if (interface->chanset != NULL) {
+            est_len += strlen(interface->chanset);
         }
 
         if (interface->hardware != NULL) {
-            keprobe.hardware = interface->hardware;
+            est_len += strlen(interface->hardware);
         }
 
-        if (spectrum != NULL) {
-            kespecset.has_start_mhz = true;
-            kespecset.start_mhz = spectrum->start_mhz;
-
-            kespecset.has_end_mhz = true;
-            kespecset.end_mhz = spectrum->end_mhz;
-
-            kespecset.has_samples_per_bucket = true;
-            kespecset.samples_per_bucket = spectrum->samples_per_freq;
-
-            kespecset.has_bucket_width_hz = true;
-            kespecset.bucket_width_hz = spectrum->bin_width;
-
-            kespecset.has_enable_amp = true;
-            kespecset.enable_amp = spectrum->amp;
-
-            kespecset.has_if_amp = true;
-            kespecset.if_amp = spectrum->if_amp;
-
-            kespecset.has_baseband_amp = true;
-            kespecset.baseband_amp = spectrum->baseband_amp;
-
-            keprobe.spectrum = &kespecset;
+        for (i = 0; i < interface->channels_len; i++) {
+            est_len += strlen(interface->channels[i]);
         }
     }
 
-    buf_len = kismet_datasource__probe_source_report__get_packed_size(&keprobe);
-    buf = (uint8_t *) malloc(buf_len);
+    /* we don't handle spectrum yet in v3 until we figure out how to define it */
 
-    if (buf == NULL) {
-        if (msg)
-            free(kemsg.msgtext);
+    est_len = est_len * 1.15;
+
+    if (seq != 0) {
+        seqno = seq;
+    } else {
+        seqno = cf_get_next_seqno(caph);
+    }
+
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seqno, 0, est_len);
+
+    if (meta == NULL) {
         return -1;
     }
 
-    kismet_datasource__probe_source_report__pack(&keprobe, buf);
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
-    if (msg)
-        free(kemsg.msgtext);
-    
-    return cf_send_packet(caph, "KDSPROBESOURCEREPORT", buf, buf_len);
+    mpack_build_map(&writer);
+
+    if (interface != NULL) {
+        if (interface->capif != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
+            mpack_write_cstr(&writer, interface->capif);
+        }
+
+        if (interface->hardware != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            mpack_write_cstr(&writer, interface->hardware);
+        }
+
+        if (interface->chanset != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
+            mpack_write_cstr(&writer, interface->capif);
+        }
+
+        if (interface->channels_len > 0) {
+            mpack_start_array(&writer, interface->channels_len);
+            for (i = 0; i < interface->channels_len; i++) {
+                mpack_write_cstr(&writer, interface->channels[i]);
+            }
+            mpack_finish_array(&writer);
+        }
+
+    }
+
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
         const char *msg, uint32_t dlt, const char *uuid, 
         cf_params_interface_t *interface, cf_params_spectrum_t *spectrum) {
+
+    size_t est_len = 24;
+    size_t final_len = 0;
+
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
+
+    size_t i;
+
+    uint32_t seqno;
+
+    int n;
+
+    /* Send messages independently */ 
+    if (msg != NULL) {
+        if (success) {
+            if (caph->verbose)
+                fprintf(stderr, "INFO: %s\n", msg);
+        } else {
+            if (caph->verbose)
+                fprintf(stderr, "ERROR: %s\n", msg);
+        }
+
+    }
+
+    /* Send errors tied to this sequence number and exit */
+    if (!success) {
+        n = cf_send_error(caph, seqno, msg);
+        return n;
+    } else {
+        /* Send messages independently not tied to this sequence, 
+         * they're just informational */
+        n = cf_send_message(caph, msg, MSGFLAG_INFO);
+        if (n != 0) {
+            return n;
+        }
+    }
+
+    est_len += strlen(uuid);
+
+    if (interface != NULL) {
+        est_len += 16;
+
+        if (interface->capif != NULL) {
+            est_len += strlen(interface->capif);
+        }
+
+        if (interface->chanset != NULL) {
+            est_len += strlen(interface->chanset);
+        }
+
+        if (interface->hardware != NULL) {
+            est_len += strlen(interface->hardware);
+        }
+
+        for (i = 0; i < interface->channels_len; i++) {
+            est_len += strlen(interface->channels[i]);
+        }
+
+        if (caph->hopping_running) {
+            /* rate + shuffle + skip + offset + array */ 
+            est_len += 8 + 1 + 2 + 2 + 4;
+
+            for (i = 0; i < caph->channel_hop_list_sz; i++) {
+                est_len += strlen(caph->channel_hop_list[i]);
+            }
+        }
+    }
+
+    /* we don't handle spectrum yet in v3 until we figure out how to define it */
+
+    est_len = est_len * 1.15;
+
+    if (seq != 0) {
+        seqno = seq;
+    } else {
+        seqno = cf_get_next_seqno(caph);
+    }
+
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, 0, est_len);
+
+    if (meta == NULL) {
+        return -1;
+    }
+
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
+
+    mpack_build_map(&writer);
+
+    if (interface != NULL) {
+        if (interface->capif != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
+            mpack_write_cstr(&writer, interface->capif);
+        }
+
+        if (interface->hardware != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            mpack_write_cstr(&writer, interface->hardware);
+        }
+
+        if (interface->chanset != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
+            mpack_write_cstr(&writer, interface->capif);
+        }
+
+        if (interface->channels_len > 0) {
+            mpack_start_array(&writer, interface->channels_len);
+            for (i = 0; i < interface->channels_len; i++) {
+                mpack_write_cstr(&writer, interface->channels[i]);
+            }
+            mpack_finish_array(&writer);
+        }
+
+    }
+
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 
     KismetDatasource__OpenSourceReport keopen;
     KismetDatasource__SubSuccess kesuccess;
