@@ -276,7 +276,7 @@ typedef struct kismet_external_frame_v3 {
 /* uint16 */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET        5
 /* array[string] */ 
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANLIST      6
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST     6
 
 
 /* KIDS_CHANNEL_GPS_BLOCK */
@@ -286,21 +286,38 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON               2
 /* float */
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT               3
+/* u8 */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX               4
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED             4
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED             5
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING           5
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING           6
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION         6
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION         7
 /* u64 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TIMESTAMP_S       7
-/* u64 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TIMESTAMP_US      8
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S              8
+/* u32 */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US             9
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE              9
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE              10
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME              10
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME              11
 
+/* Estimate length from gps record */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(l, g) \
+    { \
+        l += 8 + 8 + 4 + 1 + 4 + 4 + 4 + 8 + 4; \
+        if (g->gps_name != NULL) l += strlen(g->gps_name); \
+        if (g->gps_type != NULL) l += strlen(g->gps_type); \
+    }
+
+/* Estimate length with specific names */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(l, t, n) \
+    { \
+        l += 8 + 8 + 4 + 4 + 4 + 4 + 8 + 4; \
+        if (n != NULL) l += strlen(n); \
+        if (t != NULL) l += strlen(t); \
+    }
 
 /* KDS_INTERFACE_BLOCK */
 /* string */
@@ -336,13 +353,19 @@ typedef struct kismet_external_frame_v3 {
 /* string */
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL        7
 
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_EST_LEN(v, s)      \
+    { \
+        v += 4 + 4 + 4 + 4 + 8 + 8; \
+        if (s->channel != NULL) v += strlen(s->channel); \
+    }
+
 
 /* KDS_PACKET_BLOCK */
 /* u32 DLT */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT            1
 /* u64 */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S           2
-/* u64 */
+/* u32 */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US          3
 /* u32 reported length */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH         4
@@ -351,16 +374,26 @@ typedef struct kismet_external_frame_v3 {
 /* string/binary */
 #define KIS_EXTERNA_V3_KDS_SUB_PACKET_FIELD_CONTENT         6
 
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(v, cl) \
+    { \
+        v += 4 + 8 + 4 + 4 + cl; \
+    }
+
 
 /* KDS_JSON_BLOCK */
 /* string, type/identifier */
 #define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE             1
 /* u64 */
 #define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S             2
-/* u64 */
+/* u32 */
 #define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_US            3
 /* string, json blob */
 #define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON             4
+
+#define KIS_EXTERNAL_V3_KDS_SUB_JSON_EST_LEN(v, t, j) \
+    { \
+        v += 8 + 4 + strlen(t) + strlen(j); \
+    }
 
 
 /* KIS_EXTERNAL_V3_KDS_PACKET
@@ -423,8 +456,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_DLT               1
 /* string, capture interface resolved */
 #define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CAPIF             2
-/* configured channels, as comma string */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANNELS          3
+/* configured channels, as array[string] */
+#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHAN_LIST         3
 /* single channel as string */
 #define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANNEL           4
 /* channel hop sub-block */

@@ -123,7 +123,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **uuid, KismetExternal__Command *command,
+        char *definition, char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -147,7 +147,7 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, uint32_t *dlt, char **uuid, 
-        KismetExternal__Command *command, cf_params_interface_t **ret_interface,
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
 /* Channel translate
@@ -252,8 +252,7 @@ typedef void (*cf_callback_capture)(kis_capture_handler_t *);
  */
 typedef int (*cf_callback_spectrumconfig)(kis_capture_handler_t *, uint32_t seqno,
     uint64_t start_mhz, uint64_t end_mhz, uint64_t num_per_freq, uint64_t bin_width,
-    unsigned int amp, uint64_t if_amp, uint64_t baseband_amp, 
-    KismetExternal__Command *command);
+    unsigned int amp, uint64_t if_amp, uint64_t baseband_amp);
 
 struct kis_capture_handler {
     /* Capture source type */
@@ -451,6 +450,30 @@ struct cf_params_spectrum {
     uint8_t amp;
     uint64_t if_amp;
     uint64_t baseband_amp;
+};
+
+struct cf_params_gps {
+    double lat;
+    double lon;
+    float alt;
+    unsigned int fix;
+    float speed;
+    double heading;
+    float precision;
+    uint64_t ts_sec;
+    uint32_t ts_usec;
+    char *gps_type;
+    char *gps_name;
+};
+
+struct cf_params_signal {
+    uint32_t signal_dbm;
+    uint32_t noise_dbm;
+    uint32_t signal_rssi;
+    uint32_t noise_rssi;
+    uint64_t freq_khz;
+    uint64_t datarate;
+    char *channel;
 };
 
 /* Exceedingly simple linked list structure for errors setting channels 
@@ -917,9 +940,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *  1   Success
  */
 int cf_send_data(kis_capture_handler_t *caph,
-        KismetExternal__MsgbusMessage *kv_message,
-        KismetDatasource__SubSignal *kv_signal,
-        KismetDatasource__SubGps *kv_gps,
+        const char *msg, unsigned int msg_type, 
+        struct cf_params_signal *signal, struct cf_params_gps *gps,
         struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack);
 
 /* Send a DATA frame with JSON non-packet data
@@ -933,11 +955,11 @@ int cf_send_data(kis_capture_handler_t *caph,
  *  1   Success
  */
 int cf_send_json(kis_capture_handler_t *caph,
-        KismetExternal__MsgbusMessage *kv_message,
-        KismetDatasource__SubSignal *kv_signal,
-        KismetDatasource__SubGps *kv_gps,
-        struct timeval ts, char *type, 
-        char *json);
+        const char *msg, unsigned int msg_type, 
+        struct cf_params_signal *signal, 
+        struct cf_params_gps *gps,
+        struct timeval ts, const char *type, 
+        const char *json);
 
 /* Send a CONFIGRESP with only a success and optional message
  *
@@ -989,11 +1011,11 @@ double cf_parse_frequency(const char *freq);
 void cf_set_verbose(kis_capture_handler_t *caph, int verbosity);
 
 /* Simple redefinition of message flags */
-#define MSGFLAG_DEBUG   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__DEBUG
-#define MSGFLAG_INFO    KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__INFO
-#define MSGFLAG_ERROR   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ERROR
-#define MSGFLAG_ALERT   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ALERT
-#define MSGFLAG_FATAL   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__FATAL
+#define MSGFLAG_DEBUG  KIS_EXTERNAL_V3_MSG_DEBUG 
+#define MSGFLAG_INFO   KIS_EXTERNAL_V3_MSG_INFO
+#define MSGFLAG_ERROR  KIS_EXTERNAL_V3_MSG_ERROR
+#define MSGFLAG_ALERT  KIS_EXTERNAL_V3_MSG_ALERT
+#define MSGFLAG_FATAL  KIS_EXTERNAL_V3_MSG_FATAL
 
 uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs);
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len);
