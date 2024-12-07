@@ -3646,6 +3646,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
         }
 
         if (interface->channels_len > 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST);
             mpack_start_array(&writer, interface->channels_len);
             for (i = 0; i < interface->channels_len; i++) {
                 mpack_write_cstr(&writer, interface->channels[i]);
@@ -3728,14 +3729,18 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         for (i = 0; i < interface->channels_len; i++) {
             est_len += strlen(interface->channels[i]);
         }
+    }
 
-        if (caph->hopping_running) {
-            /* rate + shuffle + skip + offset + array */ 
-            est_len += 8 + 1 + 2 + 2 + 4;
+    if (uuid != NULL) {
+        est_len += strlen(uuid);
+    }
 
-            for (i = 0; i < caph->channel_hop_list_sz; i++) {
-                est_len += strlen(caph->channel_hop_list[i]);
-            }
+    if (caph->hopping_running) {
+        /* rate + shuffle + skip + offset + array */ 
+        est_len += 8 + 1 + 2 + 2 + 4;
+
+        for (i = 0; i < caph->channel_hop_list_sz; i++) {
+            est_len += strlen(caph->channel_hop_list[i]);
         }
     }
 
@@ -3760,30 +3765,65 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_build_map(&writer);
 
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_DLT);
+    mpack_write_u32(&writer, dlt);
+
     if (interface != NULL) {
         if (interface->capif != NULL) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CAPIF);
             mpack_write_cstr(&writer, interface->capif);
         }
 
         if (interface->hardware != NULL) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_HARDWARE);
             mpack_write_cstr(&writer, interface->hardware);
         }
 
         if (interface->chanset != NULL) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANNEL);
             mpack_write_cstr(&writer, interface->capif);
         }
 
         if (interface->channels_len > 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHAN_LIST);
             mpack_start_array(&writer, interface->channels_len);
             for (i = 0; i < interface->channels_len; i++) {
                 mpack_write_cstr(&writer, interface->channels[i]);
             }
             mpack_finish_array(&writer);
         }
+    }
 
+    if (caph->hopping_running) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANHOPBLOCK);
+        mpack_build_map(&writer);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL);
+
+        if (caph->channel_hop_list_sz > 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHAN_LIST);
+            mpack_start_array(&writer, caph->channel_hop_list_sz);
+
+            for (i = 0; i < caph->channel_hop_list_sz; i++) {
+                mpack_write_cstr(&writer, caph->channel_hop_list[i]);
+            }
+
+            mpack_finish_array(&writer);
+        }
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
+        mpack_write_float(&writer, caph->channel_hop_rate);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE);
+        mpack_write_bool(&writer, caph->channel_hop_shuffle);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
+        mpack_write_uint(&writer, caph->channel_hop_offset);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
+        mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
+
+        mpack_finish_map(&writer);
     }
 
     mpack_complete_map(&writer);
@@ -3796,343 +3836,441 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     return cf_commit_packet(caph, meta, final_len);
-
-    KismetDatasource__OpenSourceReport keopen;
-    KismetDatasource__SubSuccess kesuccess;
-    KismetExternal__MsgbusMessage kemsg;
-    KismetDatasource__SubChannels kechannels;
-    KismetDatasource__SubChanset kechanset;
-    KismetDatasource__SubSpecset kespecset;
-    KismetDatasource__SubChanhop kechanhop;
-
-    uint8_t *buf;
-    size_t buf_len;
-
-    kismet_datasource__open_source_report__init(&keopen);
-    kismet_datasource__sub_success__init(&kesuccess);
-    kismet_external__msgbus_message__init(&kemsg);
-    kismet_datasource__sub_channels__init(&kechannels);
-    kismet_datasource__sub_chanset__init(&kechanset);
-    kismet_datasource__sub_specset__init(&kespecset);
-    kismet_datasource__sub_chanhop__init(&kechanhop);
-
-    /* Always set the success */
-    kesuccess.success = success;
-    kesuccess.seqno = seq;
-
-    keopen.success = &kesuccess;
-
-    if (interface != NULL) {
-        if (interface->chanset != NULL) {
-            kechanset.channel = interface->chanset;
-            keopen.channel = &kechanset;
-        }
-
-        if (interface->channels_len != 0) {
-            kechannels.n_channels = interface->channels_len;
-            kechannels.channels = interface->channels;
-            keopen.channels = &kechannels;
-        }
-
-        /* Set the hopping parameters */
-        if (caph->hopping_running > 0) {
-            /* we don't have to copy the hop list we just use the same pointers */
-            kechanhop.channels = caph->channel_hop_list;
-            kechanhop.n_channels = caph->channel_hop_list_sz;
-
-            kechanhop.has_rate = true;
-            kechanhop.rate = caph->channel_hop_rate;
-
-            kechanhop.has_shuffle = true;
-            kechanhop.shuffle = caph->channel_hop_shuffle;
-
-            kechanhop.has_shuffle_skip = true;
-            kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
-
-            kechanhop.has_offset = true;
-            kechanhop.offset = caph->channel_hop_offset;
-
-            keopen.hop_config = &kechanhop;
-        }
-
-        if (interface->hardware != NULL) {
-            keopen.hardware = interface->hardware;
-        }
-
-        if (spectrum != NULL) {
-            kespecset.has_start_mhz = true;
-            kespecset.start_mhz = spectrum->start_mhz;
-
-            kespecset.has_end_mhz = true;
-            kespecset.end_mhz = spectrum->end_mhz;
-
-            kespecset.has_samples_per_bucket = true;
-            kespecset.samples_per_bucket = spectrum->samples_per_freq;
-
-            kespecset.has_bucket_width_hz = true;
-            kespecset.bucket_width_hz = spectrum->bin_width;
-
-            kespecset.has_enable_amp = true;
-            kespecset.enable_amp = spectrum->amp;
-
-            kespecset.has_if_amp = true;
-            kespecset.if_amp = spectrum->if_amp;
-
-            kespecset.has_baseband_amp = true;
-            kespecset.baseband_amp = spectrum->baseband_amp;
-
-            keopen.spectrum = &kespecset;
-        }
-
-        /* Set the capif if we have it */
-        keopen.capture_interface = interface->capif;
-    }
-
-    if (msg != NULL && strlen(msg) != 0) {
-        kemsg.msgtext = strdup(msg);
-
-        if (success)
-            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
-        else
-            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
-
-        keopen.message = &kemsg;
-    }
-
-    /* Always set the dlt */
-    keopen.has_dlt = true;
-    keopen.dlt = dlt;
-
-    /* Set the UUID? */
-    if (uuid != NULL) {
-        keopen.uuid = strdup(uuid);
-    }
-
-    buf_len = kismet_datasource__open_source_report__get_packed_size(&keopen);
-    buf = (uint8_t *) malloc(buf_len);
-
-    if (buf == NULL) {
-        if (msg != NULL)
-            free(kemsg.msgtext);
-        if (uuid != NULL)
-            free(keopen.uuid);
-        return -1;
-    }
-
-    kismet_datasource__open_source_report__pack(&keopen, buf);
-
-    if (msg != NULL)
-        free(kemsg.msgtext);
-    if (uuid != NULL)
-        free(keopen.uuid);
-
-    return cf_send_packet(caph, "KDSOPENSOURCEREPORT", buf, buf_len);
 }
 
 int cf_send_data(kis_capture_handler_t *caph,
-        KismetExternal__MsgbusMessage *kv_message,
-        KismetDatasource__SubSignal *kv_signal,
-        KismetDatasource__SubGps *kv_gps,
+        const char *msg, unsigned int msg_type,
+        struct cf_params_signal *signal, struct cf_params_gps *gps,
         struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack) {
 
-    kismet_external_frame_v2_t *frame;
-    size_t rs_sz;
-    uint8_t *send_buffer;
-    size_t buf_len = 0;
+    size_t est_len = 24;
+    size_t final_len = 0;
+
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
+
     uint32_t seqno;
 
-    KismetDatasource__DataReport kedata;
-    KismetDatasource__SubPacket kepkt;
-    KismetDatasource__SubGps kegps;
+    /* Send messages independently */ 
+    if (msg != NULL) {
+        switch (msg_type) {
+            case KIS_EXTERNAL_V3_MSG_DEBUG:
+                fprintf(stderr, "DEBUG: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_INFO:
+                fprintf(stderr, "INFO: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_ERROR:
+                fprintf(stderr, "ERROR: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_ALERT:
+                fprintf(stderr, "ALERT: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_FATAL:
+                fprintf(stderr, "FATAL: %s\n", msg);
+                break;
+        }
 
-    kismet_datasource__data_report__init(&kedata);
-    kismet_datasource__sub_packet__init(&kepkt);
-    kismet_datasource__sub_gps__init(&kegps);
+        est_len += strlen(msg);
+    }
 
-    kedata.signal = kv_signal;
-    kedata.message = kv_message;
+    if (signal != NULL) {
+        KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_EST_LEN(est_len, signal);
+    }
 
-    if (kv_gps != NULL) {
-        kedata.gps = kv_gps;
+    if (gps != NULL) {
+        KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(est_len, gps);
     } else if (caph->gps_fixed_lat != 0) {
-        struct timeval tv;
-
-        kegps.lat = caph->gps_fixed_lat;
-        kegps.lon = caph->gps_fixed_lon;
-        kegps.alt = caph->gps_fixed_alt;
-        kegps.fix = 3;
-
-        gettimeofday(&tv, NULL);
-        kegps.time_sec = tv.tv_sec;
-        kegps.time_usec = tv.tv_usec;
-
-        kegps.type = strdup("remote-fixed");
-
-        if (caph->gps_name != NULL)
-            kegps.name = strdup(caph->gps_name);
-        else
-            kegps.name = strdup("remote-fixed");
-
-        kedata.gps = &kegps;
-    }
-
-    if (packet_sz > 0 && pack != NULL) {
-        kepkt.time_sec = ts.tv_sec;
-        kepkt.time_usec = ts.tv_usec;
-        kepkt.dlt = dlt;
-        kepkt.size = packet_sz;
-        kepkt.data.len = packet_sz;
-        kepkt.data.data = pack;
-
-        kedata.packet = &kepkt;
-    }
-
-    if (caph->use_tcp || caph->use_ipc) {
-        /* Shortcut internal state tests to use an optimized streaming method to write to 
-         * the tcp/ipc ringbuffer using a protobuf_c buffer writer.
-         * This is a bunch of code duplication but it's important enough that we get the
-         * maximum speed here */
-
-        /* Lock the handler and get the next sequence number */
-        pthread_mutex_lock(&(caph->handler_lock));
-        if (++caph->seqno == 0)
-            caph->seqno = 1;
-        seqno = caph->seqno;
-        pthread_mutex_unlock(&(caph->handler_lock));
-
-        /* Reserve the buffer space and assemble the packet header just like cf_rb_send_packet */
-        pthread_mutex_lock(&(caph->out_ringbuf_lock));
-
-        buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
-
-        rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
-                buf_len + sizeof(kismet_external_frame_v2_t));
-
-        if (rs_sz != buf_len + sizeof(kismet_external_frame_v2_t)) {
-            // fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", buf_len);
-            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-            return 0;
+        if (caph->gps_name != NULL) {
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+                    caph->gps_name);
+        } else {
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+                    "remote-fixed");
         }
 
-        /* Map to the tx frame */
-        frame = (kismet_external_frame_v2_t *) send_buffer;
+    }
 
-        /* Set the signature and data size */
-        frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
-        frame->data_sz = htonl(buf_len);
+    KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(est_len, packet_sz);
 
-        frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
-        frame->frame_version = htons(2);
+    est_len = est_len * 1.15;
 
-        frame->seqno = htonl(seqno);
+    seqno = cf_get_next_seqno(caph);
 
-        strncpy(frame->command, "KDSDATAREPORT", 32);
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PACKET, seqno, 0, est_len);
 
-        kismet_datasource__data_report__pack(&kedata, frame->data);
+    if (meta == NULL) {
+        return -1;
+    }
 
-        kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
-        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    mpack_build_map(&writer);
 
-        if (kegps.name != NULL)
-            free(kegps.name);
-        if (kegps.type != NULL)
-            free(kegps.type);
+    if (gps != NULL || caph->gps_fixed_lat != 0) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK);
+        mpack_build_map(&writer); 
 
-        return rs_sz;
-    }  else {
-        /* Otherwise we need to use our legacy mode of serializing the packet into a temp
-         * buffer then putting that into the websocket ring */
-        uint8_t *buf;
-        size_t buf_len;
+        if (gps != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
+            mpack_write_double(&writer, gps->lat);
 
-        buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
-        buf = (uint8_t *) malloc(buf_len);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
+            mpack_write_double(&writer, gps->lon);
 
-        if (buf == NULL) {
-            return -1;
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
+            mpack_write_float(&writer, gps->alt);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
+            mpack_write_u8(&writer, gps->fix);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED);
+            mpack_write_float(&writer, gps->speed);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING);
+            mpack_write_float(&writer, gps->heading);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION);
+            mpack_write_float(&writer, gps->precision);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
+            mpack_write_float(&writer, gps->ts_sec);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
+            mpack_write_float(&writer, gps->ts_usec);
+
+            if (gps->gps_type != NULL) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+                mpack_write_cstr(&writer, gps->gps_type);
+            }
+
+            if (gps->gps_name != NULL) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+                mpack_write_cstr(&writer, gps->gps_name);
+            }
+
+        } else if (caph->gps_fixed_lat != 0) {
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
+            mpack_write_double(&writer, caph->gps_fixed_lat);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
+            mpack_write_double(&writer, caph->gps_fixed_lon);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
+            mpack_write_float(&writer, caph->gps_fixed_alt);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
+            mpack_write_u8(&writer, 3);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+            mpack_write_cstr(&writer, "remote-fixed");
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+            if (caph->gps_name != NULL) {
+                mpack_write_cstr(&writer, caph->gps_name);
+            }
+            if (caph->gps_name != NULL) {
+                mpack_write_cstr(&writer, "remote-fixed");
+            }
         }
 
-        kismet_datasource__data_report__pack(&kedata, buf);
-
-        if (kegps.name != NULL)
-            free(kegps.name);
-        if (kegps.type != NULL)
-            free(kegps.type);
-
-        return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
+        mpack_complete_map(&writer);
     }
+
+    if (signal != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK);
+        mpack_build_map(&writer); 
+
+        if (signal->channel != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
+            mpack_write_cstr(&writer, signal->channel);
+        }
+
+        if (signal->signal_dbm != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM);
+            mpack_write_u32(&writer, signal->signal_dbm);
+        }
+
+        if (signal->noise_dbm != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM);
+            mpack_write_u32(&writer, signal->noise_dbm);
+        }
+
+        if (signal->signal_rssi != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI);
+            mpack_write_u32(&writer, signal->signal_rssi);
+        }
+
+        if (signal->noise_rssi != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI);
+            mpack_write_u32(&writer, signal->noise_rssi);
+        }
+
+        if (signal->freq_khz != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ);
+            mpack_write_u64(&writer, signal->freq_khz);
+        }
+
+        if (signal->datarate != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE);
+            mpack_write_u64(&writer, signal->datarate);
+        }
+
+        mpack_complete_map(&writer);
+    }
+
+    /* write the packet itself */
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_PACKETBLOCK);
+    mpack_build_map(&writer); 
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT);
+    mpack_write_u32(&writer, dlt);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S);
+    mpack_write_u64(&writer, ts.tv_sec);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US);
+    mpack_write_u32(&writer, ts.tv_usec);
+
+    mpack_complete_map(&writer);
+
+    /* complete the map */
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 
 int cf_send_json(kis_capture_handler_t *caph,
-        KismetExternal__MsgbusMessage *kv_message,
-        KismetDatasource__SubSignal *kv_signal,
-        KismetDatasource__SubGps *kv_gps,
-        struct timeval ts, char *type, char *json) {
+        const char *msg, unsigned int msg_type,
+        struct cf_params_signal *signal,
+        struct cf_params_gps *gps,
+        struct timeval ts, const char *type, const char *json) {
 
-    KismetDatasource__DataReport kedata;
-    KismetDatasource__SubJson kejson;
-    KismetDatasource__SubGps kegps;
+    size_t est_len = 24;
+    size_t final_len = 0;
 
-    kismet_datasource__data_report__init(&kedata);
-    kismet_datasource__sub_json__init(&kejson);
-    kismet_datasource__sub_gps__init(&kegps);
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
 
-    kedata.signal = kv_signal;
-    kedata.message = kv_message;
+    size_t i;
 
-    if (kv_gps != NULL) {
-        kedata.gps = kv_gps;
+    uint32_t seqno;
+
+    int n;
+
+    /* Send messages independently */ 
+    if (msg != NULL) {
+        switch (msg_type) {
+            case KIS_EXTERNAL_V3_MSG_DEBUG:
+                fprintf(stderr, "DEBUG: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_INFO:
+                fprintf(stderr, "INFO: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_ERROR:
+                fprintf(stderr, "ERROR: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_ALERT:
+                fprintf(stderr, "ALERT: %s\n", msg);
+                break;
+            case KIS_EXTERNAL_V3_MSG_FATAL:
+                fprintf(stderr, "FATAL: %s\n", msg);
+                break;
+        }
+
+        est_len += strlen(msg);
+    }
+
+    if (signal != NULL) {
+        KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_EST_LEN(est_len, signal);
+    }
+
+    if (gps != NULL) {
+        KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(est_len, gps);
     } else if (caph->gps_fixed_lat != 0) {
-        struct timeval tv;
+        if (caph->gps_name != NULL) {
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+                    caph->gps_name);
+        } else {
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+                    "remote-fixed");
+        }
 
-        kegps.lat = caph->gps_fixed_lat;
-        kegps.lon = caph->gps_fixed_lon;
-        kegps.alt = caph->gps_fixed_alt;
-        kegps.fix = 3;
-
-        gettimeofday(&tv, NULL);
-        kegps.time_sec = tv.tv_sec;
-        kegps.time_usec = tv.tv_usec;
-
-        kegps.type = strdup("remote-fixed");
-
-        if (caph->gps_name != NULL)
-            kegps.name = strdup(caph->gps_name);
-        else
-            kegps.name = strdup("remote-fixed");
-
-        kedata.gps = &kegps;
     }
 
-    if (type != NULL && json  != NULL) {
-        kejson.time_sec = ts.tv_sec;
-        kejson.time_usec = ts.tv_usec;
-        kejson.type = type;
-        kejson.json = json;
+    KIS_EXTERNAL_V3_KDS_SUB_JSON_EST_LEN(est_len, type, json);
 
-        kedata.json = &kejson;
-    }
+    est_len = est_len * 1.15;
 
-    uint8_t *buf;
-    size_t buf_len;
+    seqno = cf_get_next_seqno(caph);
 
-    buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
-    buf = (uint8_t *) malloc(buf_len);
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PACKET, seqno, 0, est_len);
 
-    if (buf == NULL) {
+    if (meta == NULL) {
         return -1;
     }
 
-    kismet_datasource__data_report__pack(&kedata, buf);
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
-    if (kegps.name != NULL)
-        free(kegps.name);
-    if (kegps.type != NULL)
-        free(kegps.type);
+    mpack_build_map(&writer);
 
-    return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
+    if (gps != NULL || caph->gps_fixed_lat != 0) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK);
+        mpack_build_map(&writer); 
+
+        if (gps != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
+            mpack_write_double(&writer, gps->lat);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
+            mpack_write_double(&writer, gps->lon);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
+            mpack_write_float(&writer, gps->alt);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
+            mpack_write_u8(&writer, gps->fix);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED);
+            mpack_write_float(&writer, gps->speed);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING);
+            mpack_write_float(&writer, gps->heading);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION);
+            mpack_write_float(&writer, gps->precision);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
+            mpack_write_float(&writer, gps->ts_sec);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
+            mpack_write_float(&writer, gps->ts_usec);
+
+            if (gps->gps_type != NULL) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+                mpack_write_cstr(&writer, gps->gps_type);
+            }
+
+            if (gps->gps_name != NULL) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+                mpack_write_cstr(&writer, gps->gps_name);
+            }
+
+        } else if (caph->gps_fixed_lat != 0) {
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
+            mpack_write_double(&writer, caph->gps_fixed_lat);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
+            mpack_write_double(&writer, caph->gps_fixed_lon);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
+            mpack_write_float(&writer, caph->gps_fixed_alt);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
+            mpack_write_u8(&writer, 3);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+            mpack_write_cstr(&writer, "remote-fixed");
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+            if (caph->gps_name != NULL) {
+                mpack_write_cstr(&writer, caph->gps_name);
+            }
+            if (caph->gps_name != NULL) {
+                mpack_write_cstr(&writer, "remote-fixed");
+            }
+        }
+
+        mpack_complete_map(&writer);
+    }
+
+    if (signal != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK);
+        mpack_build_map(&writer); 
+
+        if (signal->channel != NULL) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
+            mpack_write_cstr(&writer, signal->channel);
+        }
+
+        if (signal->signal_dbm != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM);
+            mpack_write_u32(&writer, signal->signal_dbm);
+        }
+
+        if (signal->noise_dbm != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM);
+            mpack_write_u32(&writer, signal->noise_dbm);
+        }
+
+        if (signal->signal_rssi != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI);
+            mpack_write_u32(&writer, signal->signal_rssi);
+        }
+
+        if (signal->noise_rssi != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI);
+            mpack_write_u32(&writer, signal->noise_rssi);
+        }
+
+        if (signal->freq_khz != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ);
+            mpack_write_u64(&writer, signal->freq_khz);
+        }
+
+        if (signal->datarate != 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE);
+            mpack_write_u64(&writer, signal->datarate);
+        }
+
+        mpack_complete_map(&writer);
+    }
+
+    /* write the json itself */
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_JSONBLOCK);
+    mpack_build_map(&writer); 
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S);
+    mpack_write_u64(&writer, ts.tv_sec);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_US);
+    mpack_write_u32(&writer, ts.tv_usec);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE);
+    mpack_write_cstr(&writer, type);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON);
+    mpack_write_cstr(&writer, json);
+
+    mpack_complete_map(&writer);
+
+    /* complete the map */
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 
