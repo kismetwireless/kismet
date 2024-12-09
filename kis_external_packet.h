@@ -197,6 +197,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_LISTREQ             14
 #define KIS_EXTERNAL_V3_KDS_LISTREPORT          15
 #define KIS_EXTERNAL_V3_KDS_PACKET              16
+#define KIS_EXTERNAL_V3_KDS_CONFIGURE           17
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT        18
 
 /* Generic sub-blocks used in external and datasources */
 
@@ -453,19 +455,19 @@ typedef struct kismet_external_frame_v3 {
  * Sequence and success code set in top-level header
  * */
 /* uint32, dlt if opened as a single type */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_DLT               1
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT               1
 /* string, capture interface resolved */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CAPIF             2
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CAPIF             2
 /* configured channels, as array[string] */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHAN_LIST         3
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHAN_LIST         3
 /* single channel as string */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANNEL           4
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANNEL           4
 /* channel hop sub-block */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANHOPBLOCK      5
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANHOPBLOCK      5
 /* string */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_HARDWARE          6
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_HARDWARE          6
 /* string */
-#define KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_UUID              7
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID              7
 
 
 
@@ -486,11 +488,34 @@ typedef struct kismet_external_frame_v3 {
  *
  * Contains multiple (as defined by the number of results field) interface
  * report sub-blocks
- * */
+ */
 
 /* Array of instances of interface sub blocks */
 #define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST            1
 
+
+/* KIS_EXTERNAL_V3_KDS_CONFIGURE 
+ *
+ * KS -> Datasource 
+ *
+ * Configure channel behavior
+ */ 
+
+/* string */ 
+#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL             1 
+/* hopping sub-block */
+#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK        2 
+/* todo: spectrum */
+
+
+/* KIS_EXTERNAL_V3_KDS_CONFIGREPORT 
+ *
+ * Datasource -> KS 
+ */
+/* string */ 
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL          1 
+/* channel hop block */
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK     2 
 
 
 

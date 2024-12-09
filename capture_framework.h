@@ -969,7 +969,7 @@ int cf_send_json(kis_capture_handler_t *caph,
  *  1   Success
  */
 int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seq,
-        unsigned int success, const char *msg, const char *warning);
+        unsigned int success, const char *msg);
 
 /* Send a PING request
  *
