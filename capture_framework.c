@@ -3364,7 +3364,7 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
@@ -3409,7 +3409,7 @@ int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *ms
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, in_seqno, 1, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
@@ -3502,7 +3502,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_LISTREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
@@ -3622,7 +3622,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
@@ -3684,7 +3684,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     int n;
 
-    /* Send messages independently */ 
     if (msg != NULL) {
         if (success) {
             if (caph->verbose)
@@ -3758,34 +3757,34 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
     mpack_build_map(&writer);
 
-    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_DLT);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT);
     mpack_write_u32(&writer, dlt);
 
     if (interface != NULL) {
         if (interface->capif != NULL) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CAPIF);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CAPIF);
             mpack_write_cstr(&writer, interface->capif);
         }
 
         if (interface->hardware != NULL) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_HARDWARE);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_HARDWARE);
             mpack_write_cstr(&writer, interface->hardware);
         }
 
         if (interface->chanset != NULL) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANNEL);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANNEL);
             mpack_write_cstr(&writer, interface->capif);
         }
 
         if (interface->channels_len > 0) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHAN_LIST);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHAN_LIST);
             mpack_start_array(&writer, interface->channels_len);
             for (i = 0; i < interface->channels_len; i++) {
                 mpack_write_cstr(&writer, interface->channels[i]);
@@ -3795,13 +3794,13 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     if (caph->hopping_running) {
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHANHOPBLOCK);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANHOPBLOCK);
         mpack_build_map(&writer);
 
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL);
 
         if (caph->channel_hop_list_sz > 0) {
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPEN_REPORT_FIELD_CHAN_LIST);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
             mpack_start_array(&writer, caph->channel_hop_list_sz);
 
             for (i = 0; i < caph->channel_hop_list_sz; i++) {
@@ -3851,24 +3850,25 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     uint32_t seqno;
 
-    /* Send messages independently */ 
     if (msg != NULL) {
-        switch (msg_type) {
-            case KIS_EXTERNAL_V3_MSG_DEBUG:
-                fprintf(stderr, "DEBUG: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_INFO:
-                fprintf(stderr, "INFO: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_ERROR:
-                fprintf(stderr, "ERROR: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_ALERT:
-                fprintf(stderr, "ALERT: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_FATAL:
-                fprintf(stderr, "FATAL: %s\n", msg);
-                break;
+        if (caph->verbose) {
+            switch (msg_type) {
+                case KIS_EXTERNAL_V3_MSG_DEBUG:
+                    fprintf(stderr, "DEBUG: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_INFO:
+                    fprintf(stderr, "INFO: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_ERROR:
+                    fprintf(stderr, "ERROR: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_ALERT:
+                    fprintf(stderr, "ALERT: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_FATAL:
+                    fprintf(stderr, "FATAL: %s\n", msg);
+                    break;
+            }
         }
 
         est_len += strlen(msg);
@@ -3901,7 +3901,7 @@ int cf_send_data(kis_capture_handler_t *caph,
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PACKET, seqno, 0, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
@@ -4063,31 +4063,27 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     mpack_writer_t writer;
     cf_frame_metadata *meta = NULL;
-
-    size_t i;
-
     uint32_t seqno;
 
-    int n;
-
-    /* Send messages independently */ 
     if (msg != NULL) {
-        switch (msg_type) {
-            case KIS_EXTERNAL_V3_MSG_DEBUG:
-                fprintf(stderr, "DEBUG: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_INFO:
-                fprintf(stderr, "INFO: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_ERROR:
-                fprintf(stderr, "ERROR: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_ALERT:
-                fprintf(stderr, "ALERT: %s\n", msg);
-                break;
-            case KIS_EXTERNAL_V3_MSG_FATAL:
-                fprintf(stderr, "FATAL: %s\n", msg);
-                break;
+        if (caph->verbose) {
+            switch (msg_type) {
+                case KIS_EXTERNAL_V3_MSG_DEBUG:
+                    fprintf(stderr, "DEBUG: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_INFO:
+                    fprintf(stderr, "INFO: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_ERROR:
+                    fprintf(stderr, "ERROR: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_ALERT:
+                    fprintf(stderr, "ALERT: %s\n", msg);
+                    break;
+                case KIS_EXTERNAL_V3_MSG_FATAL:
+                    fprintf(stderr, "FATAL: %s\n", msg);
+                    break;
+            }
         }
 
         est_len += strlen(msg);
@@ -4120,7 +4116,7 @@ int cf_send_json(kis_capture_handler_t *caph,
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PACKET, seqno, 0, est_len);
 
     if (meta == NULL) {
-        return -1;
+        return 0;
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
@@ -4274,83 +4270,122 @@ int cf_send_json(kis_capture_handler_t *caph,
 }
 
 
-int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno, 
-        unsigned int success, const char *msg, const char *warning) {
+int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno, 
+        unsigned int success, const char *msg) {
 
-    KismetDatasource__ConfigureReport keconf;
-    KismetDatasource__SubSuccess kesuccess;
-    KismetExternal__MsgbusMessage kemsg;
-    KismetDatasource__SubChanset kechanset;
-    KismetDatasource__SubChanhop kechanhop;
+    size_t est_len = 24;
+    size_t final_len = 0;
 
-    uint8_t *buf;
-    size_t buf_len;
-    
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
 
-    kismet_datasource__configure_report__init(&keconf);
-    kismet_datasource__sub_success__init(&kesuccess);
-    kismet_external__msgbus_message__init(&kemsg);
-    kismet_datasource__sub_chanset__init(&kechanset);
-    kismet_datasource__sub_chanhop__init(&kechanhop);
+    size_t i;
 
-    /* Always set the success */
-    kesuccess.success = success;
-    kesuccess.seqno = seqno;
+    uint32_t seqno;
 
-    keconf.success = &kesuccess;
+    int n;
 
-    if (msg != NULL && strlen(msg) != 0) {
-        kemsg.msgtext = strdup(msg);
-
-        if (success)
-            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
-        else
-            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
-
-        keconf.message = &kemsg;
+    /* Send messages independently */ 
+    if (msg != NULL) {
+        if (caph->verbose) {
+            if (success) {
+                fprintf(stderr, "INFO: %s\n", msg);
+            } else {
+                fprintf(stderr, "ERROR: %s\n", msg);
+            }
+        }
     }
 
-    /* If we're not hopping, set the single channel response */
-    if (!caph->hopping_running && caph->channel != NULL) {
-        /* Set the single channel */
-        kechanset.channel = caph->channel;
-        keconf.channel = &kechanset;
+    /* Send errors and messages tied to this sequence number and exit */
+    if (!success) {
+        n = cf_send_error(caph, seqno, msg);
+        return n;
+    } else {
+        /* Send messages independently not tied to this sequence, 
+         * they're just informational */
+        n = cf_send_message(caph, msg, MSGFLAG_INFO);
+        if (n != 0) {
+            return n;
+        }
     }
 
-    /* Set the hopping parameters */
-    /* we don't have to copy the hop list we just use the same pointers */
-    kechanhop.channels = caph->channel_hop_list;
-    kechanhop.n_channels = caph->channel_hop_list_sz;
+    if (caph->hopping_running) {
+        /* rate + shuffle + skip + offset + array */ 
+        est_len += 8 + 1 + 2 + 2 + 4;
 
-    kechanhop.has_rate = true;
-    kechanhop.rate = caph->channel_hop_rate;
+        for (i = 0; i < caph->channel_hop_list_sz; i++) {
+            est_len += strlen(caph->channel_hop_list[i]);
+        }
+    } else {
+        est_len += strlen(caph->channel);
+    }
 
-    kechanhop.has_shuffle = true;
-    kechanhop.shuffle = caph->channel_hop_shuffle;
+    /* we don't handle spectrum yet in v3 until we figure out how to define it */
 
-    kechanhop.has_shuffle_skip = true;
-    kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
+    est_len = est_len * 1.15;
 
-    kechanhop.has_offset = true;
-    kechanhop.offset = caph->channel_hop_offset;
+    if (in_seqno != 0) {
+        seqno = in_seqno;
+    } else {
+        seqno = cf_get_next_seqno(caph);
+    }
 
-    keconf.hopping = &kechanhop;
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, seqno, 0, est_len);
 
-    buf_len = kismet_datasource__configure_report__get_packed_size(&keconf);
-    buf = (uint8_t *) malloc(buf_len);
+    if (meta == NULL) {
+        return 0;
+    }
 
-    if (buf == NULL) {
-        if (msg)
-            free(kemsg.msgtext);
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
+
+    mpack_build_map(&writer);
+
+    if (caph->hopping_running) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
+        mpack_build_map(&writer);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL);
+
+        if (caph->channel_hop_list_sz > 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
+            mpack_start_array(&writer, caph->channel_hop_list_sz);
+
+            for (i = 0; i < caph->channel_hop_list_sz; i++) {
+                mpack_write_cstr(&writer, caph->channel_hop_list[i]);
+            }
+
+            mpack_finish_array(&writer);
+        }
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
+        mpack_write_float(&writer, caph->channel_hop_rate);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE);
+        mpack_write_bool(&writer, caph->channel_hop_shuffle);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
+        mpack_write_uint(&writer, caph->channel_hop_offset);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
+        mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
+
+        mpack_finish_map(&writer);
+    } else {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
+        mpack_write_cstr(&writer, caph->channel);
+    }
+
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
         return -1;
     }
 
-    kismet_datasource__configure_report__pack(&keconf, buf);
-
-    if (msg)
-        free(kemsg.msgtext);
-
-    return cf_send_packet(caph, "KDSCONFIGUREREPORT", buf, buf_len);
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
