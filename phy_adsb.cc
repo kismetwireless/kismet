@@ -468,11 +468,9 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
 
                                 uptr->ws->write(adsb_content);
                             } catch (std::exception& e) {
-                                delete uptr;
                                 return 0;
                             }
 
-                            delete uptr;
                             return 1;
                     }, uptr, CHAINPOS_LOGGING, 1000);
 
@@ -485,6 +483,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 }
             
                 packetchain->remove_handler(raw_handler_id, CHAINPOS_LOGGING);
+                delete uptr;
             }));
 
 }
