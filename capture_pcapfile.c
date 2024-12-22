@@ -80,11 +80,12 @@ typedef struct {
     unsigned int pps_throttle;
 } local_pcap_t;
 
-int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, 
+        const char *definition,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
-    char *placeholder = NULL;
+    const char *placeholder = NULL;
     int placeholder_len;
 
     *uuid = NULL;
@@ -146,11 +147,12 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     return 1;
 }
 
-int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno, 
+        const char *definition,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
-    char *placeholder = NULL;
+    const char *placeholder = NULL;
     int placeholder_len;
 
     char *pcapfname = NULL;
@@ -297,10 +299,12 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     while (1) {
 #if defined(__OpenBSD__)
         ts.tv_sec = header->ts.tv_sec;
-	ts.tv_usec = header->ts.tv_usec;
+        ts.tv_usec = header->ts.tv_usec;
 #endif
         if ((ret = cf_send_data(caph, 
-                        NULL, NULL, NULL,
+                        NULL, MSGFLAG_INFO, /* no msg */
+                        NULL, /* no signal */
+                        NULL, /* no gps */
 #if defined(__OpenBSD__)
                         ts,
 #else

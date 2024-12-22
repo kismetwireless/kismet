@@ -58,9 +58,6 @@
 #include "kis_endian.h"
 #include "remote_announcement.h"
 
-#include "kismet.pb-c.h"
-#include "datasource.pb-c.h"
-
 #include "mpack/mpack.h"
 
 #include "version.h"
@@ -137,7 +134,7 @@ uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
     return adler32_append_csum(in_buf, in_len, 0);
 }
 
-int cf_parse_interface(char **ret_interface, char *definition) {
+int cf_parse_interface(const char **ret_interface, const char *definition) {
     char *colonpos;
 
     colonpos = strstr(definition, ":");
@@ -154,7 +151,7 @@ int cf_parse_interface(char **ret_interface, char *definition) {
     return (colonpos - definition);
 }
 
-int cf_find_flag(char **ret_value, const char *flag, char *definition) {
+int cf_find_flag(const char **ret_value, const char *flag, const char *definition) {
     char *colonpos, *flagpos, *comma, *equals, *quote, *equote;
 
     colonpos = strstr(definition, ":");
@@ -3528,7 +3525,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     /* Send errors tied to this sequence number and exit */
     if (!success) {
-        n = cf_send_error(caph, seqno, msg);
+        n = cf_send_error(caph, seq, msg);
         return n;
     } else {
         /* Send messages independently not tied to this sequence, 
@@ -3763,7 +3760,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     /* Send errors tied to this sequence number and exit */
     if (!success) {
-        n = cf_send_error(caph, seqno, msg);
+        n = cf_send_error(caph, seq, msg);
         return n;
     } else {
         /* Send messages independently not tied to this sequence, 
