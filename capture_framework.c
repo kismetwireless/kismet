@@ -1653,7 +1653,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
 }
 
 /* Common dispatch layer across v0 and v2 frames */
-int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command, 
+int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd, 
         uint32_t seqno, const uint8_t *data, size_t packet_sz) {
     int cbret = -1;
     char msgstr[STATUS_MAX];
@@ -1661,20 +1661,19 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
 
     pthread_mutex_lock(&(caph->handler_lock));
 
-    /* Split into commands and handle them */
-    if (strncasecmp(command, "PING", 32) == 0) {
-        caph->last_ping = time(NULL);
+    if (cmd == KIS_EXTERNAL_V3_CMD_PING) {
         cf_send_pong(caph, seqno);
         cbret = 1;
         goto finish;
-    } else if (strncasecmp(command, "PONG", 32) == 0) {
+    } else if (cmd == KIS_EXTERNAL_V3_CMD_PONG) {
         cbret = 1;
         goto finish;
-    } else if (strncasecmp(command, "KDSLISTINTERFACES", 32) == 0) {
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_LISTREQ) {
         if (caph->listdevices_cb == NULL) {
-            if (caph->verbose)
-                fprintf(stderr, "ERROR: Capture source (%s) source does not support listing datasources.\n",
-						caph->capsource_type);
+            if (caph->verbose) {
+                fprintf(stderr, "ERROR:  Capture source (%s) does not support "
+                        "listing datasources\n", caph->capsource_type);
+            }
 
             cf_send_listresp(caph, seqno, true, "", NULL, 0);
             cbret = -1;
@@ -1715,39 +1714,65 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
             cf_handler_spindown(caph);
             goto finish;
         }
-    } else if (strncasecmp(command, "KDSPROBESOURCE", 32) == 0) {
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_PROBEREQ) {
         if (caph->probe_cb == NULL) {
-            if (caph->verbose)
-                fprintf(stderr, "ERROR:  Source does not support automatic probing.\n");
+            if (caph->verbose) {
+                fprintf(stderr, "ERROR:  Capture source (%s) does not support automatic "
+                        "probing.\n", caph->capsource_type);
+            }
+
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_proberesp(caph, seqno, false, "Source does not support probing", NULL, NULL);
+            pthread_mutex_lock(&(caph->handler_lock));
+
             cbret = -1;
             goto finish;
         } else {
-            KismetDatasource__ProbeSource *probe_cmd = NULL;
-
             cf_params_interface_t *interfaceparams = NULL;
             cf_params_spectrum_t *spectrumparams = NULL;
 
             char *uuid = NULL;
 
-            /* Unpack the protbuf */
-            probe_cmd = kismet_datasource__probe_source__unpack(NULL, packet_sz, data);
+            mpack_tree_t tree;
+            mpack_node_t root;
 
-            if (probe_cmd == NULL) {
-                fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
-                        "KDSPROBESOURCE command\n");
+            const char *definition;
+
+            mpack_tree_init_data(&tree, (const char *) data, packet_sz);
+
+            if (!mpack_tree_try_parse(&tree)) {
+                fprintf(stderr, "FATAL: Invalid probe request received, unable to unpack command.\n");
                 cbret = -1;
+                mpack_tree_destroy(&tree);
                 goto finish;
             }
-            
+
+            root = mpack_tree_root(&tree); 
+
+            if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION)) {
+                fprintf(stderr, "FATAL: Invalid probe request received, unable to unpack source definition.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            definition = mpack_node_str(mpack_node_map_uint(root, 
+                        KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION));
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid probe request received, unable to unpack source definition.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
             msgstr[0] = 0;
-            cbret = (*(caph->probe_cb))(caph, seqno, probe_cmd->definition,
-                    msgstr, &uuid, NULL, &interfaceparams, &spectrumparams);
+            cbret = (*(caph->probe_cb))(caph, seqno, definition, msgstr, &uuid, 
+                    &interfaceparams, &spectrumparams);
 
             cf_send_proberesp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
-
-            kismet_datasource__probe_source__free_unpacked(probe_cmd, NULL);
+            
+            mpack_tree_destroy(&tree);
 
             if (uuid != NULL)
                 free(uuid);
@@ -1763,54 +1788,72 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
 
             goto finish;
         }
-    } else if (strncasecmp(command, "KDSOPENSOURCE", 32) == 0) {
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_OPENREQ) {
         if (caph->open_cb == NULL) {
-            if (caph->verbose)
-                fprintf(stderr, "ERROR: Source cannot be opened (no open function)\n");
+            if (caph->verbose) {
+                fprintf(stderr, "ERROR:  Capture source (%s) does not support opening\n",
+                        caph->capsource_type);
+            }
 
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_openresp(caph, seqno,
-                    false, "source cannot be opened", 0, NULL, NULL, NULL);
+            cf_send_openresp(caph, seqno, false, "source cannot be opened", 0, 
+                    NULL, NULL, NULL);
+            pthread_mutex_lock(&(caph->handler_lock));
+
             cbret = -1;
+            goto finish;
         } else {
-            KismetDatasource__OpenSource *open_cmd = NULL;
-
-            uint32_t dlt;
-
             cf_params_interface_t *interfaceparams = NULL;
             cf_params_spectrum_t *spectrumparams = NULL;
 
             char *uuid = NULL;
 
-            /* Unpack the protbuf */
-            open_cmd = kismet_datasource__open_source__unpack(NULL, packet_sz, data);
+            mpack_tree_t tree;
+            mpack_node_t root;
 
-            if (open_cmd == NULL) {
-                fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
-                        "KDSOPENSOURCE command\n");
+            const char *definition;
+
+            mpack_tree_init_data(&tree, (const char *) data, packet_sz);
+
+            if (!mpack_tree_try_parse(&tree)) {
+                fprintf(stderr, "FATAL: Invalid open request received, unable to unpack command.\n");
                 cbret = -1;
                 goto finish;
             }
-            
-            msgstr[0] = 0;
-            cbret = (*(caph->open_cb))(caph,
-                    seqno, open_cmd->definition,
-                    msgstr, &dlt, &uuid, NULL,
-                    &interfaceparams, &spectrumparams);
 
-            if (caph->verbose && strlen(msgstr) > 0) {
-                if (cbret >= 0)
-                    fprintf(stderr, "INFO: %s\n", msgstr);
-                else
-                    fprintf(stderr, "ERROR: %s\n", msgstr);
+            root = mpack_tree_root(&tree); 
+
+            if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION)) {
+                fprintf(stderr, "FATAL: Invalid open request received, unable to unpack source definition.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
             }
 
-            cf_send_openresp(caph, seqno,
-                    cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
+            definition = mpack_node_str(mpack_node_map_uint(root, 
+                        KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION));
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid open request received, unable to unpack source definition.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            uint32_t dlt;
+
+            msgstr[0] = 0;
+            cbret = (*(caph->open_cb))(caph, seqno, definition,
+                    msgstr, &dlt, &uuid, &interfaceparams, &spectrumparams);
+
+            cf_send_openresp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, 
+                    dlt, uuid, interfaceparams,
                     spectrumparams);
 
             if (uuid != NULL)
                 free(uuid);
+
+            mpack_tree_destroy(&tree);
 
             if (interfaceparams != NULL)
                 cf_params_interface_free(interfaceparams);
@@ -1818,161 +1861,188 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
             if (spectrumparams != NULL)
                 cf_params_spectrum_free(spectrumparams);
 
-            kismet_datasource__open_source__free_unpacked(open_cmd, NULL);
-
             if (caph->remote_host) {
                 fprintf(stderr, "INFO: %s:%u starting capture...\n", caph->remote_host, caph->remote_port);
             }
 
             if (cbret >= 0) {
-                /* fprintf(stderr, "DEBUG - launching capture thread\n"); */
                 cf_handler_launch_capture_thread(caph);
             }
 
             goto finish;
         }
-    } else if (strncasecmp(command, "KDSCONFIGURE", 32) == 0) {
-        KismetDatasource__Configure *conf_cmd;
-
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_CONFIGURE) {
         double chanhop_rate = 0;
         char **chanhop_channels = NULL;
         void **chanhop_priv_channels = NULL;
         size_t chanhop_channels_sz = 0, szi = 0;
         int chanhop_shuffle = 0, chanhop_shuffle_spacing = 1, chanhop_offset = 0;
         void *translate_chan = NULL;
+        const char *channel = NULL;
 
-        /* Unpack the protbuf */
-        conf_cmd = kismet_datasource__configure__unpack(NULL, packet_sz, data);
+        mpack_tree_t tree;
+        mpack_node_t root;
 
-        if (conf_cmd == NULL) {
-            fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack KDSCONFIGURE command\n");
+        if (caph->chancontrol_cb == NULL) {
+            if (caph->verbose) {
+                fprintf(stderr, "ERROR:  Capture source (%s) does not support channel configuration\n",
+                        caph->capsource_type);
+            }
+
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_configresp(caph, seqno, false, "source does not support channel configuration");
+            pthread_mutex_lock(&(caph->handler_lock));
+
             cbret = -1;
             goto finish;
         }
 
-        if (conf_cmd->channel != NULL) {
-            /* Handle channel set */
-            if (caph->chancontrol_cb == NULL) {
-                if (caph->verbose)
-                    fprintf(stderr, "ERROR: Source does not support channel setting\n");
+        mpack_tree_init_data(&tree, (const char *) data, packet_sz);
 
-                pthread_mutex_unlock(&(caph->handler_lock));
-                cf_send_configresp(caph, seqno, 0, "Source does not support setting channel", NULL);
-                cbret = 0;
+        if (!mpack_tree_try_parse(&tree)) {
+            fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack command.\n");
+            cbret = -1;
+            goto finish;
+        }
 
-                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
-                goto finish;
+        root = mpack_tree_root(&tree);
+
+        if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL)) {
+            channel = mpack_node_str(mpack_node_map_uint(root, 
+                        KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL));
+
+            if (caph->chantranslate_cb != NULL) {
+                translate_chan = (*(caph->chantranslate_cb))(caph, channel);
             } else {
-                if (caph->chantranslate_cb != NULL) {
-                    translate_chan = (*(caph->chantranslate_cb))(caph, conf_cmd->channel->channel);
-                } else {
-                    translate_chan = strdup(conf_cmd->channel->channel);
-                }
-
-                if (caph->hopping_running) {
-                    pthread_cancel(caph->hopthread);
-                    caph->hopping_running = 0;
-                }
-
-                msgstr[0] = 0;
-                cbret = (*(caph->chancontrol_cb))(caph, seqno, translate_chan, msgstr);
-
-                if (caph->verbose && strlen(msgstr) > 0) {
-                    if (cbret >= 0)
-                        fprintf(stderr, "INFO: %s\n", msgstr);
-                    else
-                        fprintf(stderr, "ERROR: %s\n", msgstr);
-                }
-
-                /* Log the channel we're set to */
-                if (cbret > 0) {
-                    if (caph->channel != NULL)
-                        free(caph->channel);
-                    caph->channel = strdup(conf_cmd->channel->channel);
-                }
-
-                /* Send a response based on the channel set success */
-                cf_send_configresp(caph, seqno, cbret >= 0, msgstr, NULL);
-
-                /* Free our channel copies */
-                if (caph->chanfree_cb != NULL)
-                    (*(caph->chanfree_cb))(translate_chan);
-                else
-                    free(translate_chan);
-
-                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
-
-                goto finish;
+                translate_chan = strdup(channel);
             }
 
-        } else if (conf_cmd->hopping != NULL) {
-            /* Otherwise process hopping */
-            if (conf_cmd->hopping->n_channels == 0) {
-                if (caph->verbose)
-                    fprintf(stderr, "ERROR:  No channels provided in hopping configuration.\n");
-
-                cf_send_configresp(caph, seqno, 0, "No channels in hopping configuration", NULL);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel definition.\n");
                 cbret = -1;
-
-                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
-
+                mpack_tree_destroy(&tree);
                 goto finish;
             }
 
-            if (caph->chancontrol_cb == NULL) {
-                if (caph->verbose)
-                    fprintf(stderr, "ERROR:  Source does not support setting channels\n");
-
-                cf_send_configresp(caph, seqno, 0, "Source does not support setting channel", NULL);
-                cbret = -1;
-
-                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
-
-                goto finish;
+            /* Cancel channel hopping when told a single channel */
+            if (caph->hopping_running) {
+                pthread_cancel(caph->hopthread);
+                caph->hopping_running = 0;
             }
 
-            chanhop_channels_sz = conf_cmd->hopping->n_channels;
+            msgstr[0] = 0;
+            cbret = (*(caph->chancontrol_cb))(caph, seqno, translate_chan, msgstr);
 
-            chanhop_channels = 
-                (char **) malloc(sizeof(char *) * chanhop_channels_sz);
-
-            for (szi = 0; szi < chanhop_channels_sz; szi++) {
-                chanhop_channels[szi] = strdup(conf_cmd->hopping->channels[szi]);
+            /* Log the channel we're set to */
+            if (cbret > 0) {
+                if (caph->channel != NULL)
+                    free(caph->channel);
+                caph->channel = strdup(channel);
             }
 
-            /* Translate all the channels, or dupe them as strings */
-            chanhop_priv_channels = 
-                (void **) malloc(sizeof(void *) * chanhop_channels_sz);
+            /* Send a response based on the channel set success */
+            cf_send_configresp(caph, seqno, cbret >= 0, msgstr);
 
-            for (szi = 0; szi < chanhop_channels_sz; szi++) {
-                if (caph->chantranslate_cb != NULL) {
-                    chanhop_priv_channels[szi] = 
-                        (*(caph->chantranslate_cb))(caph, conf_cmd->hopping->channels[szi]);
-                } else {
-                    chanhop_priv_channels[szi] = strdup(conf_cmd->hopping->channels[szi]);
-                }
-            }
-
-            /* Load any configure options or default to what we're already set for */
-            if (conf_cmd->hopping->has_rate)
-                chanhop_rate = conf_cmd->hopping->rate;
+            /* Free our channel copies */
+            if (caph->chanfree_cb != NULL)
+                (*(caph->chanfree_cb))(translate_chan);
             else
+                free(translate_chan);
+
+            mpack_tree_destroy(&tree);
+
+            goto finish;
+        } else if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK)) {
+            mpack_node_t chanhop;
+            mpack_node_t chanlist;
+           
+            chanhop = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK);
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel hop definition.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            if (!mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST)) {
+                fprintf(stderr, "FATAL: Invalid configure request received, missing required channel list field.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            chanlist = mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel hop list.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            if (mpack_node_array_length(chanlist) == 0 || mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel hop list.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            chanhop_channels_sz = mpack_node_array_length(chanlist);
+            chanhop_channels = (char **) malloc(sizeof(char *) * chanhop_channels_sz);
+
+            for (szi = 0; szi < chanhop_channels_sz; szi++) {
+                chanhop_channels[szi] = mpack_node_cstr_alloc(mpack_node_array_at(chanlist, szi), 64);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel hop list.\n");
+                    cbret = -1;
+                    mpack_tree_destroy(&tree);
+                    goto finish;
+                }
+            }
+
+            /* translate or duplicate all the channels to native channel definitions */ 
+            chanhop_priv_channels = (void **) malloc(sizeof(void *) * chanhop_channels_sz);
+
+            for (szi = 0; szi < chanhop_channels_sz; szi++) {
+                if (caph->chantranslate_cb != NULL) {
+                    chanhop_priv_channels[szi] = (*(caph->chantranslate_cb))(caph, chanhop_channels[szi]);
+                } else {
+                    chanhop_priv_channels[szi] = strdup(chanhop_channels[szi]);
+                }
+            }
+
+            /* default to current values for unspecified fields */ 
+            if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE)) {
+                chanhop_rate = mpack_node_float(mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE));
+            } else {
                 chanhop_rate = caph->channel_hop_rate;
+            }
 
-            if (conf_cmd->hopping->has_shuffle)
-                chanhop_shuffle = conf_cmd->hopping->shuffle;
-            else
+            if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE)) {
+                chanhop_shuffle = mpack_node_bool(mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE));
+            } else {
                 chanhop_shuffle = caph->channel_hop_shuffle;
+            }
 
-            if (conf_cmd->hopping->has_shuffle_skip) 
-                chanhop_shuffle_spacing = conf_cmd->hopping->shuffle_skip;
-            else 
+            if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP)) {
+                chanhop_shuffle_spacing = mpack_node_u16(mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP));
+            } else {
                 chanhop_shuffle_spacing = caph->channel_hop_shuffle_spacing;
+            }
 
-            if (conf_cmd->hopping->has_offset)
-                chanhop_offset = conf_cmd->hopping->offset;
-            else
+            if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET)) {
+                chanhop_offset = mpack_node_u16(mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET));
+            } else {
                 chanhop_offset = caph->channel_hop_offset;
+            }
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid configure request received, unable to process channel hop command.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
 
             /* Set the hop data, which will handle our thread */
             cf_handler_assign_hop_channels(caph, chanhop_channels,
@@ -1983,13 +2053,13 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
              * dynamically allocated out of the buffer with cf_get_CHANHOP, as
              * we're now using them for keeping the channel record in the
              * caph */
-            cf_send_configresp(caph, seqno, 1, NULL, NULL);
+            cf_send_configresp(caph, seqno, 1, NULL);
             cbret = 1;
-
-            kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
 
             goto finish;
         }
+
+
     } else {
         cbret = -1;
 
@@ -1997,7 +2067,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
          * frame */
         if (caph->unknown_cb != NULL) {
             cbret = 
-                (*(caph->unknown_cb))(caph, seqno, command, (const char *) data, packet_sz);
+                (*(caph->unknown_cb))(caph, seqno, cmd, (const char *) data, packet_sz);
         }
 
         if (cbret < 0) {
@@ -2016,15 +2086,13 @@ finish:
 int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len) {
     kismet_external_frame_t *external_frame;
     kismet_external_frame_v2_t *external_frame_v2;
+    kismet_external_frame_v3_t *external_frame_v3;
 
     /* Incoming size */
     uint32_t packet_sz;
 
     /* Incoming seqno */
     uint32_t seqno;
-
-    /* Legacy v0 command header */
-    KismetExternal__Command *kds_cmd;
 
     int ret;
 
@@ -2033,8 +2101,11 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
+    /* Attempt to match across all versions, so we can give smarter errors about 
+     * older servers that we don't work with anymore */
     external_frame = (kismet_external_frame_t *) buffer;
     external_frame_v2 = (kismet_external_frame_v2_t *) buffer;
+    external_frame_v3 = (kismet_external_frame_v3_t *) buffer;
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -2043,44 +2114,35 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-    /* If the signature passes, see if we can read the whole frame */
+    /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
+    if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
+        fprintf(stderr, 
+                "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
+                "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
+                "Kismet install to a more recent version of Kismet.\n",
+                caph->capsource_type);
+        return -1;
+    } else if (ntohs(external_frame_v3->v3_sentinel) != KIS_EXTERNAL_V3_SIG) {
+        fprintf(stderr, 
+                "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
+                "The server is speaking an unknown Kismet protocol, please make sure\n"
+                "the Kismet install is using a similar version.\n",
+                caph->capsource_type);
+        return -1;
+    }
+
     packet_sz = ntohl(external_frame->data_sz);
 
-    if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
-            ntohs(external_frame_v2->frame_version) == 0x02) {
-
-        if (len < packet_sz + sizeof(kismet_external_frame_v2_t)) {
-            fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v2 packet\n",
-					caph->capsource_type);
-            return -1;
-        }
-
-        seqno = ntohl(external_frame_v2->seqno);
-
-        return cf_dispatch_rx_content(caph, external_frame_v2->command, seqno,
-                external_frame_v2->data, packet_sz);
-    } else {
-        if (len < packet_sz + sizeof(kismet_external_frame_t)) {
-            fprintf(stderr, "FATAL: Capture source (%s) malformed too-small v0 packet\n",
-					caph->capsource_type);
-            return -1;
-        }
-
-        kds_cmd = kismet_external__command__unpack(NULL, packet_sz, external_frame->data);
-
-        if (kds_cmd == NULL) {
-            fprintf(stderr, "FATAL:  Capture source (%s) invalid frame received, unable to unpack v0 command\n",
-					caph->capsource_type);
-            return -1;
-        }
-
-        ret = cf_dispatch_rx_content(caph, kds_cmd->command, kds_cmd->seqno,
-                kds_cmd->content.data, kds_cmd->content.len);
-
-        kismet_external__command__free_unpacked(kds_cmd, NULL);
-
-        return ret;
+    if (len < packet_sz + sizeof(kismet_external_frame_v3_t)) {
+        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet\n",
+                caph->capsource_type);
+        return -1;
     }
+
+    return cf_dispatch_rx_content(caph, 
+            ntohs(external_frame_v3->pkt_type), 
+            ntohl(external_frame_v3->seqno),
+            external_frame_v3->data, packet_sz);
 }
 
 
@@ -2226,7 +2288,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
         return -1;
     }
 
-    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, NULL, &cpi, &cps);
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, &cpi, &cps);
 
     if (cpi != NULL)
         cf_params_interface_free(cpi);
@@ -2347,8 +2409,8 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
         return;
     }
 
-    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &caph->lwsuuid, 
-            NULL, &cpi, &cps);
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, 
+            &caph->lwsuuid, &cpi, &cps);
 
     if (cpi != NULL)
         cf_params_interface_free(cpi);
@@ -4272,7 +4334,6 @@ int cf_send_json(kis_capture_handler_t *caph,
 
 int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno, 
         unsigned int success, const char *msg) {
-
     size_t est_len = 24;
     size_t final_len = 0;
 
@@ -4389,52 +4450,79 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 }
 
 int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
-    KismetDatasource__NewSource kesrc;
+    size_t est_len = 24;
+    size_t final_len = 0;
 
-    uint8_t *buf;
-    size_t buf_len;
-    
+    mpack_writer_t writer;
+    cf_frame_metadata *meta = NULL;
 
-    kismet_datasource__new_source__init(&kesrc);
+    uint32_t seqno;
 
-    kesrc.definition = caph->cli_sourcedef;
-    kesrc.sourcetype = caph->capsource_type;
-    if (uuid != NULL)
-        kesrc.uuid = strdup(uuid);
+    est_len += strlen(caph->cli_sourcedef);
+    est_len += strlen(caph->capsource_type);
+    if (uuid != NULL) {
+        est_len += strlen(uuid);
+    }
 
-    buf_len = kismet_datasource__new_source__get_packed_size(&kesrc);
-    buf = (uint8_t *) malloc(buf_len);
+    est_len = est_len * 1.15;
 
-    if (buf == NULL) {
-        if (uuid != NULL)
-            free(kesrc.uuid);
+    seqno = cf_get_next_seqno(caph);
+
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_NEWSOURCE, seqno, 0, est_len);
+
+    if (meta == NULL) {
+        return 0;
+    }
+
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
+
+    mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_DEFINITION);
+    mpack_write_cstr(&writer, caph->cli_sourcedef);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_SOURCETYPE);
+    mpack_write_cstr(&writer, caph->capsource_type);
+
+    if (uuid != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID);
+        mpack_write_cstr(&writer, uuid);
+    }
+
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        cf_cancel_packet(caph, meta);
         return -1;
     }
 
-    kismet_datasource__new_source__pack(&kesrc, buf);
-
-    if (uuid != NULL)
-        free(kesrc.uuid);
-
-    return cf_send_packet(caph, "KDSNEWSOURCE", buf, buf_len);
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno) {
-    KismetExternal__Pong pong;
+    size_t est_len = 24;
+    size_t final_len = 0;
 
-    uint8_t *buf;
-    size_t buf_len;
-    
+    cf_frame_metadata *meta = NULL;
 
-    kismet_external__pong__init(&pong);
-    pong.ping_seqno = in_seqno;
+    uint32_t seqno;
 
-    buf_len = kismet_external__pong__get_packed_size(&pong);
-    buf = (uint8_t *) malloc(buf_len);
+    est_len = est_len * 1.15;
 
-    kismet_external__pong__pack(&pong, buf);
+    seqno = in_seqno;
 
-    return cf_send_packet(caph, "PONG", buf, buf_len);
+    meta = 
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_PONG, seqno, 0, est_len);
+
+    if (meta == NULL) {
+        return 0;
+    }
+
+
+    return cf_commit_packet(caph, meta, final_len);
 }
 
 double cf_parse_frequency(const char *freq) {

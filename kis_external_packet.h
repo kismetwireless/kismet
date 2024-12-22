@@ -88,17 +88,16 @@ typedef struct kismet_external_frame_v3 {
     uint16_t v3_sentinel;
     uint16_t v3_version;
 
+    /* Length of data component of frame, not including this header */
+    uint32_t length;
+
     /* V3 content */
     uint16_t pkt_type;
-    uint16_t pad0;
+    /* Success/fail code, if relevant; otherwise 0 and padding */
+    uint16_t code;
 
     /* sequence, if applicable */
     uint32_t seqno;
-
-    /* Success/fail code, if relevant; otherwise 0 and padding */
-    uint16_t code;
-    /* Length of data component of frame, not including this header */
-    uint16_t length;
 
     /* msgpack content */
     uint8_t data[0];
@@ -199,6 +198,7 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_PACKET              16
 #define KIS_EXTERNAL_V3_KDS_CONFIGURE           17
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT        18
+#define KIS_EXTERNAL_V3_KDS_NEWSOURCE           19
 
 /* Generic sub-blocks used in external and datasources */
 
@@ -425,7 +425,7 @@ typedef struct kismet_external_frame_v3 {
  * Does this datasource handle this source definition?
  * */
 /* string */
-#define KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITON        1
+#define KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION       1
 
 
 
@@ -445,7 +445,7 @@ typedef struct kismet_external_frame_v3 {
  * Open the defined datasource
  * */
 /* source definition, as string */
-#define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_SOURCEDEFINITION  1
+#define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION           1
 
 
 
@@ -517,6 +517,17 @@ typedef struct kismet_external_frame_v3 {
 /* channel hop block */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK     2 
 
+
+/* KIS_EXTERNAL_V3_KDS_NEWSOURCE 
+ *
+ * Datasource -> KS 
+ */ 
+/* string */ 
+#define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_DEFINITION          1 
+/* string */ 
+#define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_SOURCETYPE          2
+/* string */ 
+#define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID                3
 
 
 /* Error codes from capture binaries */
