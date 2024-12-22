@@ -123,7 +123,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **uuid,
+        const char *definition, char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -146,7 +146,7 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  *  0   success
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, uint32_t *dlt, char **uuid, 
+        const char *definition, char *msg, uint32_t *dlt, char **uuid, 
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -165,7 +165,7 @@ typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno,
  * NULL     Unable to translate channel
  * Pointer  callback-allocated structure containing the channel info.
  */
-typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *chanstr);
+typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, const char *chanstr);
 
 /* Channel set
  * Actually set a physical channel on an interface.
@@ -209,7 +209,7 @@ typedef void (*cf_callback_chanfree)(void *);
  * Callbacks are passed:
  *    - Capture framework
  *    - Sequence
- *    - Command (up to 32 bytes, must be length-validated)
+ *    - Command number
  *    - Data
  *    - Data length
  *
@@ -218,7 +218,7 @@ typedef void (*cf_callback_chanfree)(void *);
  *  0   Success, or frame ignored
  */
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
-        const char *, const char *, uint32_t);
+        unsigned int, const char *, uint32_t);
 
 /* Capture callback
  * Called inside the capture thread as the primary capture mechanism for the source.
