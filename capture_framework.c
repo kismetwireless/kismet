@@ -1606,7 +1606,7 @@ void *cf_int_chanhop_thread(void *arg) {
             snprintf(errstr, STATUS_MAX, "Removed %lu channels from the channel list "
                     "because the source could not tune to them", 
                     caph->channel_hop_failure_list_sz);
-            cf_send_configresp(caph, 0, 1, errstr, NULL);
+            cf_send_configresp(caph, 0, 1, errstr);
 
 
             /* Clear out the old list */
@@ -2091,11 +2091,6 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
     /* Incoming size */
     uint32_t packet_sz;
 
-    /* Incoming seqno */
-    uint32_t seqno;
-
-    int ret;
-
     if (len < sizeof(kismet_external_frame_t)) {
         fprintf(stderr, "DEBUG: runt frame\n");
         return -1;
@@ -2139,10 +2134,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-    return cf_dispatch_rx_content(caph, 
-            ntohs(external_frame_v3->pkt_type), 
-            ntohl(external_frame_v3->seqno),
-            external_frame_v3->data, packet_sz);
+    return cf_dispatch_rx_content(caph, ntohs(external_frame_v3->pkt_type), 
+            ntohl(external_frame_v3->seqno), external_frame_v3->data, packet_sz);
 }
 
 
@@ -2154,6 +2147,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     kismet_external_frame_t *external_frame;
     kismet_external_frame_v2_t *external_frame_v2;
+    kismet_external_frame_v3_t *external_frame_v3;
 
     /* Incoming size */
     uint32_t packet_sz;
@@ -2173,26 +2167,38 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
         return 0;
     }
 
+    /* Attempt to match across all versions, so we can give smarter errors about 
+     * older servers that we don't work with anymore */
     external_frame = (kismet_external_frame_t *) frame_buf;
     external_frame_v2 = (kismet_external_frame_v2_t *) frame_buf;
+    external_frame_v3 = (kismet_external_frame_v3_t *) frame_buf;
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         fprintf(stderr, "FATAL: Capture source (%s) invalid frame header received\n",
 				caph->capsource_type);
         return -1;
     }
 
-    packet_sz = ntohl(external_frame_v2->data_sz);
-
-    /* Check for a v2 frame */
-    if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
-            ntohs(external_frame_v2->frame_version) == 0x02) {
-        total_sz = packet_sz + sizeof(kismet_external_frame_v2_t);
-    } else {
-        total_sz = packet_sz + sizeof(kismet_external_frame_t);
+    /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
+    if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
+        fprintf(stderr, 
+                "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
+                "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
+                "Kismet install to a more recent version of Kismet.\n",
+                caph->capsource_type);
+        return -1;
+    } else if (ntohs(external_frame_v3->v3_sentinel) != KIS_EXTERNAL_V3_SIG) {
+        fprintf(stderr, 
+                "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
+                "The server is speaking an unknown Kismet protocol, please make sure\n"
+                "the Kismet install is using a similar version.\n",
+                caph->capsource_type);
+        return -1;
     }
+
+    packet_sz = ntohl(external_frame->data_sz);
+    total_sz = packet_sz + sizeof(kismet_external_frame_v3_t);
 
     if (total_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
@@ -3120,7 +3126,6 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     frame->seqno = htonl(seqno);
 
     frame->pkt_type = htons(command);
-    frame->pad0 = 0;
 
     frame->code = htonl(code);
 
@@ -3216,7 +3221,6 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
     frame->seqno = htonl(seqno);
 
     frame->pkt_type = htons(command);
-    frame->pad0 = 0;
 
     frame->code = htonl(code);
     // frame->length = htons(len);
@@ -3639,7 +3643,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     /* Send errors tied to this sequence number and exit */
     if (!success) {
-        n = cf_send_error(caph, seqno, msg);
+        n = cf_send_error(caph, seq, msg);
         return n;
     } else {
         /* Send messages independently not tied to this sequence, 
@@ -4359,7 +4363,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     /* Send errors and messages tied to this sequence number and exit */
     if (!success) {
-        n = cf_send_error(caph, seqno, msg);
+        n = cf_send_error(caph, in_seqno, msg);
         return n;
     } else {
         /* Send messages independently not tied to this sequence, 
