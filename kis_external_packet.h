@@ -200,6 +200,13 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT        18
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE           19
 
+/* eventbus commands */
+#define KIS_EXTERNAL_V3_EVENTBUS_EVENT          32
+
+/* web proxy commands */
+#define KIS_EXTERNAL_V3_WEB_HTTPREQUEST         64
+#define KIS_EXTERNAL_V3_WEB_HTTPAUTH            65
+
 /* Generic sub-blocks used in external and datasources */
 
 /* Message sub block */
