@@ -48,9 +48,12 @@ using boost::asio::ip::tcp;
 #include <google/protobuf/message_lite.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
+// Protobufs are now optional & will be phased out
+#ifdef HAVE_PROTOBUF_CPP
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 #include "protobuf_cpp/eventbus.pb.h"
+#endif
 
 // Namespace stub and forward class definition to make deps hopefully easier going forward
 namespace KismetExternal {
@@ -290,10 +293,110 @@ protected:
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
 
-    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence number
-    // Uses the legacy v0 protocol
-    unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
+    // Metafunction to send a packet.  If Protobufs is enabled and our version is 
+    // <= 2, use the protobufs v2 generation, translating the v3 packet type 
+    // to the v2 string type. 
+    //
+    // Otherwise, use the v3 IPC, which is what we're moving to anyhow.
+    //
+    // At this point, we're able phase out the v0 protocol since it hasn't been 
+    // used in a shipping version for years.
+    template <class T>
+    unsigned int send_external_packet(uint16_t command, uint32_t seqno, 
+            bool success, const T& content) {
+        if (protocol_version == 2) {
+#ifdef HAVE_PROTOBUF_CPP
+            // Translate modern v3 command numbers to the v2 strings
+            std::string command_str;
 
+            switch (command) {
+                case KIS_EXTERNAL_V3_CMD_PING:
+                    command_str = "PING";
+                    break;
+                case KIS_EXTERNAL_V3_CMD_PONG:
+                    command_str = "PONG";
+                    break;
+                case KIS_EXTERNAL_V3_COMMAND_SHUTDOWN:
+                    command_str = "SHUTDOWN";
+                    break;
+                case KIS_EXTERNAL_V3_KDS_PROBEREQ:
+                    command_str = "KDSPROBESOURCE";
+                    break;
+                case KIS_EXTERNAL_V3_KDS_OPENREQ:
+                    command_str = "KDSOPENSOURCE";
+                    break;
+                case KIS_EXTERNAL_V3_KDS_LISTREQ:
+                    command_str = "KDSLISTINTERFACES";
+                    break;
+                default:
+                    _MSG_ERROR("Unmapped v3 command on v2 compatibility layer: {}", command);
+                    return 1;
+            }
+
+            return send_packet_v2(command_str, in_seqno, content);
+#else 
+            _MSG_ERROR("Kismet was compiled without protobufs support, please update "
+                    "the capture tools to a more recent version which replaces "
+                    "protobufs");
+            trigger_error("unhandleable protocol version");
+            close_external();
+            return 1;
+#endif
+        } else if (protocol_version == 3) {
+            return send_packet_v3(command, seqno, success, content);
+        } else {
+            _MSG_ERROR("This build of Kismet does not handle this version of the IPC protocol ({}), "
+                    "ensure that the capture tools and Kismet server are running similar "
+                    "compatible versions.", protocol_version);
+            trigger_error("unhandleable protocol version");
+            close_external();
+            return 1;
+        }
+    }
+
+    // Wrap a generated packet in a v3 header and transmit it, returning the sequence 
+    // number.  Copies the packet content into the buffer, the caller can then 
+    // dispose of the packet info.
+    unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno, 
+            unsigned int code, const std::string& content) {
+        if ((io_ != nullptr && io_->stopped()) || cancelled) {
+            _MSG_DEBUG("Attempt to send {} on closed external interface", command);
+            return 0;
+        }
+
+        if (in_seqno == 0) {
+            kis_lock_guard<kis_mutex> lk(ext_mutex, "kei send_packet_v3");
+            if (++seqno == 0)
+                seqno = 1;
+            in_seqno = seqno;
+        }
+
+        size_t content_sz = content.size();
+
+        ssize_t frame_sz = sizeof(kismet_external_frame_v3_t) + content_sz;
+
+        char frame_buf[frame_sz];
+        auto frame = reinterpret_cast<kismet_external_frame_v3_t *>(frame_buf);
+
+        frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+        frame->v3_sentinel = kis_hton16(KIS_EXTERNAL_V3_SIG);
+        frame->v3_version = kis_ntoh16(3);
+        frame->length = kis_hton32(content_sz);
+        frame->pkt_type = kis_hton16(command);
+        frame->code = kis_hton16(code);
+        frame->seqno = kis_hton32(in_seqno);
+
+        memcpy(frame->data, content.data(), content.size());
+
+        start_write(frame_buf, frame_sz);
+
+        return in_seqno;
+    }
+
+    // Generic msg proxy
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
+
+#ifdef HAVE_PROTOBUF_CPP
     // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
     template<class T>
     unsigned int send_packet_v2(const std::string& command, uint32_t in_seqno, const T& content) {
@@ -339,9 +442,6 @@ protected:
     virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
             uint32_t seqno, const nonstd::string_view& content);
 
-    // Generic msg proxy
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
-
     // Packet handlers
     virtual void handle_packet_message(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_ping(uint32_t in_seqno, const nonstd::string_view& in_content);
@@ -349,6 +449,11 @@ protected:
     virtual void handle_packet_shutdown(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_eventbus_register(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const nonstd::string_view& in_content);
+#endif
+
+    // New/modern packet dispatch for v3+
+    virtual bool dispatch_rx_packet(uint16_t command, 
+            uint16_t code, uint32_t seqno, const nonstd::string_view& content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -413,6 +518,7 @@ public:
     int handle_packet(BoostBuffer& buffer) {
         const kismet_external_frame_t *frame = nullptr;
         const kismet_external_frame_v2_t *frame_v2 = nullptr;
+        const kismet_external_frame_v3_t *frame_v3 = nullptr;
         uint32_t frame_sz, data_sz;
 
         // Consume everything in the buffer that we can
@@ -426,6 +532,7 @@ public:
 
             frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(buffer.data());
             frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(buffer.data());
+            frame_v3 = boost::asio::buffer_cast<const kismet_external_frame_v3_t *>(buffer.data());
 
             // Check the frame signature
             if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -438,6 +545,10 @@ public:
             if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
                     kis_ntoh16(frame_v2->frame_version) == 0x02) {
 
+                // Protobuf v2 is being phased out, and is now optional; if the 
+                // server has v2 support, we can still process it (for now)
+
+#ifdef HAVE_PROTOBUF_CPP
                 data_sz = kis_ntoh32(frame_v2->data_sz);
                 frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
@@ -454,8 +565,6 @@ public:
                 if (frame_sz > buffamt) {
                     return result_handle_packet_needbuf;
                 }
-
-                // No checksum anymore
 
                 uint32_t seqno = kis_ntoh32(frame_v2->seqno);
 
@@ -474,13 +583,22 @@ public:
                 dispatch_rx_packet(command, seqno, content);
 
                 buffer.consume(frame_sz);
-            } else {
-                // Check the length
-                data_sz = kis_ntoh32(frame->data_sz);
-                frame_sz = data_sz + sizeof(kismet_external_frame);
+#else
+                _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
+                        "compiled with protobuf support; Either upgrade the capture binary "
+                        "or install a version of Kismet compiled with protobufs.");
+                trigger_error("Unsupported Kismet protocol");
+                return result_handle_packet_error;
+#endif
+            } else if (kis_ntoh16(frame_v3->v3_sentinel) == KIS_EXTERNAL_V3_SIG &&
+                    kis_ntoh16(frame_v3->v3_version) == 0x03) {
 
-                // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-                if ((long int) frame_sz >= 16384) {
+                // The V3 kismet protocol uses msgpack and will be the new target
+
+                data_sz = kis_ntoh32(frame_v3->length);
+                frame_sz = data_sz + sizeof(kismet_external_frame_v3);
+
+                if (frame_sz >= 16384) {
                     _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                             "be processed ({}); either the frame is malformed or you are connecting to "
                             "a legacy Kismet remote capture drone; make sure you have updated to modern "
@@ -494,34 +612,26 @@ public:
                     return result_handle_packet_needbuf;
                 }
 
-                // Process the data payload as a protobuf frame
-                // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+                uint32_t seqno = kis_ntoh32(frame_v3->seqno);
+                uint16_t command = kis_ntoh16(frame_v3->pkt_type);
+                uint16_t code = kis_ntoh16(frame_v3->code);
 
-                // Re-use a cached command
-                if (cached_cmd == nullptr) {
-                    cached_cmd = std::make_shared<KismetExternal::Command>();
-                } else {
-                    cached_cmd->Clear();
-                }
+                nonstd::string_view content((const char *) frame_v3->data, data_sz);
 
-                auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
-
-                if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
-                    delete(ai);
-                    _MSG_ERROR("Kismet external interface could not interpret the payload of the "
-                            "command frame; either the frame is malformed, a network error occurred, or "
-                            "an unsupported tool is connected to the external interface API");
-                    trigger_error("unparsable command frame");
-                    return result_handle_packet_error;
-                }
+                // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+                protocol_version = 3;
 
                 // Dispatch the received command
-                dispatch_rx_packet(cached_cmd->command(), cached_cmd->seqno(),
-                        cached_cmd->content());
-
-                delete(ai);
+                dispatch_rx_packet(command, seqno, code, content);
 
                 buffer.consume(frame_sz);
+            } else {
+                // Unknown type of packet (or legacy v0 protocol which we're phasing out)
+                _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
+                        "compiled with protobuf support; Either upgrade the capture binary "
+                        "or install a version of Kismet compiled with protobufs.");
+                trigger_error("Unsupported Kismet protocol");
+                return result_handle_packet_error;
             }
         }
 
@@ -534,6 +644,7 @@ public:
     int handle_external_command(const ConstBufferSequence& data, size_t sz) {
         const kismet_external_frame_t *frame = nullptr;
         const kismet_external_frame_v2_t *frame_v2 = nullptr;
+        const kismet_external_frame_v3_t *frame_v3 = nullptr;
 
         uint32_t frame_sz, data_sz;
         uint32_t data_checksum;
@@ -544,6 +655,7 @@ public:
 
         frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(data);
         frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(data);
+        frame_v3 = boost::asio::buffer_cast<const kismet_external_frame_v3_t *>(data);
 
         // Check the frame signature
         if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -556,6 +668,7 @@ public:
         if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
                 kis_ntoh16(frame_v2->frame_version) == 0x02) {
 
+#ifdef HAVE_PROTOBUF_CPP
             data_sz = kis_ntoh32(frame_v2->data_sz);
             frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
@@ -592,17 +705,27 @@ public:
             dispatch_rx_packet(command, seqno, content);
 
             return result_handle_packet_ok;
-        } else {
-            // Check the length
-            data_sz = kis_ntoh32(frame->data_sz);
-            frame_sz = data_sz + sizeof(kismet_external_frame);
+#else
+            _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
+                    "compiled with protobuf support; Either upgrade the capture binary "
+                    "or install a version of Kismet compiled with protobufs.");
+            trigger_error("Unsupported Kismet protocol");
+            return result_handle_packet_error;
 
-            // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-            if ((long int) frame_sz >= 16384) {
+#endif
+        } else if (kis_ntoh16(frame_v3->v3_sentinel) == KIS_EXTERNAL_V3_SIG &&
+                kis_ntoh16(frame_v3->v3_version) == 0x03) {
+
+            // The V3 kismet protocol uses msgpack and will be the new target
+
+            data_sz = kis_ntoh32(frame_v3->length);
+            frame_sz = data_sz + sizeof(kismet_external_frame_v3);
+
+            if (frame_sz >= 16384) {
                 _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                           "be processed ({}); either the frame is malformed or you are connecting to "
-                           "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                           "Kismet on all connected systems.", frame_sz);
+                        "be processed ({}); either the frame is malformed or you are connecting to "
+                        "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                        "Kismet on all connected systems.", frame_sz);
                 trigger_error("Command frame too large for buffer");
                 return result_handle_packet_error;
             }
@@ -612,46 +735,24 @@ public:
                 return result_handle_packet_needbuf;
             }
 
-            // We have a complete payload, checksum 
-            data_checksum = adler32_checksum((const char *) frame->data, data_sz);
+            uint32_t seqno = kis_ntoh32(frame_v3->seqno);
+            uint16_t command = kis_ntoh16(frame_v3->pkt_type);
+            uint16_t code = kis_ntoh16(frame_v3->code);
 
-            if (data_checksum != kis_ntoh32(frame->data_checksum)) {
-                _MSG_ERROR("Kismet external interface got a command frame with an invalid checksum; "
-                           "either the frame is malformed, a network error occurred, or an unsupported tool "
-                           "has connected to the external interface API.");
-                trigger_error("command frame has invalid checksum");
-                return result_handle_packet_error;
-            }
+            nonstd::string_view content((const char *) frame_v3->data, data_sz);
 
-            // Process the data payload as a protobuf frame
-            // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
-
-            // Re-use a cached command
-            if (cached_cmd == nullptr) {
-                cached_cmd = std::make_shared<KismetExternal::Command>();
-            } else {
-                cached_cmd->Clear();
-            }
-
-            auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
-
-            if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
-                delete(ai);
-                _MSG_ERROR("Kismet external interface could not interpret the payload of the "
-                           "command frame; either the frame is malformed, a network error occurred, or "
-                           "an unsupported tool is connected to the external interface API");
-                trigger_error("unparsable command frame");
-                return result_handle_packet_error;
-            }
+            // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+            protocol_version = 3;
 
             // Dispatch the received command
-            dispatch_rx_packet(cached_cmd->command(), cached_cmd->seqno(),
-                    cached_cmd->content());
-
-            delete(ai);
-
-            return result_handle_packet_ok;
-
+            dispatch_rx_packet(command, seqno, code, content);
+        } else {
+            // Unknown type of packet (or legacy v0 protocol which we're phasing out)
+            _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
+                    "compiled with protobuf support; Either upgrade the capture binary "
+                    "or install a version of Kismet compiled with protobufs.");
+            trigger_error("Unsupported Kismet protocol");
+            return result_handle_packet_error;
         }
     }
 };
