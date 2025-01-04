@@ -19,7 +19,7 @@
 #ifndef __KIS_EXTERNAL_PACKET_H__
 #define __KIS_EXTERNAL_PACKET_H__
 
-/* Kismet external API packets are wrapped in a simple framing system to 
+/* Kismet external API packets are wrapped in a simple framing system to
  * transmit them over TCP or IPC channels.  For the complete interface, see:
  *
  * docs/dev/helper_interface.md
@@ -60,7 +60,7 @@ struct kismet_external_frame_v2 {
     /* v2+ version code */
     uint16_t frame_version;
 
-    /* Size of data payload encoded in data[0], retained in this position for 
+    /* Size of data payload encoded in data[0], retained in this position for
      * compatibility with previous frame */
     uint32_t data_sz;
 
@@ -77,7 +77,7 @@ typedef struct kismet_external_frame_v2 kismet_external_frame_v2_t;
 
 #define KIS_EXTERNAL_V3_SIG         0xA9A9
 typedef struct kismet_external_frame_v3 {
-    /* v3 fields sent as network endian. 
+    /* v3 fields sent as network endian.
      * v3 content sent as a msgpack blob.
      */
 
@@ -104,49 +104,49 @@ typedef struct kismet_external_frame_v3 {
 } __attribute__((packed)) kismet_external_frame_v3_t;
 
 
-/* 
- * v3 replaces protobufs with msgpack for a simpler mechanism serializing 
- * and deserializing, and to remove the compile time requirements from 
- * protobufs. 
+/*
+ * v3 replaces protobufs with msgpack for a simpler mechanism serializing
+ * and deserializing, and to remove the compile time requirements from
+ * protobufs.
  *
- * v3 header 
+ * v3 header
  *
- *    The v3 header is compatible with the v2 header in the first bytes, so that 
- *    a v2 processor will be able to detect that this is not a protocol for it 
- *    to handle. 
+ *    The v3 header is compatible with the v2 header in the first bytes, so that
+ *    a v2 processor will be able to detect that this is not a protocol for it
+ *    to handle.
  *
- *    The packet type is converted to an integer to optimize comparisons and 
- *    transmission size. 
+ *    The packet type is converted to an integer to optimize comparisons and
+ *    transmission size.
  *
  *    The header is aligned to 32bits for quicker extraction.
  *
- *    The error code is moved into the packet header, as room was available in 
+ *    The error code is moved into the packet header, as room was available in
  *    the padding regardless.
  *
- * v3 data content 
+ * v3 data content
  *
- *    The v3 data blob is a msgpack packed map of integer field IDs mapped 
+ *    The v3 data blob is a msgpack packed map of integer field IDs mapped
  *    to msgpacked data.
  *
- *    Fields are keyed by number, as defined below, for optimization of 
+ *    Fields are keyed by number, as defined below, for optimization of
  *    the packing and comparison steps.
- *    
- *    Field numbers must never be reused, but can be retired in future 
+ *
+ *    Field numbers must never be reused, but can be retired in future
  *    revisions.
  *
- *    Field numbers are grouped by block and sub-block, and are determined 
+ *    Field numbers are grouped by block and sub-block, and are determined
  *    by the packet type or sub-block type.
  *
- * v3 sub-blocks 
+ * v3 sub-blocks
  *
- *    Some fields are defined as sub-blocks; a sub block is serialzied as 
- *    a msgpack map of integer field IDs to msgpack values. 
+ *    Some fields are defined as sub-blocks; a sub block is serialzied as
+ *    a msgpack map of integer field IDs to msgpack values.
  *
  *    Sub-block field IDs are determined by the sub-block type.
  *
  */
 
-/* Example frame: 
+/* Example frame:
  *
  *  uint32_t signature = 0xdecafbad;
  *  uint16_t v3_sentinel = 0xa9a9;
@@ -156,22 +156,22 @@ typedef struct kismet_external_frame_v3 {
  *  uint32_t seqno = 0;
  *  uint16_t code = 0;
  *  uint16_t length = <length of msgpack stream>;
- *  data = [msgpack map] 
- *      MSG_FIELD_TYPE = uint8 
+ *  data = [msgpack map]
+ *      MSG_FIELD_TYPE = uint8
  *      MSG_FIELD_MESSAGE = string
  *
  *
- * Example data with sub-blocks: 
- * 
+ * Example data with sub-blocks:
+ *
  * pkt_type = KDS_PACKET
  * data = [msgpack map]
  *      FIELD_SIGNALBLOCK = [msgpack map]
- *          SIGNAL_FIELD_DBM = uint8 
+ *          SIGNAL_FIELD_DBM = uint8
  *          SIGNAL_FIELD_FREQ_KHZ = uint32
  *      FIELD_PACKETBLOCK = [msgpack map ]
- *          PACKET_FIELD_DLT = uint32 
- *          PACKET_FIELD_TS = uint64 
- *          PACKET_FIELD_LENGTH = uint32 
+ *          PACKET_FIELD_DLT = uint32
+ *          PACKET_FIELD_TS = uint64
+ *          PACKET_FIELD_LENGTH = uint32
  *          ...
  *      ...
  *      -- End of packet sub block --
@@ -201,11 +201,17 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE           19
 
 /* eventbus commands */
-#define KIS_EXTERNAL_V3_EVENTBUS_EVENT          32
+#define KIS_EXTERNAL_V3_EVT_REGISTER            32
+#define KIS_EXTERNAL_V3_EVT_EVENT               33
+#define KIS_EXTERNAL_V3_EVT_PUBLISH             34
 
 /* web proxy commands */
-#define KIS_EXTERNAL_V3_WEB_HTTPREQUEST         64
-#define KIS_EXTERNAL_V3_WEB_HTTPAUTH            65
+#define KIS_EXTERNAL_V3_WEB_REGISTERURI         64
+#define KIS_EXTERNAL_V3_WEB_REQUEST             65
+#define KIS_EXTERNAL_v3_WEB_REQUEST_CANCEL      66
+#define KIS_EXTERNAL_V3_WEB_RESPONSE            67
+#define KIS_EXTERNAL_V3_WEB_AUTHREQ             68
+#define KIS_EXTERNAL_V3_WEB_AUTHRESP            69
 
 /* Generic sub-blocks used in external and datasources */
 
@@ -213,7 +219,7 @@ typedef struct kismet_external_frame_v3 {
 /* u8 */
 #define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_TYPE          1
 /* string */
-#define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_STRING        2 
+#define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_STRING        2
 
 /* message types */
 #define KIS_EXTERNAL_V3_MSG_DEBUG           1
@@ -223,9 +229,9 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_MSG_FATAL           16
 
 
-/* Shutdown command 
- * KS <-> External 
- * Initiate a shutdown of this connection, with optional message 
+/* Shutdown command
+ * KS <-> External
+ * Initiate a shutdown of this connection, with optional message
  */
 /* string */
 #define KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON           1
@@ -255,16 +261,16 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING            2
 
 
-/* KIS_EXTERNAL_V3_CMD_ERROR 
+/* KIS_EXTERNAL_V3_CMD_ERROR
  * KS <-> External
  *
- * sequence number in frame header references the request which 
- * failed, or 0 
+ * sequence number in frame header references the request which
+ * failed, or 0
  *
- * error code in frame header contains the error result 
- */ 
+ * error code in frame header contains the error result
+ */
 /* string */
-#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING              1 
+#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING              1
 
 
 /* Datasource specific commands and sub-blocks */
@@ -284,7 +290,7 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP          4
 /* uint16 */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET        5
-/* array[string] */ 
+/* array[string] */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST     6
 
 
@@ -337,10 +343,10 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW          3
 /* string */
 #define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE    4
-/* string */ 
+/* string */
 #define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL     5
-/* array[string] */ 
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST   6 
+/* array[string] */
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST   6
 
 
 /* Spectrum sub block TBD */
@@ -441,7 +447,7 @@ typedef struct kismet_external_frame_v3 {
  * Datasource -> KS
  * Sequence and success code set in top-level header
  * */
-/* interface sub-block */ 
+/* interface sub-block */
 #define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_INTERFACE    1
 
 
@@ -501,40 +507,118 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST            1
 
 
-/* KIS_EXTERNAL_V3_KDS_CONFIGURE 
+/* KIS_EXTERNAL_V3_KDS_CONFIGURE
  *
- * KS -> Datasource 
+ * KS -> Datasource
  *
  * Configure channel behavior
- */ 
+ */
 
-/* string */ 
-#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL             1 
+/* string */
+#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL             1
 /* hopping sub-block */
-#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK        2 
+#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK        2
 /* todo: spectrum */
 
 
-/* KIS_EXTERNAL_V3_KDS_CONFIGREPORT 
+/* KIS_EXTERNAL_V3_KDS_CONFIGREPORT
  *
- * Datasource -> KS 
+ * Datasource -> KS
  */
-/* string */ 
-#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL          1 
+/* string */
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL          1
 /* channel hop block */
-#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK     2 
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK     2
 
 
-/* KIS_EXTERNAL_V3_KDS_NEWSOURCE 
+/* KIS_EXTERNAL_V3_KDS_NEWSOURCE
  *
- * Datasource -> KS 
- */ 
-/* string */ 
-#define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_DEFINITION          1 
-/* string */ 
+ * Datasource -> KS
+ */
+/* string */
+#define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_DEFINITION          1
+/* string */
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_SOURCETYPE          2
-/* string */ 
+/* string */
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID                3
+
+
+/* KIS_EXTERNAL_V3_EVT_REGISTER
+ *
+ * remote -> KS
+ */
+/* string */
+#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_EVENT           1
+
+/* KIS_EXTERNAL_V3_EVT_EVENT
+ *
+ * KS -> remote
+ */
+/* string */
+#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_TYPE            1
+/* string */
+#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_JSON            2
+
+
+/* KIS_EXTERNAL_V3_WEB_REGISTERURI
+ *
+ * remote -> KS
+ */
+/* string */
+#define KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_URI       1
+/* string */
+#define KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_METHOD    2
+
+/* KIS_EXTERNAL_V3_WEB_REQUEST
+ *
+ * ks -> remote
+ */
+/* uint32 */
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_REQID         1
+/* string */
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_URI           2
+/* string */
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_METHOD        3
+/* map[string,string] */
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_VARIABLES     4
+
+/* KIS_EXTERNAL_V3_WEB_REQUEST_CANCEL
+ *
+ * ks -> remote
+ */
+/* uint32 */
+#define KIS_EXTERNAL_V3_WEB_REQUEST_CANCEL_FIELD_REQID  1
+
+/* KIS_EXTERNAL_V3_WEB_RESPONSE
+ *
+ * remote -> ks
+ */
+/* uint32 */
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_REQID        1
+/* map[string, string] */
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_HEADERS      2
+/* string */
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CONTENT      3
+/* uint32 */
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_RESULTCODE   4
+/* bool */
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CLOSE        5
+
+/* KIS_EXTERNAL_V3_WEB_AUTHREQ
+ *
+ * remote -> ks
+ *
+ * no content
+ *
+ */
+
+/* KIS_EXTERNAL_V3_WEB_AUTHRESP
+ *
+ * ks -> remote
+ */
+/* string */
+#define KIS_EXTERNAL_V3_WEB_AUTHRESP_FIELD_TOKEN        1
+
 
 
 /* Error codes from capture binaries */
