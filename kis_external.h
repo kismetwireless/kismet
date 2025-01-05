@@ -78,13 +78,13 @@ public:
         stopped_{false},
         interface_{ext},
         strand_{Globalreg::globalreg->io} { }
-    
+
     virtual ~kis_external_io() {
         close();
     }
 
     virtual void attach_interface(std::shared_ptr<kis_external_interface> ext) {
-        boost::asio::post(strand(), 
+        boost::asio::post(strand(),
                 [self = shared_from_this(), ext]() mutable {
             self->interface_ = ext;
         });
@@ -98,7 +98,7 @@ public:
 
         auto buf = std::make_shared<std::string>(data, len);
 
-        boost::asio::post(strand(), 
+        boost::asio::post(strand(),
                 [self = shared_from_this(), buf]() mutable {
 
                 self->out_bufs_.push_back(buf);
@@ -117,7 +117,7 @@ public:
 
     virtual boost::asio::io_service::strand &strand() { return strand_; }
 
-    virtual void close() { 
+    virtual void close() {
         stopped_ = true;
     }
 
@@ -142,7 +142,7 @@ class kis_external_ipc : public kis_external_io {
 public:
     kis_external_ipc(std::shared_ptr<kis_external_interface> iface,
             kis_ipc_record& ipc,
-            boost::asio::posix::stream_descriptor &ipc_in, 
+            boost::asio::posix::stream_descriptor &ipc_in,
             boost::asio::posix::stream_descriptor &ipc_out) :
         kis_external_io{iface},
         ipc_in_{std::move(ipc_in)},
@@ -237,7 +237,7 @@ public:
     }
 
     // Launch the external binary and connect the IPC channel to our buffer
-    // interface; most tools will use this unless they support network; 
+    // interface; most tools will use this unless they support network;
     // datasources are the primary exception
     virtual bool run_ipc();
 
@@ -293,48 +293,21 @@ protected:
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
 
-    // Metafunction to send a packet.  If Protobufs is enabled and our version is 
-    // <= 2, use the protobufs v2 generation, translating the v3 packet type 
-    // to the v2 string type. 
+    // Metafunction to send a packet.  If Protobufs is enabled and our version is
+    // <= 2, use the protobufs v2 generation, translating the v3 packet type
+    // to the v2 string type.
     //
     // Otherwise, use the v3 IPC, which is what we're moving to anyhow.
     //
-    // At this point, we're able phase out the v0 protocol since it hasn't been 
+    // At this point, we're able phase out the v0 protocol since it hasn't been
     // used in a shipping version for years.
-    template <class T>
-    unsigned int send_external_packet(uint16_t command, uint32_t seqno, 
+    template <class CT, class T>
+    unsigned int send_external_packet(const CT& command, uint32_t seqno,
             bool success, const T& content) {
         if (protocol_version == 2) {
 #ifdef HAVE_PROTOBUF_CPP
-            // Translate modern v3 command numbers to the v2 strings
-            std::string command_str;
-
-            switch (command) {
-                case KIS_EXTERNAL_V3_CMD_PING:
-                    command_str = "PING";
-                    break;
-                case KIS_EXTERNAL_V3_CMD_PONG:
-                    command_str = "PONG";
-                    break;
-                case KIS_EXTERNAL_V3_COMMAND_SHUTDOWN:
-                    command_str = "SHUTDOWN";
-                    break;
-                case KIS_EXTERNAL_V3_KDS_PROBEREQ:
-                    command_str = "KDSPROBESOURCE";
-                    break;
-                case KIS_EXTERNAL_V3_KDS_OPENREQ:
-                    command_str = "KDSOPENSOURCE";
-                    break;
-                case KIS_EXTERNAL_V3_KDS_LISTREQ:
-                    command_str = "KDSLISTINTERFACES";
-                    break;
-                default:
-                    _MSG_ERROR("Unmapped v3 command on v2 compatibility layer: {}", command);
-                    return 1;
-            }
-
-            return send_packet_v2(command_str, in_seqno, content);
-#else 
+            return send_packet_v2(command, in_seqno, content);
+#else
             _MSG_ERROR("Kismet was compiled without protobufs support, please update "
                     "the capture tools to a more recent version which replaces "
                     "protobufs");
@@ -354,11 +327,12 @@ protected:
         }
     }
 
-    // Wrap a generated packet in a v3 header and transmit it, returning the sequence 
-    // number.  Copies the packet content into the buffer, the caller can then 
+    // Wrap a generated packet in a v3 header and transmit it, returning the sequence
+    // number.  Copies the packet content into the buffer, the caller can then
     // dispose of the packet info.
-    unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno, 
-            unsigned int code, const std::string& content) {
+
+    unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
+            unsigned int code, const char *content, size_t content_sz) {
         if ((io_ != nullptr && io_->stopped()) || cancelled) {
             _MSG_DEBUG("Attempt to send {} on closed external interface", command);
             return 0;
@@ -370,8 +344,6 @@ protected:
                 seqno = 1;
             in_seqno = seqno;
         }
-
-        size_t content_sz = content.size();
 
         ssize_t frame_sz = sizeof(kismet_external_frame_v3_t) + content_sz;
 
@@ -386,15 +358,21 @@ protected:
         frame->code = kis_hton16(code);
         frame->seqno = kis_hton32(in_seqno);
 
-        memcpy(frame->data, content.data(), content.size());
+        memcpy(frame->data, content, content_sz);
 
         start_write(frame_buf, frame_sz);
 
         return in_seqno;
+
+    }
+
+    unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
+            unsigned int code, const std::string& content) {
+        return send_packet_v3(command, in_seqno, code, content.data(), content.size());
     }
 
     // Generic msg proxy
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype);
 
 #ifdef HAVE_PROTOBUF_CPP
     // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
@@ -439,21 +417,34 @@ protected:
     }
 
     // Central packet dispatch handler, common layer and v2+ handler
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
+    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
             uint32_t seqno, const nonstd::string_view& content);
 
-    // Packet handlers
+    // V2 Packet handlers
     virtual void handle_packet_message(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_ping(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_pong(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_shutdown(uint32_t in_seqno, const nonstd::string_view& in_content);
+
+    // Eventbus
     virtual void handle_packet_eventbus_register(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const nonstd::string_view& in_content);
 #endif
 
+
     // New/modern packet dispatch for v3+
-    virtual bool dispatch_rx_packet(uint16_t command, 
+    virtual bool dispatch_rx_packet_v3(uint16_t command,
             uint16_t code, uint32_t seqno, const nonstd::string_view& content);
+
+    // V3 Packet handlers
+    virtual void handle_packet_message_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_ping_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_pong_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+
+    // Eventbus
+    virtual void handle_packet_eventbus_register_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_eventbus_publish_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -490,12 +481,16 @@ protected:
 
     void proxy_event(std::shared_ptr<eventbus_event>);
 
-
     // Webserver proxy code
-
+#ifdef HAVE_PROTOBUF_CPP
     virtual void handle_packet_http_register(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_http_response(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_http_auth_request(uint32_t in_seqno, const nonstd::string_view& in_content);
+#endif
+
+    virtual void handle_packet_http_register_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_response_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_auth_request_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
 
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
@@ -545,7 +540,7 @@ public:
             if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
                     kis_ntoh16(frame_v2->frame_version) == 0x02) {
 
-                // Protobuf v2 is being phased out, and is now optional; if the 
+                // Protobuf v2 is being phased out, and is now optional; if the
                 // server has v2 support, we can still process it (for now)
 
 #ifdef HAVE_PROTOBUF_CPP
@@ -622,7 +617,7 @@ public:
                 protocol_version = 3;
 
                 // Dispatch the received command
-                dispatch_rx_packet(command, seqno, code, content);
+                dispatch_rx_packet_v3(command, seqno, code, content);
 
                 buffer.consume(frame_sz);
             } else {
@@ -745,7 +740,7 @@ public:
             protocol_version = 3;
 
             // Dispatch the received command
-            dispatch_rx_packet(command, seqno, code, content);
+            dispatch_rx_packet_v3(command, seqno, code, content);
         } else {
             // Unknown type of packet (or legacy v0 protocol which we're phasing out)
             _MSG_ERROR("Kismet external interface got a v2 command frame but was not "

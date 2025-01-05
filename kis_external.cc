@@ -33,9 +33,13 @@
 #include "timetracker.h"
 #include "messagebus.h"
 
+#include "mpack/mpack.h"
+
+#ifdef HAVE_PROTOBUF_CPP
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 #include "protobuf_cpp/eventbus.pb.h"
+#endif
 
 kis_external_ipc::~kis_external_ipc() {
     close_impl();
@@ -53,7 +57,7 @@ void kis_external_ipc::start_read() {
 
     boost::asio::async_read(ipc_in_, in_buf_,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            boost::asio::bind_executor(strand(), 
+            boost::asio::bind_executor(strand(),
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
@@ -80,7 +84,7 @@ void kis_external_ipc::start_read() {
                         self->close();
 
                         return self->interface_->trigger_error(fmt::format("IPC connection error: {}", ec.message()));
-                    } 
+                    }
 
                     auto r = self->interface_->handle_packet(self->in_buf_);
 
@@ -103,7 +107,7 @@ void kis_external_ipc::write_impl() {
     auto buf = out_bufs_.front();
 
     boost::asio::async_write(ipc_out_, boost::asio::buffer(buf->data(), buf->size()),
-            boost::asio::bind_executor(strand(), 
+            boost::asio::bind_executor(strand(),
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t) {
                 if (self->out_bufs_.size())
                     self->out_bufs_.pop_front();
@@ -179,7 +183,7 @@ void kis_external_tcp::start_read() {
 
     boost::asio::async_read(tcpsocket_, in_buf_,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            boost::asio::bind_executor(strand(), 
+            boost::asio::bind_executor(strand(),
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
@@ -204,7 +208,7 @@ void kis_external_tcp::start_read() {
                         }
 
                         return self->interface_->trigger_error(fmt::format("TCP connection error: {}", ec.message()));
-                    } 
+                    }
 
                     auto r = self->interface_->handle_packet(self->in_buf_);
 
@@ -250,7 +254,7 @@ void kis_external_tcp::write_impl() {
     auto buf = out_bufs_.front();
 
     boost::asio::async_write(tcpsocket_, boost::asio::buffer(buf->data(), buf->size()),
-            boost::asio::bind_executor(strand(), 
+            boost::asio::bind_executor(strand(),
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t) {
                 if (self->out_bufs_.size())
                     self->out_bufs_.pop_front();
@@ -294,7 +298,7 @@ void kis_external_ws::write_impl() {
             if (ec == 0)
                 errc = boost::asio::error::make_error_code(boost::asio::stream_errc::eof);
 
-            self->strand().post([self, errc]() { 
+            self->strand().post([self, errc]() {
                 self->out_bufs_.pop_front();
 
                 if (errc) {
@@ -302,7 +306,7 @@ void kis_external_ws::write_impl() {
 
                     self->interface_->handle_packet(self->in_buf_);
 
-                    _MSG_ERROR("Kismet external interface got an error writing to callback: {}", errc.message());
+                    _MSG_ERROR("Kismet external interface got an error writing to ws callback: {}", errc.message());
                     self->interface_->trigger_error("write failure");
                     return;
                 }
@@ -341,9 +345,9 @@ kis_external_interface::~kis_external_interface() {
 
 bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
     // This is only called inside other IO loops which are themselves
-    // running stranded, so we should be able to directly call our 
+    // running stranded, so we should be able to directly call our
     // operations safely without waiting.
-            
+
     if (ipc.pid > 0) {
         _MSG_ERROR("Tried to attach a TCP socket to an external endpoint that already has "
                 "an IPC instance running.");
@@ -362,7 +366,7 @@ void kis_external_interface::close_external() {
     if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
         close_external_impl();
     } else {
-        auto ft = boost::asio::post(io_->strand(), 
+        auto ft = boost::asio::post(io_->strand(),
                 std::packaged_task<void()>([this]() mutable {
                     close_external_impl();
                 }));
@@ -385,7 +389,7 @@ void kis_external_interface::close_external_impl() {
     for (auto s : http_proxy_session_map) {
         // Fail them
         s.second->connection->response_stream().cancel();
-        // Unlock them and let the cleanup in the thread handle it and close down 
+        // Unlock them and let the cleanup in the thread handle it and close down
         // the http server session
         s.second->locker->unlock();
     }
@@ -423,7 +427,7 @@ void kis_external_interface::trigger_error(const std::string& in_error) {
 bool kis_external_interface::check_ipc(const std::string& in_binary) {
     struct stat fstat;
 
-    std::vector<std::string> bin_paths = 
+    std::vector<std::string> bin_paths =
         Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
 
     if (bin_paths.size() == 0) {
@@ -464,7 +468,7 @@ bool kis_external_interface::run_ipc() {
     }
 
     // Get allowed paths for binaries
-    auto bin_paths = 
+    auto bin_paths =
         Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
 
     if (bin_paths.size() == 0) {
@@ -478,7 +482,8 @@ bool kis_external_interface::run_ipc() {
 
     for (auto rp : bin_paths) {
         std::string fp = fmt::format("{}/{}",
-                                     Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1), external_binary);
+                Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1),
+                external_binary);
 
         if (stat(fp.c_str(), &fstat) != -1) {
             if (S_ISDIR(fstat.st_mode))
@@ -533,10 +538,10 @@ bool kis_external_interface::run_ipc() {
         }
     }
 
-    // 'in' to the spawned process, write to the server process, 
+    // 'in' to the spawned process, write to the server process,
     // [1] belongs to us, [0] to them
     int inpipepair[2];
-    // 'out' from the spawned process, read to the server process, 
+    // 'out' from the spawned process, read to the server process,
     // [0] belongs to us, [1] to them
     int outpipepair[2];
 
@@ -598,7 +603,7 @@ bool kis_external_interface::run_ipc() {
         execvp(cmdarg[0], cmdarg);
 
         exit(255);
-    } 
+    }
 
     // Parent process
 
@@ -643,6 +648,255 @@ void kis_external_interface::start_write(const char *data, size_t len) {
     io_->write(data, len);
 }
 
+bool kis_external_interface::dispatch_rx_packet_v3(uint16_t command, uint16_t code,
+        uint32_t seqno, const nonstd::string_view& content) {
+
+    // V3 dispatcher based on packet type numbers, carrying msgpacked payloads.
+
+    // Implementations should directly call this for automatic dispatch before implementing
+    // their own dispatch if this returns false.
+
+    switch (command) {
+        case KIS_EXTERNAL_V3_CMD_MESSAGE:
+            handle_packet_message_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_CMD_PING:
+            handle_packet_ping_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_CMD_PONG:
+            handle_packet_pong_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_CMD_SHUTDOWN:
+            handle_packet_shutdown_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_WEB_REGISTERURI:
+            handle_packet_http_register_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_WEB_RESPONSE:
+            handle_packet_http_response_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_WEB_AUTHREQ:
+            handle_packet_http_auth_request_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_EVT_REGISTER:
+            handle_packet_eventbus_register_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_EVT_PUBLISH:
+            handle_packet_eventbus_publish_v3(seqno, code, content);
+            return true;
+    }
+
+    return false;
+}
+
+void kis_external_interface::handle_msg_proxy(const std::string& msg, const int msgtype) {
+    _MSG(msg, msgtype);
+}
+
+void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    /*
+    KismetExternal::MsgbusMessage m;
+
+    if (!m.ParseFromArray(in_content.data(), in_content.size())) {
+        _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
+        trigger_error("Invalid MESSAGE");
+        return;
+    }
+
+    handle_msg_proxy(m.msgtext(), m.msgtype());
+    */
+
+    mpack_tree_t tree;
+    mpack_node_t root;
+
+    const char *message;
+    unsigned int msgtype;
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 MESSAGE");
+        trigger_error("invalid v3 MESSAGE");
+        mpack_tree_destroy(&tree);
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE) ||
+            !mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING)) {
+        _MSG_ERROR("Kismet external interface got malformed v3 MESSAGE");
+        trigger_error("invalid v3 MESSAGE");
+        mpack_tree_destroy(&tree);
+        return;
+    }
+
+    msgtype = mpack_node_u16(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE));
+    message = mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING));
+
+    handle_msg_proxy(message, msgtype);
+
+    mpack_tree_destroy(&tree);
+}
+
+void kis_external_interface::handle_packet_ping_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    send_pong(in_seqno);
+}
+
+void kis_external_interface::handle_packet_pong_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong_v3");
+    last_pong = time(0);
+}
+
+void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown_v3");
+
+    mpack_tree_t tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 SHUTDOWN");
+        trigger_error("invalid v3 SHUTDOWN");
+        mpack_tree_destroy(&tree);
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON)) {
+        const char *reason =
+            mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON));
+        _MSG_INFO("Kismet external interface shutting down: {}", reason);
+        trigger_error(fmt::format("remote connection triggered shutdown: {}", reason));
+    } else {
+        _MSG_INFO("Kismet external interface shutting down: no reason");
+        trigger_error("remote connection triggered shutdown: no reason");
+    }
+
+    mpack_tree_destroy(&tree);
+}
+void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
+    std::stringstream ss;
+    json_adapter::pack(ss, evt);
+
+#ifdef HAVE_PROTOBUF_CPP
+    if (protocol_version != 3) {
+        KismetEventBus::EventbusEvent ebe;
+        ebe.set_event_json(ss.str());
+
+        if (protocol_version == 0) {
+            auto c = std::make_shared<KismetExternal::Command>();
+            c->set_command("EVENT");
+            c->set_content(ebe.SerializeAsString());
+            send_packet(c);
+        } else if (protocol_version == 2) {
+            send_packet_v2("EVENT", 0, ebe);
+        }
+    }
+#endif
+
+    if (protocol_version == 3) {
+        char *data = NULL;
+        size_t size;
+        mpack_writer_t writer;
+
+        const auto json_str = ss.str();
+
+        mpack_writer_init_growable(&writer, &data, &size);
+
+        mpack_build_map(&writer);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_EVT_EVENT_FIELD_EVENT);
+        mpack_write_cstr(&writer, json_str.c_str());
+        mpack_complete_map(&writer);
+
+        if (mpack_writer_destroy(&writer) != mpack_ok) {
+            _MSG_ERROR("Kismet external interface failed serializing v3 event");
+            trigger_error("failed to serialize v3 EVENT");
+            return;
+        }
+
+        send_packet_v3(KIS_EXTERNAL_V3_EVT_EVENT, 0, 1, data, size);
+
+        free(data);
+    }
+
+    return;
+}
+
+
+unsigned int kis_external_interface::send_ping() {
+#ifdef HAVE_PROTOBUF_CPP
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+
+        c->set_command("PING");
+
+        KismetExternal::Ping p;
+        c->set_content(p.SerializeAsString());
+
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("PING", 0, KismetExternal::Ping{});
+    }
+#endif
+
+    if (protocol_version == 3) {
+        return send_packet_v3(KIS_EXTERNAL_V3_CMD_PING, 0, 1, "");
+    }
+
+    return -1;
+}
+
+unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
+#ifdef HAVE_PROTOBUF_CPP
+    KismetExternal::Pong p;
+    p.set_ping_seqno(ping_seqno);
+
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("PONG");
+        c->set_content(p.SerializeAsString());
+
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("PONG", 0, p);
+    }
+#endif
+
+    if (protocol_version == 3) {
+        return send_packet_v3(KIS_EXTERNAL_V3_CMD_PONG, ping_seqno, 1, "");
+    }
+
+    return -1;
+}
+
+unsigned int kis_external_interface::send_shutdown(std::string reason) {
+#ifdef HAVE_PROTOBUF_CPP
+    KismetExternal::ExternalShutdown s;
+    s.set_reason(reason);
+
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("SHUTDOWN");
+        c->set_content(s.SerializeAsString());
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("SHUTDOWN", 0, s);
+    }
+#endif
+
+    return -1;
+}
+
+
+
+#ifdef HAVE_PROTOBUF_CPP
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
     if (io_ == nullptr) {
         _MSG_DEBUG("Attempt to send {} on external interface with no IO", c->command());
@@ -688,7 +942,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     c->SerializeToArray(frame->data, content_sz);
 
     // Calculate the checksum and set it in the frame
-    data_csum = adler32_checksum((const char *) frame->data, content_sz); 
+    data_csum = adler32_checksum((const char *) frame->data, content_sz);
     frame->data_checksum = kis_hton32(data_csum);
 
     start_write(frame_buf, frame_sz);
@@ -733,7 +987,7 @@ bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& comma
 
 }
 
-void kis_external_interface::handle_packet_message(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_message(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     KismetExternal::MsgbusMessage m;
 
@@ -746,16 +1000,12 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno,
     handle_msg_proxy(m.msgtext(), m.msgtype());
 }
 
-void kis_external_interface::handle_msg_proxy(const std::string& msg, const int msgtype) {
-    _MSG(msg, msgtype);
-}
-
-void kis_external_interface::handle_packet_ping(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_ping(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     send_pong(in_seqno);
 }
 
-void kis_external_interface::handle_packet_pong(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_pong(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong");
 
@@ -769,7 +1019,7 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno,
     last_pong = time(0);
 }
 
-void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown");
 
@@ -780,76 +1030,8 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
         return;
     }
 
-    _MSG(std::string("Kismet external interface shutting down: ") + s.reason(), MSGFLAG_INFO); 
+    _MSG(std::string("Kismet external interface shutting down: ") + s.reason(), MSGFLAG_INFO);
     trigger_error(std::string("Remote connection requesting shutdown: ") + s.reason());
-}
-
-unsigned int kis_external_interface::send_ping() {
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-        c->set_command("PING");
-
-        KismetExternal::Ping p;
-        c->set_content(p.SerializeAsString());
-
-        return send_packet(c);
-    } else if (protocol_version == 2) {
-        return send_packet_v2("PING", 0, KismetExternal::Ping{});
-    }
-
-    return -1;
-}
-
-unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
-    KismetExternal::Pong p;
-    p.set_ping_seqno(ping_seqno);
-
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("PONG");
-        c->set_content(p.SerializeAsString());
-
-        return send_packet(c);
-    } else if (protocol_version == 2) {
-        return send_packet_v2("PONG", 0, p);
-    }
-
-    return -1;
-}
-
-unsigned int kis_external_interface::send_shutdown(std::string reason) {
-    KismetExternal::ExternalShutdown s;
-    s.set_reason(reason);
-
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("SHUTDOWN");
-        c->set_content(s.SerializeAsString());
-        return send_packet(c);
-    } else if (protocol_version == 2) {
-        return send_packet_v2("SHUTDOWN", 0, s);
-    }
-
-    return -1;
-}
-
-void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
-    std::stringstream ss;
-    json_adapter::pack(ss, evt);
-    KismetEventBus::EventbusEvent ebe;
-    ebe.set_event_json(ss.str());
-
-    if (protocol_version == 0) {
-        auto c = std::make_shared<KismetExternal::Command>();
-        c->set_command("EVENT");
-        c->set_content(ebe.SerializeAsString());
-        send_packet(c);
-    } else if (protocol_version == 2) {
-        send_packet_v2("EVENT", 0, ebe);
-    }
-
-    return;
 }
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
@@ -870,8 +1052,8 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
         if (k != eventbus_callback_map.end())
             eventbus->remove_listener(k->second);
 
-        unsigned long eid = 
-            eventbus->register_listener(evtlisten.event(e), 
+        unsigned long eid =
+            eventbus->register_listener(evtlisten.event(e),
                     [this](std::shared_ptr<eventbus_event> e) {
                     proxy_event(e);
                     });
@@ -883,7 +1065,7 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
 void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish");
-    
+
     KismetEventBus::EventbusPublishEvent evtpub;
 
     if (!evtpub.ParseFromArray(in_content.data(), in_content.length())) {
@@ -898,7 +1080,7 @@ void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
     eventbus->publish(evt);
 }
 
-void kis_external_interface::handle_packet_http_register(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register");
 
@@ -931,7 +1113,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
                     for (const auto& v : con->http_variables())
                         var_remap[v.first] = v.second;
 
-                    send_http_request(sess_id, static_cast<std::string>(con->uri()), 
+                    send_http_request(sess_id, static_cast<std::string>(con->uri()),
                             fmt::format("{}", con->verb()), var_remap);
 
                     con->set_closure_cb([session]() { session->locker->unlock(-1); });
@@ -951,7 +1133,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
             }));
 }
 
-void kis_external_interface::handle_packet_http_response(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response");
 
@@ -973,7 +1155,7 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
 
     auto session = si->second;
 
-    // First off, process any headers we're trying to add, they need to come 
+    // First off, process any headers we're trying to add, they need to come
     // before data
     try {
         for (int hi = 0; hi < resp.header_content_size() && resp.header_content_size() > 0; hi++) {
@@ -1009,7 +1191,7 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
     }
 }
 
-void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
         const nonstd::string_view& in_content) {
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
@@ -1066,4 +1248,4 @@ unsigned int kis_external_interface::send_http_auth(std::string in_cookie) {
 
     return -1;
 }
-
+#endif
