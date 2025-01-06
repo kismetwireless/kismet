@@ -180,53 +180,53 @@ typedef struct kismet_external_frame_v3 {
 
 
 /* core commands */
-#define KIS_EXTERNAL_V3_CMD_REGISTER            1
-#define KIS_EXTERNAL_V3_CMD_PING                2
-#define KIS_EXTERNAL_V3_CMD_PONG                3
-#define KIS_EXTERNAL_V3_CMD_SHUTDOWN            4
-#define KIS_EXTERNAL_V3_CMD_MESSAGE             5
-#define KIS_EXTERNAL_V3_CMD_ERROR               6
+#define KIS_EXTERNAL_V3_CMD_REGISTER                            1
+#define KIS_EXTERNAL_V3_CMD_PING                                2
+#define KIS_EXTERNAL_V3_CMD_PONG                                3
+#define KIS_EXTERNAL_V3_CMD_SHUTDOWN                            4
+#define KIS_EXTERNAL_V3_CMD_MESSAGE                             5
+#define KIS_EXTERNAL_V3_CMD_ERROR                               6
 
 
 /* datasource commands */
-#define KIS_EXTERNAL_V3_KDS_PROBEREQ            10
-#define KIS_EXTERNAL_V3_KDS_PROBEREPORT         11
-#define KIS_EXTERNAL_V3_KDS_OPENREQ             12
-#define KIS_EXTERNAL_V3_KDS_OPENREPORT          13
-#define KIS_EXTERNAL_V3_KDS_LISTREQ             14
-#define KIS_EXTERNAL_V3_KDS_LISTREPORT          15
-#define KIS_EXTERNAL_V3_KDS_PACKET              16
-#define KIS_EXTERNAL_V3_KDS_CONFIGURE           17
-#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT        18
-#define KIS_EXTERNAL_V3_KDS_NEWSOURCE           19
+#define KIS_EXTERNAL_V3_KDS_PROBEREQ                            10
+#define KIS_EXTERNAL_V3_KDS_PROBEREPORT                         11
+#define KIS_EXTERNAL_V3_KDS_OPENREQ                             12
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT                          13
+#define KIS_EXTERNAL_V3_KDS_LISTREQ                             14
+#define KIS_EXTERNAL_V3_KDS_LISTREPORT                          15
+#define KIS_EXTERNAL_V3_KDS_PACKET                              16
+#define KIS_EXTERNAL_V3_KDS_CONFIGURE                           17
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT                        18
+#define KIS_EXTERNAL_V3_KDS_NEWSOURCE                           19
 
 /* eventbus commands */
-#define KIS_EXTERNAL_V3_EVT_REGISTER            32
-#define KIS_EXTERNAL_V3_EVT_EVENT               33
-#define KIS_EXTERNAL_V3_EVT_PUBLISH             34
+#define KIS_EXTERNAL_V3_EVT_REGISTER                            32
+#define KIS_EXTERNAL_V3_EVT_EVENT                               33
+#define KIS_EXTERNAL_V3_EVT_PUBLISH                             34
 
 /* web proxy commands */
-#define KIS_EXTERNAL_V3_WEB_REGISTERURI         64
-#define KIS_EXTERNAL_V3_WEB_REQUEST             65
-#define KIS_EXTERNAL_v3_WEB_REQUEST_CANCEL      66
-#define KIS_EXTERNAL_V3_WEB_RESPONSE            67
-#define KIS_EXTERNAL_V3_WEB_AUTHREQ             68
-#define KIS_EXTERNAL_V3_WEB_AUTHRESP            69
+#define KIS_EXTERNAL_V3_WEB_REGISTERURI                         64
+#define KIS_EXTERNAL_V3_WEB_REQUEST                             65
+#define KIS_EXTERNAL_v3_WEB_REQUEST_CANCEL                      66
+#define KIS_EXTERNAL_V3_WEB_RESPONSE                            67
+#define KIS_EXTERNAL_V3_WEB_AUTHREQ                             68
+#define KIS_EXTERNAL_V3_WEB_AUTHRESP                            69
 
 /* Generic sub-blocks used in external and datasources */
 
 /* Message sub block */
 /* u8 */
-#define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_TYPE          1
+#define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_TYPE                  1
 /* string */
-#define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_STRING        2
+#define KIS_EXTERNAL_V3_SUB_MESSAGE_FIELD_STRING                2
 
 /* message types */
-#define KIS_EXTERNAL_V3_MSG_DEBUG           1
-#define KIS_EXTERNAL_V3_MSG_INFO            2
-#define KIS_EXTERNAL_V3_MSG_ERROR           4
-#define KIS_EXTERNAL_V3_MSG_ALERT           8
-#define KIS_EXTERNAL_V3_MSG_FATAL           16
+#define KIS_EXTERNAL_V3_MSG_DEBUG                               1
+#define KIS_EXTERNAL_V3_MSG_INFO                                2
+#define KIS_EXTERNAL_V3_MSG_ERROR                               4
+#define KIS_EXTERNAL_V3_MSG_ALERT                               8
+#define KIS_EXTERNAL_V3_MSG_FATAL                               16
 
 
 /* Shutdown command
@@ -234,7 +234,7 @@ typedef struct kismet_external_frame_v3 {
  * Initiate a shutdown of this connection, with optional message
  */
 /* string */
-#define KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON           1
+#define KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON                   1
 
 
 /* KIS_EXTERNAL_V3_CMD_REGISTER
@@ -243,7 +243,7 @@ typedef struct kismet_external_frame_v3 {
  * Register a helper/datasource/etc
  */
 /* string */
-#define KIS_EXTERNAL_V3_REGISTER_FIELD_SUBSYSTEM        1
+#define KIS_EXTERNAL_V3_REGISTER_FIELD_SUBSYSTEM                1
 
 
 /* KIS_EXTERNAL_V3_CMD_PING - no content required */
@@ -256,9 +256,9 @@ typedef struct kismet_external_frame_v3 {
  * Wrap the message subblock as a single frame
 */
 /* u8 */
-#define KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE              1
+#define KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE                      1
 /* string */
-#define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING            2
+#define KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING                    2
 
 
 /* KIS_EXTERNAL_V3_CMD_ERROR
@@ -270,7 +270,7 @@ typedef struct kismet_external_frame_v3 {
  * error code in frame header contains the error result
  */
 /* string */
-#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING              1
+#define KIS_EXTERNAL_V3_ERROR_FIELD_STRING                      1
 
 
 /* Datasource specific commands and sub-blocks */
@@ -281,42 +281,42 @@ typedef struct kismet_external_frame_v3 {
  * Channel hop directive
  */
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL       1
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL           1
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE          2
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE              2
 /* bool */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE       3
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE           3
 /* uint16 */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP          4
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP              4
 /* uint16 */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET        5
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET            5
 /* array[string] */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST     6
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST         6
 
 
 /* KIDS_CHANNEL_GPS_BLOCK */
 /* double */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT               1
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT                   1
 /* double */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON               2
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON                   2
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT               3
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT                   3
 /* u8 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX               4
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX                   4
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED             5
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED                 5
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING           6
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING               6
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION         7
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION             7
 /* u64 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S              8
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S                  8
 /* u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US             9
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US                 9
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE              10
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE                  10
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME              11
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME                  11
 
 /* Estimate length from gps record */
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(l, g) \
@@ -336,17 +336,17 @@ typedef struct kismet_external_frame_v3 {
 
 /* KDS_INTERFACE_BLOCK */
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE       1
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE           1
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS       2
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS           2
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW          3
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW              3
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE    4
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE        4
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL     5
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL         5
 /* array[string] */
-#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST   6
+#define KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST       6
 
 
 /* Spectrum sub block TBD */
@@ -354,19 +354,19 @@ typedef struct kismet_external_frame_v3 {
 
 /* KDS_SIGNAL_BLOCK  */
 /* u32 signal dbm */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM     1
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM         1
 /* u32 noise dbm */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM      2
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM          2
 /* u32 signal rssi */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI    3
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI        3
 /* u32 noise rssi */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI     4
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI         4
 /* u64 frequency in khz */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ       5
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ           5
 /* u64 data rate, in whatever the datasource thinks data rat */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE       6
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE           6
 /* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL        7
+#define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL            7
 
 #define KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_EST_LEN(v, s)      \
     { \
@@ -377,17 +377,17 @@ typedef struct kismet_external_frame_v3 {
 
 /* KDS_PACKET_BLOCK */
 /* u32 DLT */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT            1
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT                1
 /* u64 */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S           2
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S               2
 /* u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US          3
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US              3
 /* u32 reported length */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH         4
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH             4
 /* u32 captured length */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CAPLENGTH      5
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CAPLENGTH          5
 /* string/binary */
-#define KIS_EXTERNA_V3_KDS_SUB_PACKET_FIELD_CONTENT         6
+#define KIS_EXTERNA_V3_KDS_SUB_PACKET_FIELD_CONTENT             6
 
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(v, cl) \
     { \
@@ -397,13 +397,13 @@ typedef struct kismet_external_frame_v3 {
 
 /* KDS_JSON_BLOCK */
 /* string, type/identifier */
-#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE             1
+#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE                 1
 /* u64 */
-#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S             2
+#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S                 2
 /* u32 */
-#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_US            3
+#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_US                3
 /* string, json blob */
-#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON             4
+#define KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON                 4
 
 #define KIS_EXTERNAL_V3_KDS_SUB_JSON_EST_LEN(v, t, j) \
     { \
@@ -419,15 +419,15 @@ typedef struct kismet_external_frame_v3 {
  * sends packet or packet-like data to the Kismet server
  */
 /* gps sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK      1
+#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK          1
 /* signal sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK   2
+#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK       2
 /* spectrum sub-block (currently not defined or implemented) */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SPECTRUMBLOCK 3
+#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SPECTRUMBLOCK     3
 /* packet sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_PACKETBLOCK   4
+#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_PACKETBLOCK       4
 /* json sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_JSONBLOCK     5
+#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_JSONBLOCK         5
 
 
 
@@ -438,7 +438,7 @@ typedef struct kismet_external_frame_v3 {
  * Does this datasource handle this source definition?
  * */
 /* string */
-#define KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION       1
+#define KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION           1
 
 
 
@@ -448,7 +448,7 @@ typedef struct kismet_external_frame_v3 {
  * Sequence and success code set in top-level header
  * */
 /* interface sub-block */
-#define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_INTERFACE    1
+#define KIS_EXTERNAL_V3_KDS_PROBE_REPORT_FIELD_INTERFACE        1
 
 
 
@@ -547,17 +547,23 @@ typedef struct kismet_external_frame_v3 {
  *
  * remote -> KS
  */
-/* string */
-#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_EVENT           1
+/* array[string] */
+#define KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT           1
 
 /* KIS_EXTERNAL_V3_EVT_EVENT
  *
  * KS -> remote
  */
+#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_EVENT                   1
+
+/* KIS_EXTERNAL_V3_EVT_EVTPUBLISH
+ *
+ * remote -> KS
+ */
 /* string */
-#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_TYPE            1
+#define KIS_EXTERNAL_V3_EVT_EVENTPUBLISH_FIELD_TYPE             1
 /* string */
-#define KIS_EXTERNAL_V3_EVT_EVENT_FIELD_JSON            2
+#define KIS_EXTERNAL_V3_EVT_EVENTPUBLISH_FIELD_EVENT            2
 
 
 /* KIS_EXTERNAL_V3_WEB_REGISTERURI
@@ -565,44 +571,44 @@ typedef struct kismet_external_frame_v3 {
  * remote -> KS
  */
 /* string */
-#define KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_URI       1
+#define KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_URI               1
 /* string */
-#define KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_METHOD    2
+#define KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_METHOD            2
 
 /* KIS_EXTERNAL_V3_WEB_REQUEST
  *
  * ks -> remote
  */
 /* uint32 */
-#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_REQID         1
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_REQID                 1
 /* string */
-#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_URI           2
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_URI                   2
 /* string */
-#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_METHOD        3
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_METHOD                3
 /* map[string,string] */
-#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_VARIABLES     4
+#define KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_VARIABLES             4
 
 /* KIS_EXTERNAL_V3_WEB_REQUEST_CANCEL
  *
  * ks -> remote
  */
 /* uint32 */
-#define KIS_EXTERNAL_V3_WEB_REQUEST_CANCEL_FIELD_REQID  1
+#define KIS_EXTERNAL_V3_WEB_REQUEST_CANCEL_FIELD_REQID          1
 
 /* KIS_EXTERNAL_V3_WEB_RESPONSE
  *
  * remote -> ks
  */
 /* uint32 */
-#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_REQID        1
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_REQID                1
 /* map[string, string] */
-#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_HEADERS      2
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_HEADERS              2
 /* string */
-#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CONTENT      3
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CONTENT              3
 /* uint32 */
-#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_RESULTCODE   4
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_RESULTCODE           4
 /* bool */
-#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CLOSE        5
+#define KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CLOSE                5
 
 /* KIS_EXTERNAL_V3_WEB_AUTHREQ
  *
@@ -617,7 +623,7 @@ typedef struct kismet_external_frame_v3 {
  * ks -> remote
  */
 /* string */
-#define KIS_EXTERNAL_V3_WEB_AUTHRESP_FIELD_TOKEN        1
+#define KIS_EXTERNAL_V3_WEB_AUTHRESP_FIELD_TOKEN                1
 
 
 
