@@ -486,15 +486,24 @@ protected:
     virtual void handle_packet_http_register(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_http_response(uint32_t in_seqno, const nonstd::string_view& in_content);
     virtual void handle_packet_http_auth_request(uint32_t in_seqno, const nonstd::string_view& in_content);
-#endif
-
-    virtual void handle_packet_http_register_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
-    virtual void handle_packet_http_response_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
-    virtual void handle_packet_http_auth_request_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
 
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
     unsigned int send_http_auth(std::string in_session);
+
+#endif
+
+    virtual void handle_packet_http_register_v3(uint32_t in_seqno,
+            uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_response_v3(uint32_t in_seqno,
+            uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_auth_request_v3(uint32_t in_seqno,
+            uint16_t code, const nonstd::string_view& in_content);
+
+    unsigned int send_http_request_v3(uint32_t in_http_sequence,
+            const std::string& in_uri, const std::string& in_method,
+            std::map<std::string, std::string> in_postdata);
+    unsigned int send_http_auth_v3(const std::string& in_session);
 
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;

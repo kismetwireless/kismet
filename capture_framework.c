@@ -3763,7 +3763,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         n = cf_send_error(caph, seq, msg);
         return n;
     } else {
-        /* Send messages independently not tied to this sequence, 
+        /* Send messages independently not tied to this sequence,
          * they're just informational */
         n = cf_send_message(caph, msg, MSGFLAG_INFO);
         if (n != 0) {

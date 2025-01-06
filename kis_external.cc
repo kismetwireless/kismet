@@ -34,6 +34,7 @@
 #include "messagebus.h"
 
 #include "mpack/mpack.h"
+#include "mpack/mpack_cpp.h"
 
 #ifdef HAVE_PROTOBUF_CPP
 #include "protobuf_cpp/kismet.pb.h"
@@ -695,19 +696,8 @@ void kis_external_interface::handle_msg_proxy(const std::string& msg, const int 
 
 void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
         uint16_t code, const nonstd::string_view& in_content) {
-    /*
-    KismetExternal::MsgbusMessage m;
 
-    if (!m.ParseFromArray(in_content.data(), in_content.size())) {
-        _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
-        trigger_error("Invalid MESSAGE");
-        return;
-    }
-
-    handle_msg_proxy(m.msgtext(), m.msgtype());
-    */
-
-    mpack_tree_t tree;
+    mpack_tree_raii tree;
     mpack_node_t root;
 
     const char *message;
@@ -718,26 +708,21 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
     if (!mpack_tree_try_parse(&tree)) {
         _MSG_ERROR("Kismet external interface got unparseable v3 MESSAGE");
         trigger_error("invalid v3 MESSAGE");
-        mpack_tree_destroy(&tree);
         return;
     }
 
     root = mpack_tree_root(&tree);
 
-    if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE) ||
-            !mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING)) {
-        _MSG_ERROR("Kismet external interface got malformed v3 MESSAGE");
-        trigger_error("invalid v3 MESSAGE");
-        mpack_tree_destroy(&tree);
-        return;
-    }
-
     msgtype = mpack_node_u16(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE));
     message = mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING));
 
-    handle_msg_proxy(message, msgtype);
+    if (mpack_tree_error(&tree)) {
+        _MSG_ERROR("Kismet external interface got malformed v3 MESSAGE");
+        trigger_error("invalid v3 MESSAGE");
+        return;
+    }
 
-    mpack_tree_destroy(&tree);
+    handle_msg_proxy(message, msgtype);
 }
 
 void kis_external_interface::handle_packet_ping_v3(uint32_t in_seqno,
@@ -755,7 +740,7 @@ void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
         uint16_t code, const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown_v3");
 
-    mpack_tree_t tree;
+    mpack_tree_raii tree;
     mpack_node_t root;
 
     mpack_tree_init_data(&tree, in_content.data(), in_content.length());
@@ -763,30 +748,30 @@ void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
     if (!mpack_tree_try_parse(&tree)) {
         _MSG_ERROR("Kismet external interface got unparseable v3 SHUTDOWN");
         trigger_error("invalid v3 SHUTDOWN");
-        mpack_tree_destroy(&tree);
         return;
     }
 
     root = mpack_tree_root(&tree);
 
-    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON)) {
-        const char *reason =
-            mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON));
-        _MSG_INFO("Kismet external interface shutting down: {}", reason);
-        trigger_error(fmt::format("remote connection triggered shutdown: {}", reason));
-    } else {
+    const char *reason =
+        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON));
+
+    if (mpack_tree_error(&tree)) {
         _MSG_INFO("Kismet external interface shutting down: no reason");
         trigger_error("remote connection triggered shutdown: no reason");
+    } else {
+        _MSG_INFO("Kismet external interface shutting down: {}", reason);
+        trigger_error(fmt::format("remote connection triggered shutdown: {}", reason));
     }
-
-    mpack_tree_destroy(&tree);
 }
+
+// Send events from the eventbus to any subscribed consumers on the external protocol
 void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
     std::stringstream ss;
     json_adapter::pack(ss, evt);
 
 #ifdef HAVE_PROTOBUF_CPP
-    if (protocol_version != 3) {
+    if (protocol_version < 3) {
         KismetEventBus::EventbusEvent ebe;
         ebe.set_event_json(ss.str());
 
@@ -827,6 +812,344 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
     }
 
     return;
+}
+
+void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register_v3");
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 EVENTREGISTER");
+        trigger_error("invalid v3 EVENTREGISTER");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    mpack_node_t evtlist = mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT);
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 EVENTREGISTER event list");
+        trigger_error("invalid v3 EVENTREGISTER");
+        return;
+    }
+
+    auto events_sz = mpack_node_array_length(evtlist);
+
+    for (size_t szi = 0; szi < events_sz; szi++) {
+        const char *evt = mpack_node_str(mpack_node_array_at(evtlist, szi));
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet external interface got unparseable v3 EVENTREGISTER event list");
+            trigger_error("invalid v3 EVENTREGISTER");
+            return;
+        }
+
+        auto k = eventbus_callback_map.find(evt);
+
+        if (k != eventbus_callback_map.end())
+            eventbus->remove_listener(k->second);
+
+        unsigned long eid =
+            eventbus->register_listener(evt,
+                    [this](std::shared_ptr<eventbus_event> e) {
+                    proxy_event(e);
+                    });
+
+        eventbus_callback_map[evt] = eid;
+    }
+}
+
+void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish_v3");
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 EVENTPUBLISH");
+        trigger_error("invalid v3 EVENTPUBLISH");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    const char *evt_type =
+        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTPUBLISH_FIELD_TYPE));
+    const char *evt_event =
+        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT));
+
+    if (mpack_tree_error(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 EVENTPUBLISH");
+        trigger_error("invalid v3 EVENTPUBLISH");
+        return;
+    }
+
+    auto evt = eventbus->get_eventbus_event(evt_type);
+    evt->get_event_content()->insert("kismet.eventbus.event_json",
+            std::make_shared<tracker_element_string>(evt_event));
+    eventbus->publish(evt);
+}
+
+void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register_v3");
+
+    const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 HTTPREGISTER");
+        trigger_error("invalid v3 HTTPREGISTER");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    const char *method =
+        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_METHOD));
+    const char *uri =
+        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_URI));
+
+    if (mpack_tree_error(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 HTTPREGISTER");
+        trigger_error("invalid v3 HTTPREGISTER");
+        return;
+    }
+
+    httpd->register_route(uri, {method}, httpd->LOGON_ROLE,
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                kis_unique_lock<kis_mutex> l(ext_mutex, std::defer_lock,
+                        fmt::format("proxied req {}", con->uri()));
+                l.lock();
+
+                auto session = std::make_shared<kis_external_http_session>();
+                session->connection = con;
+                session->locker.reset(new conditional_locker<int>());
+                session->locker->lock();
+
+                auto sess_id = http_session_id++;
+                http_proxy_session_map[sess_id] = session;
+
+                auto var_remap = std::map<std::string, std::string>();
+                for (const auto& v : con->http_variables())
+                var_remap[v.first] = v.second;
+
+                send_http_request(sess_id, static_cast<std::string>(con->uri()),
+                        fmt::format("{}", con->verb()), var_remap);
+
+                con->set_closure_cb([session]() { session->locker->unlock(-1); });
+
+                // Unlock the external mutex prior to blocking
+                l.unlock();
+
+                // Block until we get a response
+                session->locker->block_until();
+
+                // Reacquire the lock on the external interface
+                l.lock();
+
+                auto mi = http_proxy_session_map.find(sess_id);
+                if (mi != http_proxy_session_map.end())
+                    http_proxy_session_map.erase(mi);
+                }));
+}
+
+void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response_v3");
+
+    const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 HTTPRESPONSE");
+        trigger_error("invalid v3 HTTPRESPONSE");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    const auto req_id =
+        mpack_node_uint(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_REQID));
+
+    if (mpack_tree_error(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 HTTPRESPONSE");
+        trigger_error("invalid v3 HTTPRESPONSE");
+        return;
+    }
+
+    auto si = http_proxy_session_map.find(req_id);
+
+    if (si == http_proxy_session_map.end()) {
+        _MSG("Kismet external interface got a HTTPRESPONSE for an unknown session", MSGFLAG_ERROR);
+        trigger_error("Invalid HTTPRESPONSE session");
+        return;
+    }
+
+    auto session = si->second;
+
+    // process any headers before processing data.  the caller can screw us up by returning a
+    // continued stream *and* including headers here, but that's their problem.
+    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_HEADERS)) {
+        mpack_node_t hdrmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_HEADERS);
+        auto hdr_sz = mpack_node_map_count(hdrmap);
+
+        for (size_t szi = 0; szi < hdr_sz; szi++) {
+            const char *hdr_key =
+                mpack_node_str(mpack_node_map_key_at(hdrmap, szi));
+            const char *hdr_val =
+                mpack_node_str(mpack_node_map_value_at(hdrmap, szi));
+
+            if (mpack_tree_error(&tree)) {
+                _MSG_ERROR("Kismet external interface got unparseable v3 HTTPRESPONSE");
+                trigger_error("invalid v3 HTTPRESPONSE");
+                return;
+            }
+
+            session->connection->append_header(hdr_key, hdr_val);
+        }
+    }
+
+    // process any result code
+    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_RESULTCODE)) {
+        auto code =
+            mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_RESULTCODE));
+
+        if (mpack_tree_error(&tree)) {
+            _MSG_ERROR("Kismet external interface got unparseable v3 HTTPRESPONSE");
+            trigger_error("invalid v3 HTTPRESPONSE");
+            return;
+        }
+
+        session->connection->set_status(code);
+    }
+
+    // process any data
+    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CONTENT)) {
+        auto content_sz =
+            mpack_node_bin_size(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CONTENT));
+        auto content =
+            mpack_node_bin_data(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CONTENT));
+
+        if (mpack_tree_error(&tree)) {
+            _MSG_ERROR("Kismet external interface got unparseable v3 HTTPRESPONSE");
+            trigger_error("invalid v3 HTTPRESPONSE");
+            return;
+        }
+
+        session->connection->response_stream().put_data(content, content_sz);
+    }
+
+    // process terminating the connection
+    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CLOSE)) {
+        auto close =
+            mpack_node_bool(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_CLOSE));
+
+        if (close) {
+            session->connection->response_stream().complete();
+            session->locker->unlock();
+        }
+    }
+}
+
+void kis_external_interface::handle_packet_http_auth_request_v3(uint32_t in_seqno,
+        uint16_t code, const nonstd::string_view& in_content) {
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
+
+    send_http_auth_v3(token);
+}
+
+unsigned int kis_external_interface::send_http_request_v3(uint32_t in_http_sequence,
+        const std::string& in_uri, const std::string& in_method,
+        std::map<std::string, std::string> in_vardata) {
+
+    char *data = NULL;
+    size_t size;
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_REQID);
+    mpack_write_u32(&writer, in_http_sequence);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_URI);
+    mpack_write_cstr(&writer, in_uri.c_str());
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_METHOD);
+    mpack_write_cstr(&writer, in_method.c_str());
+
+    if (in_vardata.size() > 0) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_WEB_REQUEST_FIELD_VARIABLES);
+        mpack_build_map(&writer);
+
+        for (const auto& pi : in_vardata) {
+            mpack_write_cstr(&writer, pi.first.c_str());
+            mpack_write_cstr(&writer, pi.second.c_str());
+        }
+
+        mpack_complete_map(&writer);
+    }
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        _MSG_ERROR("Kismet external interface failed serializing v3 HTTPREQ");
+        trigger_error("failed to serialize v3 HTTPREQ");
+        return -1;
+    }
+
+    send_packet_v3(KIS_EXTERNAL_V3_WEB_REQUEST, 0, 1, data, size);
+
+    free(data);
+
+    return 1;
+}
+
+unsigned int kis_external_interface::send_http_auth_v3(const std::string& in_cookie) {
+    char *data = NULL;
+    size_t size;
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_WEB_AUTHRESP);
+    mpack_write_cstr(&writer, in_cookie.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        _MSG_ERROR("Kismet external interface failed serializing v3 HTTPAUTH");
+        trigger_error("failed to serialize v3 HTTPAUTH");
+        return -1;
+    }
+
+    send_packet_v3(KIS_EXTERNAL_V3_WEB_AUTHRESP, 0, 1, data, size);
+
+    free(data);
+
+    return 1;
 }
 
 
