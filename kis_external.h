@@ -318,9 +318,9 @@ protected:
         } else if (protocol_version == 3) {
             return send_packet_v3(command, seqno, success, content);
         } else {
-            _MSG_ERROR("This build of Kismet does not handle this version of the IPC protocol ({}), "
+            _MSG_ERROR(fmt::runtime("This build of Kismet does not handle this version of the IPC protocol ({}), "
                     "ensure that the capture tools and Kismet server are running similar "
-                    "compatible versions.", protocol_version);
+                    "compatible versions."), protocol_version);
             trigger_error("unhandleable protocol version");
             close_external();
             return 1;

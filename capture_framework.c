@@ -76,9 +76,9 @@ uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
         return 0;
 
     for (i = 0; i < (in_len - 4); i += 4, buf++) {
-        ls2 += (4 * (ls1 + ((*buf) & 0xFF))) + 
+        ls2 += (4 * (ls1 + ((*buf) & 0xFF))) +
             (3 * ((*buf >> 8) & 0xFF)) +
-            (2 * ((*buf >> 16) & 0xFF)) + 
+            (2 * ((*buf >> 16) & 0xFF)) +
             ((*buf >> 24) & 0xFF);
 
         ls1 += ((*buf >> 24) & 0xFF) +
@@ -264,7 +264,7 @@ int cf_count_flag(const char *flag, char *definition) {
 }
 
 
-int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
+int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist,
         size_t *ret_splitlist_sz) {
 
     char *start = in_str;
@@ -561,7 +561,7 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 }
 
 cf_params_interface_t *cf_params_interface_new() {
-    cf_params_interface_t *cpi = 
+    cf_params_interface_t *cpi =
         (cf_params_interface_t *) malloc(sizeof(cf_params_interface_t));
     memset(cpi, 0, sizeof(cf_params_interface_t));
 
@@ -598,7 +598,7 @@ void cf_params_spectrum_free(cf_params_spectrum_t *si) {
 }
 
 void cf_handler_shutdown(kis_capture_handler_t *caph) {
-    cf_ipc_t *ipc; 
+    cf_ipc_t *ipc;
 
     if (caph == NULL)
         return;
@@ -633,12 +633,12 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
-        void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing, 
+        void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing,
         int offset) {
     size_t szi;
 
     /*
-    fprintf(stderr, "debug - assign hop channels\n"); 
+    fprintf(stderr, "debug - assign hop channels\n");
     for (szi = 0; szi < chan_sz; szi++) {
         fprintf(stderr, "debug - channel %s priv %p\n", stringchans[szi], privchans[szi]);
     }
@@ -658,7 +658,7 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
         }
     }
 
-    if (caph->channel_hop_list) 
+    if (caph->channel_hop_list)
         free(caph->channel_hop_list);
     if (caph->custom_channel_hop_list)
         free(caph->custom_channel_hop_list);
@@ -711,7 +711,7 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing
      * needs to */
     if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing &&
             caph->channel_hop_list_sz != 0) {
-        while ((caph->channel_hop_list_sz % (caph->channel_hop_list_sz / 
+        while ((caph->channel_hop_list_sz % (caph->channel_hop_list_sz /
                         caph->channel_hop_shuffle_spacing)) == 0) {
             if (caph->channel_hop_shuffle_spacing >= caph->channel_hop_list_sz - 1) {
                 caph->channel_hop_shuffle_spacing = 1;
@@ -771,7 +771,7 @@ void cf_handler_list_devices(kis_capture_handler_t *caph) {
                 if (interfaces[i]->hardware != NULL) {
                     fprintf(stderr, " (%s)", interfaces[i]->hardware);
                 }
-                
+
                 fprintf(stderr, "\n");
 
                 if (interfaces[i]->interface != NULL)
@@ -958,7 +958,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             return -1;
             goto cleanup;
 #endif
-        } 
+        }
     }
 
 #ifndef HAVE_LIBWEBSOCKETS
@@ -982,7 +982,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         }
 
     if (caph->remote_host == NULL) {
-        if (caph->cli_sourcedef != NULL) 
+        if (caph->cli_sourcedef != NULL)
             fprintf(stderr, "WARNING: Ignoring --source option when not in remote mode.\n");
 #ifdef HAVE_LIBWEBSOCKETS
         if (user != NULL || password != NULL)
@@ -1009,7 +1009,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     }
 
     if (gps_arg != NULL) {
-        pr = sscanf(gps_arg, "%lf,%lf,%lf", 
+        pr = sscanf(gps_arg, "%lf,%lf,%lf",
                 &(caph->gps_fixed_lat), &(caph->gps_fixed_lon),
                 &(caph->gps_fixed_alt));
 
@@ -1055,7 +1055,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             goto cleanup;
         }
 
-        if (user != NULL && token != NULL) 
+        if (user != NULL && token != NULL)
             fprintf(stderr, "WARNING: Ignoring APIKEY and using login information\n");
 
         if (endp_arg == NULL)
@@ -1106,7 +1106,7 @@ cleanup:
 void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
     fprintf(stderr, "%s is a capture driver for Kismet.  Typically it is started\n"
             "automatically by the Kismet server.\n", argv0);
-    
+
     if (caph->remote_capable) {
         fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
                 "usage: %s [options]\n"
@@ -1164,7 +1164,7 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
 }
 
 
-void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
         cf_callback_listdevices cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->listdevices_cb = cb;
@@ -1177,7 +1177,7 @@ void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb) 
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_open_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_open_cb(kis_capture_handler_t *capf,
         cf_callback_open cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->open_cb = cb;
@@ -1196,7 +1196,7 @@ void cf_handler_set_capture_cb(kis_capture_handler_t *capf, cf_callback_capture 
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf,
         cf_callback_spectrumconfig cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->spectrumconfig_cb = cb;
@@ -1209,7 +1209,7 @@ void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown 
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf,
         cf_callback_chantranslate cb) {
     pthread_mutex_lock(&(capf->handler_lock));
     capf->chantranslate_cb = cb;
@@ -1219,7 +1219,7 @@ void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf,
 void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf,
         cf_callback_chancontrol cb) {
     pthread_mutex_lock(&(capf->handler_lock));
-    capf->chancontrol_cb = cb; 
+    capf->chancontrol_cb = cb;
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
@@ -1245,17 +1245,17 @@ void *cf_int_capture_thread(void *arg) {
     }
 
     // cf_send_error(caph, 0, "capture thread ended, source is closed.");
-   
+
     cf_handler_spindown(caph);
 
     return NULL;
 }
 
 /*
- * Catch any terminated processes and call any termination handlers they 
+ * Catch any terminated processes and call any termination handlers they
  * have; remove them from the IPC list.
  *
- * IPC termination callback is responsible for freeing the IPC record, 
+ * IPC termination callback is responsible for freeing the IPC record,
  * if not tracked elsewhere.
  */
 void cf_process_child_signals(kis_capture_handler_t *caph) {
@@ -1302,7 +1302,7 @@ static sigset_t cf_core_signal_mask;
 void *cf_int_signal_thread(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
 
-    int sig_caught, r; 
+    int sig_caught, r;
 
 #if 0
     /* Set a timer to wake up from sigwait and make sure we have nothing we need to deal with */
@@ -1320,13 +1320,13 @@ void *cf_int_signal_thread(void *arg) {
     sigfillset(&unblock_mask);
     pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
 
-    while (!caph->spindown && !caph->shutdown) { 
+    while (!caph->spindown && !caph->shutdown) {
         r = sigwait(&cf_core_signal_mask, &sig_caught);
 
         if (r != 0)
             continue;
 
-        switch (sig_caught) { 
+        switch (sig_caught) {
             case SIGINT:
             case SIGTERM:
             case SIGHUP:
@@ -1391,7 +1391,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     /* Set thread mask for all new threads */
     pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
 
-    /* Launch the signal handling thread */ 
+    /* Launch the signal handling thread */
     if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) < 0) {
         cf_send_error(caph, 0, "failed to launch signal thread");
         cf_handler_spindown(caph);
@@ -1405,7 +1405,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
         return 0;
     }
 
-    if (pthread_create(&(caph->capturethread), &attr, 
+    if (pthread_create(&(caph->capturethread), &attr,
                 cf_int_capture_thread, caph) < 0) {
         cf_send_error(caph, 0, "failed to launch capture thread");
         cf_handler_spindown(caph);
@@ -1415,7 +1415,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     caph->capture_running = 1;
 
     pthread_mutex_unlock(&(caph->handler_lock));
-    
+
     return 1;
 }
 
@@ -1435,13 +1435,13 @@ void *cf_int_chanhop_thread(void *arg) {
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     size_t hoppos;
-    
+
     /* How long we're waiting until the next time */
     unsigned int wait_sec = 0;
     unsigned int wait_usec = 0;
 
     char errstr[STATUS_MAX];
-    
+
     int r = 0;
 
     /* Figure out where we are in the hopping vec, and set us to actively hopping
@@ -1461,7 +1461,7 @@ void *cf_int_chanhop_thread(void *arg) {
             pthread_mutex_unlock(&(caph->handler_lock));
             return NULL;
         }
-       
+
         wait_usec = 1000000L / caph->channel_hop_rate;
 
         if (wait_usec < 50000) {
@@ -1487,8 +1487,8 @@ void *cf_int_chanhop_thread(void *arg) {
         }
 
         errstr[0] = 0;
-        if ((r = (caph->chancontrol_cb)(caph, 0, 
-                    caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
+        if ((r = (caph->chancontrol_cb)(caph, 0,
+                    caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz],
                     errstr)) < 0) {
             fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
             cf_send_error(caph, 0, errstr);
@@ -1559,7 +1559,7 @@ void *cf_int_chanhop_thread(void *arg) {
                 return NULL;
             }
 
-            /* shrink the channel list and the custom list, and copy only the 
+            /* shrink the channel list and the custom list, and copy only the
              * valid ones, eliminating the bogus ones */
             new_sz = caph->channel_hop_list_sz - caph->channel_hop_failure_list_sz;
 
@@ -1580,7 +1580,7 @@ void *cf_int_chanhop_thread(void *arg) {
                 /* If it's in error, free it */
                 if (err_seen) {
                     free(caph->channel_hop_list[i]);
-                    if (caph->chanfree_cb != NULL) 
+                    if (caph->chanfree_cb != NULL)
                         (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
                     continue;
                 }
@@ -1601,7 +1601,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
             /* Spam a configresp which should trigger a reconfigure */
             snprintf(errstr, STATUS_MAX, "Removed %lu channels from the channel list "
-                    "because the source could not tune to them", 
+                    "because the source could not tune to them",
                     caph->channel_hop_failure_list_sz);
             cf_send_configresp(caph, 0, 1, errstr);
 
@@ -1645,12 +1645,12 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     caph->hopping_running = 1;
 
     pthread_mutex_unlock(&(caph->handler_lock));
-    
+
     return 1;
 }
 
 /* Common dispatch layer across v0 and v2 frames */
-int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd, 
+int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         uint32_t seqno, const uint8_t *data, size_t packet_sz) {
     int cbret = -1;
     char msgstr[STATUS_MAX];
@@ -1687,7 +1687,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                     fprintf(stderr, "ERROR: %s\n", msgstr);
             }
 
-            cf_send_listresp(caph, seqno, cbret >= 0, msgstr, 
+            cf_send_listresp(caph, seqno, cbret >= 0, msgstr,
                     interfaces, cbret < 0 ? 0 : cbret);
 
             if (cbret > 0) {
@@ -1744,7 +1744,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 goto finish;
             }
 
-            root = mpack_tree_root(&tree); 
+            root = mpack_tree_root(&tree);
 
             if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION)) {
                 fprintf(stderr, "FATAL: Invalid probe request received, unable to unpack source definition.\n");
@@ -1753,7 +1753,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 goto finish;
             }
 
-            definition = mpack_node_str(mpack_node_map_uint(root, 
+            definition = mpack_node_str(mpack_node_map_uint(root,
                         KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION));
 
             if (mpack_tree_error(&tree) != mpack_ok) {
@@ -1764,11 +1764,11 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             msgstr[0] = 0;
-            cbret = (*(caph->probe_cb))(caph, seqno, definition, msgstr, &uuid, 
+            cbret = (*(caph->probe_cb))(caph, seqno, definition, msgstr, &uuid,
                     &interfaceparams, &spectrumparams);
 
             cf_send_proberesp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
-            
+
             mpack_tree_destroy(&tree);
 
             if (uuid != NULL)
@@ -1793,7 +1793,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_openresp(caph, seqno, false, "source cannot be opened", 0, 
+            cf_send_openresp(caph, seqno, false, "source cannot be opened", 0,
                     NULL, NULL, NULL);
             pthread_mutex_lock(&(caph->handler_lock));
 
@@ -1818,7 +1818,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 goto finish;
             }
 
-            root = mpack_tree_root(&tree); 
+            root = mpack_tree_root(&tree);
 
             if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION)) {
                 fprintf(stderr, "FATAL: Invalid open request received, unable to unpack source definition.\n");
@@ -1827,7 +1827,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 goto finish;
             }
 
-            definition = mpack_node_str(mpack_node_map_uint(root, 
+            definition = mpack_node_str(mpack_node_map_uint(root,
                         KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION));
 
             if (mpack_tree_error(&tree) != mpack_ok) {
@@ -1843,7 +1843,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             cbret = (*(caph->open_cb))(caph, seqno, definition,
                     msgstr, &dlt, &uuid, &interfaceparams, &spectrumparams);
 
-            cf_send_openresp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, 
+            cf_send_openresp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr,
                     dlt, uuid, interfaceparams,
                     spectrumparams);
 
@@ -1905,7 +1905,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         root = mpack_tree_root(&tree);
 
         if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL)) {
-            channel = mpack_node_str(mpack_node_map_uint(root, 
+            channel = mpack_node_str(mpack_node_map_uint(root,
                         KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL));
 
             if (caph->chantranslate_cb != NULL) {
@@ -1952,7 +1952,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         } else if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK)) {
             mpack_node_t chanhop;
             mpack_node_t chanlist;
-           
+
             chanhop = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK);
 
             if (mpack_tree_error(&tree) != mpack_ok) {
@@ -1998,7 +1998,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 }
             }
 
-            /* translate or duplicate all the channels to native channel definitions */ 
+            /* translate or duplicate all the channels to native channel definitions */
             chanhop_priv_channels = (void **) malloc(sizeof(void *) * chanhop_channels_sz);
 
             for (szi = 0; szi < chanhop_channels_sz; szi++) {
@@ -2009,7 +2009,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 }
             }
 
-            /* default to current values for unspecified fields */ 
+            /* default to current values for unspecified fields */
             if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE)) {
                 chanhop_rate = mpack_node_float(mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE));
             } else {
@@ -2063,7 +2063,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         /* If we have an unknown frame handler, give it a chance to process this
          * frame */
         if (caph->unknown_cb != NULL) {
-            cbret = 
+            cbret =
                 (*(caph->unknown_cb))(caph, seqno, cmd, (const char *) data, packet_sz);
         }
 
@@ -2073,7 +2073,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             return 0;
         }
     }
-    
+
 finish:
     pthread_mutex_unlock(&caph->handler_lock);
 
@@ -2093,7 +2093,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-    /* Attempt to match across all versions, so we can give smarter errors about 
+    /* Attempt to match across all versions, so we can give smarter errors about
      * older servers that we don't work with anymore */
     external_frame = (kismet_external_frame_t *) buffer;
     external_frame_v2 = (kismet_external_frame_v2_t *) buffer;
@@ -2108,14 +2108,14 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
     /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
     if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
                 "Kismet install to a more recent version of Kismet.\n",
                 caph->capsource_type);
         return -1;
     } else if (ntohs(external_frame_v3->v3_sentinel) != KIS_EXTERNAL_V3_SIG) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking an unknown Kismet protocol, please make sure\n"
                 "the Kismet install is using a similar version.\n",
@@ -2131,7 +2131,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-    return cf_dispatch_rx_content(caph, ntohs(external_frame_v3->pkt_type), 
+    return cf_dispatch_rx_content(caph, ntohs(external_frame_v3->pkt_type),
             ntohl(external_frame_v3->seqno), external_frame_v3->data, packet_sz);
 }
 
@@ -2159,12 +2159,12 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
         return 0;
     }
 
-    if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf, 
+    if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf,
                 sizeof(kismet_external_frame_t)) != sizeof(kismet_external_frame_t)) {
         return 0;
     }
 
-    /* Attempt to match across all versions, so we can give smarter errors about 
+    /* Attempt to match across all versions, so we can give smarter errors about
      * older servers that we don't work with anymore */
     external_frame = (kismet_external_frame_t *) frame_buf;
     external_frame_v2 = (kismet_external_frame_v2_t *) frame_buf;
@@ -2179,14 +2179,14 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
     if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
                 "Kismet install to a more recent version of Kismet.\n",
                 caph->capsource_type);
         return -1;
     } else if (ntohs(external_frame_v3->v3_sentinel) != KIS_EXTERNAL_V3_SIG) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking an unknown Kismet protocol, please make sure\n"
                 "the Kismet install is using a similar version.\n",
@@ -2305,7 +2305,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 
         if (uuid)
             free(uuid);
-    
+
         return -1;
     }
 
@@ -2412,7 +2412,7 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
         return;
     }
 
-    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, 
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr,
             &caph->lwsuuid, &cpi, &cps);
 
     if (cpi != NULL)
@@ -2497,7 +2497,7 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
             if (wmsg == NULL)
                 goto skip;
 
-            m = lws_write(wsi, (unsigned char *) wmsg->payload + LWS_PRE, 
+            m = lws_write(wsi, (unsigned char *) wmsg->payload + LWS_PRE,
                     wmsg->len, LWS_WRITE_BINARY);
 
             if (m != (int) wmsg->len) {
@@ -2543,7 +2543,7 @@ skip:
             }
 
             break;
-        default: 
+        default:
             break;
     }
 
@@ -2748,11 +2748,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                             }
 
                             break;
-                        } else { 
+                        } else {
                             kis_simple_ringbuf_commit(ipc_iter->in_ringbuf, buf, amt_read);
                             amt_read = kis_simple_ringbuf_used(ipc_iter->in_ringbuf);
 
-                            if (ipc_iter->rx_callback != NULL) { 
+                            if (ipc_iter->rx_callback != NULL) {
                                 ipc_iter->retry_rx = 0;
                                 ipc_iter->rx_callback(caph, ipc_iter, amt_read);
                             } else {
@@ -2960,7 +2960,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         }
     } else if (caph->use_ws) {
 #ifdef HAVE_LIBWEBSOCKETS
-        caph->lwsring = 
+        caph->lwsring =
             lws_ring_create(sizeof(struct cf_ws_msg), CAP_FRAMEWORK_WS_BUF_SZ, ws_destroy_msg);
 
         if (!caph->lwsring) {
@@ -3075,21 +3075,21 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     return -1;
 }
 
-/* prepare a memory mapped region for a packet based on a provided 
- * size; returns a pointer to the complete frame for the caller to 
+/* prepare a memory mapped region for a packet based on a provided
+ * size; returns a pointer to the complete frame for the caller to
  * then populate the inner data record.
  *
- * the provided estimated length must be large enough to hold the 
+ * the provided estimated length must be large enough to hold the
  * serialized content of the data.
  *
- * after packet creation is complete, it must be committed for 
+ * after packet creation is complete, it must be committed for
  * transmit with cf_commit_rb_packet, with the final length.
  *
- * the capture framework handler is locked for the duration until the 
+ * the capture framework handler is locked for the duration until the
  * commit is called.
  */
-kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph, 
-        unsigned int command, uint32_t seqno, uint16_t code, 
+kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
+        unsigned int command, uint32_t seqno, uint16_t code,
         size_t estimated_len) {
 
     /* Frame we'll be sending */
@@ -3099,12 +3099,12 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     /* Buffer holding all of it */
     uint8_t *send_buffer;
 
-    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer 
+    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer
      * handles non-zero-copy end of buffer situations */
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-    rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
+    rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer,
             estimated_len + sizeof(kismet_external_frame_v3_t));
 
     if (rs_sz != estimated_len + sizeof(kismet_external_frame_v3_t)) {
@@ -3131,23 +3131,23 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     return frame;
 }
 
-void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame, 
+void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame,
         size_t final_length) {
     frame->length = ntohs(final_length);
 
-    kis_simple_ringbuf_commit(caph->out_ringbuf, frame, 
+    kis_simple_ringbuf_commit(caph->out_ringbuf, frame,
             final_length + sizeof(kismet_external_frame_v3_t));
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 }
 
-/* Send a generic packet; pre-assembled packet content must be provided 
- * and is copied into a packet.  More efficiency-centric callers should 
+/* Send a generic packet; pre-assembled packet content must be provided
+ * and is copied into a packet.  More efficiency-centric callers should
  * call prep/commit and assemble into a zero-copy instance. */
-int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command, 
+int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command,
         uint32_t seqno, uint16_t code, uint8_t *data, size_t len) {
 
     /* Frame we'll be sending */
-    kismet_external_frame_v3_t *frame = 
+    kismet_external_frame_v3_t *frame =
         cf_prep_rb_packet(caph, command, seqno, code, len);
 
     /* free calling data and unlock if we failed */
@@ -3166,15 +3166,15 @@ int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command,
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-/* Prepare a websockets command in an allocated buffer.  
+/* Prepare a websockets command in an allocated buffer.
  *
- * Websockets use a queue of allocated buffers, so the advantages aren't as 
+ * Websockets use a queue of allocated buffers, so the advantages aren't as
  * large as for the tcp rb, but this still prevents excess memory copies
  *
  * The packet must be concluded with cf_commit_rb_packet with the final size.
  */
-struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph, 
-        unsigned int command, uint32_t seqno, uint16_t code, 
+struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
+        unsigned int command, uint32_t seqno, uint16_t code,
         size_t estimated_len) {
     /* msg record */
     struct cf_ws_msg *ws_msg;
@@ -3184,7 +3184,7 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
 
     int n;
 
-    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer 
+    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer
      * handles non-zero-copy end of buffer situations */
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
@@ -3234,11 +3234,11 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, si
     frame = (kismet_external_frame_v3_t *) wsmsg->payload;
     frame->length = htons(final_len);
 
-    /* performing the insert here causes a memcpy of the wsmsg struct, 
+    /* performing the insert here causes a memcpy of the wsmsg struct,
      * so we're now able to (and must) destroy our copy */
     n = lws_ring_insert(caph->lwsring, wsmsg, 1);
 
-    /* free the holder, the data content will be freed when the websocket 
+    /* free the holder, the data content will be freed when the websocket
      * ringbuffer triggers the element delete */
     free(wsmsg);
 
@@ -3260,8 +3260,8 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, si
 }
 
 
-/* Send a websocket packet; pre-assembled packet content must be provided and 
- * is copied into the packet.  More efficiency-centric callers should consider 
+/* Send a websocket packet; pre-assembled packet content must be provided and
+ * is copied into the packet.  More efficiency-centric callers should consider
  * calling prep/commit to omit an extra copy */
 int cf_send_ws_packet(kis_capture_handler_t *caph, unsigned int command, uint32_t seqno,
         uint16_t code, uint8_t *data, size_t len) {
@@ -3292,13 +3292,13 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, unsigned int command, uint32_
 
 #endif
 
-static void cf_free_rb_meta(kis_capture_handler_t *caph, 
+static void cf_free_rb_meta(kis_capture_handler_t *caph,
         struct _cf_frame_metadata *meta) {
     kis_simple_ringbuf_commit(caph->out_ringbuf, meta->frame, 0);
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-static void cf_free_ws_meta(kis_capture_handler_t *caph, 
+static void cf_free_ws_meta(kis_capture_handler_t *caph,
         struct _cf_frame_metadata *meta) {
     free(meta->frame);
     free(meta->metadata);
@@ -3306,20 +3306,20 @@ static void cf_free_ws_meta(kis_capture_handler_t *caph,
 #endif
 
 cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
-        unsigned int command, uint32_t seqno, uint16_t code, 
+        unsigned int command, uint32_t seqno, uint16_t code,
         size_t estimated_len) {
 
     cf_frame_metadata *meta = NULL;
 
     if (caph->use_tcp || caph->use_ipc) {
-        kismet_external_frame_v3_t *frame = 
+        kismet_external_frame_v3_t *frame =
             cf_prep_rb_packet(caph, command, seqno, code, estimated_len);
 
         if (frame == NULL) {
             return NULL;
         }
-            
-        
+
+
         meta = (cf_frame_metadata *) malloc(sizeof(cf_frame_metadata));
         memset(meta, 0, sizeof(cf_frame_metadata));
 
@@ -3330,7 +3330,7 @@ cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
         return meta;
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
-        struct cf_ws_msg *ws_msg = 
+        struct cf_ws_msg *ws_msg =
             cf_prep_ws_packet(caph, command, seqno, code, estimated_len);
 
         if (ws_msg == NULL) {
@@ -3396,7 +3396,7 @@ uint32_t cf_get_next_seqno(kis_capture_handler_t *caph) {
     return seqno;
 }
 
-int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype, uint16_t code, 
+int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype, uint16_t code,
         uint8_t *data, size_t len) {
     uint32_t seqno = cf_get_next_seqno(caph);
 
@@ -3413,7 +3413,7 @@ int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype, uint16_t 
 }
 
 int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
-    /* Estimate the length of the buffer as the length of the string, the 
+    /* Estimate the length of the buffer as the length of the string, the
      * size of the flags, the string type, and some slop room */
     size_t est_len = (strlen(msg) + 4 + 4) * 1.25;
     size_t final_len = 0;
@@ -3423,7 +3423,7 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
 
     mpack_writer_t writer;
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -3468,7 +3468,7 @@ int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *ms
         est_len = 24;
     }
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_ERROR, in_seqno, 1, est_len);
 
     if (meta == NULL) {
@@ -3511,7 +3511,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     int n;
 
-    /* Send messages independently */ 
+    /* Send messages independently */
     if (msg != NULL) {
         if (success) {
             if (caph->verbose)
@@ -3528,7 +3528,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         n = cf_send_error(caph, seq, msg);
         return n;
     } else {
-        /* Send messages independently not tied to this sequence, 
+        /* Send messages independently not tied to this sequence,
          * they're just informational */
         n = cf_send_message(caph, msg, MSGFLAG_INFO);
         if (n != 0) {
@@ -3561,7 +3561,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         seqno = cf_get_next_seqno(caph);
     }
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_LISTREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -3593,7 +3593,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
             mpack_write_cstr(&writer, interfaces[i]->hardware);
         }
 
-        mpack_finish_map(&writer);
+        mpack_complete_map(&writer);
     }
 
     mpack_finish_array(&writer);
@@ -3610,8 +3610,8 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     return cf_commit_packet(caph, meta, final_len);
 }
 
-int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, 
-        unsigned int success, const char *msg, 
+int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
+        unsigned int success, const char *msg,
         cf_params_interface_t *interface, cf_params_spectrum_t *spectrum) {
 
     size_t est_len = 24;
@@ -3626,7 +3626,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     int n;
 
-    /* Send messages independently */ 
+    /* Send messages independently */
     if (msg != NULL) {
         if (success) {
             if (caph->verbose)
@@ -3643,7 +3643,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
         n = cf_send_error(caph, seq, msg);
         return n;
     } else {
-        /* Send messages independently not tied to this sequence, 
+        /* Send messages independently not tied to this sequence,
          * they're just informational */
         n = cf_send_message(caph, msg, MSGFLAG_INFO);
         if (n != 0) {
@@ -3675,13 +3675,9 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     est_len = est_len * 1.15;
 
-    if (seq != 0) {
-        seqno = seq;
-    } else {
-        seqno = cf_get_next_seqno(caph);
-    }
+    seqno = cf_get_next_seqno(caph);
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -3689,10 +3685,14 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
     }
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
-
     mpack_build_map(&writer);
 
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_SEQNO);
+    mpack_write_u32(&writer, seq);
+
     if (interface != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE);
+        mpack_build_map(&writer);
         if (interface->capif != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
             mpack_write_cstr(&writer, interface->capif);
@@ -3716,7 +3716,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
             }
             mpack_finish_array(&writer);
         }
-
+        mpack_complete_map(&writer);
     }
 
     mpack_complete_map(&writer);
@@ -3732,7 +3732,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 }
 
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, uint32_t dlt, const char *uuid, 
+        const char *msg, uint32_t dlt, const char *uuid,
         cf_params_interface_t *interface, cf_params_spectrum_t *spectrum) {
 
     size_t est_len = 24;
@@ -3798,7 +3798,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     if (caph->hopping_running) {
-        /* rate + shuffle + skip + offset + array */ 
+        /* rate + shuffle + skip + offset + array */
         est_len += 8 + 1 + 2 + 2 + 4;
 
         for (i = 0; i < caph->channel_hop_list_sz; i++) {
@@ -3810,13 +3810,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     est_len = est_len * 1.15;
 
-    if (seq != 0) {
-        seqno = seq;
-    } else {
-        seqno = cf_get_next_seqno(caph);
-    }
+    seqno = cf_get_next_seqno(caph);
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -3826,6 +3822,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
     mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_SEQNO);
+    mpack_write_u32(&writer, seq);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT);
     mpack_write_u32(&writer, dlt);
@@ -3885,7 +3884,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
         mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
 
-        mpack_finish_map(&writer);
+        mpack_complete_map(&writer);
     }
 
     mpack_complete_map(&writer);
@@ -3945,10 +3944,10 @@ int cf_send_data(kis_capture_handler_t *caph,
         KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(est_len, gps);
     } else if (caph->gps_fixed_lat != 0) {
         if (caph->gps_name != NULL) {
-            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed",
                     caph->gps_name);
         } else {
-            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed",
                     "remote-fixed");
         }
 
@@ -3960,7 +3959,7 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     seqno = cf_get_next_seqno(caph);
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PACKET, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -3973,7 +3972,7 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     if (gps != NULL || caph->gps_fixed_lat != 0) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK);
-        mpack_build_map(&writer); 
+        mpack_build_map(&writer);
 
         if (gps != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
@@ -4046,7 +4045,7 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     if (signal != NULL) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK);
-        mpack_build_map(&writer); 
+        mpack_build_map(&writer);
 
         if (signal->channel != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
@@ -4088,7 +4087,7 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     /* write the packet itself */
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_PACKETBLOCK);
-    mpack_build_map(&writer); 
+    mpack_build_map(&writer);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT);
     mpack_write_u32(&writer, dlt);
@@ -4160,10 +4159,10 @@ int cf_send_json(kis_capture_handler_t *caph,
         KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(est_len, gps);
     } else if (caph->gps_fixed_lat != 0) {
         if (caph->gps_name != NULL) {
-            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed",
                     caph->gps_name);
         } else {
-            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed", 
+            KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN2(est_len, "remote-fixed",
                     "remote-fixed");
         }
 
@@ -4175,7 +4174,7 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     seqno = cf_get_next_seqno(caph);
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PACKET, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -4188,7 +4187,7 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     if (gps != NULL || caph->gps_fixed_lat != 0) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK);
-        mpack_build_map(&writer); 
+        mpack_build_map(&writer);
 
         if (gps != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
@@ -4261,7 +4260,7 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     if (signal != NULL) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK);
-        mpack_build_map(&writer); 
+        mpack_build_map(&writer);
 
         if (signal->channel != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
@@ -4303,7 +4302,7 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     /* write the json itself */
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_JSONBLOCK);
-    mpack_build_map(&writer); 
+    mpack_build_map(&writer);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S);
     mpack_write_u64(&writer, ts.tv_sec);
@@ -4333,7 +4332,7 @@ int cf_send_json(kis_capture_handler_t *caph,
 }
 
 
-int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno, 
+int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         unsigned int success, const char *msg) {
     size_t est_len = 24;
     size_t final_len = 0;
@@ -4347,7 +4346,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     int n;
 
-    /* Send messages independently */ 
+    /* Send messages independently */
     if (msg != NULL) {
         if (caph->verbose) {
             if (success) {
@@ -4363,7 +4362,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         n = cf_send_error(caph, in_seqno, msg);
         return n;
     } else {
-        /* Send messages independently not tied to this sequence, 
+        /* Send messages independently not tied to this sequence,
          * they're just informational */
         n = cf_send_message(caph, msg, MSGFLAG_INFO);
         if (n != 0) {
@@ -4372,7 +4371,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     }
 
     if (caph->hopping_running) {
-        /* rate + shuffle + skip + offset + array */ 
+        /* rate + shuffle + skip + offset + array */
         est_len += 8 + 1 + 2 + 2 + 4;
 
         for (i = 0; i < caph->channel_hop_list_sz; i++) {
@@ -4386,14 +4385,10 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     est_len = est_len * 1.15;
 
-    if (in_seqno != 0) {
-        seqno = in_seqno;
-    } else {
-        seqno = cf_get_next_seqno(caph);
-    }
+    seqno = cf_get_next_seqno(caph);
 
-    meta = 
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, seqno, 0, est_len);
+    meta =
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGUREREPORT, seqno, 0, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -4402,6 +4397,9 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
     mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO);
+    mpack_write_u32(&writer, in_seqno);
 
     if (caph->hopping_running) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
@@ -4432,7 +4430,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
         mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
 
-        mpack_finish_map(&writer);
+        mpack_complete_map(&writer);
     } else {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
         mpack_write_cstr(&writer, caph->channel);
@@ -4469,7 +4467,7 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
 
     seqno = cf_get_next_seqno(caph);
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_NEWSOURCE, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -4515,7 +4513,7 @@ int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno) {
 
     seqno = in_seqno;
 
-    meta = 
+    meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_PONG, seqno, 0, est_len);
 
     if (meta == NULL) {
@@ -4567,7 +4565,7 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
     /* Modeled on the Wireshark Dumpcap priv dropping
      *
      * Restricts the capabilities of the process to only NET_ADMIN and NET_RAW and
-     * strips capabilities for anything else; almost all capture sources which run as 
+     * strips capabilities for anything else; almost all capture sources which run as
      * root will need these, but shouldn't have free reign of the system.
      *
      */
@@ -4580,7 +4578,7 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
 	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
 	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
-	cap_t caps = cap_init(); 
+	cap_t caps = cap_init();
 
 	if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
         snprintf(errstr, STATUS_MAX, "datasource failed to set keepcaps in prctl: %s",
@@ -4647,7 +4645,7 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
     }
 
     /* Remount / as a read-only bind-mount of itself over our rootfs */
-    if (mount("/", "/", "bind", MS_BIND | MS_REMOUNT | MS_PRIVATE | 
+    if (mount("/", "/", "bind", MS_BIND | MS_REMOUNT | MS_PRIVATE |
                 MS_REC | MS_RDONLY, NULL) < 0) {
         /* Only send warning if we're running as root */
         if (getuid() == 0) {
@@ -4705,12 +4703,12 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
 
                 if (wpid == caph->monitor_pid) {
                     if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                        fprintf(stderr, "INFO: capture process exited %d signal %d\n", 
+                        fprintf(stderr, "INFO: capture process exited %d signal %d\n",
                                 WEXITSTATUS(status), WTERMSIG(status));
                         break;
                     }
                 }
-            } 
+            }
         } else {
             if (caph->use_tcp) {
                 if (cf_handler_tcp_remote_connect(caph) < 1) {
@@ -4718,7 +4716,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                 }
             } else {
 #ifdef HAVE_LIBWEBSOCKETS
-                /* Prepare the libwebsockets ssl and context, but let the main connection callback 
+                /* Prepare the libwebsockets ssl and context, but let the main connection callback
                  * via the main lws_service loop */
 
                 memset(&caph->lwsinfo, 0, sizeof(struct lws_context_creation_info));
@@ -4822,7 +4820,7 @@ int cf_wait_announcement(kis_capture_handler_t *caph) {
             fprintf(stderr, "WARNING:  Corrupt/invalid announcement seen, ignoring.\n");
 
         if (caph->announced_uuid != NULL)
-            if (strncmp(caph->announced_uuid, announcement.uuid, 36) != 0) 
+            if (strncmp(caph->announced_uuid, announcement.uuid, 36) != 0)
                 continue;
 
         caph->remote_host = strdup(inet_ntoa(recv_addr.sin_addr));
@@ -4865,7 +4863,7 @@ int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program) {
     return 0;
 }
 
-cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) { 
+cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
     cf_ipc_t *ret = NULL;
     pthread_mutexattr_t mutexattr;
 
@@ -4991,11 +4989,11 @@ void cf_ipc_free(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
     free(ipc);
 }
 
-void cf_ipc_signal(kis_capture_handler_t *caph, cf_ipc_t *ipc, int signal) { 
+void cf_ipc_signal(kis_capture_handler_t *caph, cf_ipc_t *ipc, int signal) {
     kill(ipc->pid, signal);
 }
 
-void cf_ipc_set_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_data cb) { 
+void cf_ipc_set_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_data cb) {
     ipc->rx_callback = cb;
 }
 
@@ -5003,16 +5001,16 @@ void cf_ipc_set_err_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_i
     ipc->err_callback = cb;
 }
 
-void cf_ipc_set_term(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_term cb) { 
+void cf_ipc_set_term(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc_term cb) {
     ipc->term_callback = cb;
 }
 
-void cf_ipc_add_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) { 
+void cf_ipc_add_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
     pthread_mutex_lock(&(caph->handler_lock));
 
     cf_ipc_t *first = caph->ipc_list;
 
-    ipc->next = first; 
+    ipc->next = first;
     caph->ipc_list = ipc;
 
     pthread_mutex_unlock(&(caph->handler_lock));
@@ -5036,9 +5034,9 @@ void cf_ipc_remove_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
     }
 
     if (matched) {
-        if (prev == NULL) { 
+        if (prev == NULL) {
             caph->ipc_list = current->next;
-        } else { 
+        } else {
             prev->next = current->next;
         }
     }
