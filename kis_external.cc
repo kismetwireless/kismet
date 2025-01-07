@@ -947,7 +947,7 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
                 for (const auto& v : con->http_variables())
                 var_remap[v.first] = v.second;
 
-                send_http_request(sess_id, static_cast<std::string>(con->uri()),
+                send_http_request_v3(sess_id, static_cast<std::string>(con->uri()),
                         fmt::format("{}", con->verb()), var_remap);
 
                 con->set_closure_cb([session]() { session->locker->unlock(-1); });
@@ -1151,7 +1151,6 @@ unsigned int kis_external_interface::send_http_auth_v3(const std::string& in_coo
 
     return 1;
 }
-
 
 unsigned int kis_external_interface::send_ping() {
 #ifdef HAVE_PROTOBUF_CPP
