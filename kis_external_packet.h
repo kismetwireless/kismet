@@ -197,7 +197,7 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_LISTREPORT                          15
 #define KIS_EXTERNAL_V3_KDS_PACKET                              16
 #define KIS_EXTERNAL_V3_KDS_CONFIGURE                           17
-#define KIS_EXTERNAL_V3_KDS_CONFIGUREREPORT                     18
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT                        18
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE                           19
 
 /* eventbus commands */
@@ -280,18 +280,16 @@ typedef struct kismet_external_frame_v3 {
  *
  * Channel hop directive
  */
-/* string */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL           1
 /* float */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE              2
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE              1
 /* bool */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE           3
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE           2
 /* uint16 */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP              4
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP              3
 /* uint16 */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET            5
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET            4
 /* array[string] */
-#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST         6
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST         5
 
 
 /* KIDS_CHANNEL_GPS_BLOCK */
@@ -448,9 +446,11 @@ typedef struct kismet_external_frame_v3 {
  * Sequence and success code set in top-level header
  * */
 /* u32 */
-#define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_SEQNO            1
+#define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_SEQNO             1
 /* interface sub-block */
-#define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE        2
+#define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE         2
+/* stirng */
+#define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG               3
 
 
 
@@ -460,7 +460,7 @@ typedef struct kismet_external_frame_v3 {
  * Open the defined datasource
  * */
 /* source definition, as string */
-#define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION           1
+#define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION            1
 
 
 
@@ -485,6 +485,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_HARDWARE           7
 /* string */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID               8
+/* string */
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_MSG                9
 
 
 
@@ -508,9 +510,11 @@ typedef struct kismet_external_frame_v3 {
  */
 
 /* uint32 */
-#define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_SEQNO             1
+#define KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_SEQNO              1
 /* Array of instances of interface sub blocks */
-#define KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST            2
+#define KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST             2
+/* string */
+#define KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_MSG                3
 
 
 /* KIS_EXTERNAL_V3_KDS_CONFIGURE
@@ -537,6 +541,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL          2
 /* channel hop block */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK     3
+/* string */
+#define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_MSG              4
 
 
 /* KIS_EXTERNAL_V3_KDS_NEWSOURCE

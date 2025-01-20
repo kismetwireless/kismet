@@ -3624,8 +3624,6 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     uint32_t seqno;
 
-    int n;
-
     /* Send messages independently */
     if (msg != NULL) {
         if (success) {
@@ -3636,19 +3634,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
                 fprintf(stderr, "ERROR: %s\n", msg);
         }
 
-    }
-
-    /* Send errors tied to this sequence number and exit */
-    if (!success) {
-        n = cf_send_error(caph, seq, msg);
-        return n;
-    } else {
-        /* Send messages independently not tied to this sequence,
-         * they're just informational */
-        n = cf_send_message(caph, msg, MSGFLAG_INFO);
-        if (n != 0) {
-            return n;
-        }
+        est_len += strlen(msg);
     }
 
     if (interface != NULL) {
@@ -3686,6 +3672,11 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
     mpack_build_map(&writer);
+
+    if (msg != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG);
+        mpack_write_cstr(&writer, msg);
+    }
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, seq);
@@ -3745,8 +3736,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     uint32_t seqno;
 
-    int n;
-
     if (msg != NULL) {
         if (success) {
             if (caph->verbose)
@@ -3756,19 +3745,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
                 fprintf(stderr, "ERROR: %s\n", msg);
         }
 
-    }
-
-    /* Send errors tied to this sequence number and exit */
-    if (!success) {
-        n = cf_send_error(caph, seq, msg);
-        return n;
-    } else {
-        /* Send messages independently not tied to this sequence,
-         * they're just informational */
-        n = cf_send_message(caph, msg, MSGFLAG_INFO);
-        if (n != 0) {
-            return n;
-        }
+        est_len += strlen(msg);
     }
 
     est_len += strlen(uuid);
@@ -3823,6 +3800,11 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_build_map(&writer);
 
+    if (msg != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_MSG);
+        mpack_write_cstr(&writer, msg);
+    }
+
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, seq);
 
@@ -3858,8 +3840,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     if (caph->hopping_running) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANHOPBLOCK);
         mpack_build_map(&writer);
-
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL);
 
         if (caph->channel_hop_list_sz > 0) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
@@ -4344,8 +4324,6 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     uint32_t seqno;
 
-    int n;
-
     /* Send messages independently */
     if (msg != NULL) {
         if (caph->verbose) {
@@ -4355,19 +4333,8 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
                 fprintf(stderr, "ERROR: %s\n", msg);
             }
         }
-    }
 
-    /* Send errors and messages tied to this sequence number and exit */
-    if (!success) {
-        n = cf_send_error(caph, in_seqno, msg);
-        return n;
-    } else {
-        /* Send messages independently not tied to this sequence,
-         * they're just informational */
-        n = cf_send_message(caph, msg, MSGFLAG_INFO);
-        if (n != 0) {
-            return n;
-        }
+        est_len += strlen(msg);
     }
 
     if (caph->hopping_running) {
@@ -4388,7 +4355,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     seqno = cf_get_next_seqno(caph);
 
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGUREREPORT, seqno, 0, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGUREREPORT, seqno, success != 0, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -4398,14 +4365,17 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     mpack_build_map(&writer);
 
+    if (msg) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_MSG);
+        mpack_write_cstr(&writer, msg);
+    }
+
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, in_seqno);
 
     if (caph->hopping_running) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
         mpack_build_map(&writer);
-
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHANNEL);
 
         if (caph->channel_hop_list_sz > 0) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);

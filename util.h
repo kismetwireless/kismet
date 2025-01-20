@@ -546,5 +546,84 @@ bool is_valid_utf8(const std::string& subject);
 bool iequals(const std::string& a, const std::string& b);
 uint64_t human_to_freq_khz(const std::string&);
 
+template <class S, class D>
+void string_vector_merge(const S& source, D destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    bool dest_empty = destination.size() == 0;
+
+    for (const auto& si : source) {
+        if (dest_empty) {
+            destination.push_back(si);
+            continue;
+        } else {
+            bool merge = true;
+            for (const auto& sd : destination) {
+                if (!merge_fn(si, sd)) {
+                    merge = false;
+                    break;
+                }
+            }
+
+            if (merge) {
+                destination.push_back(si);
+            }
+        }
+    }
+}
+
+template <class S, class D>
+void string_vector_merge(const S *source, D destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    return string_vector_merge<S, D>(*source, destination, merge_fn);
+}
+
+template <class S, class D>
+void string_vector_merge(const S& source, D *destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    return string_vector_merge<S, D>(source, *destination, merge_fn);
+}
+
+template <class S, class D>
+void string_vector_merge(const S *source, D *destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    return string_vector_merge<S, D>(*source, *destination, merge_fn);
+}
+
+// highly inefficient inline filtering without recreating the object
+template <class D, class S>
+void string_vector_inline_filter(D& destination, const S& filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+    if (filter.size() == 0) {
+        return;
+    }
+
+    for (const auto& fi : filter) {
+        for (size_t i = 0; i < destination.size(); i++) {
+            if (match_fn(fi, destination[i])) {
+                destination.erase(destination.begin() + i);
+                break;
+            }
+        }
+    }
+}
+
+template <class D, class S>
+void string_vector_inline_filter(D& destination, const S *filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+    return string_vector_inline_filter<D, S>(destination, *filter, match_fn);
+}
+
+template <class D, class S>
+void string_vector_inline_filter(D *destination, const S& filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+    return string_vector_inline_filter<D, S>(*destination, filter, match_fn);
+}
+
+template <class D, class S>
+void string_vector_inline_filter(D *destination, const S *filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+    return string_vector_inline_filter<D, S>(*destination, *filter, match_fn);
+}
+
 #endif
 
