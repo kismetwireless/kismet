@@ -592,6 +592,8 @@ protected:
             uint16_t code, uint32_t seqno, const nonstd::string_view& content) override;
 
     // V3 Packet handlers
+    virtual void handle_configsource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+            kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_configure_report_v3(uint32_t in_seqno, uint16_t code,
             const nonstd::string_view& in_packet);
     virtual void handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
@@ -600,8 +602,12 @@ protected:
             const nonstd::string_view& in_packet);
     virtual void handle_packet_interfaces_report_v3(uint32_t in_seqno, uint16_t code,
             const nonstd::string_view& in_packet);
+    virtual void handle_opensource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+            kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_opensource_report_v3(uint32_t in_seqno, uint16_t code,
             const nonstd::string_view& in_packet);
+    virtual void handle_probesource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+            kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_probesource_report_v3(uint32_t in_seqno, uint16_t code,
             const nonstd::string_view& in_packet);
     virtual void handle_packet_warning_report_v3(uint32_t in_seqno, uint16_t code,
