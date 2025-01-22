@@ -3951,7 +3951,7 @@ int cf_send_data(kis_capture_handler_t *caph,
     mpack_build_map(&writer);
 
     if (gps != NULL || caph->gps_fixed_lat != 0) {
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_GPSBLOCK);
         mpack_build_map(&writer);
 
         if (gps != NULL) {
@@ -4024,7 +4024,7 @@ int cf_send_data(kis_capture_handler_t *caph,
     }
 
     if (signal != NULL) {
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
         mpack_build_map(&writer);
 
         if (signal->channel != NULL) {
@@ -4066,7 +4066,7 @@ int cf_send_data(kis_capture_handler_t *caph,
     }
 
     /* write the packet itself */
-    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_PACKETBLOCK);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_PACKETBLOCK);
     mpack_build_map(&writer);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT);
@@ -4166,7 +4166,7 @@ int cf_send_json(kis_capture_handler_t *caph,
     mpack_build_map(&writer);
 
     if (gps != NULL || caph->gps_fixed_lat != 0) {
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_GPSBLOCK);
         mpack_build_map(&writer);
 
         if (gps != NULL) {
@@ -4239,7 +4239,7 @@ int cf_send_json(kis_capture_handler_t *caph,
     }
 
     if (signal != NULL) {
-        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
         mpack_build_map(&writer);
 
         if (signal->channel != NULL) {
@@ -4281,7 +4281,7 @@ int cf_send_json(kis_capture_handler_t *caph,
     }
 
     /* write the json itself */
-    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_JSONBLOCK);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_JSONBLOCK);
     mpack_build_map(&writer);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S);
