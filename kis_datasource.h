@@ -610,8 +610,6 @@ protected:
             kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_probesource_report_v3(uint32_t in_seqno, uint16_t code,
             const nonstd::string_view& in_packet);
-    virtual void handle_packet_warning_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet);
 
     virtual unsigned int send_configure_channel_v3(const std::string& in_channel,
             unsigned int in_transaction, configure_callback_t in_cb);
@@ -631,8 +629,10 @@ protected:
     // specific decoders to break out signal and gps extraction for derivitive classes; to be passed the
     // decoded packet mpack tree.  most child classes shouldn't ever need to touch this since it also
     // implies handling the whole raw packet.
-    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(mpack_tree_t *in_packet_tree);
-    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(mpack_tree_t *in_packet_tree);
+    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(mpack_node_t& root,
+            mpack_tree_t *tree);
+    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(mpack_node_t& root,
+            mpack_tree_t *tree);
 
 #ifdef HAVE_PROTOBUF_CPP
     // legacy v2 protocol handlers, to be phased out.  these are all optional, and require Kismet to be

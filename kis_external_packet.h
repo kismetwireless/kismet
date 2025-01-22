@@ -417,15 +417,15 @@ typedef struct kismet_external_frame_v3 {
  * sends packet or packet-like data to the Kismet server
  */
 /* gps sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_GPSBLOCK          1
+#define KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_GPSBLOCK          1
 /* signal sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SIGNALBLOCK       2
+#define KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK       2
 /* spectrum sub-block (currently not defined or implemented) */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_SPECTRUMBLOCK     3
+#define KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SPECTRUMBLOCK     3
 /* packet sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_PACKETBLOCK       4
+#define KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_PACKETBLOCK       4
 /* json sub-block */
-#define KIS_EXTERNAL_V3_KDS_DATA_REPORT_FIELD_JSONBLOCK         5
+#define KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_JSONBLOCK         5
 
 
 
