@@ -31,7 +31,7 @@
  * thread, while the protocol IO and incoming commands are handled by the
  * thread which calls the cf_handler_loop(..) function.
  *
- * Capture may be completely blocking - for example using pcap_loop directly - 
+ * Capture may be completely blocking - for example using pcap_loop directly -
  * because it is isolated from the protocol control thread.
  */
 
@@ -92,7 +92,7 @@ struct cf_ws_msg {
  *
  * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
- * **interfaces must be allocated by the list cb and should contain valid 
+ * **interfaces must be allocated by the list cb and should contain valid
  * list_iterface_t objects
  *
  * Return values:
@@ -122,7 +122,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  0   no error occurred, interface is not supported
  *  1   interface supported
  */
-typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
+typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
         const char *definition, char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
@@ -145,8 +145,8 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  * -1   error occurred while opening
  *  0   success
  */
-typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
-        const char *definition, char *msg, uint32_t *dlt, char **uuid, 
+typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno,
+        const char *definition, char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -155,7 +155,7 @@ typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno,
  * suitable for controlling a capture interface.  This is used to prevent
  * constant heavy parsing of strings during channel hopping, etc.
  *
- * The callback should allocate a custom structure containing the information and 
+ * The callback should allocate a custom structure containing the information and
  * return it as a void*.  This structure will be passed to future callback operations.
  *
  * If the structure is complex and cannot be freed with a simple free() operation,
@@ -173,14 +173,14 @@ typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, const char *
  * Called as part of a channel hopping pattern (seqno == 0) or in response to a
  * direct channel set command (seqno != 0).
  *
- * Appropriate classification of tuning errors is left to the discretion of the 
+ * Appropriate classification of tuning errors is left to the discretion of the
  * callback; typically an error during hopping may be allowable while an error
  * during an explicit channel set is not.
  *
  * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It
  * will be transmitted along with success or failure if seqno != 0.
  *
- * In all other situations, the callback may communicate to the user status 
+ * In all other situations, the callback may communicate to the user status
  * changes via cf_send_message(...)
  *
  * Returns:
@@ -189,7 +189,7 @@ typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, const char *
  *      attempts
  *  1+  Success
  */
-typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno, 
+typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno,
         void *privchan, char *msg);
 
 /* Channel free
@@ -217,13 +217,13 @@ typedef void (*cf_callback_chanfree)(void *);
  * -1   Error occurred, close source
  *  0   Success, or frame ignored
  */
-typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
+typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t,
         unsigned int, const char *, uint32_t);
 
 /* Capture callback
  * Called inside the capture thread as the primary capture mechanism for the source.
  *
- * This callback should loop as long as the source is running, and will be placed 
+ * This callback should loop as long as the source is running, and will be placed
  * in its own thread.  This callback may block, and does not need to be aware of
  * other network IO.
  *
@@ -240,7 +240,7 @@ typedef void (*cf_callback_capture)(kis_capture_handler_t *);
  *
  * Called in response to a SPECSET block in a CONFIGURE command
  *
- * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It 
+ * msg is allocated by the framework and can hold up to STATUS_MAX characters.  It
  * will be transmitted along with the success or failure value if seqno != 0
  *
  * In all other situations, the callback may communicate status to the user
@@ -311,7 +311,7 @@ struct kis_capture_handler {
     char *lwssslcapath;
 
     struct lws_context_creation_info lwsinfo;
-    
+
     char *lwsuuid;
 #endif
 
@@ -464,6 +464,7 @@ struct cf_params_gps {
     uint32_t ts_usec;
     char *gps_type;
     char *gps_name;
+    char *gps_uuid;
 };
 
 struct cf_params_signal {
@@ -476,7 +477,7 @@ struct cf_params_signal {
     char *channel;
 };
 
-/* Exceedingly simple linked list structure for errors setting channels 
+/* Exceedingly simple linked list structure for errors setting channels
  * so we can screen them out */
 struct cf_channel_error {
     unsigned long channel_pos;
@@ -492,7 +493,7 @@ void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable);
 
 /* Parse an interface name from a definition string.
  * Returns a pointer to the start of the interface name in the definition in
- * ret_interface, and the length of the interface name.  
+ * ret_interface, and the length of the interface name.
  *
  * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
  * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
@@ -528,14 +529,14 @@ int cf_find_flag(const char **ret_value, const char *flag, const char *definitio
  *  1+  Number of instances of flag found in definition
  */
 int cf_count_flag(const char *flag, char *definition);
- 
+
 
 /* Parse a comma separated list of strings, such as channels, into an array of char*.
  *
  * Expects the size of the incoming string in in_sz, allowing for direct passing
  * of values extracted via cf_find_flag which are not null terminated
  *
- * Parsed list is placed into *ret_splitlist and the length is placed into 
+ * Parsed list is placed into *ret_splitlist and the length is placed into
  * *ret_splitlist_sz.  The caller is responsible for freeing the strings and
  * the array.
  *
@@ -543,12 +544,12 @@ int cf_count_flag(const char *flag, char *definition);
  * -1   Error
  *  0   Success
  */
-int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
+int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist,
         size_t *ret_splitlist_sz);
 
 /* Merge two string arrays of strings, such as channels, into a single array of
  * unique values.
- *  
+ *
  * Passed elements *are copied*.  Caller is responsible for freeing original
  * copies.
  *
@@ -634,13 +635,13 @@ int cf_jail_filesystem(kis_capture_handler_t *caph);
  * Returns:
  * -1   Error dropping capabilities
  *  0   Capability support not compiled in
- *  1   Success 
+ *  1   Success
  */
 int cf_drop_most_caps(kis_capture_handler_t *caph);
 
 /* Assign a channel hopping list processed by a capture binary */
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
-        void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing, 
+        void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing,
         int offset);
 
 /* Set a channel hop shuffle spacing */
@@ -651,7 +652,7 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing
  *
  * Parse command line for --in-fd, --out-fd, --connect, --source, --host, and populate
  * the caph config.
- * 
+ *
  * Returns:
  * -1   Missing in-fd/out-fd or --connect, or unknown argument, caller should print
  *      help and exit
@@ -665,18 +666,18 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
 void cf_print_help(kis_capture_handler_t *caph, const char *argv0);
 
 /* Set callbacks; pass NULL to remove a callback. */
-void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_listdevices_cb(kis_capture_handler_t *capf,
         cf_callback_listdevices cb);
 void cf_handler_set_probe_cb(kis_capture_handler_t *capf, cf_callback_probe cb);
 void cf_handler_set_open_cb(kis_capture_handler_t *capf, cf_callback_open cb);
 
-void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf,
         cf_callback_chantranslate cb);
-void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf,
         cf_callback_chancontrol cb);
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);
 
-void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf, 
+void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf,
         cf_callback_spectrumconfig cb);
 
 void cf_handler_set_unknown_cb(kis_capture_handler_t *capf, cf_callback_unknown cb);
@@ -725,7 +726,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph);
 int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph);
 
 /* Connect to a websocket endpoint, if remote connection in ws mode;
- * this should not be needed by capture tools using the framework, the 
+ * this should not be needed by capture tools using the framework, the
  * capture loop will be managed directly via cf_handler_remote_capture
  *
  * Returns:
@@ -737,7 +738,7 @@ int cf_handler_ws_remote_connect(kis_capture_handler_t *caph);
 
 
 /* Set up a fork loop for remote capture processes.  The normal capture code
- * is run in an independently executed process, allowing for one-shot privilege 
+ * is run in an independently executed process, allowing for one-shot privilege
  * dropping and eliminating potential memory leaks from interfering with reloading
  * the capture process.
  *
@@ -751,7 +752,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph);
  * encounters an error or gets a shutdown command.
  *
  * Capture drivers should typically define their IO in a callback which will
- * be run in a thread automatically via cf_handler_set_capture_cb. 
+ * be run in a thread automatically via cf_handler_set_capture_cb.
  * cf_handler_loop() should be called in the main() function.
  *
  * Returns:
@@ -761,11 +762,11 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph);
 int cf_handler_loop(kis_capture_handler_t *caph);
 
 
-/* Frame metadata, passed around by the prepare/commit system. 
+/* Frame metadata, passed around by the prepare/commit system.
  * Callers should only expect *frame to be available or sensical. */
 typedef struct _cf_frame_metadata {
     void *metadata;
-    void (*free_record)(kis_capture_handler_t *caph, 
+    void (*free_record)(kis_capture_handler_t *caph,
             struct _cf_frame_metadata *meta);
     kismet_external_frame_v3_t *frame;
 } cf_frame_metadata;
@@ -775,48 +776,48 @@ typedef struct _cf_frame_metadata {
  *
  * The packet *must* be committed for transmission or cancelled.
  *
- * For the duration of the packet being prepared, the capture framework 
+ * For the duration of the packet being prepared, the capture framework
  * handler will be locked.
  *
- * The estimated length must be long enough to contain the serialized 
- * data, and can not be grown dynamically. 
+ * The estimated length must be long enough to contain the serialized
+ * data, and can not be grown dynamically.
  *
  * The packet must be committed with the final size of the payload.
  *
  * Returns:
- *  cf_frame_metadata   *frame is considered valid for use 
+ *  cf_frame_metadata   *frame is considered valid for use
  *  NULL                Unable to prepare frame
  */
 cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
-        unsigned int command, uint32_t seqno, uint16_t code, 
+        unsigned int command, uint32_t seqno, uint16_t code,
         size_t estimated_len);
 
-/* Cancel a frame; this frees any memory associated with it and 
- * unlocks the capture framework */ 
-void cf_cancel_packet(kis_capture_handler_t *caph, 
+/* Cancel a frame; this frees any memory associated with it and
+ * unlocks the capture framework */
+void cf_cancel_packet(kis_capture_handler_t *caph,
         cf_frame_metadata *meta);
 
-/* Commit a frame, this queues the frame for transmission and 
- * unlocks the capture framework. 
+/* Commit a frame, this queues the frame for transmission and
+ * unlocks the capture framework.
  *
- * The final length of the content is updated in the protoco frame 
+ * The final length of the content is updated in the protoco frame
  * before transmission.
  *
- * At the end of queing, the meta data is freed and is no longer 
+ * At the end of queing, the meta data is freed and is no longer
  * valid for use.
  *
- * Returns: 
- *  0       No error 
+ * Returns:
+ *  0       No error
  *  other   Queuing could not be completed.
  */
-int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta, 
+int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta,
         size_t final_len);
 
-/* Lock-safe way to get the next sequence number 
+/* Lock-safe way to get the next sequence number
  *
  * Returns:
- *  Next sequence number 
- */ 
+ *  Next sequence number
+ */
 uint32_t cf_get_next_seqno(kis_capture_handler_t *caph);
 
 
@@ -858,7 +859,7 @@ int cf_send_packet(kis_capture_handler_t *caph, unsigned int packtype,
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_send_message(kis_capture_handler_t *caph, const char *message, 
+int cf_send_message(kis_capture_handler_t *caph, const char *message,
         unsigned int flags);
 
 /* Send a MESSAGE+WARNING
@@ -917,7 +918,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
 /* Send an OPENRESP response
  * Can be called from any thread
  *
- * To send supported channels list, provide channels and channels_len, otherwise set 
+ * To send supported channels list, provide channels and channels_len, otherwise set
  * channels_len to 0
  *
  * Returns:
@@ -926,7 +927,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq, unsigned int su
  *  1   Success
  */
 int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, const uint32_t dlt, const char *uuid, 
+        const char *msg, const uint32_t dlt, const char *uuid,
         cf_params_interface_t *interface, cf_params_spectrum_t *spectrum);
 
 /* Send a DATA frame with packet data
@@ -934,15 +935,20 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *
  * If present, include message_kv, signal_kv, or gps_kv along with the packet data.
  *
+ * original_sz is the original length (such as reported by libpcap)
+ * packet_sz is the actual captured size, if trimmed (such as caplen reported
+ * by libpcap, or other trimmed data not sending the entire content)
+ *
  * Returns:
- * -1   An error occurred 
+ * -1   An error occurred
  *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_data(kis_capture_handler_t *caph,
-        const char *msg, unsigned int msg_type, 
+        const char *msg, unsigned int msg_type,
         struct cf_params_signal *signal, struct cf_params_gps *gps,
-        struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack);
+        struct timeval ts, uint32_t dlt, uint32_t original_sz,
+        uint32_t packet_sz, uint8_t *pack);
 
 /* Send a DATA frame with JSON non-packet data
  * Can be called from any thread
@@ -955,10 +961,10 @@ int cf_send_data(kis_capture_handler_t *caph,
  *  1   Success
  */
 int cf_send_json(kis_capture_handler_t *caph,
-        const char *msg, unsigned int msg_type, 
-        struct cf_params_signal *signal, 
+        const char *msg, unsigned int msg_type,
+        struct cf_params_signal *signal,
         struct cf_params_gps *gps,
-        struct timeval ts, const char *type, 
+        struct timeval ts, const char *type,
         const char *json);
 
 /* Send a CONFIGRESP with only a success and optional message
@@ -992,13 +998,13 @@ int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno);
 /* Send a NEWSOURCE command to initiate connecting to a remote server
  *
  * Returns:
- * -1   An error occurred 
+ * -1   An error occurred
  *  0   Insufficient space in buffer
  *  1   Success
  */
 int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid);
 
-/* Simple frequency parser, returns the frequency in khz from multiple input 
+/* Simple frequency parser, returns the frequency in khz from multiple input
  * formats, such as:
  * 123KHz
  * 123000Hz
@@ -1011,7 +1017,7 @@ double cf_parse_frequency(const char *freq);
 void cf_set_verbose(kis_capture_handler_t *caph, int verbosity);
 
 /* Simple redefinition of message flags */
-#define MSGFLAG_DEBUG  KIS_EXTERNAL_V3_MSG_DEBUG 
+#define MSGFLAG_DEBUG  KIS_EXTERNAL_V3_MSG_DEBUG
 #define MSGFLAG_INFO   KIS_EXTERNAL_V3_MSG_INFO
 #define MSGFLAG_ERROR  KIS_EXTERNAL_V3_MSG_ERROR
 #define MSGFLAG_ALERT  KIS_EXTERNAL_V3_MSG_ALERT
@@ -1038,14 +1044,14 @@ static void ws_destroy_msg(void *in_msg);
  * Called when new data comes from an exec'd process
  *
  * Return values:
- * -1   error occurred with processing data, kill ipc exec 
+ * -1   error occurred with processing data, kill ipc exec
  *  0   no error occurred, continue processing
  */
-typedef int (*cf_callback_ipc_data)(kis_capture_handler_t *, cf_ipc_t *, uint32_t read_sz); 
+typedef int (*cf_callback_ipc_data)(kis_capture_handler_t *, cf_ipc_t *, uint32_t read_sz);
 
-/* IPC termination callback 
+/* IPC termination callback
  *
- * Called if a spawned process terminates 
+ * Called if a spawned process terminates
  */
 typedef void (*cf_callback_ipc_term)(kis_capture_handler_t *, cf_ipc_t *, int rc);
 
@@ -1077,45 +1083,45 @@ struct cf_ipc {
 #define wrap_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
 #define wrap_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
 
-/* Find a program in $PATH 
+/* Find a program in $PATH
  *
- * Search the $PATH environment for the given executable, and see if it IS executable. 
+ * Search the $PATH environment for the given executable, and see if it IS executable.
  *
- * Returns 1 (success) or 0 (failure) 
+ * Returns 1 (success) or 0 (failure)
  */
 int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program);
 
-/* Launch an IPC process with file descriptors mapped to stdin/out 
- * 
+/* Launch an IPC process with file descriptors mapped to stdin/out
+ *
  * Returns a populated struct of the child information.
  * Caller is responsible for free()ing this data.
  *
  */
 cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *, int argc, char **argv);
 
-/* Free an IPC record 
+/* Free an IPC record
  */
 void cf_ipc_free(kis_capture_handler_t *, cf_ipc_t *);
 
-/* Kill (or signal) a process 
+/* Kill (or signal) a process
  */
 void cf_ipc_signal(kis_capture_handler_t *, cf_ipc_t *, int signal);
 
-/* Set an IPC read handler 
+/* Set an IPC read handler
  */
 void cf_ipc_set_rx(kis_capture_handler_t *, cf_ipc_t *, cf_callback_ipc_data cb);
 
-/* Set an IPC termination handler 
+/* Set an IPC termination handler
  */
 void cf_ipc_set_term(kis_capture_handler_t *, cf_ipc_t *, cf_callback_ipc_term cb);
 
-/* Add the IPC to the central tracking 
+/* Add the IPC to the central tracking
  */
 void cf_ipc_add_process(kis_capture_handler_t *, cf_ipc_t *);
 
-/* Remove an IPC process from the central tracking; this process should already 
+/* Remove an IPC process from the central tracking; this process should already
  * be killed.  This will close the file descriptors and free the buffers.
- */ 
+ */
 void cf_ipc_remove_process(kis_capture_handler_t *, cf_ipc_t *);
 
 #endif

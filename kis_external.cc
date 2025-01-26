@@ -700,7 +700,7 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
     mpack_tree_raii tree;
     mpack_node_t root;
 
-    const char *message;
+    char *message;
     unsigned int msgtype;
 
     mpack_tree_init_data(&tree, in_content.data(), in_content.length());
@@ -714,15 +714,24 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
     root = mpack_tree_root(&tree);
 
     msgtype = mpack_node_u16(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_TYPE));
-    message = mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING));
+    message = mpack_node_cstr_alloc(mpack_node_map_uint(root, KIS_EXTERNAL_V3_MESSAGE_FIELD_STRING), 4096);
 
     if (mpack_tree_error(&tree)) {
         _MSG_ERROR("Kismet external interface got malformed v3 MESSAGE");
         trigger_error("invalid v3 MESSAGE");
+
+        if (message != nullptr) {
+            free(message);
+        }
+
         return;
     }
 
     handle_msg_proxy(message, msgtype);
+
+    if (message != nullptr) {
+        free(message);
+    }
 }
 
 void kis_external_interface::handle_packet_ping_v3(uint32_t in_seqno,
@@ -753,8 +762,8 @@ void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
 
     root = mpack_tree_root(&tree);
 
-    const char *reason =
-        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON));
+    char *reason =
+        mpack_node_cstr_alloc(mpack_node_map_uint(root, KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON), 8192);
 
     if (mpack_tree_error(&tree)) {
         _MSG_INFO("Kismet external interface shutting down: no reason");
@@ -762,6 +771,10 @@ void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
     } else {
         _MSG_INFO("Kismet external interface shutting down: {}", reason);
         trigger_error(fmt::format("remote connection triggered shutdown: {}", reason));
+    }
+
+    if (reason != nullptr) {
+        free(reason);
     }
 }
 
@@ -840,8 +853,9 @@ void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqn
 
     auto events_sz = mpack_node_array_length(evtlist);
 
+    char evt[128];
     for (size_t szi = 0; szi < events_sz; szi++) {
-        const char *evt = mpack_node_str(mpack_node_array_at(evtlist, szi));
+        mpack_node_copy_cstr(mpack_node_array_at(evtlist, szi), evt, 128);
 
         if (mpack_tree_error(&tree) != mpack_ok) {
             _MSG_ERROR("Kismet external interface got unparseable v3 EVENTREGISTER event list");
@@ -881,14 +895,23 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
 
     root = mpack_tree_root(&tree);
 
-    const char *evt_type =
-        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTPUBLISH_FIELD_TYPE));
-    const char *evt_event =
-        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT));
+    char *evt_type =
+        mpack_node_cstr_alloc(mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTPUBLISH_FIELD_TYPE), 128);
+    char *evt_event =
+        mpack_node_cstr_alloc(mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT), 4096);
 
     if (mpack_tree_error(&tree)) {
         _MSG_ERROR("Kismet external interface got unparseable v3 EVENTPUBLISH");
         trigger_error("invalid v3 EVENTPUBLISH");
+
+        if (evt_type != nullptr) {
+            free(evt_type);
+        }
+
+        if (evt_event != nullptr) {
+            free(evt_event);
+        }
+
         return;
     }
 
@@ -896,6 +919,14 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
     evt->get_event_content()->insert("kismet.eventbus.event_json",
             std::make_shared<tracker_element_string>(evt_event));
     eventbus->publish(evt);
+
+    if (evt_type != nullptr) {
+        free(evt_type);
+    }
+
+    if (evt_event != nullptr) {
+        free(evt_event);
+    }
 }
 
 void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
@@ -917,14 +948,20 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
 
     root = mpack_tree_root(&tree);
 
-    const char *method =
-        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_METHOD));
-    const char *uri =
-        mpack_node_str(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_URI));
+    char method[64];
+    mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_METHOD), method, 64);
+
+    char *uri =
+        mpack_node_cstr_alloc(mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_REGISTERURI_FIELD_URI), 4096);
 
     if (mpack_tree_error(&tree)) {
         _MSG_ERROR("Kismet external interface got unparseable v3 HTTPREGISTER");
         trigger_error("invalid v3 HTTPREGISTER");
+
+        if (uri != nullptr) {
+            free(uri);
+        }
+
         return;
     }
 
@@ -965,6 +1002,10 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
                 if (mi != http_proxy_session_map.end())
                     http_proxy_session_map.erase(mi);
                 }));
+
+    if (uri != nullptr) {
+        free(uri);
+    }
 }
 
 void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
@@ -1011,19 +1052,29 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
         mpack_node_t hdrmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_WEB_RESPONSE_FIELD_HEADERS);
         auto hdr_sz = mpack_node_map_count(hdrmap);
 
+        char hdr_key[64];
+
         for (size_t szi = 0; szi < hdr_sz; szi++) {
-            const char *hdr_key =
-                mpack_node_str(mpack_node_map_key_at(hdrmap, szi));
-            const char *hdr_val =
-                mpack_node_str(mpack_node_map_value_at(hdrmap, szi));
+            mpack_node_copy_cstr(mpack_node_map_key_at(hdrmap, szi), hdr_key, 64);
+            char *hdr_val =
+                mpack_node_cstr_alloc(mpack_node_map_value_at(hdrmap, szi), 4096);
 
             if (mpack_tree_error(&tree)) {
                 _MSG_ERROR("Kismet external interface got unparseable v3 HTTPRESPONSE");
                 trigger_error("invalid v3 HTTPRESPONSE");
+
+                if (hdr_val != nullptr) {
+                    free(hdr_val);
+                }
+
                 return;
             }
 
             session->connection->append_header(hdr_key, hdr_val);
+
+            if (hdr_val != nullptr) {
+                free(hdr_val);
+            }
         }
     }
 

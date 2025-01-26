@@ -1733,7 +1733,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             mpack_tree_t tree;
             mpack_node_t root;
 
-            const char *definition;
+            char *definition;
 
             mpack_tree_init_data(&tree, (const char *) data, packet_sz);
 
@@ -1753,19 +1753,26 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 goto finish;
             }
 
-            definition = mpack_node_str(mpack_node_map_uint(root,
-                        KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION));
+            definition = mpack_node_cstr_alloc(mpack_node_map_uint(root,
+                        KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION), 4096);
 
             if (mpack_tree_error(&tree) != mpack_ok) {
                 fprintf(stderr, "FATAL: Invalid probe request received, unable to unpack source definition.\n");
                 cbret = -1;
                 mpack_tree_destroy(&tree);
+                if (definition != NULL) {
+                    free(definition);
+                }
                 goto finish;
             }
 
             msgstr[0] = 0;
             cbret = (*(caph->probe_cb))(caph, seqno, definition, msgstr, &uuid,
                     &interfaceparams, &spectrumparams);
+
+            if (definition != NULL) {
+                free(definition);
+            }
 
             cf_send_proberesp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
 
@@ -1808,7 +1815,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             mpack_tree_t tree;
             mpack_node_t root;
 
-            const char *definition;
+            char *definition;
 
             mpack_tree_init_data(&tree, (const char *) data, packet_sz);
 
@@ -1827,13 +1834,16 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 goto finish;
             }
 
-            definition = mpack_node_str(mpack_node_map_uint(root,
-                        KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION));
+            definition = mpack_node_cstr_alloc(mpack_node_map_uint(root,
+                        KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION), 8192);
 
             if (mpack_tree_error(&tree) != mpack_ok) {
                 fprintf(stderr, "FATAL: Invalid open request received, unable to unpack source definition.\n");
                 cbret = -1;
                 mpack_tree_destroy(&tree);
+                if (definition != NULL) {
+                    free(definition);
+                }
                 goto finish;
             }
 
@@ -1849,6 +1859,9 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             if (uuid != NULL)
                 free(uuid);
+
+            if (definition != NULL)
+                free(definition);
 
             mpack_tree_destroy(&tree);
 
@@ -1905,8 +1918,9 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         root = mpack_tree_root(&tree);
 
         if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL)) {
-            channel = mpack_node_str(mpack_node_map_uint(root,
-                        KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL));
+            char channel[1024];
+            mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL),
+                    channel, 1024);
 
             if (caph->chantranslate_cb != NULL) {
                 translate_chan = (*(caph->chantranslate_cb))(caph, channel);
@@ -3572,7 +3586,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_build_map(&writer);
 
-    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LIST_REPORT_FIELD_IFLIST);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
     mpack_start_array(&writer, len);
 
     for (i = 0; i < len; i++) {
@@ -3882,7 +3896,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 int cf_send_data(kis_capture_handler_t *caph,
         const char *msg, unsigned int msg_type,
         struct cf_params_signal *signal, struct cf_params_gps *gps,
-        struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack) {
+        struct timeval ts, uint32_t dlt, uint32_t original_sz,
+        uint32_t packet_sz, uint8_t *pack) {
 
     size_t est_len = 24;
     size_t final_len = 0;
@@ -3992,6 +4007,10 @@ int cf_send_data(kis_capture_handler_t *caph,
                 mpack_write_cstr(&writer, gps->gps_name);
             }
 
+            if (gps->gps_uuid != NULL) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_UUID);
+                mpack_write_cstr(&writer, gps->gps_uuid);
+            }
         } else if (caph->gps_fixed_lat != 0) {
             struct timeval tv;
             gettimeofday(&tv, NULL);
@@ -4077,6 +4096,12 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US);
     mpack_write_u32(&writer, ts.tv_usec);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH);
+    mpack_write_u32(&writer, original_sz);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT);
+    mpack_write_bin(&writer, (const char *) pack, packet_sz);
 
     mpack_complete_map(&writer);
 
