@@ -1126,16 +1126,17 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
     }
 
     std::string msg;
-    char msgbuf[4096];
-    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG)) {
-        mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG), msgbuf, 4096);
+    auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG);
+    if (!mpack_node_is_missing(msg_n)) {
+        auto msg_len = mpack_node_data_len(msg_n);
         if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
             trigger_error("invalid v3 PROBEREPORT");
             handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
             return;
         }
-        msg = msgbuf;
+
+        msg = std::string(mpack_node_data(msg_n), msg_len);
     }
 
     if (code != 0) {
@@ -1160,32 +1161,25 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
             }
 
             for (size_t szi = 0; szi < chans_sz; szi++) {
-                const auto ch_s = mpack_node_cstr_alloc(mpack_node_array_at(chanvec, szi), 8192);
-                if (mpack_tree_error(&tree)) {
-                    if (ch_s != nullptr) {
-                        free(ch_s);
-                    }
+                auto ch_n = mpack_node_array_at(chanvec, szi);
+                auto ch_sz = mpack_node_data_len(ch_n);
 
+                if (mpack_tree_error(&tree)) {
                     _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
                     trigger_error("invalid v3 PROBEREPORT");
                     handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
                     return;
                 }
 
-                source_hop_vec->push_back(ch_s);
-
-                if (ch_s != nullptr) {
-                    free(ch_s);
-                }
+                source_hop_vec->push_back(std::string(mpack_node_data(ch_n), ch_sz));
             }
         }
 
         if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL)) {
-            const auto ch_s = mpack_node_cstr_alloc(mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL), 1024);
+            auto ch_n = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
+            auto ch_sz = mpack_node_data_len(ch_n);
+
             if (mpack_tree_error(&tree)) {
-                if (ch_s != nullptr) {
-                    free(ch_s);
-                }
 
                 _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
                 trigger_error("invalid v3 PROBEREPORT");
@@ -1193,31 +1187,21 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
                 return;
             }
 
-            set_int_source_channel(ch_s);
-
-            if (ch_s != nullptr) {
-                free(ch_s);
-            }
+            set_int_source_channel(std::string(mpack_node_data(ch_n), ch_sz));
         }
 
         if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW)) {
-            const auto hw_s = mpack_node_cstr_alloc(mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW), 1024);
-            if (mpack_tree_error(&tree)) {
-                if (hw_s != nullptr) {
-                    free(hw_s);
-                }
+            auto hw_n = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            auto hw_sz = mpack_node_data_len(hw_n);
 
+            if (mpack_tree_error(&tree)) {
                 _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
                 trigger_error("invalid v3 PROBEREPORT");
                 handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
                 return;
             }
 
-            set_int_source_hardware(hw_s);
-
-            if (hw_s != nullptr) {
-                free(hw_s);
-            }
+            set_int_source_hardware(std::string(mpack_node_data(hw_n), hw_sz));
         }
     }
 
@@ -1272,23 +1256,17 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
     std::string msg;
     auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_MSG);
     if (!mpack_node_is_missing(msg_n)) {
-        const auto msg_s = mpack_node_cstr_alloc(msg_n, 8192);
-        if (mpack_tree_error(&tree)) {
-            if (msg_s != nullptr) {
-                free(msg_s);
-            }
+        auto msg_sz = mpack_node_data_len(msg_n);
+        auto msg_s = mpack_node_str(msg_n);
 
+        if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
             trigger_error("invalid v3 CONFIGUREREPORT");
             handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
             return;
         }
 
-        msg = msg_s;
-
-        if (msg_s != nullptr) {
-            free(msg_s);
-        }
+        msg = std::string(msg_s, msg_sz);
     }
 
     if (code != 0) {
@@ -1301,12 +1279,10 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
     auto channel_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
     auto hopmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
     if (!mpack_node_is_missing(channel_n)) {
-        const auto chan_s = mpack_node_cstr_alloc(channel_n, 4096);
-        if (mpack_tree_error(&tree)) {
-            if (chan_s != nullptr) {
-                free(chan_s);
-            }
+        auto chan_sz = mpack_node_data_len(channel_n);
+        auto chan_s = mpack_node_str(channel_n);
 
+        if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
             trigger_error("invalid v3 CONFIGUREREPORT");
             handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
@@ -1314,11 +1290,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
         }
 
         set_int_source_hopping(false);
-        set_int_source_channel(chan_s);
-
-        if (chan_s != nullptr) {
-            free(chan_s);
-        }
+        set_int_source_channel(std::string(chan_s, chan_sz));
     } else if (!mpack_node_is_missing(hopmap)) {
         if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
@@ -1396,9 +1368,11 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
                 return;
             }
 
-            char chanbuf[1024];
             for (size_t szi = 0; szi < chans_sz; szi++) {
-                mpack_node_copy_cstr(mpack_node_array_at(chanvec, szi), chanbuf, 1024);
+                auto chan_n = mpack_node_array_at(chanvec, szi);
+                auto chan_s = mpack_node_str(chan_n);
+                auto chan_sz = mpack_node_data_len(chan_n);
+
                 if (mpack_tree_error(&tree)) {
                     _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
                     trigger_error("invalid v3 CONFIGUREREPORT");
@@ -1406,7 +1380,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
                     return;
                 }
 
-                source_hop_vec->push_back(chanbuf);
+                source_hop_vec->push_back(std::string(chan_s, chan_sz));
             }
         }
     }
@@ -1461,22 +1435,16 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     std::string msg;
     auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_MSG);
     if (!mpack_node_is_missing(msg_n)) {
-        const auto msg_s = mpack_node_cstr_alloc(msg_n, 8192);
-        if (mpack_tree_error(&tree)) {
-            if (msg_s != nullptr) {
-                free(msg_s);
-            }
+        auto msg_s = mpack_node_str(msg_n);
+        auto msg_sz = mpack_node_data_len(msg_n);
 
+        if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
             return;
         }
 
-        msg = msg_s;
-
-        if (msg_s != nullptr) {
-            free(msg_s);
-        }
+        msg = std::string(msg_s, msg_sz);
     }
 
     if (code != 0) {
@@ -1488,8 +1456,9 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
 
     auto uuid_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID);
     if (!mpack_node_is_missing(uuid_n) && get_source_uuid() == 0) {
-        char uuid_s[128];
-        mpack_node_copy_cstr(uuid_n, uuid_s, 128);
+        auto uuid_s = mpack_node_str(uuid_n);
+        auto uuid_sz = mpack_node_data_len(uuid_n);
+
         if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
@@ -1497,7 +1466,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        uuid u(uuid_s);
+        uuid u(std::string(uuid_s, uuid_sz));
         set_source_uuid(u);
         set_source_key(adler32_checksum(u.uuid_to_string()));
     } else if (!local_uuid && get_source_uuid() == 0) {
@@ -1524,29 +1493,24 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
 
     auto capif_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CAPIF);
     if (!mpack_node_is_missing(capif_n)) {
-        const auto cap_s = mpack_node_cstr_alloc(capif_n, 2048);
-        if (mpack_tree_error(&tree)) {
-            if (cap_s != nullptr) {
-                free(cap_s);
-            }
+        auto capif_s = mpack_node_str(capif_n);
+        auto capif_sz = mpack_node_data_len(capif_n);
 
+        if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
             handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
             return;
         }
 
-        set_int_source_cap_interface(cap_s);
-
-        if (cap_s != nullptr) {
-            free(cap_s);
-        }
+        set_int_source_cap_interface(std::string(capif_s, capif_sz));
     }
 
     auto hw_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_HARDWARE);
     if (!mpack_node_is_missing(hw_n)) {
-        char hw_s[512];
-        mpack_node_copy_cstr(hw_n, hw_s, 512);
+        auto hw_s = mpack_node_str(hw_n);
+        auto hw_sz = mpack_node_data_len(hw_n);
+
         if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
@@ -1554,15 +1518,15 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        set_int_source_hardware(hw_s);
+        set_int_source_hardware(std::string(hw_s, hw_sz));
     }
 
     // set the basic channel and channel hopping parameters from the remote in case we're
     // not directing them, as in the case of a remote source
     auto channel_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANNEL);
     if (!mpack_node_is_missing(channel_n)) {
-        char chan_s[1024];
-        mpack_node_copy_cstr(channel_n, chan_s, 1024);
+        auto chan_s = mpack_node_str(channel_n);
+        auto chan_sz = mpack_node_data_len(channel_n);
         if (mpack_tree_error(&tree)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
@@ -1570,7 +1534,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        set_int_source_channel(chan_s);
+        set_int_source_channel(std::string(chan_s, chan_sz));
     }
 
     auto hopmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANHOPBLOCK);
@@ -1643,9 +1607,11 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        char chanbuf[1024];
         for (size_t szi = 0; szi < chans_sz; szi++) {
-            mpack_node_copy_cstr(mpack_node_array_at(chanvec, szi), chanbuf, 1024);
+            auto chan_n = mpack_node_array_at(chanvec, szi);
+            auto chan_s = mpack_node_str(chan_n);
+            auto chan_sz = mpack_node_data_len(chan_n);
+
 
             if (mpack_tree_error(&tree)) {
                 _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
@@ -1654,7 +1620,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
                 return;
             }
 
-            source_channels_vec->push_back(chanbuf);
+            source_channels_vec->push_back(std::string(chan_s, chan_sz));
         }
     }
 
@@ -1797,12 +1763,18 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
 
     auto name_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
     if (!mpack_node_is_missing(name_n)) {
-        gpsinfo->gpsname = mpack_node_str(name_n);
+        auto name_s = mpack_node_str(name_n);
+        auto name_sz = mpack_node_data_len(name_n);
+
+        gpsinfo->gpsname = std::string(name_s, name_sz);
     }
 
     auto type_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
     if (!mpack_node_is_missing(type_n)) {
-        gpsinfo->gpsname = mpack_node_str(type_n);
+        auto type_s = mpack_node_str(type_n);
+        auto type_sz = mpack_node_data_len(type_n);
+
+        gpsinfo->gpsname = std::string(type_s, type_sz);
     }
 
     if (mpack_tree_error(tree)) {
@@ -1861,7 +1833,10 @@ auto sigmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIG
 
     auto channel_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
     if (!mpack_node_is_missing(channel_n)) {
-        siginfo->channel = mpack_node_str(channel_n);
+        auto channel_s = mpack_node_str(channel_n);
+        auto channel_sz = mpack_node_data_len(channel_n);
+
+        siginfo->channel = std::string(channel_s, channel_sz);
     }
 
     if (mpack_tree_error(tree)) {
@@ -1968,11 +1943,15 @@ void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
 
     // bail if no json or type
     auto json_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON);
+    auto json_s = mpack_node_str(json_n);
+    auto json_sz = mpack_node_data_len(json_n);
     if (!mpack_node_is_missing(json_n)) {
         return;
     }
 
     auto type_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE);
+    auto type_s = mpack_node_str(type_n);
+    auto type_sz = mpack_node_data_len(type_n);
     if (!mpack_node_is_missing(type_n)) {
         return;
     }
@@ -1995,11 +1974,8 @@ void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
         }
     }
 
-    // const auto type_s = mpack_node_str(
-
-
-    jsoninfo->type = report.type();
-    jsoninfo->json_string = report.json();
+    jsoninfo->type = std::string(type_s, type_sz);
+    jsoninfo->json_string = std::string(json_s, json_sz);
 
     packet->insert(pack_comp_json, jsoninfo);
 }
