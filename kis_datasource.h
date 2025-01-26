@@ -452,17 +452,32 @@ public:
     static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
     static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
 
+#ifdef HAVE_PROTOBUF_CPP
     // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
     // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
     // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
     // base function.
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
+    virtual void handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
             const KismetDatasource::SubPacket& report);
 
     // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
     // this to modify the json before it hits the jsoninfo buffer
-    virtual void handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+    virtual void handle_rx_jsonlayer_v2(std::shared_ptr<kis_packet> packet,
             const KismetDatasource::SubJson& report);
+#endif
+
+    // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
+    // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
+    // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
+    // base function.
+    virtual void handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
+            mpack_node_t& root, mpack_tree_t *tree);
+
+    // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
+    // this to modify the json before it hits the jsoninfo buffer
+    virtual void handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
+            mpack_node_t& root, mpack_tree_t *tree);
+
 
     // Handle injecting packets into the packet chain after the data report has been received
     // and processed.  Subclasses can override this to manipulate packet content.

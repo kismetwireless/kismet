@@ -315,6 +315,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE                  10
 /* string */
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME                  11
+/* string */
+#define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_UUID                  12
 
 /* Estimate length from gps record */
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_EST_LEN(l, g) \
@@ -380,16 +382,15 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S               2
 /* u32 */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US              3
-/* u32 reported length */
+/* u32 original reported length of full packet, may be
+ * longer than the captured length */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH             4
-/* u32 captured length */
-#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CAPLENGTH          5
 /* string/binary */
-#define KIS_EXTERNA_V3_KDS_SUB_PACKET_FIELD_CONTENT             6
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT             6
 
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(v, cl) \
     { \
-        v += 4 + 8 + 4 + 4 + cl; \
+        v += 4 + 8 + 4 + cl; \
     }
 
 
