@@ -34,11 +34,18 @@ public:
     virtual ~kis_datasource_linux_bluetooth() { };
 
 protected:
+
+#ifdef HAVE_PROTOBUF_CPP
     virtual bool dispatch_rx_packet(const nonstd::string_view& command,
                                     uint32_t seqno, const nonstd::string_view& content) override;
-  
-    virtual void handle_packet_linuxbtdevice(uint32_t in_seqno, 
+
+    virtual void handle_packet_linuxbtdevice(uint32_t in_seqno,
                                              const nonstd::string_view& in_content);
+#endif
+
+    // TODO fix for v3 protocol by converting it into JSON (or convert into linux bt phy packets,
+    // preferably)
+
 
     int pack_comp_btdevice, pack_comp_meta;
 };
@@ -77,7 +84,7 @@ public:
 
     virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
-        
+
         set_source_type("linuxbluetooth");
         set_source_description("Capture from Linux Bluetooth devices using the Linux "
                 "kernel drivers and Blue-Z");

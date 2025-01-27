@@ -973,7 +973,8 @@ unsigned int kis_datasource::send_configure_channel(const std::string& in_channe
         return send_configure_channel_v3(in_channel, in_transaction, in_cb);
     }
 
-    trigger_error(fmt::format(fmt::runtime("unknown protocol version {}"), protocol_version));
+    std::string err = fmt::format("unknown protocol version {}", protocol_version.load());
+    trigger_error(err);
     return 0;
 }
 
@@ -993,7 +994,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate, std::sha
         return send_configure_channel_hop_v3(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
     }
 
-    trigger_error(fmt::format(fmt::runtime("unknown protocol version {}"), protocol_version));
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
     return 0;
 }
 
@@ -1011,7 +1012,7 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
         return send_list_interfaces_v3(in_transaction, in_cb);
     }
 
-    trigger_error(fmt::format(fmt::runtime("unknown protocol version {}"), protocol_version));
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
     return 0;
 }
 
@@ -1030,7 +1031,7 @@ unsigned int kis_datasource::send_open_source(const std::string& in_definition, 
         return send_open_source_v3(in_definition, in_transaction, in_cb);
     }
 
-    trigger_error(fmt::format(fmt::runtime("unknown protocol version {}"), protocol_version));
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
     return 0;
 }
 
@@ -1049,7 +1050,7 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
         return send_probe_source_v3(in_definition, in_transaction, in_cb);
     }
 
-    trigger_error(fmt::format(fmt::runtime("unknown protocol version {}"), protocol_version));
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
     return 0;
 }
 
@@ -1980,8 +1981,6 @@ void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
     packet->insert(pack_comp_json, jsoninfo);
 }
 
-
-
 void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
         const nonstd::string_view& in_packet) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report_v3");
@@ -2036,6 +2035,17 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
         packet->insert(pack_comp_l1info, siginfo);
     }
 
+    handle_rx_jsonlayer_v3(packet, root, &tree);
+    if (cancelled) {
+        return;
+    }
+
+    handle_rx_datalayer_v3(packet, root, &tree);
+    if (cancelled) {
+        return;
+    }
+
+    handle_rx_packet(packet);
 }
 
 

@@ -23,7 +23,10 @@
 #include "phy_bluetooth.h"
 #include "messagebus.h"
 #include "kis_gps.h"
+
+#ifdef HAVE_PROTOBUF_CPP
 #include "protobuf_cpp/linuxbluetooth.pb.h"
+#endif
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
@@ -36,6 +39,7 @@ kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
 }
 
+#ifdef HAVE_PROTOBUF_CPP
 bool kis_datasource_linux_bluetooth::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     if (kis_datasource::dispatch_rx_packet(command, seqno, content))
@@ -159,7 +163,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
 
     // Inject the packet into the packetchain if we have one
     packetchain->process_packet(packet);
-
 }
+#endif
 
 #endif

@@ -318,9 +318,9 @@ protected:
         } else if (protocol_version == 3) {
             return send_packet_v3(command, seqno, success, content);
         } else {
-            _MSG_ERROR(fmt::runtime("This build of Kismet does not handle this version of the IPC protocol ({}), "
+            _MSG_ERROR("This build of Kismet does not handle this version of the IPC protocol ({}), "
                     "ensure that the capture tools and Kismet server are running similar "
-                    "compatible versions."), protocol_version);
+                    "compatible versions.", protocol_version.load());
             trigger_error("unhandleable protocol version");
             close_external();
             return 1;
@@ -651,7 +651,6 @@ public:
         const kismet_external_frame_v3_t *frame_v3 = nullptr;
 
         uint32_t frame_sz, data_sz;
-        uint32_t data_checksum;
 
         if (sz < sizeof(kismet_external_frame_t)) {
             return result_handle_packet_needbuf;
@@ -750,6 +749,8 @@ public:
 
             // Dispatch the received command
             dispatch_rx_packet_v3(command, seqno, code, content);
+
+            return result_handle_packet_ok;
         } else {
             // Unknown type of packet (or legacy v0 protocol which we're phasing out)
             _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
