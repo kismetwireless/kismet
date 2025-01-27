@@ -1964,6 +1964,7 @@ dst_incoming_remote::~dst_incoming_remote() {
         handshake_thread.join();
 }
 
+#ifdef HAVE_PROTOBUF_CPP
 bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
@@ -1976,6 +1977,86 @@ bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
         return true;
 
     return false;
+}
+
+void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno,
+        const nonstd::string_view in_content) {
+    KismetDatasource::NewSource c;
+
+    if (!c.ParseFromArray(in_content.data(), in_content.length())) {
+        _MSG("Could not process incoming remote datasource announcement", MSGFLAG_ERROR);
+        kill();
+        return;
+    }
+
+    if (cb != NULL) {
+        cb(this, c.sourcetype(), c.definition(), c.uuid());
+    }
+
+    kill();
+}
+#endif
+
+bool dst_incoming_remote::dispatch_rx_packet_v3(uint16_t command,
+            uint16_t code, uint32_t seqno, const nonstd::string_view& content) {
+    // override the new source command
+    if (command == KIS_EXTERNAL_V3_KDS_NEWSOURCE) {
+        handle_packet_newsource_v3(seqno, code, content);
+        return true;
+    }
+
+    if (kis_external_interface::dispatch_rx_packet_v3(command, seqno, code, content)) {
+        return true;
+    }
+
+    return false;
+}
+
+void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t in_code,
+        nonstd::string_view in_packet) {
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 PROBEREPORT");
+        trigger_error("invalid v3 PROBEREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto definition_n = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_DEFINITION);
+    auto definition_s = mpack_node_str(definition_n);
+    auto definition_sz = mpack_node_data_len(definition_n);
+
+
+    auto type_n = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_SOURCETYPE);
+    auto type_s = mpack_node_str(type_n);
+    auto type_sz = mpack_node_data_len(type_n);
+
+    auto uuid_n = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID);
+    auto uuid_s = mpack_node_str(uuid_n);
+    auto uuid_sz = mpack_node_data_len(uuid_n);
+
+    if (mpack_tree_error(&tree)) {
+        _MSG_ERROR("Could not process incoming remote datasource announcement");
+        kill();
+        return;
+    }
+
+    auto definition = std::string(definition_s, definition_sz);
+    auto srctype = std::string(type_s, type_sz);
+    auto u = uuid(std::string(uuid_s, uuid_sz));
+
+    if (cb != NULL) {
+        cb(this, srctype, definition, u);
+    }
+
+    kill();
+
 }
 
 void dst_incoming_remote::handle_error(const std::string& error) {
@@ -1991,23 +2072,6 @@ void dst_incoming_remote::kill() {
 
     // The tcp socket should be moved away from this connection by now; if not, kill it
     close_external();
-}
-
-void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, 
-        const nonstd::string_view in_content) {
-    KismetDatasource::NewSource c;
-
-    if (!c.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG("Could not process incoming remote datasource announcement", MSGFLAG_ERROR);
-        kill();
-        return;
-    }
-
-    if (cb != NULL) {
-        cb(this, c.sourcetype(), c.definition(), c.uuid());
-    }
-
-    kill();
 }
 
 
