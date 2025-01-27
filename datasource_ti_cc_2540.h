@@ -50,15 +50,16 @@ public:
 
         pack_comp_decap =
             packetchain->register_packet_component("DECAP");
-        pack_comp_radiodata = 
+        pack_comp_radiodata =
             packetchain->register_packet_component("RADIODATA");
     }
 
     virtual ~kis_datasource_ticc2540() { };
 
 protected:
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-            const KismetDatasource::SubPacket& report) override;
+
+    virtual int handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz) override;
 
     int pack_comp_decap, pack_comp_radiodata;
 };

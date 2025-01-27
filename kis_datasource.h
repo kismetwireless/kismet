@@ -478,6 +478,9 @@ public:
     virtual void handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
             mpack_node_t& root, mpack_tree_t *tree);
 
+    // Manipulate and insert the decapsulated data into a packet
+    virtual int handle_rx_data_content(kis_packet *packet,
+            kis_datachunk *datachunk, const uint8_t *content, size_t content_sz);
 
     // Handle injecting packets into the packet chain after the data report has been received
     // and processed.  Subclasses can override this to manipulate packet content.
