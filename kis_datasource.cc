@@ -1914,7 +1914,7 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
         packet->original_len = mpack_node_u32(olen_n);
     }
 
-    packet->set_data(content_data, content_sz);
+    // packet->set_data(content_data, content_sz);
 
     if (mpack_tree_error(tree)) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
@@ -1922,9 +1922,24 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
         return;
     }
 
+    if (!handle_rx_data_content(packet.get(), datachunk.get(),
+                (const uint8_t *) content_data, content_sz)) {
+        return;
+    }
+
     get_source_packet_size_rrd()->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
 
     packet->insert(pack_comp_linkframe, datachunk);
+}
+
+int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+        const uint8_t *content, size_t content_sz) {
+    // basic assignment of packet data to the data chunk, sufficient for datasources returning
+    // real DLTs or other already-formatted data
+    packet->set_data((const char *) content, content_sz);
+    datachunk->set_data(packet->data);
+
+    return 1;
 }
 
 void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
