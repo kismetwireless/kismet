@@ -42,22 +42,31 @@ int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_data
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
     // We don't get rid of invalid btle contents, but we do get rid of invalid USB frames that
-    // we can't decipher - we can't even log them sanely!
+    // we can't decipher; we'll log them for debugging purposes still
 
     if (content_sz < 8) {
         packet->error = 1;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
         return 1;
     }
 
     unsigned int cc_len = content[1];
     if (cc_len != content_sz - 3) {
         packet->error = 1;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
         return 1;
     }
 
     unsigned int cc_payload_len = content[7] - 0x02;
     if (cc_payload_len + 8 != content_sz - 2) {
         packet->error = 1;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
         return 1;
     }
 
