@@ -20,8 +20,8 @@
 
 #include "datasource_nxp_kw41z.h"
 
-void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-        const KismetDatasource::SubPacket& report) {
+int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet, 
+        kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     typedef struct {
         uint8_t monitor_channel;
@@ -40,16 +40,12 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
     const uint16_t btle_rf_crc_checked = (1 << 10);
     const uint16_t btle_rf_crc_valid = (1 << 11);
 
-    auto& rxdata = report.data();
-
-    // If we can't validate the basics of the packet at the phy capture level,
-    // throw it out. We don't get rid of invalid btle contents, but we do get
-    // rid of invalid USB frames that we can't decipher - we can't even log them
-    // sanely!
-
-    if (rxdata.length() < 10) {
+    if (content_sz < 10) {
         packet->error = 1;
-        return;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return 1;
     }
 
 //we may have to redo the checksum...
@@ -60,10 +56,10 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
     }
 **/
     // check what type of packet we are
-    if (rxdata[0] == 0x02 && rxdata[1] == '\x86' && rxdata[2] == 0x03) {
-        uint32_t rssi = rxdata[5];
-        uint16_t nxp_payload_len = rxdata[10];
-        uint8_t channel = rxdata[4];
+    if (content[0] == 0x02 && content[1] == '\x86' && content[2] == 0x03) {
+        uint32_t rssi = content[5];
+        uint16_t nxp_payload_len = content[10];
+        uint8_t channel = content[4];
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + nxp_payload_len;
@@ -72,8 +68,16 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
         memset(conv_header, 0, conv_buf_len);
 
+        if (content_sz <= 11 || (content_sz - 11 < nxp_payload_len)) {
+            packet->error = 1;
+            // error, but preserve the packet for logging
+            packet->set_data((const char *) content, content_sz);
+            datachunk->set_data(packet->data);
+            return 1;
+        }
+
         // Copy the actual packet payload into the header
-        memcpy(conv_header->payload, &rxdata.data()[11], nxp_payload_len);
+        memcpy(conv_header->payload, &content[11], nxp_payload_len);
 
         conv_header->version = kis_htole16(0);// currently only one version
         conv_header->reserved = kis_htole16(0);// must be set to 0
@@ -96,27 +100,10 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         // size
         conv_header->length = sizeof(_802_15_4_tap); 
 
-
-
-        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
-
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report.time_sec();
-            packet->ts.tv_usec = report.time_usec();
-        }
-
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        packet->set_data(conv_buf, conv_buf_len);
+        packet->set_data((const char *) conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
-
-        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
-
-        packet->insert(pack_comp_linkframe, datachunk);
-
-
 
         auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_rssi;
@@ -125,10 +112,11 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
 
-    } else if (rxdata[0] == 0x02 && rxdata[1] == 0x4E && rxdata[2] == 0x7F) {
+        return 1;
+    } else if (content[0] == 0x02 && content[1] == 0x4E && content[2] == 0x7F) {
         // Convert the channel for the btlell header
-        auto bt_channel = rxdata[5];
-        uint8_t channel = rxdata[5];
+        auto bt_channel = content[5];
+        uint8_t channel = content[5];
 
         switch (channel) {
             case 37:
@@ -144,7 +132,15 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
                 bt_channel = channel - 2;
         };
 
-        unsigned int nxp_payload_len = rxdata.length() - 13;  // minus header and checksum
+        if (content_sz <= 13) {
+            packet->error = 1;
+            // error, but preserve the packet for logging
+            packet->set_data((const char *) content, content_sz);
+            datachunk->set_data(packet->data);
+            return 1;
+        }
+
+        unsigned int nxp_payload_len = content_sz - 13;  // minus header and checksum
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(btle_rf) + nxp_payload_len;
@@ -152,13 +148,13 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
 
         // Copy the actual packet payload into the header
-        memcpy(conv_header->payload, &rxdata.data()[12], nxp_payload_len);
+        memcpy(conv_header->payload, &content[12], nxp_payload_len);
 
         // Set the converted channel
         conv_header->monitor_channel = bt_channel;
 
         // RSSI not sure yet
-        conv_header->signal = rxdata[6];
+        conv_header->signal = content[6];
 
         uint16_t bits = btle_rf_crc_checked;
         // if (true)//not sure yet
@@ -178,26 +174,10 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
             kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
 
 
-
-        // Put the modified data into the packet & fill in the rest of the base data info
-        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
-
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report.time_sec();
-            packet->ts.tv_usec = report.time_usec();
-        }
-
         datachunk->dlt = KDLT_BTLE_RADIO;
 
-        packet->set_data(conv_buf, conv_buf_len);
+        packet->set_data((const char *) conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
-
-        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
-
-        packet->insert(pack_comp_linkframe, datachunk);
-
 
 
         // Generate a l1 radio header and a decap header since we have it
@@ -215,8 +195,12 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         decapchunk->set_data(packet->data.substr(sizeof(btle_rf), nxp_payload_len));
         packet->insert(pack_comp_decap, decapchunk);
 
+        return 1;
     } else {
         packet->error = 1;
-        return;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return 1;
     }
 }

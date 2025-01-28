@@ -20,9 +20,8 @@
 
 #include "datasource_ubertooth_one.h"
 
-void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-        const KismetDatasource::SubPacket& report) {
-
+int kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -58,22 +57,24 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
     const uint16_t btle_rf_crc_valid = (1 << 11);
     */
 
-    auto& rxdata = report.data();
-
-    // If we can't validate the basics of the packet at the phy capture level, throw it out.
-    // We don't get rid of invalid btle contents, but we do get rid of invalid USB frames that
-    // we can't decipher - we can't even log them sanely!
-    
-    if (rxdata.length() != sizeof(usb_pkt_rx)) {
-        return;
+    if (content_sz != sizeof(usb_pkt_rx)) {
+        packet->error = 1;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return 1;
     }
 
-    const auto usb_rx = reinterpret_cast<const usb_pkt_rx *>(rxdata.data());
+    const auto usb_rx = reinterpret_cast<const usb_pkt_rx *>(content);
 
     auto payload_len = (usb_rx->data[5] & 0x3F) + 6 + 3;
 
     if (payload_len > DMA_SIZE) {
-        return;
+        packet->error = 1;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return 1;
     }
 
 
@@ -110,31 +111,14 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
         bits += btle_rf_flag_reference_access_valid;
     }
 
-    conv_header->flags_le = 
+    conv_header->flags_le =
         kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
-
-
-    // Put the modified data into the packet & fill in the rest of the base data info
-    auto datachunk = packetchain->new_packet_component<kis_datachunk>();
-
-    if (clobber_timestamp && get_source_remote()) {
-        gettimeofday(&(packet->ts), NULL);
-    } else {
-        packet->ts.tv_sec = report.time_sec();
-        packet->ts.tv_usec = report.time_usec();
-    }
 
     // We always override the ubertooth DLT since we don't get it from the ds
     datachunk->dlt = get_source_override_linktype();
 
-    packet->set_data(conv_buf, conv_buf_len);
+    packet->set_data((const char *) conv_buf, conv_buf_len);
     datachunk->set_data(packet->data);
-
-    get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
-
-    packet->insert(pack_comp_linkframe, datachunk);
-
-
 
     // Generate a l1 radio header and a decap header since we have it computed already
     auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
@@ -149,5 +133,7 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
     decapchunk->set_data(packet->data.substr(sizeof(btle_rf), payload_len));
     packet->insert(pack_comp_decap, decapchunk);
+
+    return 1;
 }
 

@@ -20,10 +20,8 @@
 
 unsigned char hextobytel(char s);
 
-void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-        const KismetDatasource::SubPacket& report) {
-
-    auto& rxdata = report.data();
+int kis_datasource_nrf52840::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz) {
 
     uint8_t c_payload[255];
     memset(c_payload, 0x00, 255);
@@ -43,15 +41,15 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
     The below finds where the : are so we can better try to split everything apart.
     */
 
-    if((uint8_t)rxdata[0] == 0xAB && (uint8_t)rxdata[rxdata.length()-1] == 0xBC)
-    {
-        //printf("we got a btle packet\n");
+    if (content_sz == 0) {
+        packet->error = 1;
+        return 1;
     }
-    else
-    {
+
+    if (!((uint8_t) content[0] == 0xAB && (uint8_t)content[content_sz - 1] == 0xBC)) {
         //printf("nrf52840 datasource got a packet\n");
-        for (unsigned int i = 0; i < rxdata.length(); i++) {
-            if (rxdata[i] == ':') {
+        for (unsigned int i = 0; i < content_sz; i++) {
+            if (content[i] == ':') {
                 loc[li] = i;
                 li++;
                 if (li > 4)
@@ -63,21 +61,27 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         unsigned int chunk_start = loc[0] + 2;
         unsigned int chunk_str_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
         unsigned int payload_len = chunk_str_len;
-        if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
+        if (chunk_start > content_sz || chunk_str_len >= content_sz) {
             packet->error = 1;
-            return;
+            // error, but preserve the packet for logging
+            packet->set_data((const char *) content, content_sz);
+            datachunk->set_data(packet->data);
+            return 1;
         }
-        memcpy(c_payload, &rxdata.data()[chunk_start], chunk_str_len);
+        memcpy(c_payload, &content[chunk_start], chunk_str_len);
 
         // copy over the power/rssi
         chunk_start = loc[1] + 2;
         chunk_str_len = (loc[2] - loc[1] - 2 - (strlen("lqi")));
-        if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
+        if (chunk_start > content_sz || chunk_str_len >= content_sz) {
             packet->error = 1;
-            return;
+            // error, but preserve the packet for logging
+            packet->set_data((const char *) content, content_sz);
+            datachunk->set_data(packet->data);
+            return 1;
         }
 
-        memcpy(tmp, &rxdata.data()[chunk_start], chunk_str_len);
+        memcpy(tmp, &content[chunk_start], chunk_str_len);
         rssi = atoi(tmp);
         memset(tmp, 0x00, 16);
 
@@ -95,7 +99,7 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         }
 
         nrf_payload_len = c;
-        uint8_t channel = rxdata[2];
+        uint8_t channel = content[2];
 
         // No good way to do packet validation that I know of at the moment.
 
@@ -124,30 +128,14 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         conv_header->tlv[2].type = kis_htole16(3);
         conv_header->tlv[2].length = kis_htole16(3);
         conv_header->tlv[2].value = kis_htole32(channel);
-    
+
         // size
-        conv_header->length = kis_htole16(sizeof(_802_15_4_tap)); 
-
-
-        // Put the modified data into the packet & fill in the rest of the base data info
-        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
-
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report.time_sec();
-            packet->ts.tv_usec = report.time_usec();
-        }
+        conv_header->length = kis_htole16(sizeof(_802_15_4_tap));
 
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
         packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
-
-        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
-
-        packet->insert(pack_comp_linkframe, datachunk);
-
 
         auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
@@ -156,6 +144,8 @@ void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
     }
+
+    return 1;
 }
 
 unsigned char hextobytel(char s) {
