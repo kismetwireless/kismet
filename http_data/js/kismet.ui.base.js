@@ -3111,7 +3111,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     .done(function(data) {
         var title = '<i class="fa fa-signal"></i> Signal ' +
             kismet.censorMAC(data['kismet.device.base.macaddr']) + ' ' +
-            kismet.censorMAC(data['kismet.device.base.name']);
+            kismet.censorString(data['kismet.device.base.name']);
         devsignal_panel.headerTitle(title);
 
         var sigicon = $('.k-dsd-arrow', devsignal_panel.content);
