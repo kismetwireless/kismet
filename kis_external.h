@@ -363,7 +363,6 @@ protected:
         start_write(frame_buf, frame_sz);
 
         return in_seqno;
-
     }
 
     unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
