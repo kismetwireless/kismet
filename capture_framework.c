@@ -1917,10 +1917,9 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
         root = mpack_tree_root(&tree);
 
-        if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL)) {
+        if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL)) {
             char channel[1024];
-            mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL),
-                    channel, 1024);
+            mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL), channel, 1024);
 
             if (caph->chantranslate_cb != NULL) {
                 translate_chan = (*(caph->chantranslate_cb))(caph, channel);
@@ -1963,11 +1962,11 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             mpack_tree_destroy(&tree);
 
             goto finish;
-        } else if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK)) {
+        } else if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK)) {
             mpack_node_t chanhop;
             mpack_node_t chanlist;
 
-            chanhop = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK);
+            chanhop = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK);
 
             if (mpack_tree_error(&tree) != mpack_ok) {
                 fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel hop definition.\n");

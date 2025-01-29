@@ -98,7 +98,7 @@ public:
 
     virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
-        
+
         set_source_type("ticc2540");
         set_source_description("TI CC2540 with sniffer firmware");
 

@@ -222,7 +222,8 @@ TOOL_KISMET_DISCOVERY_O = \
 TOOL_BINS = \
 	$(TOOL_KISMET_DISCOVERY)
 
-PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
+PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o \
+	sqlite3_cpp11.cc.o mpack/mpack.c.o \
 	globalregistry.cc.o eventbus.cc.o \
 	packet.cc.o configfile.cc.o \
 	battery.cc.o \
@@ -261,7 +262,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
 	kis_database.cc.o \
-	kismet_server.cc.o 
+	kismet_server.cc.o
 
 PS	= kismet
 

@@ -806,6 +806,10 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
         mpack_complete_map(&writer);
 
         if (mpack_writer_destroy(&writer) != mpack_ok) {
+            if (data != nullptr) {
+                free(data);
+            }
+
             _MSG_ERROR("Kismet external interface failed serializing v3 event");
             trigger_error("failed to serialize v3 EVENT");
             return;
@@ -1143,6 +1147,10 @@ unsigned int kis_external_interface::send_http_request_v3(uint32_t in_http_seque
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
         _MSG_ERROR("Kismet external interface failed serializing v3 HTTPREQ");
         trigger_error("failed to serialize v3 HTTPREQ");
         return -1;
@@ -1170,6 +1178,10 @@ unsigned int kis_external_interface::send_http_auth_v3(const std::string& in_coo
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
         _MSG_ERROR("Kismet external interface failed serializing v3 HTTPAUTH");
         trigger_error("failed to serialize v3 HTTPAUTH");
         return -1;

@@ -196,7 +196,7 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_LISTREQ                             14
 #define KIS_EXTERNAL_V3_KDS_LISTREPORT                          15
 #define KIS_EXTERNAL_V3_KDS_PACKET                              16
-#define KIS_EXTERNAL_V3_KDS_CONFIGURE                           17
+#define KIS_EXTERNAL_V3_KDS_CONFIGREQ                           17
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT                        18
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE                           19
 
@@ -526,9 +526,9 @@ typedef struct kismet_external_frame_v3 {
  */
 
 /* string */
-#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANNEL             1
+#define KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL             1
 /* hopping sub-block */
-#define KIS_EXTERNAL_V3_KDS_CONFIGURE_FIELD_CHANHOPBLOCK        2
+#define KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK        2
 /* todo: spectrum */
 
 

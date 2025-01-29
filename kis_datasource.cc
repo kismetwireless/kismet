@@ -2063,6 +2063,313 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
     handle_rx_packet(packet);
 }
 
+unsigned int kis_datasource::send_configure_channel_v3(const std::string& in_channel,
+        unsigned int in_transaction, configure_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL);
+    mpack_write_cstr(&writer, in_channel.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 CONFIGREQ");
+            trigger_error("failed to serialize v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 CONFIGREQ");
+            trigger_error("failed to send v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->configure_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_hop_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK);
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
+    mpack_write_float(&writer, in_rate);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE);
+    mpack_write_bool(&writer, in_shuffle);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
+    mpack_write_u16(&writer, in_offt);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
+    mpack_start_array(&writer, in_chans->size());
+
+    for (const auto& ci : *in_chans) {
+        mpack_write_cstr(&writer, ci.c_str());
+    }
+
+    mpack_finish_array(&writer);
+
+    mpack_complete_map(&writer);
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 CONFIGREQ");
+            trigger_error("failed to serialize v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 CONFIGREQ");
+            trigger_error("failed to send v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->configure_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_list_interfaces_v3(unsigned int in_transaction,
+        list_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_list_interfaces_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    uint32_t seqno = 0;
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_LISTREQ, 0, 1, nullptr, 0);
+
+    if (seqno == 0) {
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, {});
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 LISTREQ");
+            trigger_error("failed to send v3 LISTREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->list_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_open_source_v3(const std::string& in_definition,
+        unsigned int in_transaction, open_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_open_source_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION);
+    mpack_write_cstr(&writer, in_definition.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 OPENREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 OPENREQ");
+            trigger_error("failed to serialize v3 OPENREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_OPENREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 OPENREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 OPENREQ");
+            trigger_error("failed to send v3 OPENREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->open_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definition,
+        unsigned int in_transaction, probe_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_probe_source_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION);
+    mpack_write_cstr(&writer, in_definition.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 PROBEREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 PROBEREQ");
+            trigger_error("failed to serialize v3 PROBEREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_PROBEREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 PROBEREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 PROBEREQ");
+            trigger_error("failed to send v3 PROBEREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->probe_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
 
 #ifdef HAVE_PROTOBUF_CPP
 bool kis_datasource::dispatch_rx_packet_v2(const nonstd::string_view& command,
