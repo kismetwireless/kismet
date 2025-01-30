@@ -1209,6 +1209,161 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
     handle_probesource_report_v3_callback(report_seqno, code, lock, msg);
 }
 
+void kis_datasource::handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
+        kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces) {
+
+    // Get the sequence number and look up our command
+    auto ci = command_ack_map.find(in_seqno);
+    if (ci != command_ack_map.end()) {
+        auto cb = ci->second->list_cb;
+        auto transaction = ci->second->transaction;
+
+        command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), transaction, interfaces);
+            lock.lock();
+        }
+    }
+}
+
+void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t code,
+        const nonstd::string_view& in_packet) {
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report_v3");
+    lock.lock();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    std::vector<shared_interface> ifaces;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 LISTREPORT");
+        trigger_error("invalid v3 LISTREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto report_seqno = mpack_node_u16(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_SEQNO));
+
+    if (mpack_tree_error(&tree)) {
+        _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+        trigger_error("invalid v3 LISTREPORT");
+        return;
+    }
+
+    std::string msg;
+    auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_MSG);
+    if (!mpack_node_is_missing(msg_n)) {
+        auto msg_len = mpack_node_data_len(msg_n);
+        if (mpack_tree_error(&tree)) {
+            _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+            trigger_error("invalid v3 LISTREPORT");
+            handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+            return;
+        }
+
+        msg = std::string(mpack_node_data(msg_n), msg_len);
+    }
+
+    if (code != 0) {
+        _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+        trigger_error(msg);
+        set_int_source_error_reason(msg);
+        handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+    }
+
+    /* interfaces array */
+    auto ifaces_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
+    if (!mpack_node_is_missing(ifaces_n)) {
+        auto ifaces_sz = mpack_node_array_length(ifaces_n);
+
+        if (mpack_tree_error(&tree)) {
+            _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+            trigger_error("invalid v3 LISTREPORT");
+            handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+            return;
+        }
+
+        for (size_t szi = 0; szi < ifaces_sz; szi++) {
+            auto iface_n = mpack_node_array_at(ifaces_n, szi);
+
+            auto intf = std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
+            intf->set_prototype(get_source_builder());
+
+            std::string ifname, ifflags;
+
+            auto iface_name_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE);
+            if (!mpack_node_is_missing(iface_name_n)) {
+                auto iface_name_sz = mpack_node_data_len(iface_name_n);
+
+                if (mpack_tree_error(&tree)) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                ifname = std::string(mpack_node_data(iface_name_n), iface_name_sz);
+            }
+
+            auto flags_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS);
+            if (!mpack_node_is_missing(flags_n)) {
+                auto flags_sz = mpack_node_data_len(flags_n);
+
+                if (mpack_tree_error(&tree)) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                ifflags = std::string(mpack_node_data(flags_n), flags_sz);
+            }
+
+            intf->populate(ifname, ifflags);
+
+            auto capif_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
+            if (!mpack_node_is_missing(capif_n)) {
+                auto capif_sz = mpack_node_data_len(capif_n);
+
+                if (mpack_tree_error(&tree)) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                intf->set_cap_interface(std::string(mpack_node_data(capif_n), capif_sz));
+            }
+
+            auto hw_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            if (!mpack_node_is_missing(hw_n)) {
+                auto hw_sz = mpack_node_data_len(hw_n);
+
+                if (mpack_tree_error(&tree)) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                intf->set_hardware(std::string(mpack_node_data(hw_n), hw_sz));
+            }
+
+            ifaces.push_back(intf);
+        }
+    }
+
+
+    handle_interfaces_report_v3_callback(report_seqno, code, lock, ifaces);
+}
+
+
 void kis_datasource::handle_configsource_report_v3_callback(uint32_t in_seqno, uint16_t code,
         kis_unique_lock<kis_mutex>& lock, const std::string& msg) {
 
