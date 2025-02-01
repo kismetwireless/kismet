@@ -1687,8 +1687,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                     fprintf(stderr, "ERROR: %s\n", msgstr);
             }
 
-            cf_send_listresp(caph, seqno, cbret >= 0, msgstr,
-                    interfaces, cbret < 0 ? 0 : cbret);
+            cf_send_listresp(caph, seqno, cbret >= 0, msgstr, interfaces, cbret < 0 ? 1 : 0);
 
             if (cbret > 0) {
                 for (i = 0; i < (size_t) cbret; i++) {
@@ -1774,7 +1773,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 free(definition);
             }
 
-            cf_send_proberesp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
+            cf_send_proberesp(caph, seqno, cbret < 0 ? 1 : 0, msgstr, interfaceparams, spectrumparams);
 
             mpack_tree_destroy(&tree);
 
@@ -1853,9 +1852,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             cbret = (*(caph->open_cb))(caph, seqno, definition,
                     msgstr, &dlt, &uuid, &interfaceparams, &spectrumparams);
 
-            cf_send_openresp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr,
-                    dlt, uuid, interfaceparams,
-                    spectrumparams);
+            cf_send_openresp(caph, seqno, cbret < 0 ? 1 : 0, msgstr, dlt, uuid,
+                    interfaceparams, spectrumparams);
 
             if (uuid != NULL)
                 free(uuid);
@@ -3800,6 +3798,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     est_len = est_len * 1.15;
 
     seqno = cf_get_next_seqno(caph);
+
+    fprintf(stderr, "DEBUG - preparing openwrt packet est len %lu\n", est_len);
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, 0, est_len);
