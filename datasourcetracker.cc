@@ -1045,12 +1045,6 @@ void datasource_tracker::trigger_deferred_startup() {
                                 datasourcetracker->open_remote_datasource(initiator, in_type, in_def,
                                     in_uuid, false);
 
-                            // move the protocol version to the new DS so that when it sends
-                            // the opensource initiator it's talking the same protocol as
-                            // the incoming remote source
-                            new_ds->set_protocol_version(initiatior_ds->get_prototocol_version());
-
-                            // _MSG_DEBUG("reassigning old ds");
                             ds_bridge->bridged_ds = new_ds;
 
                             if (new_ds == nullptr)
