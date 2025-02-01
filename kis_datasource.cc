@@ -449,6 +449,9 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     cancelled = false;
 
+    // Get the remote version type immediately
+    set_protocol_version(in_remote->get_prototocol_version());
+
     // We can't reconnect failed interfaces that are remote
     set_int_source_retry(false);
 
@@ -959,6 +962,9 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
 unsigned int kis_datasource::send_configure_channel(const std::string& in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
+
+    _MSG_DEBUG("send_configure_channel channel {} version {}", in_channel, protocol_version.load());
+
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_configure_channel_v2(in_channel, in_transaction, in_cb);
@@ -980,6 +986,8 @@ unsigned int kis_datasource::send_configure_channel(const std::string& in_channe
 unsigned int kis_datasource::send_configure_channel_hop(double in_rate, std::shared_ptr<tracker_element_vector_string> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
         configure_callback_t in_cb) {
+    _MSG_DEBUG("send_configure_channel_hop version {}", protocol_version.load());
+
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_configure_channel_hop_v2(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
@@ -998,6 +1006,8 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate, std::sha
 }
 
 unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
+    _MSG_DEBUG("send_list_interfaces version {}", protocol_version.load());
+
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_list_interfaces_v2(in_transaction, in_cb);
@@ -1017,6 +1027,8 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
 unsigned int kis_datasource::send_open_source(const std::string& in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
+    _MSG_DEBUG("send_open_source {} version {}", in_definition, protocol_version.load());
+
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_open_source_v2(in_definition, in_transaction, in_cb);
@@ -1036,6 +1048,8 @@ unsigned int kis_datasource::send_open_source(const std::string& in_definition, 
 
 unsigned int kis_datasource::send_probe_source(const std::string& in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
+    _MSG_DEBUG("send_probe_source {} version {}", in_definition, protocol_version.load());
+
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_open_probe_source_v2(in_definition, in_transaction, in_cb);
