@@ -134,7 +134,7 @@ uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
     return adler32_append_csum(in_buf, in_len, 0);
 }
 
-int cf_parse_interface(const char **ret_interface, const char *definition) {
+int cf_parse_interface(char **ret_interface, char *definition) {
     char *colonpos;
 
     colonpos = strstr(definition, ":");
@@ -151,7 +151,7 @@ int cf_parse_interface(const char **ret_interface, const char *definition) {
     return (colonpos - definition);
 }
 
-int cf_find_flag(const char **ret_value, const char *flag, const char *definition) {
+int cf_find_flag(char **ret_value, const char *flag, char *definition) {
     char *colonpos, *flagpos, *comma, *equals, *quote, *equote;
 
     colonpos = strstr(definition, ":");
@@ -1881,14 +1881,13 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             goto finish;
         }
-    } else if (cmd == KIS_EXTERNAL_V3_KDS_CONFIGURE) {
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_CONFIGREQ) {
         double chanhop_rate = 0;
         char **chanhop_channels = NULL;
         void **chanhop_priv_channels = NULL;
         size_t chanhop_channels_sz = 0, szi = 0;
         int chanhop_shuffle = 0, chanhop_shuffle_spacing = 1, chanhop_offset = 0;
         void *translate_chan = NULL;
-        const char *channel = NULL;
 
         mpack_tree_t tree;
         mpack_node_t root;
@@ -4379,7 +4378,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     seqno = cf_get_next_seqno(caph);
 
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGUREREPORT, seqno, success != 0, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, seqno, success != 0, est_len);
 
     if (meta == NULL) {
         return 0;

@@ -81,11 +81,11 @@ typedef struct {
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, 
-        const char *definition,
+        char *definition,
         char *msg, char **uuid,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
-    const char *placeholder = NULL;
+    char *placeholder = NULL;
     int placeholder_len;
 
     *uuid = NULL;
@@ -148,11 +148,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, 
-        const char *definition,
+        char *definition,
         char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
-    const char *placeholder = NULL;
+    char *placeholder = NULL;
     int placeholder_len;
 
     char *pcapfname = NULL;
@@ -311,7 +311,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
                         header->ts,
 #endif
                         local_pcap->datalink_type,
-                        header->caplen, (uint8_t *) data)) < 0) {
+                        header->len, header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_pcap->pd);
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
