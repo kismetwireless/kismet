@@ -1055,6 +1055,9 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
 
 bool kis_datasource::dispatch_rx_packet_v3(uint16_t command, uint16_t code,
         uint32_t seqno, const nonstd::string_view& content) {
+
+    _MSG_INFO("external command {} code {} seq {} version {}", command, code, seqno, protocol_version.load());
+
     if (kis_external_interface::dispatch_rx_packet_v3(command, code, seqno, content)) {
         return true;
     }

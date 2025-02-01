@@ -3145,7 +3145,7 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
 
 void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame,
         size_t final_length) {
-    frame->length = ntohs(final_length);
+    frame->length = htonl(final_length);
 
     kis_simple_ringbuf_commit(caph->out_ringbuf, frame,
             final_length + sizeof(kismet_external_frame_v3_t));
@@ -3244,7 +3244,7 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, si
     wsmsg->len = final_len + sizeof(kismet_external_frame_v3_t);
 
     frame = (kismet_external_frame_v3_t *) wsmsg->payload;
-    frame->length = htons(final_len);
+    frame->length = htonl(final_len);
 
     /* performing the insert here causes a memcpy of the wsmsg struct,
      * so we're now able to (and must) destroy our copy */
