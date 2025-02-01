@@ -29,7 +29,7 @@
  * library which is a pure-c simple msgpack library.
  *
  * This uses basic threading to show how to do an asynchronous read from a source;
- * while a pcapfile will never stall, other sources could.  
+ * while a pcapfile will never stall, other sources could.
  *
  * The select() loop for IO with the IPC channel is performed in the primary
  * thread, and an IO thread is spawned to process data from the pcap file.  This
@@ -80,10 +80,10 @@ typedef struct {
     unsigned int pps_throttle;
 } local_pcap_t;
 
-int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, 
+int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *definition,
         char *msg, char **uuid,
-        cf_params_interface_t **ret_interface, 
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -109,7 +109,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     (*ret_interface)->channels_len = 0;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition");
         return 0;
     }
 
@@ -137,9 +137,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     } else {
         /* Kluge a UUID out of the name */
         snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                adler32_csum((unsigned char *) "kismet_cap_pcapfile",
                     strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-                adler32_csum((unsigned char *) pcapfname, 
+                adler32_csum((unsigned char *) pcapfname,
                     strlen(pcapfname)) & 0xFFFFFFFF);
         *uuid = strdup(errstr);
     }
@@ -147,10 +147,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     return 1;
 }
 
-int open_callback(kis_capture_handler_t *caph, uint32_t seqno, 
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *definition,
         char *msg, uint32_t *dlt, char **uuid,
-        cf_params_interface_t **ret_interface, 
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -196,7 +196,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return -1;
     }
 
-    /* We don't check for regular file during open, only probe; we don't want to 
+    /* We don't check for regular file during open, only probe; we don't want to
      * open a fifo during probe and then cause a glitch, but we could open it during
      * normal operation */
 
@@ -211,9 +211,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     /* Kluge a UUID out of the name */
     snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
-            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+            adler32_csum((unsigned char *) "kismet_cap_pcapfile",
                 strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) pcapfname, 
+            adler32_csum((unsigned char *) pcapfname,
                 strlen(pcapfname)) & 0xFFFFFFFF);
     *uuid = strdup(errstr);
 
@@ -222,7 +222,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
         if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
-            snprintf(errstr, PCAP_ERRBUF_SIZE, 
+            snprintf(errstr, PCAP_ERRBUF_SIZE,
                     "Pcapfile '%s' will replay in realtime", pcapfname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             local_pcap->realtime = 1;
@@ -248,7 +248,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     unsigned long delay_usec = 0;
 
     /* If we're doing 'realtime' playback, delay accordingly based on the
-     * previous packet. 
+     * previous packet.
      *
      * Because we're in our own thread, we can block as long as we want - this
      * simulates blocking IO for capturing from hardware, too.
@@ -265,7 +265,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
             }
 
             if (header->ts.tv_usec < local_pcap->last_ts.tv_usec) {
-                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + 
+                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) +
                     header->ts.tv_usec;
             } else {
                 delay_usec += header->ts.tv_usec - local_pcap->last_ts.tv_usec;
@@ -301,7 +301,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         ts.tv_sec = header->ts.tv_sec;
         ts.tv_usec = header->ts.tv_usec;
 #endif
-        if ((ret = cf_send_data(caph, 
+        if ((ret = cf_send_data(caph,
                         NULL, MSGFLAG_INFO, /* no msg */
                         NULL, /* no signal */
                         NULL, /* no gps */
@@ -335,8 +335,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     pcap_errstr = pcap_geterr(local_pcap->pd);
 
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "Pcapfile '%s' closed: %s", 
-            local_pcap->pcapfname, 
+    snprintf(errstr, PCAP_ERRBUF_SIZE, "Pcapfile '%s' closed: %s",
+            local_pcap->pcapfname,
             strlen(pcap_errstr) == 0 ? "end of pcapfile reached" : pcap_errstr );
 
     cf_send_message(caph, errstr, MSGFLAG_INFO);
