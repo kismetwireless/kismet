@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -19,7 +19,6 @@
 #include "config.h"
 
 #include "kis_datasource.h"
-#include "endian_magic.h"
 #include "configfile.h"
 #include "datasourcetracker.h"
 #include "entrytracker.h"

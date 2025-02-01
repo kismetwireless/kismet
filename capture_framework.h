@@ -123,7 +123,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
-        const char *definition, char *msg, char **uuid,
+        char *definition, char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -146,7 +146,7 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  *  0   success
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno,
-        const char *definition, char *msg, uint32_t *dlt, char **uuid,
+        char *definition, char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -502,7 +502,7 @@ void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable);
  * -1   Error
  *  1+  Length of interface name in the definition
  */
-int cf_parse_interface(const char **ret_interface, const char *definition);
+int cf_parse_interface(char **ret_interface, char *definition);
 
 /* Parse a definition string looking for a specific flag and returns a pointer to
  * the start of the flag value in definition in ret_value, and the length of the
@@ -519,7 +519,7 @@ int cf_parse_interface(const char **ret_interface, const char *definition);
  *  0   Flag not found
  *  1+  Length of flag value in definition
  */
-int cf_find_flag(const char **ret_value, const char *flag, const char *definition);
+int cf_find_flag(char **ret_value, const char *flag, char *definition);
 
 /* Count how many flags of the same name are in a source definition
  *
