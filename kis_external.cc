@@ -651,7 +651,6 @@ void kis_external_interface::start_write(const char *data, size_t len) {
 
 bool kis_external_interface::dispatch_rx_packet_v3(uint16_t command, uint16_t code,
         uint32_t seqno, const nonstd::string_view& content) {
-
     // V3 dispatcher based on packet type numbers, carrying msgpacked payloads.
 
     // Implementations should directly call this for automatic dispatch before implementing

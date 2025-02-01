@@ -270,6 +270,18 @@ public:
     // close the external interface, opportunistically wraps in strand
     virtual void close_external();
 
+    // get and set the protocol version; this is necessary for the datasourcetracker
+    // to inherit the proper DS version from the incoming source, but generally
+    // shouldn't be used by any other protocols.  We leverage the std::atomic-ness
+    // of the protocol version since we know when this is called.
+    int get_prototocol_version() {
+        return protocol_version.load();
+    }
+
+    void set_protocol_version(int version) {
+        protocol_version.store(version);
+    }
+
     // We use the raw http server APIs instead of the newer endpoint handlers because we
     // potentially mess with the headers and other internals
 
