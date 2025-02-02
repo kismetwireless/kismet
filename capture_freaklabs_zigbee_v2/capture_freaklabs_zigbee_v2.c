@@ -165,7 +165,7 @@ uint8_t get_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak) {
 }
 
 
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan;
     char errstr[STATUS_MAX];
@@ -214,7 +214,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
-    char *definition, char *msg, char **uuid, KismetExternal__Command *frame,
+    char *definition, char *msg, char **uuid,
     cf_params_interface_t **ret_interface, cf_params_spectrum_t **ret_spectrum) {
 
     char *placeholder = NULL;
@@ -300,7 +300,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-    char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+    char *msg, uint32_t *dlt, char **uuid,
     cf_params_interface_t **ret_interface, cf_params_spectrum_t **ret_spectrum) {
 
     local_freaklabs_t *localfreak = (local_freaklabs_t *) caph->userdata;
@@ -602,7 +602,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             struct timeval tv;
             gettimeofday(&tv, NULL);
 
-            if ((r = cf_send_data(caph, NULL, NULL, NULL, tv, 0, pkt_len, buf)) < 0) {
+            if ((r = cf_send_data(caph, NULL, 0,
+                            NULL, NULL, tv, 0,
+                            pkt_len, pkt_len, buf)) < 0) {
                 snprintf(errstr, BUFFER_SIZE, "%s - unable to send packet to Kismet server", localfreak->name);
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
