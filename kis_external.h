@@ -318,7 +318,7 @@ protected:
             bool success, const T& content) {
         if (protocol_version == 2) {
 #ifdef HAVE_PROTOBUF_CPP
-            return send_packet_v2(command, in_seqno, content);
+            return send_packet_v2(command, seqno, content);
 #else
             _MSG_ERROR("Kismet was compiled without protobufs support, please update "
                     "the capture tools to a more recent version which replaces "

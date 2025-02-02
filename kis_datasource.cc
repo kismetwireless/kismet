@@ -1043,7 +1043,7 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
         probe_callback_t in_cb) {
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
-        return send_open_probe_source_v2(in_definition, in_transaction, in_cb);
+        return send_probe_source_v2(in_definition, in_transaction, in_cb);
 #else
         trigger_error("cannot use v2 protocol on this build");
         return 0;
@@ -2531,7 +2531,7 @@ unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definiti
 }
 
 #ifdef HAVE_PROTOBUF_CPP
-bool kis_datasource::dispatch_rx_packet_v2(const nonstd::string_view& command,
+bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Handle all the default options first; ping, pong, message, etc are all
     // handled for us by the overhead of the KismetExternal protocol, we only need
@@ -3025,12 +3025,12 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
 
     // Process the data chunk
     if (report->has_packet()) {
-        handle_rx_datalayer(packet, report->packet());
+        handle_rx_datalayer_v2(packet, report->packet());
     }
 
     // Process JSON
     if (report->has_json()) {
-        handle_rx_jsonlayer(packet, report->json());
+        handle_rx_jsonlayer_v2(packet, report->json());
     }
 
     // Process protobufs
@@ -3220,14 +3220,10 @@ unsigned int kis_datasource::send_probe_source_v2(std::string in_definition,
     KismetDatasource::ProbeSource probe;
     probe.set_definition(in_definition);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSPROBESOURCE");
-        c->set_content(probe.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSPROBESOURCE", 0, probe);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -3262,14 +3258,10 @@ unsigned int kis_datasource::send_open_source_v2(std::string in_definition,
     KismetDatasource::OpenSource o;
     o.set_definition(in_definition);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSOPENSOURCE");
-        c->set_content(o.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSOPENSOURCE", 0, o);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -3307,14 +3299,10 @@ unsigned int kis_datasource::send_configure_channel_v2(std::string in_chan,
     ch->set_channel(in_chan);
     o.set_allocated_channel(ch);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSCONFIGURE");
-        c->set_content(o.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSCONFIGURE", 0, o);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -3362,14 +3350,10 @@ unsigned int kis_datasource::send_configure_channel_hop_v2(double in_rate,
 
     o.set_allocated_hopping(ch);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSCONFIGURE");
-        c->set_content(o.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSCONFIGURE", 0, o);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -3402,14 +3386,10 @@ unsigned int kis_datasource::send_list_interfaces_v2(unsigned int in_transaction
 
     KismetDatasource::ListInterfaces l;
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSLISTINTERFACES");
-        c->set_content(l.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSLISTINTERFACES", 0, l);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
