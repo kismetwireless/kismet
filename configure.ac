@@ -11,7 +11,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
 
-AC_PREREQ(2.57)
+AC_PREREQ([2.72])
 
 # Check for host type
 AC_CANONICAL_HOST
@@ -23,7 +23,7 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_CPP
 
-AC_LANG_CPLUSPLUS
+AC_LANG([C++])
 
 BUILD_CAPTURE_LINUX_WIFI=0
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
@@ -118,11 +118,6 @@ then
 		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
 		;;
-	cygwin*)
-		AC_MSG_RESULT(none needed)
-		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
-		cygwin="yes"
-		;;
     *)
         AC_MSG_RESULT(none needed)
         ;;
@@ -172,11 +167,6 @@ else
         AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
         ;;
-	cygwin*)
-		AC_MSG_RESULT(none needed)
-		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
-		cygwin="yes"
-		;;
     *)
         AC_MSG_RESULT(none needed)
         ;;
@@ -241,17 +231,8 @@ AC_SUBST(PLUGINLDFLAGS)
 CXXFLAGS="$CXXFLAGS -O3"
 CFLAGS="$CFLAGS -O3"
 
-if test "$cygwin" = "yes"; then
-	AC_MSG_CHECKING(cygwin compile flags)
-	AC_MSG_RESULT(__MINGW32__)
-	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
-else
-	# cygwin doesn't like rdynamic, will this hurt us?
-	LDFLAGS="$LDFLAGS -rdynamic"
-fi
-
 AC_CONFIG_SRCDIR([kismet_server.cc])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
@@ -341,21 +322,24 @@ AC_ARG_ENABLE([mutex-name-debug],
     esac], [AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging)])
 
 # Configure for a remote-capture-only build
-caponly=0
+caponly=no
 AC_ARG_ENABLE(capture-tools-only,
 	[  --enable-capture-tools-only  Configure and build for capture tools and remote only],
 	[case "${enableval}" in
-	  no) caponly=0 ;;
-	   *) caponly=1 ;;
+	  no) caponly=no ;;
+	   *) caponly=yes ;;
 	 esac],
-	[caponly=0]
+	[caponly=no]
 )
 
-if test $caponly = 0; then
-    ALLTARGETS='$(STD_ALL)'
-else
-    ALLTARGETS='$(DS_ONLY)'
-fi
+AS_IF([test "$caponly"x = "no"x],
+      [
+       ALLTARGETS='$(STD_ALL)'
+      ],
+      [
+       ALLTARGETS='$(DS_ONLY)'
+      ]
+)
 AC_SUBST(ALLTARGETS)
 
 want_te_typesafety=no
@@ -367,30 +351,51 @@ AC_ARG_ENABLE([element-typesafety],
   esac],
   [want_te_typesafety=no]
 )
-if test "$want_te_typesafety"x == "yes"x; then
-    AC_DEFINE(TE_TYPE_SAFETY, 1, Enforce runtime type safety)
-else
-    AC_DEFINE(TE_TYPE_SAFETY, 0, Do not enforce runtime type safety)
-fi
+AS_IF([test "x$want_te_typesafety" = "xyes"],
+      [
+       AC_DEFINE(TE_TYPE_SAFETY, 1, Enforce runtime type safety)
+      ],
+      [
+       AC_DEFINE(TE_TYPE_SAFETY, 0, Do not enforce runtime type safety)
+      ]
+)
+
+want_protobuf=no
+AC_ARG_ENABLE([protobuf],
+    AS_HELP_STRING([--enable-protobuf], [Enable protobuf support for older remote datasources]),
+    [case "${enableval}" in
+     yes) want_protobuf=yes ;;
+     *) ;;
+    esac],
+    []
+)
 
 PROTOBUF=protobuf
 AC_ARG_ENABLE([protobuflite],
     AS_HELP_STRING([--enable-protobuflite], [Force building with protobuf-lite instead of full protobuf]),
-	[case "${enableval}" in
-	 yes) PROTOBUF=protobuf-lite ;;
-	   *)  ;;
-	 esac],
-	[]
+    [case "${enableval}" in
+     yes) PROTOBUF=protobuf-lite ;;
+     *)  ;;
+    esac],
+    []
 )
 
-want_python=yes
+AS_IF([test "$want_protobuf"x = "yes"x -a "$caponly"x = "yes"x],
+      [
+       AC_MSG_WARN([protobufs disabled when only building capture tools])
+       want_protobuf=no
+      ],
+      []
+)
+
+want_python=no
 AC_ARG_ENABLE([python-tools],
-    AS_HELP_STRING([--disable-python-tools], [Disable building Python modules and Python-only data sources]),
+    AS_HELP_STRING([--enable-python-tools], [Enable building (legacy) Python modules and Python-only data sources]),
        [case "${enableval}" in
-         no) want_python=no ;;
-          *) want_python=yes ;;
+        yes) want_python=yes ;;
+          *) want_python=no ;;
         esac],
-       [want_python=yes]
+       [want_python=no]
 )
 
 PYTHON=python3
@@ -702,9 +707,11 @@ CC="$CXX"
 AC_CHECK_LIB([stdc++], [main],
         foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 
-if test "$foundcxxl"x == "x" -a "$caponly" != 1; then
-	AC_MSG_ERROR(No standard stdc++ libraries found.)
-fi
+AS_IF([test "$foundcxxl"x = "x" -a "$caponly"x != "yes"x],
+      [
+       AC_MSG_ERROR(No standard stdc++ libraries found.)
+      ], []
+)
 CC="$oCC"
 AC_SUBST(CXXLIBS)
 
@@ -734,13 +741,16 @@ CC="$oCC"
 
 
 AC_MSG_CHECKING([for group 'root'])
-if test "`grep -e ^root: /etc/group`" = ""; then
-	AC_MSG_RESULT([no.  Using 'wheel'])
-	instgrp="wheel"
-else
-	AC_MSG_RESULT([yes])
-	instgrp="root"
-fi
+AS_IF([test "`grep -e ^root: /etc/group`" = ""],
+      [
+       AC_MSG_RESULT([no.  Using 'wheel'])
+       instgrp="wheel"
+      ],
+      [
+       AC_MSG_RESULT([yes])
+       instgrp="root"
+      ]
+)
 AC_SUBST(instgrp)
 
 # Check for process title manipulation stuff, from proftpd configure.in
@@ -780,9 +790,7 @@ else
   if test "$pf_argv_set" = "no"; then
     AC_CACHE_CHECK(whether __progname and __progname_full are available,
 		    pf_cv_var_progname,
-		    AC_TRY_LINK([extern char *__progname, *__progname_full;],
-			[__progname = "foo"; __progname_full = "foo bar";],
-			pf_cv_var_progname="yes", pf_cv_var_progname="no"))
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM([[extern char *__progname, *__progname_full;]], [[__progname = "foo"; __progname_full = "foo bar";]])],[pf_cv_var_progname="yes"],[pf_cv_var_progname="no"]))
 
     if test "$pf_cv_var_progname" = "yes"; then
 	AC_DEFINE(HAVE___PROGNAME, 1, __PROGNAME glibc macro available)
@@ -966,7 +974,7 @@ if test "${wantpcre}x" = "nox" -a "${needpcre2}x" = "yesx"; then
     AC_MSG_ERROR([Can not combine --disable-pcre and --enable-require-pcre2])
 fi
 
-if test "$caponly" == 0; then
+if test "$caponly"x == "no"x; then
     if test "$HAVE_CXX17" = "1"; then
 	    AC_MSG_CHECKING([Checking C++17 parallel functions])
 
@@ -1044,7 +1052,7 @@ if test "$caponly" == 0; then
 fi
 
 # Dont' check pcre if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     if test "$wantpcre" = "yes"; then
         # Check for pcre2 first
         
@@ -1098,7 +1106,7 @@ if test "$caponly" == 0; then
 fi
 
 # Don't check for sqlite3 if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     # Check for sqlite3
     sql3l=no
     AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
@@ -1125,25 +1133,26 @@ if test "$caponly" == 0; then
 fi # caponly
 
 # don't check for openssl if we're only building datasources 
-if test "$caponly" == 0; then 
+if test "$caponly"x = "no"x; then
     AX_CHECK_OPENSSL(AC_DEFINE(HAVE_OPENSSL, 1, openssl library present),
                      AC_MSG_ERROR(Failed to find OpenSSL library))
 fi # caponly
 
-AC_ARG_ENABLE(prelude,
-              AS_HELP_STRING([--enable-prelude],
-                             [Enable Prelude SIEM as a target for alerts.]),
-[
-  wantprelude=no
-  if test "$enableval" != "no"; then
-    AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
-    CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
-    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
-    LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
-    AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
-    wantprelude=yes
-  fi
-],[wantprelude=no])
+wantprelude=no
+# AC_ARG_ENABLE(prelude,
+#               AS_HELP_STRING([--enable-prelude],
+#                              [Enable Prelude SIEM as a target for alerts.]),
+# [
+#   wantprelude=no
+#   if test "$enableval" != "no"; then
+#     AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
+#     CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
+#     LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
+#     LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
+#     AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
+#     wantprelude=yes
+#   fi
+# ],[wantprelude=no])
 
 
 PKG_PROG_PKG_CONFIG
@@ -1216,9 +1225,11 @@ AC_SUBST(PCAPLIBS)
 AC_SUBST(PCAPCFLAGS)
 AC_SUBST(pcap)
 
-if test "$pcap" != "yes"; then
-	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality.)
-fi
+AS_IF([test "$pcap"x != "yes"x],
+      [
+       AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality.)
+      ], []
+)
 
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
 BUILD_CAPTURE_PCAPFILE=1
@@ -1227,10 +1238,12 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_ANTSDR_DRONEID)"
 BUILD_CAPTUE_ANTSDR_DRONEID=1
 
 BUILD_CAPTURE_LINUX_WIFI=0
-if test "$linux" = "yes"; then
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
-    BUILD_CAPTURE_LINUX_WIFI=1
-fi
+AS_IF([test "$linux"x = "yes"x],
+      [
+       DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+       BUILD_CAPTURE_LINUX_WIFI=1
+      ], []
+)
 
 BUILD_CAPTURE_OPENBSD_WIFI=0
 if test "$openbsd" = "yes"; then
@@ -1238,16 +1251,16 @@ if test "$openbsd" = "yes"; then
     BUILD_CAPTURE_OPENBSD_WIFI=1
 fi
 
-if test "$caponly" = 0 || test "$want_python" = "yes"; then
+AS_IF([test "$want_protobuf"x = "yes"x], [
     PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
     if test x"$have_protobuf_pkg" != "xyes"; then
         AC_MSG_ERROR([missing google libprotobuf])
     fi
-    
+
     AC_ARG_WITH(protoc,
     	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
         [ ])
-    
+
     if test x"$with_protoc" == "x"; then
         PROTOCBIN=protoc
         AC_CHECK_PROG(protoc, [protoc], yes)
@@ -1257,101 +1270,15 @@ if test "$caponly" = 0 || test "$want_python" = "yes"; then
     else
         PROTOCBIN=$with_protoc
     fi
-    
+
     PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
     PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
     PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
-fi  # caponly
+], [])
 
-# We need protobuf-c all the time
-PKG_CHECK_MODULES([libprotobufc], [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)
-if test x"$have_protobufc_pkg" != "xyes"; then
-    # Look for the old version (old ubuntu, maybe others)
-    AC_CHECK_HEADER([google/protobuf-c/protobuf-c.h], 
-            have_protobufc_hdr=yes)
-    AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack_to_buffer],
-            have_protobufc_lib=yes)
-
-    if test x"$have_protobufc_hdr" = "xyes" -a x"$have_protobufc_lib" = "xyes"; then
-        PROTOCLIBS="-lprotobuf-c"
-        PROTOCFLAGS=""
-    else
-        AC_MSG_ERROR([missing libprotobuf-c])
-    fi
-else
-    PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-    PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
-fi
-
-AC_ARG_WITH(protocc,
-	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
-	[ PROTOCCBIN=$withval ]
-	)
-AS_IF([test "x$with_protocc" = "x"], [
-    PROTOCCBIN="protoc-c"
-    AC_CHECK_PROG(protocc, [protoc-c], yes)
-    AS_IF([test x"$protocc" != "xyes"], [
-        AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
-    ])
-],[
-    PROTOCCBIN=$with_protocc
-])
-
-# As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
-# protobufs-c and making it impossible to run protoc-c to compile protobufs into .c/.h pairs.  
-#
-# Fortunately, the protobufs-c implementation is quite generous in ways the C++ implemetnation is not, which 
-# lets us package a precompiled protobufs-c-1.5.0 output of the protobufs files.  This compiles fine 
-# cross-platform and with protobufs-c runtimes from 1.3.0 to 1.5.0 (tested) and 1.0.0 to 1.5.0 (by definition)
-# which should cover every platform.  
-#
-# Perform a compile test with the same restrictions as the 1.5.0 definitions to be sure, and allow an override to
-# always compile protobufs-c definitions, even when they might fail.
-PROTOBUF_C_DIR="protobuf_c"
-
-AC_ARG_ENABLE([force-protoc-c],
-    AS_HELP_STRING([--force-protoc-c], [Force building C protobufs with protoc-c]),
-	[case "${enableval}" in
-      yes) force_protocc=yes ;;
-        *) force_protocc=no ;;
-	 esac],
-	[force_protocc=no]
-)
-
-AS_IF([test "$force_protocc" = "no"], [
-    PROTOBUF_C_DIR="protobuf_c_1005000"
-    
-    AC_MSG_CHECKING([protobufs-c 1.5.0 compatibility])
-    OCFL="$CFLAGS"
-    CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-            #include <protobuf-c/protobuf-c.h>
-    		]], [[
-            #if PROTOBUF_C_VERSION_NUMBER < 1000000
-            # error System libprotobuf-c older than 1.0.0
-            #elif 1005000 < PROTOBUF_C_MIN_COMPILER_VERSION
-            # error System libprotobuf-c incompatible with 1.5.0
-            #endif
-    		]])],[compat_libprotoc=yes],[compat_libprotoc=no])
-    AS_IF([test "$compat_libprotoc" = "yes"], [
-    	AC_MSG_RESULT([yes])
-    ], [
-    	AC_MSG_ERROR(NO - use --force-proto-c to force protobuf-c recompilation)
-    ])
-    CFLAGS="$OCFL"
-])
-
-
-AC_SUBST(PROTOBUF_C_DIR)
-AC_SUBST(PROTOCBIN)
-AC_SUBST(PROTOLIBS)
-AC_SUBST(PROTOCFLAGS)
-AC_SUBST(PROTOCCBIN)
-AC_SUBST(PROTOCLIBS)
-AC_SUBST(PROTOCCFLAGS)
 AC_SUBST(PROTOBUF_CPP_O_TARGET)
 AC_SUBST(PROTOBUF_CPP_H_TARGET)
 
@@ -2026,11 +1953,6 @@ AC_ARG_WITH(suidgroup,
 	])
 AC_SUBST(suidgroup)
 
-# Evaluate suid
-if test "$cygwin" = "yes"; then
-	suid="no"
-fi
-
 AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 
 AC_ARG_ENABLE(optimization,
@@ -2150,15 +2072,15 @@ echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
-echo "      Protobuf Library: $PROTOBUF"
+printf "      Protobuf Library: "
+if test "$want_protobuf"x = "yes"x; then
+    echo "$PROTOBUF"
+else
+    echo "disabled"
+fi
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
-printf "          Setuid group: "
-if test "$cygwin" = "yes"; then
-	echo "n/a (Cygwin/Win32";
-else
-	echo "$suidgroup"
-fi
+printf "          Setuid group: $suidgroup"
 
 printf "        Prelude  SIEM : $wantprelude\n"
 
