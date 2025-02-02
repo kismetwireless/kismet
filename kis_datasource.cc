@@ -1067,8 +1067,8 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
     return 0;
 }
 
-bool kis_datasource::dispatch_rx_packet_v3(uint16_t command, uint16_t code,
-        uint32_t seqno, const nonstd::string_view& content) {
+bool kis_datasource::dispatch_rx_packet_v3(uint16_t command, uint16_t seqno,
+        uint32_t code, const nonstd::string_view& content) {
 
     _MSG_INFO("external command {} code {} seq {} version {}", command, code, seqno, protocol_version.load());
 
@@ -1617,6 +1617,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     }
 
     if (code != 0) {
+        _MSG_DEBUG("opensource called with code {}", code);
         trigger_error(msg);
         set_int_source_error_reason(msg);
         handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
