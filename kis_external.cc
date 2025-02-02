@@ -779,14 +779,11 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
         KismetEventBus::EventbusEvent ebe;
         ebe.set_event_json(ss.str());
 
-        if (protocol_version == 0) {
-            auto c = std::make_shared<KismetExternal::Command>();
-            c->set_command("EVENT");
-            c->set_content(ebe.SerializeAsString());
-            send_packet(c);
-        } else if (protocol_version == 2) {
+        if (protocol_version == 2) {
             send_packet_v2("EVENT", 0, ebe);
         }
+
+        _MSG_ERROR("unhandled legacy protocol version {}", protocol_version.load());
     }
 #endif
 
@@ -1195,16 +1192,7 @@ unsigned int kis_external_interface::send_http_auth_v3(const std::string& in_coo
 
 unsigned int kis_external_interface::send_ping() {
 #ifdef HAVE_PROTOBUF_CPP
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-        c->set_command("PING");
-
-        KismetExternal::Ping p;
-        c->set_content(p.SerializeAsString());
-
-        return send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         return send_packet_v2("PING", 0, KismetExternal::Ping{});
     }
 #endif
@@ -1212,6 +1200,8 @@ unsigned int kis_external_interface::send_ping() {
     if (protocol_version == 3) {
         return send_packet_v3(KIS_EXTERNAL_V3_CMD_PING, 0, 1, "");
     }
+
+    _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
 
     return -1;
 }
@@ -1221,13 +1211,7 @@ unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
     KismetExternal::Pong p;
     p.set_ping_seqno(ping_seqno);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("PONG");
-        c->set_content(p.SerializeAsString());
-
-        return send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         return send_packet_v2("PONG", 0, p);
     }
 #endif
@@ -1235,6 +1219,8 @@ unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
     if (protocol_version == 3) {
         return send_packet_v3(KIS_EXTERNAL_V3_CMD_PONG, ping_seqno, 1, "");
     }
+
+    _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
 
     return -1;
 }
@@ -1244,15 +1230,12 @@ unsigned int kis_external_interface::send_shutdown(std::string reason) {
     KismetExternal::ExternalShutdown s;
     s.set_reason(reason);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("SHUTDOWN");
-        c->set_content(s.SerializeAsString());
-        return send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         return send_packet_v2("SHUTDOWN", 0, s);
     }
 #endif
+
+    _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
 
     return -1;
 }
@@ -1260,59 +1243,6 @@ unsigned int kis_external_interface::send_shutdown(std::string reason) {
 
 
 #ifdef HAVE_PROTOBUF_CPP
-unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (io_ == nullptr) {
-        _MSG_DEBUG("Attempt to send {} on external interface with no IO", c->command());
-        return 0;
-    }
-
-    if (io_->stopped() || cancelled) {
-        _MSG_DEBUG("Attempt to send {} on closed external interface", c->command());
-        return 0;
-    }
-
-    // Set the sequence if one wasn't provided
-    if (c->seqno() == 0) {
-        kis_lock_guard<kis_mutex> lk(ext_mutex, "kei send_packet");
-
-        if (++seqno == 0)
-            seqno = 1;
-
-        c->set_seqno(seqno);
-    }
-
-    uint32_t data_csum;
-
-    // Get the serialized size of our message
-#if GOOGLE_PROTOBUF_VERSION >= 3006001
-    size_t content_sz = c->ByteSizeLong();
-#else
-    size_t content_sz = c->ByteSize();
-#endif
-
-    // Calc frame size
-    ssize_t frame_sz = sizeof(kismet_external_frame_t) + content_sz;
-
-    // Our actual frame
-    char frame_buf[frame_sz];
-    kismet_external_frame_t *frame = reinterpret_cast<kismet_external_frame_t *>(frame_buf);
-
-    // Fill in the headers
-    frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
-    frame->data_sz = kis_hton32(content_sz);
-
-    // serialize into our array
-    c->SerializeToArray(frame->data, content_sz);
-
-    // Calculate the checksum and set it in the frame
-    data_csum = adler32_checksum((const char *) frame->data, content_sz);
-    frame->data_checksum = kis_hton32(data_csum);
-
-    start_write(frame_buf, frame_sz);
-
-    return c->seqno();
-}
-
 bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who
@@ -1583,14 +1513,11 @@ unsigned int kis_external_interface::send_http_request(uint32_t in_http_sequence
         pd->set_content(pi.second);
     }
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("HTTPREQUEST");
-        c->set_content(r.SerializeAsString());
-        return send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         return send_packet_v2("HTTPREQUEST", 0, r);
     }
+
+    _MSG_ERROR("unhandled legacy protocol version {}", protocol_version.load());
 
     return -1;
 }
@@ -1601,13 +1528,11 @@ unsigned int kis_external_interface::send_http_auth(std::string in_cookie) {
     KismetExternalHttp::HttpAuthToken a;
     a.set_token(in_cookie);
 
-    if (protocol_version == 0) {
-        c->set_command("HTTPAUTH");
-        c->set_content(a.SerializeAsString());
-        return send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         return send_packet_v2("HTTPAUTH", 0, a);
     }
+
+    _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
 
     return -1;
 }
