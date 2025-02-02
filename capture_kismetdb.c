@@ -485,7 +485,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     long packet_ts_sec, packet_ts_usec;
 
     /* Packet data */
-    unsigned int packet_len, packet_caplen;
+    unsigned int packet_len, packet_fulllen;
     const void *packet_data;
     // double packet_frequency;
     int dlt;
@@ -514,7 +514,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     /* V9 has original capture length */
     const char *basic_packet_sql_v9 =
-        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet, packet_caplen FROM packets ORDER BY ts_sec, ts_usec";
+        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet, packet_full_len FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v9 =
         "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data ORDER BY ts_sec, ts_usec";
@@ -618,10 +618,10 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             packet_len = sqlite3_column_bytes(packet_stmt, colno);
             packet_data = sqlite3_column_blob(packet_stmt, colno++);
-            packet_caplen = sqlite3_column_int64(packet_stmt, colno++);
+            packet_fulllen = sqlite3_column_int64(packet_stmt, colno++);
 
             kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
-                    packet_caplen, packet_len, (const u_char *) packet_data,
+                    packet_fulllen, packet_len, (const u_char *) packet_data,
                     lat, lon, alt, speed, heading);
 
             packet_r = sqlite3_step(packet_stmt);
