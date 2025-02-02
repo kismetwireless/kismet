@@ -1278,10 +1278,15 @@ AS_IF([test "$want_protobuf"x = "yes"x], [
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
     PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
+
+    AC_DEFINE(HAVE_PROTOBUF_CPP, 1, google protobufs)
 ], [])
 
 AC_SUBST(PROTOBUF_CPP_O_TARGET)
 AC_SUBST(PROTOBUF_CPP_H_TARGET)
+AC_SUBST(PROTOLIBS)
+AC_SUBST(PROTOCFLAGS)
+AC_SUBST(PROTOCBIN)
 
 AC_ARG_ENABLE(btgeiger,
     AS_HELP_STRING([--enable-btgeiger], [Enable custom BTLE connected geiger counter input]),
