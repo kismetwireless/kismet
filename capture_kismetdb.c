@@ -79,7 +79,7 @@ int sqlite_version_cb(void *ver, int argc, char **data, char **colnames) {
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, KismetExternal__Command *frame,
-        cf_params_interface_t **ret_interface, 
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -96,7 +96,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     int sql_r;
 
-    const char *kismet_version_sql = 
+    const char *kismet_version_sql =
         "SELECT db_version FROM KISMET";
     unsigned int dbversion = 0;
     char *sErrMsg = NULL;
@@ -112,7 +112,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     (*ret_interface)->channels_len = 0;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find kismetdb file name in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find kismetdb file name in definition");
         return 0;
     }
 
@@ -145,9 +145,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     } else {
         /* Kluge a UUID out of the name */
         snprintf(errstr, 4096, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                adler32_csum((unsigned char *) "kismet_cap_pcapfile",
                     strlen("kismet_cap_kismetdb")) & 0xFFFFFFFF,
-                adler32_csum((unsigned char *) dbname, 
+                adler32_csum((unsigned char *) dbname,
                     strlen(dbname)) & 0xFFFFFFFF);
         *uuid = strdup(errstr);
     }
@@ -159,7 +159,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
-        cf_params_interface_t **ret_interface, 
+        cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
     int placeholder_len;
@@ -181,7 +181,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int sql_r;
 
-    const char *kismet_version_sql = 
+    const char *kismet_version_sql =
         "SELECT db_version FROM KISMET";
     char *sErrMsg = NULL;
 
@@ -235,9 +235,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } else {
         /* Kluge a UUID out of the name */
         snprintf(errstr, 4096, "%08X-0000-0000-0000-0000%08X",
-                adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                adler32_csum((unsigned char *) "kismet_cap_pcapfile",
                     strlen("kismet_cap_kismetdb")) & 0xFFFFFFFF,
-                adler32_csum((unsigned char *) dbname, 
+                adler32_csum((unsigned char *) dbname,
                     strlen(dbname)) & 0xFFFFFFFF);
         *uuid = strdup(errstr);
     }
@@ -247,7 +247,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
         if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
-            snprintf(errstr, 4096, 
+            snprintf(errstr, 4096,
                     "kismetdb '%s' will replay in realtime", dbname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             local_pcap->realtime = 1;
@@ -279,7 +279,7 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
     kismet_datasource__sub_gps__init(&kegps);
 
     /* If we're doing 'realtime' playback, delay accordingly based on the
-     * previous packet. 
+     * previous packet.
      *
      * Because we're in our own thread, we can block as long as we want - this
      * simulates blocking IO for capturing from hardware, too.
@@ -344,9 +344,9 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
      * the write buffer is full & we'll be woken up as soon as it flushes
      * data out in the main select() loop */
     while (1) {
-        if ((ret = cf_send_data(caph, 
+        if ((ret = cf_send_data(caph,
                         NULL, NULL, &kegps,
-                        ts, 
+                        ts,
                         dlt,
                         len, (uint8_t *) data)) < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
@@ -380,7 +380,7 @@ void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
     kismet_datasource__sub_gps__init(&kegps);
 
     /* If we're doing 'realtime' playback, delay accordingly based on the
-     * previous packet. 
+     * previous packet.
      *
      * Because we're in our own thread, we can block as long as we want - this
      * simulates blocking IO for capturing from hardware, too.
@@ -445,9 +445,9 @@ void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
      * the write buffer is full & we'll be woken up as soon as it flushes
      * data out in the main select() loop */
     while (1) {
-        if ((ret = cf_send_json(caph, 
+        if ((ret = cf_send_json(caph,
                         NULL, NULL, &kegps,
-                        ts, 
+                        ts,
                         type, json)) < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
@@ -502,15 +502,15 @@ void capture_thread(kis_capture_handler_t *caph) {
     char *data_json = NULL;
 
     /* V4 didn't have speed, heading, etc, and used the normalized encoding */
-    const char *basic_packet_sql_v4 = 
+    const char *basic_packet_sql_v4 =
         "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v4 =
         "SELECT ts_sec, ts_usec, (lat / 100000.0), (lon / 100000.0), type, json FROM data ORDER BY ts_sec, ts_usec";
-    
-   
+
+
     /* V5 has full GPS, and in natural doubles */
-    const char *basic_packet_sql_v5 = 
+    const char *basic_packet_sql_v5 =
         "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v5 =
@@ -590,7 +590,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             data_ts_usec = 0;
         }
 
-        /* Merge the timelines of the two tables; if the packet comes first process it, 
+        /* Merge the timelines of the two tables; if the packet comes first process it,
          * otherwise process the data, and repeat */
         if (data_ts_sec == 0 || packet_ts_sec < data_ts_sec ||
                 (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec)) {
@@ -632,7 +632,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             data_type = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
             data_json = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
 
-            kismetdb_dispatch_data_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, 
+            kismetdb_dispatch_data_cb((u_char *) caph, packet_ts_sec, packet_ts_usec,
                     data_type, data_json,
                     lat, lon, alt, speed, heading);
 
@@ -643,7 +643,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
     }
 
-    snprintf(errstr, 4096, "KismetDB '%s' closed, all packets and data processed.", 
+    snprintf(errstr, 4096, "KismetDB '%s' closed, all packets and data processed.",
             local_pcap->dbname);
     cf_send_message(caph, errstr, MSGFLAG_INFO);
 
