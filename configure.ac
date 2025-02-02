@@ -420,14 +420,14 @@ AC_SUBST(PYTHON_VERSION)
 # HAVE_FFTW3_H=0
 # BUILD_CAPTURE_HACKRF_SWEEP=0
 # HACKRF_MISSING_REASON="Missing required libhack/libfftw3 libraries"
-# 
+#
 # AC_CHECK_HEADERS([libhackrf/hackrf.h],
 #     HAVE_HACKRF_H=1,
 #     AC_MSG_WARN("Missing hackrf.h from libhackrf"))
 # AC_CHECK_HEADERS([fftw3.h],
 #     HAVE_FFTW3_H=1,
 #     AC_MSG_WARN("Missing fftw3.h from libfftw"))
-# 
+#
 # if test "$HAVE_HACKRF_H" = 1; then
 #     AC_CHECK_LIB([hackrf], [hackrf_init],
 # 			HAVE_LIBHACKRF=1,
@@ -435,7 +435,7 @@ AC_SUBST(PYTHON_VERSION)
 # else
 #     HACKRF_MISSING_REASON="Missing libhackrf/hackrf.h"
 # fi
-# 
+#
 # if test "$HAVE_FFTW3_H" = 1; then
 #     AC_CHECK_LIB([fftw3], [fftw_malloc],
 #             HAVE_LIBFFTW3=1,
@@ -443,7 +443,7 @@ AC_SUBST(PYTHON_VERSION)
 # else
 #     HACKRF_MISSING_REASON="missing libfftw3.h"
 # fi
-# 
+#
 # if test "$HAVE_LIBHACKRF" = 1 && test "$HAVE_LIBFFTW3" = 1; then
 #     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #     		#include <libhackrf/hackrf.h>
@@ -480,23 +480,23 @@ AC_ARG_ENABLE(debuglibs,
 if test "$wantdebuglibs" = 1; then
     AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
     AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
-    
+
     if test "$HAVE_LIBDW" = 1; then
         AC_CHECK_HEADERS([elfutils/libdw.h elfutils/libdwfl.h dwarf.h], DEF_BW_HAS_LIBDW=1)
     fi
-    
+
     if test "$HAVE_LIBBFD" = 1; then
         AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
     fi
-    
+
     DEF_BW_HAS_UNWIND=0
     DEF_BW_HAS_BACKTRACE=0
-    
+
     BACKTRACE_OK=0
-    
+
     AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
     AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
-    
+
     if test "$DEF_BW_HAS_UNWIND" = 1; then
         BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
         AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
@@ -511,7 +511,7 @@ if test "$wantdebuglibs" = 1; then
         BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
         AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
     fi
-    
+
     if test "$BACKTRACE_OK" = 1; then
         # Libdw is the best support
         if test "$DEF_BW_HAS_LIBDW" = 1; then
@@ -666,7 +666,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
                 ]], [[
                      pthread_mutex_timedlock(NULL, NULL);
                      return 0;
-                     ]])], [have_timedlock=yes], 
+                     ]])], [have_timedlock=yes],
                      [have_timedlock=no])
 if test "$have_timedlock" = "yes"; then
     AC_MSG_RESULT([yes])
@@ -934,7 +934,7 @@ if test "$wantlibcap" = "yes"; then
     AC_CHECK_LIB([cap], [cap_init],,havecap=no)
     AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
     AC_CHECK_HEADER([sys/capability.h],, havecap=no)
-    
+
     if test "$havecap" = "yes"; then
     AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
     caplibs="-lcap"
@@ -1055,7 +1055,7 @@ fi
 if test "$caponly"x = "no"x; then
     if test "$wantpcre" = "yes"; then
         # Check for pcre2 first
-        
+
         pcre2=no
         pcre1=no
 
@@ -1066,7 +1066,7 @@ if test "$caponly"x = "no"x; then
             #define PCRE2_CODE_UNIT_WIDTH 8
             #include <pcre2.h>
 			]], [[
-            
+
             pcre2_compile(NULL, PCRE2_ZERO_TERMINATED,
                           0, NULL, NULL, NULL);
 
@@ -1110,19 +1110,19 @@ if test "$caponly"x = "no"x; then
     # Check for sqlite3
     sql3l=no
     AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
-    
+
     if test "$sql3l" != "yes"; then
     	AC_MSG_ERROR(Failed to find libsqlite3)
     fi
-    
-    
+
+
     sql3h=no
     AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
-    
+
     if test "$sql3h" != "yes"; then
     	AC_MSG_ERROR(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
     fi
-    
+
     if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
     AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
     LIBS="$LIBS -lsqlite3"
@@ -1132,7 +1132,7 @@ if test "$caponly"x = "no"x; then
 
 fi # caponly
 
-# don't check for openssl if we're only building datasources 
+# don't check for openssl if we're only building datasources
 if test "$caponly"x = "no"x; then
     AX_CHECK_OPENSSL(AC_DEFINE(HAVE_OPENSSL, 1, openssl library present),
                      AC_MSG_ERROR(Failed to find OpenSSL library))
@@ -1204,7 +1204,7 @@ if test "$have_libpcap"x != "yesx"; then
     AC_CHECK_LIB([pcap], [pcap_open_live],
         AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
         AC_MSG_ERROR(Libpcap required for proper operation))
-    
+
     if test "$foundsyspcap" = yes; then
     ## if we don't have a pcap.h, do a search for pcap/pcap.h
     AC_CHECK_HEADER([pcap.h],
@@ -1214,7 +1214,7 @@ if test "$have_libpcap"x != "yesx"; then
     		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
     		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
         fi
-    
+
         PCAPLIBS="-lpcap"
         PCAPCFLAGS=""
         pcap=yes
@@ -1311,9 +1311,9 @@ AC_ARG_ENABLE(bladerf,
 )
 
 AS_IF([test "x$want_bladerf" == "xyes"], [
-    PKG_CHECK_MODULES([libbladeRF], [libbladeRF], 
+    PKG_CHECK_MODULES([libbladeRF], [libbladeRF],
         [
-        ], 
+        ],
         [
          AC_MSG_ERROR([missing libbladeRF package])
         ])
@@ -1497,8 +1497,8 @@ if test "$havenetlink" = "yes"; then
 
     if test $netlink_force = "tiny"; then
         picked_nl="tiny"
-        AC_CHECK_HEADER([netlink/netlink.h], 
-                AC_DEFINE(HAVE_LIBNLTINY_HEADERS, 1, [libnltiny headers present]), 
+        AC_CHECK_HEADER([netlink/netlink.h],
+                AC_DEFINE(HAVE_LIBNLTINY_HEADERS, 1, [libnltiny headers present]),
                 AC_MSG_ERROR([libnl-tiny requested but could not find headers]))
 
         AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
@@ -1662,10 +1662,10 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
     else
-        AC_CHECK_HEADERS([btbb.h], 
-                         HAVE_BTBB_H=yes, 
+        AC_CHECK_HEADERS([btbb.h],
+                         HAVE_BTBB_H=yes,
                          AC_MSG_WARN("btbb.h is missing"))
-        AC_CHECK_LIB([btbb], [btbb_init], 
+        AC_CHECK_LIB([btbb], [btbb_init],
                      HAVE_LIBBTBB=yes,
                      AC_MSG_WARN("libbtbb is missing"))
 
@@ -1677,15 +1677,15 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
             LIBBTBBLIBS="-lbtbb"
             LDFLAGS="$LDFLAGS -lbtbb"
 
-            AC_CHECK_HEADERS([ubertooth/ubertooth.h], 
-                             [HAVE_UBERTOOTH_H=yes 
-                              AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir)], 
+            AC_CHECK_HEADERS([ubertooth/ubertooth.h],
+                             [HAVE_UBERTOOTH_H=yes
+                              AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir)],
                               [])
 
-            AC_CHECK_HEADERS([ubertooth.h], 
+            AC_CHECK_HEADERS([ubertooth.h],
                              HAVE_UBERTOOTH_H=yes, [])
 
-            AC_CHECK_LIB([ubertooth], [ubertooth_init], 
+            AC_CHECK_LIB([ubertooth], [ubertooth_init],
                          HAVE_LIBUBERTOOTH=yes, [])
 
             if test x"$HAVE_UBERTOOTH_H" != "xyes" -o x"$HAVE_LIBUBERTOOTH" != "xyes"; then
@@ -1704,7 +1704,7 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
     else
         have_ubertooth="yes"
 
-        AC_CHECK_LIB([ubertooth], [ubertooth_count], 
+        AC_CHECK_LIB([ubertooth], [ubertooth_count],
                      AC_DEFINE(HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT, 1, libubertooth has ubertooth_count),
                      HAVE_UBERTOOTH_COUNT=0)
 
@@ -1758,7 +1758,7 @@ AS_IF([test "x$want_rtlsdr" != "xno"], [
 	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
             #include <rtl-sdr.h>
 			]], [[
-            
+
             rtlsdr_set_bias_tee(nullptr, 1);
 
 			return 0;
@@ -1772,7 +1772,7 @@ AS_IF([test "x$want_rtlsdr" != "xno"], [
 	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
             #include <rtl-sdr.h>
 			]], [[
-            
+
             rtlsdr_set_bias_tee_gpio(nullptr, 0, 1);
 
 			return 0;
@@ -1894,7 +1894,7 @@ AS_IF([test "x$want_mosquitto" != "xno"], [
                       LIBS="$LIBS `pkg-config --libs libmosquitto`"
                       CPPFLAGS="$CPPFLAGS `pkg-config --cflags libmosquitto`"
                       CFLAGS="$CFLAGS `pkg-config --cflags libmosquitto`"
-                      
+
                       have_mosquitto="yes"
                       AC_DEFINE(HAVE_LIBMOSQUITTO, 1, libmosquitto)
                      ],
@@ -1923,7 +1923,7 @@ AS_IF([test "x$want_lmsensors" != "xno"], [
     AC_CHECK_HEADERS([sensors/sensors.h],
         HAVE_LMSENSORS_H=1,
         HAVE_LMSENSORS_H=0)
-    
+
     if test "$HAVE_LMSENSORS_H" = 1; then
         AC_CHECK_LIB([sensors], [sensors_init],
     			HAVE_LIBLMSENSORS=1,
@@ -1932,9 +1932,9 @@ AS_IF([test "x$want_lmsensors" != "xno"], [
         if test "$HAVE_LIBLMSENSORS" = 1; then
             LIBS="$LIBS -lsensors"
             have_lmsensors=yes
-        else 
+        else
             AC_MSG_ERROR([required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information])
-        fi 
+        fi
     else
         AC_MSG_ERROR([required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information])
     fi
@@ -2039,23 +2039,23 @@ AC_SUBST(BUILD_CAPTURE_ANTSDR_DRONEID)
 #AC_SUBST(CXXFLAGS)
 
 AC_CONFIG_FILES([
-    Makefile 
-    Makefile.inc 
-    packaging/kismet.pc 
-    packaging/systemd/kismet.service 
-    packaging/systemd/debug/kismet-debug.service 
-    capture_linux_bluetooth/Makefile 
-    capture_linux_wifi/Makefile 
+    Makefile
+    Makefile.inc
+    packaging/kismet.pc
+    packaging/systemd/kismet.service
+    packaging/systemd/debug/kismet-debug.service
+    capture_linux_bluetooth/Makefile
+    capture_linux_wifi/Makefile
     capture_openbsd_wifi/Makefile
-    capture_osx_corewlan_wifi/Makefile 
+    capture_osx_corewlan_wifi/Makefile
     capture_nrf_mousejack/Makefile
-    capture_sdr_rtl433_v2/Makefile 
+    capture_sdr_rtl433_v2/Makefile
     capture_sdr_rtladsb_v2/Makefile
     capture_freaklabs_zigbee_v2/Makefile
-    capture_ti_cc_2540/Makefile 
-    capture_ti_cc_2531/Makefile 
-    capture_ubertooth_one/Makefile 
-    capture_nrf_51822/Makefile 
+    capture_ti_cc_2540/Makefile
+    capture_ti_cc_2531/Makefile
+    capture_ubertooth_one/Makefile
+    capture_nrf_51822/Makefile
     capture_nxp_kw41z/Makefile
     capture_rz_killerbee/Makefile
     capture_bladerf_wiphy/Makefile
@@ -2365,7 +2365,7 @@ if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
     echo "binary differences.  Likely, the compiler will reject this, "
     echo "but you can try."
 elif test "$want_asan" = "yes" -o "$want_tsan" = "yes"; then
-    echo 
+    echo
     echo "*** NOTICE ***"
     echo "Compiling with ASAN or TSAN debugging can greatly increase the "
     echo "amount of RAM Kismet needs; you may see degraded performance or "
