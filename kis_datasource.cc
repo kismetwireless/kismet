@@ -963,8 +963,6 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 unsigned int kis_datasource::send_configure_channel(const std::string& in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
 
-    _MSG_DEBUG("send_configure_channel channel {} version {}", in_channel, protocol_version.load());
-
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_configure_channel_v2(in_channel, in_transaction, in_cb);
@@ -986,7 +984,6 @@ unsigned int kis_datasource::send_configure_channel(const std::string& in_channe
 unsigned int kis_datasource::send_configure_channel_hop(double in_rate, std::shared_ptr<tracker_element_vector_string> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
         configure_callback_t in_cb) {
-    _MSG_DEBUG("send_configure_channel_hop version {}", protocol_version.load());
 
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
@@ -1006,8 +1003,6 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate, std::sha
 }
 
 unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
-    _MSG_DEBUG("send_list_interfaces version {}", protocol_version.load());
-
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_list_interfaces_v2(in_transaction, in_cb);
@@ -1027,8 +1022,6 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
 unsigned int kis_datasource::send_open_source(const std::string& in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
-    _MSG_DEBUG("send_open_source {} version {}", in_definition, protocol_version.load());
-
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_open_source_v2(in_definition, in_transaction, in_cb);
@@ -1048,8 +1041,6 @@ unsigned int kis_datasource::send_open_source(const std::string& in_definition, 
 
 unsigned int kis_datasource::send_probe_source(const std::string& in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
-    _MSG_DEBUG("send_probe_source {} version {}", in_definition, protocol_version.load());
-
     if (protocol_version < 3) {
 #ifdef HAVE_PROTOBUF_CPP
         return send_open_probe_source_v2(in_definition, in_transaction, in_cb);
@@ -1617,7 +1608,6 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     }
 
     if (code != 0) {
-        _MSG_DEBUG("opensource called with code {}", code);
         trigger_error(msg);
         set_int_source_error_reason(msg);
         handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
@@ -2036,7 +2026,7 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
     // If we have a packet report, but somehow we don't have data in the
     // packet report, get out.
     auto content_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT);
-    if (!mpack_node_is_missing(content_n)) {
+    if (mpack_node_is_missing(content_n)) {
         return;
     }
 
@@ -2064,7 +2054,7 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
     } else {
         auto dlt_m = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT);
         if (!mpack_node_is_missing(dlt_m)) {
-            packet->ts.tv_sec = mpack_node_u32(dlt_m);
+            datachunk->dlt = mpack_node_u32(dlt_m);
         }
     }
 
@@ -2130,14 +2120,14 @@ void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
     auto json_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON);
     auto json_s = mpack_node_str(json_n);
     auto json_sz = mpack_node_data_len(json_n);
-    if (!mpack_node_is_missing(json_n)) {
+    if (mpack_node_is_missing(json_n)) {
         return;
     }
 
     auto type_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE);
     auto type_s = mpack_node_str(type_n);
     auto type_sz = mpack_node_data_len(type_n);
-    if (!mpack_node_is_missing(type_n)) {
+    if (mpack_node_is_missing(type_n)) {
         return;
     }
 
