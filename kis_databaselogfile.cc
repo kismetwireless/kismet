@@ -552,7 +552,7 @@ int kis_database_logfile::database_upgrade_db() {
         "hash INT, " // crc32 hash
         "packetid INT, " // packet id (shared with duplicate packets)
 
-        "packet_caplen INT" // original capture length
+        "packet_full_len INT" // original full length
         ")";
 
     r = sqlite3_exec(db, sql.c_str(),
@@ -978,7 +978,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
             "(ts_sec, ts_usec, phyname, "
             "sourcemac, destmac, transmac, devkey, frequency, "
             "lat, lon, alt, speed, heading, "
-            "packet_len, packet_caplen, signal, "
+            "packet_len, packet_full_len, signal, "
             "datasource, "
             "dlt, packet, "
             "error, tags, datarate, hash, packetid) "
