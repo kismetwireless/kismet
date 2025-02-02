@@ -550,7 +550,9 @@ int kis_database_logfile::database_upgrade_db() {
         "datarate REAL, " // datarate, if known
 
         "hash INT, " // crc32 hash
-        "packetid INT " // packet id (shared with duplicate packets)
+        "packetid INT, " // packet id (shared with duplicate packets)
+
+        "packet_caplen INT" // original capture length
         ")";
 
     r = sqlite3_exec(db, sql.c_str(),
@@ -976,11 +978,11 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
             "(ts_sec, ts_usec, phyname, "
             "sourcemac, destmac, transmac, devkey, frequency, "
             "lat, lon, alt, speed, heading, "
-            "packet_len, signal, "
+            "packet_len, packet_caplen, signal, "
             "datasource, "
             "dlt, packet, "
             "error, tags, datarate, hash, packetid) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
@@ -1018,6 +1020,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
         }
 
         sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length());
+        sqlite3_bind_int64(packet_stmt, sql_pos++, in_pack->original_len);
 
         if (radioinfo != nullptr) {
             sqlite3_bind_int(packet_stmt, sql_pos++, radioinfo->signal_dbm);
