@@ -30,7 +30,7 @@
 #include "sqlite3_cpp11.h"
 
 kis_database_logfile::kis_database_logfile():
-    kis_logfile(shared_log_builder(NULL)), 
+    kis_logfile(shared_log_builder(NULL)),
     kis_database("kismetlog"),
     lifetime_global() {
 
@@ -79,7 +79,7 @@ void kis_database_logfile::trigger_deferred_shutdown() {
 bool kis_database_logfile::open_log(const std::string& in_template, const std::string& in_path) {
     // kis_unique_lock<kis_mutex> lk(ds_mutex, "open_log");
 
-    auto timetracker = 
+    auto timetracker =
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     bool dbr = database_open(in_path, SQLITE_OPEN_FULLMUTEX);
@@ -100,11 +100,11 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     }
 
     sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
-    
+
     // Go into transactional mode where we only commit every 10 seconds
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    transaction_timer = 
+    transaction_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
@@ -136,11 +136,11 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_packet_timeout", 0);
 
     if (packet_timeout != 0) {
-        packet_timeout_timer = 
+        packet_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
                     [this](int) -> int {
 
-                    auto pkt_delete = 
+                    auto pkt_delete =
                         fmt::format("DELETE FROM packets WHERE ts_sec < {}",
                                 time(0) - packet_timeout);
                     auto data_delete =
@@ -160,11 +160,11 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_timeout", 0);
 
     if (device_timeout != 0) {
-        device_timeout_timer = 
+        device_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
-                    auto pkt_delete = 
+                    auto pkt_delete =
                         fmt::format("DELETE FROM devices WHERE last_time < {}",
                                 time(0) - device_timeout);
 
@@ -180,11 +180,11 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_message_timeout", 0);
 
     if (message_timeout != 0) {
-        message_timeout_timer = 
+        message_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
-                    auto pkt_delete = 
+                    auto pkt_delete =
                         fmt::format("DELETE FROM messages WHERE ts_sec < {}",
                                 time(0) - message_timeout);
 
@@ -200,11 +200,11 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_alert_timeout", 0);
 
     if (alert_timeout != 0) {
-        alert_timeout_timer = 
+        alert_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
-                    auto pkt_delete = 
+                    auto pkt_delete =
                         fmt::format("DELETE FROM alerts WHERE ts_sec < {}",
                                 time(0) - alert_timeout);
 
@@ -220,11 +220,11 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_snapshot_timeout", 0);
 
     if (snapshot_timeout != 0) {
-        snapshot_timeout_timer = 
+        snapshot_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
-                    auto pkt_delete = 
+                    auto pkt_delete =
                         fmt::format("DELETE FROM snapshots WHERE ts_sec < {}",
                                 time(0) - snapshot_timeout);
 
@@ -268,14 +268,14 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
                     return pcapng_endp_handler(con);
                 }));
 
-    device_mac_filter = 
-        std::make_shared<class_filter_mac_addr>("kismetdb_devices", 
+    device_mac_filter =
+        std::make_shared<class_filter_mac_addr>("kismetdb_devices",
                 "Kismetdb device MAC filtering");
-    packet_mac_filter = 
-        std::make_shared<packet_filter_mac_addr>("kismetdb_packets", 
+    packet_mac_filter =
+        std::make_shared<packet_filter_mac_addr>("kismetdb_packets",
                 "Kismetdb packet MAC filtering");
 
-    auto device_filter_dfl = 
+    auto device_filter_dfl =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("kis_log_device_filter_default", "pass");
 
     if (device_filter_dfl == "pass" || device_filter_dfl == "false") {
@@ -319,7 +319,7 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         device_mac_filter->set_filter(m, filter_toks[0], filter_opt);
     }
 
-    auto packet_filter_dfl = 
+    auto packet_filter_dfl =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("kis_log_packet_filter_default", "pass");
 
     if (packet_filter_dfl == "pass" || packet_filter_dfl == "false") {
@@ -364,8 +364,8 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
-        message_evt_id = 
-            eventbus->register_listener(message_bus::event_message(), 
+        message_evt_id =
+            eventbus->register_listener(message_bus::event_message(),
                     [this](std::shared_ptr<eventbus_event> evt) {
 
                     auto msg_k = evt->get_event_content()->find(message_bus::event_message());
@@ -378,8 +378,8 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
                     });
     }
 
-    alert_evt_id = 
-        eventbus->register_listener(alert_tracker::alert_event(), 
+    alert_evt_id =
+        eventbus->register_listener(alert_tracker::alert_event(),
                 [this](std::shared_ptr<eventbus_event> evt) {
 
                 auto msg_k = evt->get_event_content()->find(alert_tracker::alert_event());
@@ -407,7 +407,7 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
             Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
         // auto this_ref = shared_from_this();
-        packet_handler_id = 
+        packet_handler_id =
             packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) -> int {
 					auto dbl = reinterpret_cast<kis_database_logfile *>(auxdata);
                     return dbl->log_packet(packet);
@@ -427,7 +427,7 @@ void kis_database_logfile::close_log() {
 #endif
 
     // Kill the timers
-    auto timetracker = 
+    auto timetracker =
         Globalreg::fetch_global_as<time_tracker>();
 
     if (timetracker != NULL) {
@@ -447,7 +447,7 @@ void kis_database_logfile::close_log() {
     auto packetchain =
         Globalreg::fetch_global_as<packet_chain>();
 
-    if (packetchain != NULL && packet_handler_id >= 0) 
+    if (packetchain != NULL && packet_handler_id >= 0)
         packetchain->remove_handler(packet_handler_id, CHAINPOS_LOGGING);
 
     set_int_log_open(false);
@@ -715,7 +715,7 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
 
     std::shared_ptr<kis_gps_packinfo> loc;
 
-    if (gpstracker != nullptr) 
+    if (gpstracker != nullptr)
         loc = gpstracker->get_best_location();
 
     sql =
@@ -844,18 +844,18 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
 
     sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
     sqlite3_bind_int64(device_stmt, spos++, d->get_last_time());
-    sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), 
+    sqlite3_bind_text(device_stmt, spos++, keystring.c_str(),
             keystring.length(), SQLITE_TRANSIENT);
-    sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), 
+    sqlite3_bind_text(device_stmt, spos++, phystring.c_str(),
             phystring.length(), SQLITE_TRANSIENT);
-    sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), 
+    sqlite3_bind_text(device_stmt, spos++, macstring.c_str(),
             macstring.length(), SQLITE_TRANSIENT);
     sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
 
     if (d->has_location() && (d->get_location()->has_min_loc() &&
                               d->get_location()->has_max_loc() &&
                               d->get_location()->has_avg_loc())) {
-        sqlite3_bind_double(device_stmt, spos++, 
+        sqlite3_bind_double(device_stmt, spos++,
                             d->get_location()->get_min_loc()->get_lat());
         sqlite3_bind_double(device_stmt, spos++,
                             d->get_location()->get_min_loc()->get_lon());
@@ -878,10 +878,10 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     }
 
     sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
-    sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), 
+    sqlite3_bind_text(device_stmt, spos++, typestring.c_str(),
             typestring.length(), SQLITE_TRANSIENT);
 
-    sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(), 
+    sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(),
             streamstring.length(), SQLITE_TRANSIENT);
 
 #if 0
@@ -974,7 +974,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
         sql =
             "INSERT INTO packets "
             "(ts_sec, ts_usec, phyname, "
-            "sourcemac, destmac, transmac, devkey, frequency, " 
+            "sourcemac, destmac, transmac, devkey, frequency, "
             "lat, lon, alt, speed, heading, "
             "packet_len, signal, "
             "datasource, "
@@ -1025,7 +1025,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
             sqlite3_bind_int(packet_stmt, sql_pos++, 0);
         }
 
-        sqlite3_bind_text(packet_stmt, sql_pos++, sourceuuidstring.c_str(), 
+        sqlite3_bind_text(packet_stmt, sql_pos++, sourceuuidstring.c_str(),
                 sourceuuidstring.length(), SQLITE_TRANSIENT);
 
         sqlite3_bind_int(packet_stmt, sql_pos++, chunk->dlt);
@@ -1078,7 +1078,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
         if (commoninfo != nullptr)
             smac = commoninfo->source;
 
-        if (datasrc != nullptr) 
+        if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
         log_data(gpsdata, in_pack->ts, phystring, smac, puuid,
@@ -1337,7 +1337,7 @@ int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& 
 
     std::shared_ptr<kis_gps_packinfo> loc;
 
-    if (gps == nullptr && gpstracker != nullptr) 
+    if (gps == nullptr && gpstracker != nullptr)
         loc = gpstracker->get_best_location();
 
     sql =
@@ -1404,79 +1404,79 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 	auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
 	auto ts_start_k = con->http_variables().find("timestamp_start");
-	if (ts_start_k != con->http_variables().end()) 
+	if (ts_start_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("ts_sec", GE, string_to_n<uint64_t>(ts_start_k->second)));
 
 	auto ts_end_k = con->http_variables().find("timestamp_end");
-	if (ts_end_k != con->http_variables().end()) 
+	if (ts_end_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("ts_sec", LE, string_to_n<uint64_t>(ts_end_k->second)));
 
 	auto datasource_k = con->http_variables().find("datasource");
-	if (datasource_k != con->http_variables().end()) 
+	if (datasource_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("datasource", LIKE, datasource_k->second));
 
 	auto deviceid_k = con->http_variables().find("device_id");
-	if (deviceid_k != con->http_variables().end()) 
+	if (deviceid_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("devkey", LIKE, deviceid_k->second));
 
 	auto dlt_k = con->http_variables().find("dlt");
-	if (dlt_k != con->http_variables().end()) 
+	if (dlt_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("dlt", EQ, string_to_n<unsigned int>(dlt_k->second)));
 
 	auto frequency_k = con->http_variables().find("frequency");
-	if (frequency_k != con->http_variables().end()) 
+	if (frequency_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("frequency", EQ, string_to_n<unsigned int>(frequency_k->second)));
 
 	auto frequency_min_k = con->http_variables().find("frequency_min");
-	if (frequency_min_k != con->http_variables().end()) 
+	if (frequency_min_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("frequency", GE, string_to_n<unsigned int>(frequency_min_k->second)));
 
 	auto frequency_max_k = con->http_variables().find("frequency_max");
-	if (frequency_max_k != con->http_variables().end()) 
+	if (frequency_max_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("frequency", LE, string_to_n<unsigned int>(frequency_max_k->second)));
 
 	auto signal_min_k = con->http_variables().find("signal_min");
-	if (signal_min_k != con->http_variables().end()) 
+	if (signal_min_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("signal", GE, string_to_n<int>(signal_min_k->second)));
 
 	auto signal_max_k = con->http_variables().find("signal_max");
-	if (signal_max_k != con->http_variables().end()) 
+	if (signal_max_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("signal", LE, string_to_n<int>(signal_max_k->second)));
 
 	auto address_source_k = con->http_variables().find("address_source");
-	if (address_source_k != con->http_variables().end()) 
+	if (address_source_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("sourcemac", LIKE, address_source_k->second));
 
 	auto address_dest_k = con->http_variables().find("address_dest");
-	if (address_dest_k != con->http_variables().end()) 
+	if (address_dest_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("destmac", LIKE, address_dest_k->second));
 
 	auto address_trans_k = con->http_variables().find("address_trans");
-	if (address_trans_k != con->http_variables().end()) 
+	if (address_trans_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("transmac", LIKE, address_trans_k->second));
 
 	auto location_lat_min_k = con->http_variables().find("location_lat_min");
-	if (location_lat_min_k != con->http_variables().end()) 
+	if (location_lat_min_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("lat", GE, string_to_n<double>(location_lat_min_k->second)));
 
 	auto location_lat_max_k = con->http_variables().find("location_lat_max");
-	if (location_lat_max_k != con->http_variables().end()) 
+	if (location_lat_max_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("lat", LE, string_to_n<double>(location_lat_max_k->second)));
 
 	auto location_lon_min_k = con->http_variables().find("location_lon_min");
-	if (location_lon_min_k != con->http_variables().end()) 
+	if (location_lon_min_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("lon", GE, string_to_n<double>(location_lon_min_k->second)));
 
 	auto location_lon_max_k = con->http_variables().find("location_lon_max");
-	if (location_lon_max_k != con->http_variables().end()) 
+	if (location_lon_max_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("lon", LE, string_to_n<double>(location_lon_max_k->second)));
 
 	auto size_min_k = con->http_variables().find("size_min");
-	if (size_min_k != con->http_variables().end()) 
+	if (size_min_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("packet_len", GE, string_to_n<unsigned long int>(size_min_k->second)));
 
 	auto size_max_k = con->http_variables().find("size_max");
-	if (size_max_k != con->http_variables().end()) 
+	if (size_max_k != con->http_variables().end())
 		query.append_where(AND, _WHERE("packet_len", LE, string_to_n<unsigned long int>(size_max_k->second)));
 
 	auto tag_k = con->http_variables().find("tag");
@@ -1484,7 +1484,7 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 		query.append_where(AND, _WHERE("tags", LIKE, tag_k->second));
 
 	auto limit_k = con->http_variables().find("limit");
-	if (limit_k != con->http_variables().end()) 
+	if (limit_k != con->http_variables().end())
 		query.append_clause(LIMIT, string_to_n<unsigned long>(limit_k->second));
 
 	con->clear_timeout();
@@ -1495,9 +1495,9 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 	con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
 	auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
-	auto sid = 
+	auto sid =
 		streamtracker->register_streamer(pcapng, fmt::format("kismet-dblog.pcapng"),
-				"pcapng", "httpd", 
+				"pcapng", "httpd",
 				fmt::format("pcapng of from dblog"));
 
 
@@ -1540,7 +1540,7 @@ void kis_database_logfile::packet_drop_endpoint_handler(std::shared_ptr<kis_net_
         return;
     }
 
-        auto drop_query = 
+        auto drop_query =
             _DELETE(db, "packets", _WHERE("ts_sec", LE, con->json()["drop_before"].get<uint64_t>()));
 
     ostream << "Packets removed\n";
@@ -1557,7 +1557,7 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
     std::string poi_data;
 
     std::shared_ptr<kis_gps_packinfo> loc;
-    if (gpstracker != nullptr) 
+    if (gpstracker != nullptr)
         loc = gpstracker->get_best_location();
 
     if (!con->json()["note"].is_null()) {
@@ -1571,13 +1571,13 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
     ostream << "POI created\n";
 }
 
-std::shared_ptr<tracker_element> 
+std::shared_ptr<tracker_element>
 kis_database_logfile::list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     return std::make_shared<tracker_element_vector>();
 }
 
 pcapng_stream_database::pcapng_stream_database(future_chainbuf* buffer) :
-    pcapng_stream_futurebuf(buffer, 
+    pcapng_stream_futurebuf(buffer,
 			pcapng_stream_accept_ftor(),
 			pcapng_stream_select_ftor(),
             1024*512,
@@ -1603,7 +1603,7 @@ void pcapng_stream_database::stop_stream(std::string in_reason) {
 
 void pcapng_stream_database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
         const std::string& in_name) {
-    
+
     if (db_uuid_intf_map.find(in_uuid) != db_uuid_intf_map.end())
         return;
 
@@ -1626,15 +1626,15 @@ int pcapng_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64
     auto pcap_intf = pcap_intf_i->second;
     int ng_interface_id;
 
-    if (pcap_intf->dlt != dlt) 
+    if (pcap_intf->dlt != dlt)
         pcap_intf->dlt = dlt;
 
-    auto ds_id_rec = 
+    auto ds_id_rec =
         datasource_id_map.find(pcap_intf->pcapnum);
 
     if (ds_id_rec == datasource_id_map.end()) {
         ng_interface_id = pcapng_make_idb(pcap_intf->pcapnum, pcap_intf->interface,
-                fmt::format("kismetdb stored interface {} {}", pcap_intf->interface, 
+                fmt::format("kismetdb stored interface {} {}", pcap_intf->interface,
                     pcap_intf->uuid), pcap_intf->dlt);
 
         if (ng_interface_id < 0)
