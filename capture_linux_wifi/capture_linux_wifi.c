@@ -1238,7 +1238,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                 /* Send a config response with a reconstituted channel if we're
                  * configuring the interface; re-use errstr as a buffer */
                 local_channel_to_str(channel, errstr);
-                cf_send_configresp(caph, seqno, 1, NULL, errstr);
+                cf_send_configresp(caph, seqno, 1, errstr);
             }
         }
 
