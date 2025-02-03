@@ -168,6 +168,9 @@
 /* System has pipe2 */
 #undef HAVE_PIPE2
 
+/* google protobufs */
+#undef HAVE_PROTOBUF_CPP
+
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
 
@@ -255,9 +258,6 @@
 /* writeable argv type */
 #undef PF_ARGV_TYPE
 
-/* Libprelude support enabled */
-#undef PRELUDE
-
 /* Define to 1 if all of the C90 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
@@ -268,9 +268,6 @@
 
 /* system config directory */
 #undef SYSCONF_LOC
-
-/* Compiling for Cygwin */
-#undef SYS_CYGWIN
 
 /* Compiling for OSX/Darwin */
 #undef SYS_DARWIN
