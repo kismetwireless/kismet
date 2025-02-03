@@ -333,7 +333,7 @@ kis_external_interface::kis_external_interface() :
     last_pong{0},
     ping_timer_id{-1},
     io_{nullptr},
-    protocol_version{0},
+    protocol_version{3},
     eventbus{Globalreg::fetch_mandatory_global_as<event_bus>()},
     http_session_id{0} {
 
