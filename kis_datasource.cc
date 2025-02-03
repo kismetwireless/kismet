@@ -1081,6 +1081,9 @@ bool kis_datasource::dispatch_rx_packet_v3(uint16_t command, uint16_t seqno,
         case KIS_EXTERNAL_V3_KDS_OPENREPORT:
             handle_packet_opensource_report_v3(seqno, code, content);
             return true;
+        case KIS_EXTERNAL_V3_KDS_PROBEREPORT:
+            handle_packet_probesource_report_v3(seqno, code, content);
+            return true;
     }
 
     return false;
@@ -1099,7 +1102,7 @@ void kis_datasource::handle_probesource_report_v3_callback(uint32_t in_seqno, ui
 
         if (cb != nullptr) {
             lock.unlock();
-            cb(transaction, code == 0, msg);
+            cb(transaction, code, msg);
             lock.lock();
         }
     }
@@ -1142,12 +1145,6 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
         }
 
         msg = std::string(mpack_node_data(msg_n), msg_len);
-    }
-
-    if (code != 0) {
-        trigger_error(msg);
-        set_int_source_error_reason(msg);
-        handle_probesource_report_v3_callback(report_seqno, code, lock, msg);
     }
 
     /* interface sub block */
@@ -1427,7 +1424,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
         msg = std::string(msg_s, msg_sz);
     }
 
-    if (code != 0) {
+    if (code == 0) {
         trigger_error(msg);
         set_int_source_error_reason(msg);
         handle_configsource_report_v3_callback(report_seqno, code, lock, msg);
@@ -1559,7 +1556,7 @@ void kis_datasource::handle_opensource_report_v3_callback(uint32_t in_seqno, uin
 
         if (cb != nullptr) {
             lock.unlock();
-            cb(transaction, code == 0, msg);
+            cb(transaction, code != 0, msg);
             lock.lock();
         }
     }
@@ -1567,7 +1564,7 @@ void kis_datasource::handle_opensource_report_v3_callback(uint32_t in_seqno, uin
 
 void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t code,
         const nonstd::string_view& in_packet) {
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_probe_report_v3");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report_v3");
     lock.lock();
 
     mpack_tree_raii tree;
@@ -1605,7 +1602,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         msg = std::string(msg_s, msg_sz);
     }
 
-    if (code != 0) {
+    if (code == 0) {
         trigger_error(msg);
         set_int_source_error_reason(msg);
         handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
@@ -1852,8 +1849,9 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
 
     }
 
-    set_int_source_running(code == 0);
-    set_int_source_error(code != 0);
+    set_int_source_running(code != 0);
+    set_source_paused(0);
+    set_int_source_error(code == 0);
 
     handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
 }
@@ -2069,9 +2067,9 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
 
     if (!mpack_node_is_missing(olen_n)) {
         packet->original_len = mpack_node_u32(olen_n);
+    } else {
+        packet->original_len = content_sz;
     }
-
-    // packet->set_data(content_data, content_sz);
 
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
@@ -2084,9 +2082,9 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
         return;
     }
 
-    get_source_packet_size_rrd()->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
-
     packet->insert(pack_comp_linkframe, datachunk);
+
+    get_source_packet_size_rrd()->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
 }
 
 int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
