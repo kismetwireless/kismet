@@ -107,7 +107,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
@@ -262,12 +262,9 @@ int coconut_rx_packet(struct userspace_wifi_context *context,
     gettimeofday(&tv, NULL);
 
     while (1) {
-        if ((ret = cf_send_data(local_wifi->caph, 
-                        NULL, NULL, NULL,
-                        tv,
-                        KDLT_IEEE802_11_RADIO,
-                        sizeof(_rtap_hdr) + len,
-                        (uint8_t *) &rtap_packet)) < 0) {
+        if ((ret = cf_send_data(local_wifi->caph, NULL, 0,
+                        NULL, NULL, tv, KDLT_IEEE802_11_RADIO,
+                        sizeof(_rtap_hdr) + len, sizeof(_rtap_hdr) + len, (uint8_t *) &rtap_packet)) < 0) {
             cf_send_error(local_wifi->caph, 0, "unable to send DATA frame");
             cf_handler_spindown(local_wifi->caph);
         } else if (ret == 0) {
@@ -309,7 +306,7 @@ void coconut_handle_error(const struct userspace_wifi_context *context,
 
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
