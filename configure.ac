@@ -11,7 +11,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
 
-AC_PREREQ([2.72])
+AC_PREREQ([2.71])
 
 # Check for host type
 AC_CANONICAL_HOST
