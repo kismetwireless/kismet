@@ -320,7 +320,6 @@ void kis_external_ws::write_impl() {
 }
 
 void kis_external_ws::close() {
-    // _MSG_DEBUG("external_ws io close");
     stopped_ = true;
     ws_->close();
 }

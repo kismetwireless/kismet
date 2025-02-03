@@ -1649,7 +1649,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     return 1;
 }
 
-/* Common dispatch layer across v0 and v2 frames */
+/* Common dispatch layer */
 int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         uint32_t seqno, const uint8_t *data, size_t packet_sz) {
     int cbret = -1;
@@ -1659,6 +1659,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
     pthread_mutex_lock(&(caph->handler_lock));
 
     if (cmd == KIS_EXTERNAL_V3_CMD_PING) {
+        caph->last_ping = time(0);
         cf_send_pong(caph, seqno);
         cbret = 1;
         goto finish;
@@ -1773,7 +1774,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 free(definition);
             }
 
-            cf_send_proberesp(caph, seqno, cbret < 0 ? 1 : 0, msgstr, interfaceparams, spectrumparams);
+            cf_send_proberesp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
 
             mpack_tree_destroy(&tree);
 
@@ -1852,7 +1853,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             cbret = (*(caph->open_cb))(caph, seqno, definition,
                     msgstr, &dlt, &uuid, &interfaceparams, &spectrumparams);
 
-            cf_send_openresp(caph, seqno, cbret < 0 ? 1 : 0, msgstr, dlt, uuid,
+            cf_send_openresp(caph, seqno, cbret < 0 ? 0 : 1, msgstr, dlt, uuid,
                     interfaceparams, spectrumparams);
 
             if (uuid != NULL)
@@ -1897,7 +1898,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_configresp(caph, seqno, false, "source does not support channel configuration");
+            cf_send_configresp(caph, seqno, 0, "source does not support channel configuration");
             pthread_mutex_lock(&(caph->handler_lock));
 
             cbret = -1;
@@ -1948,7 +1949,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             /* Send a response based on the channel set success */
-            cf_send_configresp(caph, seqno, cbret >= 0, msgstr);
+            cf_send_configresp(caph, seqno, cbret < 0 ? 0 : 1, msgstr);
 
             /* Free our channel copies */
             if (caph->chanfree_cb != NULL)
@@ -2121,14 +2122,14 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
-                "Kismet install to a more recent version of Kismet.\n",
+                "Kismet server install to a more recent version of Kismet.\n",
                 caph->capsource_type);
         return -1;
     } else if (ntohs(external_frame_v3->v3_sentinel) != KIS_EXTERNAL_V3_SIG) {
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking an unknown Kismet protocol, please make sure\n"
-                "the Kismet install is using a similar version.\n",
+                "the Kismet server install is using a similar version.\n",
                 caph->capsource_type);
         return -1;
     }
@@ -3134,20 +3135,22 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
 
     frame->pkt_type = htons(command);
 
-    frame->code = htonl(code);
+    frame->code = htons(code);
 
     // frame->length = htons(len);
 
     return frame;
 }
 
-void cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame,
+int cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame,
         size_t final_length) {
     frame->length = htonl(final_length);
 
     kis_simple_ringbuf_commit(caph->out_ringbuf, frame,
             final_length + sizeof(kismet_external_frame_v3_t));
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    return 1;
 }
 
 /* Send a generic packet; pre-assembled packet content must be provided
@@ -3229,7 +3232,7 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
 
     frame->pkt_type = htons(command);
 
-    frame->code = htonl(code);
+    frame->code = htons(code);
     // frame->length = htons(len);
 
     return ws_msg;
@@ -3266,7 +3269,7 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, si
         lws_callback_on_writable(caph->lwsclientwsi);
     pthread_mutex_unlock(&caph->handler_lock);
 
-    return 0;
+    return 1;
 }
 
 
@@ -3382,15 +3385,14 @@ void cf_cancel_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta) {
 int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta, size_t final_len) {
 
     if (caph->use_tcp || caph->use_ipc) {
-        cf_commit_rb_packet(caph, meta->frame, final_len);
-        return 0;
+        return cf_commit_rb_packet(caph, meta->frame, final_len);
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
         return cf_commit_ws_packet(caph, (struct cf_ws_msg *) meta->metadata, final_len);
 #endif
     }
 
-    return 0;
+    return -1;
 }
 
 uint32_t cf_get_next_seqno(kis_capture_handler_t *caph) {
@@ -3674,7 +3676,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
     seqno = cf_get_next_seqno(caph);
 
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seqno, 0, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seqno, success, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -3799,10 +3801,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     seqno = cf_get_next_seqno(caph);
 
-    fprintf(stderr, "DEBUG - preparing openwrt packet est len %lu\n", est_len);
-
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, 0, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, success, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -4378,7 +4378,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     seqno = cf_get_next_seqno(caph);
 
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, seqno, success != 0, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, seqno, success, est_len);
 
     if (meta == NULL) {
         return 0;
