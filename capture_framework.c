@@ -5037,3 +5037,139 @@ void cf_ipc_remove_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
+/* sanitize_extra_space and sanitize_string taken from nlohmann's jsonhpp library,
+ * Copyright 2013-2015 Niels Lohmann. and under the MIT license */
+size_t json_sanitize_extra_space(const char *s) {
+    size_t result = 0;
+    size_t i;
+
+    for (i = 0; i < strlen(s); i++) {
+        switch (s[i]) {
+            case '"':
+            case '\\':
+            case '\b':
+            case '\f':
+            case '\n':
+            case '\r':
+            case '\t':
+                {
+                    /* from c (1 byte) to \x (2 bytes) */
+                    result += 1;
+                    break;
+                }
+
+            default:
+                {
+                    if (s[i] >= 0x00 && s[i] <= 0x1f)
+                    {
+                        /* from c (1 byte) to \uxxxx (6 bytes) */
+                        result += 5;
+                    }
+                    break;
+                }
+        }
+    }
+
+    return result;
+}
+
+/* caller must free this string, if it isn't equal to the original
+ * pointer. */
+char *json_sanitize_string(char *s) {
+    size_t space = json_sanitize_extra_space(s);
+    char *result = NULL;
+    size_t pos, i;
+
+    if (space == 0) {
+        return s;
+    }
+
+    result = malloc(sizeof(char) * strlen(s) + space + 1);
+
+    pos = 0;
+
+    for (i = 0; i < strlen(s); i++) {
+        char c = s[i];
+
+        switch (c) {
+            /* quotation mark (0x22) */
+            case '"':
+                {
+                    result[pos + 1] = '"';
+                    pos += 2;
+                    break;
+                }
+
+                /* reverse solidus (0x5c) */
+            case '\\':
+                {
+                    /* nothing to change */
+                    pos += 2;
+                    break;
+                }
+
+                /* backspace (0x08) */
+            case '\b':
+                {
+                    result[pos + 1] = 'b';
+                    pos += 2;
+                    break;
+                }
+
+                /* formfeed (0x0c) */
+            case '\f':
+                {
+                    result[pos + 1] = 'f';
+                    pos += 2;
+                    break;
+                }
+
+                /* newline (0x0a) */
+            case '\n':
+                {
+                    result[pos + 1] = 'n';
+                    pos += 2;
+                    break;
+                }
+
+                /* carriage return (0x0d) */
+            case '\r':
+                {
+                    result[pos + 1] = 'r';
+                    pos += 2;
+                    break;
+                }
+
+                /* horizontal tab (0x09) */
+            case '\t':
+                {
+                    result[pos + 1] = 't';
+                    pos += 2;
+                    break;
+                }
+
+            default:
+                {
+                    if (c >= 0x00 && c <= 0x1f)
+                    {
+                        /* print character c as \uxxxx */
+                        sprintf(&result[pos + 1], "u%04x", (int) c);
+                        pos += 6;
+                        /* overwrite trailing null character */
+                        result[pos] = '\\';
+                    }
+                    else
+                    {
+                        // all other characters are added as-is
+                        result[pos++] = c;
+                    }
+                    break;
+                }
+        }
+    }
+
+    result[strlen(s) + space] = 0;
+
+    return result;
+}
+

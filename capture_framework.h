@@ -1124,5 +1124,12 @@ void cf_ipc_add_process(kis_capture_handler_t *, cf_ipc_t *);
  */
 void cf_ipc_remove_process(kis_capture_handler_t *, cf_ipc_t *);
 
+/* Clean and sanitize a sdtring for use in JSON.
+ *
+ * Returns either a pointer to a new string which must be free'd by the caller,
+ * or the pointer to the string provided if no copying was necessary.
+ */
+char *json_sanitize_string(char *s);
+
 #endif
 
