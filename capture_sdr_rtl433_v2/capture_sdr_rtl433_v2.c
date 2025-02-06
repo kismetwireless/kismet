@@ -35,9 +35,9 @@
 typedef struct {
     cf_ipc_t *ipc_433;
 
-    /* Unlocked by the ipc callback if the process terminates, otherwise 
-     * we handle forwarding the JSON data during the data available callback 
-     * loop 
+    /* Unlocked by the ipc callback if the process terminates, otherwise
+     * we handle forwarding the JSON data during the data available callback
+     * loop
      */
     pthread_cond_t rtl433_valid_cond;
     pthread_mutex_t rtl433_valid_cond_mutex;
@@ -50,20 +50,20 @@ typedef struct {
     char **rtl_argv;
 } local_rtl433_t;
 
-unsigned int human_to_hz(const char *in_str, unsigned int in_len) { 
-    char *fixedstr = NULL; 
+unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
+    char *fixedstr = NULL;
     char scale[5];
     double f;
     int r;
 
     if (in_len == 0)
-        return 0; 
+        return 0;
 
     fixedstr = strndup(in_str, in_len);
 
     r = sscanf(fixedstr, "%lf%4s", &f, scale);
 
-    if (r == 2) { 
+    if (r == 2) {
         if (strcasecmp("mhz", scale) != 0) {
             free(fixedstr);
             return f * 1000 * 1000;
@@ -165,11 +165,11 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
     int i;
     char buf[256];
 
-    *interfaces = 
-        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * 
+    *interfaces =
+        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) *
                 num_radios);
 
-    for (i = 0; i < num_radios; i++) { 
+    for (i = 0; i < num_radios; i++) {
         (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
         memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
         snprintf(buf, 256, "rtl433-%u", i);
@@ -209,7 +209,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return 0;
     }
 
@@ -233,7 +233,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if (strlen(interface) == strlen("rtl433")) {
         matched_device = 1;
         num_device = 0;
-    } else { 
+    } else {
         subinterface = strstr(interface, "-");
         if (subinterface == NULL) {
             free(interface);
@@ -244,9 +244,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         /* Is this a serial #? */
         num_device = rtlsdr_get_index_by_serial(subinterface + 1);
 
-        if (num_device >= 0) { 
+        if (num_device >= 0) {
             matched_device = 1;
-        } else { 
+        } else {
             if (sscanf(subinterface, "%d", &num_device) == 1) {
                 if (num_device >= 0 && num_device < num_devices) {
                     matched_device = 1;
@@ -318,7 +318,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     // rtl_433 -F json -M level -d X -f Y [additional]
     unsigned int num_args = 9;
 
-    // Channel, if any 
+    // Channel, if any
     char *channel = NULL;
     unsigned int channel_len = 0;
 
@@ -327,7 +327,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     local_rtl433_t *local433 = (local_rtl433_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return 0;
     }
 
@@ -345,7 +345,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (strlen(interface) == strlen("rtl433")) {
         matched_device = 1;
         num_device = 0;
-    } else { 
+    } else {
         subinterface = strstr(interface, "-");
         if (subinterface == NULL) {
             free(interface);
