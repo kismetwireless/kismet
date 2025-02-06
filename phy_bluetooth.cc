@@ -60,11 +60,11 @@
 kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
     kis_phy_handler(in_phyid) {
 
-    alertracker = 
+    alertracker =
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
-    packetchain = 
+    packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
-    entrytracker = 
+    entrytracker =
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
@@ -80,7 +80,8 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     packetchain->register_handler(&packet_tracker_bluetooth, this, CHAINPOS_TRACKER, -100);
     packetchain->register_handler(&packet_tracker_h4_linux, this, CHAINPOS_TRACKER, -100);
     packetchain->register_handler(&packet_bluetooth_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
-    
+    packetchain->register_handler(&packet_bluetooth_hci_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
+
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
 	pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
@@ -138,6 +139,120 @@ int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
     return 0;
 }
 
+int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
+    kis_bluetooth_phy *btphy = (kis_bluetooth_phy *) auxdata;
+
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+        return 0;
+
+    auto pack_json =
+        in_pack->fetch<kis_json_packinfo>(btphy->pack_comp_json);
+
+    if (pack_json == nullptr)
+        return 0;
+
+    if (pack_json->type != "linuxbthci") {
+        return 0;
+    }
+
+    auto commoninfo =
+        in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
+
+    if (commoninfo != nullptr) {
+        return 0;
+    }
+
+    try {
+        std::stringstream newdevstr;
+        std::stringstream ss(pack_json->json_string);
+        nlohmann::json json;
+        ss >> json;
+
+        // auto new_device = false;
+
+        const auto btaddr_j = json["addr"];
+
+        if (btaddr_j.is_null())
+            throw std::runtime_error("no btaddr in scan report");
+
+        auto btaddr_mac = mac_addr(btaddr_j.get<std::string>());
+        if (btaddr_mac.state.error)
+            throw std::runtime_error("invalid btaddr MAC");
+
+        commoninfo = std::make_shared<kis_common_info>();
+        commoninfo->phyid = btphy->fetch_phy_id();
+        commoninfo->type = packet_basic_mgmt;
+        commoninfo->source = btaddr_mac;
+        commoninfo->transmitter = btaddr_mac;
+        commoninfo->channel = "FHSS";
+        commoninfo->freq_khz = 2400000;
+
+        in_pack->insert(btphy->pack_comp_common, commoninfo);
+
+        kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(),
+                "packet_bluetooth_hci_json_classifier");
+
+        auto basedev =
+            btphy->devicetracker->update_common_device(commoninfo,
+                    btaddr_mac, btphy, in_pack,
+                    (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                     UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                     UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                    "Bluetooth Device");
+
+        auto btdev =
+            basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+
+        // Mapped to base name
+        auto devname_j = json["name"];
+
+        if (devname_j.is_string())
+            basedev->set_devicename(munge_to_printable(devname_j));
+
+        if (btdev == nullptr) {
+            std::stringstream ss;
+            ss << "Detected new Bluetooth device " << btaddr_mac;
+            if (basedev->get_devicename().length() > 0)
+                ss << " (" << basedev->get_devicename() << ")";
+            _MSG(ss.str(), MSGFLAG_INFO);
+
+            btdev =
+                Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+
+            basedev->insert(btdev);
+        }
+
+        // Mapped to base type, a combination of android major/minor
+        auto devtype_j = json["type"];
+
+        if (devtype_j.is_number()) {
+            switch (devtype_j.get<unsigned int>()) {
+                case 0:
+                    basedev->set_tracker_type_string(btphy->btdev_bredr);
+                    btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
+                    break;
+                case 1:
+                    basedev->set_tracker_type_string(btphy->btdev_btle);
+                    btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
+                    break;
+                case 2:
+                    basedev->set_tracker_type_string(btphy->btdev_btle);
+                    btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
+                    break;
+                default:
+                    basedev->set_tracker_type_string(btphy->btdev_bt);
+                    btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
+                    break;
+            }
+        }
+    } catch (const std::exception& e) {
+        in_pack->error = true;
+        return 0;
+    }
+
+    return 1;
+}
+
 int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
     kis_bluetooth_phy *btphy = (kis_bluetooth_phy *) auxdata;
 
@@ -188,9 +303,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
 
         in_pack->insert(btphy->pack_comp_common, commoninfo);
 
-        _MSG_DEBUG("Making a bt device {}", btaddr_mac);
-
-        kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
+        kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(),
                 "packet_bluetooth_scan_json_classifier");
 
         auto btdev =
