@@ -266,7 +266,18 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 try {
                                     ss >> device_json;
 
-                                    auto adsb_content = hex_to_bytes(device_json["adsb_raw_msg"]);
+                                    std::string adsb_content;
+
+                                    auto hex_j = device_json["adsb"];
+
+                                    if (hex_j.is_null() || !hex_j.is_string()) {
+                                        hex_j = device_json["adsb_raw_msg"];
+                                        adsb_content = hex_to_bytes(hex_j);
+                                    } else {
+                                        const auto stradsb = hex_j.get<std::string>();
+                                        adsb_content = hex_to_bytes(stradsb.substr(1, stradsb.size() - 2));    
+                                    }
+
 
                                     if (adsb_content.size() != 7 && adsb_content.size() != 14) {
                                         _MSG_DEBUG("unexpected content length {}", adsb_content.size());
@@ -301,11 +312,9 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                     delete[] buf;
 
                                 } catch (std::exception& e) {
-                                    delete uptr;
                                     return 0;
                                 }
 
-                                delete uptr;
                                 return 1;
                     }, uptr, CHAINPOS_LOGGING, 1000);
 
@@ -318,6 +327,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 }
             
                 packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
+                delete uptr;
             }));
 
     httpd->register_websocket_route("/phy/ADSB/raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
@@ -327,7 +337,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            boost::beast::flat_buffer& buf, bool text) mutable {
                             // Do nothing on input
                         });
 
@@ -341,7 +351,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 uptr->ws = ws;
                 uptr->adsb = this;
 
-                auto beast_handler_id = 
+                auto raw_handler_id = 
                     packetchain->register_handler(
                             [](void *auxdata, const std::shared_ptr<kis_packet>& in_pack) -> int {
 
@@ -364,16 +374,20 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                             try {
                                 ss >> device_json;
 
+                                auto hex_j = device_json["adsb"];
+
+                                if (hex_j.is_null() || !hex_j.is_string()) {
+                                    hex_j = device_json["adsb_raw_msg"];
+                                }
+
                                 auto adsb_content = 
-                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].get<std::string>());
+                                    fmt::format("{}\n", hex_j.get<std::string>());
 
                                 uptr->ws->write(adsb_content);
                             } catch (std::exception& e) {
-                                delete uptr;
                                 return 0;
                             }
 
-                            delete uptr;
                             return 1;
                     }, uptr, CHAINPOS_LOGGING, 1000);
 
@@ -384,8 +398,9 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 } catch (const std::exception& e) {
                     ;
                 }
-            
-                packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
+           
+                packetchain->remove_handler(raw_handler_id, CHAINPOS_LOGGING);
+                delete(uptr);
             }));
 
     httpd->register_websocket_route("/datasource/by-uuid/:uuid/adsb_raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
@@ -417,7 +432,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 uptr->adsb = this;
                 uptr->srcuuid = srcuuid;
 
-                auto beast_handler_id = 
+                auto raw_handler_id = 
                     packetchain->register_handler(
                             [](void *auxdata, const std::shared_ptr<kis_packet>& in_pack) -> int {
 
@@ -449,15 +464,13 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 ss >> device_json;
 
                                 auto adsb_content = 
-                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].get<std::string>());
+                                    fmt::format("*{};\n", device_json["adsb"].get<std::string>());
 
                                 uptr->ws->write(adsb_content);
                             } catch (std::exception& e) {
-                                delete uptr;
                                 return 0;
                             }
 
-                            delete uptr;
                             return 1;
                     }, uptr, CHAINPOS_LOGGING, 1000);
 
@@ -469,7 +482,8 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                     ;
                 }
             
-                packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
+                packetchain->remove_handler(raw_handler_id, CHAINPOS_LOGGING);
+                delete uptr;
             }));
 
 }

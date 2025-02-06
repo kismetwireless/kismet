@@ -344,6 +344,19 @@ kismet_ui.AddDeviceColumn("packets", {
     'searchable': false,
 });
 
+kismet_ui.AddDeviceColumn("seenbycount", {
+    'title': 'Seen by #',
+    'description': '# of datasources which have seen this device',
+    'field': 'kismet.device.base.seenby',
+    'sortable': true,
+    'searchable': false,
+    'render': (data, row, cell, onrender, aux) => {
+        onrender(() => {
+            $(cell.getElement()).html(`${row['seenbycount'].length}`);
+        });
+    },
+});
+
 kismet_ui.AddHiddenDeviceColumn({'field': 'kismet.device.base.phyname', 'searchable': true});
 kismet_ui.AddHiddenDeviceColumn({'field': 'kismet.device.base.macaddr', 'searchable': true});
 
@@ -3098,7 +3111,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     .done(function(data) {
         var title = '<i class="fa fa-signal"></i> Signal ' +
             kismet.censorMAC(data['kismet.device.base.macaddr']) + ' ' +
-            kismet.censorMAC(data['kismet.device.base.name']);
+            kismet.censorString(data['kismet.device.base.name']);
         devsignal_panel.headerTitle(title);
 
         var sigicon = $('.k-dsd-arrow', devsignal_panel.content);
