@@ -85,6 +85,47 @@ unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
     return 0;
 }
 
+int find_rtl_by_subinterface(char *subinterface) {
+    char manuf[256];
+    char product[256];
+    char serial[256];
+
+    int subif_as_sn_only = 0;
+    int subif_as_int = -1;
+
+    int n = rtlsdr_get_device_count();
+    int i, r;
+
+    if (subinterface == NULL) {
+        return -1;
+    }
+
+    /* look for an optional rtl433-sn-XYZ for solving serial collisions */
+    if (strlen(subinterface) > 3 && strncmp(subinterface, "sn-", 3) == 0) {
+        subinterface += 3;
+        subif_as_sn_only = 1;
+    }
+
+    for (i = 0; i < n; i++) {
+        r = rtlsdr_get_device_usb_strings(i, manuf, product, serial);
+
+        if (r != 0)
+            continue;
+
+        if (strcmp(serial, subinterface) == 0) {
+            return i;
+        }
+    }
+
+    if (!subif_as_sn_only && sscanf(subinterface, "%d", &subif_as_int) == 1) {
+        if (subif_as_int >= 0 && subif_as_int < n) {
+            return subif_as_int;
+        }
+    }
+
+    return -1;
+}
+
 int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) {
     local_rtl433_t *local433 = (local_rtl433_t *) caph->userdata;
     ssize_t newline = 0;
@@ -193,7 +234,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
-    unsigned int num_devices = 0;
 	int matched_device = 0;
 	int num_device = 0;
 
@@ -227,8 +267,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    num_devices = rtlsdr_get_device_count();
-
     /* Alias 'rtl433' to 'rtl433-0' */
     if (strlen(interface) == strlen("rtl433")) {
         matched_device = 1;
@@ -241,21 +279,12 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             return 0;
         }
 
-        /* Is this a serial #? */
-        num_device = rtlsdr_get_index_by_serial(subinterface + 1);
-
-        if (num_device >= 0) {
+        num_device = find_rtl_by_subinterface(subinterface + 1);
+        if (num_device >= 0)
             matched_device = 1;
-        } else {
-            if (sscanf(subinterface, "%d", &num_device) == 1) {
-                if (num_device >= 0 && num_device < num_devices) {
-                    matched_device = 1;
-                }
-            }
-        }
     }
 
-    if (matched_device == 0) {
+    if (matched_device == 0 || num_device < 0) {
         free(interface);
         snprintf(msg, STATUS_MAX, "Unable to find rtl433 device");
         return 0;
@@ -304,8 +333,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
-    uint32_t num_devices = 0;
-
 	int matched_device = 0;
 	int num_device = 0;
 
@@ -339,8 +366,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return 0;
     }
 
-    num_devices = rtlsdr_get_device_count();
-
     /* Alias 'rtl433' to 'rtl433-0' */
     if (strlen(interface) == strlen("rtl433")) {
         matched_device = 1;
@@ -353,21 +378,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return 0;
         }
 
-        /* Is this a serial #? */
-        num_device = rtlsdr_get_index_by_serial(subinterface + 1);
-
-        if (num_device >= 0) {
+        num_device = find_rtl_by_subinterface(subinterface + 1);
+        if (num_device >= 0)
             matched_device = 1;
-        } else {
-            if (sscanf(subinterface + 1, "%d", &num_device) == 1) {
-                if (num_device >= 0 && num_device < num_devices) {
-                    matched_device = 1;
-                }
-            }
-        }
     }
 
-    if (matched_device == 0) {
+    if (matched_device == 0 || num_device < 0) {
         free(interface);
         snprintf(msg, STATUS_MAX, "Unable to find rtl433 device");
         return 0;
