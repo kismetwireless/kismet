@@ -32,24 +32,7 @@ class kis_datasource_linux_bluetooth : public kis_datasource {
 public:
     kis_datasource_linux_bluetooth(shared_datasource_builder in_builder);
     virtual ~kis_datasource_linux_bluetooth() { };
-
-protected:
-
-#ifdef HAVE_PROTOBUF_CPP
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
-                                    uint32_t seqno, const nonstd::string_view& content) override;
-
-    virtual void handle_packet_linuxbtdevice(uint32_t in_seqno,
-                                             const nonstd::string_view& in_content);
-#endif
-
-    // TODO fix for v3 protocol by converting it into JSON (or convert into linux bt phy packets,
-    // preferably)
-
-
-    int pack_comp_btdevice, pack_comp_meta;
 };
-
 
 class datasource_linux_bluetooth_builder : public kis_datasource_builder {
 public:
