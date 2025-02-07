@@ -179,13 +179,13 @@ else
     GCC_MINOR=$(echo $GCC_VERSION | cut -s -d'.' -f2)
     GCC_PATCH=$(echo $GCC_VERSION | cut -s -d'.' -f3)
 
-    if test "$GCC_MAJOR"x == x; then
+    if test "$GCC_MAJOR"x = x; then
         GCC_MAJOR=$GCC_VERSION
     fi
-    if test "$GCC_MINOR"x == x; then
+    if test "$GCC_MINOR"x = x; then
         GCC_MINOR=0
     fi
-    if test "$GCC_PATCH"x == x; then
+    if test "$GCC_PATCH"x = x; then
         GCC_PATCH=0
     fi
 
@@ -974,7 +974,7 @@ if test "${wantpcre}x" = "nox" -a "${needpcre2}x" = "yesx"; then
     AC_MSG_ERROR([Can not combine --disable-pcre and --enable-require-pcre2])
 fi
 
-if test "$caponly"x == "no"x; then
+if test "$caponly"x = "no"x; then
     if test "$HAVE_CXX17" = "1"; then
 	    AC_MSG_CHECKING([Checking C++17 parallel functions])
 
@@ -1081,22 +1081,22 @@ if test "$caponly"x = "no"x; then
         LIBS="$OLIBS"
 
         if test "$pcre2" != "yes"; then
-            if test "${needpcre2}x" == "yesx"; then
+            if test "${needpcre2}x" = "yesx"; then
                 AC_MSG_ERROR([Could not find libpcre2 and --enable-require-pcre2 selected])
             fi
 
     	    AC_CHECK_LIB([pcre], [pcre_compile], pcre1=yes, pcre1=no)
 
-            if test "$pcre1" == "yes"; then
+            if test "$pcre1" = "yes"; then
     	        AC_CHECK_HEADER([pcre.h], pcre1=yes, pcre1=no)
             fi
 
         fi
 
-        if test "$pcre2" == "yes"; then
+        if test "$pcre2" = "yes"; then
             AC_DEFINE(HAVE_LIBPCRE2, 1, libpcre2 regex support)
             LIBS="$LIBS -lpcre2-8"
-        elif test "$pcre1" == "yes"; then
+        elif test "$pcre1" = "yes"; then
             AC_DEFINE(HAVE_LIBPCRE, 1, libpcre1 regex support)
             LIBS="$LIBS -lpcre"
         else
@@ -1261,7 +1261,7 @@ AS_IF([test "$want_protobuf"x = "yes"x], [
     	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
         [ ])
 
-    if test x"$with_protoc" == "x"; then
+    if test x"$with_protoc" = "x"; then
         PROTOCBIN=protoc
         AC_CHECK_PROG(protoc, [protoc], yes)
         if test x"$protoc" != x"yes"; then
@@ -1315,7 +1315,7 @@ AC_ARG_ENABLE(bladerf,
     [want_bladerf=no]
 )
 
-AS_IF([test "x$want_bladerf" == "xyes"], [
+AS_IF([test "x$want_bladerf" = "xyes"], [
     PKG_CHECK_MODULES([libbladeRF], [libbladeRF],
         [
         ],
@@ -1543,7 +1543,7 @@ if test "$havenetlink" = "yes"; then
 	fi
 
 	if test "$nlname" != ""; then
-        if test "$picked_nl" == "tiny"; then
+        if test "$picked_nl" = "tiny"; then
             NLLIBS="-lnl-tiny"
         else
 		    NLLIBS=`pkg-config --libs $nlname`
@@ -1981,7 +1981,7 @@ AC_ARG_ENABLE(asan,
 	 esac],
 	[want_asan=no]
 )
-if test "$want_asan" == "yes"; then
+if test "$want_asan" = "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=address -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=address"
 fi
@@ -1994,7 +1994,7 @@ AC_ARG_ENABLE(tsan,
 	 esac],
 	[want_tsan=no]
 )
-if test "$want_tsan" == "yes"; then
+if test "$want_tsan" = "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=thread -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=thread"
 fi
