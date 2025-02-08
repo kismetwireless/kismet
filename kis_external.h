@@ -45,11 +45,11 @@
 #include "boost/asio.hpp"
 using boost::asio::ip::tcp;
 
+// Protobufs are now optional & will be phased out
+#ifdef HAVE_PROTOBUF_CPP
 #include <google/protobuf/message_lite.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-// Protobufs are now optional & will be phased out
-#ifdef HAVE_PROTOBUF_CPP
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 #include "protobuf_cpp/eventbus.pb.h"
