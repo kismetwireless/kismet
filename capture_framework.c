@@ -1688,7 +1688,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                     fprintf(stderr, "ERROR: %s\n", msgstr);
             }
 
-            cf_send_listresp(caph, seqno, cbret >= 0, msgstr, interfaces, cbret < 0 ? 1 : 0);
+            cf_send_listresp(caph, seqno, cbret >= 0, msgstr, interfaces, cbret < 0 ? 0 : cbret);
 
             if (cbret > 0) {
                 for (i = 0; i < (size_t) cbret; i++) {
@@ -3539,11 +3539,12 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     if (!success) {
         n = cf_send_error(caph, seq, msg);
         return n;
-    } else {
+    } else if (msg != NULL && strlen(msg) != 0) {
         /* Send messages independently not tied to this sequence,
          * they're just informational */
         n = cf_send_message(caph, msg, MSGFLAG_INFO);
-        if (n != 0) {
+
+        if (n < 0) {
             return n;
         }
     }
@@ -3567,11 +3568,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     est_len = est_len * 1.15;
 
-    if (seq != 0) {
-        seqno = seq;
-    } else {
-        seqno = cf_get_next_seqno(caph);
-    }
+    seqno = cf_get_next_seqno(caph);
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_LISTREPORT, seqno, 0, est_len);
@@ -3583,6 +3580,9 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
 
     mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_SEQNO);
+    mpack_write_u32(&writer, seq);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
     mpack_start_array(&writer, len);

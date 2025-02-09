@@ -723,7 +723,12 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
         return;
     }
 
-    handle_msg_proxy(std::string(message_s, message_sz), msgtype);
+    auto message_str = std::string(message_s, message_sz);
+    if (message_sz == 0) {
+        message_str = "[no message provided by datasource]";
+    }
+
+    handle_msg_proxy(message_str, msgtype);
 }
 
 void kis_external_interface::handle_packet_ping_v3(uint32_t in_seqno,
