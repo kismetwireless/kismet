@@ -1231,6 +1231,7 @@ void kis_datasource::handle_interfaces_report_v3_callback(uint32_t in_seqno, uin
 
 void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t code,
         const nonstd::string_view& in_packet) {
+
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report_v3");
     lock.lock();
 
@@ -1500,7 +1501,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
         auto offset_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
         if (!mpack_node_is_missing(offset_n)) {
-            auto offset = mpack_node_u16(mpack_node_map_uint(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET));
+            auto offset = mpack_node_u16(offset_n);
             if (mpack_tree_error(&tree) != mpack_ok) {
                 _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
                 trigger_error("invalid v3 CONFIGUREREPORT");
@@ -1514,7 +1515,6 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
         source_hop_vec->clear();
         auto chanvec = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
         if (!mpack_node_is_missing(chanvec)) {
-            auto chanvec = mpack_node_map_uint(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
             auto chans_sz = mpack_node_array_length(chanvec);
             if (mpack_tree_error(&tree) != mpack_ok) {
                 _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
