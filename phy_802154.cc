@@ -98,6 +98,9 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
 
     packetchain->register_handler(&dissector802154, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&commonclassifier802154, this, CHAINPOS_CLASSIFIER, -100);
+
+    auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
+    httpregistry->register_js_module("kismet_ui_802_15_4", "js/kismet.ui.802_15_4.js");
 }
 
 kis_802154_phy::~kis_802154_phy() {
