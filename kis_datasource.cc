@@ -1448,6 +1448,8 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
         set_int_source_hopping(false);
         set_int_source_channel(std::string(chan_s, chan_sz));
     } else if (!mpack_node_is_missing(hopmap)) {
+        set_int_source_hopping(true);
+
         if (mpack_tree_error(&tree) != mpack_ok) {
             _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
             trigger_error("invalid v3 CONFIGUREREPORT");
