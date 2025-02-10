@@ -1707,6 +1707,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             }
 
             set_int_source_hop_rate(rate);
+            set_int_source_hop_rate(true);
         } else {
             set_int_source_hopping(false);
         }

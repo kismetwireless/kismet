@@ -558,8 +558,9 @@ void string_vector_merge(S *source, D *destination,
         } else {
             bool merge = true;
             for (const auto& sd : *destination) {
-                if (!merge_fn(si, sd)) {
-                    merge = false;
+                merge = merge_fn(si, sd);
+
+                if (!merge) {
                     break;
                 }
             }
@@ -583,8 +584,9 @@ void string_vector_merge(const S& source, D *destination,
         } else {
             bool merge = true;
             for (const auto& sd : *destination) {
-                if (!merge_fn(si, sd)) {
-                    merge = false;
+                merge = merge_fn(si, sd);
+
+                if (!merge) {
                     break;
                 }
             }
