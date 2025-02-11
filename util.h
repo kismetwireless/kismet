@@ -550,5 +550,9 @@ uint64_t human_to_freq_khz(const std::string&);
 // queries that aren't high load
 bool regex_string_compare(const std::string& restr, const std::string& content);
 
+// an inefficient regex compare that has to compile the regex each time; only call from
+// queries that aren't high load
+bool regex_string_compare(const std::string& restr, const std::string& content);
+
 #endif
 
