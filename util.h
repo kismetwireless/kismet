@@ -546,5 +546,9 @@ bool is_valid_utf8(const std::string& subject);
 bool iequals(const std::string& a, const std::string& b);
 uint64_t human_to_freq_khz(const std::string&);
 
+// an inefficient regex compare that has to compile the regex each time; only call from
+// queries that aren't high load
+bool regex_string_compare(const std::string& restr, const std::string& content);
+
 #endif
 
