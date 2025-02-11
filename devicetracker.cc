@@ -389,8 +389,11 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
+                    std::ostream os(&con->response_stream());
                     auto ts_k = con->uri_params().find(":timestamp");
                     auto tv = string_to_n<long>(ts_k->second);
+
+                    auto regex = con->json()["regex"];
 
                     time_t ts;
 
@@ -407,7 +410,22 @@ device_tracker::device_tracker() :
                             return true;
                         });
 
-                    return do_readonly_device_work(ts_worker);
+                    auto next_work_vec = do_device_work(ts_worker);
+
+                    if (!regex.is_null()) {
+                        try {
+                            auto worker =
+                                device_tracker_view_regex_worker(regex);
+                            auto r_vec = do_readonly_device_work(worker, next_work_vec);
+                            next_work_vec = r_vec;
+                        } catch (const std::exception& e) {
+                            con->set_status(400);
+                            os << "Invalid regex: " << e.what() << "\n";
+                            return nullptr;
+                        }
+                    }
+
+                    return next_work_vec;
                 }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
