@@ -646,5 +646,9 @@ void string_vector_inline_filter(D& destination, S *filter,
     return string_vector_inline_filter<D, S>(&destination, filter, match_fn);
 }
 
+// an inefficient regex compare that has to compile the regex each time; only call from
+// queries that aren't high load
+bool regex_string_compare(const std::string& restr, const std::string& content);
+
 #endif
 

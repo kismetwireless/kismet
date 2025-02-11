@@ -31,6 +31,14 @@
 #include <cctype>
 #include <string>
 
+#ifdef HAVE_LIBPCRE1
+#include <pcre.h>
+#endif
+
+#ifdef HAVE_LIBPCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+#endif
 
 #ifdef HAVE_LIBUTIL_H
 # include <libutil.h>
@@ -1312,5 +1320,79 @@ uint64_t human_to_freq_khz(const std::string &s) {
 	auto v = string_to_n<uint64_t>(ds);
 
 	return v * scale;
+}
+
+bool regex_string_compare(const std::string& restr, const std::string& content) {
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
+
+    int rc;
+#if defined(HAVE_LIBPCRE1)
+    const char *compile_error, *study_error;
+    int erroroffset;
+    std::ostringstream errordesc;
+
+    pcre *re = NULL;
+    pcre_extra *study = NULL;
+
+    re = pcre_compile(restr.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+    if (re == NULL) {
+        const auto e = fmt::format("could not parse PCRE regex: {} at {}",
+                compile_error, erroroffset);
+        throw std::runtime_error(e);
+    }
+
+    study = pcre_study(re, 0, &study_error);
+
+    if (study_error != NULL) {
+        const auto e =
+            fmt::format("could not parse PCRE regex, optimization failure: {}", study_error);
+
+        pcre_free(re);
+
+        throw std::runtime_error(e);
+    }
+
+    int ovector[128];
+    rc = pcre_exec(re, study, contente.c_str(), content.length(), 0, 0, ovector, 128);
+
+    pcre_free(re);
+    pcre_free(study);
+
+#elif defined(HAVE_LIBPCRE2)
+    PCRE2_SIZE erroroffset;
+    int errornumber;
+
+    pcre2_code *re = NULL;
+    pcre2_match_data *match_data = NULL;
+
+    re = pcre2_compile((PCRE2_SPTR8) restr.c_str(),
+       PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, NULL);
+
+    if (re == nullptr) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+        pcre2_code_free(re);
+        const auto e = fmt::format("could not parse PCRE regex: {} at {}",
+                (int) erroroffset, (char *) buffer);
+        throw std::runtime_error(e);
+    }
+
+	match_data = pcre2_match_data_create_from_pattern(re, NULL);
+    rc = pcre2_match(re, (PCRE2_SPTR8) content.c_str(), content.length(),
+            0, 0, match_data, NULL);
+
+    pcre2_match_data_free(match_data);
+    pcre2_code_free(re);
+#endif
+
+    if (rc > 0) {
+        return true;
+    }
+
+#endif
+
+    return false;
+
 }
 
