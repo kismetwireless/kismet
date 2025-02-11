@@ -585,6 +585,11 @@ protected:
     std::shared_ptr<tracker_element_vector> ssid_regex_vec;
     int ssid_regex_vec_element_id;
 
+    // AP canary filter; this is only called on a new ssid event so we can afford
+    // to compile the SSID each time and only map it as a raw string
+    std::shared_ptr<tracker_element_string_map> ssidcanary_map;
+    int ssidcanary_map_element_id;
+
     // Dissector alert references
     int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
         alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
@@ -605,7 +610,7 @@ protected:
     // Tracker alert references
     int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
         alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
-        alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
+        alert_ssidmatch_ref, alert_ssidcanary_ref, alert_dot11d_ref, alert_beaconrate_ref,
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
