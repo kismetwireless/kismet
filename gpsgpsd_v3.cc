@@ -145,8 +145,8 @@ void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
         set_int_device_connected(false);
     } else {
         boost::asio::async_connect(socket, endpoints,
-                [this, ref](const boost::system::error_code&ec, tcp::endpoint endpoint) {
-                    handle_connect(ref, ec, endpoint);
+                [ref](const boost::system::error_code& ec, tcp::endpoint endpoint) {
+                    ref->handle_connect(ref, ec, endpoint);
                 });
     }
 }
@@ -174,10 +174,7 @@ void kis_gps_gpsd_v3::handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
 
     in_buf.consume(in_buf.size());
 
-    boost::asio::post(strand_,
-            [self = shared_from_this()]() {
-                self->start_read();
-            });
+    boost::asio::post(strand_, [ref]() { ref->start_read(); });
 }
 
 void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
@@ -198,7 +195,7 @@ void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
 void kis_gps_gpsd_v3::write_impl() {
     if (socket.is_open()) {
         boost::asio::async_write(socket, boost::asio::buffer(out_bufs.front()),
-                boost::asio::bind_executor(strand_, 
+                boost::asio::bind_executor(strand_,
                     [this](const boost::system::error_code& ec, std::size_t) {
                         out_bufs.pop();
 
@@ -223,7 +220,7 @@ void kis_gps_gpsd_v3::start_read() {
         return;
 
     boost::asio::async_read_until(socket, in_buf, '\n',
-            boost::asio::bind_executor(strand_, 
+            boost::asio::bind_executor(strand_,
                 [this](const boost::system::error_code& error, std::size_t t) {
                     handle_read(error, t);
                 }));
@@ -256,8 +253,7 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     }
 
     if (in_buf.size() == 0 || t == 0) {
-        _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, 
-                "No data available");
+        _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - No data available", host, port);
         close_impl();
         handle_error();
         return;
