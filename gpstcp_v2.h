@@ -47,10 +47,12 @@ public:
     virtual bool get_device_connected() override;
 
 protected:
-    void start_connect(std::shared_ptr<kis_gps_tcp_v2> ref, 
-            const boost::system::error_code& error, tcp::resolver::iterator endpoint_iter);
+    void start_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
+            const boost::system::error_code& error,
+            const tcp::resolver::results_type& endpoints);
     void handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
-            const boost::system::error_code& error, tcp::resolver::iterator endpoint);
+            const boost::system::error_code& error,
+            tcp::endpoint endpoint);
 
     void write_gpsd(std::shared_ptr<kis_gps_tcp_v2> ref, const std::string& data);
 

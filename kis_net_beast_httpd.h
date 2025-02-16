@@ -558,7 +558,7 @@ public:
 		ws_.text(true);
 	}
 
-	boost::asio::io_service::strand &strand() { return strand_; };
+	boost::asio::io_context::strand &strand() { return strand_; };
 
 protected:
     virtual void close_impl();
@@ -572,7 +572,7 @@ protected:
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
     boost::beast::flat_buffer buffer_;
-	boost::asio::io_service::strand strand_;
+	boost::asio::io_context::strand strand_;
 
 	std::queue<std::string, std::deque<std::string>> ws_write_queue_;
 

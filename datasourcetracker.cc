@@ -594,7 +594,7 @@ void datasource_tracker::trigger_deferred_startup() {
                 remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
             } else {
                 auto v4_ep =
-                    tcp::endpoint(boost::asio::ip::address_v4::from_string(config_defaults->get_remote_cap_listen()),
+                    tcp::endpoint(boost::asio::ip::make_address(config_defaults->get_remote_cap_listen()),
                             config_defaults->get_remote_cap_port());
                 remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
             }

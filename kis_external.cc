@@ -299,23 +299,24 @@ void kis_external_ws::write_impl() {
             if (ec == 0)
                 errc = boost::asio::error::make_error_code(boost::asio::stream_errc::eof);
 
-            self->strand().post([self, errc]() {
-                self->out_bufs_.pop_front();
+            boost::asio::post(self->strand(),
+                    boost::beast::bind_front_handler([self, errc]() {
+                        self->out_bufs_.pop_front();
 
-                if (errc) {
-                    self->close();
+                        if (errc) {
+                            self->close();
 
-                    self->interface_->handle_packet(self->in_buf_);
+                            self->interface_->handle_packet(self->in_buf_);
 
-                    _MSG_ERROR("Kismet external interface got an error writing to ws callback: {}", errc.message());
-                    self->interface_->trigger_error("write failure");
-                    return;
-                }
+                            _MSG_ERROR("Kismet external interface got an error writing to ws callback: {}", errc.message());
+                            self->interface_->trigger_error("write failure");
+                            return;
+                        }
 
-                if (self->out_bufs_.size()) {
-                    return self->write_impl();
-                }
-            });
+                        if (self->out_bufs_.size()) {
+                            return self->write_impl();
+                        }
+                }));
         });
 }
 
