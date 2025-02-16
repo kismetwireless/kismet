@@ -119,8 +119,8 @@ template<typename F> struct cpp0x_result_of;
 
 // There doesn't seem to be any other way to turn this off such that the presence of
 // the user-defined operator,() below doesn't cause spurious warning all over the place,
-// so unconditionally turn it off.
-#if BOOST_MSVC
+// so unconditionally and globally turn it off. (https://svn.boost.org/trac10/ticket/7663)
+#ifdef BOOST_MSVC
 #  pragma warning(disable: 4913) // user defined binary operator ',' exists but no overload could convert all operands, default built-in binary operator ',' used
 #endif
 
@@ -134,12 +134,19 @@ template<typename T>
 result_of_no_type result_of_is_private_type(T const &);
 result_of_yes_type result_of_is_private_type(result_of_private_type);
 
+#ifdef BOOST_MSVC
+#  pragma warning(push)
+#  pragma warning(disable: 4512) // assignment operator could not be generated.
+#endif
 template<typename C>
 struct result_of_callable_class : C {
     result_of_callable_class();
     typedef result_of_private_type const &(*pfn_t)(...);
     operator pfn_t() const volatile;
 };
+#ifdef BOOST_MSVC
+#  pragma warning(pop)
+#endif
 
 template<typename C>
 struct result_of_wrap_callable_class {

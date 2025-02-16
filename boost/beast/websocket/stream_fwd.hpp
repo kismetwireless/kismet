@@ -12,6 +12,8 @@
 
 #include <boost/beast/core/detail/config.hpp>
 
+#ifndef BOOST_BEAST_DOXYGEN
+
 //[code_websocket_1h
 
 namespace boost {
@@ -28,5 +30,7 @@ class stream;
 } // boost
 
 //]
+
+#endif
 
 #endif

@@ -2,7 +2,7 @@
 // detail/impl/resolver_service_base.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,6 +16,7 @@
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
 #include <boost/asio/detail/config.hpp>
+#include <boost/asio/config.hpp>
 #include <boost/asio/detail/resolver_service_base.hpp>
 
 #include <boost/asio/detail/push_options.hpp>
@@ -44,8 +45,9 @@ private:
 
 resolver_service_base::resolver_service_base(execution_context& context)
   : scheduler_(boost::asio::use_service<scheduler_impl>(context)),
-    work_scheduler_(new scheduler_impl(context, -1, false)),
-    work_thread_(0)
+    work_scheduler_(new scheduler_impl(context, false)),
+    work_thread_(0),
+    scheduler_locking_(config(context).get("scheduler", "locking", true))
 {
   work_scheduler_->work_started();
 }
@@ -106,14 +108,14 @@ void resolver_service_base::destroy(
 void resolver_service_base::move_construct(implementation_type& impl,
     implementation_type& other_impl)
 {
-  impl = BOOST_ASIO_MOVE_CAST(implementation_type)(other_impl);
+  impl = static_cast<implementation_type&&>(other_impl);
 }
 
 void resolver_service_base::move_assign(implementation_type& impl,
     resolver_service_base&, implementation_type& other_impl)
 {
   destroy(impl);
-  impl = BOOST_ASIO_MOVE_CAST(implementation_type)(other_impl);
+  impl = static_cast<implementation_type&&>(other_impl);
 }
 
 void resolver_service_base::cancel(
@@ -127,8 +129,7 @@ void resolver_service_base::cancel(
 
 void resolver_service_base::start_resolve_op(resolve_op* op)
 {
-  if (BOOST_ASIO_CONCURRENCY_HINT_IS_LOCKING(SCHEDULER,
-        scheduler_.concurrency_hint()))
+  if (scheduler_locking_)
   {
     start_work_thread();
     scheduler_.work_started();

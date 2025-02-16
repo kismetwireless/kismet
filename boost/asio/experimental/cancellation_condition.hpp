@@ -2,7 +2,7 @@
 // experimental/cancellation_condition.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,9 +16,8 @@
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
 #include <boost/asio/detail/config.hpp>
-#include <exception>
 #include <boost/asio/cancellation_type.hpp>
-#include <boost/system/error_code.hpp>
+#include <boost/asio/disposition.hpp>
 #include <boost/asio/detail/type_traits.hpp>
 
 #include <boost/asio/detail/push_options.hpp>
@@ -32,8 +31,7 @@ class wait_for_all
 {
 public:
   template <typename... Args>
-  BOOST_ASIO_CONSTEXPR cancellation_type_t operator()(
-      Args&&...) const BOOST_ASIO_NOEXCEPT
+  constexpr cancellation_type_t operator()(Args&&...) const noexcept
   {
     return cancellation_type::none;
   }
@@ -43,15 +41,14 @@ public:
 class wait_for_one
 {
 public:
-  BOOST_ASIO_CONSTEXPR explicit wait_for_one(
+  constexpr explicit wait_for_one(
       cancellation_type_t cancel_type = cancellation_type::all)
     : cancel_type_(cancel_type)
   {
   }
 
   template <typename... Args>
-  BOOST_ASIO_CONSTEXPR cancellation_type_t operator()(
-      Args&&...) const BOOST_ASIO_NOEXCEPT
+  constexpr cancellation_type_t operator()(Args&&...) const noexcept
   {
     return cancel_type_;
   }
@@ -68,36 +65,30 @@ private:
 class wait_for_one_success
 {
 public:
-  BOOST_ASIO_CONSTEXPR explicit wait_for_one_success(
+  constexpr explicit wait_for_one_success(
       cancellation_type_t cancel_type = cancellation_type::all)
     : cancel_type_(cancel_type)
   {
   }
 
-  BOOST_ASIO_CONSTEXPR cancellation_type_t
-  operator()() const BOOST_ASIO_NOEXCEPT
+  constexpr cancellation_type_t
+  operator()() const noexcept
   {
     return cancel_type_;
   }
 
   template <typename E, typename... Args>
-  BOOST_ASIO_CONSTEXPR typename constraint<
-    !is_same<typename decay<E>::type, boost::system::error_code>::value
-      && !is_same<typename decay<E>::type, std::exception_ptr>::value,
-    cancellation_type_t
-  >::type operator()(const E&, Args&&...) const BOOST_ASIO_NOEXCEPT
+  constexpr constraint_t<!is_disposition<E>::value, cancellation_type_t>
+  operator()(const E&, Args&&...) const noexcept
   {
     return cancel_type_;
   }
 
   template <typename E, typename... Args>
-  BOOST_ASIO_CONSTEXPR typename constraint<
-      is_same<typename decay<E>::type, boost::system::error_code>::value
-        || is_same<typename decay<E>::type, std::exception_ptr>::value,
-      cancellation_type_t
-  >::type operator()(const E& e, Args&&...) const BOOST_ASIO_NOEXCEPT
+  constexpr constraint_t<is_disposition<E>::value, cancellation_type_t>
+  operator()(const E& e, Args&&...) const noexcept
   {
-    return !!e ? cancellation_type::none : cancel_type_;
+    return e != no_error ? cancellation_type::none : cancel_type_;
   }
 
 private:
@@ -112,36 +103,29 @@ private:
 class wait_for_one_error
 {
 public:
-  BOOST_ASIO_CONSTEXPR explicit wait_for_one_error(
+  constexpr explicit wait_for_one_error(
       cancellation_type_t cancel_type = cancellation_type::all)
     : cancel_type_(cancel_type)
   {
   }
 
-  BOOST_ASIO_CONSTEXPR cancellation_type_t
-  operator()() const BOOST_ASIO_NOEXCEPT
+  constexpr cancellation_type_t operator()() const noexcept
   {
     return cancellation_type::none;
   }
 
   template <typename E, typename... Args>
-  BOOST_ASIO_CONSTEXPR typename constraint<
-    !is_same<typename decay<E>::type, boost::system::error_code>::value
-      && !is_same<typename decay<E>::type, std::exception_ptr>::value,
-    cancellation_type_t
-  >::type operator()(const E&, Args&&...) const BOOST_ASIO_NOEXCEPT
+  constexpr constraint_t<!is_disposition<E>::value, cancellation_type_t>
+  operator()(const E&, Args&&...) const noexcept
   {
     return cancellation_type::none;
   }
 
   template <typename E, typename... Args>
-  BOOST_ASIO_CONSTEXPR typename constraint<
-      is_same<typename decay<E>::type, boost::system::error_code>::value
-        || is_same<typename decay<E>::type, std::exception_ptr>::value,
-      cancellation_type_t
-  >::type operator()(const E& e, Args&&...) const BOOST_ASIO_NOEXCEPT
+  constexpr constraint_t<is_disposition<E>::value, cancellation_type_t>
+  operator()(const E& e, Args&&...) const noexcept
   {
-    return !!e ? cancel_type_ : cancellation_type::none;
+    return e != no_error ? cancel_type_ : cancellation_type::none;
   }
 
 private:
