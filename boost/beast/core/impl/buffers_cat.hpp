@@ -52,40 +52,35 @@ public:
 
 #if defined(_MSC_VER) && ! defined(__clang__)
 # define BOOST_BEAST_UNREACHABLE() __assume(false)
-# define BOOST_BEAST_UNREACHABLE_RETURN(v) return v
 #else
 # define BOOST_BEAST_UNREACHABLE() __builtin_unreachable()
-# define BOOST_BEAST_UNREACHABLE_RETURN(v) \
-    do { __builtin_unreachable(); return v; } while(false)
 #endif
 
 #ifdef BOOST_BEAST_TESTS
 
 #define BOOST_BEAST_LOGIC_ERROR(s) \
-    do { \
+    { \
         BOOST_THROW_EXCEPTION(std::logic_error((s))); \
-        BOOST_BEAST_UNREACHABLE(); \
-    } while(false)
+    }
 
-#define BOOST_BEAST_LOGIC_ERROR_RETURN(v, s) \
-    do { \
-        BOOST_THROW_EXCEPTION(std::logic_error(s)); \
-        BOOST_BEAST_UNREACHABLE_RETURN(v); \
-    } while(false)
+#define BOOST_BEAST_LOGIC_ERROR_RETURN(s, v) \
+    { \
+        BOOST_THROW_EXCEPTION(std::logic_error((s))); \
+    }
 
 #else
 
 #define BOOST_BEAST_LOGIC_ERROR(s) \
-    do { \
+    { \
         BOOST_ASSERT_MSG(false, s); \
         BOOST_BEAST_UNREACHABLE(); \
-    } while(false)
+    }
 
-#define BOOST_BEAST_LOGIC_ERROR_RETURN(v, s) \
-    do { \
-        BOOST_ASSERT_MSG(false, (s)); \
-        BOOST_BEAST_UNREACHABLE_RETURN(v); \
-    } while(false)
+#define BOOST_BEAST_LOGIC_ERROR_RETURN(s, v) \
+    { \
+        BOOST_ASSERT_MSG(false, s); \
+        return v; \
+    }
 
 #endif
 
@@ -96,13 +91,6 @@ struct buffers_cat_view_iterator_base
     struct past_end
     {
         char unused = 0; // make g++8 happy
-
-        net::mutable_buffer
-        operator*() const
-        {
-            BOOST_BEAST_LOGIC_ERROR_RETURN({},
-                "Dereferencing a one-past-the-end iterator");
-        }
 
         operator bool() const noexcept
         {
@@ -188,8 +176,15 @@ private:
         reference
         operator()(mp11::mp_size_t<0>)
         {
-            BOOST_BEAST_LOGIC_ERROR_RETURN({},
-                "Dereferencing a default-constructed iterator");
+            BOOST_BEAST_LOGIC_ERROR_RETURN(
+                "Dereferencing a default-constructed iterator", {});
+        }
+
+        reference
+        operator()(mp11::mp_size_t<sizeof...(Bn)+1>)
+        {
+            BOOST_BEAST_LOGIC_ERROR_RETURN(
+                "Dereferencing a one-past-the-end iterator", {});
         }
 
         template<class I>

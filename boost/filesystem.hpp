@@ -18,7 +18,5 @@
 #include <boost/filesystem/directory.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/file_status.hpp>
-#include <boost/filesystem/convenience.hpp>
-#include <boost/filesystem/string_file.hpp>
 
 #endif // BOOST_FILESYSTEM_FILESYSTEM_HPP

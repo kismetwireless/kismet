@@ -23,48 +23,27 @@ private:
 
     error_code code_;
 
-private:
-
-    static std::string build_message( char const * prefix, error_code const & ec )
-    {
-        std::string r;
-
-        if( prefix )
-        {
-            r += prefix;
-            r += ": ";
-        }
-
-        r += ec.what();
-        return r;
-    }
-
-    static std::string build_message( char const * prefix, int ev, error_category const & cat )
-    {
-        return build_message( prefix, error_code( ev, cat ) );
-    }
-
 public:
 
-    explicit system_error( error_code const & ec )
-      : std::runtime_error( build_message( 0, ec ) ), code_( ec ) {}
+    explicit system_error( error_code const & ec ):
+        std::runtime_error( ec.what() ), code_( ec ) {}
 
-    system_error( error_code const & ec, std::string const & prefix )
-      : std::runtime_error( build_message( prefix.c_str(), ec ) ), code_( ec ) {}
+    system_error( error_code const & ec, std::string const & prefix ):
+        std::runtime_error( prefix + ": " + ec.what() ), code_( ec ) {}
 
-    system_error( error_code const & ec, char const * prefix )
-      : std::runtime_error( build_message( prefix, ec ) ), code_( ec ) {}
+    system_error( error_code const & ec, char const * prefix ):
+        std::runtime_error( std::string( prefix ) + ": " + ec.what() ), code_( ec ) {}
 
-    system_error( int ev, error_category const & ecat )
-      : std::runtime_error( build_message( 0, ev, ecat ) ), code_( ev, ecat ) {}
+    system_error( int ev, error_category const & ecat ):
+        std::runtime_error( error_code( ev, ecat ).what() ), code_( ev, ecat ) {}
 
-    system_error( int ev, error_category const & ecat, std::string const & prefix )
-      : std::runtime_error( build_message( prefix.c_str(), ev, ecat ) ), code_( ev, ecat ) {}
+    system_error( int ev, error_category const & ecat, std::string const & prefix ):
+        std::runtime_error( prefix + ": " + error_code( ev, ecat ).what() ), code_( ev, ecat ) {}
 
-    system_error( int ev, error_category const & ecat, char const * prefix )
-      : std::runtime_error( build_message( prefix, ev, ecat ) ), code_( ev, ecat ) {}
+    system_error( int ev, error_category const & ecat, char const * prefix ):
+        std::runtime_error( std::string( prefix ) + ": " + error_code( ev, ecat ).what() ), code_( ev, ecat ) {}
 
-    error_code code() const BOOST_NOEXCEPT
+    error_code code() const noexcept
     {
         return code_;
     }
