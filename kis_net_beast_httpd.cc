@@ -392,8 +392,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
                             boost::beast::flat_buffer& buf, bool text) {
                             // Simple echo protocol
-                            ws->write(boost::asio::buffer_cast<const char *>(buf.data()),
-                                    buf.size());
+                            ws->write(static_cast<const char *>(buf.data().data()), buf.size());
                         });
 
                 ws->text();

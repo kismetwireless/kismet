@@ -115,7 +115,7 @@ public:
 
     virtual bool connected() { return false; }
 
-    virtual boost::asio::io_service::strand &strand() { return strand_; }
+    virtual boost::asio::io_context::strand &strand() { return strand_; }
 
     virtual void close() {
         stopped_ = true;
@@ -132,7 +132,7 @@ public:
     std::atomic<bool> stopped_;
 
     std::shared_ptr<kis_external_interface> interface_;
-    boost::asio::io_service::strand strand_;
+    boost::asio::io_context::strand strand_;
 
     boost::asio::streambuf in_buf_;
     std::list<std::shared_ptr<std::string>> out_bufs_;
@@ -206,7 +206,7 @@ public:
         ws_strand_{ws->strand()},
         write_cb_{write_cb} { }
 
-    virtual boost::asio::io_service::strand &strand() override {
+    virtual boost::asio::io_context::strand &strand() override {
         return ws_strand_;
     }
 
@@ -222,7 +222,7 @@ public:
 
 
     std::shared_ptr<kis_net_web_websocket_endpoint> ws_;
-    boost::asio::io_service::strand ws_strand_;
+    boost::asio::io_context::strand ws_strand_;
     cb_func_t write_cb_;
 };
 
@@ -545,9 +545,9 @@ public:
                 return result_handle_packet_needbuf;
             }
 
-            frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(buffer.data());
-            frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(buffer.data());
-            frame_v3 = boost::asio::buffer_cast<const kismet_external_frame_v3_t *>(buffer.data());
+            frame = static_cast<const kismet_external_frame_t *>(buffer.data().data());
+            frame_v2 = static_cast<const kismet_external_frame_v2_t *>(buffer.data().data());
+            frame_v3 = static_cast<const kismet_external_frame_v3_t *>(buffer.data().data());
 
             // Check the frame signature
             if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -667,9 +667,9 @@ public:
             return result_handle_packet_needbuf;
         }
 
-        frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(data);
-        frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(data);
-        frame_v3 = boost::asio::buffer_cast<const kismet_external_frame_v3_t *>(data);
+        frame = static_cast<const kismet_external_frame_t *>(data.data());
+        frame_v2 = static_cast<const kismet_external_frame_v2_t *>(data.data());
+        frame_v3 = static_cast<const kismet_external_frame_v3_t *>(data.data());
 
         // Check the frame signature
         if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {

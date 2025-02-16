@@ -610,9 +610,6 @@ int main(int argc, char *argv[], char *envp[]) {
                 tracker_element_factory<tracker_element_uuid>(),
                 "unique server UUID");
 
-    // Allocate the IO service
-    boost::asio::io_service::work work(Globalreg::globalreg->io);
-
     // Make the timetracker
     auto timetracker = time_tracker::create_timetracker();
 
