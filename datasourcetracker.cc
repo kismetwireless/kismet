@@ -1996,15 +1996,15 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno,
 }
 #endif
 
-bool dst_incoming_remote::dispatch_rx_packet_v3(uint16_t command,
-            uint16_t code, uint32_t seqno, const nonstd::string_view& content) {
+bool dst_incoming_remote::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+        uint16_t command, uint16_t code, uint32_t seqno, const nonstd::string_view& content) {
     // override the new source command
     if (command == KIS_EXTERNAL_V3_KDS_NEWSOURCE) {
         handle_packet_newsource_v3(seqno, code, content);
         return true;
     }
 
-    if (kis_external_interface::dispatch_rx_packet_v3(command, seqno, code, content)) {
+    if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, seqno, code, content)) {
         return true;
     }
 
@@ -2055,7 +2055,6 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     }
 
     kill();
-
 }
 
 void dst_incoming_remote::handle_error(const std::string& error) {

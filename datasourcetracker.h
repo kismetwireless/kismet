@@ -504,8 +504,9 @@ public:
     virtual void handle_packet_newsource(uint32_t in_seqno, nonstd::string_view in_packet);
 #endif
 
-    virtual bool dispatch_rx_packet_v3(uint16_t command,
-            uint16_t code, uint32_t seqno, const nonstd::string_view& content) override;
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+            uint16_t command, uint16_t code, uint32_t seqno,
+            const nonstd::string_view& content) override;
     virtual void handle_packet_newsource_v3(uint32_t in_seqno, uint16_t in_code, nonstd::string_view in_packet);
 
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {

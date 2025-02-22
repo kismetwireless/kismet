@@ -55,6 +55,9 @@ using boost::asio::ip::tcp;
 #include "protobuf_cpp/eventbus.pb.h"
 #endif
 
+// maximum size of a single IPC protocol frame
+#define MAX_EXTERNAL_FRAME_LEN       16384
+
 // Namespace stub and forward class definition to make deps hopefully easier going forward
 namespace KismetExternal {
     class Command;
@@ -91,6 +94,7 @@ public:
     }
 
     virtual void start_read() = 0;
+    virtual int packet_read() = 0;
 
     virtual void write(const char *data, size_t len) {
         if (stopped_)
@@ -134,7 +138,7 @@ public:
     std::shared_ptr<kis_external_interface> interface_;
     boost::asio::io_context::strand strand_;
 
-    boost::asio::streambuf in_buf_;
+    std::shared_ptr<boost::asio::streambuf> in_buf_;
     std::list<std::shared_ptr<std::string>> out_bufs_;
 };
 
@@ -153,6 +157,7 @@ public:
     virtual ~kis_external_ipc() override;
 
     virtual void start_read() override;
+    virtual int packet_read() override;
 
     virtual bool connected() override {
         return (ipc_in_.is_open() && ipc_out_.is_open());
@@ -181,6 +186,7 @@ public:
     virtual ~kis_external_tcp() override;
 
     virtual void start_read() override;
+    virtual int packet_read() override;
 
     virtual bool connected() override {
         return tcpsocket_.is_open();
@@ -211,6 +217,7 @@ public:
     }
 
     virtual void start_read() override { };
+    virtual int packet_read() override { return 0; };
 
     virtual void write_impl() override;
 
@@ -290,6 +297,9 @@ public:
 
     // Get the IO handler
     virtual std::shared_ptr<kis_external_io> move_io(std::shared_ptr<kis_external_interface> newif) {
+        if (io_ == nullptr) {
+            _MSG_DEBUG("IO was already null!  uhoh!");
+        }
         auto io_ref = io_;
         io_ = nullptr;
         io_ref->attach_interface(newif);
@@ -444,8 +454,9 @@ protected:
 
 
     // New/modern packet dispatch for v3+
-    virtual bool dispatch_rx_packet_v3(uint16_t command,
-            uint16_t code, uint32_t seqno, const nonstd::string_view& content);
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
+            uint16_t code, uint32_t seqno,
+            const nonstd::string_view& content);
 
     // V3 Packet handlers
     virtual void handle_packet_message_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
@@ -526,135 +537,19 @@ public:
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;
 
+    // returned from command dispatches
+    static const int result_handle_command_returnbuf = 0;
+    static const int result_handle_command_keepbuf = 1;
+
     std::shared_ptr<KismetExternal::Command> cached_cmd;
 
-    // Handle a buffer containing a network frame packet
-    template<class BoostBuffer>
-    int handle_packet(BoostBuffer& buffer) {
-        const kismet_external_frame_t *frame = nullptr;
-        const kismet_external_frame_v2_t *frame_v2 = nullptr;
-        const kismet_external_frame_v3_t *frame_v3 = nullptr;
-        uint32_t frame_sz, data_sz;
+    // handle a kis_external with a dedicated buffer to be contained in
+    // any longer-lifespan data like packet records; this is allocated from
+    // the global buffer pool and will be recycled there automatically
+    int handle_packet(std::shared_ptr<boost::asio::streambuf> buffer);
 
-        // Consume everything in the buffer that we can
-        while (1) {
-            // See if we have enough to get a frame header
-            size_t buffamt = buffer.size();
-
-            if (buffamt < sizeof(kismet_external_frame_t)) {
-                return result_handle_packet_needbuf;
-            }
-
-            frame = static_cast<const kismet_external_frame_t *>(buffer.data().data());
-            frame_v2 = static_cast<const kismet_external_frame_v2_t *>(buffer.data().data());
-            frame_v3 = static_cast<const kismet_external_frame_v3_t *>(buffer.data().data());
-
-            // Check the frame signature
-            if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-                _MSG_ERROR("Kismet external interface got command frame with invalid signature");
-                trigger_error("Invalid signature on command frame");
-                return result_handle_packet_error;
-            }
-
-            // Detect and process the v2 frames
-            if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
-                    kis_ntoh16(frame_v2->frame_version) == 0x02) {
-
-                // Protobuf v2 is being phased out, and is now optional; if the
-                // server has v2 support, we can still process it (for now)
-
-#ifdef HAVE_PROTOBUF_CPP
-                data_sz = kis_ntoh32(frame_v2->data_sz);
-                frame_sz = data_sz + sizeof(kismet_external_frame_v2);
-
-                if (frame_sz >= 16384) {
-                    _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                            "be processed ({}); either the frame is malformed or you are connecting to "
-                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                            "Kismet on all connected systems.", frame_sz);
-                    trigger_error("Command frame too large for buffer");
-                    return result_handle_packet_error;
-                }
-
-                // If we don't have the whole buffer available, bail on this read
-                if (frame_sz > buffamt) {
-                    return result_handle_packet_needbuf;
-                }
-
-                uint32_t seqno = kis_ntoh32(frame_v2->seqno);
-
-                nonstd::string_view command(frame_v2->command, 32);
-
-                auto trim_pos = command.find('\0');
-                if (trim_pos != command.npos)
-                    command.remove_suffix(command.size() - trim_pos);
-
-                nonstd::string_view content((const char *) frame_v2->data, data_sz);
-
-                // If we've gotten this far it's a valid newer protocol, switch to v2 mode
-                protocol_version = 2;
-
-                // Dispatch the received command
-                dispatch_rx_packet(command, seqno, content);
-
-                buffer.consume(frame_sz);
-#else
-                _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
-                        "compiled with protobuf support; Either upgrade the capture binary "
-                        "or install a version of Kismet compiled with protobufs.");
-                trigger_error("Unsupported Kismet protocol");
-                return result_handle_packet_error;
-#endif
-            } else if (kis_ntoh16(frame_v3->v3_sentinel) == KIS_EXTERNAL_V3_SIG &&
-                    kis_ntoh16(frame_v3->v3_version) == 0x03) {
-
-                // The V3 kismet protocol uses msgpack and will be the new target
-
-                data_sz = kis_ntoh32(frame_v3->length);
-                frame_sz = data_sz + sizeof(kismet_external_frame_v3);
-
-                if (frame_sz >= 16384) {
-                    _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                            "be processed ({}); either the frame is malformed or you are connecting to "
-                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                            "Kismet on all connected systems.", frame_sz);
-                    trigger_error("Command frame too large for buffer");
-                    return result_handle_packet_error;
-                }
-
-                // If we don't have the whole buffer available, bail on this read
-                if (frame_sz > buffamt) {
-                    return result_handle_packet_needbuf;
-                }
-
-                uint32_t seqno = kis_ntoh32(frame_v3->seqno);
-                uint16_t command = kis_ntoh16(frame_v3->pkt_type);
-                uint16_t code = kis_ntoh16(frame_v3->code);
-
-                nonstd::string_view content((const char *) frame_v3->data, data_sz);
-
-                // If we've gotten this far it's a valid newer protocol, switch to v2 mode
-                protocol_version = 3;
-
-                // Dispatch the received command
-                dispatch_rx_packet_v3(command, seqno, code, content);
-
-                buffer.consume(frame_sz);
-            } else {
-                // Unknown type of packet (or legacy v0 protocol which we're phasing out)
-                _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
-                        "compiled with protobuf support; Either upgrade the capture binary "
-                        "or install a version of Kismet compiled with protobufs.");
-                trigger_error("Unsupported Kismet protocol");
-                return result_handle_packet_error;
-            }
-        }
-
-        return result_handle_packet_ok;
-    }
-
-    // Handle a buffer with a single frame in it; for instance, fed by the websocket api.  The buffer is not
-    // consumed.
+    // Handle a buffer with a single frame in it; for instance, fed by the
+    // websocket api.  The buffer is not consumed.
     template<class ConstBufferSequence>
     int handle_external_command(const ConstBufferSequence& data, size_t sz) {
         const kismet_external_frame_t *frame = nullptr;
@@ -735,7 +630,7 @@ public:
             data_sz = kis_ntoh32(frame_v3->length);
             frame_sz = data_sz + sizeof(kismet_external_frame_v3);
 
-            if (frame_sz >= 16384) {
+            if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
                 _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                         "be processed ({}); either the frame is malformed or you are connecting to "
                         "a legacy Kismet remote capture drone; make sure you have updated to modern "
@@ -759,7 +654,7 @@ public:
             protocol_version = 3;
 
             // Dispatch the received command
-            dispatch_rx_packet_v3(command, seqno, code, content);
+            dispatch_rx_packet_v3(nullptr, command, seqno, code, content);
 
             return result_handle_packet_ok;
         } else {
