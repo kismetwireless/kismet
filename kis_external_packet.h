@@ -34,6 +34,15 @@
 #define KIS_EXTERNAL_PROTO_SIG    0xDECAFBAD
 #endif
 
+/* Minimal common protocol header to derive version */
+struct kismet_external_frame_stub {
+    uint32_t signature;
+    uint16_t proto_sentinel;
+    uint16_t proto_version;
+    uint32_t data_sz;
+} __attribute__((packed));
+typedef struct kismet_external_frame_stub kismet_external_frame_stub_t;
+
 /* Basic proto header/wrapper */
 struct kismet_external_frame {
     /* Fixed Start-of-packet signature, big endian */

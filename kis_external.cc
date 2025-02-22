@@ -50,21 +50,27 @@ kis_external_ipc::~kis_external_ipc() {
     }
 }
 
+// read a packet header to get the length of the incoming packet, then
+// queue reading the entire packet contents as a second operation
 void kis_external_ipc::start_read() {
     if (stopped_) {
-        interface_->handle_packet(in_buf_);
         return;
     }
 
-    boost::asio::async_read(ipc_in_, in_buf_,
-            boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
+    // grab the buffer for the duration of the operations; it will be handed
+    // off to the packet for tracking as it is processed
+    in_buf_ = Globalreg::globalreg->streambuf_pool.acquire();
+
+    boost::asio::async_read(ipc_in_, *in_buf_.get(),
+            boost::asio::transfer_exactly(sizeof(kismet_external_frame_stub_t)),
             boost::asio::bind_executor(strand(),
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
                     if (ec) {
                         if (ec.value() == boost::asio::error::operation_aborted) {
+                            self->in_buf_.reset();
+
                             if (!self->stopped_) {
                                 self->close();
-                                self->interface_->handle_packet(self->in_buf_);
                                 return self->interface_->trigger_error("IPC connection aborted");
                             }
 
@@ -74,7 +80,95 @@ void kis_external_ipc::start_read() {
                         if (ec.value() == boost::asio::error::eof) {
                             if (!self->stopped_) {
                                 self->close();
-                                self->interface_->handle_packet(self->in_buf_);
+                                self->stopped_ = true;
+                                return self->interface_->trigger_error("IPC connection closed");
+                            }
+
+                            return;
+                        }
+
+                        self->close();
+
+                        return self->interface_->trigger_error(fmt::format("IPC connection error: {}", ec.message()));
+                    }
+
+                    // read the full-length packet in a second operation
+                    auto r = self->packet_read();
+
+                    // the sub-read should have triggered any errors here, so simply return the buffer to the queue
+                    // and close out.
+                    if (r < 0) {
+                        self->in_buf_.reset();
+                        if (self->stopped_) {
+                            return;
+                        }
+
+                        self->close();
+                        return;
+                    }
+
+                    // next read op triggered by packet_read
+                }));
+}
+
+// read the rest of the packet after processing the header
+int kis_external_ipc::packet_read() {
+    if (stopped_) {
+        return -1;
+    }
+
+    const auto frame = static_cast<const kismet_external_frame_stub_t *>(in_buf_->data().data());
+
+    if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        _MSG_ERROR("Kismet external interface got command frame with invalid "
+                "signature; either lost position in the external stream or "
+                "an unknown protocol was used");
+        interface_->trigger_error("invalid signature on frame");
+        return -1;
+    }
+
+    size_t total_length = kis_ntoh32(frame->data_sz);
+
+    if (kis_ntoh16(frame->proto_sentinel) == KIS_EXTERNAL_V2_SIG &&
+            kis_ntoh16(frame->proto_version) == 0x02) {
+        total_length += sizeof(kismet_external_frame_v2_t);
+    } else if (kis_ntoh16(frame->proto_sentinel) == KIS_EXTERNAL_V3_SIG) {
+        total_length += sizeof(kismet_external_frame_v3_t);
+    }
+
+    // subtract the amount we already read in the form of the short header
+    total_length -= sizeof(kismet_external_frame_stub_t);
+
+    if (total_length > MAX_EXTERNAL_FRAME_LEN) {
+        _MSG_ERROR("Kismet external interface got command frame which is "
+                "too large to be processed ({}); either the frame is malformed "
+                "or the connection is from a very old legacy Kismet version using "
+                "a different protocol; make sure that you have updated to a "
+                "current Kismet version on all systems.", total_length);
+        interface_->trigger_error("external packet too large for buffer");
+        return -1;
+    }
+
+    // read the rest of the packet
+    boost::asio::async_read(ipc_in_, *(in_buf_.get()),
+            boost::asio::transfer_exactly(total_length),
+            boost::asio::bind_executor(strand(),
+                [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
+                    if (ec) {
+                        self->in_buf_.reset();
+
+                        if (ec.value() == boost::asio::error::operation_aborted) {
+                            if (!self->stopped_) {
+                                self->close();
+                                return self->interface_->trigger_error("IPC connection aborted");
+                            }
+
+                            return;
+                        }
+
+                        if (ec.value() == boost::asio::error::eof) {
+                            if (!self->stopped_) {
+                                self->close();
                                 self->stopped_ = true;
                                 return self->interface_->trigger_error("IPC connection closed");
                             }
@@ -90,13 +184,22 @@ void kis_external_ipc::start_read() {
                     auto r = self->interface_->handle_packet(self->in_buf_);
 
                     if (r < 0) {
+                        self->in_buf_.reset();
+
+                        if (self->stopped_) {
+                            return;
+                        }
+
                         self->close();
-                        return self->interface_->trigger_error("IPC read processing error");
+                        return;
                     }
 
                     return self->start_read();
                 }));
+
+    return 1;
 }
+
 
 void kis_external_ipc::write_impl() {
     if (out_bufs_.size() == 0)
@@ -178,48 +281,154 @@ kis_external_tcp::~kis_external_tcp() {
 
 void kis_external_tcp::start_read() {
     if (stopped_) {
-        interface_->handle_packet(in_buf_);
         return;
     }
 
-    boost::asio::async_read(tcpsocket_, in_buf_,
-            boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
+    in_buf_ = Globalreg::globalreg->streambuf_pool.acquire();
+
+    boost::asio::async_read(tcpsocket_, *in_buf_.get(),
+            boost::asio::transfer_exactly(sizeof(kismet_external_frame_stub_t)),
             boost::asio::bind_executor(strand(),
                 [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
                     if (ec) {
+                        self->in_buf_.reset();
+
                         if (ec.value() == boost::asio::error::operation_aborted) {
-                            if (!self->stopped()) {
+                            if (!self->stopped_) {
                                 self->close();
-                                self->interface_->handle_packet(self->in_buf_);
-                                return self->interface_->trigger_error("TCP connection aborted");
+                                return self->interface_->trigger_error("IPC connection aborted");
                             }
 
                             return;
                         }
 
                         if (ec.value() == boost::asio::error::eof) {
-                            if (!self->stopped()) {
+                            if (!self->stopped_) {
                                 self->close();
-                                self->interface_->handle_packet(self->in_buf_);
                                 self->stopped_ = true;
-                                return self->interface_->trigger_error("TCP connection closed");
+                                return self->interface_->trigger_error("IPC connection closed");
                             }
 
                             return;
                         }
 
-                        return self->interface_->trigger_error(fmt::format("TCP connection error: {}", ec.message()));
+                        self->close();
+
+                        return self->interface_->trigger_error(fmt::format("IPC connection error: {}", ec.message()));
+                    }
+
+                    // read the full-length packet in a second operation
+                    auto r = self->packet_read();
+
+                    // the sub-read should have triggered any errors here, so simply return the buffer to the queue
+                    // and close out.
+                    if (r < 0) {
+                        self->in_buf_.reset();
+
+                        if (self->stopped_) {
+                            return;
+                        }
+
+                        self->close();
+                        return;
+                    }
+
+                    // next read op triggered by packet_read
+                }));
+}
+
+int kis_external_tcp::packet_read() {
+    if (stopped_) {
+        return -1;
+    }
+
+    const auto frame = static_cast<const kismet_external_frame_stub_t *>(in_buf_->data().data());
+
+    if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        _MSG_ERROR("Kismet external interface got command frame with invalid "
+                "signature; either lost position in the external stream or "
+                "an unknown protocol was used");
+        interface_->trigger_error("invalid signature on frame");
+        return -1;
+    }
+
+    size_t total_length = kis_ntoh32(frame->data_sz);
+
+    if (kis_ntoh16(frame->proto_sentinel) == KIS_EXTERNAL_V2_SIG &&
+            kis_ntoh16(frame->proto_version) == 0x02) {
+        total_length += sizeof(kismet_external_frame_v2_t);
+    } else if (kis_ntoh16(frame->proto_sentinel) == KIS_EXTERNAL_V3_SIG) {
+        total_length += sizeof(kismet_external_frame_v3_t);
+    }
+
+    total_length -= sizeof(kismet_external_frame_stub_t);
+
+    if (total_length > MAX_EXTERNAL_FRAME_LEN) {
+        _MSG_ERROR("Kismet external interface got command frame which is "
+                "too large to be processed ({}); either the frame is malformed "
+                "or the connection is from a very old legacy Kismet version using "
+                "a different protocol; make sure that you have updated to a "
+                "current Kismet version on all systems.", total_length);
+        interface_->trigger_error("external packet too large for buffer");
+        return -1;
+    }
+
+    // read the rest of the packet
+    boost::asio::async_read(tcpsocket_, *in_buf_.get(),
+            boost::asio::transfer_exactly(total_length),
+            boost::asio::bind_executor(strand(),
+                [self = shared_from_this()](const boost::system::error_code& ec, std::size_t t) {
+                    if (self->stopped_) {
+                        self->in_buf_.reset();
+                        return;
+                    }
+
+                    if (ec) {
+                        self->in_buf_.reset();
+
+                        if (ec.value() == boost::asio::error::operation_aborted) {
+                            if (!self->stopped_) {
+                                self->close();
+                                return self->interface_->trigger_error("IPC connection aborted");
+                            }
+
+                            return;
+                        }
+
+                        if (ec.value() == boost::asio::error::eof) {
+                            if (!self->stopped_) {
+                                self->close();
+                                self->stopped_ = true;
+                                return self->interface_->trigger_error("IPC connection closed");
+                            }
+
+                            return;
+                        }
+
+                        self->close();
+
+                        return self->interface_->trigger_error(fmt::format("IPC connection error: {}", ec.message()));
                     }
 
                     auto r = self->interface_->handle_packet(self->in_buf_);
 
+                    // if we couldn't handle the packet, return the packet to the queue and error out
                     if (r < 0) {
+                        self->in_buf_.reset();
+
+                        if (self->stopped_) {
+                            return;
+                        }
+
                         self->close();
-                        return self->interface_->trigger_error("TCP read processing error");
+                        return;
                     }
 
                     return self->start_read();
                 }));
+
+    // work will be completed in the async read
+    return 1;
 }
 
 void kis_external_tcp::close() {
@@ -261,7 +470,7 @@ void kis_external_tcp::write_impl() {
                     self->out_bufs_.pop_front();
 
                 if (ec) {
-                    self->interface_->handle_packet(self->in_buf_);
+                    // self->interface_->handle_packet(self->in_buf_);
 
                     if (self->stopped() || ec.value() == boost::asio::error::operation_aborted) {
                         return;
@@ -306,7 +515,7 @@ void kis_external_ws::write_impl() {
                         if (errc) {
                             self->close();
 
-                            self->interface_->handle_packet(self->in_buf_);
+                            // self->interface_->handle_packet(self->in_buf_);
 
                             _MSG_ERROR("Kismet external interface got an error writing to ws callback: {}", errc.message());
                             self->interface_->trigger_error("write failure");
@@ -635,6 +844,128 @@ bool kis_external_interface::run_ipc() {
     return true;
 }
 
+int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf> buffer) {
+    const kismet_external_frame_t *frame = nullptr;
+    const kismet_external_frame_v2_t *frame_v2 = nullptr;
+    const kismet_external_frame_v3_t *frame_v3 = nullptr;
+    uint32_t frame_sz, data_sz;
+
+    // See if we have enough to get a frame header
+    size_t buffamt = buffer->size();
+
+    if (buffamt < sizeof(kismet_external_frame_t)) {
+        _MSG_ERROR("Kismet external interface got command frame with invalid size");
+        return result_handle_packet_needbuf;
+    }
+
+    frame = static_cast<const kismet_external_frame_t *>(buffer->data().data());
+    frame_v2 = static_cast<const kismet_external_frame_v2_t *>(buffer->data().data());
+    frame_v3 = static_cast<const kismet_external_frame_v3_t *>(buffer->data().data());
+
+    // Check the frame signature
+    if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        _MSG_ERROR("Kismet external interface got command frame with invalid signature");
+        trigger_error("invalid signature on command frame");
+        return result_handle_packet_error;
+    }
+
+    // Detect and process the v2 frames
+    if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
+            kis_ntoh16(frame_v2->frame_version) == 0x02) {
+
+        // Protobuf v2 is being phased out, and is now optional; if the
+        // server has v2 support, we can still process it (for now)
+
+#ifdef HAVE_PROTOBUF_CPP
+        data_sz = kis_ntoh32(frame_v2->data_sz);
+        frame_sz = data_sz + sizeof(kismet_external_frame_v2);
+
+        if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
+            _MSG_ERROR("Kismet external interface got a command frame which is too large to "
+                    "be processed ({}); either the frame is malformed or you are connecting to "
+                    "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                    "Kismet on all connected systems.", frame_sz);
+            trigger_error("command frame too large for buffer");
+            return result_handle_packet_error;
+        }
+
+        // If we don't have the whole buffer available, bail on this read
+        if (frame_sz > buffamt) {
+            return result_handle_packet_needbuf;
+        }
+
+        uint32_t seqno = kis_ntoh32(frame_v2->seqno);
+
+        nonstd::string_view command(frame_v2->command, 32);
+
+        auto trim_pos = command.find('\0');
+        if (trim_pos != command.npos)
+            command.remove_suffix(command.size() - trim_pos);
+
+        nonstd::string_view content((const char *) frame_v2->data, data_sz);
+
+        // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+        protocol_version = 2;
+
+        // Dispatch the received command & see if we need to purge the buffer ourselves
+        dispatch_rx_packet(command, seqno, content);
+
+#else
+        _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
+                "compiled with protobuf support; Either upgrade the capture binary "
+                "or install a version of Kismet compiled with protobufs.");
+        trigger_error("Unsupported Kismet protocol");
+        return result_handle_packet_error;
+#endif
+    } else if (kis_ntoh16(frame_v3->v3_sentinel) == KIS_EXTERNAL_V3_SIG &&
+            kis_ntoh16(frame_v3->v3_version) == 0x03) {
+
+        // The V3 kismet protocol uses msgpack and will be the new target
+
+        data_sz = kis_ntoh32(frame_v3->length);
+        frame_sz = data_sz + sizeof(kismet_external_frame_v3);
+
+        if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
+            _MSG_ERROR("Kismet external interface got a command frame which is too large to "
+                    "be processed ({}); either the frame is malformed or you are connecting to "
+                    "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                    "Kismet on all connected systems.", frame_sz);
+            trigger_error("Command frame too large for buffer");
+            return result_handle_packet_error;
+        }
+
+        // If we don't have the whole buffer available, bail on this read
+        if (frame_sz > buffamt) {
+            return result_handle_packet_needbuf;
+        }
+
+        uint32_t seqno = kis_ntoh32(frame_v3->seqno);
+        uint16_t command = kis_ntoh16(frame_v3->pkt_type);
+        uint16_t code = kis_ntoh16(frame_v3->code);
+
+        nonstd::string_view content((const char *) frame_v3->data, data_sz);
+
+        // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+        protocol_version = 3;
+
+        // Dispatch the received command
+        dispatch_rx_packet_v3(buffer, command, seqno, code, content);
+
+        return result_handle_packet_ok;
+    } else {
+        // Unknown type of packet (or legacy v0 protocol which we're phasing out)
+        _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
+                "compiled with protobuf support; Either upgrade the capture binary "
+                "or install a version of Kismet compiled with protobufs.");
+        trigger_error("Unsupported Kismet protocol");
+        return result_handle_packet_error;
+    }
+
+    return result_handle_packet_ok;
+
+}
+
+
 void kis_external_interface::start_write(const char *data, size_t len) {
     if (cancelled)
         return;
@@ -649,8 +980,8 @@ void kis_external_interface::start_write(const char *data, size_t len) {
     io_->write(data, len);
 }
 
-bool kis_external_interface::dispatch_rx_packet_v3(uint16_t command, uint16_t code,
-        uint32_t seqno, const nonstd::string_view& content) {
+bool kis_external_interface::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
+        uint16_t code, uint32_t seqno, const nonstd::string_view& content) {
     // V3 dispatcher based on packet type numbers, carrying msgpacked payloads.
 
     // Implementations should directly call this for automatic dispatch before implementing

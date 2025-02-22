@@ -1058,10 +1058,11 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
     return 0;
 }
 
-bool kis_datasource::dispatch_rx_packet_v3(uint16_t command, uint16_t seqno,
+bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+        uint16_t command, uint16_t seqno,
         uint32_t code, const nonstd::string_view& content) {
 
-    if (kis_external_interface::dispatch_rx_packet_v3(command, code, seqno, content)) {
+    if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, code, seqno, content)) {
         return true;
     }
 
@@ -1073,7 +1074,7 @@ bool kis_datasource::dispatch_rx_packet_v3(uint16_t command, uint16_t seqno,
             handle_packet_configure_report_v3(seqno, code, content);
             return true;
         case KIS_EXTERNAL_V3_KDS_PACKET:
-            handle_packet_data_report_v3(seqno, code, content);
+            handle_packet_data_report_v3(seqno, code, content, buffer);
             return true;
         case KIS_EXTERNAL_V3_KDS_LISTREPORT:
             handle_packet_interfaces_report_v3(seqno, code, content);
@@ -2093,8 +2094,11 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
 int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
         const uint8_t *content, size_t content_sz) {
     // basic assignment of packet data to the data chunk, sufficient for datasources returning
-    // real DLTs or other already-formatted data
-    packet->set_data((const char *) content, content_sz);
+    // real DLTs or other already-formatted data.  The content buffer here
+    // is a portion of the stream buffer associated with the packet, so
+    // setting a bare view around it is safe and lifetimed to the packet
+    // itself
+    packet->set_data(nonstd::string_view((const char *) content, content_sz));
     datachunk->set_data(packet->data);
 
     return 1;
@@ -2155,7 +2159,8 @@ void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
 }
 
 void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
-        const nonstd::string_view& in_packet) {
+        const nonstd::string_view& in_packet,
+        std::shared_ptr<boost::asio::streambuf> buffer) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report_v3");
 
     if (get_source_paused()) {
@@ -2181,6 +2186,8 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
     }
 
     auto packet = packetchain->generate_packet();
+
+    packet->set_streambuf(buffer);
 
     auto gpsinfo = handle_sub_gps(root, &tree);
     if (cancelled) {

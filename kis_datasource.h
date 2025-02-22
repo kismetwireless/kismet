@@ -606,8 +606,9 @@ protected:
 
     // new v3 protocol dispatch and handlers, always built
 
-    virtual bool dispatch_rx_packet_v3(uint16_t command,
-            uint16_t code, uint32_t seqno, const nonstd::string_view& content) override;
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+            uint16_t command, uint16_t code, uint32_t seqno,
+            const nonstd::string_view& content) override;
 
     // V3 Packet handlers
     virtual void handle_configsource_report_v3_callback(uint32_t in_seqno, uint16_t code,
@@ -615,7 +616,8 @@ protected:
     virtual void handle_packet_configure_report_v3(uint32_t in_seqno, uint16_t code,
             const nonstd::string_view& in_packet);
     virtual void handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet);
+            const nonstd::string_view& in_packet,
+            std::shared_ptr<boost::asio::streambuf> buffer);
 
 	virtual void handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
 			kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces);
