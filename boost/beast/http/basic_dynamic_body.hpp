@@ -10,10 +10,12 @@
 #ifndef BOOST_BEAST_HTTP_BASIC_DYNAMIC_BODY_HPP
 #define BOOST_BEAST_HTTP_BASIC_DYNAMIC_BODY_HPP
 
-#include <boost/beast/core/detail/config.hpp>
+#include <boost/beast/http/basic_dynamic_body_fwd.hpp>
+
 #include <boost/beast/core/buffer_traits.hpp>
 #include <boost/beast/core/detail/buffer.hpp>
 #include <boost/beast/core/detail/clamp.hpp>
+#include <boost/beast/core/detail/config.hpp>
 #include <boost/beast/http/error.hpp>
 #include <boost/beast/http/message.hpp>
 #include <boost/optional.hpp>
@@ -92,7 +94,7 @@ struct basic_dynamic_body
             auto const n = buffer_bytes(buffers);
             if(beast::detail::sum_exceeds(body_.size(), n, body_.max_size()))
             {
-                ec = error::buffer_overflow;
+                BOOST_BEAST_ASSIGN_EC(ec, error::buffer_overflow);
                 return 0;
             }
             auto const mb =

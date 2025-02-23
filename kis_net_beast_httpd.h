@@ -17,7 +17,7 @@
 */
 
 #ifndef __KIS_NET_BEAST_HTTPD_H__
-#define __KIS_NET_BEAST_HTTPD_H__ 
+#define __KIS_NET_BEAST_HTTPD_H__
 
 #include "config.h"
 
@@ -97,39 +97,39 @@ public:
     std::string resolve_mime_type(const std::string& extension);
     std::string resolve_mime_type(const boost::beast::string_view& extension);
 
-    // The majority of routing requires authentication.  Any route that operates outside of 
+    // The majority of routing requires authentication.  Any route that operates outside of
     // authentication must *explicitly* register as unauthenticated.
-    void register_route(const std::string& route, const std::list<std::string>& verbs, 
+    void register_route(const std::string& route, const std::list<std::string>& verbs,
             const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
-    void register_route(const std::string& route, const std::list<std::string>& verbs, 
+    void register_route(const std::string& route, const std::list<std::string>& verbs,
             const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler);
-    void register_route(const std::string& route, const std::list<std::string>& verbs, 
-            const std::string& role, const std::list<std::string>& extensions, 
+    void register_route(const std::string& route, const std::list<std::string>& verbs,
+            const std::string& role, const std::list<std::string>& extensions,
             std::shared_ptr<kis_net_web_endpoint> handler);
-    void register_route(const std::string& route, const std::list<std::string>& verbs, 
-            const std::list<std::string>& role, const std::list<std::string>& extensions, 
+    void register_route(const std::string& route, const std::list<std::string>& verbs,
+            const std::list<std::string>& role, const std::list<std::string>& extensions,
             std::shared_ptr<kis_net_web_endpoint> handler);
     void remove_route(const std::string& route);
 
     // These routes do NOT require authentication; this is of course very dangerous and should
     // be limited to those endpoints used for logging in, etc
-    void register_unauth_route(const std::string& route, const std::list<std::string>& verbs, 
+    void register_unauth_route(const std::string& route, const std::list<std::string>& verbs,
             std::shared_ptr<kis_net_web_endpoint> handler);
     void register_unauth_route(const std::string& route, const std::list<std::string>& verbs,
-            const std::list<std::string>& extensions, 
+            const std::list<std::string>& extensions,
             std::shared_ptr<kis_net_web_endpoint> handler);
 
     // Websocket handlers are their own special things.  All websockets must be authenticated.
-    void register_websocket_route(const std::string& route, const std::string& role, 
+    void register_websocket_route(const std::string& route, const std::string& role,
             const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
-    void register_websocket_route(const std::string& route, const std::list<std::string>& roles, 
+    void register_websocket_route(const std::string& route, const std::list<std::string>& roles,
             const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
 
 
     // Create an auth entry & return it; if the auth exists in the system already, throw a runtime exception
     std::string create_auth(const std::string& name, const std::string& role, time_t expiry);
 
-    // Create or find an auth entity; if an API key exists for this name, return the existing token; 
+    // Create or find an auth entity; if an API key exists for this name, return the existing token;
     // (legacy auth model code with a per-login-role token)
     std::string create_or_find_auth(const std::string& name, const std::string& role, time_t expiry);
 
@@ -224,7 +224,7 @@ protected:
     std::string admin_username, admin_password;
     bool global_login_config;
 
-    // Encryption token for JWT 
+    // Encryption token for JWT
     std::string jwt_auth_key;
     std::string jwt_auth_issuer;
 
@@ -267,7 +267,7 @@ public:
     const std::string& login_role() const { return login_role_; }
 
     // These may be set by the endpoint handler prior to the first writing of data; once the
-    // first block of the response has been sent, it is too late to include these and they will 
+    // first block of the response has been sent, it is too late to include these and they will
     // raise a runtime error exception
     void set_status(unsigned int response);
     void set_status(boost::beast::http::status status);
@@ -335,7 +335,7 @@ protected:
         r.set(boost::beast::http::field::server, "Kismet");
         r.version(request_.version());
         r.keep_alive(request_.keep_alive());
-        
+
         r.set(boost::beast::http::field::content_type, httpd->resolve_mime_type(uri));
 
         // Last modified is always "now"
@@ -444,7 +444,7 @@ public:
     kis_net_web_function_endpoint(function_t function,
             kis_mutex& mutex,
             wrapper_func_t pre_func = nullptr,
-            wrapper_func_t post_func = nullptr) : 
+            wrapper_func_t post_func = nullptr) :
         kis_net_web_endpoint{},
         function{function},
         mutex{mutex},
@@ -468,16 +468,16 @@ protected:
 
 class kis_net_web_tracked_endpoint : public kis_net_web_endpoint {
 public:
-    using gen_func_t = 
+    using gen_func_t =
         std::function<std::shared_ptr<tracker_element> (std::shared_ptr<kis_net_beast_httpd_connection>)>;
     using wrapper_func_t = std::function<void (std::shared_ptr<tracker_element>)>;
 
     kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content,
             kis_mutex& mutex,
             wrapper_func_t pre_func = nullptr,
-            wrapper_func_t post_func = nullptr) : 
+            wrapper_func_t post_func = nullptr) :
         content{content},
-        mutex{mutex}, 
+        mutex{mutex},
         use_mutex{true},
         pre_func{pre_func},
         post_func{post_func} { }
@@ -486,7 +486,7 @@ public:
         content{content},
         mutex{dfl_mutex} { }
 
-    kis_net_web_tracked_endpoint(gen_func_t generator, 
+    kis_net_web_tracked_endpoint(gen_func_t generator,
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) :
         mutex{dfl_mutex},
@@ -514,7 +514,7 @@ protected:
     wrapper_func_t post_func;
 };
 
-class kis_net_web_websocket_endpoint : public kis_net_web_endpoint, 
+class kis_net_web_websocket_endpoint : public kis_net_web_endpoint,
     public std::enable_shared_from_this<kis_net_web_websocket_endpoint> {
 
         typedef struct {
@@ -523,7 +523,7 @@ class kis_net_web_websocket_endpoint : public kis_net_web_endpoint,
         } ws_data;
 
 public:
-    using handler_func_t = std::function<void (std::shared_ptr<kis_net_web_websocket_endpoint> ws, 
+    using handler_func_t = std::function<void (std::shared_ptr<kis_net_web_websocket_endpoint> ws,
             boost::beast::flat_buffer& buf, bool text)>;
 
     kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
@@ -538,7 +538,7 @@ public:
 
     void write(std::string data) {
         boost::asio::post(strand_,
-                boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::on_write, 
+                boost::beast::bind_front_handler(&kis_net_web_websocket_endpoint::on_write,
                     shared_from_this(), data));
     }
 
@@ -558,7 +558,7 @@ public:
 		ws_.text(true);
 	}
 
-	boost::asio::io_service::strand &strand() { return strand_; };
+	boost::asio::io_context::strand &strand() { return strand_; };
 
 protected:
     virtual void close_impl();
@@ -572,7 +572,7 @@ protected:
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
     boost::beast::flat_buffer buffer_;
-	boost::asio::io_service::strand strand_;
+	boost::asio::io_context::strand strand_;
 
 	std::queue<std::string, std::deque<std::string>> ws_write_queue_;
 
@@ -602,11 +602,11 @@ protected:
 class kis_net_beast_route {
 public:
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::list<std::string>& roles, 
+            bool login, const std::list<std::string>& roles,
             std::shared_ptr<kis_net_web_endpoint> handler);
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::list<std::string>& roles, 
-            const std::list<std::string>& extensions, 
+            bool login, const std::list<std::string>& roles,
+            const std::list<std::string>& extensions,
             std::shared_ptr<kis_net_web_endpoint> handler);
 
     // Does a URL match this route?  If so, populate uri params and uri variables
@@ -618,7 +618,7 @@ public:
 
     // Is the role compatible?
     bool match_role(bool login, const std::string& role);
-    
+
     // Invoke our registered callback
     void invoke(std::shared_ptr<kis_net_beast_httpd_connection> connection);
 
@@ -651,13 +651,13 @@ struct auth_construction_error : public std::exception {
     }
 };
 
-// Authentication record, loading from the http auth file.  Authentication tokens may have 
+// Authentication record, loading from the http auth file.  Authentication tokens may have
 // optional role; a role of '*' has full access to all capabilities.  The meaning of roles is
 // defined by the endpoints
 class kis_net_beast_auth {
 public:
     kis_net_beast_auth(const nlohmann::json& json);
-    kis_net_beast_auth(const std::string& token, const std::string& name, 
+    kis_net_beast_auth(const std::string& token, const std::string& name,
             const std::string& role, time_t expires);
     kis_net_beast_auth(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& jwt);
 

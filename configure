@@ -713,18 +713,11 @@ BLADERFCFLAGS
 BLADERFLIBS
 libbladeRF_LIBS
 libbladeRF_CFLAGS
-PROTOBUF_CPP_H_TARGET
-PROTOBUF_CPP_O_TARGET
-PROTOCCFLAGS
-PROTOCLIBS
-PROTOCCBIN
+PROTOCBIN
 PROTOCFLAGS
 PROTOLIBS
-PROTOCBIN
-PROTOBUF_C_DIR
-protocc
-libprotobufc_LIBS
-libprotobufc_CFLAGS
+PROTOBUF_CPP_H_TARGET
+PROTOBUF_CPP_O_TARGET
 protoc
 protobuf_LIBS
 protobuf_CFLAGS
@@ -739,13 +732,6 @@ libwebsockets_LIBS
 libwebsockets_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
-LIBPRELUDE_CONFIG_PREFIX
-LIBPRELUDE_PREFIX
-LIBPRELUDE_LIBS
-LIBPRELUDE_LDFLAGS
-LIBPRELUDE_PTHREAD_CFLAGS
-LIBPRELUDE_CFLAGS
-LIBPRELUDE_CONFIG
 OPENSSL_LDFLAGS
 OPENSSL_LIBS
 OPENSSL_INCLUDES
@@ -842,6 +828,7 @@ enable_homebrew
 enable_mutex_name_debug
 enable_capture_tools_only
 enable_element_typesafety
+enable_protobuf
 enable_protobuflite
 enable_python_tools
 with_python_interpreter
@@ -855,12 +842,8 @@ with_pcreheaders
 enable_pcre
 enable_require_pcre2
 with_openssl
-enable_prelude
-with_libprelude_prefix
 enable_libwebsockets
 with_protoc
-with_protocc
-enable_force_protoc_c
 enable_btgeiger
 enable_bladerf
 enable_libnm
@@ -898,8 +881,6 @@ libpcap_CFLAGS
 libpcap_LIBS
 protobuf_CFLAGS
 protobuf_LIBS
-libprotobufc_CFLAGS
-libprotobufc_LIBS
 libbladeRF_CFLAGS
 libbladeRF_LIBS
 libnm_CFLAGS
@@ -1547,10 +1528,11 @@ Optional Features:
   --enable-element-typesafety
                           Enable runtime type safety debugging of the tracked
                           element system
+  --enable-protobuf       Enable protobuf support for older remote datasources
   --enable-protobuflite   Force building with protobuf-lite instead of full
                           protobuf
-  --disable-python-tools  Disable building Python modules and Python-only data
-                          sources
+  --enable-python-tools   Enable building (legacy) Python modules and
+                          Python-only data sources
   --disable-debuglibs     Disable libdw and bfd libs which aid in debugging
   --disable-largefile     omit support for large files
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
@@ -1559,11 +1541,9 @@ Optional Features:
   --disable-libcap        Disable libcap capabilities
   --disable-pcre          Disable PCRE regex
   --enable-require-pcre2  Explicitly require libpcre2
-  --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-libwebsockets Disable C-based libwebsockets, this will only impact
                           building remote capture sources. The Kismet server
                           will still have websockets support.
-  --force-protoc-c        Force building C protobufs with protoc-c
   --enable-btgeiger       Enable custom BTLE connected geiger counter input
   --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libnm         Disable libnm networkmanager support
@@ -1588,10 +1568,7 @@ Optional Packages:
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-openssl=DIR      root of the OpenSSL directory
-  --with-libprelude-prefix=PFX
-                          Prefix where libprelude is installed (optional)
   --with-protoc=PATH     Custom location of the protoc protobuf compiler
-  --with-protocc=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
   --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
 
@@ -1624,10 +1601,6 @@ Some influential environment variables:
               C compiler flags for protobuf, overriding pkg-config
   protobuf_LIBS
               linker flags for protobuf, overriding pkg-config
-  libprotobufc_CFLAGS
-              C compiler flags for libprotobufc, overriding pkg-config
-  libprotobufc_LIBS
-              linker flags for libprotobufc, overriding pkg-config
   libbladeRF_CFLAGS
               C compiler flags for libbladeRF, overriding pkg-config
   libbladeRF_LIBS
@@ -4921,14 +4894,6 @@ printf "%s\n" "#define SYS_NETBSD 1" >>confdefs.h
 
 		bsd="yes"
 		;;
-	cygwin*)
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none needed" >&5
-printf "%s\n" "none needed" >&6; }
-
-printf "%s\n" "#define SYS_CYGWIN 1" >>confdefs.h
-
-		cygwin="yes"
-		;;
     *)
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none needed" >&5
 printf "%s\n" "none needed" >&6; }
@@ -4997,14 +4962,6 @@ printf "%s\n" "#define SYS_NETBSD 1" >>confdefs.h
 
 		bsd="yes"
         ;;
-	cygwin*)
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none needed" >&5
-printf "%s\n" "none needed" >&6; }
-
-printf "%s\n" "#define SYS_CYGWIN 1" >>confdefs.h
-
-		cygwin="yes"
-		;;
     *)
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: none needed" >&5
 printf "%s\n" "none needed" >&6; }
@@ -5051,13 +5008,13 @@ fi
     GCC_MINOR=$(echo $GCC_VERSION | cut -s -d'.' -f2)
     GCC_PATCH=$(echo $GCC_VERSION | cut -s -d'.' -f3)
 
-    if test "$GCC_MAJOR"x == x; then
+    if test "$GCC_MAJOR"x = x; then
         GCC_MAJOR=$GCC_VERSION
     fi
-    if test "$GCC_MINOR"x == x; then
+    if test "$GCC_MINOR"x = x; then
         GCC_MINOR=0
     fi
-    if test "$GCC_PATCH"x == x; then
+    if test "$GCC_PATCH"x = x; then
         GCC_PATCH=0
     fi
 
@@ -10217,17 +10174,6 @@ fi
 CXXFLAGS="$CXXFLAGS -O3"
 CFLAGS="$CFLAGS -O3"
 
-if test "$cygwin" = "yes"; then
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking cygwin compile flags" >&5
-printf %s "checking cygwin compile flags... " >&6; }
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: __MINGW32__" >&5
-printf "%s\n" "__MINGW32__" >&6; }
-	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
-else
-	# cygwin doesn't like rdynamic, will this hurt us?
-	LDFLAGS="$LDFLAGS -rdynamic"
-fi
-
 
 ac_config_headers="$ac_config_headers config.h"
 
@@ -10606,24 +10552,30 @@ fi
 
 
 # Configure for a remote-capture-only build
-caponly=0
+caponly=no
 # Check whether --enable-capture-tools-only was given.
 if test ${enable_capture_tools_only+y}
 then :
   enableval=$enable_capture_tools_only; case "${enableval}" in
-	  no) caponly=0 ;;
-	   *) caponly=1 ;;
+	  no) caponly=no ;;
+	   *) caponly=yes ;;
 	 esac
 else $as_nop
-  caponly=0
+  caponly=no
 
 fi
 
 
-if test $caponly = 0; then
-    ALLTARGETS='$(STD_ALL)'
-else
-    ALLTARGETS='$(DS_ONLY)'
+if test "$caponly"x = "no"x
+then :
+
+       ALLTARGETS='$(STD_ALL)'
+
+else $as_nop
+
+       ALLTARGETS='$(DS_ONLY)'
+
+
 fi
 
 
@@ -10640,37 +10592,63 @@ else $as_nop
 
 fi
 
-if test "$want_te_typesafety"x == "yes"x; then
+if test "x$want_te_typesafety" = "xyes"
+then :
+
 
 printf "%s\n" "#define TE_TYPE_SAFETY 1" >>confdefs.h
 
-else
+
+else $as_nop
+
 
 printf "%s\n" "#define TE_TYPE_SAFETY 0" >>confdefs.h
 
+
+
 fi
+
+want_protobuf=no
+# Check whether --enable-protobuf was given.
+if test ${enable_protobuf+y}
+then :
+  enableval=$enable_protobuf; case "${enableval}" in
+     yes) want_protobuf=yes ;;
+     *) ;;
+    esac
+fi
+
 
 PROTOBUF=protobuf
 # Check whether --enable-protobuflite was given.
 if test ${enable_protobuflite+y}
 then :
   enableval=$enable_protobuflite; case "${enableval}" in
-	 yes) PROTOBUF=protobuf-lite ;;
-	   *)  ;;
-	 esac
+     yes) PROTOBUF=protobuf-lite ;;
+     *)  ;;
+    esac
 fi
 
 
-want_python=yes
+if test "$want_protobuf"x = "yes"x -a "$caponly"x = "yes"x
+then :
+
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: protobufs disabled when only building capture tools" >&5
+printf "%s\n" "$as_me: WARNING: protobufs disabled when only building capture tools" >&2;}
+       want_protobuf=no
+
+fi
+
+want_python=no
 # Check whether --enable-python-tools was given.
 if test ${enable_python_tools+y}
 then :
   enableval=$enable_python_tools; case "${enableval}" in
-         no) want_python=no ;;
-          *) want_python=yes ;;
+        yes) want_python=yes ;;
+          *) want_python=no ;;
         esac
 else $as_nop
-  want_python=yes
+  want_python=no
 
 fi
 
@@ -11630,8 +11608,11 @@ then :
 fi
 
 
-if test "$foundcxxl"x == "x" -a "$caponly" != 1; then
-	as_fn_error $? "No standard stdc++ libraries found." "$LINENO" 5
+if test "$foundcxxl"x = "x" -a "$caponly"x != "yes"x
+then :
+
+       as_fn_error $? "No standard stdc++ libraries found." "$LINENO" 5
+
 fi
 CC="$oCC"
 
@@ -11703,14 +11684,20 @@ CC="$oCC"
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for group 'root'" >&5
 printf %s "checking for group 'root'... " >&6; }
-if test "`grep -e ^root: /etc/group`" = ""; then
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no.  Using 'wheel'" >&5
+if test "`grep -e ^root: /etc/group`" = ""
+then :
+
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no.  Using 'wheel'" >&5
 printf "%s\n" "no.  Using 'wheel'" >&6; }
-	instgrp="wheel"
-else
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+       instgrp="wheel"
+
+else $as_nop
+
+       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-	instgrp="root"
+       instgrp="root"
+
+
 fi
 
 
@@ -12478,7 +12465,7 @@ if test "${wantpcre}x" = "nox" -a "${needpcre2}x" = "yesx"; then
     as_fn_error $? "Can not combine --disable-pcre and --enable-require-pcre2" "$LINENO" 5
 fi
 
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     if test "$HAVE_CXX17" = "1"; then
 	    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking Checking C++17 parallel functions" >&5
 printf %s "checking Checking C++17 parallel functions... " >&6; }
@@ -12625,7 +12612,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
 fi
 
 # Dont' check pcre if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     if test "$wantpcre" = "yes"; then
         # Check for pcre2 first
 
@@ -12671,7 +12658,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
         LIBS="$OLIBS"
 
         if test "$pcre2" != "yes"; then
-            if test "${needpcre2}x" == "yesx"; then
+            if test "${needpcre2}x" = "yesx"; then
                 as_fn_error $? "Could not find libpcre2 and --enable-require-pcre2 selected" "$LINENO" 5
             fi
 
@@ -12717,7 +12704,7 @@ else $as_nop
 fi
 
 
-            if test "$pcre1" == "yes"; then
+            if test "$pcre1" = "yes"; then
     	        ac_fn_cxx_check_header_compile "$LINENO" "pcre.h" "ac_cv_header_pcre_h" "$ac_includes_default"
 if test "x$ac_cv_header_pcre_h" = xyes
 then :
@@ -12730,12 +12717,12 @@ fi
 
         fi
 
-        if test "$pcre2" == "yes"; then
+        if test "$pcre2" = "yes"; then
 
 printf "%s\n" "#define HAVE_LIBPCRE2 1" >>confdefs.h
 
             LIBS="$LIBS -lpcre2-8"
-        elif test "$pcre1" == "yes"; then
+        elif test "$pcre1" = "yes"; then
 
 printf "%s\n" "#define HAVE_LIBPCRE 1" >>confdefs.h
 
@@ -12748,7 +12735,7 @@ printf "%s\n" "$as_me: WARNING: Failed to find libpcre or libpcre2 library and h
 fi
 
 # Don't check for sqlite3 if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     # Check for sqlite3
     sql3l=no
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
@@ -12824,7 +12811,7 @@ printf "%s\n" "#define HAVE_LIBSQLITE3 1" >>confdefs.h
 fi # caponly
 
 # don't check for openssl if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
 
     found=false
 
@@ -13048,280 +13035,21 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
 
 fi # caponly
 
-# Check whether --enable-prelude was given.
-if test ${enable_prelude+y}
-then :
-  enableval=$enable_prelude;
-  wantprelude=no
-  if test "$enableval" != "no"; then
-
-# Check whether --with-libprelude-prefix was given.
-if test ${with_libprelude_prefix+y}
-then :
-  withval=$with_libprelude_prefix; libprelude_config_prefix="$withval"
-else $as_nop
-  libprelude_config_prefix=""
-fi
-
-
-  if test x$libprelude_config_prefix != x ; then
-     if test x${LIBPRELUDE_CONFIG+set} != xset ; then
-        LIBPRELUDE_CONFIG=$libprelude_config_prefix/bin/libprelude-config
-     fi
-  fi
-
-  # Extract the first word of "libprelude-config", so it can be a program name with args.
-set dummy libprelude-config; ac_word=$2
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_path_LIBPRELUDE_CONFIG+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  case $LIBPRELUDE_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_LIBPRELUDE_CONFIG="$LIBPRELUDE_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  case $as_dir in #(((
-    '') as_dir=./ ;;
-    */) ;;
-    *) as_dir=$as_dir/ ;;
-  esac
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_path_LIBPRELUDE_CONFIG="$as_dir$ac_word$ac_exec_ext"
-    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  test -z "$ac_cv_path_LIBPRELUDE_CONFIG" && ac_cv_path_LIBPRELUDE_CONFIG="no"
-  ;;
-esac
-fi
-LIBPRELUDE_CONFIG=$ac_cv_path_LIBPRELUDE_CONFIG
-if test -n "$LIBPRELUDE_CONFIG"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $LIBPRELUDE_CONFIG" >&5
-printf "%s\n" "$LIBPRELUDE_CONFIG" >&6; }
-else
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-fi
-
-
-  if test "$LIBPRELUDE_CONFIG" != "no"; then
-	if $($LIBPRELUDE_CONFIG --thread > /dev/null 2>&1); then
-		LIBPRELUDE_PTHREAD_CFLAGS=`$LIBPRELUDE_CONFIG --thread --cflags`
-
-		if test xno = xtrue || test xno = xyes; then
-			libprelude_config_args="--thread"
-		else
-			libprelude_config_args="--no-thread"
-		fi
-	else
-		LIBPRELUDE_PTHREAD_CFLAGS=`$LIBPRELUDE_CONFIG --pthread-cflags`
-	fi
-  fi
-
-  min_libprelude_version=1.2.6
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libprelude - version >= $min_libprelude_version" >&5
-printf %s "checking for libprelude - version >= $min_libprelude_version... " >&6; }
-  no_libprelude=""
-  if test "$LIBPRELUDE_CONFIG" = "no" ; then
-    no_libprelude=yes
-  else
-    LIBPRELUDE_CFLAGS=`$LIBPRELUDE_CONFIG $libprelude_config_args --cflags`
-    LIBPRELUDE_LDFLAGS=`$LIBPRELUDE_CONFIG $libprelude_config_args --ldflags`
-    LIBPRELUDE_LIBS=`$LIBPRELUDE_CONFIG $libprelude_config_args --libs --c++`
-    LIBPRELUDE_PREFIX=`$LIBPRELUDE_CONFIG $libprelude_config_args --prefix`
-    LIBPRELUDE_CONFIG_PREFIX=`$LIBPRELUDE_CONFIG $libprelude_config_args --config-prefix`
-    libprelude_config_version=`$LIBPRELUDE_CONFIG $libprelude_config_args --version`
-
-
-      ac_save_CPPFLAGS="$CPPFLAGS"
-      ac_save_LDFLAGS="$LDFLAGS"
-      ac_save_LIBS="$LIBS"
-      CPPFLAGS="$CPPFLAGS $LIBPRELUDE_CFLAGS"
-      LDFLAGS="$LDFLAGS $LIBPRELUDE_LDFLAGS"
-      LIBS="$LIBS $LIBPRELUDE_LIBS"
-      rm -f conf.libpreludetest
-
-
-      if test "$cross_compiling" = yes
-then :
-  echo $ac_n "cross compiling; assumed OK... $ac_c"
-else $as_nop
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <iostream>
-#include <string>
-#include <libprelude/prelude.hxx>
-#include <cstdlib>
-
-using namespace std;
-using namespace Prelude;
-
-int main ()
-{
-  system ("touch conf.libpreludetest");
-  string cur_version(checkVersion(NULL));
-
-	if ( cur_version.compare("$libprelude_config_version") )
-	{
-	cout <<"\n*** 'libprelude-config --version' returned " << "$libprelude_config_version" << ", but LIBPRELUDE (checkVersion(NULL))\n"  << endl ;
-	cout <<"*** was found! If libprelude-config was correct, then it is best\n"  << endl ;
-	cout <<"*** to remove the old version of LIBPRELUDE. You may also be able to fix the error\n"  << endl ;
-	cout <<"*** by modifying your LD_LIBRARY_PATH enviroment variable, or by editing\n"  << endl ;
-	cout <<"*** /etc/ld.so.conf. Make sure you have run ldconfig if that is\n"  << endl ;
-	cout <<"*** required on your system.\n"  << endl ;
-	cout <<"*** If libprelude-config was wrong, set the environment variable LIBPRELUDE_CONFIG\n"  << endl ;
-	cout <<"*** to point to the correct copy of libprelude-config, and remove the file config.cache\n"  << endl ;
-	cout <<"*** before re-running configure\n"  << endl ;
-	}
-	else if( cur_version.compare(LIBPRELUDE_VERSION) ){
-		cout <<"\n*** LIBPRELUDE header file (version" << LIBPRELUDE_VERSION << ") does not match\n"  << endl ;
-		cout <<"*** library (version" << checkVersion(NULL) << ")\n" << endl ;
-	}
-	else{
-		if ( checkVersion( "$min_libprelude_version" ) ) return 0;
-		else {
-			cout <<"no\n*** An old version of LIBPRELUDE (" << "checkVersion(NULL)" << ") was found.\n"  << endl ;
-			cout <<"*** You need a version of LIBPRELUDE newer than "<< "$min_libprelude_version" << ". The latest version of\n"  << endl ;
-			cout <<"*** LIBPRELUDE is always available from http://www.prelude-ids.com/development/download/\n"  << endl ;
-			cout <<"\n"  << endl ;
-			cout <<"*** If you have already installed a sufficiently new version, this error\n"  << endl ;
-			cout <<"*** probably means that the wrong copy of the libprelude-config shell script is\n"  << endl ;
-			cout <<"*** being found. The easiest way to fix this is to remove the old version\n"  << endl ;
-			cout <<"*** of LIBPRELUDE, but you can also set the LIBPRELUDE_CONFIG environment to point to the\n"  << endl ;
-			cout <<"*** correct copy of libprelude-config. (In this case, you will have to\n"  << endl ;
-			cout <<"*** modify your LD_LIBRARY_PATH enviroment variable, or edit /etc/ld.so.conf\n"  << endl ;
-			cout <<"*** so that the correct libraries are found at run-time))\n"  << endl ;
-		}
-	}
-	return 1;
-}
-
-_ACEOF
-if ac_fn_cxx_try_run "$LINENO"
-then :
-
-else $as_nop
-  no_libprelude=yes
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-       CFLAGS="$ac_save_CFLAGS"
-       LIBS="$ac_save_LIBS"
-       LDFLAGS="$ac_save_LDFLAGS"
-  fi
-
-  if test "x$no_libprelude" = x ; then
-     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-     :
-  else
-     if test -f conf.libpreludetest ; then
-        :
-     else
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-     fi
-     if test "$LIBPRELUDE_CONFIG" = "no" ; then
-       echo "*** The libprelude-config script installed by LIBPRELUDE could not be found"
-       echo "*** If LIBPRELUDE was installed in PREFIX, make sure PREFIX/bin is in"
-       echo "*** your path, or set the LIBPRELUDE_CONFIG environment variable to the"
-       echo "*** full path to libprelude-config."
-     else
-       if test -f conf.libpreludetest ; then
-        :
-       else
-          echo "*** Could not run libprelude test program, checking why..."
-          CFLAGS="$CFLAGS $LIBPRELUDE_CFLAGS"
-          LDFLAGS="$LDFLAGS $LIBPRELUDE_LDFLAGS"
-          LIBS="$LIBS $LIBPRELUDE_LIBS"
-          cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include <string>
-#include <iostream>
-#include <libprelude/prelude.hxx>
-
-using namespace std;
-using namespace Prelude;
-
-
-int
-main (void)
-{
-return !!checkVersion(NULL);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"
-then :
-   echo "*** The test program compiled, but did not run. This usually means"
-	  echo "*** that the run-time linker is not finding LIBPRELUDE or finding the wrong"
-          echo "*** version of LIBPRELUDE. If it is not finding LIBPRELUDE, you'll need to set your"
-          echo "*** LD_LIBRARY_PATH environment variable, or edit /etc/ld.so.conf to point"
-          echo "*** to the installed location  Also, make sure you have run ldconfig if that"
-          echo "*** is required on your system"
-          echo "***"
-          echo "*** If you have an old version installed, it is best to remove it, although"
-          echo "*** you may also be able to get things to work by modifying LD_LIBRARY_PATH"
-          echo "***"
-else $as_nop
-   echo "*** The test program failed to compile or link. See the file config.log for the"
-          echo "*** exact error that occured. This usually means LIBPRELUDE was incorrectly installed"
-          echo "*** or that you have moved LIBPRELUDE since it was installed. In the latter case, you"
-          echo "*** may want to edit the libprelude-config script: $LIBPRELUDE_CONFIG"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-          CFLAGS="$ac_save_CFLAGS"
-          LDFLAGS="$ac_save_LDFLAGS"
-          LIBS="$ac_save_LIBS"
-       fi
-     fi
-     LIBPRELUDE_CFLAGS=""
-     LIBPRELUDE_LDFLAGS=""
-     LIBPRELUDE_LIBS=""
-     as_fn_error $? "Cannot find libprelude: Is libprelude-config in the path?" "$LINENO" 5
-  fi
-  rm -f conf.libpreludetest
-
-
-
-
-
-
-
-
-
-
-    CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
-    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
-    LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
-
-printf "%s\n" "#define PRELUDE 1" >>confdefs.h
-
-    wantprelude=yes
-  fi
-
-else $as_nop
-  wantprelude=no
-fi
-
+wantprelude=no
+# AC_ARG_ENABLE(prelude,
+#               AS_HELP_STRING([--enable-prelude],
+#                              [Enable Prelude SIEM as a target for alerts.]),
+# [
+#   wantprelude=no
+#   if test "$enableval" != "no"; then
+#     AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
+#     CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
+#     LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
+#     LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
+#     AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
+#     wantprelude=yes
+#   fi
+# ],[wantprelude=no])
 
 
 
@@ -13791,8 +13519,11 @@ fi
 
 
 
-if test "$pcap" != "yes"; then
-	as_fn_error $? "Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality." "$LINENO" 5
+if test "$pcap"x != "yes"x
+then :
+
+       as_fn_error $? "Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality." "$LINENO" 5
+
 fi
 
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
@@ -13802,9 +13533,12 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_ANTSDR_DRONEID)"
 BUILD_CAPTUE_ANTSDR_DRONEID=1
 
 BUILD_CAPTURE_LINUX_WIFI=0
-if test "$linux" = "yes"; then
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
-    BUILD_CAPTURE_LINUX_WIFI=1
+if test "$linux"x = "yes"x
+then :
+
+       DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+       BUILD_CAPTURE_LINUX_WIFI=1
+
 fi
 
 BUILD_CAPTURE_OPENBSD_WIFI=0
@@ -13813,7 +13547,9 @@ if test "$openbsd" = "yes"; then
     BUILD_CAPTURE_OPENBSD_WIFI=1
 fi
 
-if test "$caponly" = 0 || test "$want_python" = "yes"; then
+if test "$want_protobuf"x = "yes"x
+then :
+
 
 pkg_failed=no
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for ${PROTOBUF}" >&5
@@ -13917,7 +13653,7 @@ then :
 fi
 
 
-    if test x"$with_protoc" == "x"; then
+    if test x"$with_protoc" = "x"; then
         PROTOCBIN=protoc
         # Extract the first word of "protoc", so it can be a program name with args.
 set dummy protoc; ac_word=$2
@@ -13974,286 +13710,12 @@ fi
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
     PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
-fi  # caponly
-
-# We need protobuf-c all the time
-
-pkg_failed=no
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for libprotobuf-c" >&5
-printf %s "checking for libprotobuf-c... " >&6; }
-
-if test -n "$libprotobufc_CFLAGS"; then
-    pkg_cv_libprotobufc_CFLAGS="$libprotobufc_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libprotobuf-c\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libprotobuf-c") 2>&5
-  ac_status=$?
-  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_libprotobufc_CFLAGS=`$PKG_CONFIG --cflags "libprotobuf-c" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-if test -n "$libprotobufc_LIBS"; then
-    pkg_cv_libprotobufc_LIBS="$libprotobufc_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libprotobuf-c\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libprotobuf-c") 2>&5
-  ac_status=$?
-  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_libprotobufc_LIBS=`$PKG_CONFIG --libs "libprotobuf-c" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
 
 
+printf "%s\n" "#define HAVE_PROTOBUF_CPP 1" >>confdefs.h
 
-if test $pkg_failed = yes; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
-else
-        _pkg_short_errors_supported=no
-fi
-        if test $_pkg_short_errors_supported = yes; then
-	        libprotobufc_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libprotobuf-c" 2>&1`
-        else
-	        libprotobufc_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libprotobuf-c" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$libprotobufc_PKG_ERRORS" >&5
-
-	have_protobufc_pkg=no
-elif test $pkg_failed = untried; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-	have_protobufc_pkg=no
-else
-	libprotobufc_CFLAGS=$pkg_cv_libprotobufc_CFLAGS
-	libprotobufc_LIBS=$pkg_cv_libprotobufc_LIBS
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-	have_protobufc_pkg=yes
-fi
-if test x"$have_protobufc_pkg" != "xyes"; then
-    # Look for the old version (old ubuntu, maybe others)
-    ac_fn_cxx_check_header_compile "$LINENO" "google/protobuf-c/protobuf-c.h" "ac_cv_header_google_protobuf_c_protobuf_c_h" "$ac_includes_default"
-if test "x$ac_cv_header_google_protobuf_c_protobuf_c_h" = xyes
-then :
-  have_protobufc_hdr=yes
-fi
-
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for protobuf_c_message_pack_to_buffer in -lprotobuf-c" >&5
-printf %s "checking for protobuf_c_message_pack_to_buffer in -lprotobuf-c... " >&6; }
-if test ${ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lprotobuf-c  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-namespace conftest {
-  extern "C" int protobuf_c_message_pack_to_buffer ();
-}
-int
-main (void)
-{
-return conftest::protobuf_c_message_pack_to_buffer ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"
-then :
-  ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer=yes
-else $as_nop
-  ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer" >&5
-printf "%s\n" "$ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer" >&6; }
-if test "x$ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer" = xyes
-then :
-  have_protobufc_lib=yes
-fi
-
-
-    if test x"$have_protobufc_hdr" = "xyes" -a x"$have_protobufc_lib" = "xyes"; then
-        PROTOCLIBS="-lprotobuf-c"
-        PROTOCFLAGS=""
-    else
-        as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
-    fi
-else
-    PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-    PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
-fi
-
-
-# Check whether --with-protocc was given.
-if test ${with_protocc+y}
-then :
-  withval=$with_protocc;  PROTOCCBIN=$withval
 
 fi
-
-if test "x$with_protocc" = "x"
-then :
-
-    PROTOCCBIN="protoc-c"
-    # Extract the first word of "protoc-c", so it can be a program name with args.
-set dummy protoc-c; ac_word=$2
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_prog_protocc+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  if test -n "$protocc"; then
-  ac_cv_prog_protocc="$protocc" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  case $as_dir in #(((
-    '') as_dir=./ ;;
-    */) ;;
-    *) as_dir=$as_dir/ ;;
-  esac
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_prog_protocc="yes"
-    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-fi
-fi
-protocc=$ac_cv_prog_protocc
-if test -n "$protocc"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $protocc" >&5
-printf "%s\n" "$protocc" >&6; }
-else
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-fi
-
-
-    if test x"$protocc" != "xyes"
-then :
-
-        as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
-
-fi
-
-else $as_nop
-
-    PROTOCCBIN=$with_protocc
-
-fi
-
-# As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
-# protobufs-c and making it impossible to run protoc-c to compile protobufs into .c/.h pairs.
-#
-# Fortunately, the protobufs-c implementation is quite generous in ways the C++ implemetnation is not, which
-# lets us package a precompiled protobufs-c-1.5.0 output of the protobufs files.  This compiles fine
-# cross-platform and with protobufs-c runtimes from 1.3.0 to 1.5.0 (tested) and 1.0.0 to 1.5.0 (by definition)
-# which should cover every platform.
-#
-# Perform a compile test with the same restrictions as the 1.5.0 definitions to be sure, and allow an override to
-# always compile protobufs-c definitions, even when they might fail.
-PROTOBUF_C_DIR="protobuf_c"
-
-# Check whether --enable-force-protoc-c was given.
-if test ${enable_force_protoc_c+y}
-then :
-  enableval=$enable_force_protoc_c; case "${enableval}" in
-      yes) force_protocc=yes ;;
-        *) force_protocc=no ;;
-	 esac
-else $as_nop
-  force_protocc=no
-
-fi
-
-
-if test "$force_protocc" = "no"
-then :
-
-    PROTOBUF_C_DIR="protobuf_c_1005000"
-
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking protobufs-c 1.5.0 compatibility" >&5
-printf %s "checking protobufs-c 1.5.0 compatibility... " >&6; }
-    OCFL="$CFLAGS"
-    CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-            #include <protobuf-c/protobuf-c.h>
-
-int
-main (void)
-{
-
-            #if PROTOBUF_C_VERSION_NUMBER < 1000000
-            # error System libprotobuf-c older than 1.0.0
-            #elif 1005000 < PROTOBUF_C_MIN_COMPILER_VERSION
-            # error System libprotobuf-c incompatible with 1.5.0
-            #endif
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"
-then :
-  compat_libprotoc=yes
-else $as_nop
-  compat_libprotoc=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-    if test "$compat_libprotoc" = "yes"
-then :
-
-    	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-
-else $as_nop
-
-    	as_fn_error $? "NO - use --force-proto-c to force protobuf-c recompilation" "$LINENO" 5
-
-fi
-    CFLAGS="$OCFL"
-
-fi
-
-
-
-
-
 
 
 
@@ -14303,7 +13765,7 @@ else $as_nop
 fi
 
 
-if test "x$want_bladerf" == "xyes"
+if test "x$want_bladerf" = "xyes"
 then :
 
 
@@ -15130,7 +14592,7 @@ printf "%s\n" "#define HAVE_LIBNL10 1" >>confdefs.h
 	fi
 
 	if test "$nlname" != ""; then
-        if test "$picked_nl" == "tiny"; then
+        if test "$picked_nl" = "tiny"; then
             NLLIBS="-lnl-tiny"
         else
 		    NLLIBS=`pkg-config --libs $nlname`
@@ -16158,11 +15620,6 @@ fi
 
 
 
-# Evaluate suid
-if test "$cygwin" = "yes"; then
-	suid="no"
-fi
-
 
 printf "%s\n" "#define HAVE_GPS 1" >>confdefs.h
 
@@ -16196,7 +15653,7 @@ else $as_nop
 
 fi
 
-if test "$want_asan" == "yes"; then
+if test "$want_asan" = "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=address -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=address"
 fi
@@ -16213,7 +15670,7 @@ else $as_nop
 
 fi
 
-if test "$want_tsan" == "yes"; then
+if test "$want_tsan" = "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=thread -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=thread"
 fi
@@ -17568,15 +17025,15 @@ echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
-echo "      Protobuf Library: $PROTOBUF"
+printf "      Protobuf Library: "
+if test "$want_protobuf"x = "yes"x; then
+    echo "$PROTOBUF"
+else
+    echo "disabled"
+fi
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
-printf "          Setuid group: "
-if test "$cygwin" = "yes"; then
-	echo "n/a (Cygwin/Win32";
-else
-	echo "$suidgroup"
-fi
+printf "          Setuid group: $suidgroup"
 
 printf "        Prelude  SIEM : $wantprelude\n"
 

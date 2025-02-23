@@ -10,13 +10,15 @@
 #ifndef BOOST_BEAST_HTTP_BUFFER_BODY_HPP
 #define BOOST_BEAST_HTTP_BUFFER_BODY_HPP
 
-#include <boost/beast/core/detail/config.hpp>
+#include <boost/beast/http/buffer_body_fwd.hpp>
+
 #include <boost/beast/core/buffer_traits.hpp>
+#include <boost/beast/core/detail/config.hpp>
 #include <boost/beast/http/error.hpp>
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/type_traits.hpp>
 #include <boost/optional.hpp>
-#include <type_traits>
+#include <cstdint>
 #include <utility>
 
 namespace boost {
@@ -124,7 +126,7 @@ struct buffer_body
         {
             if(! body_.data)
             {
-                ec = error::need_buffer;
+                BOOST_BEAST_ASSIGN_EC(ec, error::need_buffer);
                 return 0;
             }
             auto const bytes_transferred =
@@ -136,7 +138,9 @@ struct buffer_body
             if(bytes_transferred == buffer_bytes(buffers))
                 ec = {};
             else
-                ec = error::need_buffer;
+            {
+                BOOST_BEAST_ASSIGN_EC(ec, error::need_buffer);
+            }
             return bytes_transferred;
         }
 
@@ -186,7 +190,7 @@ struct buffer_body
                 if(body_.more)
                 {
                     toggle_ = false;
-                    ec = error::need_buffer;
+                    BOOST_BEAST_ASSIGN_EC(ec, error::need_buffer);
                 }
                 else
                 {
@@ -202,7 +206,9 @@ struct buffer_body
                     body_.data, body_.size}, body_.more}};
             }
             if(body_.more)
-                ec = error::need_buffer;
+            {
+                BOOST_BEAST_ASSIGN_EC(ec, error::need_buffer);
+            }
             else
                 ec = {};
             return boost::none;

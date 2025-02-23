@@ -171,7 +171,7 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
          *
          * Since rtl433 json RX is pretty slow, this shouldn't be a major problem
          */
-        r = cf_send_json(caph, NULL, NULL, NULL, tv, "RTL433", (char *) buf);
+        r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "RTL433", (char *) buf);
         if (r < 0) {
             snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame to Kismet", local433->name);
             fprintf(stderr, "%s", errstr);
@@ -222,7 +222,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
@@ -321,7 +321,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 

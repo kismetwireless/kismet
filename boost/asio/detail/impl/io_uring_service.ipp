@@ -2,7 +2,7 @@
 // detail/impl/io_uring_service.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <sys/eventfd.h>
 #include <boost/asio/detail/io_uring_service.hpp>
+#include <boost/asio/detail/reactor_op.hpp>
 #include <boost/asio/detail/scheduler.hpp>
 #include <boost/asio/detail/throw_error.hpp>
 #include <boost/asio/error.hpp>
@@ -35,15 +36,21 @@ namespace detail {
 io_uring_service::io_uring_service(boost::asio::execution_context& ctx)
   : execution_context_service_base<io_uring_service>(ctx),
     scheduler_(use_service<scheduler>(ctx)),
-    mutex_(BOOST_ASIO_CONCURRENCY_HINT_IS_LOCKING(
-          REACTOR_REGISTRATION, scheduler_.concurrency_hint())),
+    mutex_(config(ctx).get("reactor", "registration_locking", true),
+        config(ctx).get("reactor", "registration_locking_spin_count", 0)),
     outstanding_work_(0),
     submit_sqes_op_(this),
     pending_sqes_(0),
     pending_submit_sqes_op_(false),
     shutdown_(false),
+    io_locking_(config(ctx).get("reactor", "io_locking", true)),
+    io_locking_spin_count_(
+        config(ctx).get("reactor", "io_locking_spin_count", 0)),
     timeout_(),
     registration_mutex_(mutex_.enabled()),
+    registered_io_objects_(
+        config(ctx).get("reactor", "preallocated_io_objects", 0U),
+        io_locking_, io_locking_spin_count_),
     reactor_(use_service<reactor>(ctx)),
     reactor_data_(),
     event_fd_(-1)
@@ -377,13 +384,21 @@ void io_uring_service::deregister_io_object(
   if (!io_obj->shutdown_)
   {
     op_queue<operation> ops;
-    do_cancel_ops(io_obj, ops);
+    bool pending_cancelled_ops = do_cancel_ops(io_obj, ops);
     io_obj->shutdown_ = true;
     io_object_lock.unlock();
     scheduler_.post_deferred_completions(ops);
-
-    // Leave io_obj set so that it will be freed by the subsequent
-    // call to cleanup_io_obj.
+    if (pending_cancelled_ops)
+    {
+      // There are still pending operations. Prevent cleanup_io_object from
+      // freeing the I/O object and let the last operation to complete free it.
+      io_obj = 0;
+    }
+    else
+    {
+      // Leave io_obj set so that it will be freed by the subsequent call to
+      // cleanup_io_object.
+    }
   }
   else
   {
@@ -427,15 +442,16 @@ void io_uring_service::run(long usec, op_queue<operation>& ops)
     ? ::io_uring_peek_cqe(&ring_, &cqe)
     : ::io_uring_wait_cqe(&ring_, &cqe);
 
-  if (result == 0 && usec > 0)
+  if (local_ops > 0)
   {
-    if (::io_uring_cqe_get_data(cqe) != &ts)
+    if (result != 0 || ::io_uring_cqe_get_data(cqe) != &ts)
     {
       mutex::scoped_lock lock(mutex_);
       if (::io_uring_sqe* sqe = get_sqe())
       {
         ++local_ops;
         ::io_uring_prep_timeout_remove(sqe, reinterpret_cast<__u64>(&ts), 0);
+        ::io_uring_sqe_set_data(sqe, &ts);
         submit_sqes();
       }
     }
@@ -443,37 +459,41 @@ void io_uring_service::run(long usec, op_queue<operation>& ops)
 
   bool check_timers = false;
   int count = 0;
-  while (result == 0)
+  while (result == 0 || local_ops > 0)
   {
-    if (void* ptr = ::io_uring_cqe_get_data(cqe))
+    if (result == 0)
     {
-      if (ptr == this)
+      if (void* ptr = ::io_uring_cqe_get_data(cqe))
       {
-        // The io_uring service was interrupted.
+        if (ptr == this)
+        {
+          // The io_uring service was interrupted.
+        }
+        else if (ptr == &timer_queues_)
+        {
+          check_timers = true;
+        }
+        else if (ptr == &timeout_)
+        {
+          check_timers = true;
+          timeout_.tv_sec = 0;
+          timeout_.tv_nsec = 0;
+        }
+        else if (ptr == &ts)
+        {
+          --local_ops;
+        }
+        else
+        {
+          io_queue* io_q = static_cast<io_queue*>(ptr);
+          io_q->set_result(cqe->res);
+          ops.push(io_q);
+        }
       }
-      else if (ptr == &timer_queues_)
-      {
-        check_timers = true;
-      }
-      else if (ptr == &timeout_)
-      {
-        check_timers = true;
-        timeout_.tv_sec = 0;
-        timeout_.tv_nsec = 0;
-      }
-      else if (ptr == &ts)
-      {
-        --local_ops;
-      }
-      else
-      {
-        io_queue* io_q = static_cast<io_queue*>(ptr);
-        io_q->set_result(cqe->res);
-        ops.push(io_q);
-      }
+      ::io_uring_cqe_seen(&ring_, cqe);
+      ++count;
     }
-    ::io_uring_cqe_seen(&ring_, cqe);
-    result = (++count < complete_batch_size || local_ops > 0)
+    result = (count < complete_batch_size || local_ops > 0)
       ? ::io_uring_peek_cqe(&ring_, &cqe) : -EAGAIN;
   }
 
@@ -518,7 +538,7 @@ void io_uring_service::init_ring()
     boost::asio::detail::throw_error(ec, "io_uring_queue_init");
   }
 
-#if defined(BOOST_ASIO_HAS_EPOLL)
+#if !defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
   event_fd_ = ::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (event_fd_ < 0)
   {
@@ -537,10 +557,10 @@ void io_uring_service::init_ring()
         boost::asio::error::get_system_category());
     boost::asio::detail::throw_error(ec, "io_uring_queue_init");
   }
-#endif // defined(BOOST_ASIO_HAS_EPOLL)
+#endif // !defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 }
 
-#if defined(BOOST_ASIO_HAS_EPOLL)
+#if !defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 class io_uring_service::event_fd_read_op :
   public reactor_op
 {
@@ -586,22 +606,20 @@ public:
 private:
   io_uring_service* service_;
 };
-#endif // defined(BOOST_ASIO_HAS_EPOLL)
+#endif // !defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 
 void io_uring_service::register_with_reactor()
 {
-#if defined(BOOST_ASIO_HAS_EPOLL)
+#if !defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
   reactor_.register_internal_descriptor(reactor::read_op,
       event_fd_, reactor_data_, new event_fd_read_op(this));
-#endif // defined(BOOST_ASIO_HAS_EPOLL)
+#endif // !defined(BOOST_ASIO_HAS_IO_URING_AS_DEFAULT)
 }
 
 io_uring_service::io_object* io_uring_service::allocate_io_object()
 {
   mutex::scoped_lock registration_lock(registration_mutex_);
-  return registered_io_objects_.alloc(
-      BOOST_ASIO_CONCURRENCY_HINT_IS_LOCKING(
-        REACTOR_IO, scheduler_.concurrency_hint()));
+  return registered_io_objects_.alloc(io_locking_, io_locking_spin_count_);
 }
 
 void io_uring_service::free_io_object(io_uring_service::io_object* io_obj)
@@ -610,7 +628,7 @@ void io_uring_service::free_io_object(io_uring_service::io_object* io_obj)
   registered_io_objects_.free(io_obj);
 }
 
-void io_uring_service::do_cancel_ops(
+bool io_uring_service::do_cancel_ops(
     per_io_object_data& io_obj, op_queue<operation>& ops)
 {
   bool cancel_op = false;
@@ -646,6 +664,8 @@ void io_uring_service::do_cancel_ops(
     }
     submit_sqes();
   }
+
+  return cancel_op;
 }
 
 void io_uring_service::do_add_timer_queue(timer_queue_base& queue)
@@ -687,7 +707,10 @@ __kernel_timespec io_uring_service::get_timeout() const
     sqe = ::io_uring_get_sqe(&ring_);
   }
   if (sqe)
+  {
+    ::io_uring_sqe_set_data(sqe, 0);
     ++pending_sqes_;
+  }
   return sqe;
 }
 
@@ -757,12 +780,18 @@ io_uring_service::io_queue::io_queue()
 struct io_uring_service::perform_io_cleanup_on_block_exit
 {
   explicit perform_io_cleanup_on_block_exit(io_uring_service* s)
-    : service_(s), first_op_(0)
+    : service_(s), io_object_to_free_(0), first_op_(0)
   {
   }
 
   ~perform_io_cleanup_on_block_exit()
   {
+    if (io_object_to_free_)
+    {
+      mutex::scoped_lock lock(service_->mutex_);
+      service_->free_io_object(io_object_to_free_);
+    }
+
     if (first_op_)
     {
       // Post the remaining completed operations for invocation.
@@ -783,6 +812,7 @@ struct io_uring_service::perform_io_cleanup_on_block_exit
   }
 
   io_uring_service* service_;
+  io_object* io_object_to_free_;
   op_queue<operation> ops_;
   operation* first_op_;
 };
@@ -844,6 +874,15 @@ operation* io_uring_service::io_queue::perform_io(int result)
     }
   }
 
+  // The last operation to complete on a shut down object must free it.
+  if (io_object_->shutdown_)
+  {
+    io_cleanup.io_object_to_free_ = io_object_;
+    for (int i = 0; i < max_ops; ++i)
+      if (!io_object_->queues_[i].op_queue_.empty())
+        io_cleanup.io_object_to_free_ = 0;
+  }
+
   // The first operation will be returned for completion now. The others will
   // be posted for later by the io_cleanup object's destructor.
   io_cleanup.first_op_ = io_cleanup.ops_.front();
@@ -865,8 +904,8 @@ void io_uring_service::io_queue::do_complete(void* owner, operation* base,
   }
 }
 
-io_uring_service::io_object::io_object(bool locking)
-  : mutex_(locking)
+io_uring_service::io_object::io_object(bool locking, int spin_count)
+  : mutex_(locking, spin_count)
 {
 }
 

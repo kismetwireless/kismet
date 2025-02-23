@@ -25,11 +25,19 @@
  * when calculating the padded lengths, they only need the total padded to
  * 32 bit */
 
+size_t ks_proto_v3_subblock_padlen(size_t datalen) {
+    return sizeof(kismet_v3_sub_block) + datalen + (datalen % 4);
+}
+
 /* Calculate the padded block size of a string block for specified
  * string length */
 size_t ks_proto_v3_strblock_padlen(size_t str_length) {
     /* length(u16) + pad(u16) + string(pad 32) */
     return 2 + 2 + str_length + (str_length % 4);
+}
+
+size_t ks_proto_v3_msgblock_padlen(size_t str_length) {
+    return ks_proto_v3_subblock_padlen(4 + ks_proto_v3_strblock_padlen(str_length));
 }
 
 void ks_proto_v3_fill_strblock(void *block_buf, size_t length, char *data) {

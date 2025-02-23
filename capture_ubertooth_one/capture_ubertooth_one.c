@@ -227,7 +227,7 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
 
 /* Convert a string into a local interpretation (which is just frequency)
  */
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
 
     unsigned int *ret_localchan;
@@ -350,7 +350,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
@@ -416,7 +416,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
@@ -623,10 +623,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             gettimeofday(&ts, NULL);
 
             while (1) {
-                if ((r = cf_send_data(caph, 
-                                NULL, NULL, NULL,
-                                ts,
-                                0,
+                if ((r = cf_send_data(caph, NULL, 0,
+                                NULL, NULL, ts, 0,
+                                sizeof(usb_pkt_rx),
                                 sizeof(usb_pkt_rx), (unsigned char *) &rx)) < 0) {
                     cf_send_error(caph, 0, "unable to send DATA frame");
                     cf_handler_spindown(caph);

@@ -70,6 +70,9 @@ global_registry::global_registry() {
 	checksum_packets = 0;
 
     deferred_started = false;
+
+    // consume the content of buffers when they're recycled
+    streambuf_pool.set_reset([](auto *a) { a->consume(a->size()); });
 }
 
 // External globals -- allow other things to tie structs to us

@@ -1,3 +1,12 @@
+//
+// Copyright (c) 2020 Richard Hodges (hodges.r@gmail.com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+// Official repository: https://github.com/boostorg/beast
+//
+
 #ifndef BOOST_BEAST_CORE_DETAIL_WORK_GUARD_HPP
 #define BOOST_BEAST_CORE_DETAIL_WORK_GUARD_HPP
 
@@ -34,9 +43,9 @@ struct select_work_guard
 template<class Executor>
 struct execution_work_guard
 {
-    using executor_type = decltype(
-        net::prefer(std::declval<Executor const&>(),
-            net::execution::outstanding_work.tracked));
+    using executor_type = typename std::decay<decltype(
+         net::prefer(std::declval<Executor const&>(),
+            net::execution::outstanding_work.tracked))>::type;
 
     execution_work_guard(Executor const& exec)
     : ex_(net::prefer(exec, net::execution::outstanding_work.tracked))

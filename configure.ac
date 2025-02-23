@@ -11,7 +11,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
 
-AC_PREREQ(2.57)
+AC_PREREQ([2.71])
 
 # Check for host type
 AC_CANONICAL_HOST
@@ -23,7 +23,7 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_CPP
 
-AC_LANG_CPLUSPLUS
+AC_LANG([C++])
 
 BUILD_CAPTURE_LINUX_WIFI=0
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
@@ -118,11 +118,6 @@ then
 		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
 		;;
-	cygwin*)
-		AC_MSG_RESULT(none needed)
-		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
-		cygwin="yes"
-		;;
     *)
         AC_MSG_RESULT(none needed)
         ;;
@@ -172,11 +167,6 @@ else
         AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
         ;;
-	cygwin*)
-		AC_MSG_RESULT(none needed)
-		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
-		cygwin="yes"
-		;;
     *)
         AC_MSG_RESULT(none needed)
         ;;
@@ -189,13 +179,13 @@ else
     GCC_MINOR=$(echo $GCC_VERSION | cut -s -d'.' -f2)
     GCC_PATCH=$(echo $GCC_VERSION | cut -s -d'.' -f3)
 
-    if test "$GCC_MAJOR"x == x; then
+    if test "$GCC_MAJOR"x = x; then
         GCC_MAJOR=$GCC_VERSION
     fi
-    if test "$GCC_MINOR"x == x; then
+    if test "$GCC_MINOR"x = x; then
         GCC_MINOR=0
     fi
-    if test "$GCC_PATCH"x == x; then
+    if test "$GCC_PATCH"x = x; then
         GCC_PATCH=0
     fi
 
@@ -241,17 +231,8 @@ AC_SUBST(PLUGINLDFLAGS)
 CXXFLAGS="$CXXFLAGS -O3"
 CFLAGS="$CFLAGS -O3"
 
-if test "$cygwin" = "yes"; then
-	AC_MSG_CHECKING(cygwin compile flags)
-	AC_MSG_RESULT(__MINGW32__)
-	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
-else
-	# cygwin doesn't like rdynamic, will this hurt us?
-	LDFLAGS="$LDFLAGS -rdynamic"
-fi
-
 AC_CONFIG_SRCDIR([kismet_server.cc])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 
 # Config location for code to default to
 CONFFILE_DIR=$sysconfdir
@@ -341,21 +322,24 @@ AC_ARG_ENABLE([mutex-name-debug],
     esac], [AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging)])
 
 # Configure for a remote-capture-only build
-caponly=0
+caponly=no
 AC_ARG_ENABLE(capture-tools-only,
 	[  --enable-capture-tools-only  Configure and build for capture tools and remote only],
 	[case "${enableval}" in
-	  no) caponly=0 ;;
-	   *) caponly=1 ;;
+	  no) caponly=no ;;
+	   *) caponly=yes ;;
 	 esac],
-	[caponly=0]
+	[caponly=no]
 )
 
-if test $caponly = 0; then
-    ALLTARGETS='$(STD_ALL)'
-else
-    ALLTARGETS='$(DS_ONLY)'
-fi
+AS_IF([test "$caponly"x = "no"x],
+      [
+       ALLTARGETS='$(STD_ALL)'
+      ],
+      [
+       ALLTARGETS='$(DS_ONLY)'
+      ]
+)
 AC_SUBST(ALLTARGETS)
 
 want_te_typesafety=no
@@ -367,30 +351,51 @@ AC_ARG_ENABLE([element-typesafety],
   esac],
   [want_te_typesafety=no]
 )
-if test "$want_te_typesafety"x == "yes"x; then
-    AC_DEFINE(TE_TYPE_SAFETY, 1, Enforce runtime type safety)
-else
-    AC_DEFINE(TE_TYPE_SAFETY, 0, Do not enforce runtime type safety)
-fi
+AS_IF([test "x$want_te_typesafety" = "xyes"],
+      [
+       AC_DEFINE(TE_TYPE_SAFETY, 1, Enforce runtime type safety)
+      ],
+      [
+       AC_DEFINE(TE_TYPE_SAFETY, 0, Do not enforce runtime type safety)
+      ]
+)
+
+want_protobuf=no
+AC_ARG_ENABLE([protobuf],
+    AS_HELP_STRING([--enable-protobuf], [Enable protobuf support for older remote datasources]),
+    [case "${enableval}" in
+     yes) want_protobuf=yes ;;
+     *) ;;
+    esac],
+    []
+)
 
 PROTOBUF=protobuf
 AC_ARG_ENABLE([protobuflite],
     AS_HELP_STRING([--enable-protobuflite], [Force building with protobuf-lite instead of full protobuf]),
-	[case "${enableval}" in
-	 yes) PROTOBUF=protobuf-lite ;;
-	   *)  ;;
-	 esac],
-	[]
+    [case "${enableval}" in
+     yes) PROTOBUF=protobuf-lite ;;
+     *)  ;;
+    esac],
+    []
 )
 
-want_python=yes
+AS_IF([test "$want_protobuf"x = "yes"x -a "$caponly"x = "yes"x],
+      [
+       AC_MSG_WARN([protobufs disabled when only building capture tools])
+       want_protobuf=no
+      ],
+      []
+)
+
+want_python=no
 AC_ARG_ENABLE([python-tools],
-    AS_HELP_STRING([--disable-python-tools], [Disable building Python modules and Python-only data sources]),
+    AS_HELP_STRING([--enable-python-tools], [Enable building (legacy) Python modules and Python-only data sources]),
        [case "${enableval}" in
-         no) want_python=no ;;
-          *) want_python=yes ;;
+        yes) want_python=yes ;;
+          *) want_python=no ;;
         esac],
-       [want_python=yes]
+       [want_python=no]
 )
 
 PYTHON=python3
@@ -415,14 +420,14 @@ AC_SUBST(PYTHON_VERSION)
 # HAVE_FFTW3_H=0
 # BUILD_CAPTURE_HACKRF_SWEEP=0
 # HACKRF_MISSING_REASON="Missing required libhack/libfftw3 libraries"
-# 
+#
 # AC_CHECK_HEADERS([libhackrf/hackrf.h],
 #     HAVE_HACKRF_H=1,
 #     AC_MSG_WARN("Missing hackrf.h from libhackrf"))
 # AC_CHECK_HEADERS([fftw3.h],
 #     HAVE_FFTW3_H=1,
 #     AC_MSG_WARN("Missing fftw3.h from libfftw"))
-# 
+#
 # if test "$HAVE_HACKRF_H" = 1; then
 #     AC_CHECK_LIB([hackrf], [hackrf_init],
 # 			HAVE_LIBHACKRF=1,
@@ -430,7 +435,7 @@ AC_SUBST(PYTHON_VERSION)
 # else
 #     HACKRF_MISSING_REASON="Missing libhackrf/hackrf.h"
 # fi
-# 
+#
 # if test "$HAVE_FFTW3_H" = 1; then
 #     AC_CHECK_LIB([fftw3], [fftw_malloc],
 #             HAVE_LIBFFTW3=1,
@@ -438,7 +443,7 @@ AC_SUBST(PYTHON_VERSION)
 # else
 #     HACKRF_MISSING_REASON="missing libfftw3.h"
 # fi
-# 
+#
 # if test "$HAVE_LIBHACKRF" = 1 && test "$HAVE_LIBFFTW3" = 1; then
 #     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #     		#include <libhackrf/hackrf.h>
@@ -475,23 +480,23 @@ AC_ARG_ENABLE(debuglibs,
 if test "$wantdebuglibs" = 1; then
     AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
     AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
-    
+
     if test "$HAVE_LIBDW" = 1; then
         AC_CHECK_HEADERS([elfutils/libdw.h elfutils/libdwfl.h dwarf.h], DEF_BW_HAS_LIBDW=1)
     fi
-    
+
     if test "$HAVE_LIBBFD" = 1; then
         AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
     fi
-    
+
     DEF_BW_HAS_UNWIND=0
     DEF_BW_HAS_BACKTRACE=0
-    
+
     BACKTRACE_OK=0
-    
+
     AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
     AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
-    
+
     if test "$DEF_BW_HAS_UNWIND" = 1; then
         BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
         AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
@@ -506,7 +511,7 @@ if test "$wantdebuglibs" = 1; then
         BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
         AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
     fi
-    
+
     if test "$BACKTRACE_OK" = 1; then
         # Libdw is the best support
         if test "$DEF_BW_HAS_LIBDW" = 1; then
@@ -661,7 +666,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
                 ]], [[
                      pthread_mutex_timedlock(NULL, NULL);
                      return 0;
-                     ]])], [have_timedlock=yes], 
+                     ]])], [have_timedlock=yes],
                      [have_timedlock=no])
 if test "$have_timedlock" = "yes"; then
     AC_MSG_RESULT([yes])
@@ -702,9 +707,11 @@ CC="$CXX"
 AC_CHECK_LIB([stdc++], [main],
         foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 
-if test "$foundcxxl"x == "x" -a "$caponly" != 1; then
-	AC_MSG_ERROR(No standard stdc++ libraries found.)
-fi
+AS_IF([test "$foundcxxl"x = "x" -a "$caponly"x != "yes"x],
+      [
+       AC_MSG_ERROR(No standard stdc++ libraries found.)
+      ], []
+)
 CC="$oCC"
 AC_SUBST(CXXLIBS)
 
@@ -734,13 +741,16 @@ CC="$oCC"
 
 
 AC_MSG_CHECKING([for group 'root'])
-if test "`grep -e ^root: /etc/group`" = ""; then
-	AC_MSG_RESULT([no.  Using 'wheel'])
-	instgrp="wheel"
-else
-	AC_MSG_RESULT([yes])
-	instgrp="root"
-fi
+AS_IF([test "`grep -e ^root: /etc/group`" = ""],
+      [
+       AC_MSG_RESULT([no.  Using 'wheel'])
+       instgrp="wheel"
+      ],
+      [
+       AC_MSG_RESULT([yes])
+       instgrp="root"
+      ]
+)
 AC_SUBST(instgrp)
 
 # Check for process title manipulation stuff, from proftpd configure.in
@@ -780,9 +790,7 @@ else
   if test "$pf_argv_set" = "no"; then
     AC_CACHE_CHECK(whether __progname and __progname_full are available,
 		    pf_cv_var_progname,
-		    AC_TRY_LINK([extern char *__progname, *__progname_full;],
-			[__progname = "foo"; __progname_full = "foo bar";],
-			pf_cv_var_progname="yes", pf_cv_var_progname="no"))
+		    AC_LINK_IFELSE([AC_LANG_PROGRAM([[extern char *__progname, *__progname_full;]], [[__progname = "foo"; __progname_full = "foo bar";]])],[pf_cv_var_progname="yes"],[pf_cv_var_progname="no"]))
 
     if test "$pf_cv_var_progname" = "yes"; then
 	AC_DEFINE(HAVE___PROGNAME, 1, __PROGNAME glibc macro available)
@@ -926,7 +934,7 @@ if test "$wantlibcap" = "yes"; then
     AC_CHECK_LIB([cap], [cap_init],,havecap=no)
     AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
     AC_CHECK_HEADER([sys/capability.h],, havecap=no)
-    
+
     if test "$havecap" = "yes"; then
     AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
     caplibs="-lcap"
@@ -966,7 +974,7 @@ if test "${wantpcre}x" = "nox" -a "${needpcre2}x" = "yesx"; then
     AC_MSG_ERROR([Can not combine --disable-pcre and --enable-require-pcre2])
 fi
 
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     if test "$HAVE_CXX17" = "1"; then
 	    AC_MSG_CHECKING([Checking C++17 parallel functions])
 
@@ -1044,10 +1052,10 @@ if test "$caponly" == 0; then
 fi
 
 # Dont' check pcre if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     if test "$wantpcre" = "yes"; then
         # Check for pcre2 first
-        
+
         pcre2=no
         pcre1=no
 
@@ -1058,7 +1066,7 @@ if test "$caponly" == 0; then
             #define PCRE2_CODE_UNIT_WIDTH 8
             #include <pcre2.h>
 			]], [[
-            
+
             pcre2_compile(NULL, PCRE2_ZERO_TERMINATED,
                           0, NULL, NULL, NULL);
 
@@ -1073,22 +1081,22 @@ if test "$caponly" == 0; then
         LIBS="$OLIBS"
 
         if test "$pcre2" != "yes"; then
-            if test "${needpcre2}x" == "yesx"; then
+            if test "${needpcre2}x" = "yesx"; then
                 AC_MSG_ERROR([Could not find libpcre2 and --enable-require-pcre2 selected])
             fi
 
     	    AC_CHECK_LIB([pcre], [pcre_compile], pcre1=yes, pcre1=no)
 
-            if test "$pcre1" == "yes"; then
+            if test "$pcre1" = "yes"; then
     	        AC_CHECK_HEADER([pcre.h], pcre1=yes, pcre1=no)
             fi
 
         fi
 
-        if test "$pcre2" == "yes"; then
+        if test "$pcre2" = "yes"; then
             AC_DEFINE(HAVE_LIBPCRE2, 1, libpcre2 regex support)
             LIBS="$LIBS -lpcre2-8"
-        elif test "$pcre1" == "yes"; then
+        elif test "$pcre1" = "yes"; then
             AC_DEFINE(HAVE_LIBPCRE, 1, libpcre1 regex support)
             LIBS="$LIBS -lpcre"
         else
@@ -1098,23 +1106,23 @@ if test "$caponly" == 0; then
 fi
 
 # Don't check for sqlite3 if we're only building datasources
-if test "$caponly" == 0; then
+if test "$caponly"x = "no"x; then
     # Check for sqlite3
     sql3l=no
     AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
-    
+
     if test "$sql3l" != "yes"; then
     	AC_MSG_ERROR(Failed to find libsqlite3)
     fi
-    
-    
+
+
     sql3h=no
     AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
-    
+
     if test "$sql3h" != "yes"; then
     	AC_MSG_ERROR(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
     fi
-    
+
     if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
     AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
     LIBS="$LIBS -lsqlite3"
@@ -1124,26 +1132,27 @@ if test "$caponly" == 0; then
 
 fi # caponly
 
-# don't check for openssl if we're only building datasources 
-if test "$caponly" == 0; then 
+# don't check for openssl if we're only building datasources
+if test "$caponly"x = "no"x; then
     AX_CHECK_OPENSSL(AC_DEFINE(HAVE_OPENSSL, 1, openssl library present),
                      AC_MSG_ERROR(Failed to find OpenSSL library))
 fi # caponly
 
-AC_ARG_ENABLE(prelude,
-              AS_HELP_STRING([--enable-prelude],
-                             [Enable Prelude SIEM as a target for alerts.]),
-[
-  wantprelude=no
-  if test "$enableval" != "no"; then
-    AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
-    CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
-    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
-    LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
-    AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
-    wantprelude=yes
-  fi
-],[wantprelude=no])
+wantprelude=no
+# AC_ARG_ENABLE(prelude,
+#               AS_HELP_STRING([--enable-prelude],
+#                              [Enable Prelude SIEM as a target for alerts.]),
+# [
+#   wantprelude=no
+#   if test "$enableval" != "no"; then
+#     AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
+#     CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
+#     LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
+#     LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
+#     AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
+#     wantprelude=yes
+#   fi
+# ],[wantprelude=no])
 
 
 PKG_PROG_PKG_CONFIG
@@ -1195,7 +1204,7 @@ if test "$have_libpcap"x != "yesx"; then
     AC_CHECK_LIB([pcap], [pcap_open_live],
         AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
         AC_MSG_ERROR(Libpcap required for proper operation))
-    
+
     if test "$foundsyspcap" = yes; then
     ## if we don't have a pcap.h, do a search for pcap/pcap.h
     AC_CHECK_HEADER([pcap.h],
@@ -1205,7 +1214,7 @@ if test "$have_libpcap"x != "yesx"; then
     		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
     		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
         fi
-    
+
         PCAPLIBS="-lpcap"
         PCAPCFLAGS=""
         pcap=yes
@@ -1216,9 +1225,11 @@ AC_SUBST(PCAPLIBS)
 AC_SUBST(PCAPCFLAGS)
 AC_SUBST(pcap)
 
-if test "$pcap" != "yes"; then
-	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality.)
-fi
+AS_IF([test "$pcap"x != "yes"x],
+      [
+       AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality.)
+      ], []
+)
 
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
 BUILD_CAPTURE_PCAPFILE=1
@@ -1227,10 +1238,12 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_ANTSDR_DRONEID)"
 BUILD_CAPTUE_ANTSDR_DRONEID=1
 
 BUILD_CAPTURE_LINUX_WIFI=0
-if test "$linux" = "yes"; then
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
-    BUILD_CAPTURE_LINUX_WIFI=1
-fi
+AS_IF([test "$linux"x = "yes"x],
+      [
+       DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+       BUILD_CAPTURE_LINUX_WIFI=1
+      ], []
+)
 
 BUILD_CAPTURE_OPENBSD_WIFI=0
 if test "$openbsd" = "yes"; then
@@ -1238,17 +1251,17 @@ if test "$openbsd" = "yes"; then
     BUILD_CAPTURE_OPENBSD_WIFI=1
 fi
 
-if test "$caponly" = 0 || test "$want_python" = "yes"; then
+AS_IF([test "$want_protobuf"x = "yes"x], [
     PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
     if test x"$have_protobuf_pkg" != "xyes"; then
         AC_MSG_ERROR([missing google libprotobuf])
     fi
-    
+
     AC_ARG_WITH(protoc,
     	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
         [ ])
-    
-    if test x"$with_protoc" == "x"; then
+
+    if test x"$with_protoc" = "x"; then
         PROTOCBIN=protoc
         AC_CHECK_PROG(protoc, [protoc], yes)
         if test x"$protoc" != x"yes"; then
@@ -1257,103 +1270,22 @@ if test "$caponly" = 0 || test "$want_python" = "yes"; then
     else
         PROTOCBIN=$with_protoc
     fi
-    
+
     PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
     PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
     PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
-fi  # caponly
 
-# We need protobuf-c all the time
-PKG_CHECK_MODULES([libprotobufc], [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)
-if test x"$have_protobufc_pkg" != "xyes"; then
-    # Look for the old version (old ubuntu, maybe others)
-    AC_CHECK_HEADER([google/protobuf-c/protobuf-c.h], 
-            have_protobufc_hdr=yes)
-    AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack_to_buffer],
-            have_protobufc_lib=yes)
+    AC_DEFINE(HAVE_PROTOBUF_CPP, 1, google protobufs)
+], [])
 
-    if test x"$have_protobufc_hdr" = "xyes" -a x"$have_protobufc_lib" = "xyes"; then
-        PROTOCLIBS="-lprotobuf-c"
-        PROTOCFLAGS=""
-    else
-        AC_MSG_ERROR([missing libprotobuf-c])
-    fi
-else
-    PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-    PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
-fi
-
-AC_ARG_WITH(protocc,
-	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
-	[ PROTOCCBIN=$withval ]
-	)
-AS_IF([test "x$with_protocc" = "x"], [
-    PROTOCCBIN="protoc-c"
-    AC_CHECK_PROG(protocc, [protoc-c], yes)
-    AS_IF([test x"$protocc" != "xyes"], [
-        AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
-    ])
-],[
-    PROTOCCBIN=$with_protocc
-])
-
-# As of 2024-04, protobufs-26.1 (and possibly protobufs-26) changed the default versioning, leading to conflicts with
-# protobufs-c and making it impossible to run protoc-c to compile protobufs into .c/.h pairs.  
-#
-# Fortunately, the protobufs-c implementation is quite generous in ways the C++ implemetnation is not, which 
-# lets us package a precompiled protobufs-c-1.5.0 output of the protobufs files.  This compiles fine 
-# cross-platform and with protobufs-c runtimes from 1.3.0 to 1.5.0 (tested) and 1.0.0 to 1.5.0 (by definition)
-# which should cover every platform.  
-#
-# Perform a compile test with the same restrictions as the 1.5.0 definitions to be sure, and allow an override to
-# always compile protobufs-c definitions, even when they might fail.
-PROTOBUF_C_DIR="protobuf_c"
-
-AC_ARG_ENABLE([force-protoc-c],
-    AS_HELP_STRING([--force-protoc-c], [Force building C protobufs with protoc-c]),
-	[case "${enableval}" in
-      yes) force_protocc=yes ;;
-        *) force_protocc=no ;;
-	 esac],
-	[force_protocc=no]
-)
-
-AS_IF([test "$force_protocc" = "no"], [
-    PROTOBUF_C_DIR="protobuf_c_1005000"
-    
-    AC_MSG_CHECKING([protobufs-c 1.5.0 compatibility])
-    OCFL="$CFLAGS"
-    CFLAGS="-Werror $CFLAGS $PROTOCCFLAGS"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-            #include <protobuf-c/protobuf-c.h>
-    		]], [[
-            #if PROTOBUF_C_VERSION_NUMBER < 1000000
-            # error System libprotobuf-c older than 1.0.0
-            #elif 1005000 < PROTOBUF_C_MIN_COMPILER_VERSION
-            # error System libprotobuf-c incompatible with 1.5.0
-            #endif
-    		]])],[compat_libprotoc=yes],[compat_libprotoc=no])
-    AS_IF([test "$compat_libprotoc" = "yes"], [
-    	AC_MSG_RESULT([yes])
-    ], [
-    	AC_MSG_ERROR(NO - use --force-proto-c to force protobuf-c recompilation)
-    ])
-    CFLAGS="$OCFL"
-])
-
-
-AC_SUBST(PROTOBUF_C_DIR)
-AC_SUBST(PROTOCBIN)
-AC_SUBST(PROTOLIBS)
-AC_SUBST(PROTOCFLAGS)
-AC_SUBST(PROTOCCBIN)
-AC_SUBST(PROTOCLIBS)
-AC_SUBST(PROTOCCFLAGS)
 AC_SUBST(PROTOBUF_CPP_O_TARGET)
 AC_SUBST(PROTOBUF_CPP_H_TARGET)
+AC_SUBST(PROTOLIBS)
+AC_SUBST(PROTOCFLAGS)
+AC_SUBST(PROTOCBIN)
 
 AC_ARG_ENABLE(btgeiger,
     AS_HELP_STRING([--enable-btgeiger], [Enable custom BTLE connected geiger counter input]),
@@ -1383,10 +1315,10 @@ AC_ARG_ENABLE(bladerf,
     [want_bladerf=no]
 )
 
-AS_IF([test "x$want_bladerf" == "xyes"], [
-    PKG_CHECK_MODULES([libbladeRF], [libbladeRF], 
+AS_IF([test "x$want_bladerf" = "xyes"], [
+    PKG_CHECK_MODULES([libbladeRF], [libbladeRF],
         [
-        ], 
+        ],
         [
          AC_MSG_ERROR([missing libbladeRF package])
         ])
@@ -1570,8 +1502,8 @@ if test "$havenetlink" = "yes"; then
 
     if test $netlink_force = "tiny"; then
         picked_nl="tiny"
-        AC_CHECK_HEADER([netlink/netlink.h], 
-                AC_DEFINE(HAVE_LIBNLTINY_HEADERS, 1, [libnltiny headers present]), 
+        AC_CHECK_HEADER([netlink/netlink.h],
+                AC_DEFINE(HAVE_LIBNLTINY_HEADERS, 1, [libnltiny headers present]),
                 AC_MSG_ERROR([libnl-tiny requested but could not find headers]))
 
         AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library)
@@ -1611,7 +1543,7 @@ if test "$havenetlink" = "yes"; then
 	fi
 
 	if test "$nlname" != ""; then
-        if test "$picked_nl" == "tiny"; then
+        if test "$picked_nl" = "tiny"; then
             NLLIBS="-lnl-tiny"
         else
 		    NLLIBS=`pkg-config --libs $nlname`
@@ -1735,10 +1667,10 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
     else
-        AC_CHECK_HEADERS([btbb.h], 
-                         HAVE_BTBB_H=yes, 
+        AC_CHECK_HEADERS([btbb.h],
+                         HAVE_BTBB_H=yes,
                          AC_MSG_WARN("btbb.h is missing"))
-        AC_CHECK_LIB([btbb], [btbb_init], 
+        AC_CHECK_LIB([btbb], [btbb_init],
                      HAVE_LIBBTBB=yes,
                      AC_MSG_WARN("libbtbb is missing"))
 
@@ -1750,15 +1682,15 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
             LIBBTBBLIBS="-lbtbb"
             LDFLAGS="$LDFLAGS -lbtbb"
 
-            AC_CHECK_HEADERS([ubertooth/ubertooth.h], 
-                             [HAVE_UBERTOOTH_H=yes 
-                              AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir)], 
+            AC_CHECK_HEADERS([ubertooth/ubertooth.h],
+                             [HAVE_UBERTOOTH_H=yes
+                              AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir)],
                               [])
 
-            AC_CHECK_HEADERS([ubertooth.h], 
+            AC_CHECK_HEADERS([ubertooth.h],
                              HAVE_UBERTOOTH_H=yes, [])
 
-            AC_CHECK_LIB([ubertooth], [ubertooth_init], 
+            AC_CHECK_LIB([ubertooth], [ubertooth_init],
                          HAVE_LIBUBERTOOTH=yes, [])
 
             if test x"$HAVE_UBERTOOTH_H" != "xyes" -o x"$HAVE_LIBUBERTOOTH" != "xyes"; then
@@ -1777,7 +1709,7 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
     else
         have_ubertooth="yes"
 
-        AC_CHECK_LIB([ubertooth], [ubertooth_count], 
+        AC_CHECK_LIB([ubertooth], [ubertooth_count],
                      AC_DEFINE(HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT, 1, libubertooth has ubertooth_count),
                      HAVE_UBERTOOTH_COUNT=0)
 
@@ -1831,7 +1763,7 @@ AS_IF([test "x$want_rtlsdr" != "xno"], [
 	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
             #include <rtl-sdr.h>
 			]], [[
-            
+
             rtlsdr_set_bias_tee(nullptr, 1);
 
 			return 0;
@@ -1845,7 +1777,7 @@ AS_IF([test "x$want_rtlsdr" != "xno"], [
 	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
             #include <rtl-sdr.h>
 			]], [[
-            
+
             rtlsdr_set_bias_tee_gpio(nullptr, 0, 1);
 
 			return 0;
@@ -1967,7 +1899,7 @@ AS_IF([test "x$want_mosquitto" != "xno"], [
                       LIBS="$LIBS `pkg-config --libs libmosquitto`"
                       CPPFLAGS="$CPPFLAGS `pkg-config --cflags libmosquitto`"
                       CFLAGS="$CFLAGS `pkg-config --cflags libmosquitto`"
-                      
+
                       have_mosquitto="yes"
                       AC_DEFINE(HAVE_LIBMOSQUITTO, 1, libmosquitto)
                      ],
@@ -1996,7 +1928,7 @@ AS_IF([test "x$want_lmsensors" != "xno"], [
     AC_CHECK_HEADERS([sensors/sensors.h],
         HAVE_LMSENSORS_H=1,
         HAVE_LMSENSORS_H=0)
-    
+
     if test "$HAVE_LMSENSORS_H" = 1; then
         AC_CHECK_LIB([sensors], [sensors_init],
     			HAVE_LIBLMSENSORS=1,
@@ -2005,9 +1937,9 @@ AS_IF([test "x$want_lmsensors" != "xno"], [
         if test "$HAVE_LIBLMSENSORS" = 1; then
             LIBS="$LIBS -lsensors"
             have_lmsensors=yes
-        else 
+        else
             AC_MSG_ERROR([required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information])
-        fi 
+        fi
     else
         AC_MSG_ERROR([required libsensors lm-sensors missing, configure with --disable-lmsensors to compile without thermal information])
     fi
@@ -2025,11 +1957,6 @@ AC_ARG_WITH(suidgroup,
      fi
 	])
 AC_SUBST(suidgroup)
-
-# Evaluate suid
-if test "$cygwin" = "yes"; then
-	suid="no"
-fi
 
 AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 
@@ -2054,7 +1981,7 @@ AC_ARG_ENABLE(asan,
 	 esac],
 	[want_asan=no]
 )
-if test "$want_asan" == "yes"; then
+if test "$want_asan" = "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=address -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=address"
 fi
@@ -2067,7 +1994,7 @@ AC_ARG_ENABLE(tsan,
 	 esac],
 	[want_tsan=no]
 )
-if test "$want_tsan" == "yes"; then
+if test "$want_tsan" = "yes"; then
     CPPFLAGS="$CPPFLAGS -fsanitize=thread -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=thread"
 fi
@@ -2117,23 +2044,23 @@ AC_SUBST(BUILD_CAPTURE_ANTSDR_DRONEID)
 #AC_SUBST(CXXFLAGS)
 
 AC_CONFIG_FILES([
-    Makefile 
-    Makefile.inc 
-    packaging/kismet.pc 
-    packaging/systemd/kismet.service 
-    packaging/systemd/debug/kismet-debug.service 
-    capture_linux_bluetooth/Makefile 
-    capture_linux_wifi/Makefile 
+    Makefile
+    Makefile.inc
+    packaging/kismet.pc
+    packaging/systemd/kismet.service
+    packaging/systemd/debug/kismet-debug.service
+    capture_linux_bluetooth/Makefile
+    capture_linux_wifi/Makefile
     capture_openbsd_wifi/Makefile
-    capture_osx_corewlan_wifi/Makefile 
+    capture_osx_corewlan_wifi/Makefile
     capture_nrf_mousejack/Makefile
-    capture_sdr_rtl433_v2/Makefile 
+    capture_sdr_rtl433_v2/Makefile
     capture_sdr_rtladsb_v2/Makefile
     capture_freaklabs_zigbee_v2/Makefile
-    capture_ti_cc_2540/Makefile 
-    capture_ti_cc_2531/Makefile 
-    capture_ubertooth_one/Makefile 
-    capture_nrf_51822/Makefile 
+    capture_ti_cc_2540/Makefile
+    capture_ti_cc_2531/Makefile
+    capture_ubertooth_one/Makefile
+    capture_nrf_51822/Makefile
     capture_nxp_kw41z/Makefile
     capture_rz_killerbee/Makefile
     capture_bladerf_wiphy/Makefile
@@ -2150,15 +2077,15 @@ echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
-echo "      Protobuf Library: $PROTOBUF"
+printf "      Protobuf Library: "
+if test "$want_protobuf"x = "yes"x; then
+    echo "$PROTOBUF"
+else
+    echo "disabled"
+fi
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
-printf "          Setuid group: "
-if test "$cygwin" = "yes"; then
-	echo "n/a (Cygwin/Win32";
-else
-	echo "$suidgroup"
-fi
+printf "          Setuid group: $suidgroup"
 
 printf "        Prelude  SIEM : $wantprelude\n"
 
@@ -2443,7 +2370,7 @@ if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
     echo "binary differences.  Likely, the compiler will reject this, "
     echo "but you can try."
 elif test "$want_asan" = "yes" -o "$want_tsan" = "yes"; then
-    echo 
+    echo
     echo "*** NOTICE ***"
     echo "Compiling with ASAN or TSAN debugging can greatly increase the "
     echo "amount of RAM Kismet needs; you may see degraded performance or "

@@ -220,7 +220,7 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
-    char *definition, char *msg, char **uuid, KismetExternal__Command *frame,
+    char *definition, char *msg, char **uuid,
     cf_params_interface_t **ret_interface,
     cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
@@ -526,7 +526,7 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-    char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+    char *msg, uint32_t *dlt, char **uuid,
     cf_params_interface_t **ret_interface,
     cf_params_spectrum_t **ret_spectrum) {
     char *placeholder;
@@ -701,7 +701,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         gettimeofday(&tv, NULL);
 
         while (1) {
-            r = cf_send_json(caph, NULL, NULL, NULL, tv, "radiacode", (char *) json);
+            r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "radiacode", (char *) json);
 
             if (r < 0) {
                 snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localrad->name);

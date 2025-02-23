@@ -2,7 +2,7 @@
 // detail/impl/win_iocp_io_context.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -19,10 +19,10 @@
 
 #if defined(BOOST_ASIO_HAS_IOCP)
 
+#include <boost/asio/config.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/detail/cstdint.hpp>
 #include <boost/asio/detail/handler_alloc_helpers.hpp>
-#include <boost/asio/detail/handler_invoke_helpers.hpp>
 #include <boost/asio/detail/limits.hpp>
 #include <boost/asio/detail/thread.hpp>
 #include <boost/asio/detail/throw_error.hpp>
@@ -52,7 +52,7 @@ struct win_iocp_io_context::thread_function
 
 struct win_iocp_io_context::work_finished_on_block_exit
 {
-  ~work_finished_on_block_exit()
+  ~work_finished_on_block_exit() noexcept(false)
   {
     io_context_->work_finished();
   }
@@ -80,7 +80,7 @@ struct win_iocp_io_context::timer_thread_function
 };
 
 win_iocp_io_context::win_iocp_io_context(
-    boost::asio::execution_context& ctx, int concurrency_hint, bool own_thread)
+    boost::asio::execution_context& ctx, bool own_thread)
   : execution_context_service_base<win_iocp_io_context>(ctx),
     iocp_(),
     outstanding_work_(0),
@@ -89,12 +89,13 @@ win_iocp_io_context::win_iocp_io_context(
     shutdown_(0),
     gqcs_timeout_(get_gqcs_timeout()),
     dispatch_required_(0),
-    concurrency_hint_(concurrency_hint)
+    concurrency_hint_(config(ctx).get("scheduler", "concurrency_hint", -1))
 {
   BOOST_ASIO_HANDLER_TRACKING_INIT;
 
   iocp_.handle = ::CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0,
-      static_cast<DWORD>(concurrency_hint >= 0 ? concurrency_hint : DWORD(~0)));
+      static_cast<DWORD>(concurrency_hint_ >= 0
+        ? concurrency_hint_ : DWORD(~0)));
   if (!iocp_.handle)
   {
     DWORD last_error = ::GetLastError();
@@ -169,7 +170,10 @@ void win_iocp_io_context::shutdown()
   }
 
   if (timer_thread_.get())
+  {
     timer_thread_->join();
+    timer_thread_.reset();
+  }
 }
 
 boost::system::error_code win_iocp_io_context::register_handle(
@@ -528,6 +532,7 @@ size_t win_iocp_io_context::do_one(DWORD msec,
 
 DWORD win_iocp_io_context::get_gqcs_timeout()
 {
+#if !defined(_WIN32_WINNT) || (_WIN32_WINNT < 0x0600)
   OSVERSIONINFOEX osvi;
   ZeroMemory(&osvi, sizeof(osvi));
   osvi.dwOSVersionInfoSize = sizeof(osvi);
@@ -540,6 +545,9 @@ DWORD win_iocp_io_context::get_gqcs_timeout()
     return INFINITE;
 
   return default_gqcs_timeout;
+#else // !defined(_WIN32_WINNT) || (_WIN32_WINNT < 0x0600)
+  return INFINITE;
+#endif // !defined(_WIN32_WINNT) || (_WIN32_WINNT < 0x0600)
 }
 
 void win_iocp_io_context::do_add_timer_queue(timer_queue_base& queue)

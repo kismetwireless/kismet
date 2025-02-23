@@ -19,6 +19,7 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/optional.hpp>
 #include <boost/assert.hpp>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <type_traits>
@@ -77,7 +78,6 @@ class basic_parser
     std::uint64_t len0_ = 0;                // content length if known
     std::unique_ptr<char[]> buf_;           // temp storage
     std::size_t buf_len_ = 0;               // size of buf_
-    std::size_t skip_ = 0;                  // resume search here
     std::uint32_t header_limit_ = 8192;     // max header size
     unsigned short status_ = 0;             // response status
     state state_ = state::nothing_yet;      // initial state
@@ -109,7 +109,6 @@ class basic_parser
     static unsigned constexpr flagContentLength         = 1<< 10;
     static unsigned constexpr flagChunked               = 1<< 11;
     static unsigned constexpr flagUpgrade               = 1<< 12;
-    static unsigned constexpr flagFinalChunk            = 1<< 13;
 
     static constexpr
     std::uint64_t
@@ -130,7 +129,9 @@ class basic_parser
     template<bool OtherIsRequest>
     friend class basic_parser;
 
+#ifndef BOOST_BEAST_DOXYGEN
     friend class basic_parser_test;
+#endif
 
 protected:
     /// Default constructor
@@ -639,23 +640,28 @@ private:
         error_code& ec);
 
     void
-    maybe_need_more(
-        char const* p, std::size_t n,
-            error_code& ec);
-
-    void
-    parse_start_line(
+    inner_parse_start_line(
         char const*& p, char const* last,
             error_code& ec, std::true_type);
 
     void
-    parse_start_line(
+    inner_parse_start_line(
         char const*& p, char const* last,
             error_code& ec, std::false_type);
 
     void
-    parse_fields(
+    parse_start_line(
+        char const*& p, std::size_t n,
+            error_code& ec);
+
+    void
+    inner_parse_fields(
         char const*& p, char const* last,
+            error_code& ec);
+
+    void
+    parse_fields(
+        char const*& p, std::size_t n,
             error_code& ec);
 
     void

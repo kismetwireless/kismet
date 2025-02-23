@@ -10,7 +10,6 @@
 #ifndef BOOST_BEAST_DETAIL_IMPL_READ_HPP
 #define BOOST_BEAST_DETAIL_IMPL_READ_HPP
 
-#include <boost/beast/core/bind_handler.hpp>
 #include <boost/beast/core/async_base.hpp>
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/core/read_size.hpp>
@@ -96,7 +95,7 @@ public:
                 BOOST_ASIO_CORO_YIELD
                 s_.async_read_some(
                     b_.prepare(0), std::move(*this));
-                ec = ec_;
+                BOOST_BEAST_ASSIGN_EC(ec, ec_);
             }
             this->complete_now(ec, total_);
         }
@@ -105,17 +104,26 @@ public:
 
 //------------------------------------------------------------------------------
 
+template <typename AsyncReadStream>
 struct run_read_op
 {
+    AsyncReadStream* stream;
+
+    using executor_type = typename AsyncReadStream::executor_type;
+
+    executor_type
+    get_executor() const noexcept
+    {
+        return stream->get_executor();
+    }
+
     template<
-        class AsyncReadStream,
         class DynamicBuffer,
         class Condition,
         class ReadHandler>
     void
     operator()(
         ReadHandler&& h,
-        AsyncReadStream* s,
         DynamicBuffer* b,
         Condition&& c)
     {
@@ -134,7 +142,7 @@ struct run_read_op
             typename std::decay<Condition>::type,
             typename std::decay<ReadHandler>::type>(
                 std::forward<ReadHandler>(h),
-                *s,
+                *stream,
                 *b,
                 std::forward<Condition>(c));
     }
@@ -235,9 +243,8 @@ async_read(
     return net::async_initiate<
         ReadHandler,
         void(error_code, std::size_t)>(
-            typename dynamic_read_ops::run_read_op{},
+            typename dynamic_read_ops::run_read_op<AsyncReadStream>{&stream},
             handler,
-            &stream,
             &buffer,
             std::forward<CompletionCondition>(cond));
 }

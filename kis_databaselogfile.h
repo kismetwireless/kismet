@@ -22,10 +22,10 @@
  * which can later be extrapolated into the original data types (or all new data types).
  *
  * The new log is based on sqlite3 and is, itself, a database.  It borrows from the nosql
- * methodology by, in general, defining the minimum number of normalized fields and 
+ * methodology by, in general, defining the minimum number of normalized fields and
  * storing data in traditional JSON format whenever possible.
  *
- * The new log format synergizes with the REST UI to provide dynamic access to 
+ * The new log format synergizes with the REST UI to provide dynamic access to
  * historical data.
  *
  * Docs in docs/dev/log_kismet.md
@@ -56,7 +56,7 @@
 
 // Kismetdb version
 
-#define KISMETDB_LOG_VERSION        8
+#define KISMETDB_LOG_VERSION        9
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
@@ -66,7 +66,7 @@ class kis_database_logfile : public kis_logfile, public kis_database, public lif
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
-    static std::shared_ptr<kis_database_logfile> 
+    static std::shared_ptr<kis_database_logfile>
         create_kisdatabaselog() {
             std::shared_ptr<kis_database_logfile> mon(new kis_database_logfile());
             Globalreg::globalreg->register_deferred_global(mon);
@@ -93,7 +93,7 @@ public:
 
     virtual int database_upgrade_db() override;
 
-    bool is_enabled() { 
+    bool is_enabled() {
         return db_enabled;
     }
 
@@ -107,7 +107,7 @@ public:
     // Log a packet
     virtual int log_packet(const std::shared_ptr<kis_packet>& in_packet);
 
-    // Log data that isn't a packet; this is a slightly more clunky API because we 
+    // Log data that isn't a packet; this is a slightly more clunky API because we
     // can't derive the data from the simple packet interface.  GPS may be null,
     // and other attributes may be empty, if that data is not available
     virtual int log_data(const std::shared_ptr<kis_gps_packinfo>& gps, const struct timeval& tv,
@@ -130,7 +130,7 @@ public:
     static void usage(const char *argv0);
 
     // Direct access to the filters for setting programmatically
-    std::shared_ptr<packet_filter_mac_addr> get_packet_filter() { 
+    std::shared_ptr<packet_filter_mac_addr> get_packet_filter() {
         return packet_mac_filter;
     }
 
@@ -240,7 +240,7 @@ public:
 
     kis_database_logfile_builder(int in_id) :
         kis_logfile_builder(in_id) {
-           
+
         register_fields();
         reserve_fields(NULL);
         initialize();
@@ -256,13 +256,13 @@ public:
 
     virtual ~kis_database_logfile_builder() { }
 
-    // Custom builder that fetches the global copy and shoves it back down to the 
+    // Custom builder that fetches the global copy and shoves it back down to the
     // logfile system instead
     virtual shared_logfile build_logfile(shared_log_builder builder) {
         std::shared_ptr<kis_database_logfile> logfile =
             Globalreg::fetch_mandatory_global_as<kis_database_logfile>("DATABASELOG");
         logfile->set_database_builder(builder);
-        return logfile;
+        return std::static_pointer_cast<kis_logfile>(logfile);
     }
 
     virtual void initialize() {

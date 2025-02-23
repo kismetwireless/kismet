@@ -44,7 +44,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <signal.h>
 #include <sys/signalfd.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -58,8 +57,6 @@
 
 #include "../simple_ringbuf_c.h"
 #include "../capture_framework.h"
-
-#include "linuxbluetooth.pb-c.h"
 
 /* Unique instance data passed around by capframework */
 typedef struct {
@@ -102,85 +99,56 @@ static char *eir_get_name(const uint8_t *eir, uint16_t eir_len);
 static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
-int cf_send_btdevice(local_bluetooth_t *localbt,
-        struct mgmt_ev_device_found *dev,
-        KismetDatasource__SubGps *kv_gps) {
+int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
+    char json[2048];
 
-    KismetLinuxBluetooth__LinuxBluetoothDataReport kereport;
-    KismetLinuxBluetooth__SubLinuxBluetoothDevice kebtdev;
-    KismetDatasource__SubGps kegps;
-
-    struct timeval tv;
     char address[BDADDR_STR_LEN];
-    char *name;
+    char *name, *safe_name;
     uint16_t eirlen;
 
-    uint8_t *buf;
-    size_t len;
+    int r;
 
-    kismet_linux_bluetooth__linux_bluetooth_data_report__init(&kereport);
-    kismet_linux_bluetooth__sub_linux_bluetooth_device__init(&kebtdev);
-    kismet_datasource__sub_gps__init(&kegps);
+    struct timeval tv;
 
+    gettimeofday(&tv, 0);
 
-    gettimeofday(&tv, NULL);
-
-    /* Convert the address */
+    /* convert the address */
     bdaddr_to_string(dev->addr.bdaddr.b, address);
 
     /* Extract the name from EIR */
     eirlen = le16toh(dev->eir_len);
     name = eir_get_name(dev->eir, eirlen);
 
-    kebtdev.time_sec = tv.tv_sec;
-    kebtdev.time_usec = tv.tv_usec;
-    kebtdev.address = address;
-    kebtdev.name = name;
-    kebtdev.type = dev->addr.type;
+    safe_name = json_sanitize_string(name);
 
-    /* We don't get txpower or uuids currently */
+    snprintf(json, 2048, "{"
+            "\"address\": \"%s\","
+            "\"name\": \"%s\","
+            "\"type\": %u"
+            "}",
+            address, safe_name, dev->addr.type);
 
-    kereport.btdevice = &kebtdev;
-
-    /* TODO Make sure Corey didn't mess the GPS stuff up. */
-
-    if (kv_gps != NULL) {
-        kereport.gps = kv_gps;
-    } else if (localbt->caph->gps_fixed_lat != 0) {
-
-        kegps.lat = localbt->caph->gps_fixed_lat;
-        kegps.lon = localbt->caph->gps_fixed_lon;
-        kegps.alt = localbt->caph->gps_fixed_alt;
-        kegps.fix = 3;
-
-        kegps.time_sec = tv.tv_sec;
-        kegps.time_usec = tv.tv_usec;
-
-        kegps.type = strdup("remote-fixed");
-
-        if (localbt->caph->gps_name != NULL)
-            kegps.name = strdup(localbt->caph->gps_name);
-        else
-            kegps.name = strdup("remote-fixed");
-
-        kereport.gps = &kegps;
+    if (safe_name != name) {
+        free(safe_name);
     }
 
-    len = kismet_linux_bluetooth__linux_bluetooth_data_report__get_packed_size(&kereport);
-    buf = (uint8_t *) malloc(len);
-
-    if (buf == NULL) {
-        return -1;
+    if (name != NULL) {
+        free(name);
     }
 
-    kismet_linux_bluetooth__linux_bluetooth_data_report__pack(&kereport, buf);
+    while (1) {
+        if ((r = cf_send_json(localbt->caph, NULL, 0, NULL, NULL, tv, "linuxbthci", json)) < 0) {
+            cf_send_error(localbt->caph, 0, "unable to send JSON frame");
+            cf_handler_spindown(localbt->caph);
+            continue;
+        } else if (r == 0) {
+            cf_handler_wait_ringbuffer(localbt->caph);
+        } else {
+            break;
+        }
+    }
 
-    if (kegps.name != NULL)
-        free(kegps.name);
-    if (kegps.type != NULL)
-        free(kegps.type);
-
-    return cf_send_packet(localbt->caph, "LBTDATAREPORT", buf, len);
+    return 0;
 }
 
 void bdaddr_to_string(const uint8_t *bdaddr, char *str) {
@@ -434,7 +402,7 @@ void evt_device_found(local_bluetooth_t *localbt, uint16_t len, const void *para
         return;
     }
 
-    cf_send_btdevice(localbt, dev, NULL);
+    cf_send_btjson(localbt, dev);
 }
 
 void handle_mgmt_response(local_bluetooth_t *localbt) {
@@ -571,7 +539,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
@@ -705,7 +673,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 

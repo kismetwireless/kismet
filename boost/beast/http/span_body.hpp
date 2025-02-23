@@ -10,8 +10,10 @@
 #ifndef BOOST_BEAST_HTTP_SPAN_BODY_HPP
 #define BOOST_BEAST_HTTP_SPAN_BODY_HPP
 
-#include <boost/beast/core/detail/config.hpp>
+#include <boost/beast/http/span_body_fwd.hpp>
+
 #include <boost/beast/core/buffer_traits.hpp>
+#include <boost/beast/core/detail/config.hpp>
 #include <boost/beast/core/span.hpp>
 #include <boost/beast/http/error.hpp>
 #include <boost/beast/http/message.hpp>
@@ -87,7 +89,7 @@ public:
         {
             if(length && *length > body_.size())
             {
-                ec = error::buffer_overflow;
+                BOOST_BEAST_ASSIGN_EC(ec, error::buffer_overflow);
                 return;
             }
             ec = {};
@@ -102,7 +104,7 @@ public:
             auto const len = body_.size();
             if(n > len)
             {
-                ec = error::buffer_overflow;
+                BOOST_BEAST_ASSIGN_EC(ec, error::buffer_overflow);
                 return 0;
             }
             ec = {};

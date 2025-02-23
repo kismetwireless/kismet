@@ -497,15 +497,21 @@ public:
     dst_incoming_remote(callback_t in_cb);
     ~dst_incoming_remote();
 
+#ifdef HAVE_PROTOBUF_CPP
     // Override the dispatch commands to handle the new source
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
+    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
             uint32_t seqno, const nonstd::string_view& content) override;
+    virtual void handle_packet_newsource(uint32_t in_seqno, nonstd::string_view in_packet);
+#endif
+
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+            uint16_t command, uint16_t code, uint32_t seqno,
+            const nonstd::string_view& content) override;
+    virtual void handle_packet_newsource_v3(uint32_t in_seqno, uint16_t in_code, nonstd::string_view in_packet);
 
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
         _MSG(fmt::format("(Remote) - {}", msg), msgtype);
     }
-
-    virtual void handle_packet_newsource(uint32_t in_seqno, nonstd::string_view in_packet);
 
     virtual void kill();
 

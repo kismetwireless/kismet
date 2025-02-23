@@ -434,7 +434,7 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
         gettimeofday(&tv, NULL);
 
         while (1) { 
-            if ((r = cf_send_json(caph, NULL, NULL, NULL, tv, "adsb", json)) < 0) {
+            if ((r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "adsb", json)) < 0) {
                 cf_send_error(caph, 0, "unable to send JSON frame");
                 cf_handler_spindown(caph);
                 continue;
@@ -502,7 +502,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition, 
-        char *msg, char **uuid, KismetExternal__Command *frame, 
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
 
@@ -612,7 +612,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     local_adsb_t *adsb = (local_adsb_t *) caph->userdata;

@@ -38,6 +38,8 @@
 
 #include "fnv_ht.h"
 
+#include "moodycamel/blockingconcurrentqueue.h"
+
 class global_registry;
 
 // Pre-defs for all the things we point to
@@ -269,6 +271,11 @@ public:
     // Global ASIO contexts and IO threads
     const int n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
     boost::asio::io_context io{n_io_threads};
+    // Pool of stream buffers for packets
+    shared_object_pool<boost::asio::streambuf> streambuf_pool;
+
+    // How many buffers are currently in circulation
+    std::atomic<unsigned int> streambuf_circulation;
 
     kis_mutex ext_mutex;
     // Exernal global references, string to intid

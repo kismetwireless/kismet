@@ -10,6 +10,7 @@
 #ifndef BOOST_BEAST_DETAIL_TYPE_TRAITS_HPP
 #define BOOST_BEAST_DETAIL_TYPE_TRAITS_HPP
 
+#include <boost/type_traits/aligned_storage.hpp>
 #include <boost/type_traits/make_void.hpp>
 #include <type_traits>
 #include <new>
@@ -64,7 +65,7 @@ struct aligned_union
     std::size_t constexpr alignment_value =
         max_alignof<Ts...>();
 
-    using type = typename std::aligned_storage<
+    using type = typename boost::aligned_storage<
         (Len > max_sizeof<Ts...>()) ? Len : (max_sizeof<Ts...>()),
             alignment_value>::type;
 };
@@ -74,27 +75,6 @@ using aligned_union_t =
     typename aligned_union<Len, Ts...>::type;
 
 //------------------------------------------------------------------------------
-
-// for span
-template<class T, class E, class = void>
-struct is_contiguous_container: std::false_type {};
-
-template<class T, class E>
-struct is_contiguous_container<T, E, void_t<
-    decltype(
-        std::declval<std::size_t&>() = std::declval<T const&>().size(),
-        std::declval<E*&>() = std::declval<T&>().data()),
-    typename std::enable_if<
-        std::is_same<
-            typename std::remove_cv<E>::type,
-            typename std::remove_cv<
-                typename std::remove_pointer<
-                    decltype(std::declval<T&>().data())
-                >::type
-            >::type
-        >::value
-    >::type>>: std::true_type
-{};
 
 template <class T, class U>
 T launder_cast(U* u)
