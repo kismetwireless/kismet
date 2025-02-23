@@ -269,7 +269,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
@@ -329,7 +329,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     /* Try to open the bladerf for monitoring */
@@ -555,9 +555,10 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         gettimeofday(&ts, NULL);
 
-        ret = cf_send_data(caph, NULL, NULL, NULL,
-                        ts, DLT_IEEE802_11,
-                        bwh_r->len - 4, (uint8_t *) data + 16);
+        ret = cf_send_data(caph, NULL, 0,
+                        NULL, NULL, ts, DLT_IEEE802_11,
+                        bwh_r->len - 4, bwh_r->len - 4,
+                        (uint8_t *) data + 16);
 
         if (ret < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
