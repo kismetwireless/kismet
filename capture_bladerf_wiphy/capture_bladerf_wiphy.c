@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* 
+/*
  * Derived from bladeRF project code,
  * Copyright (C) 2020 Nuand LLC
  */
@@ -24,7 +24,7 @@
 /*
  * bladeRF wiphy capture
  *
- * This uses the bladeRF2 wiphy modem for 802.11 capture; this requires a 
+ * This uses the bladeRF2 wiphy modem for 802.11 capture; this requires a
  * bladerf2 a9 and the wiphy rbf either flashed or available.
  *
  * this requires a very current libbladerf2.
@@ -202,7 +202,7 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
 
 /* Keep the expansion options for now in case we need them in a future firmware,
  * but the bladerf-wiphy doesn't work like that currently */
-int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
+int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         unsigned int default_ht20, unsigned int expand_ht20,
         char ***chanlist, size_t *chanlist_sz) {
     size_t chan_sz = 0;
@@ -252,7 +252,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
 
-    r = bladerf_set_frequency(local_wifi->bladeRF_dev, BLADERF_CHANNEL_RX(0), 
+    r = bladerf_set_frequency(local_wifi->bladeRF_dev, BLADERF_CHANNEL_RX(0),
             wifi_chan_to_freq(channel->center_freq1) * 1000UL * 1000UL);
 
     if (r != 0) {
@@ -284,7 +284,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     unsigned int idx;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return 0;
     }
 
@@ -303,7 +303,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     /* For now just assume if it's a brf-wifphy-# interface, we can handle it;
      * we don't want to get into firmware loading at the probing stage accidentally */
 
-    ret = populate_chanlist(caph, interface, errstr, 0, 0, 
+    ret = populate_chanlist(caph, interface, errstr, 0, 0,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
 
     (*ret_interface)->hardware = strdup("bladeRF Wiphy");
@@ -316,10 +316,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+        /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name
          * and the mac address of the device */
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-00%04X",
-                adler32_csum((unsigned char *) "kismet_cap_brf_wiphy", 
+                adler32_csum((unsigned char *) "kismet_cap_brf_wiphy",
                     strlen("kismet_cap_blader_wiphy")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) interface, strlen(interface)));
         *uuid = strdup(errstr);
@@ -338,7 +338,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     char *placeholder = NULL;
     int placeholder_len;
-    
+
     char errstr[STATUS_MAX];
     char errstr2[STATUS_MAX];
 
@@ -360,7 +360,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     const bladerf_sample_rate sample_rate = 20 * 1000 * 1000;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return -1;
     }
 
@@ -372,21 +372,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    if ((placeholder_len = 
+    if ((placeholder_len =
                 cf_find_flag(&placeholder, "name", definition)) > 0) {
         local_wifi->name = strndup(placeholder, placeholder_len);
     } else {
         local_wifi->name = strdup(local_wifi->interface);
     }
 
-    /* Build an interface index parameter for now; in the future we should also 
+    /* Build an interface index parameter for now; in the future we should also
      * support serial number based */
     snprintf(errstr2, 1024, "*:instance=%u", local_wifi->bladerf_index);
 
     ret = bladerf_open(&local_wifi->bladeRF_dev, errstr2);
     if (ret != 0) {
         snprintf(msg, STATUS_MAX, "%s unable to open bladeRF interface: %d",
-                local_wifi->name, ret); 
+                local_wifi->name, ret);
         return -1;
     }
 
@@ -419,15 +419,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     bladerf_set_bias_tee(local_wifi->bladeRF_dev, BLADERF_CHANNEL_RX(0), true);
     bladerf_set_bias_tee(local_wifi->bladeRF_dev, BLADERF_CHANNEL_RX(1), true);
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-00%04X",
-                adler32_csum((unsigned char *) "kismet_cap_brf_wiphy", 
+                adler32_csum((unsigned char *) "kismet_cap_brf_wiphy",
                     strlen("kismet_cap_blader_wiphy")) & 0xFFFFFFFF,
-                adler32_csum((unsigned char *) local_wifi->interface, 
+                adler32_csum((unsigned char *) local_wifi->interface,
                     strlen(local_wifi->interface)));
         *uuid = strdup(errstr);
     }
@@ -447,17 +447,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->capif = strdup(local_wifi->interface);
 
-    if ((placeholder_len = 
+    if ((placeholder_len =
                 cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
 
-        localchan = 
+        localchan =
             (local_channel_t *) chantranslate_callback(caph, localchanstr);
 
         free(localchanstr);
 
         if (localchan == NULL) {
-            snprintf(msg, STATUS_MAX, 
+            snprintf(msg, STATUS_MAX,
                     "%s %s could not parse channel= option provided in source "
                     "definition", local_wifi->name, local_wifi->interface);
             return -1;
@@ -466,7 +466,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_channel_to_str(localchan, errstr);
         (*ret_interface)->chanset = strdup(errstr);
 
-        snprintf(errstr, STATUS_MAX, "%s setting initial channel to %s", 
+        snprintf(errstr, STATUS_MAX, "%s setting initial channel to %s",
                 local_wifi->name, (*ret_interface)->chanset);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
 
@@ -505,7 +505,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
-    *interfaces = 
+    *interfaces =
         (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
 
     i = 0;
@@ -570,7 +570,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
     }
 
-    snprintf(errstr, STATUS_MAX, "%s interface '%s' closed: %d", 
+    snprintf(errstr, STATUS_MAX, "%s interface '%s' closed: %d",
             local_wifi->name, local_wifi->interface, ret);
     cf_send_error(caph, 0, errstr);
 
