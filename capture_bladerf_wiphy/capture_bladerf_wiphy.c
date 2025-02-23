@@ -164,7 +164,7 @@ unsigned int wifi_freq_to_chan(unsigned int in_freq) {
 
 /* Convert a string into a local interpretation; allocate ret_localchan.
  */
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan = NULL;
     unsigned int parsechan;
     int r;
