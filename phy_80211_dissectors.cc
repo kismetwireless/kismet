@@ -1365,13 +1365,13 @@ int kis_80211_phy::packet_dot11_dissector(const std::shared_ptr<kis_packet>& in_
 
         // Calculate the data size based on the original capture length, but use chunk length for
         // all other operations since that's the size of the buffer
-        int datasize = in_pack->original_len - packinfo->header_offset;
+        ssize_t datasize = chunk->length() - packinfo->header_offset;
         if (datasize > 0) {
             packinfo->datasize = datasize;
             common->datasize = datasize;
         }
 
-        if (packinfo->cryptset == 0 && dissect_data) {
+        if (packinfo->cryptset == 0 && dissect_data && datasize > 0) {
             // Keep whatever datachunk we already found
             auto datachunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
 
