@@ -2187,7 +2187,12 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
 
     auto packet = packetchain->generate_packet();
 
-    packet->set_streambuf(buffer);
+    // use the buffer alias if we can, copy the packet content if we can't
+    if (buffer != nullptr) {
+        packet->set_streambuf(buffer);
+    } else {
+        packet->set_data(std::string(in_packet));
+    }
 
     auto gpsinfo = handle_sub_gps(root, &tree);
     if (cancelled) {

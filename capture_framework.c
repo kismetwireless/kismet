@@ -2100,7 +2100,6 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
     uint32_t packet_sz;
 
     if (len < sizeof(kismet_external_frame_t)) {
-        fprintf(stderr, "DEBUG: runt frame\n");
         return -1;
     }
 
@@ -3190,15 +3189,12 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
         unsigned int command, uint32_t seqno, uint16_t code,
         size_t estimated_len) {
     /* msg record */
-    struct cf_ws_msg *ws_msg;
+    struct cf_ws_msg *ws_msg = NULL;
 
     /* Frame we'll be sending */
-    kismet_external_frame_v3_t *frame;
+    kismet_external_frame_v3_t *frame = NULL;
 
     int n;
-
-    /* Directly inject into the ringbuffer with a zero-copy, ringbuffer
-     * handles non-zero-copy end of buffer situations */
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
@@ -3221,7 +3217,7 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
     // ws_msg->len = len + sizeof(kismet_external_frame_v3_t);
 
     /* Map to the tx frame */
-    frame = (kismet_external_frame_v3_t *) ws_msg->payload;
+    frame = (kismet_external_frame_v3_t *) (ws_msg->payload + LWS_PRE);
 
     /* Set the signature and data size */
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
@@ -3244,7 +3240,7 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, si
 
     wsmsg->len = final_len + sizeof(kismet_external_frame_v3_t);
 
-    frame = (kismet_external_frame_v3_t *) wsmsg->payload;
+    frame = (kismet_external_frame_v3_t *) (wsmsg->payload + LWS_PRE);
     frame->length = htonl(final_len);
 
     /* performing the insert here causes a memcpy of the wsmsg struct,
@@ -3289,7 +3285,7 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, unsigned int command, uint32_
         return 0;
     }
 
-    frame = (kismet_external_frame_v3_t *) wsmsg->payload;
+    frame = (kismet_external_frame_v3_t *) (wsmsg->payload + LWS_PRE);
 
     memcpy(frame->data, data, len);
 
@@ -3313,7 +3309,8 @@ static void cf_free_rb_meta(kis_capture_handler_t *caph,
 #ifdef HAVE_LIBWEBSOCKETS
 static void cf_free_ws_meta(kis_capture_handler_t *caph,
         struct _cf_frame_metadata *meta) {
-    free(meta->frame);
+    struct cf_ws_msg *msg = (struct cf_ws_msg *) meta->metadata;
+    free(msg->payload);
     free(meta->metadata);
 }
 #endif
@@ -3356,7 +3353,7 @@ cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
         meta->free_record = cf_free_ws_meta;
 
         meta->metadata = ws_msg;
-        meta->frame = (kismet_external_frame_v3_t *) ws_msg->payload;
+        meta->frame = (kismet_external_frame_v3_t *) (ws_msg->payload + LWS_PRE);
 
         return meta;
 #endif
