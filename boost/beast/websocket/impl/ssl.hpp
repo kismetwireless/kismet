@@ -21,7 +21,7 @@ namespace beast {
 /*
 
     See
-    http://stackoverflow.com/questions/32046034/what-is-the-proper-way-to-securely-disconnect-an-asio-ssl-socket/32054476#32054476
+    https://stackoverflow.com/questions/32046034/what-is-the-proper-way-to-securely-disconnect-an-asio-ssl-socket/32054476#32054476
 
     Behavior of ssl::stream regarding close_notify
 

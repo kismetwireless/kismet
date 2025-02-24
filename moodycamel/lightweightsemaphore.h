@@ -1,5 +1,5 @@
 // Provides an efficient implementation of a semaphore (LightweightSemaphore).
-// This is an extension of Jeff Preshing's sempahore implementation (licensed 
+// This is an extension of Jeff Preshing's semaphore implementation (licensed
 // under the terms of its separate zlib license) that has been adapted and
 // extended by Cameron Desrochers.
 
@@ -65,7 +65,7 @@ class Semaphore
 {
 private:
 	void* m_hSema;
-	
+
 	Semaphore(const Semaphore& other) MOODYCAMEL_DELETE_FUNCTION;
 	Semaphore& operator=(const Semaphore& other) MOODYCAMEL_DELETE_FUNCTION;
 
@@ -88,12 +88,12 @@ public:
 		const unsigned long infinite = 0xffffffff;
 		return WaitForSingleObject(m_hSema, infinite) == 0;
 	}
-	
+
 	bool try_wait()
 	{
 		return WaitForSingleObject(m_hSema, 0) == 0;
 	}
-	
+
 	bool timed_wait(std::uint64_t usecs)
 	{
 		return WaitForSingleObject(m_hSema, (unsigned long)(usecs / 1000)) == 0;
@@ -107,7 +107,7 @@ public:
 #elif defined(__MACH__)
 //---------------------------------------------------------
 // Semaphore (Apple iOS and OSX)
-// Can't use POSIX semaphores due to http://lists.apple.com/archives/darwin-kernel/2009/Apr/msg00010.html
+// Can't use POSIX semaphores due to https://lists.apple.com/archives/darwin-kernel/2009/Apr/msg00010.html
 //---------------------------------------------------------
 class Semaphore
 {
@@ -135,12 +135,12 @@ public:
 	{
 		return semaphore_wait(m_sema) == KERN_SUCCESS;
 	}
-	
+
 	bool try_wait()
 	{
 		return timed_wait(0);
 	}
-	
+
 	bool timed_wait(std::uint64_t timeout_usecs)
 	{
 		mach_timespec_t ts;
@@ -193,7 +193,7 @@ public:
 
 	bool wait()
 	{
-		// http://stackoverflow.com/questions/2013181/gdb-causes-sem-wait-to-fail-with-eintr-error
+		// https://stackoverflow.com/questions/2013181/gdb-causes-sem-wait-to-fail-with-eintr-error
 		int rc;
 		do {
 			rc = sem_wait(&m_sema);
@@ -396,7 +396,7 @@ public:
 			result = waitManyWithPartialSpinning(max, timeout_usecs);
 		return result;
 	}
-	
+
 	ssize_t waitMany(ssize_t max)
 	{
 		ssize_t result = waitMany(max, -1);
@@ -414,7 +414,7 @@ public:
 			m_sema.signal((int)toRelease);
 		}
 	}
-	
+
 	std::size_t availableApprox() const
 	{
 		ssize_t count = m_count.load(std::memory_order_relaxed);

@@ -256,7 +256,7 @@ public:
             if(ec == net::error::eof)
             {
                 // Rationale:
-                // http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
+                // https://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
                 ec = {};
             }
             if(! ec)

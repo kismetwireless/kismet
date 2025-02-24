@@ -11,7 +11,7 @@
 //---------------------------------------------------------
 
 // Reference:
-// http://stackoverflow.com/questions/14086417/how-to-write-custom-input-stream-in-c
+// https://stackoverflow.com/questions/14086417/how-to-write-custom-input-stream-in-c
 
 #ifndef __ZSTR_HPP
 #define __ZSTR_HPP
@@ -165,7 +165,7 @@ public:
                     unsigned char b1 = *reinterpret_cast< unsigned char * >(in_buff_start + 1);
                     // Ref:
                     // http://en.wikipedia.org/wiki/Gzip
-                    // http://stackoverflow.com/questions/9050260/what-does-a-zlib-header-look-like
+                    // https://stackoverflow.com/questions/9050260/what-does-a-zlib-header-look-like
                     is_text = ! (in_buff_start + 2 <= in_buff_end
                                  && ((b0 == 0x1F && b1 == 0x8B)         // gzip header
                                      || (b0 == 0x78 && (b1 == 0x01      // zlib header

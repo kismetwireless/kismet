@@ -9,4 +9,3 @@ structured and provides the very basic Makefile needed to install it.
 
 For more information on how to write plugins and interface with the Kismet
 web ui framework, look at docs/dev/
-
