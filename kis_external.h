@@ -659,9 +659,10 @@ public:
             return result_handle_packet_ok;
         } else {
             // Unknown type of packet (or legacy v0 protocol which we're phasing out)
-            _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
-                    "compiled with protobuf support; Either upgrade the capture binary "
-                    "or install a version of Kismet compiled with protobufs.");
+            _MSG_ERROR("Kismet external interface got a command frame but was not "
+                    "compiled with support for that version (sig {} version {}); Either "
+                    "upgrade the capture binary or install a version of Kismet which matches "
+                    "the remote capture tool version", frame_v3->v3_sentinel, frame_v3->v3_version);
             trigger_error("Unsupported Kismet protocol");
             return result_handle_packet_error;
         }
