@@ -119,10 +119,14 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     eirlen = le16toh(dev->eir_len);
     name = eir_get_name(dev->eir, eirlen);
 
-    safe_name = json_sanitize_string(name);
+    if (name != NULL) {
+        safe_name = json_sanitize_string(name);
+    } else {
+        safe_name = strdup("");
+    }
 
     snprintf(json, 2048, "{"
-            "\"address\": \"%s\","
+            "\"addr\": \"%s\","
             "\"name\": \"%s\","
             "\"type\": %u"
             "}",
