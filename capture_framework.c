@@ -5040,6 +5040,10 @@ size_t json_sanitize_extra_space(const char *s) {
     size_t result = 0;
     size_t i;
 
+    if (s == NULL) {
+        return 0;
+    }
+
     for (i = 0; i < strlen(s); i++) {
         switch (s[i]) {
             case '"':
@@ -5073,6 +5077,10 @@ size_t json_sanitize_extra_space(const char *s) {
 /* caller must free this string, if it isn't equal to the original
  * pointer. */
 char *json_sanitize_string(char *s) {
+    if (s == NULL) {
+        return NULL;
+    }
+
     size_t space = json_sanitize_extra_space(s);
     char *result = NULL;
     size_t pos, i;
