@@ -76,12 +76,18 @@ void event_bus::trigger_deferred_startup() {
                             std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
                             nlohmann::json json;
 
+                            std::string jsontype = "json";
+
                             try {
                                 ss >> json;
                             } catch (const std::exception& e) {
                                 _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
                                         "/eventbus/events.ws");
                                 return;
+                            }
+
+                            if (!json["format"].is_null()) {
+                                jsontype = json["format"].get<std::string>();
                             }
 
                             if (!json["SUBSCRIBE"].is_null()) {
@@ -93,9 +99,9 @@ void event_bus::trigger_deferred_startup() {
 
                                 auto id =
                                     register_listener(json["SUBSCRIBE"].get<std::string>(),
-                                            [ws, json](std::shared_ptr<eventbus_event> evt) {
+                                            [ws, json, jsontype](std::shared_ptr<eventbus_event> evt) {
                                                 std::stringstream os;
-                                                Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os,
+                                                Globalreg::globalreg->entrytracker->serialize_with_json_summary(jsontype, os,
                                                         evt->get_event_content(), json);
 												auto data = os.str();
                                                 ws->write(data);
