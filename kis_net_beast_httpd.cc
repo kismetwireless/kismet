@@ -390,9 +390,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
                             // Simple echo protocol
-                            ws->write(static_cast<const char *>(buf.data().data()), buf.size());
+                            ws->write(static_cast<const char *>(buf->data().data()), buf->size());
                         });
 
                 ws->text();
@@ -1934,7 +1934,10 @@ void kis_net_web_websocket_endpoint::close_impl() {
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
-    ws_.async_read(buffer_,
+
+    buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
+
+    ws_.async_read(*buffer_.get(),
             boost::asio::bind_executor(
                 strand_,
                 std::bind(
@@ -1946,19 +1949,22 @@ void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_webs
 
 void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, std::size_t) {
     if (ec) {
+        buffer_ = nullptr;
         return close_impl();
     }
 
     if (!running) {
+        buffer_ = nullptr;
         return close_impl();
     }
 
     try {
         handler_cb(shared_from_this(), buffer_, ws_.got_text());
 
-        buffer_.consume(buffer_.size());
 
-        ws_.async_read(buffer_,
+        buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
+
+        ws_.async_read(*buffer_.get(),
                 boost::asio::bind_executor(
                     strand_,
                     std::bind(

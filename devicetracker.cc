@@ -647,14 +647,14 @@ device_tracker::device_tracker() :
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [this, &key_timer_map, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
 
                         if (!text) {
                             ws->close();
                             return;
                         }
 
-                        std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                        std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
                         nlohmann::json json;
 
                         unsigned int req_id;

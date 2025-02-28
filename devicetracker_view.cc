@@ -106,17 +106,17 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                 std::unordered_map<unsigned int, int> key_timer_map;
                 auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
 
-                auto ws = 
+                auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [this, timetracker, &key_timer_map, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
 
                         if (!text) {
                             ws->close();
                             return;
                         }
 
-                        std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                        std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
                         nlohmann::json json;
 
                         unsigned int req_id;

@@ -66,14 +66,14 @@ void event_bus::trigger_deferred_startup() {
                 auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [this, &reg_map](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) mutable {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) mutable {
 
                             if (!text) {
                                 ws->close();
                                 return;
                             }
 
-                            std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                            std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
                             nlohmann::json json;
 
                             std::string jsontype = "json";

@@ -162,20 +162,20 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
 
                                 vs_cast->open_virtual_interface();
 
-                                auto ws = 
+                                auto ws =
                                 std::make_shared<kis_net_web_websocket_endpoint>(con,
                                         [this, virtual_source](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                                            boost::beast::flat_buffer& buf, bool text) {
+                                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
 
                                             // Inject as a packet so it makes it into logs
 
                                             if (!text)
                                                 return;
 
-                                            if (buf.size() < 4)
+                                            if (buf->size() < 4)
                                                 return;
 
-                                            auto bufstr = boost::beast::buffers_to_string(buf.data());
+                                            auto bufstr = boost::beast::buffers_to_string(buf->data());
 
                                             if (bufstr[0] != '*') {
                                                 _MSG_DEBUG("Invalid adsb proxy {}", bufstr);
@@ -227,16 +227,16 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
-                auto ws = 
+                auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
                             // Do nothing on input
                         });
 
                 struct uptr_t {
                     std::shared_ptr<kis_net_web_websocket_endpoint> ws;
-                    kis_adsb_phy *adsb;                
+                    kis_adsb_phy *adsb;
                 };
 
                 auto uptr = new uptr_t();
@@ -253,7 +253,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                     return 0;
 
                                 auto json = in_pack->fetch<kis_json_packinfo>(uptr->adsb->pack_comp_json);
-                            
+
                                 if (json == NULL)
                                     return 0;
 
@@ -325,7 +325,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 } catch (const std::exception& e) {
                     ;
                 }
-            
+
                 packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
                 delete uptr;
             }));
@@ -337,13 +337,14 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) mutable {
+                            std::shared_ptr<boost::asio::streambuf> buf,
+                            bool text) mutable {
                             // Do nothing on input
                         });
 
                 struct uptr_t {
                     std::shared_ptr<kis_net_web_websocket_endpoint> ws;
-                    kis_adsb_phy *adsb;                
+                    kis_adsb_phy *adsb;
                 };
 
                 auto uptr = new uptr_t();
@@ -361,7 +362,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                 return 0;
 
                             auto json = in_pack->fetch<kis_json_packinfo>(uptr->adsb->pack_comp_json);
-                            
+
                             if (json == NULL)
                                 return 0;
 
@@ -416,7 +417,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
                             // Do nothing on input
                         });
 

@@ -1006,7 +1006,7 @@ void datasource_tracker::trigger_deferred_startup() {
                 ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [ds_bridge](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf,bool text) {
 
                         kis_lock_guard<kis_mutex> lk(ds_bridge->mutex, "dst websocket rx");
 
@@ -1018,7 +1018,7 @@ void datasource_tracker::trigger_deferred_startup() {
                         // All remotecap protocol packets are a complete ws message, so if we didn't get enough to
                         // constitute a full packet, throw an error - we're not going to get to build up a buffer
                         auto cmd_ds = ds_bridge->bridged_ds;
-                        auto ret = cmd_ds->handle_external_command(buf.data(), buf.size());
+                        auto ret = cmd_ds->handle_packet(buf);
 
                         if (ret != kis_external_interface::result_handle_packet_ok) {
                             cmd_ds->handle_error(fmt::format("unhandled websocket packet - {}", ret));

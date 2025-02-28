@@ -524,7 +524,7 @@ class kis_net_web_websocket_endpoint : public kis_net_web_endpoint,
 
 public:
     using handler_func_t = std::function<void (std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-            boost::beast::flat_buffer& buf, bool text)>;
+            std::shared_ptr<boost::asio::streambuf> buf, bool text)>;
 
     kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
         kis_net_web_endpoint{},
@@ -571,7 +571,8 @@ protected:
 
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
-    boost::beast::flat_buffer buffer_;
+    // boost::beast::flat_buffer buffer_;
+    std::shared_ptr<boost::asio::streambuf> buffer_;
 	boost::asio::io_context::strand strand_;
 
 	std::queue<std::string, std::deque<std::string>> ws_write_queue_;
