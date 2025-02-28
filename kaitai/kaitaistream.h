@@ -4,13 +4,21 @@
 // Kaitai Struct runtime API version: x.y.z = 'xxxyyyzzz' decimal
 #define KAITAI_STRUCT_VERSION 11000L
 
-#include <istream>
-#include <sstream>
-#include <stdint.h>
-#include <sys/types.h>
-#include <limits>
-#include <stdexcept>
-#include <errno.h>
+// check for C++11 support - https://stackoverflow.com/a/40512515
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+#define KAITAI_STREAM_H_CPP11_SUPPORT
+#endif
+
+#include <stdint.h> // int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
+
+#include <ios> // std::streamsize, forward declaration of std::istream  // IWYU pragma: keep
+#include <limits> // std::numeric_limits
+#include <sstream> // std::istringstream  // IWYU pragma: keep
+#include <string> // std::string
+
+#ifdef KAITAI_STREAM_H_CPP11_SUPPORT
+#include <type_traits> // std::enable_if, std::is_integral
+#endif
 
 namespace kaitai {
 
@@ -163,10 +171,12 @@ public:
     std::string read_bytes(std::streamsize len);
     std::string read_bytes_full();
     std::string read_bytes_term(char term, bool include, bool consume, bool eos_error);
+    std::string read_bytes_term_multi(std::string term, bool include, bool consume, bool eos_error);
     std::string ensure_fixed_contents(std::string expected);
 
     static std::string bytes_strip_right(std::string src, char pad_byte);
     static std::string bytes_terminate(std::string src, char term, bool include);
+    static std::string bytes_terminate_multi(std::string src, std::string term, bool include);
     static std::string bytes_to_str(const std::string src, const char *src_enc);
 
     //@}
@@ -175,18 +185,18 @@ public:
     //@{
 
     /**
-     * Performs a XOR processing with given data, XORing every byte of input with a single
-     * given value.
+     * Performs XOR processing on the given data, XORing each byte of the input with a
+     * single-byte key.
      * @param data data to process
-     * @param key value to XOR with
+     * @param key byte value to XOR with
      * @return processed data
      */
     static std::string process_xor_one(std::string data, uint8_t key);
 
     /**
-     * Performs a XOR processing with given data, XORing every byte of input with a key
-     * array, repeating key array many times, if necessary (i.e. if data array is longer
-     * than key array).
+     * Performs XOR processing on the given data, XORing all bytes of the input with a
+     * multi-byte key, repeating the key as many times as necessary (if the input data is
+     * longer than the key).
      * @param data data to process
      * @param key array of bytes to XOR with
      * @return processed data
@@ -228,8 +238,7 @@ public:
      * since C++11) in older C++ implementations.
      */
     template<typename I>
-// check for C++11 support - https://stackoverflow.com/a/40512515
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1900)
+#ifdef KAITAI_STREAM_H_CPP11_SUPPORT
     // https://stackoverflow.com/a/27913885
     typename std::enable_if<
             std::is_integral<I>::value &&
