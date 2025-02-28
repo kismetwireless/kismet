@@ -308,10 +308,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     (*ret_interface)->hardware = strdup("bladeRF Wiphy");
 
-    free(interface);
-
-    if (ret < 0)
+    if (ret < 0) {
+        free(interface);
         return 0;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
@@ -324,6 +324,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
                 adler32_csum((unsigned char *) interface, strlen(interface)));
         *uuid = strdup(errstr);
     }
+
+    free(interface);
 
     return 1;
 }
