@@ -27,14 +27,95 @@
 #define __BYTE_ORDER    BYTE_ORDER
 #define __BIG_ENDIAN    BIG_ENDIAN
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
-#else // !__APPLE__ or !_MSC_VER or !__QNX__
+#else
+// At this point it's either Linux or BSD. Both have "sys/param.h", so it's safe to include
+#include <sys/param.h> // `BSD` macro  // IWYU pragma: keep
+#if defined(BSD)
+// Supposed to work on FreeBSD: https://man.freebsd.org/cgi/man.cgi?query=bswap16&manpath=FreeBSD+14.0-RELEASE
+// Supposed to work on NetBSD: https://man.netbsd.org/NetBSD-10.0/bswap16.3
+#include <sys/endian.h>
+#include <sys/types.h>
+#define bswap_16(x) bswap16(x)
+#define bswap_32(x) bswap32(x)
+#define bswap_64(x) bswap64(x)
+#define __BYTE_ORDER    BYTE_ORDER
+#define __BIG_ENDIAN    BIG_ENDIAN
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#else // !__APPLE__ or !_MSC_VER or !__QNX__ or !BSD
 #include <endian.h>
 #include <byteswap.h>
 #endif
+#endif
 
-#include <iostream>
-#include <vector>
-#include <stdexcept>
+#include <stdint.h> // int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
+
+#include <algorithm> // std::reverse
+#include <cerrno> // errno, EINVAL, E2BIG, EILSEQ, ERANGE
+#include <cstdlib> // std::size_t, std::strtoll
+#include <cstring> // std::memcpy
+#include <ios> // std::streamsize
+#include <istream> // std::istream  // IWYU pragma: keep
+#include <limits> // std::numeric_limits
+#include <sstream> // std::stringstream, std::ostringstream  // IWYU pragma: keep
+#include <stdexcept> // std::runtime_error, std::invalid_argument, std::out_of_range
+#include <string> // std::string, std::getline
+#include <vector> // std::vector
+
+#ifdef KAITAI_STREAM_H_CPP11_SUPPORT
+#include <type_traits> // std::enable_if, std::is_trivial
+
+// Taken from https://en.cppreference.com/w/cpp/numeric/bit_cast#Possible_implementation
+// (for compatibility with early C++11 compilers like `x86-64 gcc 4.9.4`, `x86-64 clang 3.6` or
+// `x86-64 icc 13.0.1`, `std::is_trivially_copyable` was replaced with `std::is_trivial` and the
+// `std::is_trivially_default_constructible` assertion was omitted)
+template<class To, class From>
+typename std::enable_if<
+        sizeof(To) == sizeof(From) &&
+        std::is_trivial<From>::value &&
+        std::is_trivial<To>::value,
+        To
+>::type
+// constexpr support needs compiler magic
+static bit_cast(const From &src) noexcept
+{
+    // // NOTE: because of `To dst;`, we need the `To` type to be trivially default constructible,
+    // // which is not true for all trivial types:
+    // // https://quuxplusone.github.io/blog/2024/04/02/trivial-but-not-default-constructible/
+    // //
+    // // However, we don't check this requirement (and just assume it's met), because
+    // // `std::is_trivially_default_constructible` is not supported by some (very) old compilers
+    // // with incomplete C++11 support (`x86-64 gcc 4.9.4`, `x86-64 clang 3.6` or
+    // // `x86-64 icc 13.0.1` at https://godbolt.org/).
+    // static_assert(std::is_trivially_default_constructible<To>::value,
+    //               "This implementation additionally requires "
+    //               "destination type to be trivially default constructible");
+
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
+#else
+// The following implementation of `StaticAssert` was inspired by https://stackoverflow.com/a/6765840
+
+// empty default template
+template <bool b>
+struct StaticAssert;
+
+// template specialized on true
+template <>
+struct StaticAssert<true> {};
+
+template<class To, class From>
+To
+static bit_cast(const From &src)
+{
+    StaticAssert<sizeof(To) == sizeof(From)>();
+
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
+#endif
 
 kaitai::kstream::kstream(std::istream *io) {
     m_io = io;
@@ -94,9 +175,9 @@ uint64_t kaitai::kstream::pos() {
 }
 
 uint64_t kaitai::kstream::size() {
-    std::iostream::pos_type cur_pos = m_io->tellg();
-    m_io->seekg(0, std::ios::end);
-    std::iostream::pos_type len = m_io->tellg();
+    std::istream::pos_type cur_pos = m_io->tellg();
+    m_io->seekg(0, std::istream::end);
+    std::istream::pos_type len = m_io->tellg();
     m_io->seekg(cur_pos);
     return len;
 }
@@ -263,7 +344,7 @@ float kaitai::kstream::read_f4be() {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     t = bswap_32(t);
 #endif
-    return reinterpret_cast<float &>(t);
+    return bit_cast<float>(t);
 }
 
 double kaitai::kstream::read_f8be() {
@@ -272,7 +353,7 @@ double kaitai::kstream::read_f8be() {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     t = bswap_64(t);
 #endif
-    return reinterpret_cast<double &>(t);
+    return bit_cast<double>(t);
 }
 
 // ........................................................................
@@ -285,7 +366,7 @@ float kaitai::kstream::read_f4le() {
 #if __BYTE_ORDER == __BIG_ENDIAN
     t = bswap_32(t);
 #endif
-    return reinterpret_cast<float &>(t);
+    return bit_cast<float>(t);
 }
 
 double kaitai::kstream::read_f8le() {
@@ -294,7 +375,7 @@ double kaitai::kstream::read_f8le() {
 #if __BYTE_ORDER == __BIG_ENDIAN
     t = bswap_64(t);
 #endif
-    return reinterpret_cast<double &>(t);
+    return bit_cast<double>(t);
 }
 
 // ========================================================================
@@ -391,7 +472,7 @@ std::string kaitai::kstream::read_bytes(std::streamsize len) {
     std::vector<char> result(len);
 
     // NOTE: streamsize type is signed, negative values are only *supposed* to not be used.
-    // http://en.cppreference.com/w/cpp/io/streamsize
+    // https://en.cppreference.com/w/cpp/io/streamsize
     if (len < 0) {
         throw std::runtime_error("read_bytes: requested a negative amount");
     }
@@ -404,15 +485,14 @@ std::string kaitai::kstream::read_bytes(std::streamsize len) {
 }
 
 std::string kaitai::kstream::read_bytes_full() {
-    std::iostream::pos_type p1 = m_io->tellg();
-    m_io->seekg(0, std::ios::end);
-    std::iostream::pos_type p2 = m_io->tellg();
-    size_t len = p2 - p1;
+    std::istream::pos_type p1 = m_io->tellg();
+    m_io->seekg(0, std::istream::end);
+    std::istream::pos_type p2 = m_io->tellg();
+    std::size_t len = p2 - p1;
 
-    // Note: this requires a std::string to be backed with a
-    // contiguous buffer. Officially, it's a only requirement since
-    // C++11 (C++98 and C++03 didn't have this requirement), but all
-    // major implementations had contiguous buffers anyway.
+    // NOTE: this requires `std::string` to be backed by a contiguous buffer. Officially,
+    // it's only a requirement since C++11 (C++98 and C++03 didn't have this requirement),
+    // but all major implementations had contiguous buffers anyway.
     std::string result(len, ' ');
     m_io->seekg(p1);
     m_io->read(&result[0], len);
@@ -436,6 +516,45 @@ std::string kaitai::kstream::read_bytes_term(char term, bool include, bool consu
             m_io->unget();
     }
     return result;
+}
+
+std::string kaitai::kstream::read_bytes_term_multi(std::string term, bool include, bool consume, bool eos_error) {
+    std::size_t term_len = term.length();
+    if (term_len > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
+        throw std::runtime_error("read_bytes_term_multi: terminator too long");
+    }
+    std::streamsize unit_size = static_cast<std::streamsize>(term_len);
+
+    std::string result;
+    std::string c(term_len, ' ');
+    m_io->exceptions(std::istream::badbit);
+    while (true) {
+        // NOTE: this requires `std::string` to be backed by a contiguous buffer. Officially,
+        // it's only a requirement since C++11 (C++98 and C++03 didn't have this requirement),
+        // but all major implementations had contiguous buffers anyway.
+        m_io->read(&c[0], unit_size);
+        if (m_io->eof()) {
+            m_io->clear();
+            exceptions_enable();
+            if (eos_error) {
+                throw std::runtime_error("read_bytes_term_multi: encountered EOF");
+            }
+            result.append(c, 0, static_cast<std::size_t>(m_io->gcount()));
+            return result;
+        }
+
+        if (c == term) {
+            exceptions_enable();
+            if (include)
+                result += c;
+            if (!consume)
+                m_io->seekg(-unit_size, std::istream::cur);
+
+            return result;
+        }
+
+        result += c;
+    }
 }
 
 std::string kaitai::kstream::ensure_fixed_contents(std::string expected) {
@@ -473,27 +592,49 @@ std::string kaitai::kstream::bytes_terminate(std::string src, char term, bool in
     return src.substr(0, new_len);
 }
 
+std::string kaitai::kstream::bytes_terminate_multi(std::string src, std::string term, bool include) {
+    std::size_t unit_size = term.length();
+    if (unit_size == 0) {
+        return std::string();
+    }
+    std::size_t len = src.length();
+    std::size_t i_term = 0;
+    for (std::size_t i_src = 0; i_src < len;) {
+        if (src[i_src] != term[i_term]) {
+            i_src += unit_size - i_term;
+            i_term = 0;
+            continue;
+        }
+        i_src++;
+        i_term++;
+        if (i_term == unit_size) {
+            return src.substr(0, i_src - (include ? 0 : unit_size));
+        }
+    }
+    return src;
+}
+
 // ========================================================================
 // Byte array processing
 // ========================================================================
 
 std::string kaitai::kstream::process_xor_one(std::string data, uint8_t key) {
-    size_t len = data.length();
+    std::size_t len = data.length();
     std::string result(len, ' ');
 
-    for (size_t i = 0; i < len; i++)
+    for (std::size_t i = 0; i < len; i++)
         result[i] = data[i] ^ key;
 
     return result;
 }
 
 std::string kaitai::kstream::process_xor_many(std::string data, std::string key) {
-    size_t len = data.length();
-    size_t kl = key.length();
+    std::size_t len = data.length();
+    std::size_t kl = key.length();
     std::string result(len, ' ');
 
-    size_t ki = 0;
-    for (size_t i = 0; i < len; i++) {
+    std::size_t ki = 0;
+    for (std::size_t i = 0; i < len; i++) {
         result[i] = data[i] ^ key[ki];
         ki++;
         if (ki >= kl)
@@ -504,10 +645,10 @@ std::string kaitai::kstream::process_xor_many(std::string data, std::string key)
 }
 
 std::string kaitai::kstream::process_rotate_left(std::string data, int amount) {
-    size_t len = data.length();
+    std::size_t len = data.length();
     std::string result(len, ' ');
 
-    for (size_t i = 0; i < len; i++) {
+    for (std::size_t i = 0; i < len; i++) {
         uint8_t bits = data[i];
         result[i] = (bits << amount) | (bits >> (8 - amount));
     }
@@ -517,6 +658,14 @@ std::string kaitai::kstream::process_rotate_left(std::string data, int amount) {
 
 #ifdef KS_ZLIB
 #include <zlib.h>
+
+// This instructs include-what-you-use not to suggest `#include <zconf.h>` just because it contains
+// the definition of `Bytef`. It seems `<zconf.h>` is not a header for public use or at least it's
+// not considered necessary to include it on top of `<zlib.h>`, because official usage examples that
+// use `Bytef` only include `<zlib.h>`, see
+// https://github.com/madler/zlib/blob/0f51fb4933fc9ce18199cb2554dacea8033e7fd3/test/example.c#L71
+//
+// IWYU pragma: no_include <zconf.h>
 
 std::string kaitai::kstream::process_zlib(std::string data) {
     int ret;
@@ -576,10 +725,9 @@ int kaitai::kstream::mod(int a, int b) {
     return r;
 }
 
-#include <algorithm>
 void kaitai::kstream::unsigned_to_decimal(uint64_t number, char *buffer) {
     // Implementation from https://ideone.com/nrQfA8 by Alf P. Steinbach
-    // (see https://www.zverovich.net/2013/09/07/integer-to-string-conversion-in-cplusplus.html#comment-1033931478)
+    // (see https://vitaut.net/posts/2013/integer-to-string-conversion-in-cplusplus/)
     if (number == 0) {
         *buffer++ = '0';
     } else {
@@ -597,7 +745,7 @@ int64_t kaitai::kstream::string_to_int(const std::string& str, int base) {
     char *str_end;
 
     errno = 0;
-    int64_t res = strtoll(str.c_str(), &str_end, base);
+    int64_t res = std::strtoll(str.c_str(), &str_end, base);
 
     // Check for successful conversion and throw an exception if the entire string was not converted
     if (str_end != str.c_str() + str.size()) {
@@ -650,10 +798,7 @@ uint8_t kaitai::kstream::byte_array_max(const std::string val) {
 #endif
 
 #ifdef KS_STR_ENCODING_ICONV
-
 #include <iconv.h>
-#include <cerrno>
-#include <stdexcept>
 
 std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src_enc) {
     iconv_t cd = iconv_open(KS_STR_DEFAULT_ENCODING, src_enc);
@@ -666,13 +811,13 @@ std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src
         }
     }
 
-    size_t src_len = src.length();
-    size_t src_left = src_len;
+    std::size_t src_len = src.length();
+    std::size_t src_left = src_len;
 
     // Start with a buffer length of double the source length.
-    size_t dst_len = src_len * 2;
+    std::size_t dst_len = src_len * 2;
     std::string dst(dst_len, ' ');
-    size_t dst_left = dst_len;
+    std::size_t dst_left = dst_len;
 
     // NB: this should be const char *, but for some reason iconv() requires non-const in its 2nd argument,
     // so we force it with a cast.
@@ -680,13 +825,14 @@ std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src
     char *dst_ptr = &dst[0];
 
     while (true) {
-        size_t res = iconv(cd, &src_ptr, &src_left, &dst_ptr, &dst_left);
+        std::size_t res = iconv(cd, &src_ptr, &src_left, &dst_ptr, &dst_left);
 
-        if (res == (size_t)-1) {
-            if (errno == E2BIG) {
-                // dst buffer is not enough to accomodate whole string
+        if (res == (std::size_t)-1) {
+            const int saved_errno = errno;
+            if (saved_errno == E2BIG) {
+                // dst buffer is not enough to accommodate whole string
                 // enlarge the buffer and try again
-                size_t dst_used = dst_len - dst_left;
+                std::size_t dst_used = dst_len - dst_left;
                 dst_left += dst_len;
                 dst_len += dst_len;
                 dst.resize(dst_len);
@@ -695,12 +841,19 @@ std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src
                 // of memory, thus our previous pointer "dst" will be invalid; re-point
                 // it using "dst_used".
                 dst_ptr = &dst[dst_used];
-            } else if (errno == EILSEQ) {
-                throw illegal_seq_in_encoding("EILSEQ");
-            } else if (errno == EINVAL) {
-                throw illegal_seq_in_encoding("EINVAL");
             } else {
-                throw bytes_to_str_error(to_string(errno));
+                // Try to close the conversion descriptor, ignore any errors: if `iconv_close`
+                // fails, there is nothing we can do, since we mainly want to deliver the error from
+                // `iconv` as an exception. We only call `iconv_close` here to prevent memory leaks,
+                // it is not a critical operation.
+                iconv_close(cd);
+                if (saved_errno == EILSEQ) {
+                    throw illegal_seq_in_encoding("EILSEQ");
+                }
+                if (saved_errno == EINVAL) {
+                    throw illegal_seq_in_encoding("EINVAL");
+                }
+                throw bytes_to_str_error(to_string(saved_errno));
             }
         } else {
             // conversion successful
@@ -721,62 +874,116 @@ std::string kaitai::kstream::bytes_to_str(const std::string src, const char *src
 }
 #elif defined(KS_STR_ENCODING_WIN32API)
 #include <windows.h>
-#include <limits>
 
 // Unbreak std::numeric_limits<T>::max, as otherwise MSVC substitutes "useful" max() macro.
 #undef max
 
 int kaitai::kstream::encoding_to_win_codepage(const char *src_enc) {
     std::string enc(src_enc);
-    if (enc == "UTF-8") {
-        return CP_UTF8;
-    } else if (enc == "UTF-16LE") {
-        return KAITAI_CP_UTF16LE;
-    } else if (enc == "UTF-16BE") {
-        return KAITAI_CP_UTF16BE;
-    } else if (enc == "IBM437") {
-        return 437;
-    } else if (enc == "IBM850") {
-        return 850;
-    } else if (enc == "SHIFT_JIS") {
-        return 932;
-    } else if (enc == "GB2312") {
-        return 936;
-    } else if (enc == "ASCII") {
+
+    // See https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
+    //
+    // This method should handle at least all canonical encoding names listed in
+    // <https://github.com/kaitai-io/kaitai_struct_compiler/blob/5832a81a48e10c3c207748486e09bd58b9aa4000/shared/src/main/scala/io/kaitai/struct/EncodingList.scala>,
+    // preferably in the same order so that both sets of encodings can be easily compared.
+    if (enc == "ASCII")
         return 20127;
-    } else if (enc == "EUC-JP") {
-        return 20932;
-    } else if (enc == "ISO-8859-1") {
-        return 28591;
-    } else if (enc == "ISO-8859-2") {
-        return 28592;
-    } else if (enc == "ISO-8859-3") {
-        return 28593;
-    } else if (enc == "ISO-8859-4") {
-        return 28594;
-    } else if (enc == "ISO-8859-5") {
-        return 28595;
-    } else if (enc == "ISO-8859-6") {
-        return 28596;
-    } else if (enc == "ISO-8859-7") {
-        return 28597;
-    } else if (enc == "ISO-8859-8") {
-        return 28598;
-    } else if (enc == "ISO-8859-9") {
-        return 28599;
-    } else if (enc == "ISO-8859-10") {
-        return 28600;
-    } else if (enc == "ISO-8859-11") {
-        return 28601;
-    } else if (enc == "ISO-8859-13") {
-        return 28603;
-    } else if (enc == "ISO-8859-14") {
-        return 28604;
-    } else if (enc == "ISO-8859-15") {
-        return 28605;
-    } else if (enc == "ISO-8859-16") {
-        return 28606;
+    if (enc == "UTF-8")
+        return CP_UTF8;
+    if (enc == "UTF-16BE")
+        return KAITAI_CP_UTF16BE;
+    if (enc == "UTF-16LE")
+        return KAITAI_CP_UTF16LE;
+    if (enc == "UTF-32BE") {
+        // It has a code page number 12001 assigned to it, but it's "available only to
+        // managed applications", so we can't use it.
+        return KAITAI_CP_UNSUPPORTED;
     }
+    if (enc == "UTF-32LE") {
+        // It has a code page number 12000 assigned to it, but it's "available only to
+        // managed applications", so we can't use it.
+        return KAITAI_CP_UNSUPPORTED;
+    }
+    if (enc == "ISO-8859-1")
+        return 28591;
+    if (enc == "ISO-8859-2")
+        return 28592;
+    if (enc == "ISO-8859-3")
+        return 28593;
+    if (enc == "ISO-8859-4")
+        return 28594;
+    if (enc == "ISO-8859-5")
+        return 28595;
+    if (enc == "ISO-8859-6")
+        return 28596;
+    if (enc == "ISO-8859-7")
+        return 28597;
+    if (enc == "ISO-8859-8")
+        return 28598;
+    if (enc == "ISO-8859-9")
+        return 28599;
+    if (enc == "ISO-8859-10") {
+        // According to <https://docs.rs/encoding_rs/latest/encoding_rs/static.ISO_8859_10.html>:
+        // > The Windows code page number for this encoding is 28600, but kernel32.dll
+        // > does not support this encoding.
+        return KAITAI_CP_UNSUPPORTED;
+    }
+    if (enc == "ISO-8859-11") {
+        // The Windows code page 874 (`windows-874`) is the best match we can use here,
+        // although it's actually an extension of ISO-8859-11, see
+        // https://en.wikipedia.org/wiki/ISO/IEC_8859-11#Code_page_874_(Microsoft)_/_1162
+        return 874;
+    }
+    if (enc == "ISO-8859-13")
+        return 28603;
+    if (enc == "ISO-8859-14") {
+        // According to <https://docs.rs/encoding_rs/latest/encoding_rs/static.ISO_8859_14.html>:
+        // > The Windows code page number for this encoding is 28604, but kernel32.dll
+        // > does not support this encoding.
+        return KAITAI_CP_UNSUPPORTED;
+    }
+    if (enc == "ISO-8859-15")
+        return 28605;
+    if (enc == "ISO-8859-16") {
+        // According to <https://docs.rs/encoding_rs/latest/encoding_rs/static.ISO_8859_16.html>:
+        // > The Windows code page number for this encoding is 28606, but kernel32.dll
+        // > does not support this encoding.
+        return KAITAI_CP_UNSUPPORTED;
+    }
+    if (enc == "windows-1250")
+        return 1250;
+    if (enc == "windows-1251")
+        return 1251;
+    if (enc == "windows-1252")
+        return 1252;
+    if (enc == "windows-1253")
+        return 1253;
+    if (enc == "windows-1254")
+        return 1254;
+    if (enc == "windows-1255")
+        return 1255;
+    if (enc == "windows-1256")
+        return 1256;
+    if (enc == "windows-1257")
+        return 1257;
+    if (enc == "windows-1258")
+        return 1258;
+    if (enc == "IBM437")
+        return 437;
+    if (enc == "IBM850")
+        return 850;
+    if (enc == "IBM866")
+        return 866;
+    if (enc == "Shift_JIS")
+        return 932;
+    if (enc == "GB2312")
+        return 936;
+    if (enc == "Big5")
+        return 950;
+    if (enc == "EUC-JP")
+        return 20932;
+    if (enc == "EUC-KR")
+        return 51949;
 
     return KAITAI_CP_UNSUPPORTED;
 }
@@ -806,7 +1013,7 @@ std::string kaitai::kstream::bytes_to_str(const std::string src, int codepage) {
     std::wstring utf16;
     int32_t utf16_len;
     int32_t src_len;
-    if (src.length() > std::numeric_limits<int32_t>::max()) {
+    if (src.length() > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
         throw bytes_to_str_error("buffers longer than int32_t are unsupported");
     } else {
         src_len = static_cast<int32_t>(src.length());
