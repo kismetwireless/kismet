@@ -50,7 +50,7 @@ typedef struct {
     char **rtl_argv;
 } local_rtl433_t;
 
-unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
+unsigned long human_to_hz(const char *in_str, unsigned int in_len) {
     char *fixedstr = NULL;
     char scale[5];
     double f;
@@ -64,13 +64,13 @@ unsigned int human_to_hz(const char *in_str, unsigned int in_len) {
     r = sscanf(fixedstr, "%lf%4s", &f, scale);
 
     if (r == 2) {
-        if (strcasecmp("mhz", scale) != 0) {
+        if (strcasecmp("mhz", scale) == 0) {
             free(fixedstr);
             return f * 1000 * 1000;
-        } else if (strcasecmp("khz", scale) != 0) {
+        } else if (strcasecmp("khz", scale) == 0) {
             free(fixedstr);
             return f * 1000;
-        } else if (strcasecmp("hz", scale) != 0) {
+        } else if (strcasecmp("hz", scale) == 0) {
             free(fixedstr);
             return f;
         }
@@ -433,7 +433,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     (*ret_interface)->channels = (char **) malloc(sizeof(char *));
-    snprintf(buf, STATUS_MAX, "%4.6fMHz", (float) local433->freq / 1024.0f / 1024.0f);
+    snprintf(buf, STATUS_MAX, "%4.6fMHz", (float) local433->freq / 1000.0f / 1000.0f);
     (*ret_interface)->channels[0] = strdup(buf);
     (*ret_interface)->channels_len = 1;
 
