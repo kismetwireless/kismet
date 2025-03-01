@@ -75,9 +75,9 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
 
     set_phy_name("802.15.4");
 
-    packetchain = 
+    packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
-    entrytracker = 
+    entrytracker =
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
@@ -92,7 +92,7 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
 
     // Extract the dynamic DLT
-    auto dltt = 
+    auto dltt =
         Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
     dlt = KDLT_IEEE802_15_4_NOFCS;
 
@@ -261,7 +261,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 	    dest_pan[1] = packdata->data()[pkt_ctr];
             dest_pan[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
-		
+
             dest[1] = packdata->data()[pkt_ctr];
             dest[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
@@ -408,7 +408,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     if (in_pack->duplicate) {
         auto source_dev = mphy->devicetracker->update_common_device(common,
                 common->source, mphy, in_pack,
-                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | 
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
                 "802.15.4");
     }
