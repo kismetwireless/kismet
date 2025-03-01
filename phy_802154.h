@@ -45,7 +45,7 @@
 #include "tap_802_15_4.h"
 
 #ifndef KDLT_IEEE802_15_4_TAP
-#define KDLT_IEEE802_15_4_TAP             283 
+#define KDLT_IEEE802_15_4_TAP             283
 #endif
 
 #ifndef KDLT_IEEE802_15_4_NOFCS
@@ -56,7 +56,7 @@
  * much of anything */
 class kis_802154_tracked_device : public tracker_component {
 public:
-    kis_802154_tracked_device() : 
+    kis_802154_tracked_device() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -68,7 +68,7 @@ public:
         reserve_fields(NULL);
     }
 
-    kis_802154_tracked_device(int in_id, 
+    kis_802154_tracked_device(int in_id,
         std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
