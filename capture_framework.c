@@ -2111,8 +2111,11 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-        fprintf(stderr, "FATAL: Capture source (%s) invalid frame header received\n",
-				caph->capsource_type);
+        fprintf(stderr,
+                "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
+                "Capture source got an unknown protocol signature, please upgrade the\n"
+                "Kismet server install to a more recent version of Kismet.\n",
+                caph->capsource_type);
         return -1;
     }
 
