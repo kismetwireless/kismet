@@ -864,7 +864,9 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
     // Check the frame signature
     if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-        _MSG_ERROR("Kismet external interface got command frame with invalid signature");
+        _MSG_ERROR("Kismet external interface got an unexpected command "
+                "frame.  You most likely need to upgrade the Kismet datasource "
+                "binaries (kismet_cap_...) to match your Kismet server version.");
         trigger_error("invalid signature on command frame");
         return result_handle_packet_error;
     }
@@ -881,10 +883,9 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
         if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
-            _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                    "be processed ({}); either the frame is malformed or you are connecting to "
-                    "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                    "Kismet on all connected systems.", frame_sz);
+            _MSG_ERROR("Kismet external interface got an oversized command "
+                    "frame.  You most likely need to upgrade the Kismet datasource "
+                    "binaries (kismet_cap_...) to match your Kismet server version.");
             trigger_error("command frame too large for buffer");
             return result_handle_packet_error;
         }
@@ -911,9 +912,10 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         dispatch_rx_packet(command, seqno, content);
 
 #else
-        _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
-                "compiled with protobuf support; Either upgrade the capture binary "
-                "or install a version of Kismet compiled with protobufs.");
+        _MSG_ERROR("Kismet external interface got an v2 command frame, but this "
+                "Kismet server was not compiled with protobufs support.  Either "
+                "upgrade the capture tool (kismet_cap_...) or install a "
+                "build of the Kismet server with protobufs enabled.");
         trigger_error("Unsupported Kismet protocol");
         return result_handle_packet_error;
 #endif
@@ -926,11 +928,10 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         frame_sz = data_sz + sizeof(kismet_external_frame_v3);
 
         if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
-            _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                    "be processed ({}); either the frame is malformed or you are connecting to "
-                    "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                    "Kismet on all connected systems.", frame_sz);
-            trigger_error("Command frame too large for buffer");
+            _MSG_ERROR("Kismet external interface got an oversized command "
+                    "frame.  You most likely need to upgrade the Kismet datasource "
+                    "binaries (kismet_cap_...) to match your Kismet server version.");
+            trigger_error("command frame too large for buffer");
             return result_handle_packet_error;
         }
 
@@ -954,9 +955,10 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         return result_handle_packet_ok;
     } else {
         // Unknown type of packet (or legacy v0 protocol which we're phasing out)
-        _MSG_ERROR("Kismet external interface got a v2 command frame but was not "
-                "compiled with protobuf support; Either upgrade the capture binary "
-                "or install a version of Kismet compiled with protobufs.");
+        _MSG_ERROR("Kismet external interface got an v2 command frame, but this "
+                "Kismet server was not compiled with protobufs support.  Either "
+                "upgrade the capture tool (kismet_cap_...) or install a "
+                "build of the Kismet server with protobufs enabled.");
         trigger_error("Unsupported Kismet protocol");
         return result_handle_packet_error;
     }
