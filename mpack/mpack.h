@@ -661,6 +661,7 @@
  * are defined. (@c NDEBUG is not used since it is allowed to have
  * different values in different translation units.)
  */
+/*
 #if !defined(MPACK_DEBUG)
     #if defined(DEBUG) || defined(_DEBUG)
         #define MPACK_DEBUG 1
@@ -668,6 +669,7 @@
         #define MPACK_DEBUG 0
     #endif
 #endif
+*/
 
 /**
  * @def MPACK_STRINGS
