@@ -10528,9 +10528,9 @@ printf %s "checking for paths from homebrew... " >&6; }
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: ok" >&5
 printf "%s\n" "ok" >&6; }
 
-        LDFLAGS="-L`brew --prefix`/lib $LDFLAGS"
-        CPPFLAGS="-I`brew --prefix`/include -I`brew --prefix openssl`/include $CPPFLAGS"
-        SSL_DIRS=`brew --prefix openssl`
+        LDFLAGS="-L`/opt/homebrew/bin/brew --prefix`/lib $LDFLAGS"
+        CPPFLAGS="-I`/opt/homebrew/bin/brew --prefix`/include -I`/opt/homebrew/bin/brew --prefix openssl`/include $CPPFLAGS"
+        SSL_DIRS=`/opt/homebrew/bin/brew --prefix openssl`
 
 fi
 

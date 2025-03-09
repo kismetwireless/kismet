@@ -306,9 +306,9 @@ AS_IF([test x"$want_homebrew" != x"no"],
         AC_MSG_CHECKING([for paths from homebrew])
         AC_MSG_RESULT([ok])
 
-        LDFLAGS="-L`brew --prefix`/lib $LDFLAGS"
-        CPPFLAGS="-I`brew --prefix`/include -I`brew --prefix openssl`/include $CPPFLAGS"
-        SSL_DIRS=`brew --prefix openssl`
+        LDFLAGS="-L`/opt/homebrew/bin/brew --prefix`/lib $LDFLAGS"
+        CPPFLAGS="-I`/opt/homebrew/bin/brew --prefix`/include -I`/opt/homebrew/bin/brew --prefix openssl`/include $CPPFLAGS"
+        SSL_DIRS=`/opt/homebrew/bin/brew --prefix openssl`
     ],
     []
 )
