@@ -59,7 +59,7 @@
 
 #define MAX_PACKET_LEN  8192
 
-@interface CoreWLANHolder : NSObject 
+@interface CoreWLANHolder : NSObject
 @property (retain) CWInterface *interface;
 @property (retain) NSArray<CWChannel *> *channels;
 @end
@@ -283,7 +283,7 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     }
 }
 
-int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char ***chanlist, 
+int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char ***chanlist,
         size_t *chanlist_sz) {
     char conv_chan[16];
     int num_chans;
@@ -359,7 +359,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
     if (corewlan_set_channel(local_wifi, channel->pos) < 0) {
         local_channel_to_str(channel, chanstr);
-        snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
+        snprintf(msg, STATUS_MAX, "failed to set channel %s: %s",
                 chanstr, errstr);
 
         if (seqno == 0) {
@@ -394,7 +394,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         [[CWWiFiClient sharedWiFiClient] interfaces];
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return 0;
     }
 
@@ -428,13 +428,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if (ret < 0)
         return 0;
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strdup(placeholder);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-                adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi", 
+                adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi",
                     strlen("kismet_cap_osx_corewlan_wifi")) & 0xFFFFFFFF,
                 hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
                 hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
@@ -448,12 +448,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-    
+
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
 
     char *placeholder = NULL;
     int placeholder_len;
-    
+
     uint8_t hwaddr[6];
 
     char errstr[STATUS_MAX];
@@ -473,7 +473,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     NSArray<CWInterface *> *cw_interfaces =
         [[CWWiFiClient sharedWiFiClient] interfaces];
 
-    /* Clean up any existing local state on open; we can get re-opened if we're a 
+    /* Clean up any existing local state on open; we can get re-opened if we're a
      * remote source */
     if (local_wifi->interface) {
         free(local_wifi->interface);
@@ -493,7 +493,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Start processing the open */
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return -1;
     }
 
@@ -521,13 +521,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strdup(placeholder);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-                adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi", 
+                adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi",
                     strlen("kismet_cap_osx_corewlan_wifi")) & 0xFFFFFFFF,
                 hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
                 hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
@@ -544,7 +544,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    ret = populate_chanlist(local_wifi, local_wifi->cap_interface, errstr, 
+    ret = populate_chanlist(local_wifi, local_wifi->cap_interface, errstr,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
 
     if (ret < 0) {
@@ -561,7 +561,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (local_wifi->pd == NULL || strlen(pcap_errstr) != 0) {
         snprintf(msg, STATUS_MAX, "Could not open capture interface '%s' on '%s' "
-                "as a pcap capture: %s", local_wifi->cap_interface, 
+                "as a pcap capture: %s", local_wifi->cap_interface,
                 local_wifi->interface, pcap_errstr);
         return -1;
     }
@@ -576,7 +576,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (pcap_set_rfmon(local_wifi->pd, 1) < 0) {
         printf("set rfmon failed\n");
 /*
-        snprintf(msg, STATUS_MAX, 
+        snprintf(msg, STATUS_MAX,
                 "Could not enable monitor mode on interface '%s'",
                 local_wifi->interface);
         return -1;
@@ -595,17 +595,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     snprintf(msg, STATUS_MAX, "OSX Wi-Fi capturing from interface '%s'",
             local_wifi->interface);
 
-    if ((placeholder_len = 
+    if ((placeholder_len =
                 cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
 
-        localchan = 
+        localchan =
             (local_channel_t *) chantranslate_callback(caph, localchanstr);
 
         free(localchanstr);
 
         if (localchan == NULL) {
-            snprintf(msg, STATUS_MAX, 
+            snprintf(msg, STATUS_MAX,
                     "Could not parse channel= option provided in source "
                     "definition");
             return -1;
@@ -614,7 +614,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_channel_to_str(localchan, errstr);
         (*ret_interface)->chanset = strdup(errstr);
 
-        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", 
+        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s",
                 (*ret_interface)->chanset);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
 
@@ -632,7 +632,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *msg, cf_params_list_interface_t ***interfaces) {
 
-    NSArray<CWInterface *> *cw_interfaces = 
+    NSArray<CWInterface *> *cw_interfaces =
         [[CWWiFiClient sharedWiFiClient] interfaces];
 
     int num_corewlan_devs;
@@ -640,11 +640,11 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
 	num_corewlan_devs = [cw_interfaces count];
 
-    if (num_corewlan_devs <= 0) 
+    if (num_corewlan_devs <= 0)
         return 0;
 
-    *interfaces = 
-        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * 
+    *interfaces =
+        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) *
                 num_corewlan_devs);
 
     for (di = 0; di < num_corewlan_devs; di++) {
@@ -692,7 +692,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     char iferrstr[STATUS_MAX];
     int ifflags = 0, ifret;
 
-    /* Simple capture thread: since we don't care about blocking and 
+    /* Simple capture thread: since we don't care about blocking and
      * channel control is managed by the channel hopping thread, all we have
      * to do is enter a blocking pcap loop */
 
@@ -700,8 +700,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     pcap_errstr = pcap_geterr(local_wifi->pd);
 
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' closed: %s", 
-            local_wifi->cap_interface, 
+    snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' closed: %s",
+            local_wifi->cap_interface,
             strlen(pcap_errstr) == 0 ? "interface closed" : pcap_errstr );
 
     cf_send_error(caph, 0, errstr);
@@ -737,7 +737,7 @@ int main(int argc, char *argv[]) {
     dup2(fileno(sterr), STDOUT_FILENO);
 #endif
 
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init]; 
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
     CoreWLANHolder *holder = [CoreWLANHolder alloc];
     local_wifi.cw_holder = holder;
