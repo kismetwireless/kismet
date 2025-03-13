@@ -2,7 +2,6 @@ Kismet-HTTPPROXYTEST
 
 This plugin is a demo of the external tool / proxy framework
 
-
 Installing:
 
 $ sudo su
@@ -20,5 +19,3 @@ or installable via pip3:
 ```bash
 $ pip3 install python-kismet-external
 ```
-
-
