@@ -3637,7 +3637,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
     uint32_t seqno;
 
     /* Send messages independently */
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) > 0) {
         if (success) {
             if (caph->verbose)
                 fprintf(stderr, "INFO: %s\n", msg);
@@ -3748,7 +3748,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     uint32_t seqno;
 
-    if (msg != NULL) {
+    if (msg != NULL && strlen(msg) != 0) {
         if (success) {
             if (caph->verbose)
                 fprintf(stderr, "INFO: %s\n", msg);
@@ -3759,8 +3759,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
         est_len += strlen(msg);
     }
-
-    est_len += strlen(uuid);
 
     if (interface != NULL) {
         est_len += 16;
