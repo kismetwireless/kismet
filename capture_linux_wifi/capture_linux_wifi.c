@@ -1403,6 +1403,12 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
+    /* get the mac address; this should be standard for anything */
+    if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
+        free(interface);
+        return 0;
+    }
+
     /* get the driver */
     linux_getsysdrv(interface, driver);
 
@@ -1412,12 +1418,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
                 "wireless switch if you have one.", interface);
         free(interface);
         return -1;
-    }
-
-    /* get the mac address; this should be standard for anything */
-    if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
-        free(interface);
-        return 0;
     }
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
@@ -2072,7 +2072,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(msg, STATUS_MAX, "Could not acquire the interface lockfile (%s), check the Kismet linuxwifi documentation for more information.", strerror(ret));
         return -1;
     }
-
 
     /* get the mac address; this should be standard for anything */
     if (ifconfig_get_hwaddr(local_wifi->interface, errstr, hwaddr) < 0) {
