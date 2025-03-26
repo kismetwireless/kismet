@@ -745,14 +745,14 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     if (strcasestr(chanstr, "HT20") != NULL) {
         r = sscanf(chanstr, "%uHT20", &parsechan);
 
-        /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
-        if (parsechan <= 14) {
-            band_guess = wifi_band_2ghz;
-        } else if (parsechan <= 196) {
-            band_guess = wifi_band_5ghz;
-        }
-
         if (r == 1) {
+            /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
+            if (parsechan <= 14) {
+                band_guess = wifi_band_2ghz;
+            } else if (parsechan <= 196) {
+                band_guess = wifi_band_5ghz;
+            }
+
             ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
             memset(ret_localchan, 0, sizeof(local_channel_t));
 
@@ -761,6 +761,12 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
             (ret_localchan)->chan_type = NL80211_CHAN_HT20;
 
             return ret_localchan;
+        } else {
+            snprintf(errstr, STATUS_MAX, "%s could not parse channel %s; this does "
+                    "not appear to be a valid HT20 channel",
+                    local_wifi->name, chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+            return NULL;
         }
     }
 
@@ -772,6 +778,14 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         ret_localchan->chan_band = band_guess;
 
         r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
+
+        if (r != 2) {
+            snprintf(errstr, STATUS_MAX, "%s could not parse channel %s; this does "
+                    "not appear to be a valid HT40 channel",
+                    local_wifi->name, chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+            return NULL;
+        }
 
         /* Guess at the band from the channel #, we already eliminated 6ghz overlapping channels above */
         if (parsechan <= 14) {
@@ -790,7 +804,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
 
                 /* Search for the ht channel record */
                 for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
-                    if (wifi_ht_channels[ci].chan == parsechan || 
+                    if (wifi_ht_channels[ci].chan == parsechan ||
                             wifi_ht_channels[ci].freq == parsechan) {
 
                         if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40MINUS) == 0) {
@@ -798,8 +812,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                                     "channel; this does not appear to be a valid channel "
                                     "for 40MHz operation.", local_wifi->name, parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_INFO);
+                            return NULL;
                         }
-
                     }
                 }
             } else if (mod == '+') {
@@ -808,9 +822,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                 (ret_localchan)->center_freq1 = (ret_localchan)->control_freq + 10;
 
                 /* Search for the ht channel record */
-                for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                for (ci = 0; ci < sizeof(wifi_ht_channels) /
                         sizeof (wifi_channel); ci++) {
-                    if (wifi_ht_channels[ci].chan == parsechan || 
+                    if (wifi_ht_channels[ci].chan == parsechan ||
                             wifi_ht_channels[ci].freq == parsechan) {
 
                         if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40PLUS) == 0) {
@@ -818,6 +832,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                                     "channel; this does not appear to be a valid channel "
                                     "for 40MHz operation.", parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_INFO);
+                            return NULL;
                         }
                     }
                 }
@@ -827,6 +842,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
             snprintf(errstr, STATUS_MAX, "unable to parse attributes on channel "
                     "'%s', treating as standard non-HT channel.", chanstr);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
+            return NULL;
         }
 
         return ret_localchan;
@@ -875,15 +891,15 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                 (ret_localchan)->unusual_center1 = 1;
             } else {
                 /* Search for the vht channel record to find the 80mhz center freq */
-                for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                for (ci = 0; ci < sizeof(wifi_ht_channels) /
                         sizeof (wifi_channel); ci++) {
-                    if (wifi_ht_channels[ci].chan == parsechan || 
+                    if (wifi_ht_channels[ci].chan == parsechan ||
                             wifi_ht_channels[ci].freq == parsechan) {
 
                         if ((wifi_ht_channels[ci].flags & WIFI_HT_HT80) == 0) {
                             snprintf(errstr, STATUS_MAX, "requested channel %u as a "
                                     "VHT80 channel; this does not appear to be a valid "
-                                    "channel for 80MHz operation, skipping channel", 
+                                    "channel for 80MHz operation, skipping channel",
                                     parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_ERROR);
                             free(ret_localchan);
@@ -899,7 +915,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                 /* Fall through to error state if we found no valid vht80 channel */
                 snprintf(errstr, STATUS_MAX, "requested channel %u as a "
                         "VHT80 channel; this does not appear to be a valid "
-                        "channel for 80MHz operation, skipping channel", 
+                        "channel for 80MHz operation, skipping channel",
                         parsechan);
                 cf_send_message(caph, errstr, MSGFLAG_ERROR);
                 free(ret_localchan);
@@ -914,9 +930,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                 (ret_localchan)->unusual_center1 = 1;
             } else {
                 /* Search for the vht channel record to find the 160mhz center freq */
-                for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                for (ci = 0; ci < sizeof(wifi_ht_channels) /
                         sizeof (wifi_channel); ci++) {
-                    if (wifi_ht_channels[ci].chan == parsechan || 
+                    if (wifi_ht_channels[ci].chan == parsechan ||
                             wifi_ht_channels[ci].freq == parsechan) {
 
                         if ((wifi_ht_channels[ci].flags & WIFI_HT_HT160) == 0) {
