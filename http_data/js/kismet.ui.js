@@ -1080,7 +1080,10 @@ exports.InitializeDeviceTable = function(element) {
         ajax: {
             url: local_uri_prefix + "devices/views/" + kismet.getStorage('kismet.ui.deviceview.selected', 'all') + "/devices.json",
             data: {
-                json: JSON.stringify(json)
+                json: JSON.stringify(json),
+            },
+            dataSrc: function(json) {
+                return kismet.sanitizeObject(json.data);
             },
             error: function(jqxhr, status, error) {
                 // Catch missing views and reset
