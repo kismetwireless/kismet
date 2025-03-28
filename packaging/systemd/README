@@ -2,7 +2,7 @@ Kismet Service (and Debug Service)
 
 # Purpose
 
-    The Kismet service runs Kismet, via systemd.  For running Kismet under full debug mode
+    The Kismet service runs Kismet, via systemd. For running Kismet under full debug mode
     (for helping with development or tracking down errors), see the README in the
     kismet_debug/ directory.
 
@@ -17,12 +17,12 @@ Kismet Service (and Debug Service)
     By default, the Kismet systemd service runs Kismet as root; this is NOT best practices
     but it is the only user consistently available.
 
-    It is STONGLY recommended that you install Kismet as suid-root via `make suidinstall`,
-    and that you run Kismet as a non-privileged user.  Kismet will then limit root 
+    It is STRONGLY recommended that you install Kismet as suid-root via `make suidinstall`,
+    and that you run Kismet as a non-privileged user. Kismet will then limit root
     access to the capture binaries which control individual interfaces.
 
     To set up Kismet to run as a user, first follow the install directions in the Kismet
-    README file, and install the Kismet systemd service as above.  Then, use the
+    README file, and install the Kismet systemd service as above. Then, use the
     `systemctl edit` command to configure the Kismet server; for instance if you want to
     run Kismet as the user 'kismet':
 
@@ -34,8 +34,8 @@ Kismet Service (and Debug Service)
         User=kismet
         Group=kismet
 
-    and save.  Now systemd will start Kismet as the 'kismet' user.  If you want to 
-    automatically start Kismet as some other user (such as the one you normally log in as), 
+    and save. Now systemd will start Kismet as the 'kismet' user. If you want to
+    automatically start Kismet as some other user (such as the one you normally log in as),
     put that user in the User= line.
 
 # Activating
@@ -47,5 +47,3 @@ Kismet Service (and Debug Service)
     To start Kismet by default on boot:
 
         $ sudo systemctl enable kismet
-
-
