@@ -21,7 +21,7 @@
 
 #define VERSION_MAJOR	"2023"
 #define VERSION_MINOR	"07"
-#define VERSION_TINY	"R1"
+#define VERSION_TINY	"R2"
 
 extern const char *VERSION_GIT_COMMIT;
 extern const char *VERSION_BUILD_TIME;
