@@ -2941,7 +2941,6 @@ kismet_ui_tabpane.AddTab({
 kismet_ui_tabpane.AddTab({
     id: 'channels',
     tabTitle: 'Channels',
-    expandable: true,
     createCallback: function(div) {
         div.channels();
     },
