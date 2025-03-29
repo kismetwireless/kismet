@@ -3821,6 +3821,11 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT);
     mpack_write_u32(&writer, dlt);
 
+    if (uuid != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID);
+        mpack_write_cstr(&writer, uuid);
+    }
+
     if (interface != NULL) {
         if (interface->capif != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CAPIF);
