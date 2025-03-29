@@ -1714,7 +1714,7 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
 
-        merge_target_device->connect_remote(in_definition, incoming, connect_tcp,
+        merge_target_device->connect_remote(in_definition, incoming, in_uuid, connect_tcp,
                 [this, merge_target_device](unsigned int, bool success, std::string msg) {
                     if (success) {
                         _MSG_INFO("Remote source {} ({}) reconnected",
@@ -1744,15 +1744,14 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
 
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
-            ds->connect_remote(in_definition, incoming, connect_tcp,
-                [this, ds](unsigned int, bool success, std::string msg) {
+            ds->connect_remote(in_definition, incoming, in_uuid, connect_tcp,
+                [this, ds, in_uuid](unsigned int, bool success, std::string msg) {
                     if (success) {
-                        _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(),
-                                ds->get_source_uuid());
+                        _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(), in_uuid);
                         merge_source(ds);
                     } else {
                         _MSG_ERROR("Error connecting new remote source {} ({}) - {}",
-                                ds->get_source_name(), ds->get_source_uuid(), msg);
+                                ds->get_source_name(), in_uuid, msg);
                         broken_source_vec.push_back(ds);
                     }
                 });

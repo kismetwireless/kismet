@@ -444,7 +444,7 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
 }
 
 void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote,
-        bool in_tcp, configure_callback_t in_cb) {
+        const uuid& uuid, bool in_tcp, configure_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource connect_remote");
 
     cancelled = false;
@@ -466,6 +466,8 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     set_int_source_running(true);
     set_int_source_definition(in_definition);
     set_int_source_error(false);
+
+    set_source_uuid(uuid);
 
     // Populate our local info about the interface
     if (!parse_source_definition(in_definition)) {
