@@ -307,10 +307,50 @@ exports.RrdDrag = function(data, opt, rrd) {
     // If there are no elements after the empty slot, fill with the last valid value
 
     const nilval = rrd['kismet.common.rrd.blank_val'] ;
-    let last = nilval;
-    let last_pos = -1;
-    let fill_start = -1;
+    let last = [nilval, -1];
 
+    // find the next fill forward from where we are
+    let find_fill_forward = (pos) => {
+        for (let ri = pos; ri < data.length; ri++) {
+            if (data[ri] !== nilval) {
+                return [data[ri], ri];
+            }
+        }
+
+        return [nilval, data.length];
+    };
+
+    // fill nil values with their future value
+    let fill = [nilval, -1];
+
+    for (let ri = 0; ri < data.length; ri++) {
+        if (data[ri] !== nilval) {
+            last = [data[ri], ri];
+            continue;
+        }
+
+        if (data[ri] === nilval) {
+            // if we don't know the next filled value, find it
+            if (fill[0] === nilval || fill[1] < ri) {
+                fill = find_fill_forward(ri + 1);
+            }
+
+            if (last[0] != nilval) {
+                // no future fill value, known last value
+                if (fill[0] == nilval) {
+                    data[ri] = last[0];
+                    continue;
+                }
+
+                // weighted average
+                data[ri] = ((last[0] * (ri - last[ri])) + (fill[0] * (fill[1] - ri))) / (fill[1] - last[1]);
+            } else if (fill[0] != nilval) {
+                data[ri] = fill[0];
+            }
+        }
+    }
+
+    /*
     for (let ri = 0; ri < data.length; ri++) {
         if (data[ri] !== nilval) {
             if (fill_start != -1) {
@@ -354,6 +394,7 @@ exports.RrdDrag = function(data, opt, rrd) {
             data[ri] = last;
         }
     }
+    */
 
     return data;
 
