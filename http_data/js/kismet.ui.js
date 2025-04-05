@@ -566,12 +566,14 @@ exports.DeviceDetailWindow = function(key) {
 
             window['storage_devlist_' + key] = {};
 
-            window['storage_devlist_' + key]['foobar'] = 'bar';
-
             panel.updater = function() {
                 if (exports.window_visible) {
                     $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                         .done(function(fulldata) {
+                            if (!panel.active) {
+                                return;
+                            }
+
                             fulldata = kismet.sanitizeObject(fulldata);
 
                             panel.headerTitle("Device: " + kismet.censorString(fulldata['kismet.device.base.commonname']));
@@ -642,12 +644,15 @@ exports.DeviceDetailWindow = function(key) {
                                 "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
                         })
                         .always(function() {
-                            panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                            if (panel.active) {
+                                panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                            }
                         })
                 } else {
-                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                    if (panel.active) {
+                        panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                    }
                 }
-
             };
 
             panel.updater();
