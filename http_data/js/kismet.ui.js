@@ -94,13 +94,13 @@ exports.BuildDeviceViewSelector = function(element) {
 
     var insert_selector = false;
     var selector = $('select', element);
-    if (selector.length == 0) { 
+    if (selector.length == 0) {
         selector = $('<select>', {
             name: 'devices_views_select',
             id: 'devices_views_select',
         });
         insert_selector = true;
-    } else { 
+    } else {
         selector.empty();
     }
 
@@ -132,7 +132,7 @@ exports.BuildDeviceViewSelector = function(element) {
     var selected_option = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
     $('option[value="' + selected_option + '"]', selector).prop("selected", "selected");
 
-    if (insert_selector) { 
+    if (insert_selector) {
         element.append(selector);
     }
 
@@ -234,12 +234,12 @@ var DeviceColumns = new Array();
 // Device row highlights, consisting of fields, function, name, and color
 var DeviceRowHighlights = new Array();
 
-/* Add a column to the device list which is called by the table renderer 
+/* Add a column to the device list which is called by the table renderer
  *
- * The formatter should return an object, and is given the cell content and 
+ * The formatter should return an object, and is given the cell content and
  * row content.
  *
- * Formatters define the columns they pull - multiple fields can be added as 
+ * Formatters define the columns they pull - multiple fields can be added as
  * invisible helpers for the current column.
  *
  * Required options:
@@ -254,14 +254,14 @@ var DeviceRowHighlights = new Array();
  *
  * Optional functional options:
  * 'searchable': Field is included in searches
- * 'fields': Array of optional fields (as single or Kismet alias array); additional fields are used 
+ * 'fields': Array of optional fields (as single or Kismet alias array); additional fields are used
  *           by some column renderers to process additional information or to ensure that additional
  *           fields are available; for example the 'channel' column utilizes additional fields to ensure
  *           the presence of the frequency and phyname fields required to render channels intelligently
  *           if the basic info is not available.
  * 'sortfield': Field used for sorting on this column; by default, this is the field passed
  *              as 'field'
- * 'render': Render function that accepts field data, row data, raw cell, an onrender callback 
+ * 'render': Render function that accepts field data, row data, raw cell, an onrender callback
  *           for manipulating the cell once the dom has rendered, and optional parameter
  *           data, and returns a formatted result.
  * 'auxdata': Optional parameter data passed to the render function
@@ -326,7 +326,7 @@ exports.AddDeviceColumn = (id, options) => {
 }
 
 /* Add a hidden device column that is used for other utility, but not specifically displayed;
- * for instance the device key column must always be present. 
+ * for instance the device key column must always be present.
  *
  * Required elements in the column definition:
  * 'field': Field definition, either string, path, or Kismet simplification array
@@ -351,10 +351,10 @@ exports.AddHiddenDeviceColumn({'field': "kismet.device.base.key"});
 
 var devicelistIconMatch = [];
 
-/* Add an icon matcher; return a html string for the icon (font-awesome or self-embedded svg) 
+/* Add an icon matcher; return a html string for the icon (font-awesome or self-embedded svg)
  * that is used in the menu/icon column.  Return null if not matched.
  *
- * Matcher function 
+ * Matcher function
  */
 exports.AddDeviceIcon = (matcher) => {
     devicelistIconMatch.push(matcher);
@@ -554,7 +554,7 @@ exports.GetDeviceDetails = function() {
 }
 
 exports.DeviceDetailWindow = function(key) {
-    exports.DetailWindow(key, "Device Details", 
+    exports.DetailWindow(key, "Device Details",
         {
             storage: {}
         },
@@ -638,7 +638,7 @@ exports.DeviceDetailWindow = function(key) {
                             accordion.accordion({ heightStyle: 'fill' });
                         })
                         .fail(function(jqxhr, texterror) {
-                            content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
+                            content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key +
                                 "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
                         })
                         .always(function() {
@@ -769,7 +769,7 @@ exports.HealthCheck = function() {
                     timerid = setTimeout(exports.HealthCheck, 1000);
                 else
                     timerid = setTimeout(exports.HealthCheck, 5000);
-            }); 
+            });
     } else {
         if (exports.connection_error)
             timerid = setTimeout(exports.HealthCheck, 1000);
@@ -1186,7 +1186,7 @@ exports.PrepDeviceTable = function(element) {
 
 /* Create the device table */
 exports.CreateDeviceTable = function(element) {
-    element.ready(function() { 
+    element.ready(function() {
         exports.InitializeDeviceTable(element);
     });
 }
@@ -1256,8 +1256,8 @@ function ScheduleDeviceSummary() {
 
             var viewname = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
 
-            $.post(local_uri_prefix + `devices/views/${viewname}/devices.json`, postdata, 
-                function(data) { 
+            $.post(local_uri_prefix + `devices/views/${viewname}/devices.json`, postdata,
+                function(data) {
                     deviceTableTotal = data["last_row"];
                     deviceTableTotalPages = data["last_page"];
 
@@ -1314,7 +1314,7 @@ function ScheduleDeviceSummary() {
                     var paginator = $('#devices-table2 .tabulator-paginator');
                     paginator.empty();
 
-                    var firstpage = 
+                    var firstpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1330,7 +1330,7 @@ function ScheduleDeviceSummary() {
                     }
                     paginator.append(firstpage);
 
-                    var prevpage = 
+                    var prevpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1360,7 +1360,7 @@ function ScheduleDeviceSummary() {
                     if (lp > deviceTableTotalPages)
                         lp = deviceTableTotalPages;
                     for (let p = fp; p <= lp; p++) {
-                        var ppage = 
+                        var ppage =
                             $('<button>', {
                                 'class': 'tabulator-page',
                                 'type': 'button',
@@ -1374,7 +1374,7 @@ function ScheduleDeviceSummary() {
                         paginator.append(ppage);
                     }
 
-                    var nextpage = 
+                    var nextpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1390,7 +1390,7 @@ function ScheduleDeviceSummary() {
                     }
                     paginator.append(nextpage);
 
-                    var lastpage = 
+                    var lastpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1427,7 +1427,7 @@ function ScheduleDeviceSummary() {
         // console.log(error);
         deviceTableRefreshing = false;
     }
-    
+
     return;
 }
 
@@ -1439,8 +1439,8 @@ var devicetable_prefs = {};
 
 function LoadDeviceTablePrefs() {
     devicetable_prefs = kismet.getStorage('kismet.ui.devicetable.prefs', {
-        "columns": ["commonname", "type", "crypt", "last_time", "packet_rrd", 
-            "signal", "channel", "manuf", "wifi_clients", "wifi_bss_uptime", 
+        "columns": ["commonname", "type", "crypt", "last_time", "packet_rrd",
+            "signal", "channel", "manuf", "wifi_clients", "wifi_bss_uptime",
             "wifi_qbss_usage"],
         "colsettings": {},
         "sort": {
@@ -1455,7 +1455,7 @@ function LoadDeviceTablePrefs() {
         "sort": {
             "column": "",
             "dir": "asc",
-        }, 
+        },
     }, devicetable_prefs);
 }
 
@@ -1499,7 +1499,7 @@ exports.InitializeDeviceTable = function(element) {
         }));
     }
 
-    if ($('#devices-table2', element).length == 0) { 
+    if ($('#devices-table2', element).length == 0) {
         devicetableElement2 =
             $('<div>', {
                 id: 'devices-table2',
@@ -1541,7 +1541,7 @@ exports.InitializeDeviceTable = function(element) {
                 frow = 1;
 
             var lrow = frow + pageSize;
-            if (lrow > deviceTableTotal) 
+            if (lrow > deviceTableTotal)
                 lrow = deviceTableTotal;
 
             return `Showing rows ${frow} - ${lrow} of ${deviceTableTotal}`;
@@ -1615,7 +1615,7 @@ exports.InitializeDeviceTable = function(element) {
         }
 
         devicetable_prefs['columns'] = cols;
-       
+
         SaveDeviceTablePrefs();
 
     });
