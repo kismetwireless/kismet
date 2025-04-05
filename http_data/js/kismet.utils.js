@@ -9,7 +9,7 @@
 
 var exports = {};
 
-var local_uri_prefix = ""; 
+var local_uri_prefix = "";
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
@@ -61,7 +61,7 @@ exports.HumanReadableSize = function(sz) {
     if (typeof(sz) === 'undefined')
         return '0 B';
 
-    if (typeof(sz) !== 'number') 
+    if (typeof(sz) !== 'number')
         sz = parseInt(sz);
 
     if (sz < 1024) {
@@ -84,7 +84,7 @@ exports.HumanReadableFrequency = function(f) {
         return f + " KHz";
     else if (f < 1000 * 1000)
         return (f / 1000).toFixed(3) + " MHz";
-    else 
+    else
         return (f / 1000 / 1000).toFixed(3) + " GHz";
 }
 
@@ -92,7 +92,7 @@ exports.HumanReadableFrequency = function(f) {
 // applying a transform function which could do something like average it
 
 // Conversion factors / type definitions for RRD data arrays
-exports.RRD_SECOND = 1; 
+exports.RRD_SECOND = 1;
 exports.RRD_MINUTE = 60;
 exports.RRD_HOUR = 3600;
 
@@ -102,18 +102,18 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     if (data == undefined) {
         if (type == exports.RRD_SECOND || type == exports.RRD_MINUTE) {
             data = [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0
             ];
         } else if (type == exports.RRD_HOUR) {
             data = [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0
             ];
         }
@@ -129,7 +129,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     // be filled with only zeroes
     //
     // To zero the array between "then" and "now", we simply calculate
-    // the bin for "then", the bin for "now", and increment-with-modulo 
+    // the bin for "then", the bin for "now", and increment-with-modulo
     // until we reach "now".
 
     // Adjusted data we return
@@ -144,11 +144,11 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
         }
     } else {
         // Otherwise, we're valid inside the range of the array.  We know we got
-        // no data between the time of the RRD and now, because if we had, the 
+        // no data between the time of the RRD and now, because if we had, the
         // time would be more current.  Figure out how many bins lie between
         // 'then' and 'now', rescale the array to start at 'now', and fill
         // in the time we got no data with zeroes
-        
+
         let start_bin = (Math.floor(start / type) % rrd_len) + 1;
         let now_bin = (Math.floor(now / type) % rrd_len) + 1;
         let sec_offt = Math.max(0, now - start);
@@ -209,17 +209,17 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
 
         if (type == exports.RRD_SECOND || type == exports.RRD_MINUTE) {
             data = [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             ];
         } else if (type == exports.RRD_HOUR) {
             data = [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0
             ];
         }
@@ -245,7 +245,7 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     // be filled with only zeroes
     //
     // To zero the array between "then" and "now", we simply calculate
-    // the bin for "then", the bin for "now", and increment-with-modulo 
+    // the bin for "then", the bin for "now", and increment-with-modulo
     // until we reach "now".
 
     // Adjusted data we return
@@ -260,11 +260,11 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
         }
     } else {
         // Otherwise, we're valid inside the range of the array.  We know we got
-        // no data between the time of the RRD and now, because if we had, the 
+        // no data between the time of the RRD and now, because if we had, the
         // time would be more current.  Figure out how many bins lie between
         // 'then' and 'now', rescale the array to start at 'now', and fill
         // in the time we got no data with zeroes
-        
+
         let start_bin = (Math.floor(start / type) % rrd_len) + 1;
         let now_bin = (Math.floor(now / type) % rrd_len) + 1;
         let sec_offt = Math.max(0, now - start);
@@ -472,7 +472,7 @@ exports.censorMAC = function(t) {
 /* Censor a location by rounding */
 exports.censorLocation = function(t) {
     try {
-        if (window['censor_location']) 
+        if (window['censor_location'])
             return `${Math.round(t)}.XXXXX`;
         else
             return t;
@@ -482,18 +482,18 @@ exports.censorLocation = function(t) {
 }
 
 /* Censor a string by obscuring most of the contents */
-exports.censorString = function(t) { 
-    try { 
-        if (window['censor_macs']) { 
-            if (t.length < 6) { 
+exports.censorString = function(t) {
+    try {
+        if (window['censor_macs']) {
+            if (t.length < 6) {
                 return new Array(t.length + 1).join('X');
-            } else { 
+            } else {
                 return t.substring(0, 2) + (new Array(t.length - 3).join('X')) + t.substring(t.length - 2, t.length);
             }
-        } else { 
+        } else {
             return t;
         }
-    } catch (e) { 
+    } catch (e) {
         return t;
     }
 }
@@ -531,16 +531,16 @@ String.prototype.convertNewlines = function() {
     return s;
 }
 
-String.prototype.MiddleShorten = function(len) { 
+String.prototype.MiddleShorten = function(len) {
     if (this.length > len) {
         let epos = len / 2;
         let lpos = this.length - (len / 2);
 
-        while (epos > 1 && this.substr(epos - 1, 1) == ' ') { 
+        while (epos > 1 && this.substr(epos - 1, 1) == ' ') {
             epos = epos - 1;
         }
 
-        while (lpos < len && this.substr(lpos, 1) == ' ') { 
+        while (lpos < len && this.substr(lpos, 1) == ' ') {
             lpos = lpos + 1;
         }
 
@@ -550,19 +550,19 @@ String.prototype.MiddleShorten = function(len) {
     return this;
 }
 
-exports.ExtractDeviceName = function(device) { 
+exports.ExtractDeviceName = function(device) {
     var ret = device['kismet.device.base.username'];
-    if (ret != null && ret != '') { 
+    if (ret != null && ret != '') {
         return exports.censorString(ret);
     }
 
     ret = device['kismet.device.base.name'];
-    if (ret != null && ret != '') { 
+    if (ret != null && ret != '') {
         return exports.censorString(ret);
     }
 
     ret = device['kismet.device.base.commonname'];
-    if (ret != null && ret != '') { 
+    if (ret != null && ret != '') {
         return exports.censorString(ret);
     }
 
