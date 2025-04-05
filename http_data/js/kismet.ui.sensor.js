@@ -88,19 +88,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     liveupdate: true,
                     help: "Temperature (localized to preferred units whenever possible) reported by the sensor, as well as the past minute, hour, and day of temperature readings.  Not all sensors report temperature regularly, so the past minute of data may sometimes be empty.",
                     render: function(opts) {
-                        var d = 
+                        var d =
                             '<span></span><br>' +
-                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(kismet_ui.renderTemperature(opts['value'], 2));
 
@@ -109,7 +109,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -123,7 +123,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -137,7 +137,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.thermometer']['sensor.device.temperature_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -163,19 +163,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     help: "Moisture or humidity, most often in a percentage, as reported by the sensor, as well as the past minute, hour, and day of moisture readings.  Not all sensors report moisture regularly, so the past minute of data may sometimes be empty.",
                     liveupdate: true,
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(`${opts['value']}%`);
 
@@ -184,7 +184,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -198,7 +198,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -212,7 +212,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.moisturesensor']['sensor.device.moisture_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -237,7 +237,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     filterOnEmpty: true,
                     filterOnZero: true,
                     draw: function(opts) {
-                        var rv = opts['value'] + "&deg; (" + 
+                        var rv = opts['value'] + "&deg; (" +
                             kismet_ui.DegToDir(opts['value']) + ")";
 
                         /*
@@ -264,19 +264,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     help: "Wind speed",
                     liveupdate: true,
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(`${kismet_ui.renderSpeed(opts['value'], 2)}`);
 
@@ -284,7 +284,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_speed_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -298,7 +298,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_speed_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -312,7 +312,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_speed_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -331,26 +331,26 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     help: "Wind speed (max/gust)",
                     liveupdate: true,
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(`${kismet_ui.renderSpeed(opts['value'], 2)}`);
 
                         var t_m =
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_gust_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -364,7 +364,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_gust_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -378,7 +378,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.wind_gust_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -397,19 +397,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     liveupdate: true,
                     help: "Rain quantity (often in mm)",
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 2em;">&Delta;D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(opts['value']);
 
@@ -418,7 +418,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.rain_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDelta});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -431,7 +431,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.rain_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDelta});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -444,7 +444,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.weatherstation']['sensor.device.rain_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDelta});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -544,19 +544,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     liveupdate: true,
                     help: "Last reported lighting strike count (may reset arbitrarily)",
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 2em;">&Delta;M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 2em;">&Delta;H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 2em;">&Delta;D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(opts['value']);
 
@@ -565,7 +565,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.lightningsensor']['sensor.device.lightning_strike_count_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDelta});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -578,7 +578,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.lightningsensor']['sensor.device.lightning_strike_count_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDelta});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -591,7 +591,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.lightningsensor']['sensor.device.lightning_strike_count_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDelta});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -642,19 +642,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     help: "Estimated PM2.5 particulate matter",
                     liveupdate: true,
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(`${opts['value']}`);
 
@@ -663,7 +663,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm2_5_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -677,7 +677,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm2_5_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -691,7 +691,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm2_5_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -709,19 +709,19 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                     help: "Estimated PM2.5 particulate matter",
                     liveupdate: true,
                     render: function(opts) {
-                        var d = 
+                        var d =
                             "<span></span><br>" +
-                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' + 
-                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' + 
+                            '<span style="display: inline-block; width: 1.5em;">M:</span> <span></span><br>' +
+                            '<span style="display: inline-block; width: 1.5em;">H:</span> <span></span><br>' +
                             '<span style="display: inline-block; width: 1.5em;">D:</span> <span></span><br>';
 
                         return d;
                     },
                     draw: function(opts) {
-                        var t = $('span:eq(0)', opts['container']);   
-                        var m = $('span:eq(2)', opts['container']);   
-                        var h = $('span:eq(4)', opts['container']);   
-                        var d = $('span:eq(6)', opts['container']);   
+                        var t = $('span:eq(0)', opts['container']);
+                        var m = $('span:eq(2)', opts['container']);
+                        var h = $('span:eq(4)', opts['container']);
+                        var d = $('span:eq(6)', opts['container']);
 
                         t.html(`${opts['value']}`);
 
@@ -730,7 +730,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm10_rrd'], kismet.RRD_SECOND, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        m.sparkline(t_m, 
+                        m.sparkline(t_m,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -744,7 +744,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm10_rrd'], kismet.RRD_MINUTE, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        h.sparkline(t_h, 
+                        h.sparkline(t_h,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
@@ -758,7 +758,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
                             kismet.RecalcRrdData2(data['sensor.device']['sensor.device.aqi']['sensor.device.pm10_rrd'], kismet.RRD_HOUR, {transform: kismet.RrdDrag, transformopt: {backfill: true}});
 
 
-                        d.sparkline(t_d, 
+                        d.sparkline(t_d,
                             { type: "bar",
                                 height: 14,
                                 barWidth: 2,
