@@ -1490,7 +1490,6 @@ exports.InitializeDeviceTable = function(element) {
 
     if ($('#center-device-extras').length == 0) {
         var devviewmenu = $(`<form action="#"><span id="device_view_holder"></span></form><input class="device_search" type="search" id="device_search" placeholder="Filter..." value="${searchterm}"></input>`);
-
         $('#centerpane-tabs').append($('<div id="center-device-extras" style="position: absolute; right: 10px; top: 5px; height: 30px; display: flex;">').append(devviewmenu));
         exports.BuildDeviceViewSelector($('span#device_view_holder'));
 
