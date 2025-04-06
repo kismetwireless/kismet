@@ -1263,6 +1263,10 @@ function ScheduleDeviceSummary() {
 
             $.post(local_uri_prefix + `devices/views/${viewname}/devices.json`, postdata,
                 function(data) {
+                    if (data === undefined) {
+                        return;
+                    }
+
                     deviceTableTotal = data["last_row"];
                     deviceTableTotalPages = data["last_page"];
 
