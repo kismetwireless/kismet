@@ -2139,8 +2139,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
     packet_sz = ntohl(external_frame->data_sz);
 
     if (len < packet_sz + sizeof(kismet_external_frame_v3_t)) {
-        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet\n",
-                caph->capsource_type);
+        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet (%lu / %lu)\n",
+                caph->capsource_type, len, packet_sz + sizeof(kismet_external_frame_v3_t));
         return -1;
     }
 
