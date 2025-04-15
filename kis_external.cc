@@ -19,6 +19,8 @@
 #include <memory>
 #include <sys/stat.h>
 
+#include <array>
+
 #include "boost/asio/use_future.hpp"
 #include "configfile.h"
 
@@ -839,6 +841,7 @@ bool kis_external_interface::run_ipc() {
     ipctracker->register_ipc(ipc);
 
     io_ = std::make_shared<kis_external_ipc>(shared_from_this(), ipc, ipc_in, ipc_out);
+
     io_->start_read();
 
     return true;
@@ -905,7 +908,7 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
         nonstd::string_view content((const char *) frame_v2->data, data_sz);
 
-        // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+        // if we've gotten this far, switch us to v2
         protocol_version = 2;
 
         // Dispatch the received command & see if we need to purge the buffer ourselves
@@ -1074,6 +1077,11 @@ void kis_external_interface::handle_packet_pong_v3(uint32_t in_seqno,
         uint16_t code, const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong_v3");
     last_pong = time(0);
+
+    if (!v2_probe_ack) {
+        v2_probe_ack = true;
+        handle_v2_pong_event();
+    }
 }
 
 void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
@@ -1544,6 +1552,26 @@ unsigned int kis_external_interface::send_ping() {
     return -1;
 }
 
+unsigned int kis_external_interface::send_v2_probe_ping() {
+    // craft a v2 ping
+    const ssize_t frame_sz = sizeof(kismet_external_frame_v2_t);
+    std::array<char, frame_sz> frame_buf;
+    auto frame = reinterpret_cast<kismet_external_frame_v2_t *>(frame_buf.data());
+
+    frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+    frame->data_sz = 0;
+    frame->v2_sentinel = kis_hton16(KIS_EXTERNAL_V2_SIG);
+    frame->frame_version = kis_hton16(2);
+    strncpy(frame->command, "PING", 31);
+    frame->seqno = 0;
+
+    v2_probe_ack = false;
+
+    start_write(frame_buf.data(), frame_sz);
+
+    return 1;
+}
+
 unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
 #ifdef HAVE_PROTOBUF_CPP
     KismetExternal::Pong p;
@@ -1648,6 +1676,11 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno,
     }
 
     last_pong = time(0);
+
+    if (!v2_probe_ack) {
+        v2_probe_ack = true;
+        handle_v2_pong_event();
+    }
 }
 
 void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
