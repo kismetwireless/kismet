@@ -883,6 +883,9 @@ protected:
         pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
+    virtual void handle_v2_pong_event() override;
+    std::function<void ()> deferred_event;
+
 };
 
 typedef std::shared_ptr<kis_datasource> shared_datasource;
@@ -981,7 +984,6 @@ protected:
     std::shared_ptr<tracker_element_string> hardware;
 
     int options_entry_id;
-
 };
 
 // Packet chain component; we need to use a raw pointer here but it only exists

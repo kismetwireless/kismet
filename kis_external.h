@@ -32,8 +32,10 @@
 
 #include "config.h"
 
+#include <condition_variable>
 #include <functional>
 #include <list>
+#include <mutex>
 
 #include "endian_magic.h"
 #include "eventbus.h"
@@ -530,6 +532,11 @@ protected:
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
+
+    // send a specially hand-crafted ping to determine if we have a legacy v2 datasource
+    unsigned int send_v2_probe_ping();
+    bool v2_probe_ack;
+    virtual void handle_v2_pong_event() { }
 
 public:
     static const int result_handle_packet_cancelled = -2;

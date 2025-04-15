@@ -26,6 +26,7 @@
 #endif
 
 #include <string.h>
+#include <strings.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -2121,6 +2122,17 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
     /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
     if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
+        /* handle a legacy v2 ping packet directly; this is used for datasource
+         * version discovery in the new ping handshake for v3.  respond with a
+         * v3 answer. */
+        if (strncasecmp(external_frame_v2->command, "PING", 32) == 0) {
+            pthread_mutex_lock(&(caph->handler_lock));
+
+            cf_send_pong(caph, ntohl(external_frame_v2->seqno));
+            pthread_mutex_unlock(&(caph->handler_lock));
+            return 1;
+        }
+
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
@@ -2192,6 +2204,21 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
     if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
+        /* explicitly handle a v2 ping no matter what; this is used as a legacy
+         * discovery packet to map older local binaries */
+        if (strncasecmp(external_frame_v2->command, "PING", 32) == 0) {
+            packet_sz = ntohl(external_frame->data_sz);
+            total_sz = packet_sz + sizeof(kismet_external_frame_v2_t);
+            pthread_mutex_lock(&(caph->handler_lock));
+
+            kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+            kis_simple_ringbuf_read(caph->in_ringbuf, NULL, total_sz);
+
+            cf_send_pong(caph, ntohl(external_frame_v2->seqno));
+            pthread_mutex_unlock(&(caph->handler_lock));
+            return 1;
+        }
+
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
