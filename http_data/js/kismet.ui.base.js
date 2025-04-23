@@ -1043,16 +1043,16 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
     render: function(data) {
         // Make 3 divs for s, m, h RRD
         var ret =
-            '<b>Packet Rates</b><br /><br />' +
-            'Packets per second (last minute) (Tx/Rx)<br /><div /><br />' +
-            'Packets per minute (last hour) (Tx/Rx)<br /><div /><br />' +
-            'Packets per hour (last day) (Tx/Rx)<br /><div />';
+            '<b>Packet Rates</b><br><br>' +
+            'Packets per second (last minute) (Tx/Rx)<br><div></div><br>' +
+            'Packets per minute (last hour) (Tx/Rx)<br><div></div><br>' +
+            'Packets per hour (last day) (Tx/Rx)<br><div></div>';
 
         if ('kismet.device.base.datasize.rrd' in data)
-            ret += '<br /><b>Data</b><br /><br />' +
-            'Data per second (last minute)<br /><div /><br />' +
-            'Data per minute (last hour)<br /><div /><br />' +
-            'Data per hour (last day)<br /><div />';
+            ret += '<br><b>Data</b><br><br>' +
+            'Data per second (last minute)<br><div></div><br>' +
+            'Data per minute (last hour)<br><div></div><br>' +
+            'Data per hour (last day)<br><div></div>';
 
         return ret;
     },
@@ -1110,6 +1110,7 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
                         'rgba(96, 149, 212, 1)',
                     ],
                 });
+
             h.sparkline(hdata_combo,
                 { type: "bar",
                     height: 18,
@@ -1122,6 +1123,7 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
                         'rgba(96, 149, 212, 1)',
                     ],
                 });
+
             d.sparkline(ddata_combo,
                 { type: "bar",
                     height: 18,
