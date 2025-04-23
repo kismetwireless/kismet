@@ -1004,7 +1004,7 @@ exports.AddAlertDetail("alert", "Alert", 0, {
 
 exports.AddAlertDetail("devel", "Dev/Debug Options", 10000, {
     render: function(data) {
-        return 'Alert JSON: <a href="alerts/by-id/' + data['kismet.alert.hash'] + '/alert.prettyjson" target="_new">link</a><br />';
+        return 'Alert JSON: <a href="alerts/by-id/' + data['kismet.alert.hash'] + '/alert.prettyjson" target="_new">link</a><br>';
     }});
 
 exports.load_complete = 1;

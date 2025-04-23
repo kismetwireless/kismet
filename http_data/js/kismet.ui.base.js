@@ -1239,7 +1239,7 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
 
 kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
     render: function(data) {
-        return 'Device JSON: <a href="devices/by-key/' + data['kismet.device.base.key'] + '/device.prettyjson" target="_new">link</a><br />';
+        return 'Device JSON: <a href="devices/by-key/' + data['kismet.device.base.key'] + '/device.prettyjson" target="_new">link</a><br>';
     }});
 
 /* Sidebar:  Memory monitor
