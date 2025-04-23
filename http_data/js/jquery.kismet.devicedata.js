@@ -330,7 +330,7 @@
                                 'class': 'devicedata_subgroup_header'
                             }).append(title_span))
 
-                            cell.append($('<br />'));
+                            cell.append($('<br>'));
                         }
 
                         cell.append(contentdiv);
