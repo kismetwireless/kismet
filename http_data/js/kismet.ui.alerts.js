@@ -805,7 +805,7 @@ exports.AlertDetailWindow = function(key) {
                             var accordion = $('div#accordion', content);
 
                             if (accordion.length == 0) {
-                                accordion = $('<div />', {
+                                accordion = $('<div>', {
                                     id: 'accordion'
                                 });
 
