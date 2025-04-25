@@ -301,7 +301,7 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST         5
 
 
-/* KIDS_CHANNEL_GPS_BLOCK */
+/* KDS_CHANNEL_GPS_BLOCK */
 /* double */
 #define KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT                   1
 /* double */

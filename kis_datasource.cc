@@ -1982,7 +1982,7 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_nod
     if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK)) {
         return nullptr;
     }
-auto sigmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
+    auto sigmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
 
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
@@ -2226,6 +2226,7 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
     }
 
     auto gpsinfo = handle_sub_gps(root, &tree);
+
     if (cancelled) {
         return;
     }
