@@ -2610,6 +2610,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* We know what we're going to capture from now - either it exists already, or we need
      * to make it.  See if it exists and fetch the mode.  If it DOES exist (has a netif index)
      * but we can't get the mode, fail! */
+
+    mode = 0;
+
     local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->cap_interface);
     if (local_wifi->mac80211_ifidx > 0) {
         ret = -1;
@@ -3069,21 +3072,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         g_object_unref(nmclient);
 #endif
 
-    /* Bring up the cap interface no matter what */
-    if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
-        release_flock(local_wifi);
-
-        snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
-                "check 'dmesg' for possible errors while loading firmware: %s",
-                local_wifi->name, local_wifi->cap_interface, errstr);
-        return -1;
-    }
-
     /* Bring down the parent interface if needed */
     if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
         int ign_primary = 0;
-        if ((placeholder_len = cf_find_flag(&placeholder, "ignoreprimary",
-                        definition)) > 0) {
+        if ((placeholder_len = cf_find_flag(&placeholder, "ignoreprimary", definition)) > 0) {
             if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
                 snprintf(errstr, STATUS_MAX,
                         "%s %s/%s ignoring state of primary interface and "
@@ -3110,6 +3102,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
         }
     }
+
+    /* bring the cap interface up */
+    if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+        release_flock(local_wifi);
+
+        snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
+                "check 'dmesg' for possible errors while loading firmware: %s",
+                local_wifi->name, local_wifi->cap_interface, errstr);
+        return -1;
+    }
+
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
     if ((placeholder_len =
@@ -3148,13 +3151,50 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    (*ret_interface)->hardware = strdup(driver);
+
     ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, default_ht_20, expand_ht_20,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
         return -1;
     }
 
-    (*ret_interface)->hardware = strdup(driver);
+    if ((*ret_interface)->channels_len == 0) {
+        snprintf(msg, STATUS_MAX,
+                "%s %s/%s did not find any channels automatically; channels must be specified via "
+                "the channels= or channel= source options.",
+                local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+        cf_send_message(caph, msg, MSGFLAG_INFO);
+    }
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+
+        localchan =
+            (local_channel_t *) chantranslate_callback(caph, localchanstr);
+
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX,
+                    "%s %s/%s could not parse channel= option provided in source "
+                    "definition", local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+            return -1;
+        }
+
+        local_channel_to_str(localchan, errstr);
+        (*ret_interface)->chanset = strdup(errstr);
+
+        snprintf(errstr, STATUS_MAX, "%s setting initial channel to %s",
+                local_wifi->name, (*ret_interface)->chanset);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+
+        if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+            free(localchan);
+            localchan = NULL;
+            return -1;
+        }
+    }
 
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface,
@@ -3301,55 +3341,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->name, local_wifi->interface);
     }
 
-    if (local_wifi->base_phy != NULL) {
-        /*
-        char ifbuf[1024];
-        snprintf(ifbuf, 1024, "%s:%s", local_wifi->base_phy, local_wifi->cap_interface);
-        (*ret_interface)->capif = strdup(ifbuf);
-        */
-        (*ret_interface)->capif = strdup(local_wifi->cap_interface);
-    } else {
-        (*ret_interface)->capif = strdup(local_wifi->cap_interface);
-    }
+    (*ret_interface)->capif = strdup(local_wifi->cap_interface);
 
-    if ((placeholder_len =
-                cf_find_flag(&placeholder, "channel", definition)) > 0) {
-        localchanstr = strndup(placeholder, placeholder_len);
-
-        localchan =
-            (local_channel_t *) chantranslate_callback(caph, localchanstr);
-
-        free(localchanstr);
-
-        if (localchan == NULL) {
-            snprintf(msg, STATUS_MAX,
-                    "%s %s/%s could not parse channel= option provided in source "
-                    "definition", local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
-            return -1;
-        }
-
-        local_channel_to_str(localchan, errstr);
-        (*ret_interface)->chanset = strdup(errstr);
-
-        snprintf(errstr, STATUS_MAX, "%s setting initial channel to %s",
-                local_wifi->name, (*ret_interface)->chanset);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
-
-        if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
-            free(localchan);
-            localchan = NULL;
-            return -1;
-        }
-    }
+    snprintf(errstr2, STATUS_MAX, "%s finished configuring %s/%s, ready to capture",
+            local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+    cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
     if (localchan != NULL) {
         free(localchan);
         localchan = NULL;
     }
-
-    snprintf(errstr2, STATUS_MAX, "%s finished configuring %s, ready to capture",
-            local_wifi->name, local_wifi->cap_interface);
-    cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
     return 1;
 }
