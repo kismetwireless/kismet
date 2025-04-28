@@ -30,7 +30,6 @@
 #include "kis_net_beast_httpd.h"
 #include "devicetracker_component.h"
 #include "packetchain.h"
-#include "robin_hood.h"
 #include "timetracker.h"
 
 // Can appear in the list as either a numerical frequency or a named
