@@ -1950,7 +1950,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_interface = cf_params_interface_new();
     *ret_spectrum = NULL;
 
-    unsigned int mode;
+    unsigned int mode = 0;
 
     int ret;
 
@@ -2402,11 +2402,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Try to connect to mac80211 and get the mode */
     local_wifi->mac80211_socket = NULL;
 
-    if (mac80211_connect(&(local_wifi->mac80211_socket),
-                &(local_wifi->mac80211_id), errstr) < 0) {
+    if (mac80211_connect(&(local_wifi->mac80211_socket), &(local_wifi->mac80211_id), errstr) < 0) {
 #ifdef HAVE_LINUX_WIRELESS
         /* If we didn't get a mac80211 handle we can't use mac80211, period, fall back
          * to trying to use the legacy ioctls */
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' falling back to legacy WEXT ioctl controls, "
+                "this is unlikely to work on modern kernels or hardware", local_wifi->name, local_wifi->interface);
+        cf_send_warning(caph, errstr);
+
         local_wifi->mac80211_socket = NULL;
         local_wifi->use_mac80211_vif = 0;
         local_wifi->use_mac80211_channels = 0;
@@ -2420,6 +2423,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Try to figure out the current mode from netlink if possible; if not, use iwconfig, and
      * then fail */
     ret = -1;
+
+    mode = 0;
+
     if (local_wifi->mac80211_socket != NULL) {
         uint32_t nl_mode = 0;
 
@@ -2436,6 +2442,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             mode = LINUX_WLEXT_MONITOR;
         }
     }
+
+    /* failed at mac80211 because we don't have it or it didn't work */
 
     if (ret < 0) {
 #ifdef HAVE_LINUX_WIRELESS
@@ -2976,8 +2984,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     release_flock(local_wifi);
 
     /* ********* End semaphore protected area ********** */
-
-
 
     /* Get the index and check the mode; if we didn't get into monitor mode, blow up */
     local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->cap_interface);
