@@ -2426,12 +2426,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         ret = mac80211_get_iftype_cache(local_wifi->mac80211_ifidx, local_wifi->mac80211_socket,
                 local_wifi->mac80211_id, &nl_mode, errstr);
 
-        if (ret > 0 && nl_mode == 0)
+        if (ret > 0 && nl_mode == 0) {
+            fprintf(stderr, "debug - netlink iftype success, but mode 0, soft failing\n");
             ret = -1;
+        }
 
         /* Alias the netlink mode to the legacy mode */
-        if (nl_mode == NL80211_IFTYPE_MONITOR)
+        if (nl_mode == NL80211_IFTYPE_MONITOR) {
             mode = LINUX_WLEXT_MONITOR;
+        }
     }
 
     if (ret < 0) {
