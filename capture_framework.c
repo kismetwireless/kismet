@@ -4250,10 +4250,10 @@ int cf_send_json(kis_capture_handler_t *caph,
             mpack_write_float(&writer, gps->precision);
 
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
-            mpack_write_float(&writer, gps->ts_sec);
+            mpack_write_u64(&writer, gps->ts_sec);
 
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
-            mpack_write_float(&writer, gps->ts_usec);
+            mpack_write_u64(&writer, gps->ts_usec);
 
             if (gps->gps_type != NULL) {
                 mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
@@ -4265,6 +4265,10 @@ int cf_send_json(kis_capture_handler_t *caph,
                 mpack_write_cstr(&writer, gps->gps_name);
             }
 
+            if (gps->gps_uuid != NULL) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_UUID);
+                mpack_write_cstr(&writer, gps->gps_uuid);
+            }
         } else if (caph->gps_fixed_lat != 0) {
             struct timeval tv;
             gettimeofday(&tv, NULL);
@@ -4284,11 +4288,16 @@ int cf_send_json(kis_capture_handler_t *caph,
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
             mpack_write_cstr(&writer, "remote-fixed");
 
-            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
+            mpack_write_u64(&writer, tv.tv_sec);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
+            mpack_write_u64(&writer, tv.tv_usec);
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
             if (caph->gps_name != NULL) {
                 mpack_write_cstr(&writer, caph->gps_name);
-            }
-            if (caph->gps_name != NULL) {
+            } else {
                 mpack_write_cstr(&writer, "remote-fixed");
             }
         }

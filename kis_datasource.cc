@@ -1900,76 +1900,81 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (gps block)", get_source_name());
         trigger_error("invalid v3 DATAREPORT");
         return nullptr;
     }
 
     auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
-    auto lat_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
-    if (!mpack_node_is_missing(lat_n)) {
-        gpsinfo->lat = mpack_node_double(lat_n);
+    auto n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->lat = mpack_node_double(n);
     }
 
-    auto lon_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
-    if (!mpack_node_is_missing(lon_n)) {
-        gpsinfo->lon = mpack_node_double(lon_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->lon = mpack_node_double(n);
     }
 
-    auto alt_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
-    if (!mpack_node_is_missing(alt_n)) {
-        gpsinfo->alt = mpack_node_float(alt_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->alt = mpack_node_float(n);
     }
 
-    auto fix_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
-    if (!mpack_node_is_missing(fix_n)) {
-        gpsinfo->fix = mpack_node_u8(fix_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->fix = mpack_node_u8(n);
     }
 
-    auto speed_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED);
-    if (!mpack_node_is_missing(speed_n)) {
-        gpsinfo->speed = mpack_node_float(speed_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->speed = mpack_node_float(n);
     }
 
-    auto heading_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING);
-    if (!mpack_node_is_missing(heading_n)) {
-        gpsinfo->heading = mpack_node_float(heading_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->heading = mpack_node_float(n);
     }
 
-    auto precision_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION);
-    if (!mpack_node_is_missing(precision_n)) {
-        gpsinfo->precision = mpack_node_float(precision_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->precision = mpack_node_float(n);
     }
 
-    auto ts_s_n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
-    if (!mpack_node_is_missing(ts_s_n)) {
-        gpsinfo->tv.tv_sec = mpack_node_u64(ts_s_n);
-    }
+    n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
+    gpsinfo->tv.tv_sec = mpack_node_u64(n);
 
-    auto ts_us_n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
-    if (!mpack_node_is_missing(ts_us_n)) {
-        gpsinfo->tv.tv_usec = mpack_node_u64(ts_us_n);
-    }
+    n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
+    gpsinfo->tv.tv_usec = mpack_node_u64(n);
 
-    auto name_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
-    if (!mpack_node_is_missing(name_n)) {
-        auto name_s = mpack_node_str(name_n);
-        auto name_sz = mpack_node_data_len(name_n);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
+    if (!mpack_node_is_missing(n)) {
+        auto name_s = mpack_node_str(n);
+        auto name_sz = mpack_node_data_len(n);
 
         gpsinfo->gpsname = std::string(name_s, name_sz);
     }
 
-    auto type_n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
-    if (!mpack_node_is_missing(type_n)) {
-        auto type_s = mpack_node_str(type_n);
-        auto type_sz = mpack_node_data_len(type_n);
+    /* type not currently used in packinfo
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+    if (!mpack_node_is_missing(n)) {
+        auto type_s = mpack_node_str(n);
+        auto type_sz = mpack_node_data_len(n);
+    }
+    */
 
-        gpsinfo->gpsname = std::string(type_s, type_sz);
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_UUID);
+    if (!mpack_node_is_missing(n)) {
+        auto uuid_s = mpack_node_str(n);
+        auto uuid_sz = mpack_node_data_len(n);
+
+        gpsinfo->gpsuuid = std::string(uuid_s, uuid_sz);
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (gps block)",
+                get_source_name());
         trigger_error("invalid v3 DATAREPORT");
         return nullptr;
     }
@@ -1985,7 +1990,7 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_nod
     auto sigmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
 
     if (mpack_tree_error(tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (signal block)", get_source_name());
         trigger_error("invalid v3 DATAREPORT");
         return nullptr;
     }
@@ -2031,7 +2036,7 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_nod
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (signal block)", get_source_name());
         trigger_error("invalid v3 DATAREPORT");
         return nullptr;
     }
