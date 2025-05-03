@@ -323,10 +323,13 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
     subgps.alt = alt;
     subgps.heading = heading;
 
-    if (alt != 0)
+    if (lat == 0 || lon == 0) {
+        subgps.fix = 0;
+    } else if (alt != 0) {
         subgps.fix = 3;
-    else
+    } else {
         subgps.fix = 2;
+    }
 
     subgps.ts_sec = ts_sec;
     subgps.ts_usec = ts_usec;
