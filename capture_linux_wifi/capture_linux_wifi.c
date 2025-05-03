@@ -95,6 +95,8 @@
 
 #define MAX_PACKET_LEN  8192
 
+#undef HAVE_LINUX_WIRELESS
+
 // pass management+eapol, all other data is filtered
 #if 0
 ; prep length memory at max
