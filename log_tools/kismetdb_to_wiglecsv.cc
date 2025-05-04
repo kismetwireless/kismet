@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* 
+/*
  * Simple tool to clean up a kismetdb log file, duplicate it, and strip the packet
  * content, in preparation to uploading to a site like wigle.
  */
@@ -108,7 +108,7 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
     double diff_lon = lon1 - lon0;
     double diff_lat = lat1 - lat0;
 
-    double ret = 
+    double ret =
         (2 * asin(sqrt(pow(sin(diff_lat / 2), 2) +
                        cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6731000.0f;
 
@@ -318,8 +318,8 @@ int main(int argc, char *argv[]) {
     unsigned int cache_limit = 1000;
 
     while (1) {
-        int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:e:vfsF:", 
+        int r = getopt_long(argc, argv,
+                            "-hi:o:r:c:e:vfsF:",
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -330,7 +330,7 @@ int main(int argc, char *argv[]) {
             in_fname = std::string(optarg);
         } else if (r == 'o') {
             out_fname = std::string(optarg);
-        } else if (r == 'v') { 
+        } else if (r == 'v') {
             verbose = true;
         } else if (r == 'f') {
             force = true;
@@ -378,7 +378,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (stat(in_fname.c_str(), &statbuf) < 0) {
-        if (errno == ENOENT) 
+        if (errno == ENOENT)
             fmt::print(stderr, "ERROR:  Input file '{}' does not exist.\n", in_fname);
         else
             fmt::print(stderr, "ERROR:  Unexpected problem checking input "
@@ -450,7 +450,7 @@ int main(int argc, char *argv[]) {
             fmt::print(stderr, "* Found KismetDB version {}\n", db_version);
 
         // Get the total counts
-        auto npackets_q = _SELECT(db, "packets", 
+        auto npackets_q = _SELECT(db, "packets",
                 {"count(*), sum(case when (sourcemac != '00:00:00:00:00:00' "
                 "and lat != 0 and lon != 0) then 1 else 0 end)"});
         auto npackets_ret = npackets_q.begin();
@@ -471,8 +471,8 @@ int main(int argc, char *argv[]) {
         }
         n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
 
-        if (verbose) 
-            fmt::print(stderr, "* Found {} devices, {} usable packets, {} total packets\n", 
+        if (verbose)
+            fmt::print(stderr, "* Found {} devices, {} usable packets, {} total packets\n",
                     n_devices_db, n_packets_db, n_total_packets_db);
 
         if (n_packets_db == 0) {
@@ -531,12 +531,12 @@ int main(int argc, char *argv[]) {
 
     std::map<std::string, std::shared_ptr<cache_obj>> device_cache_map;
 
-    if (verbose) 
+    if (verbose)
         fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
     // CSV headers
     fmt::print(ofile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2},model=Kismet,release={0}.{1}.{2}.{3},"
-            "device=kismet,display=kismet,board=kismet,brand=kismet\n", 
+            "device=kismet,display=kismet,board=kismet,brand=kismet\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, db_version);
     fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,Type\n");
@@ -545,10 +545,10 @@ int main(int argc, char *argv[]) {
     std::list<std::string> packet_fields;
 
     if (db_version < 5) {
-        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", 
+        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon",
             "signal", "frequency"};
     } else {
-        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", 
+        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon",
             "signal", "frequency", "alt", "speed"};
     }
 
@@ -566,8 +566,8 @@ int main(int argc, char *argv[]) {
     }
 
     auto query = _SELECT(db, "packets", packet_fields,
-            _WHERE("sourcemac", NEQ, "00:00:00:00:00:00", 
-                AND, 
+            _WHERE("sourcemac", NEQ, "00:00:00:00:00:00",
+                AND,
                 "lat", NEQ, 0,
                 AND,
                 "lon", NEQ, 0));
@@ -586,7 +586,7 @@ int main(int argc, char *argv[]) {
         n_division = 1;
 
     for (auto p : query) {
-        // Brute-force cache maintenance; if we're full at the start of the 
+        // Brute-force cache maintenance; if we're full at the start of the
         // processing loop, nuke the ENTIRE cache and rebuild it; this is
         // cleaner than constantly re-sorting it.
         if (device_cache_map.size() >= cache_limit) {
@@ -598,9 +598,9 @@ int main(int argc, char *argv[]) {
 
         n_logs++;
         if (n_logs % n_division == 0 && verbose)
-            std::cerr << 
+            std::cerr <<
                 fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
-                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
+                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1,
                     n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
 
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
@@ -694,10 +694,10 @@ int main(int argc, char *argv[]) {
                     if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
                         crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", 0));
                     } else {
-                        if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null()) 
+                        if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null())
                             throw std::runtime_error("No last beaconed checksum");
 
-                        auto last_ssid_key = 
+                        auto last_ssid_key =
                             json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].get<uint64_t>();
                         std::stringstream ss;
 
@@ -735,7 +735,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             } catch (const std::exception& e) {
-                std::cerr << 
+                std::cerr <<
                     fmt::format("WARNING:  Could not process device info for {}/{}, skipping: {}", sourcemac, phy, e.what()) << std::endl;
             }
         }
@@ -752,7 +752,7 @@ int main(int argc, char *argv[]) {
                 n_discarded_logs_rate++;
                 continue;
             }
-        } 
+        }
         cached->last_time_sec = ts;
 
         if (phy == "IEEE802.11")
@@ -777,7 +777,7 @@ int main(int argc, char *argv[]) {
     device_cache_map.clear();
 
     for (auto p : bt_query) {
-        // Brute-force cache maintenance; if we're full at the start of the 
+        // Brute-force cache maintenance; if we're full at the start of the
         // processing loop, nuke the ENTIRE cache and rebuild it; this is
         // cleaner than constantly re-sorting it.
         if (device_cache_map.size() >= cache_limit) {
@@ -789,9 +789,9 @@ int main(int argc, char *argv[]) {
 
         n_logs++;
         if (n_logs % n_division == 0 && verbose)
-            std::cerr << 
+            std::cerr <<
                 fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
-                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
+                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1,
                     n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
 
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
@@ -879,7 +879,7 @@ int main(int argc, char *argv[]) {
                 device_cache_map[sourcemac] = cached;
 
             } catch (const std::exception& e) {
-                std::cerr << 
+                std::cerr <<
                     fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
             }
         }
@@ -893,7 +893,7 @@ int main(int argc, char *argv[]) {
                 n_discarded_logs_rate++;
                 continue;
             }
-        } 
+        }
 
         cached->last_time_sec = ts;
 
@@ -931,7 +931,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (verbose)  {
-        fmt::print(stderr, "* Processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones\n", 
+        fmt::print(stderr, "* Processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones\n",
                 n_logs, n_discarded_logs_rate, n_discarded_logs_zones);
         fmt::print(stderr, "* Done!\n");
     }
