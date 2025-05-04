@@ -472,13 +472,13 @@ int main(int argc, char *argv[]) {
         n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
 
         if (verbose)
-            fmt::print(stderr, "* Found {} devices, {} usable packets, {} total packets\n",
+            fmt::print(stderr, "* Found {} devices, {} packets with GPS, {} total packets\n",
                     n_devices_db, n_packets_db, n_total_packets_db);
 
         if (n_packets_db == 0) {
-            fmt::print(stderr, "ERROR:  No usable packets in the log file; packets must have GPS information\n"
-                            "        to be usable with Wigle.  Make sure you have a GPS connected and\n"
-                            "        have a signal lock.\n");
+            fmt::print(stderr, "ERROR:  No usable data in the provided log; Wigle export currently works\n"
+                            "        with WiFi devices which were captured with GPS data.  Make sure\n"
+                            "        you have a GPS connected with a signal lock.\n");
             sqlite3_close(db);
             exit(1);
         }
@@ -492,7 +492,7 @@ int main(int argc, char *argv[]) {
     } else {
         ofile = fopen(out_fname.c_str(), "w");
         if (ofile == NULL) {
-            fmt::print(stderr, "ERROR:  Unable to open output file for writing: {}\n", strerror(errno));
+            fmt::print(stderr, "ERROR:  Unable to open output file {}: {}\n", out_fname, strerror(errno));
             exit(1);
         }
     }
