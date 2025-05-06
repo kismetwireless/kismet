@@ -356,16 +356,19 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         }
     }
 
-    if (hdr_802_15_4_fcf->security) {
-        common->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
-    }
-
-    // Setting the source and dest
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
-        common = std::make_shared<kis_common_info>();
+
+        if (common == nullptr) {
+            common = mphy->packetchain->new_packet_component<kis_common_info>();
+        }
+
         common->phyid = mphy->fetch_phy_id();
         common->type = packet_basic_data;
+
+        if (hdr_802_15_4_fcf->security) {
+            common->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
+        }
 
         if (hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             common->source = mac_addr(ext_source, 8);
