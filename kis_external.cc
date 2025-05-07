@@ -275,6 +275,8 @@ void kis_external_ipc::close_impl() {
     if (ipc_.pid > 0) {
         kill(ipc_.pid, SIGTERM);
     }
+
+    out_bufs_.clear();
 }
 
 kis_external_tcp::~kis_external_tcp() {
@@ -454,6 +456,8 @@ void kis_external_tcp::close_impl() {
         } catch (...) { }
 
     }
+
+    out_bufs_.clear();
 }
 
 void kis_external_tcp::write_impl() {
@@ -534,6 +538,7 @@ void kis_external_ws::write_impl() {
 void kis_external_ws::close() {
     stopped_ = true;
     ws_->close();
+    out_bufs_.clear();
 }
 
 kis_external_interface::kis_external_interface() :

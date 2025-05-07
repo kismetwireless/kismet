@@ -2239,8 +2239,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     if (total_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
-        fprintf(stderr, "FATAL: Capture source (%s) incoming packet too large for ringbuf\n",
-				caph->capsource_type);
+        fprintf(stderr, "FATAL: Capture source (%s) incoming packet too large for ringbuf (%u / %lu)\n",
+				caph->capsource_type, total_sz, kis_simple_ringbuf_size(caph->in_ringbuf));
         return -1;
     }
 
