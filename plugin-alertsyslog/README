@@ -45,4 +45,3 @@ Kismet-ALERTSYSLOG
 
     Once the plugin is loaded, Kismet will automatically log alerts to
     syslog.
-

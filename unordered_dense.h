@@ -154,7 +154,7 @@ namespace detail {
 
 // This is a stripped-down implementation of wyhash: https://github.com/wangyi-fudan/wyhash
 // No big-endian support (because different values on different machines don't matter),
-// hardcodes seed and the secret, reformattes the code, and clang-tidy fixes.
+// hardcodes seed and the secret, reformats the code, and clang-tidy fixes.
 namespace detail::wyhash {
 
 static inline void mum(uint64_t* a, uint64_t* b) {
