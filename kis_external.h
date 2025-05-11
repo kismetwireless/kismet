@@ -110,7 +110,7 @@ public:
                 self->out_bufs_.push_back(buf);
 
                 if (self->out_bufs_.size() > 1) {
-                return;
+                    return;
                 }
 
                 self->write_impl();

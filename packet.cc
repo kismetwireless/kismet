@@ -74,6 +74,7 @@ void kis_packet::reset() {
     // reset raw data if in use
     raw_data.clear();
     data = nonstd::string_view{nullptr, 0};
+    raw_streambuf.reset();
 
     process_complete_events.clear();
 
