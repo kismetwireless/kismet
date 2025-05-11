@@ -107,30 +107,28 @@ lsh #8
 tax
 ldb [2]
 add x
-st m[0] ; store rtap length in M0
 
-; drop packets with rtap <= 20, they indicate self-injected
-jlt #20, drop
-
-; x = rtap length
-tax
+st m[0]         ; store rtap length in M0
+tax             ; store total length in index(x)
 
 ; get frame type
 ldb [x + 0]
-and #0xC
+and #0xC        ; 00001100
 
-; accept all mangement
+; management
 jeq #0x0, full
 
-; drop non-management, non-data
-jne #0x8, drop
+; data
+jeq #0x8, datasub
+ja drop
 
-; load framecontrol and isolate subtype
+datasub:
+; load subtype
 ldb [x + 0]
 and #0xF0
 
 ; normal data packets have a 24 byte header, qos have a 26 byte
-; header, and anything else we dont care about
+; header, and anything else we don't care about
 
 jeq #0x80, qos
 jeq #0x00, basic
@@ -144,7 +142,7 @@ qos:
 ld #26
 
 data:
-add x                   ; add rtap length to dot11 header length
+add %x
 st m[1]                 ; store rtap+data offset to m[1]
 
 ldx m[0]                ; load the rtap offset again and compare 80211 flags
@@ -166,7 +164,7 @@ ldb [x + 7]
 jne #0x8E, drop
 
 full:
-ret #-1
+ret #0xFFFF
 
 drop:
 ret #0
@@ -180,12 +178,12 @@ struct bpf_insn rt_pgm[] = {
     { 0x30,  0,  0, 0x00000002 },
     { 0x0c,  0,  0, 0000000000 },
     { 0x02,  0,  0, 0000000000 },
-    { 0x35,  0, 26, 0x00000014 },
     { 0x07,  0,  0, 0000000000 },
     { 0x50,  0,  0, 0000000000 },
     { 0x54,  0,  0, 0x0000000c },
-    { 0x15, 21,  0, 0000000000 },
-    { 0x15,  0, 21, 0x00000008 },
+    { 0x15, 22,  0, 0000000000 },
+    { 0x15,  1,  0, 0x00000008 },
+    { 0x05,  0,  0, 0x00000015 },
     { 0x50,  0,  0, 0000000000 },
     { 0x54,  0,  0, 0x000000f0 },
     { 0x15,  4,  0, 0x00000080 },
@@ -206,7 +204,7 @@ struct bpf_insn rt_pgm[] = {
     { 0x15,  0,  3, 0x00000088 },
     { 0x50,  0,  0, 0x00000007 },
     { 0x15,  0,  1, 0x0000008e },
-    { 0x06,  0,  0, 0xffffffff },
+    { 0x06,  0,  0, 0x0000ffff },
     { 0x06,  0,  0, 0000000000 },
 };
 
@@ -222,30 +220,28 @@ lsh #8
 tax
 ldb [2]
 add x
-st m[0] ; store rtap length in M0
 
-; drop packets with rtap <= 20, they indicate self-injected
-jlt #20, drop
-
-; x = rtap length
-tax
+st m[0]         ; store rtap length in M0
+tax             ; store total length in index(x)
 
 ; get frame type
 ldb [x + 0]
-and #0xC
+and #0xC        ; 00001100
 
-; accept all mangement
+; management
 jeq #0x0, full
 
-; drop non-management, non-data
-jne #0x8, drop
+; data
+jeq #0x8, datasub
+ja drop
 
-; load framecontrol and isolate subtype
+datasub:
+; load subtype
 ldb [x + 0]
 and #0xF0
 
 ; normal data packets have a 24 byte header, qos have a 26 byte
-; header, and anything else we dont care about
+; header, and anything else we don't care about
 
 jeq #0x80, qos
 jeq #0x00, basic
@@ -259,7 +255,7 @@ qos:
 ld #26
 
 data:
-add x                   ; add rtap length to dot11 header length
+add %x
 st m[1]                 ; store rtap+data offset to m[1]
 
 ldx m[0]                ; load the rtap offset again and compare 80211 flags
@@ -281,13 +277,14 @@ ldb [x + 7]
 jne #0x8E, trunc
 
 full:
-ret #-1
+ret #0xFFFF
 
 drop:
 ret #0
 
 trunc:
-ld m[1]
+ldx m[1]
+txa
 ret %a
 #endif
 struct bpf_insn rt_pgm_crop_data[] = {
@@ -299,12 +296,12 @@ struct bpf_insn rt_pgm_crop_data[] = {
     { 0x30,  0,  0, 0x00000002 },
     { 0x0c,  0,  0, 0000000000 },
     { 0x02,  0,  0, 0000000000 },
-    { 0x35,  0, 26, 0x00000014 },
     { 0x07,  0,  0, 0000000000 },
     { 0x50,  0,  0, 0000000000 },
     { 0x54,  0,  0, 0x0000000c },
-    { 0x15, 21,  0, 0000000000 },
-    { 0x15,  0, 21, 0x00000008 },
+    { 0x15, 22,  0, 0000000000 },
+    { 0x15,  1,  0, 0x00000008 },
+    { 0x05,  0,  0, 0x00000015 },
     { 0x50,  0,  0, 0000000000 },
     { 0x54,  0,  0, 0x000000f0 },
     { 0x15,  4,  0, 0x00000080 },
@@ -325,188 +322,11 @@ struct bpf_insn rt_pgm_crop_data[] = {
     { 0x15,  0,  4, 0x00000088 },
     { 0x50,  0,  0, 0x00000007 },
     { 0x15,  0,  2, 0x0000008e },
-    { 0x06,  0,  0, 0xffffffff },
+    { 0x06,  0,  0, 0x0000ffff },
     { 0x06,  0,  0, 0000000000 },
-    { 0x60,  0,  0, 0x00000001 },
-    { 0x16,  0,  0, 0000000000 },
-};
-
-// return mgmt+eapol, all other data is truncated to the dot11 headers
-#if 0
-; prep length memory at max
-ld #-1
-st m[1]
-
-; get frame type
-ldb [0]
-and #0xC
-
-; accept all mangement
-jeq #0x0, full
-
-; drop non-management, non-data
-jne #0x8, drop
-
-; load framecontrol and isolate subtype
-ldb [0]
-and #0xF0
-
-jeq #0x80, qos
-jeq #0x00, basic
-ja drop                 ; drop anything else
-
-basic:
-ld #24
-ja data
-
-qos:
-ld #26
-
-data:
-st m[1]                 ; store data offset to m[1]
-
-ldb [1]
-jset #0x40, trunc       ; skip protected data packets and truncate them
-
-# load the data offset back into the index
-ldx m[1]
-
-; check LLC SNAP header
-ldh [x + 0]
-jne #0xAAAA, trunc
-
-; check eapol signature
-ldb [x + 6]
-jne #0x88, trunc
-
-ldb [x + 7]
-jne #0x8E, trunc
-
-full:
-ret #-1
-
-drop:
-ret #0
-
-trunc:
-ld m[1]
-ret %a
-#endif
-struct bpf_insn dot11_pgm_crop_data[] = {
-    { 0000,  0,  0, 0xffffffff },
-    { 0x02,  0,  0, 0x00000001 },
-    { 0x30,  0,  0, 0000000000 },
-    { 0x54,  0,  0, 0x0000000c },
-    { 0x15, 19,  0, 0000000000 },
-    { 0x15,  0, 19, 0x00000008 },
-    { 0x30,  0,  0, 0000000000 },
-    { 0x54,  0,  0, 0x000000f0 },
-    { 0x15,  4,  0, 0x00000080 },
-    { 0x15,  1,  0, 0000000000 },
-    { 0x05,  0,  0, 0x0000000e },
-    { 0000,  0,  0, 0x00000018 },
-    { 0x05,  0,  0, 0x00000001 },
-    { 0000,  0,  0, 0x0000001a },
-    { 0x02,  0,  0, 0x00000001 },
-    { 0x30,  0,  0, 0x00000001 },
-    { 0x45,  9,  0, 0x00000040 },
     { 0x61,  0,  0, 0x00000001 },
-    { 0x48,  0,  0, 0000000000 },
-    { 0x15,  0,  6, 0x0000aaaa },
-    { 0x50,  0,  0, 0x00000006 },
-    { 0x15,  0,  4, 0x00000088 },
-    { 0x50,  0,  0, 0x00000007 },
-    { 0x15,  0,  2, 0x0000008e },
-    { 0x06,  0,  0, 0xffffffff },
-    { 0x06,  0,  0, 0000000000 },
-    { 0x60,  0,  0, 0x00000001 },
+    { 0x87,  0,  0, 0000000000 },
     { 0x16,  0,  0, 0000000000 },
-};
-
-// return only mgmt+eapol, all other frames are filtered
-#if 0
-; prep length memory at max
-ld #-1
-st m[1]
-
-; get frame type
-ldb [0]
-and #0xC
-
-; accept all mangement
-jeq #0x0, full
-
-; drop non-management, non-data
-jne #0x8, drop
-
-; load framecontrol and isolate subtype
-ldb [0]
-and #0xF0
-
-jeq #0x80, qos
-jeq #0x00, basic
-ja drop                 ; drop anything else
-
-basic:
-ld #24
-ja data
-
-qos:
-ld #26
-
-data:
-st m[1]                 ; store data offset to m[1]
-
-ldb [1]
-jset #0x40, drop        ; skip protected data packets and truncate them
-
-# load the data offset back into the index
-ldx m[1]
-
-; check LLC SNAP header
-ldh [x + 0]
-jne #0xAAAA, drop
-
-; check eapol signature
-ldb [x + 6]
-jne #0x88, drop
-
-ldb [x + 7]
-jne #0x8E, drop
-
-full:
-ret #-1
-
-drop:
-ret #0
-#endif
-struct bpf_insn dot11_pgm[] = {
-    { 0000,  0,  0, 0xffffffff },
-    { 0x02,  0,  0, 0x00000001 },
-    { 0x30,  0,  0, 0000000000 },
-    { 0x54,  0,  0, 0x0000000c },
-    { 0x15, 19,  0, 0000000000 },
-    { 0x15,  0, 19, 0x00000008 },
-    { 0x30,  0,  0, 0000000000 },
-    { 0x54,  0,  0, 0x000000f0 },
-    { 0x15,  4,  0, 0x00000080 },
-    { 0x15,  1,  0, 0000000000 },
-    { 0x05,  0,  0, 0x0000000e },
-    { 0000,  0,  0, 0x00000018 },
-    { 0x05,  0,  0, 0x00000001 },
-    { 0000,  0,  0, 0x0000001a },
-    { 0x02,  0,  0, 0x00000001 },
-    { 0x30,  0,  0, 0x00000001 },
-    { 0x45,  8,  0, 0x00000040 },
-    { 0x61,  0,  0, 0x00000001 },
-    { 0x48,  0,  0, 0000000000 },
-    { 0x15,  0,  5, 0x0000aaaa },
-    { 0x50,  0,  0, 0x00000006 },
-    { 0x15,  0,  3, 0x00000088 },
-    { 0x50,  0,  0, 0x00000007 },
-    { 0x15,  0,  1, 0x0000008e },
-    { 0x06,  0,  0, 0xffffffff },
-    { 0x06,  0,  0, 0000000000 },
 };
 
 /* State tracking, put in userdata */
@@ -3216,16 +3036,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                          local_wifi->name, pcap_geterr(local_wifi->pd));
                 cf_send_message(caph, errstr, MSGFLAG_ERROR);
             }
-        } else if (pcap_datalink(local_wifi->pd) == DLT_IEEE802_11) {
-            bpf.bf_insns = dot11_pgm;
-            bpf.bf_len = sizeof(dot11_pgm) / sizeof(struct bpf_insn);
-            if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
-                snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter: %s",
-                         local_wifi->name, pcap_geterr(local_wifi->pd));
-                cf_send_message(caph, errstr, MSGFLAG_ERROR);
-            }
         } else {
-            snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter on unknown link type %u/%s",
+            snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter on non-rtap link type %u/%s",
                      local_wifi->name, pcap_datalink(local_wifi->pd),
                      pcap_datalink_val_to_name(pcap_datalink(local_wifi->pd)));
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
@@ -3239,16 +3051,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                          local_wifi->name, pcap_geterr(local_wifi->pd));
                 cf_send_message(caph, errstr, MSGFLAG_ERROR);
             }
-        } else if (pcap_datalink(local_wifi->pd) == DLT_IEEE802_11) {
-            bpf.bf_insns = dot11_pgm;
-            bpf.bf_len = sizeof(dot11_pgm_crop_data) / sizeof(struct bpf_insn);
-            if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
-                snprintf(errstr, STATUS_MAX, "%s unable to install management packet filter: %s",
-                         local_wifi->name, pcap_geterr(local_wifi->pd));
-                cf_send_message(caph, errstr, MSGFLAG_ERROR);
-            }
         } else {
-            snprintf(errstr, STATUS_MAX, "%s unable to install data filter on unknown link type %u/%s",
+            snprintf(errstr, STATUS_MAX, "%s unable to install data filter on non-rtap link type %u/%s",
                      local_wifi->name, pcap_datalink(local_wifi->pd),
                      pcap_datalink_val_to_name(pcap_datalink(local_wifi->pd)));
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
