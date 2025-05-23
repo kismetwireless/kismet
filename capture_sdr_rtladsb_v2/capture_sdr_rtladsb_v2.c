@@ -65,7 +65,7 @@
 #include <sys/stat.h>
 
 #include <stdint.h>
-
+#include <stdio.h>
 #include <rtl-sdr.h>
 
 #include "../capture_framework.h"
