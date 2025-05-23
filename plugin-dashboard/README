@@ -13,4 +13,3 @@ make plugins-install
 and accessed via:
 
 http://localhost:2501/plugin/dashboard/
-
