@@ -754,14 +754,6 @@ icao:
 	@$(PYTHON) tools/create_icao_db.py conf/kismet_adsb_icao.txt.gz_new
 	@mv conf/kismet_adsb_icao.txt.gz_new conf/kismet_adsb_icao.txt.gz
 
-extcappy:
-	@echo "Updating kismetexternal python"
-	@find ./ -path *kismetexternal* -name __init__.py -not  -path *build* -exec cp ../python-kismet-external/kismetexternal/__init__.py {} \; 
-
-rtlsdrpy:
-	@echo "Updating kismet rtlsdr python"
-	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
-
 boostbits:
 	@echo "Scanning boost deps in ASIO"
 	@mv boost boost-old
