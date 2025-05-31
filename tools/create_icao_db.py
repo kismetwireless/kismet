@@ -2,16 +2,14 @@
 
 # Downloads http://registry.faa.gov/database/ReleasableAircraft.zip and extracts it in ram
 # to generate the aircraft ICAO database.
-# 
+#
 # Used during Kismet release tagging to generate the aircraft db
 
 import csv
 import requests
-import urllib3
 import io
 import zipfile
 
-import os
 import sys
 
 # Kluge up request lib because the canadian server later in the script has an invalid DH key
@@ -22,9 +20,9 @@ try:
 except AttributeError:
     pass
 
-acft={}
-mdl={}
-res={}
+acft = {}
+mdl = {}
+res = {}
 
 # User agent headers; it looks like faa.gov filters robot downloads, which is totally
 # fair, but this triggers so rarely I don't actually feel bad.
@@ -32,7 +30,7 @@ headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
         }
 
-#FAA Records Fetch
+# FAA Records Fetch
 with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip", timeout=30, headers=headers) as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
     mem_zf.write(response.content)
@@ -81,12 +79,12 @@ with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip", tim
                         acft[row[2]],
                         row[6].rstrip(),
                         row[18]))
-            except KeyError as ke:
+            except KeyError:
                 print("Error processing entry, skipping: {}".format(" ".join(row)), file=sys.stderr)
                 pass
 
-#Canada Records Fetch 
-owner={}
+# Canada Records Fetch
+owner = {}
 with requests.get("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/ccarcsdb.zip", timeout=30, headers=headers) as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
     mem_zf.write(response.content)
@@ -95,7 +93,7 @@ with requests.get("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/
     zipf = zipfile.ZipFile(mem_zf)
 
     with io.TextIOWrapper(zipf.open('carsownr.txt', 'r'), encoding='iso-8859-1') as ownerfile:
-        ownerlist = csv.reader(x.replace('\0','') for x in ownerfile)
+        ownerlist = csv.reader(x.replace('\0', '') for x in ownerfile)
         for row in ownerlist:
             if (row == []):
                 break
@@ -106,24 +104,24 @@ with requests.get("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/
 
         for row in airplanes:
             if(row == []):
-              break
+                break
 
-            type=""
+            type = ""
             if (row[10] == "Aeroplane"):
-                type="4"
+                type = "4"
             elif (row[10] == "Balloon"):
-                type="2"
+                type = "2"
             elif (row[10] == "Glider"):
-                type="1"
+                type = "1"
             elif (row[10] == "Gyroplane"):
-                type="9"
+                type = "9"
             elif (row[10] == "Helicopter"):
-                type="6"
+                type = "6"
             elif (row[10] == "Ornithopter"):
-                type="O"
+                type = "O"
 
             print("{}\tC-{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
-                    str(hex(int(row[42],2)))[2:],
+                    str(hex(int(row[42], 2)))[2:],
                     row[0].lstrip(),
                     row[4],
                     row[7],
