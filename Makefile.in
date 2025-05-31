@@ -737,7 +737,7 @@ install:
 	@echo "or you can replace the previously installed config files entirely by running"
 	@echo "make forceconfigs"
 
-forceconfigs: 
+forceconfigs:
 	$(MAKE) $(FORCECONFINSTTARGETS)
 
 uavconfig:
@@ -746,7 +746,8 @@ uavconfig:
 
 manuf:
 	@echo "Generating kismet_manuf.txt.gz"
-	@$(PYTHON) tools/create_oui_db.py | gzip -9 > conf/kismet_manuf.txt.gz
+	@$(PYTHON) tools/create_oui_db.py conf/kismet_manuf.txt.gz_new
+	@mv conf/kismet_manuf.txt.gz_new conf/kismet_manuf.txt.gz
 
 icao:
 	@echo "Generating kismet_adsb_icao.txt.gz"
@@ -764,7 +765,7 @@ boostbits:
 	@echo "Scanning boost deps in ASIO"
 	@mv boost boost-old
 	@mkdir boost-raw
-	@bcp --boost=../bost/ beast asio boost-raw 
+	@bcp --boost=../boost/ beast asio boost-raw
 	@mv boost-raw/boost boost
 
 release-%:
