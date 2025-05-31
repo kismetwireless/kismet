@@ -751,7 +751,8 @@ manuf:
 
 icao:
 	@echo "Generating kismet_adsb_icao.txt.gz"
-	@$(PYTHON) tools/create_icao_db.py | sort | gzip -9 > conf/kismet_adsb_icao.txt.gz
+	@$(PYTHON) tools/create_icao_db.py conf/kismet_adsb_icao.txt.gz_new
+	@mv conf/kismet_adsb_icao.txt.gz_new conf/kismet_adsb_icao.txt.gz
 
 extcappy:
 	@echo "Updating kismetexternal python"
