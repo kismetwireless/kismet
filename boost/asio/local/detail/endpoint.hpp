@@ -2,7 +2,7 @@
 // local/detail/endpoint.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 // Derived from a public domain implementation written by Daniel Casimiro.
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -37,7 +37,7 @@ class endpoint
 {
 public:
   // Default constructor.
-  BOOST_ASIO_DECL endpoint();
+  BOOST_ASIO_DECL endpoint() noexcept;
 
   // Construct an endpoint using the specified path name.
   BOOST_ASIO_DECL endpoint(const char* path_name);
@@ -51,14 +51,14 @@ public:
   #endif // defined(BOOST_ASIO_HAS_STRING_VIEW)
 
   // Copy constructor.
-  endpoint(const endpoint& other)
+  endpoint(const endpoint& other) noexcept
     : data_(other.data_),
       path_length_(other.path_length_)
   {
   }
 
   // Assign from another endpoint.
-  endpoint& operator=(const endpoint& other)
+  endpoint& operator=(const endpoint& other) noexcept
   {
     data_ = other.data_;
     path_length_ = other.path_length_;
@@ -66,19 +66,19 @@ public:
   }
 
   // Get the underlying endpoint in the native type.
-  boost::asio::detail::socket_addr_type* data()
+  boost::asio::detail::socket_addr_type* data() noexcept
   {
     return &data_.base;
   }
 
   // Get the underlying endpoint in the native type.
-  const boost::asio::detail::socket_addr_type* data() const
+  const boost::asio::detail::socket_addr_type* data() const noexcept
   {
     return &data_.base;
   }
 
   // Get the underlying size of the endpoint in the native type.
-  std::size_t size() const
+  std::size_t size() const noexcept
   {
     return path_length_
       + offsetof(boost::asio::detail::sockaddr_un_type, sun_path);
@@ -88,7 +88,7 @@ public:
   BOOST_ASIO_DECL void resize(std::size_t size);
 
   // Get the capacity of the endpoint in the native type.
-  std::size_t capacity() const
+  std::size_t capacity() const noexcept
   {
     return sizeof(boost::asio::detail::sockaddr_un_type);
   }
@@ -104,11 +104,11 @@ public:
 
   // Compare two endpoints for equality.
   BOOST_ASIO_DECL friend bool operator==(
-      const endpoint& e1, const endpoint& e2);
+      const endpoint& e1, const endpoint& e2) noexcept;
 
   // Compare endpoints for ordering.
   BOOST_ASIO_DECL friend bool operator<(
-      const endpoint& e1, const endpoint& e2);
+      const endpoint& e1, const endpoint& e2) noexcept;
 
 private:
   // The underlying UNIX socket address.

@@ -35,14 +35,14 @@ class key_value_pair;
 
     This is an associative container whose elements
     are key/value pairs with unique keys.
-\n
+
     The elements are stored contiguously; iterators are
     ordinary pointers, allowing random access pointer
     arithmetic for retrieving elements.
     In addition, the container maintains an internal
     index to speed up find operations, reducing the
     average complexity for most lookups and insertions.
-\n
+
     Reallocations are usually costly operations in terms of
     performance, as elements are copied and the internal
     index must be rebuilt. The @ref reserve function can
@@ -871,7 +871,7 @@ public:
         allocated. Otherwise, the call has no effect.
         The number of elements and therefore the
         @ref size() of the container is not changed.
-    \n
+
         If new memory is allocated, all iterators
         including any past-the-end iterators, and all
         references to the elements are invalidated.
@@ -968,6 +968,8 @@ public:
         present in container will be skipped. This also means, that if there
         are two keys within the range that are equal to each other, only the
         first will be inserted.
+
+        @n
 
         Insertion may result in rehashing of the container. In that case all
         iterators and references are invalidated. Otherwise, they are not
@@ -1353,12 +1355,11 @@ public:
         Returns a reference to the value that is mapped
         to a key equivalent to key, performing an insertion
         of a null value if such key does not already exist.
-    \n
-        If an insertion occurs and results in a rehashing of
-        the container, all iterators are invalidated. Otherwise
-        iterators are not affected. References are not
-        invalidated. Rehashing occurs only if the new
-        number of elements is greater than @ref capacity().
+
+        If an insertion occurs and results in a rehashing of the container, all
+        iterators including any past-the-end iterators, and all references to
+        the elements are invalidated. Otherwise, no iterators or references are
+        invalidated.
 
         @par Complexity
         Constant on average, worst case linear in @ref size().

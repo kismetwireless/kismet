@@ -2,7 +2,7 @@
 // impl/spawn.hpp
 // ~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -643,6 +643,8 @@ inline bool asio_handler_is_continuation(spawn_handler<Executor, Signature>*)
 
 } // namespace detail
 
+#if !defined(GENERATING_DOCUMENTATION)
+
 template <typename Executor, typename Signature>
 class async_result<basic_yield_context<Executor>, Signature>
 {
@@ -714,6 +716,8 @@ public:
 
 #endif // defined(BOOST_ASIO_HAS_VARIADIC_LAMBDA_CAPTURES)
 };
+
+#endif // !defined(GENERATING_DOCUMENTATION)
 
 namespace detail {
 

@@ -686,7 +686,7 @@ loop:
             // or just leave it as is
             if(BOOST_JSON_UNLIKELY(p == sentinel()))
                 return maybe_suspend(p, state::val2);
-            // intentional fallthrough
+            BOOST_FALLTHROUGH;
         case ' ':
         case '\t':
         case '\n':
