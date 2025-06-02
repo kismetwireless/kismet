@@ -2,7 +2,7 @@
 // impl/thread_pool.ipp
 // ~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -61,7 +61,8 @@ inline long default_thread_pool_size()
 
 thread_pool::thread_pool()
   : scheduler_(add_scheduler(new detail::scheduler(*this, false))),
-    num_threads_(detail::default_thread_pool_size())
+    num_threads_(detail::default_thread_pool_size()),
+    joinable_(true)
 {
   scheduler_.work_started();
 

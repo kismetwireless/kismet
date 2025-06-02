@@ -2,7 +2,7 @@
 // experimental/impl/parallel_group.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -707,6 +707,7 @@ void ranged_parallel_group_launch(Condition cancellation_condition,
       std::move(handler), range.size(), allocator);
 
   std::size_t idx = 0;
+  std::size_t range_size = range.size();
   for (auto&& op : std::forward<Range>(range))
   {
     typedef associated_executor_t<op_type> ex_type;
@@ -719,7 +720,7 @@ void ranged_parallel_group_launch(Condition cancellation_condition,
 
   // Check if any of the operations has already requested cancellation, and if
   // so, emit a signal for each operation in the group.
-  if ((state->cancellations_requested_ -= range.size()) > 0)
+  if ((state->cancellations_requested_ -= range_size) > 0)
     for (auto& signal : state->cancellation_signals_)
       signal.emit(state->cancel_type_);
 

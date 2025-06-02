@@ -13,6 +13,7 @@
 #define BOOST_ASIO_EXPERIMENTAL_DETAIL_CORO_PROMISE_ALLOCATOR_HPP
 
 #include <boost/asio/detail/config.hpp>
+#include <limits>
 #include <boost/asio/experimental/coro_traits.hpp>
 
 namespace boost {
