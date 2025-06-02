@@ -30,14 +30,14 @@ PARSERS = \
 	dot11_parsers/dot11_ie_133_cisco_ccx.cc.o \
 	dot11_parsers/dot11_ie_150_vendor.cc.o \
 	dot11_parsers/dot11_ie_150_cisco_powerlevel.cc.o \
-    dot11_parsers/dot11_ie_191_vht_cap.cc.o \
-    dot11_parsers/dot11_ie_192_vht_op.cc.o \
+	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
+	dot11_parsers/dot11_ie_192_vht_op.cc.o \
 	dot11_parsers/dot11_ie_127_extended_capabilities.cc.o \
-    dot11_parsers/dot11_ie_221_vendor.cc.o \
-    dot11_parsers/dot11_ie_221_ms_wps.cc.o \
-    dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
-    dot11_parsers/dot11_ie_221_dji_droneid.cc.o \
-    dot11_parsers/dot11_ie_221_wfa_wpa.cc.o \
+	dot11_parsers/dot11_ie_221_vendor.cc.o \
+	dot11_parsers/dot11_ie_221_ms_wps.cc.o \
+	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
+	dot11_parsers/dot11_ie_221_dji_droneid.cc.o \
+	dot11_parsers/dot11_ie_221_wfa_wpa.cc.o \
 	dot11_parsers/dot11_ie_221_cisco_client_mfp.cc.o \
 	dot11_parsers/dot11_ie_221_wpa_transition.cc.o \
 	dot11_parsers/dot11_ie_221_rsn_pmkid.cc.o \
@@ -46,7 +46,7 @@ PARSERS = \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o \
 	dot11_parsers/dot11_p2p_ie.cc.o \
-	bluetooth_parsers/btle.cc.o 
+	bluetooth_parsers/btle.cc.o
 
 # To prevent a deps problem, we define these targets via autoconf to reference
 # the variable setting the list
@@ -56,7 +56,7 @@ PROTOBUF_CPP_O = \
 	protobuf_cpp/http.pb.cc.o \
 	protobuf_cpp/datasource.pb.cc.o \
 	protobuf_cpp/linuxbluetooth.pb.cc.o \
-	protobuf_cpp/eventbus.pb.cc.o 
+	protobuf_cpp/eventbus.pb.cc.o
 
 PROTOBUF_CPP_H_TARGET = @PROTOBUF_CPP_H_TARGET@
 PROTOBUF_CPP_H = \
@@ -64,12 +64,12 @@ PROTOBUF_CPP_H = \
 	protobuf_cpp/http.pb.h \
 	protobuf_cpp/datasource.pb.h \
 	protobuf_cpp/linuxbluetooth.pb.h \
-	protobuf_cpp/eventbus.pb.h 
+	protobuf_cpp/eventbus.pb.h
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
     mpack/mpack.c.o \
-	simple_ringbuf_c.c.o version.c.o capture_framework.c.o 
+	simple_ringbuf_c.c.o version.c.o capture_framework.c.o
 DATASOURCE_COMMON_A = libkismetdatasource.a
 
 CAPTURE_PCAPFILE_O = \
