@@ -4404,7 +4404,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         est_len += strlen(msg);
     }
 
-    if (caph->hopping_running) {
+    if (caph->channel_hop_rate) {
         /* rate + shuffle + skip + offset + array */
         est_len += 8 + 1 + 2 + 2 + 4;
 
@@ -4440,7 +4440,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, in_seqno);
 
-    if (caph->hopping_running) {
+    if (caph->channel_hop_rate) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
         mpack_build_map(&writer);
 
