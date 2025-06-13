@@ -1183,7 +1183,6 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
     if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE)) {
         auto subif = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE);
 
-        source_hop_vec->clear();
         if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST)) {
             auto chanvec = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST);
             auto chans_sz = mpack_node_array_length(chanvec);
@@ -1193,6 +1192,8 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
                 handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
                 return;
             }
+
+            source_hop_vec->clear();
 
             for (size_t szi = 0; szi < chans_sz; szi++) {
                 auto ch_n = mpack_node_array_at(chanvec, szi);
@@ -1466,6 +1467,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
     auto channel_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
     auto hopmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
+
     if (!mpack_node_is_missing(channel_n)) {
         auto chan_sz = mpack_node_data_len(channel_n);
         auto chan_s = mpack_node_str(channel_n);
@@ -1548,7 +1550,6 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
             set_int_source_hop_offset(offset);
         }
 
-        source_hop_vec->clear();
         auto chanvec = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
         if (!mpack_node_is_missing(chanvec)) {
             auto chans_sz = mpack_node_array_length(chanvec);
@@ -1558,6 +1559,8 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
                 handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
                 return;
             }
+
+            source_hop_vec->clear();
 
             for (size_t szi = 0; szi < chans_sz; szi++) {
                 auto chan_n = mpack_node_array_at(chanvec, szi);
@@ -1798,6 +1801,8 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
             return;
         }
+
+        source_channels_vec->clear();
 
         for (size_t szi = 0; szi < chans_sz; szi++) {
             auto chan_n = mpack_node_array_at(chanvec, szi);
@@ -2729,7 +2734,6 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     }
 
     if (report.has_hop_config()) {
-
         // Set the basics, if we got them we're being overridden by the remote
         // end; this might be a remote capture triggering remote-side options
 
