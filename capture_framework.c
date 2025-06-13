@@ -1961,7 +1961,9 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             mpack_tree_destroy(&tree);
 
             goto finish;
-        } else if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK)) {
+        }
+
+        if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK)) {
             mpack_node_t chanhop;
             mpack_node_t chanlist;
 
@@ -3661,8 +3663,6 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     size_t i;
 
-    uint32_t seqno;
-
     /* Send messages independently */
     if (msg != NULL && strlen(msg) > 0) {
         if (success) {
@@ -3700,10 +3700,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     est_len = est_len * 1.15;
 
-    seqno = cf_get_next_seqno(caph);
-
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seqno, success, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seq, success, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -3773,8 +3771,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     size_t i;
 
-    uint32_t seqno;
-
     if (msg != NULL && strlen(msg) != 0) {
         if (success) {
             if (caph->verbose)
@@ -3824,10 +3820,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     est_len = est_len * 1.15;
 
-    seqno = cf_get_next_seqno(caph);
-
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seqno, success, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seq, success, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -4389,8 +4383,6 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     size_t i;
 
-    uint32_t seqno;
-
     /* Send messages independently */
     if (msg != NULL) {
         if (caph->verbose) {
@@ -4404,7 +4396,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         est_len += strlen(msg);
     }
 
-    if (caph->channel_hop_rate) {
+    if (caph->hopping_running) {
         /* rate + shuffle + skip + offset + array */
         est_len += 8 + 1 + 2 + 2 + 4;
 
@@ -4419,10 +4411,8 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     est_len = est_len * 1.15;
 
-    seqno = cf_get_next_seqno(caph);
-
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, seqno, success, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, in_seqno, success, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -4440,7 +4430,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, in_seqno);
 
-    if (caph->channel_hop_rate) {
+    if (caph->hopping_running) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
         mpack_build_map(&writer);
 
