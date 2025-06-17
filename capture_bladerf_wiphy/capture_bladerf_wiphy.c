@@ -502,7 +502,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     num_devs = bladerf_get_device_list(&devices);
 
-    if (num_devs == 0) {
+    if (num_devs <= 0) {
         *interfaces = NULL;
         return 0;
     }
