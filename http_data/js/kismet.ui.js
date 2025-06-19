@@ -1350,7 +1350,7 @@ function ScheduleDeviceSummary() {
                         deviceTablePage = deviceTablePage - 1;
                         return ScheduleDeviceSummary();
                     });
-                    if (deviceTablePage <= 1) {
+                    if (deviceTablePage <= 0) {
                         prevpage.attr('disabled', 'disabled');
                     }
                     paginator.append(prevpage);
