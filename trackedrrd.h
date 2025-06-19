@@ -697,9 +697,8 @@ public:
 
 // Generic RRD, extreme selector.  If both values are > 0, selects the highest.
 // If both values are below zero, selects the lowest.  If values are mixed,
-// selects the lowest.
-//
-// Averages to the next slot per normal
+// selects the lowest.  The same logic is applied when promoting to the next
+// precision slot
 class kis_tracked_rrd_extreme_aggregator {
 public:
     // Select the most extreme value
@@ -725,14 +724,14 @@ public:
         return b;
     }
 
-    // Simple average
     static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-        double avg = 0;
+        double extreme = 0;
 
-        for (auto i : *e)
-            avg += i;
+        std::for_each(e->begin(), e->end(), [&extreme](double i) {
+                extreme = combine_element(extreme, i);
+            });
 
-        return avg / e->size();
+        return extreme;
     }
 
     // Default 'empty' value, no legit signal would be 0
