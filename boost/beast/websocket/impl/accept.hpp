@@ -23,7 +23,6 @@
 #include <boost/beast/core/detail/buffer.hpp>
 #include <boost/beast/version.hpp>
 #include <boost/asio/coroutine.hpp>
-#include <boost/asio/post.hpp>
 #include <boost/assert.hpp>
 #include <boost/throw_exception.hpp>
 #include <memory>
@@ -120,7 +119,7 @@ build_response(
         if(it == req.end())
             return err(error::no_sec_key);
         key = it->value();
-        if(key.size() > detail::sec_ws_key_type::max_size_n)
+        if(key.size() > detail::sec_ws_key_type::static_capacity)
             return err(error::bad_sec_key);
     }
     {
@@ -145,11 +144,11 @@ build_response(
     res.result(http::status::switching_protocols);
     res.version(req.version());
     res.set(http::field::upgrade, "websocket");
-    res.set(http::field::connection, "upgrade");
+    res.set(http::field::connection, "Upgrade");
     {
         detail::sec_ws_accept_type acc;
         detail::make_sec_ws_accept(acc, key);
-        res.set(http::field::sec_websocket_accept, acc);
+        res.set(http::field::sec_websocket_accept, to_string_view(acc));
     }
     this->build_response_pmd(res, req);
     decorate(res);
@@ -171,6 +170,8 @@ class stream<NextLayer, deflateSupported>::response_op
     boost::weak_ptr<impl_type> wp_;
     error_code result_; // must come before res_
     response_type& res_;
+    http::response<http::empty_body> res_100_;
+    bool needs_res_100_{false};
 
 public:
     template<
@@ -192,6 +193,15 @@ public:
         , res_(beast::allocate_stable<response_type>(*this,
             sp->build_response(req, decorator, result_)))
     {
+        auto itr = req.find(http::field::expect);
+        if (itr != req.end() && iequals(itr->value(), "100-continue")) // do
+        {
+            res_100_.version(res_.version());
+            res_100_.set(http::field::server, res_[http::field::server]);
+            res_100_.result(http::status::continue_);
+            res_100_.prepare_payload();
+            needs_res_100_ = true;
+        }
         (*this)({}, 0, cont);
     }
 
@@ -204,7 +214,7 @@ public:
         auto sp = wp_.lock();
         if(! sp)
         {
-            ec = net::error::operation_aborted;
+            BOOST_BEAST_ASSIGN_EC(ec, net::error::operation_aborted);
             return this->complete(cont, ec);
         }
         auto& impl = *sp;
@@ -212,6 +222,16 @@ public:
         {
             impl.change_status(status::handshake);
             impl.update_timer(this->get_executor());
+
+            if (needs_res_100_)
+            {
+                BOOST_ASIO_CORO_YIELD
+                {
+                    BOOST_ASIO_HANDLER_LOCATION((__FILE__, __LINE__, "websocket::async_accept"));
+                    http::async_write(
+                            impl.stream(), res_100_, std::move(*this));
+                }
+            }
 
             // Send response
             BOOST_ASIO_CORO_YIELD
@@ -226,7 +246,10 @@ public:
             if(impl.check_stop_now(ec))
                 goto upcall;
             if(! ec)
-                ec = result_;
+            {
+                BOOST_BEAST_ASSIGN_EC(ec, result_);
+                BOOST_BEAST_ASSIGN_EC(ec, result_);
+            }
             if(! ec)
             {
                 impl.do_pmd_config(res_);
@@ -241,6 +264,9 @@ public:
 //------------------------------------------------------------------------------
 
 // read and respond to an upgrade request
+//
+// Cancellation: the async_accept cancellation can be terminal
+// because it will just interrupt the reading of the header.
 //
 template<class NextLayer, bool deflateSupported>
 template<class Handler, class Decorator>
@@ -270,6 +296,7 @@ public:
         , d_(decorator)
     {
         auto& impl = *sp;
+        impl.reset();
         error_code ec;
         auto const mb =
             beast::detail::dynamic_buffer_prepare(
@@ -290,7 +317,7 @@ public:
         auto sp = wp_.lock();
         if(! sp)
         {
-            ec = net::error::operation_aborted;
+            BOOST_BEAST_ASSIGN_EC(ec, net::error::operation_aborted);
             return this->complete(cont, ec);
         }
         auto& impl = *sp;
@@ -313,7 +340,9 @@ public:
                     impl.rd_buf, p_, std::move(*this));
             }
             if(ec == http::error::end_of_stream)
-                ec = error::closed;
+            {
+                BOOST_BEAST_ASSIGN_EC(ec, error::closed);
+            }
             if(impl.check_stop_now(ec))
                 goto upcall;
 
@@ -323,6 +352,7 @@ public:
                 // the handler.
                 auto const req = p_.release();
                 auto const decorator = d_;
+
                 response_op<Handler>(
                     this->release_handler(),
                         sp, req, decorator, true);
@@ -339,6 +369,16 @@ template<class NextLayer, bool deflateSupported>
 struct stream<NextLayer, deflateSupported>::
     run_response_op
 {
+    boost::shared_ptr<impl_type> const& self;
+
+    using executor_type = typename stream::executor_type;
+
+    executor_type
+    get_executor() const noexcept
+    {
+        return self->stream().get_executor();
+    }
+
     template<
         class AcceptHandler,
         class Body, class Allocator,
@@ -346,7 +386,6 @@ struct stream<NextLayer, deflateSupported>::
     void
     operator()(
         AcceptHandler&& h,
-        boost::shared_ptr<impl_type> const& sp,
         http::request<Body,
             http::basic_fields<Allocator>> const* m,
         Decorator const& d)
@@ -362,7 +401,7 @@ struct stream<NextLayer, deflateSupported>::
 
         response_op<
             typename std::decay<AcceptHandler>::type>(
-                std::forward<AcceptHandler>(h), sp, *m, d);
+                std::forward<AcceptHandler>(h), self, *m, d);
     }
 };
 
@@ -370,6 +409,16 @@ template<class NextLayer, bool deflateSupported>
 struct stream<NextLayer, deflateSupported>::
     run_accept_op
 {
+    boost::shared_ptr<impl_type> const& self;
+
+    using executor_type = typename stream::executor_type;
+
+    executor_type
+    get_executor() const noexcept
+    {
+        return self->stream().get_executor();
+    }
+
     template<
         class AcceptHandler,
         class Decorator,
@@ -377,7 +426,6 @@ struct stream<NextLayer, deflateSupported>::
     void
     operator()(
         AcceptHandler&& h,
-        boost::shared_ptr<impl_type> const& sp,
         Decorator const& d,
         Buffers const& b)
     {
@@ -394,7 +442,7 @@ struct stream<NextLayer, deflateSupported>::
             typename std::decay<AcceptHandler>::type,
             Decorator>(
                 std::forward<AcceptHandler>(h),
-                sp,
+                self,
                 d,
                 b);
     }
@@ -417,10 +465,24 @@ do_accept(
 
     error_code result;
     auto const res = impl_->build_response(req, decorator, result);
+
+    auto itr = req.find(http::field::expect);
+    if (itr != req.end() && iequals(itr->value(), "100-continue")) // do
+    {
+        http::response<http::empty_body> res_100;
+        res_100.version(res.version());
+        res_100.set(http::field::server, res[http::field::server]);
+        res_100.result(http::status::continue_);
+        res_100.prepare_payload();
+        http::write(impl_->stream(), res_100, ec);
+        if (ec)
+            return;
+    }
+
     http::write(impl_->stream(), res, ec);
     if(ec)
         return;
-    ec = result;
+    BOOST_BEAST_ASSIGN_EC(ec, result);
     if(ec)
     {
         // VFALCO TODO Respect keep alive setting, perform
@@ -452,7 +514,9 @@ do_accept(
     http::request_parser<http::empty_body> p;
     http::read(next_layer(), impl_->rd_buf, p, ec);
     if(ec == http::error::end_of_stream)
-        ec = error::closed;
+    {
+        BOOST_BEAST_ASSIGN_EC(ec, error::closed);
+    }
     if(ec)
         return;
     do_accept(p.get(), decorator, ec);
@@ -558,17 +622,19 @@ template<
 BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
 stream<NextLayer, deflateSupported>::
 async_accept(
-    AcceptHandler&& handler)
+    AcceptHandler&& handler,
+    typename std::enable_if<
+        ! net::is_const_buffer_sequence<
+        AcceptHandler>::value>::type*
+)
 {
     static_assert(is_async_stream<next_layer_type>::value,
         "AsyncStream type requirements not met");
-    impl_->reset();
     return net::async_initiate<
         AcceptHandler,
         void(error_code)>(
-            run_accept_op{},
+            run_accept_op{impl_},
             handler,
-            impl_,
             &default_decorate_res,
             net::const_buffer{});
 }
@@ -583,6 +649,9 @@ async_accept(
     ConstBufferSequence const& buffers,
     AcceptHandler&& handler,
     typename std::enable_if<
+        net::is_const_buffer_sequence<
+        ConstBufferSequence>::value>::type*,
+    typename std::enable_if<
         ! http::detail::is_header<
         ConstBufferSequence>::value>::type*
 )
@@ -592,13 +661,11 @@ async_accept(
     static_assert(net::is_const_buffer_sequence<
         ConstBufferSequence>::value,
             "ConstBufferSequence type requirements not met");
-    impl_->reset();
     return net::async_initiate<
         AcceptHandler,
         void(error_code)>(
-            run_accept_op{},
+            run_accept_op{impl_},
             handler,
-            impl_,
             &default_decorate_res,
             buffers);
 }
@@ -615,13 +682,11 @@ async_accept(
 {
     static_assert(is_async_stream<next_layer_type>::value,
         "AsyncStream type requirements not met");
-    impl_->reset();
     return net::async_initiate<
         AcceptHandler,
         void(error_code)>(
-            run_response_op{},
+            run_response_op{impl_},
             handler,
-            impl_,
             &req,
             &default_decorate_res);
 }

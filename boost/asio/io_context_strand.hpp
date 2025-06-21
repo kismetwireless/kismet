@@ -2,7 +2,7 @@
 // io_context_strand.hpp
 // ~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -55,19 +55,18 @@ namespace asio {
  * if any of the following conditions are true:
  *
  * @li @c s.post(a) happens-before @c s.post(b)
- * 
+ *
  * @li @c s.post(a) happens-before @c s.dispatch(b), where the latter is
  * performed outside the strand
- * 
+ *
  * @li @c s.dispatch(a) happens-before @c s.post(b), where the former is
  * performed outside the strand
- * 
+ *
  * @li @c s.dispatch(a) happens-before @c s.dispatch(b), where both are
  * performed outside the strand
- *   
- * then @c asio_handler_invoke(a1, &a1) happens-before
- * @c asio_handler_invoke(b1, &b1).
- * 
+ *
+ * then @c a() happens-before @c b()
+ *
  * Note that in the following case:
  * @code async_op_1(..., s.wrap(a));
  * async_op_2(..., s.wrap(b)); @endcode
@@ -104,6 +103,17 @@ public:
     service_.construct(impl_);
   }
 
+  /// Copy constructor.
+  /**
+   * Creates a copy such that both strand objects share the same underlying
+   * state.
+   */
+  strand(const strand& other) noexcept
+    : service_(other.service_),
+      impl_(other.impl_)
+  {
+  }
+
   /// Destructor.
   /**
    * Destroys a strand.
@@ -116,7 +126,7 @@ public:
   }
 
   /// Obtain the underlying execution context.
-  boost::asio::io_context& context() const BOOST_ASIO_NOEXCEPT
+  boost::asio::io_context& context() const noexcept
   {
     return service_.get_io_context();
   }
@@ -125,7 +135,7 @@ public:
   /**
    * The strand delegates this call to its underlying io_context.
    */
-  void on_work_started() const BOOST_ASIO_NOEXCEPT
+  void on_work_started() const noexcept
   {
     context().get_executor().on_work_started();
   }
@@ -134,7 +144,7 @@ public:
   /**
    * The strand delegates this call to its underlying io_context.
    */
-  void on_work_finished() const BOOST_ASIO_NOEXCEPT
+  void on_work_finished() const noexcept
   {
     context().get_executor().on_work_finished();
   }
@@ -155,43 +165,13 @@ public:
    * internal storage needed for function invocation.
    */
   template <typename Function, typename Allocator>
-  void dispatch(BOOST_ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+  void dispatch(Function&& f, const Allocator& a) const
   {
-    typename decay<Function>::type tmp(BOOST_ASIO_MOVE_CAST(Function)(f));
+    decay_t<Function> tmp(static_cast<Function&&>(f));
     service_.dispatch(impl_, tmp);
     (void)a;
   }
 
-#if !defined(BOOST_ASIO_NO_DEPRECATED)
-  /// (Deprecated: Use boost::asio::dispatch().) Request the strand to invoke
-  /// the given handler.
-  /**
-   * This function is used to ask the strand to execute the given handler.
-   *
-   * The strand object guarantees that handlers posted or dispatched through
-   * the strand will not be executed concurrently. The handler may be executed
-   * inside this function if the guarantee can be met. If this function is
-   * called from within a handler that was posted or dispatched through the same
-   * strand, then the new handler will be executed immediately.
-   *
-   * The strand's guarantee is in addition to the guarantee provided by the
-   * underlying io_context. The io_context guarantees that the handler will only
-   * be called in a thread in which the io_context's run member function is
-   * currently being invoked.
-   *
-   * @param handler The handler to be called. The strand will make a copy of the
-   * handler object as required. The function signature of the handler must be:
-   * @code void handler(); @endcode
-   */
-  template <typename LegacyCompletionHandler>
-  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(LegacyCompletionHandler, void ())
-  dispatch(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler)
-  {
-    return async_initiate<LegacyCompletionHandler, void ()>(
-        initiate_dispatch(), handler, this);
-  }
-#endif // !defined(BOOST_ASIO_NO_DEPRECATED)
-
   /// Request the strand to invoke the given function object.
   /**
    * This function is used to ask the executor to execute the given function
@@ -206,39 +186,13 @@ public:
    * internal storage needed for function invocation.
    */
   template <typename Function, typename Allocator>
-  void post(BOOST_ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+  void post(Function&& f, const Allocator& a) const
   {
-    typename decay<Function>::type tmp(BOOST_ASIO_MOVE_CAST(Function)(f));
+    decay_t<Function> tmp(static_cast<Function&&>(f));
     service_.post(impl_, tmp);
     (void)a;
   }
 
-#if !defined(BOOST_ASIO_NO_DEPRECATED)
-  /// (Deprecated: Use boost::asio::post().) Request the strand to invoke the
-  /// given handler and return immediately.
-  /**
-   * This function is used to ask the strand to execute the given handler, but
-   * without allowing the strand to call the handler from inside this function.
-   *
-   * The strand object guarantees that handlers posted or dispatched through
-   * the strand will not be executed concurrently. The strand's guarantee is in
-   * addition to the guarantee provided by the underlying io_context. The
-   * io_context guarantees that the handler will only be called in a thread in
-   * which the io_context's run member function is currently being invoked.
-   *
-   * @param handler The handler to be called. The strand will make a copy of the
-   * handler object as required. The function signature of the handler must be:
-   * @code void handler(); @endcode
-   */
-  template <typename LegacyCompletionHandler>
-  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(LegacyCompletionHandler, void ())
-  post(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler)
-  {
-    return async_initiate<LegacyCompletionHandler, void ()>(
-        initiate_post(), handler, this);
-  }
-#endif // !defined(BOOST_ASIO_NO_DEPRECATED)
-
   /// Request the strand to invoke the given function object.
   /**
    * This function is used to ask the executor to execute the given function
@@ -253,9 +207,9 @@ public:
    * internal storage needed for function invocation.
    */
   template <typename Function, typename Allocator>
-  void defer(BOOST_ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+  void defer(Function&& f, const Allocator& a) const
   {
-    typename decay<Function>::type tmp(BOOST_ASIO_MOVE_CAST(Function)(f));
+    decay_t<Function> tmp(static_cast<Function&&>(f));
     service_.post(impl_, tmp);
     (void)a;
   }
@@ -280,7 +234,7 @@ public:
    * then the return value is a function object with the signature
    * @code void g(A1 a1, ... An an); @endcode
    * that, when invoked, executes code equivalent to:
-   * @code strand.dispatch(boost::bind(f, a1, ... an)); @endcode
+   * @code boost::asio::dispatch(strand, boost::bind(f, a1, ... an)); @endcode
    */
   template <typename Handler>
 #if defined(GENERATING_DOCUMENTATION)
@@ -301,7 +255,7 @@ public:
    * submitted to the strand using post(), dispatch() or wrap(). Otherwise
    * returns @c false.
    */
-  bool running_in_this_thread() const BOOST_ASIO_NOEXCEPT
+  bool running_in_this_thread() const noexcept
   {
     return service_.running_in_this_thread(impl_);
   }
@@ -311,7 +265,7 @@ public:
    * Two strands are equal if they refer to the same ordered, non-concurrent
    * state.
    */
-  friend bool operator==(const strand& a, const strand& b) BOOST_ASIO_NOEXCEPT
+  friend bool operator==(const strand& a, const strand& b) noexcept
   {
     return a.impl_ == b.impl_;
   }
@@ -321,48 +275,12 @@ public:
    * Two strands are equal if they refer to the same ordered, non-concurrent
    * state.
    */
-  friend bool operator!=(const strand& a, const strand& b) BOOST_ASIO_NOEXCEPT
+  friend bool operator!=(const strand& a, const strand& b) noexcept
   {
     return a.impl_ != b.impl_;
   }
 
 private:
-#if !defined(BOOST_ASIO_NO_DEPRECATED)
-  struct initiate_dispatch
-  {
-    template <typename LegacyCompletionHandler>
-    void operator()(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler,
-        strand* self) const
-    {
-      // If you get an error on the following line it means that your
-      // handler does not meet the documented type requirements for a
-      // LegacyCompletionHandler.
-      BOOST_ASIO_LEGACY_COMPLETION_HANDLER_CHECK(
-          LegacyCompletionHandler, handler) type_check;
-
-      detail::non_const_lvalue<LegacyCompletionHandler> handler2(handler);
-      self->service_.dispatch(self->impl_, handler2.value);
-    }
-  };
-
-  struct initiate_post
-  {
-    template <typename LegacyCompletionHandler>
-    void operator()(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler,
-        strand* self) const
-    {
-      // If you get an error on the following line it means that your
-      // handler does not meet the documented type requirements for a
-      // LegacyCompletionHandler.
-      BOOST_ASIO_LEGACY_COMPLETION_HANDLER_CHECK(
-          LegacyCompletionHandler, handler) type_check;
-
-      detail::non_const_lvalue<LegacyCompletionHandler> handler2(handler);
-      self->service_.post(self->impl_, handler2.value);
-    }
-  };
-#endif // !defined(BOOST_ASIO_NO_DEPRECATED)
-
   boost::asio::detail::strand_service& service_;
   mutable boost::asio::detail::strand_service::implementation_type impl_;
 };

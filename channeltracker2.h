@@ -23,7 +23,6 @@
 
 #include <map>
 #include <string>
-#include <unordered_map>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"

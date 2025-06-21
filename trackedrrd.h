@@ -41,10 +41,10 @@
 
 // Aggregator class used for RRD.  Performs functions like combining elements
 // (for instance, adding to the existing element, or choosing to replace the
-// element), and for averaging to higher buckets (for instance, performing a 
+// element), and for averaging to higher buckets (for instance, performing a
 // raw average or taking absolutes)
 //
-// For aggregators which skip empty values, the 'default' value can be used as 
+// For aggregators which skip empty values, the 'default' value can be used as
 // the 'empty' value (for instance, when aggregating temperature, a default value
 // could be -99999 and the average function would ignore it)
 class kis_tracked_rrd_default_aggregator {
@@ -55,7 +55,7 @@ public:
         return a + b;
     }
 
-    // Combine a vector for a higher-level record (seconds to minutes, minutes to 
+    // Combine a vector for a higher-level record (seconds to minutes, minutes to
     // hours, and so on).
     static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         double avg = 0;
@@ -75,7 +75,7 @@ public:
     }
 };
 
-template <class M_Aggregator = kis_tracked_rrd_default_aggregator, 
+template <class M_Aggregator = kis_tracked_rrd_default_aggregator,
          class H_Aggregator = M_Aggregator, class D_Aggregator = M_Aggregator>
 class kis_tracked_rrd : public tracker_component {
 public:
@@ -117,7 +117,7 @@ public:
 
     // By default a RRD will fast forward to the current time before
     // transmission (this is desirable for RRD records that may not be
-    // routinely updated, like records tracking activity on a specific 
+    // routinely updated, like records tracking activity on a specific
     // device).  For records which are updated on a timer and the most
     // recently used value accessed (like devices per frequency) turning
     // this Off may produce better results.
@@ -215,7 +215,7 @@ public:
 
                 double sec_avg = 0, min_avg = 0;
 
-                // We only have this entry in the minute, so set it and get the 
+                // We only have this entry in the minute, so set it and get the
                 // combined value
 
                 for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
@@ -387,20 +387,20 @@ protected:
 
         register_field("kismet.common.rrd.blank_val", "blank value", &blank_val);
 
-        second_entry_id = 
-            register_field("kismet.common.rrd.second", 
+        second_entry_id =
+            register_field("kismet.common.rrd.second",
                     tracker_element_factory<tracker_element_int64>(),
                     "second value");
-        minute_entry_id = 
-            register_field("kismet.common.rrd.minute", 
+        minute_entry_id =
+            register_field("kismet.common.rrd.minute",
                     tracker_element_factory<tracker_element_int64>(),
                     "minute value");
-        hour_entry_id = 
-            register_field("kismet.common.rrd.hour", 
+        hour_entry_id =
+            register_field("kismet.common.rrd.hour",
                     tracker_element_factory<tracker_element_int64>(),
                     "hour value", NULL);
 
-    } 
+    }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
@@ -496,7 +496,7 @@ public:
 
     // By default a RRD will fast forward to the current time before
     // transmission (this is desirable for RRD records that may not be
-    // routinely updated, like records tracking activity on a specific 
+    // routinely updated, like records tracking activity on a specific
     // device).  For records which are updated on a timer and the most
     // recently used value accessed (like devices per frequency) turning
     // this off may produce better results.
@@ -609,13 +609,13 @@ protected:
 
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
 
-        second_entry_id = 
-            register_field("kismet.common.rrd.second", 
+        second_entry_id =
+            register_field("kismet.common.rrd.second",
                     tracker_element_factory<tracker_element_int64>(),
                     "second value");
 
         register_field("kismet.common.rrd.blank_val", "blank value", &blank_val);
-    } 
+    }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
@@ -697,9 +697,8 @@ public:
 
 // Generic RRD, extreme selector.  If both values are > 0, selects the highest.
 // If both values are below zero, selects the lowest.  If values are mixed,
-// selects the lowest.
-//
-// Averages to the next slot per normal
+// selects the lowest.  The same logic is applied when promoting to the next
+// precision slot
 class kis_tracked_rrd_extreme_aggregator {
 public:
     // Select the most extreme value
@@ -725,14 +724,14 @@ public:
         return b;
     }
 
-    // Simple average
     static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-        double avg = 0;
+        double extreme = 0;
 
-        for (auto i : *e) 
-            avg += i;
+        std::for_each(e->begin(), e->end(), [&extreme](double i) {
+                extreme = combine_element(extreme, i);
+            });
 
-        return avg / e->size();
+        return extreme;
     }
 
     // Default 'empty' value, no legit signal would be 0

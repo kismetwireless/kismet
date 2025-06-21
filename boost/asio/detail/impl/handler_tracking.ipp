@@ -2,7 +2,7 @@
 // detail/impl/handler_tracking.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -25,15 +25,10 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <boost/asio/detail/chrono.hpp>
+#include <boost/asio/detail/chrono_time_traits.hpp>
 #include <boost/asio/detail/handler_tracking.hpp>
-
-#if defined(BOOST_ASIO_HAS_BOOST_DATE_TIME)
-# include <boost/asio/time_traits.hpp>
-#elif defined(BOOST_ASIO_HAS_CHRONO)
-# include <boost/asio/detail/chrono.hpp>
-# include <boost/asio/detail/chrono_time_traits.hpp>
-# include <boost/asio/wait_traits.hpp>
-#endif // defined(BOOST_ASIO_HAS_BOOST_DATE_TIME)
+#include <boost/asio/wait_traits.hpp>
 
 #if defined(BOOST_ASIO_WINDOWS_RUNTIME)
 # include <boost/asio/detail/socket_types.hpp>
@@ -54,16 +49,10 @@ struct handler_tracking_timestamp
 
   handler_tracking_timestamp()
   {
-#if defined(BOOST_ASIO_HAS_BOOST_DATE_TIME)
-    boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
-    boost::posix_time::time_duration now =
-      boost::posix_time::microsec_clock::universal_time() - epoch;
-#elif defined(BOOST_ASIO_HAS_CHRONO)
     typedef chrono_time_traits<chrono::system_clock,
-        boost::asio::wait_traits<chrono::system_clock> > traits_helper;
+        boost::asio::wait_traits<chrono::system_clock>> traits_helper;
     traits_helper::posix_time_duration now(
         chrono::system_clock::now().time_since_epoch());
-#endif
     seconds = static_cast<uint64_t>(now.total_seconds());
     microseconds = static_cast<uint64_t>(now.total_microseconds() % 1000000);
   }
@@ -366,7 +355,9 @@ void handler_tracking::write_line(const char* format, ...)
   va_start(args, format);
 
   char line[256] = "";
-#if defined(BOOST_ASIO_HAS_SECURE_RTL)
+#if defined(BOOST_ASIO_HAS_SNPRINTF)
+  int length = vsnprintf(line, sizeof(line), format, args);
+#elif defined(BOOST_ASIO_HAS_SECURE_RTL)
   int length = vsprintf_s(line, sizeof(line), format, args);
 #else // defined(BOOST_ASIO_HAS_SECURE_RTL)
   int length = vsprintf(line, format, args);

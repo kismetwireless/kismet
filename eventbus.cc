@@ -32,7 +32,7 @@ event_bus::event_bus() :
 
     shutdown = false;
 
-    eventbus_event_id = 
+    eventbus_event_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.eventbus.event",
                 tracker_element_factory<eventbus_event>(),
                 "Eventbus event");
@@ -63,18 +63,20 @@ void event_bus::trigger_deferred_startup() {
 
                 std::unordered_map<std::string, unsigned long> reg_map;
 
-                auto ws = 
-                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
+                auto ws =
+                    std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [this, &reg_map](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) mutable {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) mutable {
 
                             if (!text) {
                                 ws->close();
                                 return;
                             }
 
-                            std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                            std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
                             nlohmann::json json;
+
+                            std::string jsontype = "json";
 
                             try {
                                 ss >> json;
@@ -84,6 +86,10 @@ void event_bus::trigger_deferred_startup() {
                                 return;
                             }
 
+                            if (!json["format"].is_null()) {
+                                jsontype = json["format"].get<std::string>();
+                            }
+
                             if (!json["SUBSCRIBE"].is_null()) {
                                 auto e_k = reg_map.find(json["SUBSCRIBE"].get<std::string>());
                                 if (e_k != reg_map.end()) {
@@ -91,18 +97,18 @@ void event_bus::trigger_deferred_startup() {
                                     reg_map.erase(e_k);
                                 }
 
-                                auto id = 
-                                    register_listener(json["SUBSCRIBE"].get<std::string>(), 
-                                            [ws, json](std::shared_ptr<eventbus_event> evt) {
+                                auto id =
+                                    register_listener(json["SUBSCRIBE"].get<std::string>(),
+                                            [ws, json, jsontype](std::shared_ptr<eventbus_event> evt) {
                                                 std::stringstream os;
-                                                Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os, 
+                                                Globalreg::globalreg->entrytracker->serialize_with_json_summary(jsontype, os,
                                                         evt->get_event_content(), json);
 												auto data = os.str();
                                                 ws->write(data);
                                             });
 
                                 reg_map[json["SUBSCRIBE"].get<std::string>()] = id;
-                            } 
+                            }
 
                             if (!json["UNSUBSCRIBE"].is_null()) {
                                 auto e_k = reg_map.find(json["UNSUBSCRIBE"].get<std::string>());
@@ -140,8 +146,8 @@ void event_bus::event_queue_dispatcher() {
     //kis_unique_lock<kis_mutex> lock(mutex, std::defer_lock, "event_bus event_queue_dispatcher");
     std::unique_lock<kis_mutex> lock(mutex, std::defer_lock);
 
-    while (!shutdown && 
-            !Globalreg::globalreg->spindown && 
+    while (!shutdown &&
+            !Globalreg::globalreg->spindown &&
             !Globalreg::globalreg->fatal_condition &&
             !Globalreg::globalreg->complete) {
 

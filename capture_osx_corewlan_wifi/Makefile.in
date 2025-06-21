@@ -18,7 +18,7 @@ FRAMEWORKS=-framework Foundation -framework CoreWLAN
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(MONITOR_OBJC_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(CLANG) $(FRAMEWORKS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(MONITOR_OBJC_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
+		$(CLANG) $(FRAMEWORKS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(MONITOR_OBJC_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)

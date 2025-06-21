@@ -140,7 +140,7 @@ find_eol(
             }
             if(*it != '\n')
             {
-                ec = error::bad_line_ending;
+                BOOST_BEAST_ASSIGN_EC(ec, error::bad_line_ending);
                 return nullptr;
             }
             ec = {};
@@ -201,40 +201,6 @@ parse_hex(char const*& it, std::uint64_t& v)
     return true;
 }
 
-char const*
-basic_parser_base::
-find_eom(char const* p, char const* last)
-{
-    for(;;)
-    {
-        if(p + 4 > last)
-            return nullptr;
-        if(p[3] != '\n')
-        {
-            if(p[3] == '\r')
-                ++p;
-            else
-                p += 4;
-        }
-        else if(p[2] != '\r')
-        {
-            p += 4;
-        }
-        else if(p[1] != '\n')
-        {
-            p += 2;
-        }
-        else if(p[0] != '\r')
-        {
-            p += 2;
-        }
-        else
-        {
-            return p + 4;
-        }
-    }
-}
-
 //--------------------------------------------------------------------------
 
 char const*
@@ -249,7 +215,7 @@ parse_token_to_eol(
     {
         if(p >= last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return p;
         }
         if(BOOST_UNLIKELY(! is_print(*p)))
@@ -264,12 +230,12 @@ found_control:
     {
         if(++p >= last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return last;
         }
         if(*p++ != '\n')
         {
-            ec = error::bad_line_ending;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_line_ending);
             return last;
         }
         token_last = p - 2;
@@ -313,7 +279,7 @@ parse_method(
     {
         if(it + 1 > last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return;
         }
         if(! detail::is_token_char(*it))
@@ -321,18 +287,18 @@ parse_method(
     }
     if(it + 1 > last)
     {
-        ec = error::need_more;
+        BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
         return;
     }
     if(*it != ' ')
     {
-        ec = error::bad_method;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_method);
         return;
     }
     if(it == first)
     {
         // cannot be empty
-        ec = error::bad_method;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_method);
         return;
     }
     result = make_string(first, it++);
@@ -350,7 +316,7 @@ parse_target(
     {
         if(it + 1 > last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return;
         }
         if(! is_pathchar(*it))
@@ -358,18 +324,18 @@ parse_target(
     }
     if(it + 1 > last)
     {
-        ec = error::need_more;
+        BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
         return;
     }
     if(*it != ' ')
     {
-        ec = error::bad_target;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_target);
         return;
     }
     if(it == first)
     {
         // cannot be empty
-        ec = error::bad_target;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_target);
         return;
     }
     result = make_string(first, it++);
@@ -383,48 +349,48 @@ parse_version(
 {
     if(it + 8 > last)
     {
-        ec = error::need_more;
+        BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
         return;
     }
     if(*it++ != 'H')
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     if(*it++ != 'T')
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     if(*it++ != 'T')
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     if(*it++ != 'P')
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     if(*it++ != '/')
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     if(! is_digit(*it))
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     result = 10 * (*it++ - '0');
     if(*it++ != '.')
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     if(! is_digit(*it))
     {
-        ec = error::bad_version;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_version);
         return;
     }
     result += *it++ - '0';
@@ -439,30 +405,30 @@ parse_status(
     // parse 3(digit) SP
     if(it + 4 > last)
     {
-        ec = error::need_more;
+        BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
         return;
     }
     if(! is_digit(*it))
     {
-        ec = error::bad_status;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_status);
         return;
     }
     result = 100 * (*it++ - '0');
     if(! is_digit(*it))
     {
-        ec = error::bad_status;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_status);
         return;
     }
     result += 10 * (*it++ - '0');
     if(! is_digit(*it))
     {
-        ec = error::bad_status;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_status);
         return;
     }
     result += *it++ - '0';
     if(*it++ != ' ')
     {
-        ec = error::bad_status;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_status);
         return;
     }
 }
@@ -481,7 +447,7 @@ parse_reason(
         return;
     if(! p)
     {
-        ec = error::bad_reason;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_reason);
         return;
     }
     result = make_string(first, token_last);
@@ -542,7 +508,7 @@ parse_field(
         p, last, ranges1, sizeof(ranges1)-1);
     if(! found && p >= last)
     {
-        ec = error::need_more;
+        BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
         return;
     }
     for(;;)
@@ -552,20 +518,20 @@ parse_field(
         if(! is_token[static_cast<
             unsigned char>(*p)])
         {
-            ec = error::bad_field;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_field);
             return;
         }
         ++p;
         if(p >= last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return;
         }
     }
     if(p == first)
     {
         // empty name
-        ec = error::bad_field;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_field);
         return;
     }
     name = make_string(first, p);
@@ -578,7 +544,7 @@ parse_field(
         {
             if(p + 1 > last)
             {
-                ec = error::need_more;
+                BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
                 return;
             }
             if(! (*p == ' ' || *p == '\t'))
@@ -591,13 +557,13 @@ parse_field(
             return;
         if(! p)
         {
-            ec = error::bad_value;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_value);
             return;
         }
         // Look 1 char past the CRLF to handle obs-fold.
         if(p + 1 > last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return;
         }
         token_last =
@@ -614,7 +580,7 @@ parse_field(
     buf.clear();
     if (!buf.try_append(first, token_last))
     {
-        ec = error::header_limit;
+        BOOST_BEAST_ASSIGN_EC(ec, error::header_limit);
         return;
     }
 
@@ -626,7 +592,7 @@ parse_field(
         {
             if(p + 1 > last)
             {
-                ec = error::need_more;
+                BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
                 return;
             }
             if(! (*p == ' ' || *p == '\t'))
@@ -639,13 +605,13 @@ parse_field(
             return;
         if(! p)
         {
-            ec = error::bad_value;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_value);
             return;
         }
         // Look 1 char past the CRLF to handle obs-fold.
         if(p + 1 > last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return;
         }
         token_last = trim_back(token_last, first);
@@ -654,7 +620,7 @@ parse_field(
             if (!buf.try_push_back(' ') ||
                 !buf.try_append(first, token_last))
             {
-                ec = error::header_limit;
+                BOOST_BEAST_ASSIGN_EC(ec, error::header_limit);
                 return;
             }
         }
@@ -691,7 +657,7 @@ parse_chunk_extensions(
 loop:
     if(it == last)
     {
-        ec = error::need_more;
+        BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
         return;
     }
     if(*it != ' ' && *it != '\t' && *it != ';')
@@ -704,7 +670,7 @@ loop:
             ++it;
             if(it == last)
             {
-                ec = error::need_more;
+                BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
                 return;
             }
             if(*it != ' ' && *it != '\t')
@@ -714,7 +680,7 @@ loop:
     // ';'
     if(*it != ';')
     {
-        ec = error::bad_chunk_extension;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_chunk_extension);
         return;
     }
 semi:
@@ -724,7 +690,7 @@ semi:
     {
         if(it == last)
         {
-            ec = error::need_more;
+            BOOST_BEAST_ASSIGN_EC(ec, error::need_more);
             return;
         }
         if(*it != ' ' && *it != '\t')

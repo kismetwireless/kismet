@@ -59,8 +59,8 @@ public:
     virtual ~kis_datasource_nrf51822() { };
 
 protected:
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-            const KismetDatasource::SubPacket& report) override;
+    virtual int handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz) override;
 
     int pack_comp_decap, pack_comp_radiodata;
 };

@@ -11,33 +11,25 @@
 #define BOOST_BEAST_STRING_TYPE_HPP
 
 #include <boost/beast/core/detail/config.hpp>
-
-#if defined(BOOST_BEAST_USE_STD_STRING_VIEW)
-#include <string_view>
-#else
-#include <boost/utility/string_view.hpp>
-#endif
+#include <boost/core/detail/string_view.hpp>
 
 namespace boost {
 namespace beast {
 
-#if BOOST_BEAST_DOXYGEN || ! defined(BOOST_BEAST_USE_STD_STRING_VIEW)
 /// The type of string view used by the library
-using string_view = boost::string_view;
+using string_view = boost::core::string_view;
 
 /// The type of `basic_string_view` used by the library
-template<class CharT, class Traits>
+template<class CharT>
 using basic_string_view =
-    boost::basic_string_view<CharT, Traits>;
+    boost::core::basic_string_view<CharT>;
 
-#else
-using string_view = std::string_view;
-
-template<class CharT, class Traits>
-using basic_string_view =
-    std::basic_string_view<CharT, Traits>;
-
-#endif
+template<class S>
+inline string_view
+to_string_view(const S& s)
+{
+    return string_view(s.data(), s.size());
+}
 
 } // beast
 } // boost

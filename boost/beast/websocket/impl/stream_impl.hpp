@@ -68,8 +68,9 @@ struct stream<NextLayer, deflateSupported>::impl_type
             impl_type>(this->detail::service::
                 impl_type::shared_from_this());
     }
-
-    net::steady_timer       timer;          // used for timeouts
+    using executor_type = typename std::decay<NextLayer>::type::executor_type;
+    typename net::steady_timer::rebind_executor<executor_type>::other
+                            timer;          // used for timeouts
     close_reason            cr;             // set from received close frame
     control_cb_type         ctrl_cb;        // control callback
 
@@ -221,11 +222,13 @@ struct stream<NextLayer, deflateSupported>::impl_type
     // Called just before sending
     // the first frame of each message
     void
-    begin_msg()
+    begin_msg(std::size_t n_bytes)
     {
         wr_frag = wr_frag_opt;
         wr_compress =
-            this->pmd_enabled() && wr_compress_opt;
+            this->pmd_enabled() &&
+            wr_compress_opt &&
+            this->should_compress(n_bytes);
 
         // Maintain the write buffer
         if( this->pmd_enabled() ||
@@ -297,7 +300,7 @@ struct stream<NextLayer, deflateSupported>::impl_type
         if(initial_size == 0)
             return 1; // buffer is full
         return this->read_size_hint_pmd(
-            initial_size, rd_done, rd_remain, rd_fh);
+            initial_size, rd_done, rd_msg_max, rd_remain, rd_fh);
     }
 
     template<class DynamicBuffer>
@@ -340,7 +343,7 @@ struct stream<NextLayer, deflateSupported>::impl_type
         if(timed_out)
         {
             timed_out = false;
-            ec = beast::error::timeout;
+            BOOST_BEAST_ASSIGN_EC(ec, beast::error::timeout);
             return true;
         }
 
@@ -349,7 +352,7 @@ struct stream<NextLayer, deflateSupported>::impl_type
             status_ == status::failed)
         {
             //BOOST_ASSERT(ec_delivered);
-            ec = net::error::operation_aborted;
+            BOOST_BEAST_ASSIGN_EC(ec, net::error::operation_aborted);
             return true;
         }
 
@@ -361,7 +364,7 @@ struct stream<NextLayer, deflateSupported>::impl_type
         if(ec_delivered)
         {
             // No, so abort
-            ec = net::error::operation_aborted;
+            BOOST_BEAST_ASSIGN_EC(ec, net::error::operation_aborted);
             return true;
         }
 
@@ -629,9 +632,9 @@ build_request(
     req.method(http::verb::get);
     req.set(http::field::host, host);
     req.set(http::field::upgrade, "websocket");
-    req.set(http::field::connection, "upgrade");
+    req.set(http::field::connection, "Upgrade");
     detail::make_sec_ws_key(key);
-    req.set(http::field::sec_websocket_key, key);
+    req.set(http::field::sec_websocket_key, to_string_view(key));
     req.set(http::field::sec_websocket_version, "13");
     this->build_request_pmd(req);
     decorator_opt(req);
@@ -651,7 +654,7 @@ on_response(
     auto const err =
         [&](error e)
         {
-            ec = e;
+            BOOST_BEAST_ASSIGN_EC(ec, e);
         };
     if(res.result() != http::status::switching_protocols)
         return err(error::upgrade_declined);
@@ -677,8 +680,8 @@ on_response(
         if(it == res.end())
             return err(error::no_sec_accept);
         detail::sec_ws_accept_type acc;
-        detail::make_sec_ws_accept(acc, key);
-        if(acc.compare(it->value()) != 0)
+        detail::make_sec_ws_accept(acc, to_string_view(key));
+        if (to_string_view(acc).compare(it->value()) != 0)
             return err(error::bad_sec_accept);
     }
 
@@ -745,14 +748,14 @@ parse_fh(
         if(rd_cont)
         {
             // new data frame when continuation expected
-            ec = error::bad_data_frame;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_data_frame);
             return false;
         }
         if(fh.rsv2 || fh.rsv3 ||
             ! this->rd_deflated(fh.rsv1))
         {
             // reserved bits not cleared
-            ec = error::bad_reserved_bits;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_reserved_bits);
             return false;
         }
         break;
@@ -761,13 +764,13 @@ parse_fh(
         if(! rd_cont)
         {
             // continuation without an active message
-            ec = error::bad_continuation;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_continuation);
             return false;
         }
         if(fh.rsv1 || fh.rsv2 || fh.rsv3)
         {
             // reserved bits not cleared
-            ec = error::bad_reserved_bits;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_reserved_bits);
             return false;
         }
         break;
@@ -776,25 +779,25 @@ parse_fh(
         if(detail::is_reserved(fh.op))
         {
             // reserved opcode
-            ec = error::bad_opcode;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_opcode);
             return false;
         }
         if(! fh.fin)
         {
             // fragmented control message
-            ec = error::bad_control_fragment;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_control_fragment);
             return false;
         }
         if(fh.len > 125)
         {
             // invalid length for control message
-            ec = error::bad_control_size;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_control_size);
             return false;
         }
         if(fh.rsv1 || fh.rsv2 || fh.rsv3)
         {
             // reserved bits not cleared
-            ec = error::bad_reserved_bits;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_reserved_bits);
             return false;
         }
         break;
@@ -802,13 +805,13 @@ parse_fh(
     if(role == role_type::server && ! fh.mask)
     {
         // unmasked frame from client
-        ec = error::bad_unmasked_frame;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_unmasked_frame);
         return false;
     }
     if(role == role_type::client && fh.mask)
     {
         // masked frame from server
-        ec = error::bad_masked_frame;
+        BOOST_BEAST_ASSIGN_EC(ec, error::bad_masked_frame);
         return false;
     }
     if(detail::is_control(fh.op) &&
@@ -831,7 +834,7 @@ parse_fh(
         if(fh.len < 126)
         {
             // length not canonical
-            ec = error::bad_size;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_size);
             return false;
         }
         break;
@@ -846,7 +849,7 @@ parse_fh(
         if(fh.len < 65536)
         {
             // length not canonical
-            ec = error::bad_size;
+            BOOST_BEAST_ASSIGN_EC(ec, error::bad_size);
             return false;
         }
         break;
@@ -879,17 +882,20 @@ parse_fh(
                 std::uint64_t>::max)() - fh.len)
             {
                 // message size exceeds configured limit
-                ec = error::message_too_big;
+                BOOST_BEAST_ASSIGN_EC(ec, error::message_too_big);
                 return false;
             }
         }
+        // The final size of a deflated frame is unknown. In certain cases,
+        // post-inflation, it might shrink and become <= rd_msg_max.
+        // Therefore, we will verify the size during the inflation process.
         if(! this->rd_deflated())
         {
             if(rd_msg_max && beast::detail::sum_exceeds(
                 rd_size, fh.len, rd_msg_max))
             {
                 // message size exceeds configured limit
-                ec = error::message_too_big;
+                BOOST_BEAST_ASSIGN_EC(ec, error::message_too_big);
                 return false;
             }
         }

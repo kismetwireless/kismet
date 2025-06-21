@@ -30,14 +30,14 @@ PARSERS = \
 	dot11_parsers/dot11_ie_133_cisco_ccx.cc.o \
 	dot11_parsers/dot11_ie_150_vendor.cc.o \
 	dot11_parsers/dot11_ie_150_cisco_powerlevel.cc.o \
- 	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
- 	dot11_parsers/dot11_ie_192_vht_op.cc.o \
+	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
+	dot11_parsers/dot11_ie_192_vht_op.cc.o \
 	dot11_parsers/dot11_ie_127_extended_capabilities.cc.o \
- 	dot11_parsers/dot11_ie_221_vendor.cc.o \
- 	dot11_parsers/dot11_ie_221_ms_wps.cc.o \
- 	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
- 	dot11_parsers/dot11_ie_221_dji_droneid.cc.o \
- 	dot11_parsers/dot11_ie_221_wfa_wpa.cc.o \
+	dot11_parsers/dot11_ie_221_vendor.cc.o \
+	dot11_parsers/dot11_ie_221_ms_wps.cc.o \
+	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
+	dot11_parsers/dot11_ie_221_dji_droneid.cc.o \
+	dot11_parsers/dot11_ie_221_wfa_wpa.cc.o \
 	dot11_parsers/dot11_ie_221_cisco_client_mfp.cc.o \
 	dot11_parsers/dot11_ie_221_wpa_transition.cc.o \
 	dot11_parsers/dot11_ie_221_rsn_pmkid.cc.o \
@@ -46,7 +46,7 @@ PARSERS = \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o \
 	dot11_parsers/dot11_p2p_ie.cc.o \
-	bluetooth_parsers/btle.cc.o 
+	bluetooth_parsers/btle.cc.o
 
 # To prevent a deps problem, we define these targets via autoconf to reference
 # the variable setting the list
@@ -56,7 +56,7 @@ PROTOBUF_CPP_O = \
 	protobuf_cpp/http.pb.cc.o \
 	protobuf_cpp/datasource.pb.cc.o \
 	protobuf_cpp/linuxbluetooth.pb.cc.o \
-	protobuf_cpp/eventbus.pb.cc.o 
+	protobuf_cpp/eventbus.pb.cc.o
 
 PROTOBUF_CPP_H_TARGET = @PROTOBUF_CPP_H_TARGET@
 PROTOBUF_CPP_H = \
@@ -64,24 +64,12 @@ PROTOBUF_CPP_H = \
 	protobuf_cpp/http.pb.h \
 	protobuf_cpp/datasource.pb.h \
 	protobuf_cpp/linuxbluetooth.pb.h \
-	protobuf_cpp/eventbus.pb.h 
-
-PROTOBUF_C_O = \
-	@PROTOBUF_C_DIR@/kismet.pb-c.c.o \
-	@PROTOBUF_C_DIR@/datasource.pb-c.c.o \
-	@PROTOBUF_C_DIR@/linuxbluetooth.pb-c.c.o \
-	@PROTOBUF_C_DIR@/eventbus.pb-c.c.o
-
-PROTOBUF_C_H = \
-	@PROTOBUF_C_DIR@/kismet.pb-c.h \
-	@PROTOBUF_C_DIR@/datasource.pb-c.h \
-	@PROTOBUF_C_DIR@/linuxbluetooth.pb-c.h \
-	@PROTOBUF_C_DIR@/eventbus.pb-c.h
+	protobuf_cpp/eventbus.pb.h
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
-	$(PROTOBUF_C_O) \
-	simple_ringbuf_c.c.o version.c.o capture_framework.c.o 
+    mpack/mpack.c.o \
+	simple_ringbuf_c.c.o version.c.o capture_framework.c.o
 DATASOURCE_COMMON_A = libkismetdatasource.a
 
 CAPTURE_PCAPFILE_O = \
@@ -231,7 +219,8 @@ TOOL_KISMET_DISCOVERY_O = \
 TOOL_BINS = \
 	$(TOOL_KISMET_DISCOVERY)
 
-PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
+PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o \
+	sqlite3_cpp11.cc.o mpack/mpack.c.o \
 	globalregistry.cc.o eventbus.cc.o \
 	packet.cc.o configfile.cc.o \
 	battery.cc.o \
@@ -269,7 +258,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
 	kis_database.cc.o \
-	kismet_server.cc.o 
+	kismet_server.cc.o
 
 PS	= kismet
 
@@ -348,25 +337,25 @@ $(TOOL_KISMET_DISCOVERY): 	$(TOOL_KISMET_DISCOVERY_O) $(patsubst %c.o,%c.d,$(TOO
 
 
 
-$(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
+$(DATASOURCE_COMMON_A):	mpack/mpack.c.o $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
 
-$(CAPTURE_PCAPFILE):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_PCAPFILE_O)
+$(CAPTURE_PCAPFILE):	$(DATASOURCE_COMMON_A) $(CAPTURE_PCAPFILE_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) $(DATASOURCE_LIBS)
 
-$(CAPTURE_KISMETDB):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_KISMETDB_O)
+$(CAPTURE_KISMETDB):	$(DATASOURCE_COMMON_A) $(CAPTURE_KISMETDB_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_KISMETDB) $(CAPTURE_KISMETDB_O) $(DATASOURCE_COMMON_A) $(DATASOURCE_LIBS) -lsqlite3
 
-$(CAPTURE_LINUX_WIFI):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_wifi && $(MAKE))
 
-$(CAPTURE_LINUX_BLUETOOTH):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_bluetooth && $(MAKE))
 
-$(CAPTURE_OPENBSD_WIFI):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_OPENBSD_WIFI):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_openbsd_wifi && $(MAKE))
 
-$(CAPTURE_OSX_COREWLAN): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_osx_corewlan_wifi && $(MAKE))
 
 # $(CAPTURE_SDR_RTL433): FORCE
@@ -381,55 +370,55 @@ $(CAPTURE_OSX_COREWLAN): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 # $(CAPTURE_BT_GEIGER): FORCE
 # 	(cd capture_bt_geiger && $(MAKE))
 
-$(CAPTURE_SDR_RTL433V2): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_SDR_RTL433V2): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtl433_v2 && $(MAKE))
 
-$(CAPTURE_SDR_RTLADSBV2): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_SDR_RTLADSBV2): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtladsb_v2 && $(MAKE))
 
-$(CAPTURE_HACKRF_SWEEP):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
+$(CAPTURE_HACKRF_SWEEP):	$(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
 
-$(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_NRF_MOUSEJACK): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_mousejack && $(MAKE))
 
-$(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_TI_CC_2540): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2540 && $(MAKE))
 
-$(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_TI_CC_2531): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2531 && $(MAKE))
 
-$(CAPTURE_UBERTOOTH_ONE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_UBERTOOTH_ONE): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ubertooth_one && $(MAKE))
 
-$(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_NRF_51822): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_51822 && $(MAKE))
 
-$(CAPTURE_NXP_KW41Z): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_NXP_KW41Z): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nxp_kw41z && $(MAKE))
 
-$(CAPTURE_NRF_52840): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_NRF_52840): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_52840 && $(MAKE))
 
-$(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_RZ_KILLERBEE): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_rz_killerbee && $(MAKE))
 
-$(CAPTURE_FREAKLABS_ZIGBEEV2): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_FREAKLABS_ZIGBEEV2): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_freaklabs_zigbee_v2 && $(MAKE))
 
-$(CAPTURE_BLADERF_WIPHY): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_bladerf_wiphy && $(MAKE))
 
-$(CAPTURE_HAK5_COCONUT): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_HAK5_COCONUT): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_hak5_wifi_coconut && $(MAKE))
 
-$(CAPTURE_SERIAL_RADVIEW): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_SERIAL_RADVIEW): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_serial_radview && $(MAKE))
 
-$(CAPTURE_USB_RADIACODE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_USB_RADIACODE): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_radiacode && $(MAKE))
 
-$(CAPTURE_ANTSDR_DRONEID): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_ANTSDR_DRONEID): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_antsdr_droneid && $(MAKE))
 
 FORCE:
@@ -733,7 +722,7 @@ install:
 	@echo "or you can replace the previously installed config files entirely by running"
 	@echo "make forceconfigs"
 
-forceconfigs: 
+forceconfigs:
 	$(MAKE) $(FORCECONFINSTTARGETS)
 
 uavconfig:
@@ -742,25 +731,19 @@ uavconfig:
 
 manuf:
 	@echo "Generating kismet_manuf.txt.gz"
-	@$(PYTHON) tools/create_oui_db.py | gzip -9 > conf/kismet_manuf.txt.gz
+	@$(PYTHON) tools/create_oui_db.py conf/kismet_manuf.txt.gz_new
+	@mv conf/kismet_manuf.txt.gz_new conf/kismet_manuf.txt.gz
 
 icao:
 	@echo "Generating kismet_adsb_icao.txt.gz"
-	@$(PYTHON) tools/create_icao_db.py | sort | gzip -9 > conf/kismet_adsb_icao.txt.gz
-
-extcappy:
-	@echo "Updating kismetexternal python"
-	@find ./ -path *kismetexternal* -name __init__.py -not  -path *build* -exec cp ../python-kismet-external/kismetexternal/__init__.py {} \; 
-
-rtlsdrpy:
-	@echo "Updating kismet rtlsdr python"
-	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
+	@$(PYTHON) tools/create_icao_db.py conf/kismet_adsb_icao.txt.gz_new
+	@mv conf/kismet_adsb_icao.txt.gz_new conf/kismet_adsb_icao.txt.gz
 
 boostbits:
 	@echo "Scanning boost deps in ASIO"
 	@mv boost boost-old
 	@mkdir boost-raw
-	@bcp --boost=../bost/ beast asio boost-raw 
+	@bcp --boost=../boost/ beast asio boost-raw
 	@mv boost-raw/boost boost
 
 release-%:
@@ -798,15 +781,12 @@ depclean:
 	@-rm -f bluetooth_parsers/*.d
 	@-rm -f dot11_parsers/*.d
 	@-rm -f log_tools/*.d
-	@-rm -f @PROTOBUF_C_DIR@/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
 	@-rm -f version.c
 	@-rm -f *.o *.mo
 	@-rm -f protobuf_cpp/*.o
-	@-rm -f protobuf_c/*.o
-	@-rm -f @PROTOBUF_C_DIR@/*.o
 	@-rm -f dot11_parsers/*.o
 	@-rm -f bluetooth_parsers/*.o
 	@-rm -f log_tools/*.o
@@ -842,8 +822,6 @@ clean: all-plugins-clean depclean
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*
-
-	@-rm -f protobuf_c/*.pb-c.*
 
 distclean: clean
 	@-rm -f *~
@@ -896,15 +874,6 @@ protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
 protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
-# Protobuf C dir can include prebuilt protobuf-c implmentations if protobufs/protobufs-c are broken
-@PROTOBUF_C_DIR@/%.pb-c.c.o: %.pb-c.c 
-
-# Only use protoc-c on the dynamic protobuf_c directory
-protobuf_c/%.pb-c.c: protobuf_definitions/%.proto
-	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
-protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
-	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
-
 %.c.o:	%.c
 %.c.o : %.c %.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
@@ -913,13 +882,13 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 %.cc.o:	%.cc %.cc.d
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
 
-%.c.d:  %.c $(PROTOBUF_C_H)
+%.c.d:  %.c
 	$(CC) -MM -MP $(CFLAGS) $(CPPFLAGS) -MT $*.c.o $*.c -MF $*.c.d
 
 %.cc.d: %.cc $(PROTOBUF_CPP_H_TARGET)
 	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) -MT $*.cc.o $*.cc -MF $*.cc.d
 
-.PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h @PROTOBUF_C_DIR@/%.pb-c.c @PROTOBUF_C_DIR@/%.pb-c.h
+.PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))

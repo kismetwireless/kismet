@@ -29,6 +29,11 @@ namespace websocket {
     `net::ssl::stream`, callers are responsible for
     providing a suitable overload of this function.
 
+    @note
+
+    This function serves as a customization point and is not intended
+    to be called directly.
+
     @param role The role of the local endpoint
 
     @param socket The socket to tear down.
@@ -65,6 +70,11 @@ teardown(
     callers are responsible for providing a suitable overload
     of this function.
 
+    @note
+
+    This function serves as a customization point and is not intended
+    to be called directly.
+
     @param role The role of the local endpoint
 
     @param socket The socket to tear down.
@@ -78,8 +88,9 @@ teardown(
         error_code const& error // result of operation
     );
     @endcode
-    Regardless of whether the asynchronous operation completes
-    immediately or not, the handler will not be invoked from within
+    If the handler has an associated immediate executor,
+    an immediate completion will be dispatched to it.
+    Otherwise, the handler will not be invoked from within
     this function. Invocation of the handler will be performed in a
     manner equivalent to using `net::post`.
 
@@ -121,6 +132,11 @@ namespace websocket {
     `net::ssl::stream`, callers are responsible for
     providing a suitable overload of this function.
 
+    @note
+
+    This function serves as a customization point and is not intended
+    to be called directly.
+
     @param role The role of the local endpoint
 
     @param socket The socket to tear down.
@@ -145,6 +161,11 @@ teardown(
     callers are responsible for providing a suitable overload
     of this function.
 
+    @note
+
+    This function serves as a customization point and is not intended
+    to be called directly.
+
     @param role The role of the local endpoint
 
     @param socket The socket to tear down.
@@ -158,10 +179,22 @@ teardown(
         error_code const& error // result of operation
     );
     @endcode   
-    Regardless of whether the asynchronous operation completes
-    immediately or not, the handler will not be invoked from within
+    If the handler has an associated immediate executor,
+    an immediate completion will be dispatched to it.
+    Otherwise, the handler will not be invoked from within
     this function. Invocation of the handler will be performed in a
     manner equivalent to using `net::post`.
+
+    @par Per-Operation Cancellation
+
+    This asynchronous operation supports cancellation for the following
+    net::cancellation_type values:
+
+    @li @c net::cancellation_type::terminal
+    @li @c net::cancellation_type::partial
+    @li @c net::cancellation_type::total
+
+    if they are also supported by the socket's @c async_wait operation.
 
 */
 template<

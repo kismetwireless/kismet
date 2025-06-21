@@ -10,10 +10,14 @@
 #ifndef BOOST_BEAST_HTTP_EMPTY_BODY_HPP
 #define BOOST_BEAST_HTTP_EMPTY_BODY_HPP
 
+#include <boost/beast/http/empty_body_fwd.hpp>
+
 #include <boost/beast/core/detail/config.hpp>
 #include <boost/beast/http/error.hpp>
 #include <boost/beast/http/message.hpp>
 #include <boost/optional.hpp>
+
+#include <cstdint>
 
 namespace boost {
 namespace beast {
@@ -78,7 +82,7 @@ struct empty_body
         put(ConstBufferSequence const&,
             error_code& ec)
         {
-            ec = error::unexpected_body;
+            BOOST_BEAST_ASSIGN_EC(ec, error::unexpected_body);
             return 0;
         }
 

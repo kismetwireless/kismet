@@ -41,7 +41,7 @@ enum class error
 
         This error is returned during parsing when additional
         octets are needed. The caller should append more data
-        to the existing buffer and retry the parse operaetion.
+        to the existing buffer and retry the parse operation.
     */
     need_more,
 
@@ -146,6 +146,9 @@ enum class error
     /// An obs-fold exceeded an internal limit.
     bad_obs_fold,
 
+    /// The response contains multiple and conflicting Content-Length.
+    multiple_content_length,
+
     /** The parser is stale.
 
         This happens when attempting to re-use a parser that has
@@ -161,7 +164,13 @@ enum class error
         unexpected end-of-file condition is encountered while trying
         to read from the file.
     */
-    short_read
+    short_read,
+
+    /// Header field name exceeds @ref basic_fields::max_name_size.
+    header_field_name_too_large,
+
+    /// Header field value exceeds @ref basic_fields::max_value_size.
+    header_field_value_too_large
 };
 
 } // http

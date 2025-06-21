@@ -251,6 +251,16 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 tracker_element_factory<dot11_tracked_ssid_alert>(),
                 "ssid alert");
 
+    ssidcanary_map =
+        Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_string_map>("phy80211.ssid_canaries",
+                tracker_element_factory<tracker_element_string_map>(),
+                "SSID canary alerts");
+
+    ssidcanary_map_element_id =
+        Globalreg::globalreg->entrytracker->register_field("phy80211.canary_ssid",
+                tracker_element_factory<tracker_element_string>(),
+                "Canary SSID");
+
     // Register the dissector alerts
     alert_netstumbler_ref = 
         alertracker->activate_configured_alert("NETSTUMBLER", 
@@ -403,6 +413,12 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "ad-hoc network.  This may indicate a misconfigured or misbehaving "
                 "device, or could indicate an attempt at spoofing or an 'evil twin' "
                 "attack.",
+                phyid);
+    alert_ssidcanary_ref =
+        alertracker->activate_configured_alert("SSIDCANARY",
+                "SPOOF", kis_alert_severity::high,
+                "Kismet may be given a list of SSIDs to alert on; if any SSID in this "
+                "list is seen as a probe, beacon, or response, this alert is raised.",
                 phyid);
     alert_ssidmatch_ref =
         alertracker->activate_configured_alert("APSPOOF", 
@@ -737,6 +753,40 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         ssid_regex_vec->push_back(ssida);
     }
 
+    // Parse the wifi canary options
+    auto apcanary_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("ssidcanary");
+
+    for (const auto& l : apcanary_lines) {
+        _MSG_DEBUG("ssid canary {}", l);
+
+        size_t cpos = l.find(':');
+
+        if (cpos == std::string::npos) {
+            _MSG("Invalid 'ssidcanary' configuration line, expected 'name:ssid=\"...\" "
+                    "but got '" + l + "'", MSGFLAG_ERROR);
+            continue;
+        }
+
+        std::string name = l.substr(0, cpos);
+
+        std::vector<opt_pair> optvec;
+        string_to_opts(l.substr(cpos + 1, l.length()), ",", &optvec);
+
+        std::string ssid = fetch_opt("ssid", &optvec);
+
+        if (ssid.length() == 0) {
+            _MSG("Invalid 'ssidcanary' configuration line, expected 'name:ssid=\"...\" "
+                    "but got '" + l + "'", MSGFLAG_ERROR);
+            continue;
+        }
+
+        auto ssida =
+            std::make_shared<tracker_element_string>(ssidcanary_map_element_id, ssid);
+
+        ssidcanary_map->insert(name, ssida);
+    }
+
+
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_fingerprint_devices", true)) {
         auto fingerprint_s = 
             Globalreg::globalreg->kismet_config->fetch_opt_dfl("dot11_beacon_ie_fingerprint",
@@ -999,9 +1049,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
                     auto pcapng = 
 					std::make_shared<pcapng_stream_packetchain<pcapng_phy80211_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
-							pcapng_phy80211_accept_ftor(mac),
-							pcapng_stream_select_ftor(),
-                            1024*512);
+							pcapng_phy80211_accept_ftor(mac), pcapng_stream_select_ftor(), (size_t) 1024*512);
         
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-80211-bssid-{}.pcapng", mac));
@@ -2373,6 +2421,21 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                 bssid_dev->set_devicename(bssid_dev->get_macaddr().mac_to_string());
             }
 
+            if (ssid_str.length() != 0 && d11phy->alertracker->potential_alert(d11phy->alert_ssidcanary_ref)) {
+                for (const auto& i : *d11phy->ssidcanary_map) {
+                    auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
+
+                    if (regex_string_compare(si, ssid->get_ssid())) {
+                        const auto al = fmt::format("IEEE80211 Access Point {} advertising canary "
+                                "SSID {} ({})", commoninfo->source, i.first, si);
+                        d11phy->alertracker->raise_alert(d11phy->alert_ssidcanary_ref, in_pack,
+                                commoninfo->network, commoninfo->source,
+                                commoninfo->dest, commoninfo->transmitter,
+                                commoninfo->channel, al);
+                    }
+                }
+            }
+
             // If we have a new ssid and we can consider raising an alert, do the 
             // regex compares to see if we trigger apspoof
             if (ssid_str.length() != 0 &&
@@ -2764,6 +2827,24 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                         dot11info->bssid_mac, dot11info->source_mac,
                         dot11info->dest_mac, dot11info->other_mac,
                         dot11info->channel, al);
+            }
+        }
+
+        if (dot11info->ssid_len != 0 && alertracker->potential_alert(alert_ssidcanary_ref)) {
+            auto ntype =
+                dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
+                std::string("responding for");
+            for (const auto& i : *ssidcanary_map) {
+                auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
+
+                if (regex_string_compare(si, ssid->get_ssid())) {
+                    const auto al = fmt::format("IEEE80211 Access Point {} {} canary "
+                            "SSID {} ({})", basedev->get_macaddr().mac_to_string(), ntype, i.first, si);
+                    alertracker->raise_alert(alert_ssidcanary_ref, in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
+                }
             }
         }
 
@@ -3406,6 +3487,24 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
             evt->get_event_content()->insert(dot11_new_ssid_device, basedev);
             evt->get_event_content()->insert(dot11_new_probed_ssid, probessid);
             eventbus->publish(evt);
+
+            if (dot11info->ssid_len != 0 && alertracker->potential_alert(alert_ssidcanary_ref)) {
+                auto ntype =
+                    dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
+                    std::string("responding for");
+                for (const auto& i : *ssidcanary_map) {
+                    auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
+
+                    if (regex_string_compare(si, probessid->get_ssid())) {
+                        const auto al = fmt::format("IEEE80211 Access Point {} probing for canary "
+                                "SSID {} ({})", basedev->get_macaddr().mac_to_string(), i.first, si);
+                        alertracker->raise_alert(alert_ssidcanary_ref, in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel, al);
+                    }
+                }
+            }
         }
     }
 

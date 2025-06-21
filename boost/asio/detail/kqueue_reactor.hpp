@@ -2,7 +2,7 @@
 // detail/kqueue_reactor.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 // Copyright (c) 2005 Stefan Arentz (stefan at soze dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -66,7 +66,8 @@ public:
   // Per-descriptor queues.
   struct descriptor_state
   {
-    descriptor_state(bool locking) : mutex_(locking) {}
+    descriptor_state(bool locking, int spin_count)
+      : mutex_(locking, spin_count) {}
 
     friend class kqueue_reactor;
     friend class object_pool_access;
@@ -117,13 +118,30 @@ public:
       per_descriptor_data& source_descriptor_data);
 
   // Post a reactor operation for immediate completion.
-  void post_immediate_completion(operation* op, bool is_continuation);
+  void post_immediate_completion(operation* op, bool is_continuation) const;
+
+  // Post a reactor operation for immediate completion.
+  BOOST_ASIO_DECL static void call_post_immediate_completion(
+      operation* op, bool is_continuation, const void* self);
 
   // Start a new operation. The reactor operation will be performed when the
   // given descriptor is flagged as ready, or an error has occurred.
   BOOST_ASIO_DECL void start_op(int op_type, socket_type descriptor,
       per_descriptor_data& descriptor_data, reactor_op* op,
-      bool is_continuation, bool allow_speculative);
+      bool is_continuation, bool allow_speculative,
+      void (*on_immediate)(operation*, bool, const void*),
+      const void* immediate_arg);
+
+  // Start a new operation. The reactor operation will be performed when the
+  // given descriptor is flagged as ready, or an error has occurred.
+  void start_op(int op_type, socket_type descriptor,
+      per_descriptor_data& descriptor_data, reactor_op* op,
+      bool is_continuation, bool allow_speculative)
+  {
+    start_op(op_type, descriptor, descriptor_data,
+        op, is_continuation, allow_speculative,
+        &kqueue_reactor::call_post_immediate_completion, this);
+  }
 
   // Cancel all operations associated with the given descriptor. The
   // handlers associated with the descriptor will be invoked with the
@@ -232,6 +250,12 @@ private:
 
   // Whether the service has been shut down.
   bool shutdown_;
+
+  // Whether I/O locking is enabled.
+  const bool io_locking_;
+
+  // How any times to spin waiting for the I/O mutex.
+  const int io_locking_spin_count_;
 
   // Mutex to protect access to the registered descriptors.
   mutex registered_descriptors_mutex_;

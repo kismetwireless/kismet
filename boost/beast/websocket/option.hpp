@@ -21,8 +21,13 @@ namespace websocket {
     These settings control the permessage-deflate extension,
     which allows messages to be compressed.
 
-    @note Objects of this type are used with
-          @ref beast::websocket::stream::set_option.
+    @note
+
+    These settings should be configured before performing the WebSocket
+    handshake.
+
+    Objects of this type are used with
+    @ref beast::websocket::stream::set_option.
 */
 struct permessage_deflate
 {
@@ -55,6 +60,9 @@ struct permessage_deflate
 
     /// Deflate memory level, 1..9
     int memLevel = 4;
+
+    /// The minimum size a message should have to be compressed
+    std::size_t msg_size_threshold = 0;
 };
 
 } // websocket

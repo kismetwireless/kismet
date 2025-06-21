@@ -89,6 +89,14 @@ public:
         } 
     }
 
+    void reduce(size_t sz) {
+        kis_lock_guard<kis_mutex> lg(pool_mutex);
+
+        while (pool_.size() > sz) {
+            pool_.pop();
+        }
+    }
+
     ptr_type acquire() {
         kis_lock_guard<kis_mutex> lg(pool_mutex);
         if (pool_.empty()) {

@@ -47,9 +47,8 @@ kis_packet::kis_packet() {
 
     assignment_id = 0;
 
-    raw_data = "";
-    raw_data.reserve(MAX_PACKET_LEN);
-    data = nonstd::string_view(raw_data);
+    raw_streambuf = nullptr;
+    data = nonstd::string_view(nullptr, 0);
 }
 
 kis_packet::~kis_packet() {
@@ -59,6 +58,32 @@ kis_packet::~kis_packet() {
         ;
     }
 }
+
+void kis_packet::reset() {
+    assignment_id = 0;
+    packet_no = 0;
+    error = 0;
+    crc_ok = 0;
+    filtered = 0;
+    duplicate = 0;
+
+    original.reset();
+
+    hash = 0;
+
+    // reset raw data if in use
+    raw_data.clear();
+    data = nonstd::string_view{nullptr, 0};
+    raw_streambuf.reset();
+
+    process_complete_events.clear();
+
+    for (size_t x = 0; x < MAX_PACKET_COMPONENTS; x++)
+        content_vec[x].reset();
+
+    tag_map.clear();
+}
+
    
 void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_component> data) {
 	if (index >= MAX_PACKET_COMPONENTS) {

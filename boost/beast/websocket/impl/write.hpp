@@ -12,7 +12,6 @@
 
 #include <boost/beast/websocket/detail/mask.hpp>
 #include <boost/beast/core/async_base.hpp>
-#include <boost/beast/core/bind_handler.hpp>
 #include <boost/beast/core/buffer_traits.hpp>
 #include <boost/beast/core/buffers_cat.hpp>
 #include <boost/beast/core/buffers_prefix.hpp>
@@ -86,7 +85,7 @@ public:
         // Set up the outgoing frame header
         if(! impl.wr_cont)
         {
-            impl.begin_msg();
+            impl.begin_msg(beast::buffer_bytes(bs));
             fh_.rsv1 = impl.wr_compress;
         }
         else
@@ -114,7 +113,7 @@ public:
             else
             {
                 BOOST_ASSERT(impl.wr_buf_size != 0);
-                remain_ = buffer_bytes(cb_);
+                remain_ = beast::buffer_bytes(cb_);
                 if(remain_ > impl.wr_buf_size)
                     how_ = do_nomask_frag;
                 else
@@ -130,7 +129,7 @@ public:
             else
             {
                 BOOST_ASSERT(impl.wr_buf_size != 0);
-                remain_ = buffer_bytes(cb_);
+                remain_ = beast::buffer_bytes(cb_);
                 if(remain_ > impl.wr_buf_size)
                     how_ = do_mask_frag;
                 else
@@ -162,7 +161,7 @@ operator()(
     auto sp = wp_.lock();
     if(! sp)
     {
-        ec = net::error::operation_aborted;
+        BOOST_BEAST_ASSIGN_EC(ec, net::error::operation_aborted);
         bytes_transferred_ = 0;
         return this->complete(cont, ec, bytes_transferred_);
     }
@@ -181,9 +180,14 @@ operator()(
                         "websocket::async_write" :
                         "websocket::async_write_some"
                     ));
-
-                impl.op_wr.emplace(std::move(*this));
+                this->set_allowed_cancellation(net::cancellation_type::all);
+                impl.op_wr.emplace(std::move(*this),
+                                   net::cancellation_type::all);
             }
+            if (ec)
+                return this->complete(cont, ec, bytes_transferred_);
+
+            this->set_allowed_cancellation(net::cancellation_type::terminal);
             impl.wr_block.lock(this);
             BOOST_ASIO_CORO_YIELD
             {
@@ -194,7 +198,8 @@ operator()(
                         "websocket::async_write_some"
                     ));
 
-                net::post(std::move(*this));
+                const auto ex = this->get_immediate_executor();
+                net::dispatch(ex, std::move(*this));
             }
             BOOST_ASSERT(impl.wr_block.is_locked(this));
         }
@@ -207,7 +212,7 @@ operator()(
         {
             // send a single frame
             fh_.fin = fin_;
-            fh_.len = buffer_bytes(cb_);
+            fh_.len = beast::buffer_bytes(cb_);
             impl.wr_fb.clear();
             detail::write<flat_static_buffer_base>(
                 impl.wr_fb, fh_);
@@ -341,8 +346,8 @@ operator()(
                         beast::detail::bind_continuation(std::move(*this)));
             }
             // VFALCO What about consuming the buffer on error?
-            bytes_transferred_ +=
-                bytes_transferred - impl.wr_fb.size();
+            if(bytes_transferred > impl.wr_fb.size())
+                bytes_transferred_ += bytes_transferred - impl.wr_fb.size();
             if(impl.check_stop_now(ec))
                 goto upcall;
             while(remain_ > 0)
@@ -426,7 +431,10 @@ operator()(
                             ),
                             beast::detail::bind_continuation(std::move(*this)));
                 }
-                n = bytes_transferred - impl.wr_fb.size();
+                if(bytes_transferred > impl.wr_fb.size())
+                    n = bytes_transferred - impl.wr_fb.size();
+                else
+                    n = 0;
                 bytes_transferred_ += n;
                 if(impl.check_stop_now(ec))
                     goto upcall;
@@ -462,13 +470,13 @@ operator()(
                 more_ = impl.deflate(b, cb_, fin_, in_, ec);
                 if(impl.check_stop_now(ec))
                     goto upcall;
-                n = buffer_bytes(b);
+                n = beast::buffer_bytes(b);
                 if(n == 0)
                 {
                     // The input was consumed, but there is
                     // no output due to compression latency.
                     BOOST_ASSERT(! fin_);
-                    BOOST_ASSERT(buffer_bytes(cb_) == 0);
+                    BOOST_ASSERT(beast::buffer_bytes(cb_) == 0);
                     goto upcall;
                 }
                 if(fh_.mask)
@@ -551,13 +559,22 @@ template<class NextLayer, bool deflateSupported>
 struct stream<NextLayer, deflateSupported>::
     run_write_some_op
 {
+    boost::shared_ptr<impl_type> const& self;
+
+    using executor_type = typename stream::executor_type;
+
+    executor_type
+    get_executor() const noexcept
+    {
+        return self->stream().get_executor();
+    }
+
     template<
         class WriteHandler,
         class ConstBufferSequence>
     void
     operator()(
         WriteHandler&& h,
-        boost::shared_ptr<impl_type> const& sp,
         bool fin,
         ConstBufferSequence const& b)
     {
@@ -574,7 +591,7 @@ struct stream<NextLayer, deflateSupported>::
             typename std::decay<WriteHandler>::type,
             ConstBufferSequence>(
                 std::forward<WriteHandler>(h),
-                sp,
+                self,
                 fin,
                 b);
     }
@@ -622,7 +639,7 @@ write_some(bool fin,
     detail::frame_header fh;
     if(! impl.wr_cont)
     {
-        impl.begin_msg();
+        impl.begin_msg(beast::buffer_bytes(buffers));
         fh.rsv1 = impl.wr_compress;
     }
     else
@@ -634,7 +651,7 @@ write_some(bool fin,
     fh.op = impl.wr_cont ?
         detail::opcode::cont : impl.wr_opcode;
     fh.mask = impl.role == role_type::client;
-    auto remain = buffer_bytes(buffers);
+    auto remain = beast::buffer_bytes(buffers);
     if(impl.wr_compress)
     {
 
@@ -648,14 +665,14 @@ write_some(bool fin,
                 b, cb, fin, bytes_transferred, ec);
             if(impl.check_stop_now(ec))
                 return bytes_transferred;
-            auto const n = buffer_bytes(b);
+            auto const n = beast::buffer_bytes(b);
             if(n == 0)
             {
                 // The input was consumed, but there
                 // is no output due to compression
                 // latency.
                 BOOST_ASSERT(! fin);
-                BOOST_ASSERT(buffer_bytes(cb) == 0);
+                BOOST_ASSERT(beast::buffer_bytes(cb) == 0);
                 fh.fin = false;
                 break;
             }
@@ -828,9 +845,8 @@ async_write_some(bool fin,
     return net::async_initiate<
         WriteHandler,
         void(error_code, std::size_t)>(
-            run_write_some_op{},
+            run_write_some_op{impl_},
             handler,
-            impl_,
             fin,
             bs);
 }
@@ -884,9 +900,8 @@ async_write(
     return net::async_initiate<
         WriteHandler,
         void(error_code, std::size_t)>(
-            run_write_some_op{},
+            run_write_some_op{impl_},
             handler,
-            impl_,
             true,
             bs);
 }

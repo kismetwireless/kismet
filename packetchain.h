@@ -48,42 +48,42 @@
 
 #include "moodycamel/blockingconcurrentqueue.h"
 
-/* 
- * Packets are captured (typically from an IO thread, either for ASIO IPC and TCP or 
+/*
+ * Packets are captured (typically from an IO thread, either for ASIO IPC and TCP or
  * boost-beast websocket io).
  *
- * Within the capturing thread, the POSTCAP chain is executed; this is responsible 
+ * Within the capturing thread, the POSTCAP chain is executed; this is responsible
  * for doing the initial decapsulation of the packet and creation of an assignment
  * hash which is used to assign the packet to a demod thread.
  *
  * Assignment hashes should attempt to be consistent for the devices contained in
  * the packet.  This necessitates dissecting the basic mac-layer information from
- * the packet, but allows kismet to assign packets modifying the same devices to 
+ * the packet, but allows kismet to assign packets modifying the same devices to
  * the same threads, minimizing device locking requirements when updating the device
  * content.
  *
  * Packet chain progression
  * GENESIS
- * 
+ *
  * (arbitrary fill-in by whomever generated the packet before injection)
- * 
+ *
  * POST-CAPTURE (executed in capture io thread)
  *
- * (assignment to mapped packet chain based on post-capture packet identifier 
+ * (assignment to mapped packet chain based on post-capture packet identifier
  * hash mapped to number of packet processing chains we have)
- * 
+ *
  * DISSECT
- * 
+ *
  * DECRYPT
- * 
+ *
  * DATA-DISSECT
- * 
+ *
  * CLASSIFIER
- * 
+ *
  * TRACKER
- * 
+ *
  * LOGGING
- * 
+ *
  * DESTROY
  */
 
@@ -130,8 +130,8 @@ public:
 
     // Inject a packet into the chain
     int process_packet(std::shared_ptr<kis_packet> in_pack);
- 
-    // Callback and information 
+
+    // Callback and information
     typedef int (*pc_callback)(CHAINCALL_PARMS);
     typedef struct {
         int priority;
@@ -142,7 +142,7 @@ public:
 		int id;
     } pc_link;
 
-    // Register a callback, aux data, a chain to put it in, and the priority 
+    // Register a callback, aux data, a chain to put it in, and the priority
     int register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
     int remove_handler(pc_callback in_cb, int in_chain);
 	int remove_handler(int in_id, int in_chain);
@@ -224,7 +224,7 @@ protected:
     time_t last_packet_queue_user_warning, last_packet_drop_user_warning;
 
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_default_aggregator,
-        kis_tracked_rrd_prev_pos_extreme_aggregator, 
+        kis_tracked_rrd_prev_pos_extreme_aggregator,
         kis_tracked_rrd_prev_pos_extreme_aggregator>> packet_peak_rrd;
     int packet_peak_rrd_id;
 
@@ -281,7 +281,7 @@ protected:
     std::atomic<unsigned int> dedupe_list_pos;
 
 	int pack_comp_linkframe, pack_comp_decap, pack_comp_l1_agg, pack_comp_l1, pack_comp_datasource;
-    
+
 };
 
 #endif
