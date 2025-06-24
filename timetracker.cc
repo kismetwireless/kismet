@@ -91,8 +91,6 @@ void time_tracker::time_dispatcher() {
     std::this_thread::sleep_until(then);
 
     while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
-        kis_unique_lock<kis_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
-
         auto now = time(0);
         std::chrono::system_clock::time_point next;
 
@@ -106,6 +104,8 @@ void time_tracker::time_dispatcher() {
                             (interval % SERVER_TIMESLICES_SEC));
                 break;
         }
+
+        kis_unique_lock<kis_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
 
         // Handle scheduled events
         struct timeval cur_tm;

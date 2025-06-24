@@ -453,7 +453,7 @@ void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_devic
 
 std::shared_ptr<tracker_element> 
 device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    auto ret = Globalreg::new_from_pool<tracker_element_vector>();
+    auto ret = Globalreg::globalreg->entrytracker->new_from_pool<tracker_element_vector>();
     std::ostream os(&con->response_stream());
 
     auto tv_k = con->uri_params().find(":timestamp");

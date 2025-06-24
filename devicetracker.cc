@@ -1353,7 +1353,7 @@ std::shared_ptr<kis_tracked_device_base>
             // Throttle history cloud to one update per second to prevent floods of
             // data from swamping the cloud
             if (track_history_cloud && pack_gpsinfo->fix >= 2) {
-                auto histloc = Globalreg::new_from_pool<kis_historic_location>();
+                auto histloc = Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>();
 
                 histloc->set_lat(pack_gpsinfo->lat);
                 histloc->set_lon(pack_gpsinfo->lon);

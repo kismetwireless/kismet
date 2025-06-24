@@ -116,9 +116,8 @@ void gps_tracker::trigger_deferred_startup() {
     httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    auto loctrip = Globalreg::new_from_pool<kis_tracked_location_full>();
-                    auto ue = 
-                        Globalreg::new_from_pool<tracker_element_uuid>();
+                    auto loctrip = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_full>();
+                    auto ue = Globalreg::globalreg->entrytracker->new_from_pool<tracker_element_uuid>();
                     ue->set_id(tracked_uuid_addition_id);
 
                     auto pi = get_best_location();
@@ -238,8 +237,8 @@ void gps_tracker::trigger_deferred_startup() {
                 [this](int) -> int {
                     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker location event");
 
-                    auto loctrip = Globalreg::new_from_pool<kis_tracked_location_full>();
-                    auto ue = Globalreg::new_from_pool<tracker_element_uuid>();
+                    auto loctrip = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_full>();
+                    auto ue = Globalreg::globalreg->entrytracker->new_from_pool<tracker_element_uuid>();
                     ue->set_id(tracked_uuid_addition_id);
 
                     auto pi = get_best_location();
