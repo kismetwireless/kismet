@@ -49,7 +49,7 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>(this);
+        auto r = Globalreg::globalreg->entrytracker->new_from_pool<this_t>(this);
         r->set_id(this->get_id());
         return r;
     }
@@ -125,7 +125,7 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>(this);
+        auto r = Globalreg::globalreg->entrytracker->new_from_pool<this_t>(this);
         r->set_id(this->get_id());
         return r;
     }
@@ -171,7 +171,6 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        // auto r = Globalreg::new_from_pool<this_t>(this);
         auto r = std::make_shared<this_t>(this);
         r->set_id(this->get_id());
         return r;
@@ -442,7 +441,7 @@ public:
             }
 
             auto aggloc =
-                Globalreg::new_from_pool<kis_historic_location>(historic_location_builder.get());
+                Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>(historic_location_builder.get());
 
             double r_x = avg_x / samples_100->size();
             double r_y = avg_y / samples_100->size();
@@ -510,7 +509,7 @@ public:
                 }
 
                 auto aggloc10 =
-                    Globalreg::new_from_pool<kis_historic_location>(historic_location_builder.get());
+                    Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>(historic_location_builder.get());
 
                 r_x = avg_x / samples_100->size();
                 r_y = avg_y / samples_100->size();
@@ -563,7 +562,7 @@ protected:
             "time (unix ts) of last sample", &last_sample_ts);
 
         historic_location_builder = 
-            Globalreg::new_from_pool<kis_historic_location>();
+            Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>();
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
