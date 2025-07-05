@@ -25,21 +25,21 @@
 #include "gpstracker.h"
 
 kis_tracked_location_triplet::kis_tracked_location_triplet() :
-    tracker_component() { 
+    tracker_component() {
 
     register_fields();
     reserve_fields(NULL);
 }
 
-kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id) : 
+kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id) :
     tracker_component(in_id) {
 
     register_fields();
     reserve_fields(NULL);
-} 
+}
 
-kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id, 
-        std::shared_ptr<tracker_element_map> e) : 
+kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id,
+        std::shared_ptr<tracker_element_map> e) :
     tracker_component(in_id) {
 
     register_fields();
@@ -58,7 +58,7 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(const kis_tracked_loc
         reserve_fields(nullptr);
 }
 
-void kis_tracked_location_triplet::set(double in_lat, double in_lon, 
+void kis_tracked_location_triplet::set(double in_lat, double in_lon,
        float in_alt, unsigned int in_fix) {
 
     set_location(in_lat, in_lon);
@@ -85,7 +85,7 @@ void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
     if (in_packinfo == NULL)
         return;
 
-    
+
     if (in_packinfo->lat != 0 && in_packinfo->lon != 0) {
         set_location(in_packinfo->lat, in_packinfo->lon);
     }
@@ -96,7 +96,7 @@ void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
     set_time_usec(in_packinfo->tv.tv_usec);
 }
 
-kis_tracked_location_triplet& 
+kis_tracked_location_triplet&
     kis_tracked_location_triplet::operator= (const kis_tracked_location_triplet& in) {
     set_location(in.get_lat(), in.get_lon());
 
@@ -127,7 +127,7 @@ void kis_tracked_location_triplet::register_fields() {
     tracker_component::register_fields();
 
     register_field("kismet.common.location.geopoint", "[lon, lat] point", &geopoint);
-    alt_id = 
+    alt_id =
         register_dynamic_field<tracker_element_float>("kismet.common.location.alt", "altitude (meters)");
     fix_id =
         register_dynamic_field<tracker_element_uint8>("kismet.common.location.fix", "gps fix");
@@ -151,15 +151,15 @@ kis_tracked_location_full::kis_tracked_location_full() :
     reserve_fields(NULL);
 }
 
-kis_tracked_location_full::kis_tracked_location_full(int in_id) : 
+kis_tracked_location_full::kis_tracked_location_full(int in_id) :
     kis_tracked_location_triplet(in_id) {
 
     register_fields();
     reserve_fields(NULL);
-} 
+}
 
-kis_tracked_location_full::kis_tracked_location_full(int in_id, 
-        std::shared_ptr<tracker_element_map> e) : 
+kis_tracked_location_full::kis_tracked_location_full(int in_id,
+        std::shared_ptr<tracker_element_map> e) :
     kis_tracked_location_triplet(in_id, e) {
 
     register_fields();
@@ -268,7 +268,7 @@ kis_tracked_location::kis_tracked_location() :
 }
 
 kis_tracked_location::kis_tracked_location(int in_id) :
-    tracker_component(in_id) { 
+    tracker_component(in_id) {
 
     agg_x = agg_y = agg_z = agg_a = 0;
     num_avg = num_alt_avg = 0;
@@ -278,7 +278,7 @@ kis_tracked_location::kis_tracked_location(int in_id) :
     reserve_fields(NULL);
 }
 
-kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e) : 
+kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e) :
     tracker_component(in_id) {
 
     agg_x = agg_y = agg_z = agg_a = 0;
@@ -301,7 +301,7 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
         reserve_fields(nullptr);
 }
 
-void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt, 
+void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt,
         unsigned int fix, double in_speed, double in_heading) {
 
     if (fix < 2) {
@@ -313,7 +313,7 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
     if (avg_loc == nullptr) {
         // We probably have a last location; set the ID anyhow to make sure; if we don't,
         // this is just a new(nullptr) which is also fine
-        avg_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>(last_loc.get());
+        avg_loc = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_triplet>(last_loc.get());
         avg_loc->set_id(avg_loc_id);
         insert(avg_loc);
     }
@@ -343,18 +343,18 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
 
     double r_alt = 0;
 
-    if (num_alt_avg > 0) 
+    if (num_alt_avg > 0)
        r_alt =  agg_a / num_alt_avg;
 
     // Use the incoming if we're the first packet
     if (num_avg > 1)
-        avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI, 
+        avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI,
                      r_alt, num_alt_avg > 0 ? 3 : 2);
     else
         avg_loc->set(in_lat, in_lon, in_alt, fix);
 }
 
-void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt, 
+void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
         unsigned int fix, double in_speed, double in_heading) {
 
     if (fix < 2) {
@@ -366,19 +366,19 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     }
 
     if (min_loc == nullptr) {
-        min_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>();
+        min_loc = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_triplet>();
         min_loc->set_id(min_loc_id);
         insert(min_loc);
     }
 
     if (max_loc == nullptr) {
-        max_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>();
+        max_loc = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_triplet>();
         max_loc->set_id(max_loc_id);
         insert(max_loc);
     }
 
     if (last_loc == nullptr) {
-        last_loc = Globalreg::new_from_pool<kis_tracked_location_full>();
+        last_loc = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_full>();
         last_loc->set_id(last_loc_id);
         insert(last_loc);
     }
@@ -399,7 +399,7 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     }
 
     if (in_lat > max_loc->get_lat() || max_loc->get_lat() == 0) {
-        max_lat = in_lat; 
+        max_lat = in_lat;
     }
 
     if (in_lon < min_loc->get_lon() || min_loc->get_lon() == 0) {
@@ -429,13 +429,13 @@ void kis_tracked_location::register_fields() {
 
     register_field("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
 
-    min_loc_id = 
+    min_loc_id =
         register_dynamic_field("kismet.common.location.min_loc",
                 "Minimum corner of bounding rectangle", &min_loc);
-    max_loc_id = 
+    max_loc_id =
         register_dynamic_field("kismet.common.location.max_loc",
                 "Maximume corner of bounding rectangle", &max_loc);
-    avg_loc_id = 
+    avg_loc_id =
         register_dynamic_field("kismet.common.location.avg_loc",
                 "Average GPS center of all samples", &avg_loc);
     last_loc_id =

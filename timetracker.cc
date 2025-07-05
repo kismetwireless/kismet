@@ -83,12 +83,29 @@ time_tracker::~time_tracker() {
 }
 
 void time_tracker::time_dispatcher() {
-    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
-        kis_unique_lock<kis_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
+    unsigned int interval = 0;
 
-        // Calculate the next tick
-        auto start = std::chrono::system_clock::now();
-        auto end = start + std::chrono::milliseconds(1000 / SERVER_TIMESLICES_SEC);
+    auto start = time(0);
+    auto then = std::chrono::system_clock::from_time_t(start + 1);
+
+    std::this_thread::sleep_until(then);
+
+    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
+        auto now = time(0);
+        std::chrono::system_clock::time_point next;
+
+        switch (++interval % 10) {
+            case 0:
+                next = std::chrono::system_clock::from_time_t(now + 1);
+                break;
+            default:
+                next = std::chrono::system_clock::from_time_t(now) +
+                    std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) *
+                            (interval % SERVER_TIMESLICES_SEC));
+                break;
+        }
+
+        kis_unique_lock<kis_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
 
         // Handle scheduled events
         struct timeval cur_tm;
@@ -97,7 +114,7 @@ void time_tracker::time_dispatcher() {
         Globalreg::globalreg->last_tv_sec = cur_tm.tv_sec;
         Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
 
-        // Sort and duplicate the vector to a safe list; we have to re-sort 
+        // Sort and duplicate the vector to a safe list; we have to re-sort
         // timers from recurring events
         lock.lock();
 
@@ -209,15 +226,7 @@ void time_tracker::time_dispatcher() {
             removed_timer_ids.clear();
         }
 
-        /*
-        if (std::chrono::system_clock::now() >= end) {
-            fmt::print("debug - timetracker missed time slot by {} ms\n",
-                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - end).count());
-        }
-        */
-
-
-        std::this_thread::sleep_until(end);
+        std::this_thread::sleep_until(next);
     }
 }
 
