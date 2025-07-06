@@ -5311,7 +5311,7 @@ namespace cxx11
 
   }
 
-  // http://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
+  // https://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
   // Clang 3.1 fails with headers of libstd++ 4.8.3 when using std::function
   // because of this.
   namespace test_template_alias_sfinae
@@ -6156,7 +6156,7 @@ namespace cxx11
 
   }
 
-  // http://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
+  // https://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
   // Clang 3.1 fails with headers of libstd++ 4.8.3 when using std::function
   // because of this.
   namespace test_template_alias_sfinae
@@ -7015,7 +7015,7 @@ namespace cxx11
 
   }
 
-  // http://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
+  // https://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
   // Clang 3.1 fails with headers of libstd++ 4.8.3 when using std::function
   // because of this.
   namespace test_template_alias_sfinae
@@ -7911,7 +7911,7 @@ namespace cxx11
 
   }
 
-  // http://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
+  // https://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
   // Clang 3.1 fails with headers of libstd++ 4.8.3 when using std::function
   // because of this.
   namespace test_template_alias_sfinae
@@ -8730,7 +8730,7 @@ namespace cxx11
 
   }
 
-  // http://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
+  // https://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
   // Clang 3.1 fails with headers of libstd++ 4.8.3 when using std::function
   // because of this.
   namespace test_template_alias_sfinae
@@ -9563,7 +9563,7 @@ namespace cxx11
 
   }
 
-  // http://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
+  // https://stackoverflow.com/questions/13728184/template-aliases-and-sfinae
   // Clang 3.1 fails with headers of libstd++ 4.8.3 when using std::function
   // because of this.
   namespace test_template_alias_sfinae
@@ -13281,7 +13281,7 @@ Alternatively, you may set the environment variables libwebsockets_CFLAGS
 and libwebsockets_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+To get pkg-config, see <https://pkg-config.freedesktop.org/>.
 See \`config.log' for more details" "$LINENO" 5; }
 else
 	libwebsockets_CFLAGS=$pkg_cv_libwebsockets_CFLAGS
@@ -13632,7 +13632,7 @@ Alternatively, you may set the environment variables protobuf_CFLAGS
 and protobuf_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+To get pkg-config, see <https://pkg-config.freedesktop.org/>.
 See \`config.log' for more details" "$LINENO" 5; }
 else
 	protobuf_CFLAGS=$pkg_cv_protobuf_CFLAGS
@@ -14766,7 +14766,7 @@ Alternatively, you may set the environment variables libusb_CFLAGS
 and libusb_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+To get pkg-config, see <https://pkg-config.freedesktop.org/>.
 See \`config.log' for more details" "$LINENO" 5; }
 else
 	libusb_CFLAGS=$pkg_cv_libusb_CFLAGS
@@ -15156,7 +15156,7 @@ Alternatively, you may set the environment variables librtlsdr_CFLAGS
 and librtlsdr_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+To get pkg-config, see <https://pkg-config.freedesktop.org/>.
 See \`config.log' for more details" "$LINENO" 5; }
 else
 	librtlsdr_CFLAGS=$pkg_cv_librtlsdr_CFLAGS
@@ -15439,7 +15439,7 @@ Alternatively, you may set the environment variables libmosquitto_CFLAGS
 and libmosquitto_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+To get pkg-config, see <https://pkg-config.freedesktop.org/>.
 See \`config.log' for more details" "$LINENO" 5; }
 else
 	libmosquitto_CFLAGS=$pkg_cv_libmosquitto_CFLAGS
