@@ -20,7 +20,6 @@
 #include "kis_datasource.h"
 #include "datasource_mqtt.h"
 #include "alertracker.h"
-#include "packet.h"
 
 #ifdef HAVE_LIBMOSQUITTO
 
@@ -479,9 +478,6 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             auto jsoninfo = ds->packetchain->new_packet_component<kis_json_packinfo>();
             jsoninfo->type = ds->json_type_;
             jsoninfo->json_string = json_string;
-
-            // _MSG_DEBUG("JSON Type: {}", jsoninfo->type);
-            // _MSG_DEBUG("JSON String: {}", jsoninfo->json_string);
 
             packet->insert(ds->pack_comp_json, jsoninfo);
 
