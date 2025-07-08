@@ -704,6 +704,8 @@ protected:
     // presentation data for indexing sources
     int datasource_entity_id;
 
+    __ProxyM(source_cmd_pending, uint8_t, uint8_t, uint8_t, source_cmd_pending, data_mutex);
+
     // We define internal proxies for the set_ commands because we don't present
     // a writeable trackercomponent interface - these are just mirrors of the state
     // given to us by the capture binary itself.  We use the ProxySet macros with
@@ -729,6 +731,9 @@ protected:
 
     // Prototype object which created us, defines our overall capabilities
     std::shared_ptr<kis_datasource_builder> source_builder;
+
+    // command pending completion
+    std::shared_ptr<tracker_element_uint8> source_cmd_pending;
 
     // RW fields, they're relevant only to Kismet
     std::shared_ptr<tracker_element_string> source_name;

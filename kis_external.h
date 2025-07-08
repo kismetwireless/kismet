@@ -351,14 +351,24 @@ protected:
         }
     }
 
-    // Wrap a generated packet in a v3 header and transmit it, returning the sequence
-    // number.  Copies the packet content into the buffer, the caller can then
-    // dispose of the packet info.
-
+    // Generate a v3 frame header for the content and transmit, returning the sequence
+    // number of the generated frame.  Packet data is copied into the tx buffer; the caller
+    // can safely dispose of the content after this call.  This is not hugely optimized for
+    // zero-copy, but the external protocol is extremely asymmetric and Kismet does not send
+    // large amounts of content to the external binaries
     unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
             unsigned int code, const char *content, size_t content_sz) {
+
         if ((io_ != nullptr && io_->stopped()) || cancelled) {
             _MSG_DEBUG("Attempt to send {} on closed external interface", command);
+            return 0;
+        }
+
+        if (sizeof(kismet_external_frame_v3_t) + content_sz > MAX_EXTERNAL_FRAME_LEN) {
+            _MSG_ERROR("Attempt to send a {} byte frame; max {}",
+                    sizeof(kismet_external_frame_v3_t) + content_sz, MAX_EXTERNAL_FRAME_LEN);
+            trigger_error("tx frame too large");
+            close_external();
             return 0;
         }
 
@@ -369,22 +379,18 @@ protected:
             in_seqno = seqno;
         }
 
-        ssize_t frame_sz = sizeof(kismet_external_frame_v3_t) + content_sz;
+        kismet_external_frame_v3_t frame;
 
-        char frame_buf[frame_sz];
-        auto frame = reinterpret_cast<kismet_external_frame_v3_t *>(frame_buf);
+        frame.signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+        frame.v3_sentinel = kis_hton16(KIS_EXTERNAL_V3_SIG);
+        frame.v3_version = kis_ntoh16(3);
+        frame.length = kis_hton32(content_sz);
+        frame.pkt_type = kis_hton16(command);
+        frame.code = kis_hton16(code);
+        frame.seqno = kis_hton32(in_seqno);
 
-        frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
-        frame->v3_sentinel = kis_hton16(KIS_EXTERNAL_V3_SIG);
-        frame->v3_version = kis_ntoh16(3);
-        frame->length = kis_hton32(content_sz);
-        frame->pkt_type = kis_hton16(command);
-        frame->code = kis_hton16(code);
-        frame->seqno = kis_hton32(in_seqno);
-
-        memcpy(frame->data, content, content_sz);
-
-        start_write(frame_buf, frame_sz);
+        start_write(reinterpret_cast<const char *>(&frame), sizeof(kismet_external_frame_v3_t));
+        start_write(content, content_sz);
 
         return in_seqno;
     }
