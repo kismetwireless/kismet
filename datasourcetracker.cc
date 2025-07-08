@@ -725,6 +725,8 @@ void datasource_tracker::trigger_deferred_startup() {
                         if (set_success) {
                             return ds;
                         } else {
+                            _MSG_ERROR("Source '{}' ({}) failed to set channel {}",
+                                    ds->get_source_name(), ds->get_source_uuid(), ch);
                             con->set_status(500);
                             return std::make_shared<tracker_element_map>();
                         }
@@ -767,12 +769,14 @@ void datasource_tracker::trigger_deferred_startup() {
                         if (set_success) {
                             return ds;
                         } else {
+                            _MSG_ERROR("Source '{}' ({}) failed to set channel list or hopping",
+                                    ds->get_source_name(), ds->get_source_uuid());
                             con->set_status(500);
                             return std::make_shared<tracker_element_map>();
                         }
-
                     } else {
-                        throw std::runtime_error("require either 'channel' or 'channels' and 'rate'");
+                        throw std::runtime_error("channel control API requires either 'channel' or "
+                                "'channels' and 'rate'");
                     }
                 }));
 
