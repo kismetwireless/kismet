@@ -3860,7 +3860,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
         if (interface->chanset != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANNEL);
-            mpack_write_cstr(&writer, interface->capif);
+            mpack_write_cstr(&writer, interface->chanset);
         }
 
         if (interface->channels_len > 0) {
