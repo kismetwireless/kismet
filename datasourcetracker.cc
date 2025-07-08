@@ -716,6 +716,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         ds->set_channel(ch, 0,
                                 [&set_success, &set_promise](unsigned int t, bool success, std::string e) mutable {
+                                // _MSG_DEBUG("source channel set completed; success {} err {}", success, e);
                                 set_success = success;
                                 set_promise.set_value();
                                 });
