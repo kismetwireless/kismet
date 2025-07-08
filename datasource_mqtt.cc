@@ -416,17 +416,17 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
             double lat = json.value("lat", 0.0);
             double lon = json.value("lon", 0.0);
-            double alt = json.value("alt", 0.0);
-            double speed = json.value("spd", 0.0);
 
             if (lat != 0.0 && lon != 0.0) {
+                double alt = json.value("alt", 0.0);
+
                 auto gpsinfo = std::make_shared<kis_gps_packinfo>();
 
                 gpsinfo->lat = lat;
                 gpsinfo->lon = lon;
                 gpsinfo->alt = alt;
                 gpsinfo->fix = (alt != 0.0) ? 3 : 2;
-                gpsinfo->speed = speed;
+                gpsinfo->speed = json.value("spd", 0.0);
 
                 packet->insert(ds->pack_comp_gps, gpsinfo);
             }
@@ -476,6 +476,7 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             // --- Prepare JSON for parsing ---
 
             auto jsoninfo = ds->packetchain->new_packet_component<kis_json_packinfo>();
+            
             jsoninfo->type = ds->json_type_;
             jsoninfo->json_string = json_string;
 
