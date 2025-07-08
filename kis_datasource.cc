@@ -339,7 +339,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     lock.lock();
 
     // Store the cb, and send a v2 discovery probe
-    deferred_event = [this, in_transaction, in_cb]() {
+    deferred_event = [this, in_transaction, in_cb]() mutable {
         kis_lock_guard<kis_mutex> lg(ext_mutex, "handle_v2_pong_event");
 
         set_int_source_running(true);
@@ -349,17 +349,15 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         // If we got here we're valid; start a PING timer
         timetracker->remove_timer(ping_timer_id);
         ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
-                // kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
-
                 if (!get_source_running()) {
-                ping_timer_id = -1;
-                return 0;
+                    ping_timer_id = -1;
+                    return 0;
                 }
 
                 send_ping();
 
                 return 1;
-                });
+            });
 
         // Create and send open command
         send_open_source(get_source_definition(), in_transaction, in_cb);
@@ -1134,7 +1132,7 @@ void kis_datasource::handle_probesource_report_v3_callback(uint32_t in_seqno, ui
 
         if (cb != nullptr) {
             lock.unlock();
-            cb(transaction, code, msg);
+            cb(transaction, code != 0, msg);
             lock.lock();
         }
     }
@@ -1411,7 +1409,7 @@ void kis_datasource::handle_configsource_report_v3_callback(uint32_t in_seqno, u
 
         if (cb != nullptr) {
             lock.unlock();
-            cb(transaction, code == 0, msg);
+            cb(transaction, code != 0, msg);
             lock.lock();
         }
     }
@@ -1429,7 +1427,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
     if (!mpack_tree_try_parse(&tree)) {
         _MSG_ERROR("Kismet external interface got unparseable v3 CONFIGREPORT");
-        trigger_error("invalid v3 CONFIGREPORT");
+        trigger_error("invalid v3 CONFIGREPORT (unparseable)");
         return;
     }
 
@@ -1437,8 +1435,8 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
     auto report_seqno = mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO));
     if (mpack_tree_error(&tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
-        trigger_error("invalid v3 CONFIGUREREPORT");
+        _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT (no seqno)");
+        trigger_error("invalid v3 CONFIGUREREPORT (no seqno)");
         return;
     }
 
@@ -3473,6 +3471,8 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.source_number", "internal source number per Kismet instance",
             &source_number);
     register_field("kismet.datasource.source_key", "hashed UUID key", &source_key);
+
+    register_field("kismet.datasource.cmd_pending", "pending command count", &source_cmd_pending);
 
     register_field("kismet.datasource.paused",
             "capture is paused (no packets will be processed from this source)", &source_paused);
