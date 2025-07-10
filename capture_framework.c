@@ -3733,7 +3733,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
         if (interface->chanset != NULL) {
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
-            mpack_write_cstr(&writer, interface->capif);
+            mpack_write_cstr(&writer, interface->chanset);
         }
 
         if (interface->channels_len > 0) {
