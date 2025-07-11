@@ -379,18 +379,20 @@ protected:
             in_seqno = seqno;
         }
 
-        kismet_external_frame_v3_t frame;
+        char frame_buf[MAX_EXTERNAL_FRAME_LEN];
+        auto frame = reinterpret_cast<kismet_external_frame_v3_t *>(frame_buf);
 
-        frame.signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
-        frame.v3_sentinel = kis_hton16(KIS_EXTERNAL_V3_SIG);
-        frame.v3_version = kis_ntoh16(3);
-        frame.length = kis_hton32(content_sz);
-        frame.pkt_type = kis_hton16(command);
-        frame.code = kis_hton16(code);
-        frame.seqno = kis_hton32(in_seqno);
+        frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+        frame->v3_sentinel = kis_hton16(KIS_EXTERNAL_V3_SIG);
+        frame->v3_version = kis_ntoh16(3);
+        frame->length = kis_hton32(content_sz);
+        frame->pkt_type = kis_hton16(command);
+        frame->code = kis_hton16(code);
+        frame->seqno = kis_hton32(in_seqno);
 
-        start_write(reinterpret_cast<const char *>(&frame), sizeof(kismet_external_frame_v3_t));
-        start_write(content, content_sz);
+        memcpy(frame->data, content, content_sz);
+
+        start_write(frame_buf, sizeof(kismet_external_frame_v3_t) + content_sz);
 
         return in_seqno;
     }
