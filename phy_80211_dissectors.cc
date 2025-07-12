@@ -2936,8 +2936,9 @@ kis_80211_phy::packet_dot11_eapol_handshake(const std::shared_ptr<kis_packet>& i
         eap.parse(ks);
 
         // We only care about RSN keys
-        if (eap.dot1x_type() != dot11_wpa_eap::dot1x_type_eap_key)
-            return NULL;
+        if (eap.dot1x_type() != dot11_wpa_eap::dot1x_type_eap_key) {
+            return nullptr;
+        }
 
         // Look for rtl8195 overflows
         if (eap.dot1x_len() > 512) {
@@ -2952,16 +2953,22 @@ kis_80211_phy::packet_dot11_eapol_handshake(const std::shared_ptr<kis_packet>& i
 
         auto dot1xkey = eap.dot1x_content_key();
 
+        dot1xkey->parse(eap.dot1x_data());
+
         auto rsnkey = dot1xkey->key_content_eapolrsn();
 
-        if (rsnkey == NULL)
-            return NULL;
+        if (rsnkey == nullptr) {
+            return nullptr;
+        }
+
+        rsnkey->parse(dot1xkey->key_content_data());
 
         // Set a packet tag for handshakes
         in_pack->tag_map["DOT11_WPAHANDSHAKE"] = true;
 
-        if (!keep_eapol_packets)
+        if (!keep_eapol_packets) {
             return nullptr;
+        }
 
         std::shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
