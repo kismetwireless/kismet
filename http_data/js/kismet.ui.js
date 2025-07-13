@@ -1014,6 +1014,13 @@ function GenerateDeviceFieldList2() {
         }
     }
 
+    for (var i in DeviceRowHighlights) {
+        for (var f in DeviceRowHighlights[i]['fields']) {
+            retcols.set(DeviceRowHighlights[i]['fields'][f],
+                DeviceRowHighlights[i]['fields'][f]);
+        }
+    }
+
     var ret = [];
 
     for (const [k, v] of retcols) {
