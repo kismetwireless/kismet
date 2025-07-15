@@ -112,27 +112,27 @@ protected:
                     "Filter value");
 
         filter_source_id =
-            register_field("kismet.packetfilter.macaddr.source", 
+            register_field("kismet.packetfilter.macaddr.source",
                     tracker_element_factory<tracker_element_macfilter_map>(),
                     "Source address filters");
 
         filter_dest_id =
-            register_field("kismet.packetfilter.macaddr.destination", 
+            register_field("kismet.packetfilter.macaddr.destination",
                     tracker_element_factory<tracker_element_macfilter_map>(),
                     "Destination address filters");
 
         filter_network_id =
-            register_field("kismet.packetfilter.macaddr.network", 
+            register_field("kismet.packetfilter.macaddr.network",
                     tracker_element_factory<tracker_element_macfilter_map>(),
                     "Network/BSSID address filters");
 
         filter_other_id =
-            register_field("kismet.packetfilter.macaddr.other", 
+            register_field("kismet.packetfilter.macaddr.other",
                     tracker_element_factory<tracker_element_macfilter_map>(),
                     "Other address filters");
 
         filter_any_id =
-            register_field("kismet.packetfilter.macaddr.any", 
+            register_field("kismet.packetfilter.macaddr.any",
                     tracker_element_factory<tracker_element_macfilter_map>(),
                     "Any matching address type");
     }
@@ -145,7 +145,7 @@ protected:
 
     unsigned int pack_comp_common;
 
-    int filter_sub_value_id, filter_source_id, filter_dest_id, 
+    int filter_sub_value_id, filter_source_id, filter_dest_id,
         filter_network_id, filter_other_id, filter_any_id;
 
     // Externally exposed tracked table
