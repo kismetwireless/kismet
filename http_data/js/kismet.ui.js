@@ -1507,7 +1507,7 @@ exports.InitializeDeviceTable = function(element) {
             }
         });
 
-        $('#device_search').on('keyup', $.debounce(300, () => {
+        $('#device_search').on('input change keyup copy paste cut', $.debounce(300, () => {
             var searchterm = $('#device_search').val();
             kismet.putStorage('kismet.ui.deviceview.search', searchterm);
             ScheduleDeviceSummary();
