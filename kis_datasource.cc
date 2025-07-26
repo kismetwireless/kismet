@@ -1794,7 +1794,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         }
     }
 
-    // populate the supplied source channels list, these are auto-detcted by the datasource
+    // populate the supplied source channels list, these are auto-detected by the datasource
     auto chanvec = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHAN_LIST);
     if (!mpack_node_is_missing(chanvec)) {
         auto chans_sz = mpack_node_array_length(chanvec);
@@ -1855,43 +1855,45 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     const std::vector<std::string> add_vec = str_tokenize(get_definition_opt("add_channels"), ",");
     const std::vector<std::string> block_vec = str_tokenize(get_definition_opt("block_channels"), ",");
 
-    // append all 'channels=' channels to the possible channels vector and the hop vector
+    // handle the channel list merge
+
     if (def_vec.size() != 0) {
-        // add all channels= to the supported channels vector
+        // if a channels= option was given, merge it into the known possible
+        // channels as reported by the source
         string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(def_vec, source_channels_vec.get(),
                 [](const std::string& a, const std::string& b) -> bool {
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
 
-        // add all channels= to the hop vector
+        // and apply them to the source hopping vector as the only hopping channels, using merge
+        // to clean up any duplicate channels
+        source_hop_vec->clear();
         string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(def_vec, source_hop_vec.get(),
                 [](const std::string& a, const std::string& b) -> bool {
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
     } else {
-        // otherwise we're using the source vector to hop, removing any of our block channels and
-        // adding the add channels after. this only happens once, i don't care about max efficiency
+        // otherwise we use the reported list of supported channels on the source to hop,
+        // with optional filtering of blocked channels and addition of non-auto-detected
+        // channels.
 
-        // filter blocked channels
         string_vector_inline_filter<tracker_element_vector_string, std::vector<std::string>>(source_channels_vec.get(),
                 block_vec,
                 [](const std::string& a, const std::string& b) -> bool {
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
 
-        // add new channels
         string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(add_vec, source_channels_vec.get(),
                 [](const std::string& a, const std::string& b) -> bool {
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
 
-        // merge the channel list into the hop list
+        source_hop_vec->clear();
         string_vector_merge<tracker_element_vector_string, tracker_element_vector_string>(source_channels_vec.get(),
                 source_hop_vec.get(),
                 [](const std::string& a, const std::string& b) -> bool {
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
-
     }
 
     set_int_source_running(code != 0);
