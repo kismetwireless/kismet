@@ -299,6 +299,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET            4
 /* array[string] */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST         5
+/* bool */
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_ENABLED           6
 
 
 /* KDS_CHANNEL_GPS_BLOCK */
@@ -485,11 +487,11 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT                2
 /* string, capture interface resolved */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CAPIF              3
-/* configured channels, as array[string] */
+/* available channels, as array[string] */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHAN_LIST          4
-/* single channel as string */
+/* current channel as string */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANNEL            5
-/* channel hop sub-block */
+/* channel hop sub-block, if source opens as hopping */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANHOPBLOCK       6
 /* string */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_HARDWARE           7
@@ -547,9 +549,9 @@ typedef struct kismet_external_frame_v3 {
  */
 /* uin32 */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO            1
-/* string */
+/* string, if single channel */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL          2
-/* channel hop block */
+/* channel hop block, if hopping */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK     3
 /* string */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_MSG              4
