@@ -524,7 +524,7 @@ void datasource_tracker::trigger_deferred_startup() {
         unsigned int lograte =
             Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasource_rate", 30);
 
-        _MSG_INFO("Saving datasources to the Kismet database log evert {} seconds", lograte);
+        _MSG_INFO("Saving datasources to the Kismet database log every {} seconds", lograte);
 
         database_log_enabled = true;
         database_logging = false;
