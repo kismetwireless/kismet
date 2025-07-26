@@ -1920,17 +1920,17 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             char channel[1024];
             mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL), channel, 1024);
 
-            if (caph->chantranslate_cb != NULL) {
-                translate_chan = (*(caph->chantranslate_cb))(caph, channel);
-            } else {
-                translate_chan = strdup(channel);
-            }
-
             if (mpack_tree_error(&tree) != mpack_ok) {
                 fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel definition.\n");
                 cbret = -1;
                 mpack_tree_destroy(&tree);
                 goto finish;
+            }
+
+            if (caph->chantranslate_cb != NULL) {
+                translate_chan = (*(caph->chantranslate_cb))(caph, channel);
+            } else {
+                translate_chan = strdup(channel);
             }
 
             /* Cancel channel hopping when told a single channel */
@@ -3900,6 +3900,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
         mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
 
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_ENABLED);
+        mpack_write_bool(&writer, true);
+
         mpack_complete_map(&writer);
     }
 
@@ -4456,6 +4459,9 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
         mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_ENABLED);
+        mpack_write_uint(&writer, true);
 
         mpack_complete_map(&writer);
     } else {
