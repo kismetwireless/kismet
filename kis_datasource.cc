@@ -1479,17 +1479,19 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
         set_int_source_hopping(false);
         set_int_source_channel(std::string(chan_s, chan_sz));
+
+        _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} single channel {} disabling hopping", get_source_name(), get_source_uuid(), seqno, get_source_channel());
     }
 
     if (!mpack_node_is_missing(hopmap)) {
-        set_int_source_hopping(true);
-
         if (mpack_tree_error(&tree) != mpack_ok) {
             _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
             trigger_error("invalid v3 CONFIGUREREPORT");
             handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
             return;
         }
+
+        set_int_source_hopping(true);
 
         auto rate_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
         if (!mpack_node_is_missing(rate_n)) {
@@ -1503,7 +1505,10 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
             set_int_source_hop_rate(rate);
         } else {
-            set_int_source_hopping(false);
+            _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} with no CHANHOP_FIELD_RATE", get_source_name(), get_source_uuid(), seqno);
+            // don't actually disable channel hopping here; this is an invalid state to be in but we
+            // won't have a channel reported for our non-hopping channel
+            // set_int_source_hopping(false);
         }
 
 
@@ -2357,10 +2362,10 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
 
     mpack_writer_init_growable(&writer, &data, &size);
 
-    mpack_build_map(&writer);
+    mpack_build_map(&writer); // total map
 
     mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK);
-    mpack_build_map(&writer);
+    mpack_build_map(&writer);  // chanhop map
 
     mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
     mpack_write_float(&writer, in_rate);
@@ -2372,16 +2377,16 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
     mpack_write_u16(&writer, in_offt);
 
     mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
-    mpack_start_array(&writer, in_chans->size());
+    mpack_start_array(&writer, in_chans->size()); // hop list
 
     for (const auto& ci : *in_chans) {
         mpack_write_cstr(&writer, ci.c_str());
     }
 
-    mpack_finish_array(&writer);
+    mpack_finish_array(&writer); // hop list
 
-    mpack_complete_map(&writer);
-    mpack_complete_map(&writer);
+    mpack_complete_map(&writer); // chanhop map
+    mpack_complete_map(&writer); // total map
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
         if (data != nullptr) {
