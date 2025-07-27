@@ -1710,7 +1710,8 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
                     "but has a different source type.  Make sure that multiple remote captures are "
                     "not running for the same device, and that each remote capture source has a "
                     "unique UUID if manually assigned.  For some remote source types such as "
-                    "the rtlsdr family, you may need to manually set the uuid= source parameter.");
+                    "the rtlsdr family, you may need to manually set the uuid= source parameter.",
+                    in_uuid.uuid_to_string(), merge_target_device->get_source_name());
             incoming->trigger_error("mismatch device type for this uuid");
             return nullptr;
         }
