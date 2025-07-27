@@ -1050,6 +1050,11 @@ void datasource_tracker::trigger_deferred_startup() {
                                 datasourcetracker->open_remote_datasource(initiator, in_type, in_def,
                                     in_uuid, false);
 
+                            if (new_ds == nullptr) {
+                                ws->close();
+                                return;
+                            }
+
                             ds_bridge->bridged_ds = new_ds;
 
                             if (new_ds == nullptr)
@@ -1700,6 +1705,16 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
     }
 
     if (merge_target_device != NULL) {
+        if (merge_target_device->get_source_builder()->get_source_type() != in_type) {
+            _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
+                    "but has a different source type.  Make sure that multiple remote captures are "
+                    "not running for the same device, and that each remote capture source has a "
+                    "unique UUID if manually assigned.  For some remote source types such as "
+                    "the rtlsdr family, you may need to manually set the uuid= source parameter.");
+            incoming->trigger_error("mismatch device type for this uuid");
+            return nullptr;
+        }
+
         if (merge_target_device->get_source_running()) {
             _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
                     "which is still running.  The running instance will be closed; make sure "

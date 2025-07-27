@@ -1829,7 +1829,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     // merge the custom channels list and the supplied channels list.  Otherwise,
     // copy the source list to the hop list.
     //
-    // if we havce a 'channel=' in the source definition that isnt in the list, add it.
+    // if we have a 'channel=' in the source definition that isnt in the list, add it.
     //
     // if we havce an 'add_channels=' in the source, use the provided list + the
     // added list as the hop list
