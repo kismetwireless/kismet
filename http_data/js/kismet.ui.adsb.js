@@ -11,6 +11,8 @@ kismet_ui.AddDeviceIcon((row) => {
     }
 });
 
+kismet_ui.AddHiddenDeviceColumn({'field': 'adsb.device/adsb.device.callsign', 'searchable': true});
+
 $('<link>')
     .attr({
         type: 'text/css',
