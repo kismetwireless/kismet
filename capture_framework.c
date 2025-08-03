@@ -1950,7 +1950,10 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             /* Send a response based on the channel set success */
-            cf_send_configresp(caph, seqno, cbret < 0 ? 0 : 1, msgstr);
+            if (cf_send_configresp(caph, seqno, cbret < 0 ? 0 : 1, msgstr) < 0) {
+                cbret = -1;
+                fprintf(stderr, "FATAL: Unable to send configure response.\n");
+            }
 
             /* Free our channel copies */
             if (caph->chanfree_cb != NULL)
@@ -2062,15 +2065,15 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             /* Return a completion, and we do NOT free the channel lists we
              * dynamically allocated out of the buffer with cf_get_CHANHOP, as
-             * we're now using them for keeping the channel record in the
-             * caph */
-            cf_send_configresp(caph, seqno, 1, NULL);
+             * we're now using them for keeping the channel record in the caph */
+            if (cf_send_configresp(caph, seqno, 1, NULL) < 0) {
+                cbret = -1;
+                fprintf(stderr, "FATAL: Unable to send configure response.\n");
+            }
             cbret = 1;
 
             goto finish;
         }
-
-
     } else {
         cbret = -1;
 
@@ -2329,7 +2332,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     cps = NULL;
 
     if (caph->probe_cb == NULL) {
-        fprintf(stderr, "FATAL - unable to connect as remote source when no probe callback provided.\n");
+        fprintf(stderr, "FATAL: Unable to connect as remote source when no probe callback provided.\n");
         return -1;
     }
 
@@ -2342,7 +2345,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
         cf_params_spectrum_free(cps);
 
     if (cbret <= 0) {
-        fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
+        fprintf(stderr, "FATAL: Could not probe local source prior to connecting to the "
                 "remote host: %s\n", msgstr);
 
         if (uuid)
@@ -2352,7 +2355,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     }
 
     if ((connect_host = gethostbyname(caph->remote_host)) == NULL) {
-        fprintf(stderr, "FATAL - Could not resolve hostname for remote connection to '%s'\n",
+        fprintf(stderr, "FATAL: Could not resolve hostname for remote connection to '%s'\n",
                 caph->remote_host);
 
         if (uuid)
@@ -2368,7 +2371,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     client_sock.sin_port = htons(caph->remote_port);
 
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+        fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
                 caph->remote_host, caph->remote_port, strerror(errno));
 
         if (uuid)
@@ -2389,7 +2392,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     local_sock.sin_port = htons(0);
 
     if (bind(client_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
-        fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+        fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
                 caph->remote_host, caph->remote_port, strerror(errno));
         close(client_fd);
 
@@ -2401,7 +2404,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 
     if (connect(client_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
         if (errno != EINPROGRESS) {
-            fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+            fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
                     caph->remote_host, caph->remote_port, strerror(errno));
 
             close(client_fd);
@@ -2418,7 +2421,18 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     fprintf(stderr, "INFO: Connected to '%s:%u'...\n", caph->remote_host, caph->remote_port);
 
     /* Send the NEWSOURCE command to the Kismet server */
-    cf_send_newsource(caph, uuid);
+    if (cf_send_newsource(caph, uuid) < 0) {
+        fprintf(stderr, "FATAL: Could not transmit NEWSOURCE response\n");
+
+        if (uuid) {
+            free(uuid);
+        }
+
+        caph->tcp_fd = -1;
+        close(client_fd);
+
+        return -1;
+    }
 
     if (uuid)
         free(uuid);
@@ -2448,7 +2462,7 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
     cps = NULL;
 
     if (caph->probe_cb == NULL) {
-        fprintf(stderr, "FATAL - unable to connect as remote source when no probe callback "
+        fprintf(stderr, "FATAL: unable to connect as remote source when no probe callback "
                 "provided.\n");
         caph->spindown = 1;
         return;
@@ -2464,7 +2478,7 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
         cf_params_spectrum_free(cps);
 
     if (cbret <= 0) {
-        fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
+        fprintf(stderr, "FATAL: Could not probe local source prior to connecting to the "
                 "remote host: %s\n", msgstr);
         caph->spindown = 1;
         return;
@@ -2486,7 +2500,7 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
     caph->lwsci.pwsi = &caph->lwsclientwsi;
 
     if (!lws_client_connect_via_info(&caph->lwsci)) {
-        fprintf(stderr, "FATAL - Datasource could not connect websocket\n");
+        fprintf(stderr, "FATAL: Datasource could not connect websocket\n");
         return;
     }
 }
@@ -3595,7 +3609,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         }
     }
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     seqno = cf_get_next_seqno(caph);
 
@@ -3698,7 +3712,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     /* we don't handle spectrum yet in v3 until we figure out how to define it */
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_PROBEREPORT, seq, success, est_len);
@@ -3818,7 +3832,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     /* we don't handle spectrum yet in v3 until we figure out how to define it */
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_OPENREPORT, seq, success, est_len);
@@ -3975,7 +3989,7 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(est_len, packet_sz);
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     seqno = cf_get_next_seqno(caph);
 
@@ -4205,7 +4219,7 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     KIS_EXTERNAL_V3_KDS_SUB_JSON_EST_LEN(est_len, type, json);
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     seqno = cf_get_next_seqno(caph);
 
@@ -4383,6 +4397,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     mpack_writer_t writer;
     cf_frame_metadata *meta = NULL;
+    mpack_error_t err;
 
     size_t i;
 
@@ -4401,10 +4416,10 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     if (caph->hopping_running) {
         /* rate + shuffle + skip + offset + array */
-        est_len += 8 + 1 + 2 + 2 + 4;
+        est_len += (2 + 8) + (2 + 1) + (2 + 2) + (2 + 2) + (2 + 4);
 
         for (i = 0; i < caph->channel_hop_list_sz; i++) {
-            est_len += strlen(caph->channel_hop_list[i]);
+            est_len += strlen(caph->channel_hop_list[i]) + 4;
         }
     } else {
         est_len += strlen(caph->channel);
@@ -4412,7 +4427,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     /* we don't handle spectrum yet in v3 until we figure out how to define it */
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_CONFIGREPORT, in_seqno, success, est_len);
@@ -4473,7 +4488,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -4496,7 +4511,7 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
         est_len += strlen(uuid);
     }
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     seqno = cf_get_next_seqno(caph);
 
@@ -4542,7 +4557,7 @@ int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno) {
 
     uint32_t seqno;
 
-    est_len = est_len * 1.15;
+    est_len = est_len * 1.5;
 
     seqno = in_seqno;
 
