@@ -3477,6 +3477,7 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
     cf_frame_metadata *meta = NULL;
 
     mpack_writer_t writer;
+    mpack_error_t err;
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, est_len);
@@ -3496,8 +3497,8 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
-        fprintf(stderr, "FATAL: Mpack couldn't finish serializing message\n");
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "FATAL: Mpack couldn't serialize MESSAGE (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -3514,6 +3515,7 @@ int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *ms
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
 
     cf_frame_metadata *meta = NULL;
 
@@ -3543,8 +3545,8 @@ int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *ms
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
-        fprintf(stderr, "FATAL: Mpack couldn't finish serializing error\n");
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "FATAL: Mpack couldn't serialize ERROR (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -3558,6 +3560,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
     size_t i;
@@ -3656,9 +3659,9 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
         cf_cancel_packet(caph, meta);
-        fprintf(stderr, "FATAL: Mpack couldn't finish serializing list report\n");
+        fprintf(stderr, "FATAL: Mpack couldn't serialize LISTREPORT (%u)\n", err);
         return -1;
     }
 
@@ -3673,6 +3676,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
     size_t i;
@@ -3765,7 +3769,8 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize PROBEREPORT (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -3781,6 +3786,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
     size_t i;
@@ -3924,7 +3930,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize OPENREPORT (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -3942,6 +3949,7 @@ int cf_send_data(kis_capture_handler_t *caph,
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
     uint32_t seqno;
@@ -4154,7 +4162,8 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize DATA (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -4173,6 +4182,7 @@ int cf_send_json(kis_capture_handler_t *caph,
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
     cf_frame_metadata *meta = NULL;
     uint32_t seqno;
 
@@ -4381,7 +4391,8 @@ int cf_send_json(kis_capture_handler_t *caph,
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize JSON (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -4489,6 +4500,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
     final_len = mpack_writer_buffer_used(&writer);
 
     if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize CONFIGUREREPORT (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
@@ -4501,6 +4513,7 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
     size_t final_len = 0;
 
     mpack_writer_t writer;
+    mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
     uint32_t seqno;
@@ -4541,7 +4554,8 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid) {
 
     final_len = mpack_writer_buffer_used(&writer);
 
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize NEWSOURCE (%u)\n", err);
         cf_cancel_packet(caph, meta);
         return -1;
     }
