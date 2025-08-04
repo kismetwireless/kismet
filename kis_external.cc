@@ -52,6 +52,10 @@ kis_external_ipc::~kis_external_ipc() {
     }
 }
 
+std::string kis_external_ipc::remote_addresss() {
+    return fmt::format("PID {}", ipc_.pid);
+}
+
 // read a packet header to get the length of the incoming packet, then
 // queue reading the entire packet contents as a second operation
 void kis_external_ipc::start_read() {
@@ -283,6 +287,10 @@ kis_external_tcp::~kis_external_tcp() {
     close_impl();
 }
 
+std::string kis_external_tcp::remote_addresss() {
+    return tcpsocket_.remote_endpoint().address().to_string();
+}
+
 void kis_external_tcp::start_read() {
     if (stopped_) {
         return;
@@ -496,6 +504,14 @@ void kis_external_tcp::write_impl() {
             }));
 }
 
+std::string kis_external_ws::remote_addresss() {
+    if (ws_ != nullptr) {
+        return fmt::format("WS {}", ws_->remote_address());
+    }
+
+    return "WS: n/a";
+}
+
 void kis_external_ws::write_impl() {
     if (out_bufs_.size() == 0)
         return;
@@ -570,6 +586,9 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
                 "an IPC instance running.");
         return false;
     }
+
+    // grab the incoming IP
+    std::string s = socket.remote_endpoint().address().to_string();
 
     cancelled = false;
 

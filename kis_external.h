@@ -121,6 +121,8 @@ public:
 
     virtual bool connected() { return false; }
 
+    virtual std::string remote_addresss() { return ""; }
+
     virtual boost::asio::io_context::strand &strand() { return strand_; }
 
     virtual void close() {
@@ -169,6 +171,8 @@ public:
 
     virtual void close() override;
 
+    virtual std::string remote_addresss() override;
+
     void close_impl();
 
     boost::asio::posix::stream_descriptor ipc_in_, ipc_out_;
@@ -198,6 +202,8 @@ public:
 
     virtual void close() override;
     void close_impl();
+
+    virtual std::string remote_addresss() override;
 
     tcp::socket tcpsocket_;
 };
@@ -229,6 +235,7 @@ public:
 
     virtual void close() override;
 
+    virtual std::string remote_addresss() override;
 
     std::shared_ptr<kis_net_web_websocket_endpoint> ws_;
     boost::asio::io_context::strand ws_strand_;
