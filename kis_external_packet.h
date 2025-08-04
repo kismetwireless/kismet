@@ -499,6 +499,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID               8
 /* string */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_MSG                9
+/* string */
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION            10
 
 
 
