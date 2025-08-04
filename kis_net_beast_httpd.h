@@ -253,6 +253,11 @@ public:
     boost::beast::http::request<boost::beast::http::string_body>& request() { return request_; }
     boost::beast::http::verb& verb() { return verb_; }
 
+    // Return remote stream address
+    std::string remote_address() const {
+        return stream_.socket().remote_endpoint().address().to_string();
+    }
+
     // Raw stream
     boost::beast::tcp_stream& stream() { return stream_; }
 
@@ -549,6 +554,10 @@ public:
     }
 
     virtual void close();
+
+    virtual std::string remote_address() {
+        return ws_.next_layer().socket().remote_endpoint().address().to_string();
+    }
 
 	virtual void binary() {
 		ws_.binary(true);

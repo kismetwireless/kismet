@@ -868,6 +868,8 @@ protected:
     std::shared_ptr<tracker_element_string> datasource_version;
     __ProxySetM(int_datasource_version, std::string, std::string, datasource_version, data_mutex);
 
+    std::shared_ptr<tracker_element_string> remote_ip;
+    __ProxySetM(int_source_remote_ip, std::string, std::string, remote_ip, data_mutex);
 
     // Interfaces we found via list
     std::vector<shared_interface> listed_interfaces;

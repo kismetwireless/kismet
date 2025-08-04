@@ -558,6 +558,9 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     // Inherit the incoming closure
     closure_cb = in_remote->move_closure_cb();
 
+    // Set the remote address
+    set_int_source_remote_ip(io_->remote_addresss());
+
     // Send an opensource
     send_open_source(get_source_definition(), 0, in_cb);
 }
@@ -3508,6 +3511,8 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.running", "capture is running", &source_running);
 
     register_field("kismet.datasource.datasource_version", "datasource binary version", &datasource_version);
+
+    register_field("kismet.datasource.remote_ip", "IP if a remote datasource", &remote_ip);
 
     register_field("kismet.datasource.remote",
             "capture is connected from a remote server", &source_remote);
