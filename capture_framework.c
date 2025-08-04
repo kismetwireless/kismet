@@ -3782,14 +3782,22 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         const char *msg, uint32_t dlt, const char *uuid,
         cf_params_interface_t *interface, cf_params_spectrum_t *spectrum) {
 
-    size_t est_len = 24;
+    size_t est_len = 28;
     size_t final_len = 0;
 
     mpack_writer_t writer;
     mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
+    char version[64];
+
     size_t i;
+
+
+    snprintf(version, 64, "%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
+            VERSION_TINY, VERSION_GIT_COMMIT);
+
+    est_len += strlen(version);
 
     if (msg != NULL && strlen(msg) != 0) {
         if (success) {
@@ -3861,6 +3869,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT);
     mpack_write_u32(&writer, dlt);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION);
+    mpack_write_cstr(&writer, version);
 
     if (uuid != NULL) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID);

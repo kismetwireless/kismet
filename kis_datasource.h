@@ -402,6 +402,9 @@ public:
     // IPC channel pid, if any
     __ProxyGetM(source_ipc_pid, int64_t, pid_t, source_ipc_pid, data_mutex);
 
+    // datasource version
+    __ProxyGetM(datasource_version, std::string, std::string, datasource_version, data_mutex);
+
     // Retry API - do we try to re-open when there's a problem?
     __ProxyGetM(source_error, uint8_t, bool, source_error, data_mutex);
     __ProxyM(source_retry, uint8_t, bool, bool, source_retry, data_mutex);
@@ -861,6 +864,9 @@ protected:
 
     __ProxySetM(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid, data_mutex);
     std::shared_ptr<tracker_element_int64> source_ipc_pid;
+
+    std::shared_ptr<tracker_element_string> datasource_version;
+    __ProxySetM(int_datasource_version, std::string, std::string, datasource_version, data_mutex);
 
 
     // Interfaces we found via list

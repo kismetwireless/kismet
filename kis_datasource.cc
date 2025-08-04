@@ -1423,6 +1423,8 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
     mpack_tree_raii tree;
     mpack_node_t root;
 
+    // _MSG_DEBUG("got config report {} code {}", seqno, code);
+
     mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
 
     if (!mpack_tree_try_parse(&tree)) {
@@ -1480,7 +1482,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
         set_int_source_hopping(false);
         set_int_source_channel(std::string(chan_s, chan_sz));
 
-        _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} single channel {} disabling hopping", get_source_name(), get_source_uuid(), seqno, get_source_channel());
+        // _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} single channel {} disabling hopping", get_source_name(), get_source_uuid(), seqno, get_source_channel());
     }
 
     if (!mpack_node_is_missing(hopmap)) {
@@ -1505,7 +1507,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
 
             set_int_source_hop_rate(rate);
         } else {
-            _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} with no CHANHOP_FIELD_RATE", get_source_name(), get_source_uuid(), seqno);
+            // _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} with no CHANHOP_FIELD_RATE", get_source_name(), get_source_uuid(), seqno);
             // don't actually disable channel hopping here; this is an invalid state to be in but we
             // won't have a channel reported for our non-hopping channel
             // set_int_source_hopping(false);
@@ -1642,6 +1644,20 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         }
 
         msg = std::string(msg_s, msg_sz);
+    }
+
+    auto version_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION);
+    if (!mpack_node_is_missing(version_n)) {
+        auto ver_s = mpack_node_str(version_n);
+        auto ver_sz = mpack_node_data_len(version_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            return;
+        }
+
+        set_int_datasource_version(std::string(ver_s, ver_sz));
     }
 
     if (code == 0) {
@@ -2423,6 +2439,8 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
             return 0;
         }
     }
+
+    // _MSG_DEBUG("sent config_req {}/{}", in_transaction, seqno);
 
     auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
     cmd->configure_cb = in_cb;
@@ -3488,6 +3506,8 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.ipc_pid", "capture process", &source_ipc_pid);
 
     register_field("kismet.datasource.running", "capture is running", &source_running);
+
+    register_field("kismet.datasource.datasource_version", "datasource binary version", &datasource_version);
 
     register_field("kismet.datasource.remote",
             "capture is connected from a remote server", &source_remote);
