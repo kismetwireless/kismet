@@ -216,8 +216,10 @@ device_tracker::device_tracker() :
         databaselog_timer =
             timetracker->register_timer(std::chrono::seconds(lograte), 1,
                 [this](int id) -> int {
-                    // _MSG_DEBUG("logging timer {} at {} logging status {}", id, (uint64_t) Globalreg::globalreg->last_tv_sec, databaselog_logging.load());
+                    // _MSG_DEBUG("logging at {}", std::chrono::system_clock::now());
+
                     if (databaselog_logging) {
+                        // _MSG_DEBUG("tried to log at {}", std::chrono::system_clock::now());
                         _MSG_ERROR("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
                                 "system is slow or you have a very large number of devices "
@@ -235,6 +237,7 @@ device_tracker::device_tracker() :
                         return 1;
 
                     databaselog_write_devices();
+                    // _MSG_DEBUG("done logging at {}", std::chrono::system_clock::now());
 
                     return 1;
                 });
