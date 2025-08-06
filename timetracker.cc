@@ -111,6 +111,8 @@ void time_tracker::time_dispatcher() {
         struct timeval cur_tm;
         gettimeofday(&cur_tm, NULL);
 
+        auto chrono_now = std::chrono::system_clock::now();
+
         Globalreg::globalreg->last_tv_sec = cur_tm.tv_sec;
         Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
 
@@ -119,11 +121,10 @@ void time_tracker::time_dispatcher() {
         lock.lock();
 
         if (timer_sort_required)
-            sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
+            std::stable_sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
 
         timer_sort_required = false;
 
-        // Sort the timers
         auto action_timers = std::vector<std::shared_ptr<timer_event>>(sorted_timers.begin(), sorted_timers.end());
         lock.unlock();
 
@@ -136,8 +137,7 @@ void time_tracker::time_dispatcher() {
             }
 
             // We're into the future, bail
-            if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
-                    ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
+            if (chrono_now < evt->trigger_tm) {
                 break;
             }
 
@@ -158,7 +158,7 @@ void time_tracker::time_dispatcher() {
                     if (time_workers[t].joinable()) {
                         time_workers[t].join();
 
-                        time_workers[t] = std::thread([evt, this]() {
+                        time_workers[t] = std::thread([evt, this, chrono_now]() {
                             thread_set_process_name("TIME_EVT");
 
                             // Call the function with the given parameters
@@ -177,16 +177,10 @@ void time_tracker::time_dispatcher() {
                                 struct timeval cur_tm;
                                 gettimeofday(&cur_tm, NULL);
 
-                                evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-                                evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-                                evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
-                                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
-                                    ((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
+                                evt->schedule_tm = chrono_now;
 
-                                if (evt->trigger_tm.tv_usec >= 999999L) {
-                                    evt->trigger_tm.tv_sec++;
-                                    evt->trigger_tm.tv_usec %= 1000000L;
-                                }
+                                evt->trigger_tm = chrono_now +
+                                    std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
 
                                 timer_sort_required = true;
                             } else {
@@ -242,17 +236,20 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->last_ms = 0;
 
     evt->timer_id = next_timer_id++;
-    gettimeofday(&(evt->schedule_tm), NULL);
+
+    evt->schedule_tm = std::chrono::system_clock::now();
 
     if (in_trigger != NULL) {
-        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
-        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->trigger_tm =
+            std::chrono::system_clock::from_time_t(in_trigger->tv_sec) +
+            std::chrono::microseconds(in_trigger->tv_usec);
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->trigger_tm = evt->schedule_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * in_timeslices);
         evt->timeslices = in_timeslices;
     }
+
 
     evt->recurring = in_recurring;
     evt->callback = in_callback;
@@ -280,24 +277,16 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
 
-    gettimeofday(&(evt->schedule_tm), NULL);
+    evt->schedule_tm = std::chrono::system_clock::now();
 
     if (in_trigger != NULL) {
-        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
-        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->trigger_tm =
+            std::chrono::system_clock::from_time_t(in_trigger->tv_sec) +
+            std::chrono::microseconds(in_trigger->tv_usec);
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec +
-            (in_timeslices / SERVER_TIMESLICES_SEC);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
-            ((in_timeslices % SERVER_TIMESLICES_SEC) *
-             (1000000L / SERVER_TIMESLICES_SEC));
-
-        if (evt->trigger_tm.tv_usec >= 999999L) {
-            evt->trigger_tm.tv_sec++;
-            evt->trigger_tm.tv_usec %= 1000000L;
-        }
-
+        evt->trigger_tm = evt->schedule_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * in_timeslices);
         evt->timeslices = in_timeslices;
     }
 
@@ -327,24 +316,17 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
 
-    gettimeofday(&(evt->schedule_tm), NULL);
+    evt->schedule_tm = std::chrono::system_clock::now();
 
     if (in_trigger != NULL) {
-        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
-        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->trigger_tm =
+            std::chrono::system_clock::from_time_t(in_trigger->tv_sec) +
+            std::chrono::microseconds(in_trigger->tv_usec);
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec +
-            (in_timeslices / SERVER_TIMESLICES_SEC);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
-            ((in_timeslices % SERVER_TIMESLICES_SEC) *
-             (1000000L / SERVER_TIMESLICES_SEC));
+        evt->trigger_tm = evt->schedule_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * in_timeslices);
         evt->timeslices = in_timeslices;
-
-        if (evt->trigger_tm.tv_usec >= 999999L) {
-            evt->trigger_tm.tv_sec++;
-            evt->trigger_tm.tv_usec %= 1000000L;
-        }
     }
 
     evt->recurring = in_recurring;
@@ -375,16 +357,13 @@ int time_tracker::register_timer(const slice& in_timeslices,
     evt->last_ms = 0;
 
     evt->timer_id = next_timer_id++;
-    gettimeofday(&(evt->schedule_tm), NULL);
 
-    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices.count() / 10);
-    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices.count() % 10);
+    evt->schedule_tm = std::chrono::system_clock::now();
+
     evt->timeslices = in_timeslices.count();
 
-    if (evt->trigger_tm.tv_usec >= 999999L) {
-        evt->trigger_tm.tv_sec++;
-        evt->trigger_tm.tv_usec %= 1000000L;
-    }
+    evt->trigger_tm = evt->schedule_tm +
+        std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
 
     evt->recurring = in_recurring;
     evt->callback = in_callback;
@@ -412,19 +391,12 @@ int time_tracker::register_timer(const slice& in_timeslices,
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
 
-    gettimeofday(&(evt->schedule_tm), NULL);
+    evt->schedule_tm = std::chrono::system_clock::now();
 
-    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec +
-        (in_timeslices.count() / SERVER_TIMESLICES_SEC);
-    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
-        ((in_timeslices.count() % SERVER_TIMESLICES_SEC) *
-         (1000000L / SERVER_TIMESLICES_SEC));
     evt->timeslices = in_timeslices.count();
 
-    if (evt->trigger_tm.tv_usec >= 999999L) {
-        evt->trigger_tm.tv_sec++;
-        evt->trigger_tm.tv_usec %= 1000000L;
-    }
+    evt->trigger_tm = evt->schedule_tm +
+        std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
 
     evt->recurring = in_recurring;
     evt->callback = NULL;
