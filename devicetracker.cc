@@ -215,13 +215,14 @@ device_tracker::device_tracker() :
 
         databaselog_timer =
             timetracker->register_timer(std::chrono::seconds(lograte), 1,
-                [this](int) -> int {
+                [this](int id) -> int {
+                    // _MSG_DEBUG("logging timer {} at {} logging status {}", id, (uint64_t) Globalreg::globalreg->last_tv_sec, databaselog_logging.load());
                     if (databaselog_logging) {
-                        _MSG("Attempting to log devices, but devices are still being "
+                        _MSG_ERROR("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
                                 "system is slow or you have a very large number of devices "
                                 "to log.  Try increasing the delay in 'kis_log_device_rate' "
-                                "in kismet_logging.conf", MSGFLAG_ERROR);
+                                "in kismet_logging.conf");
                         return 1;
                     }
 
@@ -233,13 +234,7 @@ device_tracker::device_tracker() :
                     if (!dbf->is_enabled())
                         return 1;
 
-                    // Run the device storage in its own thread
-                    std::thread t([this] {
-                        databaselog_write_devices();
-                    });
-
-                    // Detach the thread, we don't care about it
-                    t.detach();
+                    databaselog_write_devices();
 
                     return 1;
                 });
@@ -1776,10 +1771,15 @@ void device_tracker::databaselog_write_devices() {
     // Remember the time BEFORE we spend time looking at all the devices
     uint64_t log_time = Globalreg::globalreg->last_tv_sec;
 
+    // _MSG_DEBUG("starting database log at {}", log_time);
+
     databaselog_logging = true;
 
-    // Explicitly use the non-ro worker, because we're phasing out the RO version because of too much contention
+    // _MSG_DEBUG("got devicelist lock at {}", (uint64_t) Globalreg::globalreg->last_tv_sec);
+
     do_device_work(worker);
+
+    // _MSG_DEBUG("finished database log at {}", (uint64_t) Globalreg::globalreg->last_tv_sec);
 
     databaselog_logging = false;
 
