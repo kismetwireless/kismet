@@ -532,8 +532,8 @@ void datasource_tracker::trigger_deferred_startup() {
         database_log_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1,
                     [this](int) -> int {
-
                         if (database_logging) {
+                            // _MSG_DEBUG("datasource log failed at {}", std::chrono::system_clock::now());
                             _MSG("Attempting to log datasources, but datasources are still "
                                     "being saved from the last logging attempt.  It's possible "
                                     "your system is extremely over capacity; try increasing the "
@@ -542,14 +542,13 @@ void datasource_tracker::trigger_deferred_startup() {
                             return 1;
                         }
 
+                        // _MSG_DEBUG("datasource logging at {}", std::chrono::system_clock::now());
+
                         database_logging = true;
+                        databaselog_write_datasources();
+                        database_logging = false;
 
-                        std::thread t([this] {
-                            databaselog_write_datasources();
-                            database_logging = false;
-                        });
-
-                        t.detach();
+                        // _MSG_DEBUG("datasource logging complete at {}", std::chrono::system_clock::now());
 
                         return 1;
                     });
