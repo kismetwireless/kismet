@@ -180,7 +180,7 @@ void time_tracker::time_dispatcher() {
                                 evt->schedule_tm.tv_sec = cur_tm.tv_sec;
                                 evt->schedule_tm.tv_usec = cur_tm.tv_usec;
                                 evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
-                                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+                                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
                                     ((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
 
                                 if (evt->trigger_tm.tv_usec >= 999999L) {
@@ -231,7 +231,7 @@ void time_tracker::time_dispatcher() {
 }
 
 int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
-                               int in_recurring, 
+                               int in_recurring,
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
@@ -287,9 +287,9 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         evt->trigger_tm.tv_usec = in_trigger->tv_usec;
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec +
             (in_timeslices / SERVER_TIMESLICES_SEC);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
             ((in_timeslices % SERVER_TIMESLICES_SEC) *
              (1000000L / SERVER_TIMESLICES_SEC));
 
@@ -297,7 +297,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
             evt->trigger_tm.tv_sec++;
             evt->trigger_tm.tv_usec %= 1000000L;
         }
-            
+
         evt->timeslices = in_timeslices;
     }
 
@@ -334,10 +334,10 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         evt->trigger_tm.tv_usec = in_trigger->tv_usec;
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec +
             (in_timeslices / SERVER_TIMESLICES_SEC);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-            ((in_timeslices % SERVER_TIMESLICES_SEC) * 
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
+            ((in_timeslices % SERVER_TIMESLICES_SEC) *
              (1000000L / SERVER_TIMESLICES_SEC));
         evt->timeslices = in_timeslices;
 
@@ -351,7 +351,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->callback = NULL;
     evt->callback_parm = NULL;
     evt->event = NULL;
-    
+
     evt->event_func = in_event;
 
     timer_map[evt->timer_id] = evt;
@@ -364,7 +364,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
 }
 
 int time_tracker::register_timer(const slice& in_timeslices,
-                               int in_recurring, 
+                               int in_recurring,
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
@@ -414,10 +414,10 @@ int time_tracker::register_timer(const slice& in_timeslices,
 
     gettimeofday(&(evt->schedule_tm), NULL);
 
-    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec +
         (in_timeslices.count() / SERVER_TIMESLICES_SEC);
-    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-        ((in_timeslices.count() % SERVER_TIMESLICES_SEC) * 
+    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec +
+        ((in_timeslices.count() % SERVER_TIMESLICES_SEC) *
          (1000000L / SERVER_TIMESLICES_SEC));
     evt->timeslices = in_timeslices.count();
 
@@ -430,7 +430,7 @@ int time_tracker::register_timer(const slice& in_timeslices,
     evt->callback = NULL;
     evt->callback_parm = NULL;
     evt->event = NULL;
-    
+
     evt->event_func = in_event;
 
     timer_map[evt->timer_id] = evt;
@@ -445,7 +445,7 @@ int time_tracker::register_timer(const slice& in_timeslices,
 int time_tracker::remove_timer(int in_timerid) {
     // Removing a timer sets the atomic cancelled and puts us on the abort list;
     // we'll get cleaned out of the main list the next iteration through the main code.
-    
+
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
     auto itr = timer_map.find(in_timerid);
