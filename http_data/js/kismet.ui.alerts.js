@@ -993,7 +993,7 @@ exports.AddAlertDetail("alert", "Alert", 0, {
                                     return '<i>All / Broadcast</i>'
                                 return kismet.censorMAC(opts['value']);
                             },
-                            help: 'MAC address of the destionation the packet triggering this alert.',
+                            help: 'MAC address of the destination the packet triggering this alert.',
                         },
                     ]
                 },
