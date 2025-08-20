@@ -756,13 +756,9 @@ function update_datasource2(data) {
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
         set_row(idiv, 'driver', '<b>Capture Driver</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
-        if (intf['kismet.datasource.probed.hardware'] !== '')
+        if ('kismet.datasource.probed.hardware' in intf && intf['kismet.datasource.probed.hardware'] !== '')
             set_row(idiv, 'hardware', '<b>Hardware</b>', intf['kismet.datasource.probed.hardware']);
-        if (source['kismet.datasource.remote_ip'] !== '')
-            set_row(sdiv, 'address', '<b>Address</b>', source['kismet.datasource.remote_ip']);
-        if (source['kismet.datasource.ipc_pid'] !== 0)
-            set_row(sdiv, 'address', '<b>Process ID</b>', source['kismet.datasource.ipc_pid']);
-        if (intf['lkismet.datasource.datasource_version'] !== '')
+        if ('kismet.datasource.probed.datasource_version' in intf && intf['kismet.datasource.probed.datasource_version'] !== '')
             set_row(idiv, 'dsversion', '<b>Version</b>', intf['kismet.datasource.probed.datasource_version']);
         set_row(idiv, 'description', '<b>Type</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.description']);
 
@@ -1501,11 +1497,11 @@ function update_datasource2(data) {
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
         if (source['kismet.datasource.hardware'] !== '')
             set_row(sdiv, 'hardware', '<b>Hardware</b>', source['kismet.datasource.hardware']);
-        if (source['kismet.datasource.remote_ip'] !== '')
+        if ('kismet.datasource.remote_ip' in source && source['kismet.datasource.remote_ip'] !== '')
             set_row(sdiv, 'address', '<b>Address</b>', source['kismet.datasource.remote_ip']);
-        if (source['kismet.datasource.ipc_pid'] !== 0)
+        if ('kismet.datasource.ipc_pid' in source && source['kismet.datasource.ipc_pid'] !== 0)
             set_row(sdiv, 'address', '<b>Process ID</b>', source['kismet.datasource.ipc_pid']);
-        if (source['kismet.datasource.datasource_version'] !== '')
+        if ('kismet.datasource.datasource_version' in source && source['kismet.datasource.datasource_version'] !== '')
             set_row(sdiv, 'version', '<b>Version</b>', source['kismet.datasource.datasource_version']);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
