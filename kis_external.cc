@@ -852,14 +852,12 @@ bool kis_external_interface::run_ipc() {
 
     cancelled = false;
 
-    auto self_ref = shared_from_this();
-
     ipc = kis_ipc_record(child_pid,
-                         [this, self_ref](const std::string&) {
-                             close_external();
+                         [self = shared_from_this()](const std::string&) {
+                             self->close_external();
                          },
-                         [this, self_ref](const std::string& err) {
-                             trigger_error(err);
+                         [self = shared_from_this()](const std::string& err) {
+                             self->trigger_error(err);
                          });
 
     ipctracker->register_ipc(ipc);
