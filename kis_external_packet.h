@@ -529,6 +529,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST             2
 /* string */
 #define KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_MSG                3
+/* string */
+#define KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_VERSION            4
 
 
 /* KIS_EXTERNAL_V3_KDS_CONFIGURE

@@ -947,6 +947,7 @@ public:
     __Proxy(in_use_uuid, uuid, uuid, uuid, in_use_uuid);
     __Proxy(hardware, std::string, std::string, std::string, hardware);
     __Proxy(cap_interface, std::string, std::string, std::string, cap_interface);
+    __Proxy(datasource_version, std::string, std::string, std::string, version);
 
     void populate(std::string in_interface, std::string in_options) {
         std::vector<std::string> optvec = str_tokenize(in_options, ",");
@@ -985,6 +986,9 @@ protected:
         register_field("kismet.datasource.probed.hardware",
                 "Hardware / chipset", &hardware);
 
+        register_field("kismet.datasource.probed.datasource_version",
+                "datasource binary version", &version);
+
     }
 
     std::shared_ptr<tracker_element_string> interface;
@@ -995,6 +999,8 @@ protected:
 
     std::shared_ptr<tracker_element_uuid> in_use_uuid;
     std::shared_ptr<tracker_element_string> hardware;
+
+    std::shared_ptr<tracker_element_string> version;
 
     int options_entry_id;
 };
