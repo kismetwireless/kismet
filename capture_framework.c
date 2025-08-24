@@ -3569,6 +3569,13 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     int n;
 
+    char version[64];
+
+    snprintf(version, 64, "%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
+            VERSION_TINY, VERSION_GIT_COMMIT);
+
+    est_len += strlen(version);
+
     /* Send messages independently */
     if (msg != NULL) {
         if (success) {
@@ -3629,6 +3636,9 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, seq);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_VERSION);
+    mpack_write_cstr(&writer, version);
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
     mpack_start_array(&writer, len);
@@ -3792,7 +3802,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     char version[64];
 
     size_t i;
-
 
     snprintf(version, 64, "%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
             VERSION_TINY, VERSION_GIT_COMMIT);

@@ -1312,6 +1312,22 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
         handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
     }
 
+    std::string version;
+    auto vr_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_VERSION);
+    if (!mpack_node_is_missing(vr_n)) {
+        auto vr_sz = mpack_node_data_len(vr_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+            trigger_error("invalid v3 LISTREPORT");
+            handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+            return;
+        }
+
+        version = std::string(mpack_node_data(vr_n), vr_sz);
+    }
+
+
     /* interfaces array */
     auto ifaces_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
     if (!mpack_node_is_missing(ifaces_n)) {
@@ -1329,6 +1345,7 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
 
             auto intf = std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
             intf->set_prototype(get_source_builder());
+            intf->set_datasource_version(version);
 
             std::string ifname, ifflags;
 
