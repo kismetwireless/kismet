@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Downloads http://registry.faa.gov/database/ReleasableAircraft.zip and extracts it in ram
+# Downloads https://registry.faa.gov/database/ReleasableAircraft.zip and extracts it in ram
 # to generate the aircraft ICAO database.
 #
 # Used during Kismet release tagging to generate the aircraft db
@@ -42,7 +42,7 @@ for cnt in range(0, 5):
     print("Fetching US ICAO database...")
 
     # FAA Records Fetch
-    with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip", timeout=30, headers=headers) as response, io.BytesIO() as mem_zf:
+    with requests.get("https://registry.faa.gov/database/ReleasableAircraft.zip", timeout=30, headers=headers) as response, io.BytesIO() as mem_zf:
         # Copy into an in-memory zipfile
         mem_zf.write(response.content)
 
