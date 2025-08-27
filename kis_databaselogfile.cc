@@ -916,9 +916,6 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
     std::string sourceuuidstring;
     double frequency;
 
-    if (!log_data_packets)
-        return 0;
-
     if (in_pack->duplicate && !log_duplicate_packets)
         return 0;
 
@@ -942,6 +939,9 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
     keystring = "0";
 
     if (commoninfo != NULL) {
+        if (commoninfo->type == packet_basic_data && !log_data_packets)
+            return 0;
+
         phyh = devicetracker->fetch_phy_handler(commoninfo->phyid);
         macstring = commoninfo->source.mac_to_string();
         deststring = commoninfo->dest.mac_to_string();
