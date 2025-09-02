@@ -523,6 +523,7 @@ protected:
     void handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
             const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<kis_layer1_packinfo>& l1info,
             const std::shared_ptr<dot11_packinfo>& dot11info,
             const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo);
 
