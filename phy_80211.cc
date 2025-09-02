@@ -1470,12 +1470,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->subtype == packet_sub_beacon) {
                 d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11, in_pack,
-                        dot11info, pack_gpsinfo);
+                        pack_l1info, dot11info, pack_gpsinfo);
                 dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
             } else if (dot11info->subtype == packet_sub_probe_resp) {
                 d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11, in_pack,
-                        dot11info, pack_gpsinfo);
+                        pack_l1info, dot11info, pack_gpsinfo);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_PROBE_AP);
             }
 
@@ -2580,6 +2580,7 @@ void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
 void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<kis_layer1_packinfo>& l1info,
         const std::shared_ptr<dot11_packinfo>& dot11info,
         const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo) {
 
@@ -2640,6 +2641,13 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
+    } else if (l1info != NULL &&
+            (l1info->freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
+        try {
+            basedev->set_channel(khz_to_channel(l1info->freq_khz));
+        } catch (const std::runtime_error& e) {
+            ;
+        }
     }
 
     bool new_ssid = false;
