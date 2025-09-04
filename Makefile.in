@@ -754,7 +754,8 @@ release-%:
 	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
 	@./tools/mkversion.sh "$(BUILD_DATE)" "$*"
-	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
+	@git add -f version.c
+	@git commit version.h version.c -m "Bump versioning for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
 	@echo git push origin kismet-`echo $* | cut -d- -f1,2` --tags
