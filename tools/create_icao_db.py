@@ -146,12 +146,16 @@ for cnt in range(0, 5):
                 elif (row[10] == "Ornithopter"):
                     type = "O"
 
+                ownertxt = "UNKNOWN"
+                if row[0].lstrip() in owner:
+                    ownertxt = owner[row[0].lstrip()]
+
                 icaos.append("{}\tC-{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
                         str(hex(int(row[42], 2)))[2:],
                         row[0].lstrip(),
                         row[4],
                         row[7],
-                        owner[row[0].lstrip()],
+                        ownertxt,
                         type))
 
     if len(icaos) != old_len:
