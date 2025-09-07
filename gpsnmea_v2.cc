@@ -114,6 +114,8 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
     try {
         if (gpstoks.size() == 0) {
             throw kis_gps_nmea_v2_soft_fail();
+        } else if (gpstoks[0].length() < 3) {
+            throw kis_gps_nmea_v2_soft_fail();
         } else {
             // The NMEA sentence should be the last 3 characters of the first string in gpstoks
             // NMEA sentences can be rerferenced at: https://gpsd.io/NMEA.html
