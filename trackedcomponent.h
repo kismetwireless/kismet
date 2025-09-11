@@ -125,6 +125,26 @@ class tracker_component : public tracker_element_map {
         cvar->set((ptype) in); \
     }
 
+#define __ProxyLM(name, ptype, itype, rtype, cvar, mvar, lambda) \
+    inline shared_tracker_element get_tracker_##name() { \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        return (std::shared_ptr<tracker_element>) cvar; \
+    } \
+    inline rtype get_##name() { \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        auto r = get_tracker_value<ptype>(cvar); \
+        return (rtype) r; \
+    } \
+    inline bool set_##name(const itype& in) { \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        cvar->set((ptype) in); \
+        return lambda(in); \
+    } \
+    inline void set_only_##name(const itype& in) { \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        cvar->set((ptype) in); \
+    }
+
 // Newer dynamic proxy model which doesn't use an instance pointer, only the
 // mapped object
 #define __ProxyFullyDynamic(name, ptype, itype, rtype, ctype, id) \
