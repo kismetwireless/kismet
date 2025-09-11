@@ -33,14 +33,22 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
             {
                 field: "sensor.device/sensor.device.common/sensor.device.model",
                 title: "Model",
-                empty: "<i>Unknown</i>",
                 help: "Device model as reported by rtl_433.",
+                draw: (opts) => {
+                    if (typeof(opts['value']) === 'undefined') {
+                        return '<i>Unknown</i>';
+                    }
+                    return kismet.censorString(opts['value']);
+                },
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.id",
                 title: "Device ID",
 				filterOnEmpty: true,
                 help: "Device ID as reported in the RF protocol, if known.",
+                draw: (opts) => {
+                    return kismet.censorString(opts['value']);
+                },
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.snr",
@@ -51,8 +59,7 @@ kismet_ui.AddDeviceDetail("rfsensor", "RF Sensor", 0, {
             },
             {
                 field: "sensor.device/sensor.device.common/sensor.device.rssi",
-                title: "RSSI",
-				filterOnEmpty: true,
+                title: "RSSI", filterOnEmpty: true,
 				filterOnZero: true,
                 help: "Reported RSSI signal level of device, when signal units not known.",
             },
