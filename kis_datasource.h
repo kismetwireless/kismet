@@ -344,7 +344,12 @@ public:
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
     __ProxyM(source_name, std::string, std::string, std::string, source_name, data_mutex);
-    __ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex);
+    //__ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex);
+    __ProxyLM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex,
+            [this](uuid u) -> bool {
+                set_source_key(adler32_checksum(u.uuid_to_string()));
+                return true;
+            });
 
     // Source key is a checksum of the uuid for us to do fast indexing
     __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, data_mutex);
