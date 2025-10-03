@@ -2953,13 +2953,16 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         goto cap_loop_fail;
                     }
 
-                    /* See if we have a complete packet to do something with */
-                    if (cf_handle_rb_rx_data(caph) < 0) {
-                        /* Enter spindown if processing an incoming packet failed */
-                        fprintf(stderr, "FATAL:  Datasource helper (%s) failed, could not process incoming control packet.\n",
-								caph->capsource_type);
-                        cf_handler_spindown(caph);
-                    }
+                    /* Process all pending packets in the buffer */
+                    do {
+                        ret = cf_handle_rb_rx_data(caph);
+
+                        if (ret < 0) {
+                            fprintf(stderr, "FATAL:  Datasource helper (%s) failed, could not process incoming control packet.\n",
+                                    caph->capsource_type);
+                            cf_handler_spindown(caph);
+                        }
+                    } while (ret > 0);
                 }
             }
 
