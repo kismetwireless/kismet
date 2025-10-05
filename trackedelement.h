@@ -51,7 +51,7 @@ class tracker_element;
 
 using shared_tracker_element = std::shared_ptr<tracker_element>;
 
-// Very large key wrapper class, needed for keying devices with per-server/per-phy 
+// Very large key wrapper class, needed for keying devices with per-server/per-phy
 // but consistent keys.  Components are store in big-endian format internally so that
 // they are consistent across platforms.
 //
@@ -118,20 +118,20 @@ namespace std {
 }
 
 // Types of fields we can track and automatically resolve
-// Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
+// Statically assigned type numbers which MUST NOT CHANGE as things go forwards for
 // binary/fast serialization, new types must be added to the end of the list
 enum class tracker_type {
     tracker_unassigned = -1,
 
     tracker_string = 0,
 
-    tracker_int8 = 1, 
+    tracker_int8 = 1,
     tracker_uint8 = 2,
 
-    tracker_int16 = 3, 
+    tracker_int16 = 3,
     tracker_uint16 = 4,
 
-    tracker_int32 = 5, 
+    tracker_int32 = 5,
     tracker_uint32 = 6,
 
     tracker_int64 = 7,
@@ -141,11 +141,11 @@ enum class tracker_type {
     tracker_double = 10,
 
     // Less basic types
-    tracker_mac_addr = 11, 
+    tracker_mac_addr = 11,
     tracker_uuid = 12,
 
     // Vector and named map
-    tracker_vector = 13, 
+    tracker_vector = 13,
     tracker_map = 14,
 
     // unsigned integer map (int-keyed data not field-keyed)
@@ -156,7 +156,7 @@ enum class tracker_type {
 
     // String-keyed map
     tracker_string_map = 17,
-    
+
     // Double-keyed map
     tracker_double_map = 18,
 
@@ -171,9 +171,9 @@ enum class tracker_type {
 
     // "Complex-Scalar" types provide memory-efficient maps for specific collections
     // of data Kismet uses; RRDs use vectors of doubles and frequency counting use maps
-    // of double:double, both of which benefit greatly from not tracking element fields for 
+    // of double:double, both of which benefit greatly from not tracking element fields for
     // the collected types.
-    
+
     // Vector of scalar double, not object, values
     tracker_vector_double = 22,
 
@@ -200,12 +200,12 @@ enum class tracker_type {
 
     // Map of UUIDs
     tracker_uuid_map = 30,
-    
-    // Map of MAC addresses capable of handling masks / filtering
-    tracker_macfilter_map = 31, 
 
-    // Serialization "map" which is actually a vector so we can have duplicate instances 
-    // of items with the same ID 
+    // Map of MAC addresses capable of handling masks / filtering
+    tracker_macfilter_map = 31,
+
+    // Serialization "map" which is actually a vector so we can have duplicate instances
+    // of items with the same ID
     tracker_summary_mapvec = 32,
 
     // Raw pointer to a string
@@ -215,7 +215,7 @@ enum class tracker_type {
 
 class tracker_element {
 public:
-    tracker_element() : 
+    tracker_element() :
         tracked_id(-1) {
             Globalreg::n_tracked_fields++;
         }
@@ -224,7 +224,7 @@ public:
         tracked_id{o.tracked_id} { }
 
     tracker_element( int id) :
-        tracked_id(id) { 
+        tracked_id(id) {
             Globalreg::n_tracked_fields++;
         }
 
@@ -270,7 +270,7 @@ public:
     // Serialization helpers
     virtual bool is_stringable() const {
         return false;
-    } 
+    }
 
     virtual std::string as_string() {
         return "";
@@ -311,7 +311,7 @@ public:
     static std::string type_to_typestring(tracker_type t);
 
     tracker_type enforce_type(tracker_type t) {
-        if (get_type() != t) 
+        if (get_type() != t)
             throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
                         "as a {}", tracked_id, type_to_string(get_type()), type_to_string(t)));
 
@@ -321,7 +321,7 @@ public:
     tracker_type enforce_type(tracker_type t1, tracker_type t2) {
         if (get_type() == t1)
             return t1;
-        
+
         if (get_type() == t2)
             return t2;
 
@@ -505,7 +505,7 @@ public:
         return value < std::static_pointer_cast<tracker_element_core_scalar<P>>(rhs)->value;
     }
 
-    
+
     inline bool less_than(const tracker_element_core_scalar<P>& rhs) const {
         return value < rhs.value;
     }
@@ -608,7 +608,7 @@ public:
     }
 
     tracker_element_string_ptr(const tracker_element_string_ptr *p) :
-        tracker_element_core_scalar{p} { 
+        tracker_element_core_scalar{p} {
         value = nullptr;
     }
 
@@ -769,7 +769,7 @@ public:
             rs.reserve(s.length() / 2);
         }
 
-        for (; pos < s.length(); pos += 2)  
+        for (; pos < s.length(); pos += 2)
             rs += ((hex2nibble(s[pos]) << 4) | hex2nibble(s[pos + 1]));
 
         return rs;
@@ -948,7 +948,7 @@ public:
         tracker_element_core_scalar<uint32_t>(id) { }
 
     tracker_element_ipv4_addr(int id, const std::string& s) :
-        tracker_element_core_scalar<uint32_t>(id) { 
+        tracker_element_core_scalar<uint32_t>(id) {
 
         struct in_addr addr;
 
@@ -1019,7 +1019,7 @@ public:
     }
 };
 
-// Simplify numeric conversion w/ an interstitial scalar-like that holds all 
+// Simplify numeric conversion w/ an interstitial scalar-like that holds all
 // our numeric subclasses
 template<class N, tracker_type T = tracker_type::tracker_double, class S = numerical_string<N>>
 class tracker_element_core_numeric : public tracker_element {
@@ -1068,7 +1068,7 @@ public:
     virtual void coercive_set(const std::string& in_str) override {
         // Inefficient workaround for compilers that don't define std::stod properly
         // auto d = std::stod(in_str);
-        
+
         std::stringstream ss(in_str);
         double d;
 
@@ -1122,7 +1122,7 @@ public:
         value = in;
     }
 
-    inline bool operator==(const tracker_element_core_numeric<N, T, S>& rhs) const { 
+    inline bool operator==(const tracker_element_core_numeric<N, T, S>& rhs) const {
         return value == rhs.value;
     }
 
@@ -1130,8 +1130,8 @@ public:
         return value != rhs;
     }
 
-    inline bool operator!=(const tracker_element_core_numeric<N, T, S>& rhs) const { 
-        return !(value == rhs.value); 
+    inline bool operator!=(const tracker_element_core_numeric<N, T, S>& rhs) const {
+        return !(value == rhs.value);
     }
 
     inline bool operator!=(const N& rhs) const {
@@ -1258,7 +1258,7 @@ public:
         if (std::isnan(v) || std::isinf(v))
             return "0";
 
-        // Jump through some hoops to collapse things like 0.000000 to 0 to save 
+        // Jump through some hoops to collapse things like 0.000000 to 0 to save
         // space/time in serializing
         if (floor(v) == v)
             return fmt::format("{}", (long long) v);
@@ -1283,7 +1283,7 @@ public:
     using const_iterator = typename map_t::const_iterator;
     using pair = std::pair<K, V>;
 
-    tracker_element_core_map() : 
+    tracker_element_core_map() :
         tracker_element(),
         present_set{0} { }
 
@@ -1486,7 +1486,7 @@ public:
     }
 
     std::pair<iterator, bool> insert(shared_tracker_element e) {
-        if (e == NULL) 
+        if (e == NULL)
             throw std::runtime_error("Attempted to insert null tracker_element with no ID");
 
         auto existing = map.find(e->get_id());
@@ -1501,7 +1501,7 @@ public:
 
     template<typename TE>
     std::pair<iterator, bool> insert(TE e) {
-        if (e == NULL) 
+        if (e == NULL)
             throw std::runtime_error("Attempted to insert null tracker_element with no ID");
 
         auto existing = map.find(e->get_id());
@@ -1955,7 +1955,7 @@ public:
 
     virtual ~tracker_element_serializer() { }
 
-    virtual int serialize(shared_tracker_element in_elem, 
+    virtual int serialize(shared_tracker_element in_elem,
             std::ostream &stream, std::shared_ptr<rename_map> name_map) = 0;
 
     // Fields extracted from a summary path need to preserialize their parent
@@ -1971,10 +1971,10 @@ protected:
 // Full std::string path
 shared_tracker_element get_tracker_element_path(const std::string& in_path, shared_tracker_element elem);
 // Split std::string path
-shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem);
 // Resolved field ID path
-shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
         shared_tracker_element elem);
 
 // Get a list of elements from a complex path which may include vectors
@@ -1986,21 +1986,21 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
 std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path,
         shared_tracker_element elem);
 // Split std::string path
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem);
 // Resolved field ID path
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path,
         shared_tracker_element elem);
 
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.
-// The element type returned is the same as the type provided.  Can only be used to 
+// The element type returned is the same as the type provided.  Can only be used to
 // summarize vector and map derived objects.
 
 // Specialized simplifications that resolve complex maps; we consider a field:field basic map to be
 // the final target object so we let that fall into the final handler
 
-std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element>, 
+std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element>,
         const nlohmann::json& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_vector>,
@@ -2045,13 +2045,13 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         std::shared_ptr<tracker_element_serializer::rename_map>);
 
 // Handle comparing fields
-bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs);
 
 // Compare fields, in a faster, but not type-safe, way.  This should be used only when
 // the caller is positive that both fields are of the same type, but avoids a number of
 // compares.
-bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs) noexcept;
 
 #endif
