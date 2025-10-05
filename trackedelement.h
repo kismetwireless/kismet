@@ -485,7 +485,7 @@ public:
     // We don't define cloning, subclasses have to do that
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override = 0;
 
-    P& get() {
+    const P& get() const {
         return value;
     }
 
