@@ -77,7 +77,7 @@ public:
     // deserialization and rest queries; it's fairly expensive otherwise
     device_key(std::string in_keystr);
 
-    std::string as_string();
+    std::string as_string() const;
 
     // Generate a cached phykey component; phyhandlers do this to cache
     static uint32_t gen_pkey(std::string in_phy);
@@ -1114,7 +1114,7 @@ public:
         return r;
     }
 
-    N& get() {
+    const N& get() const {
         return value;
     }
 
@@ -1369,7 +1369,7 @@ public:
         throw(std::runtime_error("Cannot coercive_set a map from an element"));
     }
 
-    map_t& get() {
+    const map_t& get() const {
         return map;
     }
 
