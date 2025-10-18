@@ -51,7 +51,6 @@
 
 uint8_t channel_commands[CHANNEL_COUNT][12];
 
-/* const uint8_t magic[] = {0x40, 0x53, 0xc0}; */ /*frame start followed by data frame indicator */
 const uint8_t magic[] = {0x40, 0x53}; /*frame start */
 
 typedef struct {
@@ -254,23 +253,18 @@ int init_interface(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer) 
 int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uint8_t channel) {
     int r;
 
-    printf("set_channel: Attempting to set channel to %u.\n", channel);
-
     // First, send the stop command
-    printf("set_channel: Sending stop command.\n");
     r = send_stop_command(caph, catsniffer);
     if (r < 0) {
         return r;
     }
 
     // Then, send the initialization command
-    printf("init_interface: Sending initialization command.\n");
     r = send_initialization_command(caph, catsniffer);
     if (r < 0) {
-        printf("init_interface: Failed to send initialization command. Error code: %d.\n", r);
         return r;
     }
-    printf("init_interface: Initialization command sent successfully.\n");
+
     //Leaving this array definition for reference
     // Now send the channel-specific command
     /*static const uint8_t channel_commands[16][12] = {
@@ -298,38 +292,36 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
 
     int channel_index = channel - START_CHANNEL;
     const uint8_t *command = channel_commands[channel_index];
+
     // Adjust channel to zero-based index
     //int channel_index = channel - 11;
     //const uint8_t *command = channel_commands[channel_index];
     size_t command_len = sizeof(channel_commands[channel_index]);
 
+#if 0
     //Debug
     printf("Channel command for channel %d:\n", channel);
     for (size_t i = 0; i < command_len; i++) {
         printf("%02X ", command[i]);  // Print each byte as a two-digit hexadecimal number
     }
     printf("\n");  // Newline after printing all bytes
+#endif
 
-    printf("set_channel: Sending channel configuration command.\n");
     r = write_command(caph, catsniffer, (uint8_t *)command, command_len);
     if (r < 0) {
         return r;
     }
 
     // Finally, send the start command
-    printf("set_channel: Sending start command.\n");
     r = send_start_command(caph, catsniffer);
 
     return r;
 }
 
-
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan;
     char errstr[STATUS_MAX];
-
-    printf("translate %s\n", chanstr);
 
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
         snprintf(errstr, STATUS_MAX, "unable to parse channel; channels are integers");
@@ -373,8 +365,9 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
-    char *definition, char *msg, char **uuid, KismetExternal__Command *frame,
-    cf_params_interface_t **ret_interface, cf_params_spectrum_t **ret_spectrum) {
+    char *definition, char *msg, char **uuid,
+    cf_params_interface_t **ret_interface,
+    cf_params_spectrum_t **ret_spectrum) {
 
     char *placeholder = NULL;
     int placeholder_len;
@@ -459,7 +452,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-    char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+    char *msg, uint32_t *dlt, char **uuid,
     cf_params_interface_t **ret_interface, cf_params_spectrum_t **ret_spectrum) {
 
     local_catsniffer_t *localcatsniffer = (local_catsniffer_t *) caph->userdata;
@@ -733,8 +726,10 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         // Validate the end of frame bytes
-        if (buf[sizeof(fz_hdr) + pkt_len - 2] != 0x40 || buf[sizeof(fz_hdr) + pkt_len - 1] != 0x45) {
-            // If the last two bytes are not 0x40 0x45, search for a new frame starting with 0x40 0x53
+        if (buf[sizeof(fz_hdr) + pkt_len - 2] != 0x40 ||
+                buf[sizeof(fz_hdr) + pkt_len - 1] != 0x45) {
+            // If the last two bytes are not 0x40 0x45, search for a new frame
+            // starting with 0x40 0x53
             for (int i = 0; i < pkt_len - 1; i++) {
                 if (buf[sizeof(fz_hdr) + i] == 0x40 && buf[sizeof(fz_hdr) + i + 1] == 0x53) {
                     // Found the start of a new fragment
@@ -747,16 +742,19 @@ void capture_thread(kis_capture_handler_t *caph) {
                     // Continue reading from the TTY until 0x40 0x45 is detected
                     while (fragment_len < BUFFER_SIZE) {
                         r = spin_read(localcatsniffer->fd, buf, BUFFER_SIZE);
-                        if (r <= 0) break;  // Handle errors or EOF
+                        if (r <= 0)
+                            break;  // Handle errors or EOF
 
                         int copy_len = BUFFER_SIZE - fragment_len;
                         if (r < copy_len) {
                             copy_len = r;  // Copy only as much as was read
                         }
+
                         memcpy(fragment_buf + fragment_len, buf, copy_len);
                         fragment_len += copy_len;
 
-                        if (fragment_buf[fragment_len - 2] == 0x40 && fragment_buf[fragment_len - 1] == 0x45) {
+                        if (fragment_buf[fragment_len - 2] == 0x40 &&
+                                fragment_buf[fragment_len - 1] == 0x45) {
                             // Full packet received
                             break;
                         }
@@ -769,12 +767,15 @@ void capture_thread(kis_capture_handler_t *caph) {
                         continue;
                     }
 
+#if 0
                     // Process the valid packet
                     printf("Reassembled frame (%d bytes): ", fragment_len);
                     for (int j = 0; j < fragment_len; j++) {
                         printf("%02X ", fragment_buf[j]);
                     }
                     printf("\n");
+#endif
+
                     break;
                 }
             }
@@ -785,12 +786,14 @@ void capture_thread(kis_capture_handler_t *caph) {
         send_buf[0] = localcatsniffer->channel;
         memcpy(send_buf + 1, buf, pkt_len + sizeof(fz_hdr));
 
+#if 0
         // Debugging: Print the received packet with the prepended channel to the console
         printf("Received frame with channel (%lu bytes): ", pkt_len + sizeof(fz_hdr) + 1);
         for (int i = 0; i < pkt_len + sizeof(fz_hdr) + 1; i++) {
             printf("%02X ", send_buf[i]);
         }
         printf("\n");
+#endif
 
         // Process the received data packet (send to Kismet, etc.)
         while (1) {
@@ -798,7 +801,11 @@ void capture_thread(kis_capture_handler_t *caph) {
             gettimeofday(&tv, NULL);
 
             // Send the entire buffer with the channel byte prepended
-            if ((r = cf_send_data(caph, NULL, NULL, NULL, tv, 0, pkt_len + sizeof(fz_hdr) + 1, send_buf)) < 0) {
+            if ((r = cf_send_data(caph, NULL, 0,
+                            NULL, NULL, tv, 0,
+                            pkt_len + sizeof(fz_hdr) + 1,
+                            pkt_len + sizeof(fz_hdr) + 1,
+                            send_buf)) < 0) {
                 snprintf(errstr, BUFFER_SIZE, "%s - unable to send packet to Kismet server", localcatsniffer->name);
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
@@ -819,20 +826,6 @@ void capture_thread(kis_capture_handler_t *caph) {
 }
 
 int main(int argc, char *argv[]) {
-
-    // Record start time
-    time_t epoch_start_time;
-    epoch_start_time = time(NULL);
-    //time_t start_time;
-    //struct tm * local_time;
-    //char start_time_str[100];
-
-    //time(&start_time);
-    //local_time = localtime(&start_time);
-    //strftime(start_time_str, sizeof(start_time_str), "%Y-%m-%d %H:%M:%S", local_time);
-    //printf("Start time: %s\n", start_time_str);
-
-    printf("Initializing local_catsniffer_t structure.\n");
     local_catsniffer_t localcatsniffer = {
         .baudrate = B115200,
         .caph = NULL,
@@ -842,7 +835,6 @@ int main(int argc, char *argv[]) {
         .channel = 0,
     };
 
-    printf("Calling cf_handler_init(\"catsniffer\").\n");
     kis_capture_handler_t *caph = cf_handler_init("catsniffer_zigbee");
 
     if (caph == NULL) {
@@ -852,66 +844,28 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    printf("Assigning caph to localcatsniffer.caph.\n");
     localcatsniffer.caph = caph;
 
-    printf("Calling cf_handler_set_userdata(caph, &localcatsniffer).\n");
     cf_handler_set_userdata(caph, &localcatsniffer);
 
-    printf("Setting callback functions.\n");
-    printf("-> cf_handler_set_open_cb(caph, open_callback).\n");
     cf_handler_set_open_cb(caph, open_callback);
-
-    printf("-> cf_handler_set_probe_cb(caph, probe_callback).\n");
     cf_handler_set_probe_cb(caph, probe_callback);
-
-    printf("-> cf_handler_set_chantranslate_cb(caph, chantranslate_callback).\n");
     cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
-
-    printf("-> cf_handler_set_chancontrol_cb(caph, chancontrol_callback).\n");
     cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
-
-    printf("Setting capture thread callback.\n");
-    printf("-> cf_handler_set_capture_cb(caph, capture_thread).\n");
     cf_handler_set_capture_cb(caph, capture_thread);
 
-    printf("Parsing command-line options.\n");
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
-        printf("Invalid options provided. Displaying help.\n");
+    int r = cf_handler_parse_opts(caph, argc, argv);
+    if (r == 0) {
+        return 0;
+    } else if (r < 0) {
         cf_print_help(caph, argv[0]);
         return -1;
     }
 
-    printf("Starting remote capture loop.\n");
     cf_handler_remote_capture(caph);
-
-    printf("Applying filesystem jail.\n");
     cf_jail_filesystem(caph);
-
-    printf("Dropping unnecessary capabilities.\n");
     cf_drop_most_caps(caph);
-
-    printf("Entering main handler loop.\n");
     cf_handler_loop(caph);
 
-    time_t epoch_end_time;
-    epoch_end_time = time(NULL);
-
-    double time_diff = difftime(epoch_end_time, epoch_start_time);
-
-    printf("Total runtime: %.f seconds\n", time_diff);
-    //time_t end_time;
-    //char end_time_str[100];
-
-    //time(&end_time);
-    //local_time = localtime(&end_time);
-    //strftime(end_time_str, sizeof(end_time_str), "%Y-%m-%d %H:%M:%S", local_time);
-    //printf("End time: %s\n", end_time_str);
-
-    // Calculate and print total runtime
-    //double total_runtime = difftime(end_time, start_time);
-    //printf("Total runtime: %.2f seconds\n", total_runtime);
-
-    printf("Exiting program.\n");
     return 0;
 }
