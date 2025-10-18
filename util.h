@@ -140,7 +140,8 @@ T string_to_n(const std::string& s, std::ios_base&(*base)(std::ios_base &) = nul
     ss >> t;
 
     if (ss.fail())
-        throw std::runtime_error("unable to parse string value");
+        throw std::runtime_error(fmt::format("unable to parse string value '{}' as {}", s,
+                    typeid(T).name()));
 
     return t;
 }

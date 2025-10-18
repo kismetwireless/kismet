@@ -73,7 +73,7 @@ device_key::device_key(std::string in_keystr) {
     error = false;
 }
 
-std::string device_key::as_string() {
+std::string device_key::as_string() const {
     std::stringstream ss;
     ss << *this;
     return ss.str();
