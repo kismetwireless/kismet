@@ -32,7 +32,7 @@
 #define LINKTYPE_IEEE802_15_4           195
 
 #ifndef KDLT_IEEE802_15_4_TAP
-#define KDLT_IEEE802_15_4_TAP             283 
+#define KDLT_IEEE802_15_4_TAP             283
 #endif
 
 #define FZ_CMD_FRAME        0x00
@@ -220,7 +220,7 @@ int init_interface(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer) 
 
     // Print the file descriptor to the console
     printf("init_interface: TTY file descriptor is %d.\n", catsniffer->fd);
-    
+
     // First, send the stop command
     printf("init_interface: Sending stop command.\n");
     r = send_stop_command(caph, catsniffer);
@@ -262,7 +262,7 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
     if (r < 0) {
         return r;
     }
-    
+
     // Then, send the initialization command
     printf("init_interface: Sending initialization command.\n");
     r = send_initialization_command(caph, catsniffer);
@@ -297,7 +297,7 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
     }
 
     int channel_index = channel - START_CHANNEL;
-    const uint8_t *command = channel_commands[channel_index];    
+    const uint8_t *command = channel_commands[channel_index];
     // Adjust channel to zero-based index
     //int channel_index = channel - 11;
     //const uint8_t *command = channel_commands[channel_index];
@@ -309,7 +309,7 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
         printf("%02X ", command[i]);  // Print each byte as a two-digit hexadecimal number
     }
     printf("\n");  // Newline after printing all bytes
-	
+
     printf("set_channel: Sending channel configuration command.\n");
     r = write_command(caph, catsniffer, (uint8_t *)command, command_len);
     if (r < 0) {
@@ -611,18 +611,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     // Generate the channel commands at the start
     printf("Generating channel commands.\n");
     generate_channel_commands();
-    
+
     printf("main: Initializing interface.\n");
     int result = init_interface(caph, localcatsniffer);
     if (result < 0) {
         fprintf(stderr, "main: Failed to initialize interface. Exiting.\n");
         return result;
     }
-    
+
     return 1;
 }
 
-/* Work around serial port oddness and keep spinning reading from the serial 
+/* Work around serial port oddness and keep spinning reading from the serial
  * device until we get the amount of data we want or until it errors out. */
 int spin_read(int fd, uint8_t *buf, size_t len) {
     size_t read_so_far = 0;
@@ -637,7 +637,7 @@ int spin_read(int fd, uint8_t *buf, size_t len) {
 
         read_so_far += r;
     }
-  
+
     return read_so_far;
 }
 
@@ -819,19 +819,19 @@ void capture_thread(kis_capture_handler_t *caph) {
 }
 
 int main(int argc, char *argv[]) {
-    
+
     // Record start time
     time_t epoch_start_time;
     epoch_start_time = time(NULL);
     //time_t start_time;
     //struct tm * local_time;
     //char start_time_str[100];
-    
+
     //time(&start_time);
     //local_time = localtime(&start_time);
     //strftime(start_time_str, sizeof(start_time_str), "%Y-%m-%d %H:%M:%S", local_time);
     //printf("Start time: %s\n", start_time_str);
-    
+
     printf("Initializing local_catsniffer_t structure.\n");
     local_catsniffer_t localcatsniffer = {
         .baudrate = B115200,
@@ -890,19 +890,19 @@ int main(int argc, char *argv[]) {
 
     printf("Dropping unnecessary capabilities.\n");
     cf_drop_most_caps(caph);
-    
+
     printf("Entering main handler loop.\n");
     cf_handler_loop(caph);
 
     time_t epoch_end_time;
     epoch_end_time = time(NULL);
-    
+
     double time_diff = difftime(epoch_end_time, epoch_start_time);
-    
+
     printf("Total runtime: %.f seconds\n", time_diff);
     //time_t end_time;
     //char end_time_str[100];
-    
+
     //time(&end_time);
     //local_time = localtime(&end_time);
     //strftime(end_time_str, sizeof(end_time_str), "%Y-%m-%d %H:%M:%S", local_time);
@@ -911,7 +911,7 @@ int main(int argc, char *argv[]) {
     // Calculate and print total runtime
     //double total_runtime = difftime(end_time, start_time);
     //printf("Total runtime: %.2f seconds\n", total_runtime);
-    
+
     printf("Exiting program.\n");
     return 0;
 }
