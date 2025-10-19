@@ -57,8 +57,8 @@ public:
     virtual ~kis_datasource_catsniffer_zigbee() { };
 
 protected:
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
-            const KismetDatasource::SubPacket& report) override;
+    virtual int handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz) override;
 
     int pack_comp_decap, pack_comp_radiodata;
 };
@@ -69,93 +69,43 @@ public:
     datasource_catsniffer_zigbee_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
-        // Debugging: Indicate that the constructor with 'in_id' is being called
-        fprintf(stderr, "Debug: datasource_catsniffer_zigbee_builder constructor with ID: %d called\n", in_id);
-
         register_fields();
-        fprintf(stderr, "Debug: Fields registered in constructor with ID: %d\n", in_id);
-
         reserve_fields(NULL);
-        fprintf(stderr, "Debug: Fields reserved (NULL) in constructor with ID: %d\n", in_id);
-
         initialize();
-        fprintf(stderr, "Debug: Initialization completed in constructor with ID: %d\n", in_id);
     }
 
     datasource_catsniffer_zigbee_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
-        // Debugging: Indicate that the constructor with 'in_id' and tracker_element_map is being called
-        fprintf(stderr, "Debug: datasource_catsniffer_zigbee_builder constructor with ID: %d and tracker_element_map called\n", in_id);
-
         register_fields();
-        fprintf(stderr, "Debug: Fields registered in constructor with ID: %d\n", in_id);
-
         reserve_fields(e);
-        fprintf(stderr, "Debug: Fields reserved with tracker_element_map in constructor with ID: %d\n", in_id);
-
         initialize();
-        fprintf(stderr, "Debug: Initialization completed in constructor with ID: %d\n", in_id);
     }
 
     datasource_catsniffer_zigbee_builder() :
         kis_datasource_builder(0) {
 
-        // Debugging: Indicate that the default constructor is being called
-        fprintf(stderr, "Debug: Default datasource_catsniffer_zigbee_builder constructor called\n");
-
         register_fields();
-        fprintf(stderr, "Debug: Fields registered in default constructor\n");
-
         reserve_fields(NULL);
-        fprintf(stderr, "Debug: Fields reserved (NULL) in default constructor\n");
-
         initialize();
-        fprintf(stderr, "Debug: Initialization completed in default constructor\n");
     }
 
-    virtual ~datasource_catsniffer_zigbee_builder() {
-        // Debugging: Indicate that the destructor is being called
-        fprintf(stderr, "Debug: datasource_catsniffer_zigbee_builder destructor called\n");
-    }
+    virtual ~datasource_catsniffer_zigbee_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        // Debugging: Log when the datasource is being built
-        fprintf(stderr, "Debug: Building datasource for catsniffer_zigbee\n");
-
         return shared_datasource_catsniffer_zigbee(new kis_datasource_catsniffer_zigbee(in_sh_this));
     }
 
     virtual void initialize() override {
-        // Debugging: Log when initialization functions are called
-        fprintf(stderr, "Debug: Initializing datasource_catsniffer_zigbee_builder\n");
-
         set_source_type("catsniffer_zigbee");
-        fprintf(stderr, "Debug: Source type set to catsniffer_zigbee\n");
-
         set_source_description("CatSniffer V3 with sniffer_fw_cc1252P_7 firmware");
-        fprintf(stderr, "Debug: Source description set\n");
-
         set_probe_capable(true);
-        fprintf(stderr, "Debug: Probe capability set to true\n");
-
         set_list_capable(false);
-        fprintf(stderr, "Debug: List capability set to true\n");
-
         set_local_capable(true);
-        fprintf(stderr, "Debug: Local capability set to true\n");
-
         set_remote_capable(true);
-        fprintf(stderr, "Debug: Remote capability set to true\n");
-
         set_passive_capable(false);
-        fprintf(stderr, "Debug: Passive capability set to false\n");
-
         set_tune_capable(true);
-        fprintf(stderr, "Debug: Tune capability set to true\n");
-
         set_hop_capable(true);
-        fprintf(stderr, "Debug: Hop capability set to true\n");
     }
 };
 
