@@ -31,7 +31,7 @@ class kis_datasource_catsniffer_zigbee;
 typedef std::shared_ptr<kis_datasource_catsniffer_zigbee> shared_datasource_catsniffer_zigbee;
 
 #ifndef KDLT_IEEE802_15_4_TAP
-#define KDLT_IEEE802_15_4_TAP             283 
+#define KDLT_IEEE802_15_4_TAP             283
 #endif
 
 #ifndef KDLT_IEEE802_15_4_NOFCS
@@ -57,7 +57,7 @@ public:
     virtual ~kis_datasource_catsniffer_zigbee() { };
 
 protected:
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
             const KismetDatasource::SubPacket& report) override;
 
     int pack_comp_decap, pack_comp_radiodata;
@@ -114,7 +114,7 @@ public:
         fprintf(stderr, "Debug: Initialization completed in default constructor\n");
     }
 
-    virtual ~datasource_catsniffer_zigbee_builder() { 
+    virtual ~datasource_catsniffer_zigbee_builder() {
         // Debugging: Indicate that the destructor is being called
         fprintf(stderr, "Debug: datasource_catsniffer_zigbee_builder destructor called\n");
     }
