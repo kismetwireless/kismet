@@ -159,6 +159,9 @@ BUILD_CAPTURE_USB_RADIACODE = @BUILD_CAPTURE_USB_RADIACODE@
 CAPTURE_ANTSDR_DRONEID = capture_antsdr_droneid/kismet_cap_antsdr_droneid
 BUILD_CAPTURE_ANTSDR_DRONEID = @BUILD_CAPTURE_ANTSDR_DRONEID@
 
+CAPTURE_CATSNIFFER_ZIGBEE = capture_catsniffer_zigbee/kismet_cap_catsniffer_zigbee
+BUILD_CAPTURE_CATSNIFFER_ZIGBEE = @BUILD_CAPTURE_CATSNIFFER_ZIGBEE@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -231,6 +234,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
+	datasource_catsniffer_zigbee.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
 	base64.cc.o \
@@ -406,6 +410,9 @@ $(CAPTURE_RZ_KILLERBEE): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_FREAKLABS_ZIGBEEV2): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_freaklabs_zigbee_v2 && $(MAKE))
 
+$(CAPTURE_CATSNIFFER_ZIGBEE): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_catsniffer_zigbee && $(MAKE))
+
 $(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_bladerf_wiphy && $(MAKE))
 
@@ -507,6 +514,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_FREAKLABS_ZIGBEEV2) $(BIN)/`basename $(CAPTURE_FREAKLABS_ZIGBEEV2)` ; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_CATSNIFFER_ZIGBEE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CATSNIFFER_ZIGBEE) $(BIN)/`basename $(CAPTURE_CATSNIFFER_ZIGBEE)` ; \
+	fi;
+	
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
@@ -626,6 +637,10 @@ commoninstall: $(INSTBINS)
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_FREAKLABS_ZIGBEEV2) $(BIN)/`basename $(CAPTURE_FREAKLABS_ZIGBEEV2)`; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_CATSNIFFER_ZIGBEE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CATSNIFFER_ZIGBEE) $(BIN)/`basename $(CAPTURE_CATSNIFFER_ZIGBEE)`; \
+	fi;
+	
 	mkdir -p $(LIB)/pkgconfig
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 packaging/kismet.pc $(LIB)/pkgconfig/kismet.pc
 
@@ -805,6 +820,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_openbsd_wifi && make clean)
 	@(cd capture_freaklabs_zigbee &&  make clean)
+	@(cd capture_catsniffer_zigbee &&  make clean)
 	# @(cd capture_sdr_rtl433 && make clean)
 	# @(cd capture_sdr_rtlamr && make clean)
 	# @(cd capture_sdr_rtladsb && make clean)
