@@ -16,6 +16,28 @@
 #include "../config.h"
 #include "catsniffer_zigbee.h"
 
+#include "../protobuf_c_1005000/kismet.pb-c.h"
+#include "../protobuf_c_1005000/datasource.pb-c.h"
+
+#if defined(__linux__)
+#include <endian.h>
+#elif defined(__APPLE__)
+#include <libkern/OSByteOrder.h>
+#define htole16 OSSwapHostToLittleInt16
+#define htole32 OSSwapHostToLittleInt32
+#else
+#include <sys/endian.h>
+#endif
+
+#include "../tap_802_15_4.h"
+
+#ifndef kis_htole16
+#define kis_htole16 htole16
+#endif
+#ifndef kis_htole32
+#define kis_htole32 htole32
+#endif
+
 #define BUFFER_SIZE 256
 
 #if defined(SYS_OPENBSD)
@@ -25,7 +47,7 @@
 #endif
 
 #ifndef CRTSCTS
-#define CRTSCTS 020000000000 /*should be defined but isn't with the C99*/
+#define CRTSCTS 020000000000
 #endif
 
 #define LINKTYPE_IEEE802_15_4_NOFCS     230
@@ -49,8 +71,27 @@
 #define COMMAND_SET_CHANNEL 0x45
 #define PAYLOAD_LENGTH 0x0004
 
+/* ------------------------------------------------------------------------- */
+/* [TAP] Minimal packed 802.15.4 TAP header used by Kismet & Wireshark, with
+ * three TLVs: FCS present (0), RSSI (dBm), channel (11..26).
+ * We keep it local to the capture tool to avoid include path friction.
+ */
+#ifndef CATSNIFFER_TAP_LOCAL_DEF
+#define CATSNIFFER_TAP_LOCAL_DEF
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t type;    /* LE (Little-Endian) */
+    uint16_t length;  /* LE; byte-count for the value field (logical length) */
+    uint32_t value;   /* LE; we store the value in the low bytes */
+} _tap_tlv;
+
+#pragma pack(pop)
+#endif
+/* ------------------------------------------------------------------------- */
+
 uint8_t channel_commands[CHANNEL_COUNT][12];
 
+/* const uint8_t magic[] = {0x40, 0x53, 0xc0}; */ /*frame start followed by data frame indicator */
 const uint8_t magic[] = {0x40, 0x53}; /*frame start */
 
 typedef struct {
@@ -156,16 +197,6 @@ void generate_channel_commands() {
         // End of Frame
         packet[10] = (PACKET_EOF & 0xFF);       // 0x40
         packet[11] = (PACKET_EOF >> 8) & 0xFF;  // 0x45
-
-        // Optional: Print the command packet for debugging
-        printf("Channel %d command: {", channel);
-        for (int j = 0; j < 12; j++) {
-            printf("0x%02x", packet[j]);
-            if (j < 11) {
-                printf(", ");
-            }
-        }
-        printf("}\n");
     }
 }
 
@@ -218,34 +249,34 @@ int init_interface(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer) 
     int r;
 
     // Print the file descriptor to the console
-    printf("init_interface: TTY file descriptor is %d.\n", catsniffer->fd);
+    //printf("init_interface: TTY file descriptor is %d.\n", catsniffer->fd);
 
     // First, send the stop command
-    printf("init_interface: Sending stop command.\n");
+    //printf("init_interface: Sending stop command.\n");
     r = send_stop_command(caph, catsniffer);
     if (r < 0) {
         printf("init_interface: Failed to send stop command. Error code: %d.\n", r);
         return r;
     }
-    printf("init_interface: Stop command sent successfully.\n");
+    //printf("init_interface: Stop command sent successfully.\n");
 
     // Then, send the initialization command
-    printf("init_interface: Sending initialization command.\n");
+    //printf("init_interface: Sending initialization command.\n");
     r = send_initialization_command(caph, catsniffer);
     if (r < 0) {
         printf("init_interface: Failed to send initialization command. Error code: %d.\n", r);
         return r;
     }
-    printf("init_interface: Initialization command sent successfully.\n");
+    //printf("init_interface: Initialization command sent successfully.\n");
 
     // Then, send the PHY configuration command
-    printf("init_interface: Sending PHY configuration command.\n");
+    //printf("init_interface: Sending PHY configuration command.\n");
     r = send_phy_configuration_command(caph, catsniffer);
     if (r < 0) {
         printf("init_interface: Failed to send PHY configuration command. Error code: %d.\n", r);
         return r;
     }
-    printf("init_interface: PHY configuration command sent successfully.\n");
+    //printf("init_interface: PHY configuration command sent successfully.\n");
 
     return 0;
 }
@@ -253,38 +284,22 @@ int init_interface(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer) 
 int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uint8_t channel) {
     int r;
 
+    //printf("set_channel: Attempting to set channel to %u.\n", channel); //Debug
+
     // First, send the stop command
+    //printf("set_channel: Sending stop command.\n"); //Debug
     r = send_stop_command(caph, catsniffer);
     if (r < 0) {
         return r;
     }
 
     // Then, send the initialization command
+    //printf("init_interface: Sending initialization command.\n"); //Debug
     r = send_initialization_command(caph, catsniffer);
     if (r < 0) {
+        printf("init_interface: Failed to send initialization command. Error code: %d.\n", r);
         return r;
     }
-
-    //Leaving this array definition for reference
-    // Now send the channel-specific command
-    /*static const uint8_t channel_commands[16][12] = {
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x65, 0x09, 0x00, 0x00, 0xb7, 0x40, 0x45}, // Channel 11
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x6a, 0x09, 0x00, 0x00, 0xbc, 0x40, 0x45}, // Channel 12
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x6f, 0x09, 0x00, 0x00, 0xc1, 0x40, 0x45}, // Channel 13
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x74, 0x09, 0x00, 0x00, 0xc6, 0x40, 0x45}, // Channel 14
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x79, 0x09, 0x00, 0x00, 0xcb, 0x40, 0x45}, // Channel 15
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x7e, 0x09, 0x00, 0x00, 0xd0, 0x40, 0x45}, // Channel 16
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x83, 0x09, 0x00, 0x00, 0xd5, 0x40, 0x45}, // Channel 17
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x88, 0x09, 0x00, 0x00, 0xda, 0x40, 0x45}, // Channel 18
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x8d, 0x09, 0x00, 0x00, 0xdf, 0x40, 0x45}, // Channel 19
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x92, 0x09, 0x00, 0x00, 0xe4, 0x40, 0x45}, // Channel 20
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x97, 0x09, 0x00, 0x00, 0xe9, 0x40, 0x45}, // Channel 21
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0x9c, 0x09, 0x00, 0x00, 0xee, 0x40, 0x45}, // Channel 22
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0xa1, 0x09, 0x00, 0x00, 0xf3, 0x40, 0x45}, // Channel 23
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0xa6, 0x09, 0x00, 0x00, 0xf8, 0x40, 0x45}, // Channel 24
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0xab, 0x09, 0x00, 0x00, 0xfd, 0x40, 0x45}, // Channel 25
-        {0x40, 0x53, 0x45, 0x04, 0x00, 0xb0, 0x09, 0x00, 0x00, 0x02, 0x40, 0x45}  // Channel 26
-    };*/ //Bypassing this for now; using dynamic generation at startup
 
     if (channel < 11 || channel > 26) {
         return -1; // Invalid channel
@@ -292,20 +307,7 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
 
     int channel_index = channel - START_CHANNEL;
     const uint8_t *command = channel_commands[channel_index];
-
-    // Adjust channel to zero-based index
-    //int channel_index = channel - 11;
-    //const uint8_t *command = channel_commands[channel_index];
     size_t command_len = sizeof(channel_commands[channel_index]);
-
-#if 0
-    //Debug
-    printf("Channel command for channel %d:\n", channel);
-    for (size_t i = 0; i < command_len; i++) {
-        printf("%02X ", command[i]);  // Print each byte as a two-digit hexadecimal number
-    }
-    printf("\n");  // Newline after printing all bytes
-#endif
 
     r = write_command(caph, catsniffer, (uint8_t *)command, command_len);
     if (r < 0) {
@@ -318,10 +320,13 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
     return r;
 }
 
+// Translate user channel string -> driver-specific channel object
 void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan;
     char errstr[STATUS_MAX];
+
+    // printf("translate %s\n", chanstr); //Debug
 
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
         snprintf(errstr, STATUS_MAX, "unable to parse channel; channels are integers");
@@ -329,9 +334,23 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         return NULL;
     }
 
-    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-    ret_localchan->channel = parsechan;
+    //Range checks by band for stricter validation:
+    local_catsniffer_t *lc = (local_catsniffer_t *)caph->userdata;
+    if ((lc->band == 0 && parsechan != 0) ||
+        (lc->band == 1 && (parsechan < 1 || parsechan > 10)) ||
+        (lc->band == 2 && (parsechan < 11 || parsechan > 26))) {
+        snprintf(errstr, STATUS_MAX, "channel %u out of range for current band", parsechan);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        return NULL;
+    }
 
+    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    if (!ret_localchan) {
+        cf_send_message(caph, "out of memory creating channel object", MSGFLAG_ERROR);
+        return NULL;
+    }
+
+    ret_localchan->channel = parsechan;
     return ret_localchan;
 }
 
@@ -366,12 +385,11 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     char *definition, char *msg, char **uuid,
-    cf_params_interface_t **ret_interface,
-    cf_params_spectrum_t **ret_spectrum) {
+    cf_params_interface_t **ret_interface, cf_params_spectrum_t **ret_spectrum) {
 
     char *placeholder = NULL;
     int placeholder_len;
-    char *interface;
+    char *interface = NULL;
     char errstr[STATUS_MAX];
     char *device = NULL;
 
@@ -381,72 +399,70 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
      */
     int band = 2;
 
-    *ret_spectrum = NULL;
+    *ret_spectrum  = NULL;
     *ret_interface = cf_params_interface_new();
-    printf("Definition string: %s\n", definition);
+
+    //printf("Definition string: %s\n", definition); //Debug
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
-        return 0;
+        return 0; // not ours / not handled
     }
 
     interface = strndup(placeholder, placeholder_len);
+    printf("interface: %s\n", interface);
 
-    /* Look for the interface type */
-    if (strstr(interface, "catsniffer") != interface) {
+    // Only handle our interface type
+    if (strstr(interface, "catsniffer_zigbee") != interface) {
         free(interface);
-        return 0;
+        return 0; // not ours
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        printf("device: %s\n", device);
     } else {
-        snprintf(msg, STATUS_MAX,
-            "Expected device= path to serial device in definition");
-        return 0;
+        snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
+        free(interface);
+        return 0; // not ours (or reportable error)
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "band", definition)) > 0) {
-       if (strncmp(placeholder, "800", placeholder_len) == 0) {
-           band = 0;
-       }  else if (strncmp(placeholder, "900", placeholder_len) == 0) {
-           band = 1;
-       } else if (strncmp(placeholder, "2400", placeholder_len) == 0) {
-           band = 2;
-       }
+        if (strncmp(placeholder, "800",  placeholder_len) == 0) band = 0;
+        else if (strncmp(placeholder, "900",  placeholder_len) == 0) band = 1;
+        else if (strncmp(placeholder, "2400", placeholder_len) == 0) band = 2;
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
-            adler32_csum((unsigned char *) "kismet_cap_catsniffer_zigbee",
-                strlen("kismet_cap_catsniffer_zigbee")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) device, strlen(device)));
+            adler32_csum((unsigned char *)"kismet_cap_catsniffer_zigbee",
+                         strlen("kismet_cap_catsniffer_zigbee")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *)device, strlen(device)));
         *uuid = strdup(errstr);
     }
 
     int n_chans = 0;
-    int s_chan = 0;
+    int s_chan  = 0;
 
-    if (band == 0) {
-        n_chans = 1;
-        s_chan = 0;
-    } else if (band == 1) {
-        n_chans = 10;
-        s_chan = 1;
-    } else if (band == 2) {
-        n_chans = 16;
-        s_chan = 11;
-    }
+    if (band == 0) { n_chans = 1;  s_chan = 0;  }
+    else if (band == 1) { n_chans = 10; s_chan = 1;  }
+    else if (band == 2) { n_chans = 16; s_chan = 11; }
 
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
-    for (int i = s_chan; i < n_chans - s_chan; i++) {
-        char chstr[3];
-        snprintf(chstr, 3, "%d", i);
+
+    //iterate i from s_chan to (s_chan + n_chans - 1)
+    for (int i = s_chan; i < s_chan + n_chans; i++) {
+        char chstr[4];                    // up to "240" safe, but our chans are < 3 digits
+        snprintf(chstr, sizeof(chstr), "%d", i);
         (*ret_interface)->channels[i - s_chan] = strdup(chstr);
     }
-
     (*ret_interface)->channels_len = n_chans;
+
+    //cleanup temporaries
+    free(interface);
+    free(device);
 
     return 1;
 }
@@ -602,7 +618,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     localcatsniffer->band = band;
 
     // Generate the channel commands at the start
-    printf("Generating channel commands.\n");
+    //printf("Generating channel commands.\n"); //Debug
     generate_channel_commands();
 
     printf("main: Initializing interface.\n");
@@ -646,7 +662,6 @@ void capture_thread(kis_capture_handler_t *caph) {
     } __attribute__((packed)) fz_hdr;
 
     uint8_t buf[BUFFER_SIZE];
-    uint8_t send_buf[BUFFER_SIZE + 1];  // Extra byte for channel
     uint8_t fragment_buf[BUFFER_SIZE];
     int fragment_len = 0;
     fz_hdr *hdr = (fz_hdr *) buf;
@@ -655,6 +670,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     while (1) {
         if (caph->spindown) {
+            printf("capture_thread loop spindown detected.\n");
             break;
         }
 
@@ -665,6 +681,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
                      localcatsniffer->name, strerror(errno));
             cf_send_error(caph, 0, errstr);
+            printf("capture_thread error error reading from serial A - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
@@ -672,6 +689,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (r == 0) {
             snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localcatsniffer->name);
             cf_send_error(caph, 0, errstr);
+            printf("capture_thread error serial connection closed A - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
@@ -679,6 +697,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (r < sizeof(fz_hdr)) {
             snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full header", localcatsniffer->name);
             cf_send_error(caph, 0, errstr);
+            printf("capture_thread error reading serial header - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
@@ -688,9 +707,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             continue;  // Skip if magic bytes don't match
         }
 
-        // Check if the packet type is 0xC0 (data packet)
+        // Check if the frame type is 0xC0 (frame packet)
         if (hdr->type != 0xC0) {
-            continue;  // Skip if not a data packet
+            continue;  // Skip if not a data frame - IE the frame doesn't bear radio traffic (could be a command response)
         }
 
         // Use pkt_len to determine the length of the packet and add 3 bytes for FCS and end-of-frame
@@ -707,6 +726,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
                      localcatsniffer->name, strerror(errno));
             cf_send_error(caph, 0, errstr);
+            printf("capture_thread error reading from serial connection - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
@@ -714,6 +734,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (r == 0) {
             snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localcatsniffer->name);
             cf_send_error(caph, 0, errstr);
+            printf("capture_thread error serial connection closed - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
@@ -721,15 +742,14 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (r < pkt_len) {
             snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full packet", localcatsniffer->name);
             cf_send_error(caph, 0, errstr);
+            printf("capture_thread error failed to read full packet - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
 
         // Validate the end of frame bytes
-        if (buf[sizeof(fz_hdr) + pkt_len - 2] != 0x40 ||
-                buf[sizeof(fz_hdr) + pkt_len - 1] != 0x45) {
-            // If the last two bytes are not 0x40 0x45, search for a new frame
-            // starting with 0x40 0x53
+        if (buf[sizeof(fz_hdr) + pkt_len - 2] != 0x40 || buf[sizeof(fz_hdr) + pkt_len - 1] != 0x45) {
+            // If the last two bytes are not 0x40 0x45, search for a new frame starting with 0x40 0x53
             for (int i = 0; i < pkt_len - 1; i++) {
                 if (buf[sizeof(fz_hdr) + i] == 0x40 && buf[sizeof(fz_hdr) + i + 1] == 0x53) {
                     // Found the start of a new fragment
@@ -742,19 +762,16 @@ void capture_thread(kis_capture_handler_t *caph) {
                     // Continue reading from the TTY until 0x40 0x45 is detected
                     while (fragment_len < BUFFER_SIZE) {
                         r = spin_read(localcatsniffer->fd, buf, BUFFER_SIZE);
-                        if (r <= 0)
-                            break;  // Handle errors or EOF
+                        if (r <= 0) break;  // Handle errors or EOF
 
                         int copy_len = BUFFER_SIZE - fragment_len;
                         if (r < copy_len) {
                             copy_len = r;  // Copy only as much as was read
                         }
-
                         memcpy(fragment_buf + fragment_len, buf, copy_len);
                         fragment_len += copy_len;
 
-                        if (fragment_buf[fragment_len - 2] == 0x40 &&
-                                fragment_buf[fragment_len - 1] == 0x45) {
+                        if (fragment_buf[fragment_len - 2] == 0x40 && fragment_buf[fragment_len - 1] == 0x45) {
                             // Full packet received
                             break;
                         }
@@ -767,61 +784,183 @@ void capture_thread(kis_capture_handler_t *caph) {
                         continue;
                     }
 
-#if 0
                     // Process the valid packet
-                    printf("Reassembled frame (%d bytes): ", fragment_len);
+                    //printf("Reassembled frame (%d bytes): ", fragment_len); //Debug
                     for (int j = 0; j < fragment_len; j++) {
                         printf("%02X ", fragment_buf[j]);
                     }
                     printf("\n");
-#endif
-
                     break;
                 }
             }
             continue;
         }
 
-        // Prepend the channel byte to the buffer
-        send_buf[0] = localcatsniffer->channel;
-        memcpy(send_buf + 1, buf, pkt_len + sizeof(fz_hdr));
-
-#if 0
-        // Debugging: Print the received packet with the prepended channel to the console
-        printf("Received frame with channel (%lu bytes): ", pkt_len + sizeof(fz_hdr) + 1);
-        for (int i = 0; i < pkt_len + sizeof(fz_hdr) + 1; i++) {
-            printf("%02X ", send_buf[i]);
-        }
-        printf("\n");
-#endif
 
         // Process the received data packet (send to Kismet, etc.)
         while (1) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL);
+            struct timeval ts;
+            gettimeofday(&ts, NULL);
 
-            // Send the entire buffer with the channel byte prepended
-            if ((r = cf_send_data(caph, NULL, 0,
-                            NULL, NULL, tv, 0,
-                            pkt_len + sizeof(fz_hdr) + 1,
-                            pkt_len + sizeof(fz_hdr) + 1,
-                            send_buf)) < 0) {
-                snprintf(errstr, BUFFER_SIZE, "%s - unable to send packet to Kismet server", localcatsniffer->name);
+            /* --------------------------------------------------------------
+             * We read:
+             *   - header: sizeof(fz_hdr) bytes already in buf[0..sizeof(fz_hdr)-1]
+             *   - body  : pkt_len bytes in buf[sizeof(fz_hdr) .. sizeof(fz_hdr)+pkt_len-1]
+             *
+             * Device frame layout inside `buf` (NOT send_buf):
+             *   buf[0..1]   : SOF        (0x40 0x53)
+             *   buf[2]      : type       (0xC0)
+             *   buf[3..4]   : length (LE)  <we currently treat hdr->pkt_len as 1B +3 trailer>
+             *   buf[5..10]  : device fields (6B)
+             *   buf[11]     : mac_len (payload length, no FCS)
+             *   buf[12..]   : MAC payload (mac_len bytes)
+             *   buf[sizeof(fz_hdr)+pkt_len-4] : RSSI (int8_t)
+             *   buf[sizeof(fz_hdr)+pkt_len-3] : CRC OK (nonzero good)
+             *   buf[sizeof(fz_hdr)+pkt_len-2..-1] : EOF (0x40 0x45)
+             * -------------------------------------------------------------- */
+
+            const size_t dev_total = sizeof(fz_hdr) + pkt_len;
+
+            // Channel comes from the *current tuned channel*
+            const uint8_t  chan        = localcatsniffer->channel;
+
+            // MAC payload length and pointer inside `buf`
+            const uint8_t  mac_len     = buf[11];
+            const uint8_t *mac_payload = &buf[12];
+
+            // Trailer fields (relative to whole frame we read into `buf`)
+            const int8_t   rssi_dbm    = (int8_t) buf[dev_total - 4];
+            const uint8_t  crc_ok      =           buf[dev_total - 3];     /* optional drop */
+
+            // Optional: skip CRC-bad frames
+            if (crc_ok == 0) {
+                // Ring wasn’t written to; just bail out of the inner loop to read next frame
+                break;
+            }
+
+            // Allocate TAP header + 802.15.4 MAC payload (no FCS)
+            const uint32_t tap_sz = sizeof(_802_15_4_tap) + mac_len;
+            uint8_t *tap_pack = (uint8_t *) malloc(tap_sz);
+            if (tap_pack == NULL) {
+                char errstr[BUFFER_SIZE];
+                snprintf(errstr, sizeof(errstr), "%s - out of memory building TAP packet", localcatsniffer->name);
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
-                break;  // Exit on error
-            } else if (r == 0) {
-                cf_handler_wait_ringbuffer(caph);
-                continue;
-            } else {
-                break;  // Break the loop after successfully processing a packet
+                break;
             }
+
+            _802_15_4_tap *tap = (_802_15_4_tap *) tap_pack;
+            memset(tap, 0, sizeof(*tap));
+
+            // Header
+            tap->version  = kis_htole16(0);
+            tap->reserved = kis_htole16(0);
+            tap->length   = kis_htole16(sizeof(_802_15_4_tap));
+
+            // TLV 0: FCS present? => 0 (payload has no FCS)
+            tap->tlv[0].type   = kis_htole16(0);
+            tap->tlv[0].length = kis_htole16(1);
+            tap->tlv[0].value  = kis_htole32(0);
+
+            // TLV 1: RSSI (signed 8-bit in low byte; Kismet reads low byte)
+            tap->tlv[1].type   = kis_htole16(10);
+            tap->tlv[1].length = kis_htole16(1);
+            tap->tlv[1].value  = kis_htole32((uint8_t) rssi_dbm);
+
+            // TLV 2: Channel (use length 3 to match other drivers)
+            tap->tlv[2].type   = kis_htole16(3);
+            tap->tlv[2].length = kis_htole16(3);
+            uint32_t ch_val = (0u)                     /* page in byte0 */
+                            | (((uint32_t)chan) << 8)  /* channel in byte1 */
+                            | (0u << 16);              /* reserved in byte2 */
+            tap->tlv[2].value  = kis_htole32(ch_val);
+
+            // Copy MAC payload (no FCS) after the TAP header
+            memcpy(tap->payload, mac_payload, mac_len);
+
+            /* // ============================ DEBUG (BEGIN) ============================
+            do {
+                // Read back fields from the TAP struct in host order for printing
+                uint16_t tap_version = le16toh(tap->version);
+                uint16_t tap_len     = le16toh(tap->length);
+
+                uint32_t fcs_raw     = le32toh(tap->tlv[0].value);
+                uint8_t  fcs_flag    = (uint8_t)(fcs_raw & 0xFF);
+
+                uint32_t rssi_raw    = le32toh(tap->tlv[1].value);
+                int8_t   rssi_print  = (int8_t)(rssi_raw & 0xFF);
+
+                uint32_t ch_raw      = le32toh(tap->tlv[2].value);
+                uint8_t  page_print  = (uint8_t)(ch_raw & 0xFF);
+                uint8_t  chan_print  = (uint8_t)((ch_raw >> 8) & 0xFF);
+
+                fprintf(stderr,
+                    "[catsniffer->kismet] TAP ver=%u len=%u | FCS=%u | RSSI=%d dBm | page=%u channel=%u | mac_len=%u | crc_ok=%u\n",
+                    (unsigned) tap_version,
+                    (unsigned) tap_len,
+                    (unsigned) fcs_flag,
+                    (int)      rssi_print,
+                    (unsigned) page_print,
+                    (unsigned) chan_print,
+                    (unsigned) mac_len,
+                    (unsigned) crc_ok);
+
+                // Hex dump the MAC payload (no FCS)
+                fputs("  payload: ", stderr);
+                for (uint32_t i = 0; i < mac_len; i++) {
+                    fprintf(stderr, "%02X", tap->payload[i]);
+                    if (i + 1 < mac_len) fputc(' ', stderr);
+                    if ((i + 1) % 16 == 0 && i + 1 < mac_len) {
+                        fputc('\n', stderr);
+                        fputs("           ", stderr);
+                    }
+                }
+                fputc('\n', stderr);
+                fflush(stderr);
+            } while (0);
+            // ============================= DEBUG (END) ============================= */
+
+            // Send via TAP DLT
+            const uint32_t dlt        = KDLT_IEEE802_15_4_TAP;
+            const uint32_t wire_len   = mac_len;    // original MAC payload bytes on-air
+            const uint32_t packet_sz  = tap_sz;     // bytes we’re sending in this buffer
+
+            int sr = cf_send_data(
+                caph,
+                /* msg        */ NULL,
+                /* msg_type   */ 0,
+                /* signal     */ NULL,
+                /* gps        */ NULL,
+                /* ts         */ ts,
+                /* dlt        */ dlt,
+                /* original_sz*/ wire_len,
+                /* packet_sz  */ packet_sz,
+                /* pack       */ tap_pack
+            );
+
+            if (sr < 0) {
+                char err2[BUFFER_SIZE];
+                snprintf(err2, sizeof(err2), "%s - unable to send packet to Kismet server", localcatsniffer->name);
+                cf_send_error(caph, 0, err2);
+                cf_handler_spindown(caph);
+                free(tap_pack);
+                break;
+            } else if (sr == 0) {
+                // ring full; wait and retry on next frame
+                cf_handler_wait_ringbuffer(caph);
+                free(tap_pack);
+                break;
+            } else {
+                // queued/sent
+                free(tap_pack);
+                break;
+            }
+            /* -------------------------------------------------------------- */
         }
     }
 
     // Reset the TTY to its original settings
     tcsetattr(localcatsniffer->fd, TCSANOW, &localcatsniffer->oldtio);
-
     cf_handler_spindown(caph);
 }
 
@@ -847,17 +986,14 @@ int main(int argc, char *argv[]) {
     localcatsniffer.caph = caph;
 
     cf_handler_set_userdata(caph, &localcatsniffer);
-
     cf_handler_set_open_cb(caph, open_callback);
     cf_handler_set_probe_cb(caph, probe_callback);
     cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
     cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
     cf_handler_set_capture_cb(caph, capture_thread);
 
-    int r = cf_handler_parse_opts(caph, argc, argv);
-    if (r == 0) {
-        return 0;
-    } else if (r < 0) {
+    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+        printf("Invalid options provided. Displaying help.\n");
         cf_print_help(caph, argv[0]);
         return -1;
     }
