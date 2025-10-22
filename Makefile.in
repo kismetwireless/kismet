@@ -880,7 +880,7 @@ all-plugins all-plugins-install all-plugins-userinstall all-plugins-clean: all-%
 # Disabled
 # kaitai-parsers:
 # 	@echo "Re-generating the kaitai_struct parsers requires the gpl3 licensed "
-# 	@echo "kaitai_struct compiler; see http://http://kaitai.io/ for more info!"
+# 	@echo "kaitai_struct compiler; see https://kaitai.io/ for more info!"
 # 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 # 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 

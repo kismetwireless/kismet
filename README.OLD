@@ -35,7 +35,7 @@ Developer documentation for the new API is in the docs/dev/ directory!
 
 Kismet 2016-01-R1
 Mike Kershaw <dragorn@kismetwireless.net>
-http://www.kismetwireless.net
+https://www.kismetwireless.net
 
 1.  What is Kismet
 2.  Upgrading from earlier versions
@@ -109,7 +109,7 @@ http://www.kismetwireless.net
     PLEASE read the full manual, but for the impatient, here is the BARE
     MINIMUM needed to get Kismet working:
 
-    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Download Kismet from https://www.kismetwireless.net/download.shtml
     * Run "./configure".  Pay attention to the output!  If Kismet cannot
       find all the headers and libraries it needs, major functionality may
       be missing.  Most notably, compiling Kismet yourself will require
@@ -151,7 +151,7 @@ http://www.kismetwireless.net
     Using the CACE Package:
 
     * Download the Win32/Cygwin installer created by CACE and linked from
-      the download page (http://www.kismetwireless.net/download.shtml
+      the download page (https://www.kismetwireless.net/download.shtml
     * Run the installer
     * Start Kismet
     * Pick your AirPcap or Kismet Drone sources
@@ -160,7 +160,7 @@ http://www.kismetwireless.net
 
     Compiling it yourself:
 
-    * Download the Cygwin setup tool (http://www.cygwin.org)
+    * Download the Cygwin setup tool (https://www.cygwin.org)
     * Install Cygwin with make, GCC, libncurses, libncurses-dev
     * Download the Airpcap_Devpack from CACE Support
     * Put Airpcap_Devpack and Libpcap_Devpack in the kismet source directory
@@ -186,7 +186,7 @@ http://www.kismetwireless.net
       key events.  However, Terminal.app appears to work fine, and is
       recommended for using Kismet.
 
-    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Download Kismet from https://www.kismetwireless.net/download.shtml
     * Run "./configure".  Pay attention to the output!  If Kismet cannot
       find all the headers and libraries it needs, major functionality may
       be missing.  Notably, you may need to install libpcap manually.
@@ -640,7 +640,7 @@ http://www.kismetwireless.net
       rt2870sta         Out-of-kernel/Staging rt2870 11n driver (use
                          in-kernel instead)
       wl12xx            Patched wl12xx drivers for the N900, must use
-                         patched drivers from http://david.gnedt.eu/blog/,
+                         patched drivers from https://david.gnedt.eu/blog/,
                          otherwise autodetected.
       drone             Remote Kismet packet capture, source options
                         "host=..." and "port=..." are required.
@@ -1013,8 +1013,8 @@ http://www.kismetwireless.net
 
             References:
                 WVE-2005-0019, WVE-2005-0045, WVE-2005-0046, WVE-2005-0061
-                http://802.11ninja.net
-                http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
+                https://802.11ninja.net
+                https://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
 
         DHCPCLIENTID        Fingerprint         802.11
             A client which sends a DHCP DISCOVER packet containing a
@@ -1115,7 +1115,7 @@ http://www.kismetwireless.net
             in his tool and the Reaver attack tool.
 
             References:
-                http://sviehb.files.wordpress.com/2011/12/viehboeck_wps.pdf
+                https://sviehb.files.wordpress.com/2011/12/viehboeck_wps.pdf
 
 13. Other Configuration
 
@@ -1213,7 +1213,7 @@ http://www.kismetwireless.net
 
     The default Kismet UI uses the text-based ncurses library.  Additional
     UIs may be available from the Links page on the Kismet website
-    (http://www.kismetwireless.net/links.shtml)
+    (https://www.kismetwireless.net/links.shtml)
 
     The Kismet UI functions much as any other curses application (such as
     Midnight Commander or Links) does.  The menu is activated with 'escape',

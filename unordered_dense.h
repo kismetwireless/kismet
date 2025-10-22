@@ -4,7 +4,7 @@
 // Version 4.0.4
 // https://github.com/martinus/unordered_dense
 //
-// Licensed under the MIT License <http://opensource.org/licenses/MIT>.
+// Licensed under the MIT License <https://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022-2023 Martin Leitner-Ankerl <martin.ankerl@gmail.com>
 //
