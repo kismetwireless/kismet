@@ -750,7 +750,7 @@ tracker_element_summary::tracker_element_summary(const SharedElementSummary& in_
     rename = in_c->rename;
 }
 
-tracker_element_summary::tracker_element_summary(const std::string& in_path, 
+tracker_element_summary::tracker_element_summary(const std::string& in_path,
         const std::string& in_rename) {
     parse_path(str_tokenize(in_path, "/"), in_rename);
 }
@@ -788,7 +788,7 @@ void tracker_element_summary::assign(const std::string& in_path, const std::stri
     parse_path(str_tokenize(in_path, "/"), in_rename);
 }
 
-void tracker_element_summary::assign(const std::vector<std::string>& in_path, 
+void tracker_element_summary::assign(const std::vector<std::string>& in_path,
         const std::string& in_rename) {
     parse_path(in_path, in_rename);
 }
@@ -810,7 +810,7 @@ void tracker_element_summary::assign(const std::vector<int>& in_path) {
     resolved_path = in_path;
 }
 
-void tracker_element_summary::parse_path(const std::vector<std::string>& in_path, 
+void tracker_element_summary::parse_path(const std::vector<std::string>& in_path,
         const std::string& in_rename) {
 
     if (in_path.size() == 0) {
@@ -838,12 +838,12 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
     }
 }
 
-shared_tracker_element get_tracker_element_path(const std::string& in_path, 
+shared_tracker_element get_tracker_element_path(const std::string& in_path,
         shared_tracker_element elem) {
     return get_tracker_element_path(str_tokenize(in_path, "/"), elem);
 }
 
-shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem) {
 
     if (in_path.size() < 1)
@@ -884,7 +884,7 @@ shared_tracker_element get_tracker_element_path(const std::vector<std::string>& 
     return next_elem;
 }
 
-shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
         shared_tracker_element elem) {
 
     if (in_path.size() < 1)
@@ -932,12 +932,12 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
     return next_elem;
 }
 
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path,
         shared_tracker_element elem) {
     return get_tracker_element_multi_path(str_tokenize(in_path, "/"), elem);
 }
 
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem) {
 
     std::vector<shared_tracker_element> ret;
@@ -985,7 +985,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
         }
 
         // If we're at the termination of the path, we just return the
-        // object.  If we're in the middle of a path, we iterate over the 
+        // object.  If we're in the middle of a path, we iterate over the
         // contents of the container, and find the rest of the path in it
         if (x != std::next(in_path.end(), -1)) {
             auto type = next_elem->get_type();
@@ -1080,7 +1080,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
     return ret;
 }
 
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path,
         shared_tracker_element elem) {
 
     std::vector<shared_tracker_element> ret;
@@ -1123,7 +1123,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
         }
 
         // If we're at the termination of the path, we just return the
-        // object.  If we're in the middle of a path, we iterate over the 
+        // object.  If we're in the middle of a path, we iterate over the
         // contents of the container, and find the rest of the path in it
         if (x != std::next(in_path.end(), -1)) {
             auto type = next_elem->get_type();
@@ -1324,7 +1324,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = Globalreg::new_from_pool<tracker_element_uuid_map>();
 
-    for (const auto& i : *elem) 
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1343,7 +1343,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 }
 
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element> in,
-        const std::vector<std::shared_ptr<tracker_element_summary>>& in_summarization, 
+        const std::vector<std::shared_ptr<tracker_element_summary>>& in_summarization,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     // Always return a map
@@ -1410,7 +1410,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
                     "unallocated field");
 
             std::static_pointer_cast<tracker_element_placeholder>(f)->set(0);
-        
+
             if (si->rename.length() != 0) {
                 // fmt::print("debug - setting summary rename on missing field {} {}\n", fn, si->rename);
                 std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(si->rename);
@@ -1423,7 +1423,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
                     // fmt::print("debug - setting last id rename on missing field {} {}\n", fn, Globalreg::globalreg->entrytracker->get_field_name(lastid));
                 }
             }
-        } 
+        }
 
         // If we're renaming it or we're a path, we put the record in.  We need
         // to duplicate the summary object and make a reference to our parent
@@ -1444,7 +1444,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     return ret_elem;
 }
 
-std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element> data, 
+std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element> data,
         const nlohmann::json& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
@@ -1475,7 +1475,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared
     return summarize_tracker_element(data, summary_vec, rename_map);
 }
 
-bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs) {
 
     // Only allow equal compares
@@ -1543,7 +1543,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
     return false;
 }
 
-bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs) noexcept {
 
     switch (lhs->get_type()) {
