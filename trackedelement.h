@@ -1359,6 +1359,16 @@ struct tracker_element_key_adapter_as_safe_string {
 };
 
 template<typename K>
+struct tracker_element_key_adapter_as_transform {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        if (opts != nullptr && opts->permuter != nullptr)
+            fmt::print(os, "\"{}\"", opts->permuter(json_adapter::sanitize_string(k.as_string())));
+        else
+            fmt::print(os, "\"{}\"", json_adapter::sanitize_string(k.as_string()));
+    }
+};
+
+template<typename K>
 struct tracker_element_key_adapter_direct {
     void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
         fmt::print(os, "\"{}\"", k);
@@ -1369,14 +1379,6 @@ template<typename K>
 struct tracker_element_key_adapter_safe_direct {
     void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
         fmt::print(os, "\"{}\"", json_adapter::sanitize_string(k));
-    }
-};
-
-struct tracker_element_key_adapter_self_json {
-    void operator()(std::ostream& os, const std::shared_ptr<tracker_element>& k, json_adapter::opts *opts) const {
-        fmt::print(os, "\"");
-        k->as_json(os, opts);
-        fmt::print(os, "\"");
     }
 };
 
