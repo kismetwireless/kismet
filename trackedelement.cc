@@ -669,6 +669,63 @@ template<> void set_tracker_value(const shared_tracker_element& e, const device_
     static_cast<tracker_element_device_key *>(e.get())->set(v);
 }
 
+
+void tracker_element_map::as_json(std::ostream& os, struct json_adapter::opts *opts) {
+    bool as_vec = as_vector();
+    bool need_comma = false;
+
+    if (as_vec)
+        fmt::print(os, "{}", "[");
+    else
+        fmt::print(os, "{}", "{");
+
+    for (const auto& [k, v] : map) {
+        if (need_comma) {
+            fmt::print(os, ",");
+        } else {
+            need_comma = true;
+        }
+
+        if (as_vec) {
+            v->as_json(os, opts);
+        } else {
+            std::string tname;
+            bool named = false;
+
+            if (opts != nullptr && opts->name_map != nullptr) {
+                const auto nmi = opts->name_map->find(v);
+                if (nmi != opts->name_map->end() && nmi->second->rename.length() != 0) {
+                    tname = nmi->second->rename;
+                    named = true;
+                }
+            }
+
+            if (!named) {
+                if (v == nullptr) {
+                    tname = Globalreg::globalreg->entrytracker->get_field_name(k);
+                } else {
+                    if (v->get_type() == tracker_type::tracker_placeholder_missing) {
+                        tname = static_cast<tracker_element_placeholder *>(v.get())->get_name();
+                    } else if (v->get_type() == tracker_type::tracker_alias) {
+                        tname = static_cast<tracker_element_alias *>(v.get())->get_alias_name();
+                    } else {
+                        tname = Globalreg::globalreg->entrytracker->get_field_name(k);
+                    }
+
+                    if (tname == "")
+                        tname = Globalreg::globalreg->entrytracker->get_field_name(k);
+                }
+            }
+
+            if (opts != nullptr)
+                tname = json_adapter::sanitize_string(opts->permuter(tname));
+
+            else
+                tname = json_adapter::sanitize_string(tname);
+        }
+    }
+}
+
 void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& in_summary) {
 
     // Iterate through the path on this object, calling pre-serialize as

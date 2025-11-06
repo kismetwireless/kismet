@@ -51,6 +51,32 @@ class tracker_element;
 
 using shared_tracker_element = std::shared_ptr<tracker_element>;
 
+class tracker_element_serializer;
+class tracker_element_summary;
+using SharedElementSummary =  std::shared_ptr<tracker_element_summary>;
+using element_rename_map = std::map<shared_tracker_element, SharedElementSummary>;
+
+namespace json_adapter {
+
+std::string sanitize_string(const std::string& in) noexcept;
+std::size_t sanitize_extra_space(const std::string& in) noexcept;
+
+struct default_field_permuter {
+    void operator()(std::ostream& os, const std::string& s) {
+        fmt::print(os, "\"{}\"", sanitize_string(s));
+    }
+};
+
+struct opts {
+    std::shared_ptr<element_rename_map> name_map;
+    bool prettyprint;
+    std::function<std::string (const std::string&)> permuter =
+        [](const std::string& s) -> std::string { return s; };
+};
+
+}
+
+
 // Very large key wrapper class, needed for keying devices with per-server/per-phy
 // but consistent keys.  Components are store in big-endian format internally so that
 // they are consistent across platforms.
@@ -280,6 +306,10 @@ public:
         return false;
     }
 
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) {
+        fmt::print(os, "\"as_json not implemented\"");
+    }
+
     constexpr17 uint16_t get_id() const {
         return tracked_id;
     }
@@ -445,6 +475,10 @@ public:
         alias_element.reset();
     }
 
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        get()->as_json(os, opts);
+    }
+
 protected:
     std::shared_ptr<tracker_element> alias_element;
     std::string alias_name;
@@ -583,6 +617,10 @@ public:
         return value.length();
     }
 
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "\"{}\"", json_adapter::sanitize_string(value));
+    }
+
 };
 
 class tracker_element_string_ptr : public tracker_element_core_scalar<std::string *> {
@@ -662,10 +700,17 @@ public:
     }
 
     size_t length() {
-        if (value == NULL)
+        if (value == nullptr)
             return 0;
 
         return value->length();
+    }
+
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        if (value == nullptr)
+            fmt::print(os, "\"{}\"", "null");
+        else
+            fmt::print(os, "\"{}\"", json_adapter::sanitize_string(*value));
     }
 
 };
@@ -775,6 +820,10 @@ public:
         return rs;
     }
 
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "\"{}\"", to_hex());
+    }
+
 };
 
 class tracker_element_device_key : public tracker_element_core_scalar<device_key> {
@@ -831,6 +880,10 @@ public:
         r->set_id(this->get_id());
         return r;
     }
+
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "\"{}\"", value.as_string());
+    }
 };
 
 class tracker_element_uuid : public tracker_element_core_scalar<uuid> {
@@ -880,6 +933,10 @@ public:
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
         return r;
+    }
+
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "\"{}\"", value.as_string());
     }
 };
 
@@ -936,6 +993,10 @@ public:
         auto r = Globalreg::new_from_pool<this_t>();
         r->set_id(this->get_id());
         return r;
+    }
+
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "\"{}\"", value.as_string());
     }
 };
 
@@ -1006,6 +1067,9 @@ public:
         return r;
     }
 
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "\"{}\"", as_string());
+    }
 };
 
 template<class N>
@@ -1235,6 +1299,10 @@ public:
         return value < static_cast<tracker_element_core_numeric<N, T, S> *>(rhs.get)->value;
     }
 
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        fmt::print(os, "{}", value);
+    }
+
 protected:
     N value;
 };
@@ -1275,7 +1343,78 @@ using tracker_element_double = tracker_element_core_numeric<double, tracker_type
 // Superclass for generic access to maps via multiple key structures; use a std::map tree
 // map;  alternate implementation available as core_unordered_map for structures which don't
 // need comparator operations
-template <typename MT, typename K, typename V, tracker_type T>
+//
+template<typename K>
+struct tracker_element_key_adapter_as_string {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", k.as_string());
+    }
+};
+
+template<typename K>
+struct tracker_element_key_adapter_as_safe_string {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", json_adapter::sanitize_string(k.as_string()));
+    }
+};
+
+template<typename K>
+struct tracker_element_key_adapter_direct {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", k);
+    }
+};
+
+template<typename K>
+struct tracker_element_key_adapter_safe_direct {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", json_adapter::sanitize_string(k));
+    }
+};
+
+struct tracker_element_key_adapter_self_json {
+    void operator()(std::ostream& os, const std::shared_ptr<tracker_element>& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"");
+        k->as_json(os, opts);
+        fmt::print(os, "\"");
+    }
+};
+
+template<typename K>
+struct tracker_element_value_adapter_as_string {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", k.as_string());
+    }
+};
+
+template<typename K>
+struct tracker_element_value_adapter_as_safe_string {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", json_adapter::sanitize_string(k.as_string()));
+    }
+};
+
+template<typename K>
+struct tracker_element_value_adapter_direct {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "{}", k);
+    }
+};
+
+template<typename K>
+struct tracker_element_value_adapter_safe_direct {
+    void operator()(std::ostream& os, const K& k, json_adapter::opts *opts) const {
+        fmt::print(os, "\"{}\"", json_adapter::sanitize_string(k));
+    }
+};
+
+struct tracker_element_value_adapter_self_json {
+    void operator()(std::ostream& os, const std::shared_ptr<tracker_element>& k, json_adapter::opts *opts) const {
+        k->as_json(os, opts);
+    }
+};
+
+template <typename MT, typename K, typename V, typename AK, typename AV, tracker_type T>
 class tracker_element_core_map : public tracker_element {
 public:
     using map_t = MT;
@@ -1297,7 +1436,7 @@ public:
         present_set{0} { }
 
     // Inherit attributes but not content
-    tracker_element_core_map(const tracker_element_core_map<MT, K, V, T> *p) :
+    tracker_element_core_map(const tracker_element_core_map<MT, K, V, AK, AV, T> *p) :
         tracker_element{p},
         present_set{p->present_set} { }
 
@@ -1377,12 +1516,20 @@ public:
         return map.begin();
     }
 
-    const_iterator cbegin() {
+    const_iterator begin() const {
+        return map.cbegin();
+    }
+
+    const_iterator cbegin() const {
         return map.cbegin();
     }
 
     iterator end() {
         return map.end();
+    }
+
+    const_iterator end() const {
+        return map.cend();
     }
 
     const_iterator cend() const {
@@ -1449,22 +1596,77 @@ public:
         return map.insert({i, e});
     }
 
+    void as_json(std::ostream& os, struct json_adapter::opts *opts) override {
+        bool as_vec = as_vector();
+        bool as_key_vec = as_key_vector();
+        bool need_comma = false;
+
+        if (as_vec || as_key_vec)
+            fmt::print(os, "{}", "[");
+        else
+            fmt::print(os, "{}", "{");
+
+        for (const auto& [k, v] : map) {
+            if (need_comma) {
+                fmt::print(os, ",");
+            } else {
+                need_comma = true;
+            }
+
+            if (as_vec) {
+                AV{}(os, v, opts);
+            } else if (as_key_vec) {
+                AK{}(os, k, opts);
+            } else {
+                AK{}(os, k, opts);
+                fmt::print(os, ":");
+                AV{}(os, v, opts);
+            }
+        }
+
+        if (as_vec || as_key_vec)
+            fmt::print(os, "{}", "]");
+        else
+            fmt::print(os, "{}", "}");
+    }
+
 protected:
     map_t map;
     uint8_t present_set;
 };
 
 // Dictionary / map-by-id
-class tracker_element_map : public tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map> {
+class tracker_element_map :
+    public tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+    uint16_t,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_direct<uint16_t>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_map> {
 public:
     tracker_element_map() :
-        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>() { }
+        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+        uint16_t,
+        std::shared_ptr<tracker_element>,
+        tracker_element_key_adapter_direct<uint16_t>,
+        tracker_element_value_adapter_self_json,
+        tracker_type::tracker_map>() { }
 
     tracker_element_map(int id) :
-        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>(id) { }
+        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+        uint16_t,
+        std::shared_ptr<tracker_element>,
+        tracker_element_key_adapter_direct<uint16_t>,
+        tracker_element_value_adapter_self_json,
+        tracker_type::tracker_map>(id) { }
 
     tracker_element_map(const tracker_element_map *p) :
-        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>, uint16_t, std::shared_ptr<tracker_element>, tracker_type::tracker_map>(p) { }
+        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+        uint16_t,
+        std::shared_ptr<tracker_element>,
+        tracker_element_key_adapter_direct<uint16_t>,
+        tracker_element_value_adapter_self_json,
+        tracker_type::tracker_map>(p) { }
 
     shared_tracker_element get_sub(int id) {
         auto v = map.find(id);
@@ -1541,35 +1743,92 @@ public:
     iterator erase(const_iterator i) {
         return map.erase(i);
     }
+
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override;
 };
 
 // int::element
-using tracker_element_int_map = tracker_element_core_map<ankerl::unordered_dense::map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>, tracker_type::tracker_int_map>;
+using tracker_element_int_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<int, std::shared_ptr<tracker_element>>,
+    int,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_direct<int>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_int_map>;
 
 // hash::element
-using tracker_element_hashkey_map = tracker_element_core_map<ankerl::unordered_dense::map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>, tracker_type::tracker_hashkey_map>;
+using tracker_element_hashkey_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<size_t, std::shared_ptr<tracker_element>>,
+    size_t,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_direct<size_t>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_hashkey_map>;
 
 // double::element
-using tracker_element_double_map = tracker_element_core_map<ankerl::unordered_dense::map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>, tracker_type::tracker_double_map>;
+using tracker_element_double_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<double, std::shared_ptr<tracker_element>>,
+    double,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_direct<double>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_double_map>;
 
 // mac::element, keyed as *unordered*, does not allow mask operations.  for generating mac maps which allow
 // masks, use tracker_element_macfilter_map
-using tracker_element_mac_map = tracker_element_core_map<ankerl::unordered_dense::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
-using tracker_element_macfilter_map = tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>, tracker_type::tracker_mac_map>;
+using tracker_element_mac_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<mac_addr, std::shared_ptr<tracker_element>>,
+    mac_addr,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_as_string<mac_addr>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_mac_map>;
+
+using tracker_element_macfilter_map =
+    tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>,
+    mac_addr,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_as_string<mac_addr>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_mac_map>;
 
 // string::element
-using tracker_element_string_map = tracker_element_core_map<ankerl::unordered_dense::map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>, tracker_type::tracker_string_map>;
+using tracker_element_string_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<std::string, std::shared_ptr<tracker_element>>,
+    std::string,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_safe_direct<std::string>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_string_map>;
 
 // devicekey::element
-using tracker_element_device_key_map = tracker_element_core_map<ankerl::unordered_dense::map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>, tracker_type::tracker_key_map>;
+using tracker_element_device_key_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<device_key, std::shared_ptr<tracker_element>>,
+    device_key,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_as_string<device_key>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_key_map>;
 
-using tracker_element_uuid_map = tracker_element_core_map<ankerl::unordered_dense::map<uuid, std::shared_ptr<tracker_element>>, uuid, std::shared_ptr<tracker_element>, tracker_type::tracker_uuid_map>;
+using tracker_element_uuid_map =
+    tracker_element_core_map<ankerl::unordered_dense::map<uuid, std::shared_ptr<tracker_element>>,
+    uuid,
+    std::shared_ptr<tracker_element>,
+    tracker_element_key_adapter_as_string<uuid>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_uuid_map>;
 
 // double::double
-using tracker_element_double_map_double = tracker_element_core_map<ankerl::unordered_dense::map<double, double>, double, double, tracker_type::tracker_double_map_double>;
+using tracker_element_double_map_double =
+    tracker_element_core_map<ankerl::unordered_dense::map<double, double>,
+    double,
+    double,
+    tracker_element_key_adapter_direct<double>,
+    tracker_element_value_adapter_direct<double>,
+    tracker_type::tracker_double_map_double>;
 
 // Core vector
-template<typename T, tracker_type TT>
+template<typename T, typename A, tracker_type TT>
 class tracker_element_core_vector : public tracker_element {
 public:
     using vector_t = std::vector<T>;
@@ -1590,12 +1849,12 @@ public:
         tracker_element(id),
         vector{init_v} { }
 
-    tracker_element_core_vector(std::shared_ptr<tracker_element_core_vector<T, TT>> v) :
+    tracker_element_core_vector(std::shared_ptr<tracker_element_core_vector<T, A, TT>> v) :
         tracker_element_core_vector(v->get_id()) {
             vector = vector_t(v->begin(), v->end());
         }
 
-    tracker_element_core_vector(const tracker_element_core_vector<T, TT> *p) :
+    tracker_element_core_vector(const tracker_element_core_vector<T, A, TT> *p) :
         tracker_element{p} { }
 
     virtual tracker_type get_type() const override {
@@ -1662,12 +1921,20 @@ public:
         return vector.begin();
     }
 
+    const_iterator begin() const {
+        return vector.cbegin();
+    }
+
     const_iterator cbegin() {
         return vector.cbegin();
     }
 
     iterator end() {
         return vector.end();
+    }
+
+    const_iterator end() const {
+        return vector.cend();
     }
 
     const_iterator cend() {
@@ -1715,15 +1982,43 @@ public:
         vector.emplace_back(args...);
     }
 
+    void as_json(std::ostream& os, struct json_adapter::opts *opts) override {
+        bool need_comma = false;
+
+        fmt::print(os, "{}", "[");
+
+        for (const auto& i : vector) {
+            if (need_comma)
+                fmt::print(os, ",");
+            else
+                need_comma = true;
+
+            A{}(os, i, opts);
+        }
+
+        fmt::print(os, "{}", "]");
+    }
+
 protected:
     vector_t vector;
 };
 
-using tracker_element_vector = tracker_element_core_vector<std::shared_ptr<tracker_element>, tracker_type::tracker_vector>;
-using tracker_element_vector_double = tracker_element_core_vector<double, tracker_type::tracker_vector_double>;
-using tracker_element_vector_string = tracker_element_core_vector<std::string, tracker_type::tracker_vector_string>;
+using tracker_element_vector =
+    tracker_element_core_vector<std::shared_ptr<tracker_element>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_vector>;
 
-template<typename T1, typename T2, tracker_type TT>
+using tracker_element_vector_double =
+    tracker_element_core_vector<double,
+    tracker_element_value_adapter_direct<double>,
+    tracker_type::tracker_vector_double>;
+
+using tracker_element_vector_string =
+    tracker_element_core_vector<std::string,
+    tracker_element_value_adapter_safe_direct<std::string>,
+    tracker_type::tracker_vector_string>;
+
+template<typename T1, typename T2, typename A1, typename A2, tracker_type TT>
 class tracker_element_core_pair : public tracker_element {
 public:
     using pair_t = std::pair<T1, T2>;
@@ -1742,12 +2037,12 @@ public:
         tracker_element(id),
         pair{init_p} { }
 
-    tracker_element_core_pair(std::shared_ptr<tracker_element_core_pair<T1, T2, TT>> p) :
+    tracker_element_core_pair(std::shared_ptr<tracker_element_core_pair<T1, T2, A1, A2, TT>> p) :
         tracker_element_core_pair(p->get_id()) {
             pair = pair_t(p->pair);
         }
 
-    tracker_element_core_pair(const tracker_element_core_pair<T1, T2, TT> *p) :
+    tracker_element_core_pair(const tracker_element_core_pair<T1, T2, A1, A2, TT> *p) :
         tracker_element{p} { }
 
     virtual tracker_type get_type() const override {
@@ -1803,11 +2098,24 @@ public:
         return pair;
     }
 
+    void as_json(std::ostream& os, struct json_adapter::opts *opts) override {
+        fmt::print(os, "[");
+        A1{}(os, pair.first);
+        fmt::print(os, ",");
+        A2{}(os, pair.second);
+        fmt::print(os, "]");
+    }
+
 protected:
     pair_t pair;
 };
 
-using tracker_element_pair_double = tracker_element_core_pair<double, double, tracker_type::tracker_pair_double>;
+using tracker_element_pair_double = tracker_element_core_pair<
+    double,
+    double,
+    tracker_element_value_adapter_direct<double>,
+    tracker_element_value_adapter_direct<double>,
+    tracker_type::tracker_pair_double>;
 
 class tracker_element_placeholder : public tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing> {
 public:
@@ -1864,7 +2172,10 @@ protected:
     std::string placeholder_name;
 };
 
-using tracker_element_mapvec = tracker_element_core_vector<std::shared_ptr<tracker_element>, tracker_type::tracker_summary_mapvec>;
+using tracker_element_mapvec = tracker_element_core_vector<
+    std::shared_ptr<tracker_element>,
+    tracker_element_value_adapter_self_json,
+    tracker_type::tracker_summary_mapvec>;
 
 // Templated generic access functions
 
@@ -1900,8 +2211,6 @@ template<> void set_tracker_value(const shared_tracker_element& e, const mac_add
 template<> void set_tracker_value(const shared_tracker_element& e, const uuid& v);
 template<> void set_tracker_value(const shared_tracker_element& e, const device_key& v);
 
-class tracker_element_summary;
-using SharedElementSummary =  std::shared_ptr<tracker_element_summary>;
 
 // Element simplification record for summarizing and simplifying records
 class tracker_element_summary {
