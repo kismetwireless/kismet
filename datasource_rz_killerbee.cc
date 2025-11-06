@@ -30,7 +30,7 @@ int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
     }
 
     if (content[7]) {
-        unsigned int rz_payload_len = content[8];
+        const unsigned int rz_payload_len = content[8];
 
         if (content_sz < rz_payload_len + 9) {
             packet->error = 1;
@@ -45,7 +45,7 @@ int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
         uint8_t channel = content[5];
 
 	    // We can make a valid payload from this much
-        auto conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
+        const size_t conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
         char conv_buf[conv_buf_len];
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
