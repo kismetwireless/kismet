@@ -23,10 +23,11 @@
 #include <fmt/format.h>
 #include <vector>
 #include <cstring>
-#include <endian.h>         //le16toh / le32toh for TAP TLVs
 #include <inttypes.h>
+
 #include "messagebus.h"
 #include "globalregistry.h"
+#include "kis_endian.h"         //le16toh / le32toh for TAP TLVs
 
 int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
         kis_packet *packet, kis_datachunk *datachunk,
