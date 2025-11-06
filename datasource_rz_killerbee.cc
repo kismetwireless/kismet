@@ -18,7 +18,7 @@
 
 #include "datasource_rz_killerbee.h"
 
-int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet, 
+int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     if (content_sz < 9) {
