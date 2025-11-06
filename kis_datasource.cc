@@ -1090,7 +1090,7 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
 
 bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
         uint16_t command, uint16_t seqno,
-        uint32_t code, const nonstd::string_view& content) {
+        uint32_t code, const std::string_view& content) {
 
     if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, code, seqno, content)) {
         return true;
@@ -1140,7 +1140,7 @@ void kis_datasource::handle_probesource_report_v3_callback(uint32_t in_seqno, ui
 }
 
 void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_t code,
-        const nonstd::string_view& in_packet) {
+        const std::string_view& in_packet) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_probe_report_v3");
     lock.lock();
 
@@ -1262,7 +1262,7 @@ void kis_datasource::handle_interfaces_report_v3_callback(uint32_t in_seqno, uin
 }
 
 void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t code,
-        const nonstd::string_view& in_packet) {
+        const std::string_view& in_packet) {
 
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report_v3");
     lock.lock();
@@ -1434,7 +1434,7 @@ void kis_datasource::handle_configsource_report_v3_callback(uint32_t in_seqno, u
 }
 
 void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t code,
-        const nonstd::string_view& in_packet) {
+        const std::string_view& in_packet) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_configure_report_v3");
     lock.lock();
 
@@ -1625,7 +1625,7 @@ void kis_datasource::handle_opensource_report_v3_callback(uint32_t in_seqno, uin
 }
 
 void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t code,
-        const nonstd::string_view& in_packet) {
+        const std::string_view& in_packet) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report_v3");
     lock.lock();
 
@@ -2178,7 +2178,7 @@ int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *da
     // is a portion of the stream buffer associated with the packet, so
     // setting a bare view around it is safe and lifetimed to the packet
     // itself
-    packet->set_data(nonstd::string_view((const char *) content, content_sz));
+    packet->set_data(std::string_view((const char *) content, content_sz));
     datachunk->set_data(packet->data);
 
     return 1;
@@ -2239,7 +2239,7 @@ void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
 }
 
 void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
-        const nonstd::string_view& in_packet,
+        const std::string_view& in_packet,
         std::shared_ptr<boost::asio::streambuf> buffer) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report_v3");
 
@@ -2625,8 +2625,8 @@ unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definiti
 }
 
 #ifdef HAVE_PROTOBUF_CPP
-bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
-        uint32_t seqno, const nonstd::string_view& content) {
+bool kis_datasource::dispatch_rx_packet(const std::string_view& command,
+        uint32_t seqno, const std::string_view& content) {
     // Handle all the default options first; ping, pong, message, etc are all
     // handled for us by the overhead of the KismetExternal protocol, we only need
     // to worry about our specific ones
@@ -2663,7 +2663,7 @@ bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
 }
 
 void kis_datasource::handle_packet_probesource_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock,
             "datasource handle_packet_probesource_report");
     lock.lock();
@@ -2718,7 +2718,7 @@ void kis_datasource::handle_packet_probesource_report_v2(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
 
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock,
             "datasource handle_packet_opensource_report");
@@ -2925,7 +2925,7 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_interfaces_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report");
     lock.lock();
 
@@ -2986,7 +2986,7 @@ void kis_datasource::handle_packet_interfaces_report_v2(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_error_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_error_report");
 
     KismetDatasource::ErrorReport report;
@@ -3008,7 +3008,7 @@ void kis_datasource::handle_packet_error_report_v2(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_configure_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_configure_report");
     lock.lock();
 
@@ -3082,7 +3082,7 @@ void kis_datasource::handle_packet_configure_report_v2(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report");
 
@@ -3226,7 +3226,7 @@ void kis_datasource::handle_rx_jsonlayer_v2(std::shared_ptr<kis_packet> packet,
 }
 
 void kis_datasource::handle_packet_warning_report_v2(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_warning_report");
 
     KismetDatasource::WarningReport report;

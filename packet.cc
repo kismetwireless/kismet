@@ -48,7 +48,7 @@ kis_packet::kis_packet() {
     assignment_id = 0;
 
     raw_streambuf = nullptr;
-    data = nonstd::string_view(nullptr, 0);
+    data = std::string_view(nullptr, 0);
 }
 
 kis_packet::~kis_packet() {
@@ -73,7 +73,7 @@ void kis_packet::reset() {
 
     // reset raw data if in use
     raw_data.clear();
-    data = nonstd::string_view{nullptr, 0};
+    data = std::string_view{nullptr, 0};
     raw_streambuf.reset();
 
     process_complete_events.clear();

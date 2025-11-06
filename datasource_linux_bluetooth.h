@@ -36,10 +36,10 @@ public:
     protected:
 #ifdef HAVE_PROTOBUF_CPP
     // legacy protobuf code
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
-            uint32_t seqno, const nonstd::string_view& content) override;
+    virtual bool dispatch_rx_packet(const std::string_view& command,
+            uint32_t seqno, const std::string_view& content) override;
     virtual void handle_packet_linuxbtdevice(uint32_t in_seqno,
-            const nonstd::string_view& in_content);
+            const std::string_view& in_content);
 #endif
 
     int pack_comp_btdevice, pack_comp_meta;

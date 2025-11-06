@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <map>
 
@@ -41,7 +42,6 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
-#include "string_view.hpp"
 #include "unordered_dense.h"
 
 #include "boost/asio/streambuf.hpp"
@@ -108,7 +108,7 @@ public:
     std::shared_ptr<boost::asio::streambuf> raw_streambuf;
 
     // immutable data slice of packet contents
-    nonstd::string_view data;
+    std::string_view data;
 
     // Original length of capture, if truncated
     uint64_t original_len;
@@ -129,17 +129,17 @@ public:
 
     void set_data(const std::string& sdata) {
         raw_data = sdata;
-        data = nonstd::string_view{raw_data};
+        data = std::string_view{raw_data};
     }
 
     // set just the streambuf, the data can be set as views of this later
     void set_streambuf(std::shared_ptr<boost::asio::streambuf> streambuf) {
         raw_streambuf = streambuf;
-        data = nonstd::string_view{};
+        data = std::string_view{};
     }
     // take both a buffer and a subview of that buffer; packets are a sub-portion of the total
     // stream buffer of an external packet, but we need to track the total buffer as well
-    void set_streambuf(std::shared_ptr<boost::asio::streambuf> streambuf, const nonstd::string_view& view) {
+    void set_streambuf(std::shared_ptr<boost::asio::streambuf> streambuf, const std::string_view& view) {
         raw_streambuf = streambuf;
         data = view;
     }
@@ -148,13 +148,13 @@ public:
     template<typename T>
     void set_data(const T* tdata, size_t len) {
         raw_data = std::string(tdata, len);
-        data = nonstd::string_view{raw_data};
+        data = std::string_view{raw_data};
     }
 
     // take a raw stringview and assign it to the data view.  either the lifecycle
     // MUST BE MANAGED EXTERNALLY, or the stringview must be into the data held
     // by the raw data string or the packet buffer associated with this packet
-    void set_data(const nonstd::string_view& view) {
+    void set_data(const std::string_view& view) {
         data = view;
     }
 
@@ -296,7 +296,7 @@ protected:
 };
 
 // Arbitrary data chunk, decapsulated from the link headers
-class kis_datachunk : public packet_component, public nonstd::string_view {
+class kis_datachunk : public packet_component, public std::string_view {
 public:
     // Underlying raw data if this isn't a subset of another chunk
     std::string raw_data_;
@@ -312,29 +312,29 @@ public:
 
     virtual void reset() {
         raw_data_.clear();
-        nonstd::string_view::operator=(raw_data_);
+        std::string_view::operator=(raw_data_);
     }
 
     // set a stringview as the data block; the lifetime of the backing data of this
     // view is not managed here, and MUST BE MANAGED BY THE CALLER.  typically this
     // would be a sub-view of the encapsulating packet data.
-    virtual void set_data(const nonstd::string_view& view) {
-        nonstd::string_view::operator=(view);
+    virtual void set_data(const std::string_view& view) {
+        std::string_view::operator=(view);
     }
 
     virtual void set_data(std::string& data) {
-        nonstd::string_view::operator=(data);
+        std::string_view::operator=(data);
     }
 
     virtual void copy_raw_data(const std::string& sdata) {
         raw_data_ = sdata;
-        nonstd::string_view::operator=(raw_data_);
+        std::string_view::operator=(raw_data_);
     }
 
     template<typename T>
     void copy_raw_data(const T* rd, size_t sz) {
         raw_data_ = std::string(rd, sz);
-        nonstd::string_view::operator=(raw_data_);
+        std::string_view::operator=(raw_data_);
     }
 
     std::string& raw() {

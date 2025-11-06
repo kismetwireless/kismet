@@ -36,6 +36,7 @@
 #include <functional>
 #include <list>
 #include <mutex>
+#include <string_view>
 
 #include "endian_magic.h"
 #include "eventbus.h"
@@ -455,35 +456,35 @@ protected:
     }
 
     // Central packet dispatch handler, common layer and v2+ handler
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
-            uint32_t seqno, const nonstd::string_view& content);
+    virtual bool dispatch_rx_packet(const std::string_view& command,
+            uint32_t seqno, const std::string_view& content);
 
     // V2 Packet handlers
-    virtual void handle_packet_message(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_ping(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_pong(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_shutdown(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_message(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_ping(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_pong(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string_view& in_content);
 
     // Eventbus
-    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const std::string_view& in_content);
 #endif
 
 
     // New/modern packet dispatch for v3+
     virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
             uint16_t code, uint32_t seqno,
-            const nonstd::string_view& content);
+            const std::string_view& content);
 
     // V3 Packet handlers
-    virtual void handle_packet_message_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
-    virtual void handle_packet_ping_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
-    virtual void handle_packet_pong_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
-    virtual void handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_message_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_ping_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_pong_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
 
     // Eventbus
-    virtual void handle_packet_eventbus_register_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
-    virtual void handle_packet_eventbus_publish_v3(uint32_t in_seqno, uint16_t code, const nonstd::string_view& in_content);
+    virtual void handle_packet_eventbus_register_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_eventbus_publish_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -522,9 +523,9 @@ protected:
 
     // Webserver proxy code
 #ifdef HAVE_PROTOBUF_CPP
-    virtual void handle_packet_http_register(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_http_response(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_register(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_http_response(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const std::string_view& in_content);
 
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
@@ -533,11 +534,11 @@ protected:
 #endif
 
     virtual void handle_packet_http_register_v3(uint32_t in_seqno,
-            uint16_t code, const nonstd::string_view& in_content);
+            uint16_t code, const std::string_view& in_content);
     virtual void handle_packet_http_response_v3(uint32_t in_seqno,
-            uint16_t code, const nonstd::string_view& in_content);
+            uint16_t code, const std::string_view& in_content);
     virtual void handle_packet_http_auth_request_v3(uint32_t in_seqno,
-            uint16_t code, const nonstd::string_view& in_content);
+            uint16_t code, const std::string_view& in_content);
 
     unsigned int send_http_request_v3(uint32_t in_http_sequence,
             const std::string& in_uri, const std::string& in_method,

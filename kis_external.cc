@@ -922,13 +922,13 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
         uint32_t seqno = kis_ntoh32(frame_v2->seqno);
 
-        nonstd::string_view command(frame_v2->command, 32);
+        std::string_view command(frame_v2->command, 32);
 
         auto trim_pos = command.find('\0');
         if (trim_pos != command.npos)
             command.remove_suffix(command.size() - trim_pos);
 
-        nonstd::string_view content((const char *) frame_v2->data, data_sz);
+        std::string_view content((const char *) frame_v2->data, data_sz);
 
         // if we've gotten this far, switch us to v2
         protocol_version = 2;
@@ -969,7 +969,7 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         uint16_t command = kis_ntoh16(frame_v3->pkt_type);
         uint16_t code = kis_ntoh16(frame_v3->code);
 
-        nonstd::string_view content((const char *) frame_v3->data, data_sz);
+        std::string_view content((const char *) frame_v3->data, data_sz);
 
         // If we've gotten this far it's a valid newer protocol, switch to v2 mode
         protocol_version = 3;
@@ -1008,7 +1008,7 @@ void kis_external_interface::start_write(const char *data, size_t len) {
 }
 
 bool kis_external_interface::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
-        uint16_t code, uint32_t seqno, const nonstd::string_view& content) {
+        uint16_t code, uint32_t seqno, const std::string_view& content) {
     // V3 dispatcher based on packet type numbers, carrying msgpacked payloads.
 
     // Implementations should directly call this for automatic dispatch before implementing
@@ -1052,7 +1052,7 @@ void kis_external_interface::handle_msg_proxy(const std::string& msg, const int 
 }
 
 void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
 
     mpack_tree_raii tree;
     mpack_node_t root;
@@ -1091,12 +1091,12 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_ping_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     send_pong(in_seqno);
 }
 
 void kis_external_interface::handle_packet_pong_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong_v3");
     last_pong = time(0);
 
@@ -1107,7 +1107,7 @@ void kis_external_interface::handle_packet_pong_v3(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown_v3");
 
     mpack_tree_raii tree;
@@ -1188,7 +1188,7 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
 }
 
 void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register_v3");
 
     mpack_tree_raii tree;
@@ -1242,7 +1242,7 @@ void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqn
 }
 
 void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish_v3");
 
     mpack_tree_raii tree;
@@ -1283,7 +1283,7 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
 }
 
 void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register_v3");
 
     const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
@@ -1359,7 +1359,7 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response_v3");
 
     const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
@@ -1468,7 +1468,7 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_auth_request_v3(uint32_t in_seqno,
-        uint16_t code, const nonstd::string_view& in_content) {
+        uint16_t code, const std::string_view& in_content) {
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
     auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
 
@@ -1631,8 +1631,8 @@ unsigned int kis_external_interface::send_shutdown(std::string reason) {
 
 
 #ifdef HAVE_PROTOBUF_CPP
-bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& command,
-        uint32_t seqno, const nonstd::string_view& content) {
+bool kis_external_interface::dispatch_rx_packet(const std::string_view& command,
+        uint32_t seqno, const std::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
     if (command.compare("MESSAGE") == 0) {
@@ -1669,7 +1669,7 @@ bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& comma
 }
 
 void kis_external_interface::handle_packet_message(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromArray(in_content.data(), in_content.size())) {
@@ -1682,12 +1682,12 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_ping(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     send_pong(in_seqno);
 }
 
 void kis_external_interface::handle_packet_pong(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong");
 
     KismetExternal::Pong p;
@@ -1706,7 +1706,7 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown");
 
     KismetExternal::ExternalShutdown s;
@@ -1721,7 +1721,7 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register");
 
     KismetEventBus::EventbusRegisterListener evtlisten;
@@ -1749,7 +1749,7 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish");
 
     KismetEventBus::EventbusPublishEvent evtpub;
@@ -1767,7 +1767,7 @@ void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register");
 
     KismetExternalHttp::HttpRegisterUri uri;
@@ -1820,7 +1820,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response");
 
     KismetExternalHttp::HttpResponse resp;
@@ -1878,7 +1878,7 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
     if (!rt.ParseFromArray(in_content.data(), in_content.length())) {

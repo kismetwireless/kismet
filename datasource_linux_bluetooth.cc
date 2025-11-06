@@ -35,8 +35,8 @@ kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource
 }
 
 #ifdef HAVE_PROTOBUF_CPP
-bool kis_datasource_linux_bluetooth::dispatch_rx_packet(const nonstd::string_view& command,
-        uint32_t seqno, const nonstd::string_view& content) {
+bool kis_datasource_linux_bluetooth::dispatch_rx_packet(const std::string_view& command,
+        uint32_t seqno, const std::string_view& content) {
     if (kis_datasource::dispatch_rx_packet(command, seqno, content))
         return true;
 
@@ -49,7 +49,7 @@ bool kis_datasource_linux_bluetooth::dispatch_rx_packet(const nonstd::string_vie
 }
 
 void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
-        const nonstd::string_view& in_content) {
+        const std::string_view& in_content) {
 
     // If we're paused, throw away this packet
     {

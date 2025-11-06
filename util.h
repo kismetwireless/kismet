@@ -54,6 +54,7 @@
 #include <sstream>
 #include <future>
 #include <exception>
+#include <string_view>
 
 #include <sys/time.h>
 
@@ -62,7 +63,6 @@
 #include "fmt.h"
 
 #include "multi_constexpr.h"
-#include "string_view.hpp"
 
 #include "nlohmann/json.hpp"
 
@@ -418,7 +418,7 @@ struct constant_time_string_compare_ne {
         return r == false;
     }
 
-    bool operator()(const nonstd::string_view& a, const nonstd::string_view& b) const {
+    bool operator()(const std::string_view& a, const std::string_view& b) const {
         bool r = true;
 
         if (a.length() != b.length())

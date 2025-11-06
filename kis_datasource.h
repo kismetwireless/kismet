@@ -616,31 +616,31 @@ protected:
 
     virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
             uint16_t command, uint16_t code, uint32_t seqno,
-            const nonstd::string_view& content) override;
+            const std::string_view& content) override;
 
     // V3 Packet handlers
     virtual void handle_configsource_report_v3_callback(uint32_t in_seqno, uint16_t code,
             kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_configure_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet);
+            const std::string_view& in_packet);
     virtual void handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet,
+            const std::string_view& in_packet,
             std::shared_ptr<boost::asio::streambuf> buffer);
 
 	virtual void handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
 			kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces);
     virtual void handle_packet_interfaces_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet);
+            const std::string_view& in_packet);
 
     virtual void handle_opensource_report_v3_callback(uint32_t in_seqno, uint16_t code,
             kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_opensource_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet);
+            const std::string_view& in_packet);
 
     virtual void handle_probesource_report_v3_callback(uint32_t in_seqno, uint16_t code,
             kis_unique_lock<kis_mutex>& lock, const std::string& msg);
     virtual void handle_packet_probesource_report_v3(uint32_t in_seqno, uint16_t code,
-            const nonstd::string_view& in_packet);
+            const std::string_view& in_packet);
 
     virtual unsigned int send_configure_channel_v3(const std::string& in_channel,
             unsigned int in_transaction, configure_callback_t in_cb);
@@ -670,16 +670,16 @@ protected:
     // compiled with protobufs support.
 
     // central packet dispatch override to add the datasource commands
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
-            uint32_t seqno, const nonstd::string_view& content) override;
+    virtual bool dispatch_rx_packet(const std::string_view& command,
+            uint32_t seqno, const std::string_view& content) override;
 
-    virtual void handle_packet_configure_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_data_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_error_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_interfaces_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_opensource_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_probesource_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_warning_report_v2(uint32_t in_seqno, const nonstd::string_view& in_packet);
+    virtual void handle_packet_configure_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_data_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_error_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_interfaces_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_opensource_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_probesource_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_warning_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
 
     virtual unsigned int send_configure_channel_v2(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);

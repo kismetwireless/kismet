@@ -21,6 +21,8 @@
 #include <string.h>
 #include <getopt.h>
 
+#include <string_view>
+
 #include "alertracker.h"
 #include "base64.h"
 #include "configfile.h"
@@ -1983,8 +1985,8 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 #ifdef HAVE_PROTOBUF_CPP
-bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
-        uint32_t seqno, const nonstd::string_view& content) {
+bool dst_incoming_remote::dispatch_rx_packet(const std::string_view& command,
+        uint32_t seqno, const std::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
     if (command.compare("KDSNEWSOURCE") == 0) {
         handle_packet_newsource(seqno, content);
@@ -1998,7 +2000,7 @@ bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
 }
 
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno,
-        const nonstd::string_view in_content) {
+        const std::string_view in_content) {
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromArray(in_content.data(), in_content.length())) {
@@ -2016,7 +2018,7 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno,
 #endif
 
 bool dst_incoming_remote::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
-        uint16_t command, uint16_t code, uint32_t seqno, const nonstd::string_view& content) {
+        uint16_t command, uint16_t code, uint32_t seqno, const std::string_view& content) {
     // override the new source command
     if (command == KIS_EXTERNAL_V3_KDS_NEWSOURCE) {
         handle_packet_newsource_v3(seqno, code, content);
@@ -2031,7 +2033,7 @@ bool dst_incoming_remote::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::str
 }
 
 void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t in_code,
-        nonstd::string_view in_packet) {
+        std::string_view in_packet) {
 
     mpack_tree_raii tree;
     mpack_node_t root;
