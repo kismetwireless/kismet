@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#include "fmt/core.h"
+#include "fmt.h"
 #include "nlohmann/json.hpp"
 #include "phy_meter.h"
 #include "devicetracker.h"
