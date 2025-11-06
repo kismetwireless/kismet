@@ -2100,9 +2100,9 @@ public:
 
     void as_json(std::ostream& os, struct json_adapter::opts *opts) override {
         fmt::print(os, "[");
-        A1{}(os, pair.first);
+        A1{}(os, pair.first, opts);
         fmt::print(os, ",");
-        A2{}(os, pair.second);
+        A2{}(os, pair.second, opts);
         fmt::print(os, "]");
     }
 
