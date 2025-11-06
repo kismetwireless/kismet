@@ -49,10 +49,10 @@ public:
 
         for (auto i : *e) {
             if (i == default_val())
-                continue; 
+                continue;
 
-            if (i < max) 
-                continue; 
+            if (i < max)
+                continue;
 
             max = i;
 
@@ -130,7 +130,7 @@ protected:
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
-        tracker_component::reserve_fields(e); 
+        tracker_component::reserve_fields(e);
 
         model_vec->set_as_key_vector(true);
     }
@@ -166,7 +166,7 @@ public:
 
     static int PacketHandler(CHAINCALL_PARMS);
 
-	// Static, public function for other phys (like phy_sensor) to be able to 
+	// Static, public function for other phys (like phy_sensor) to be able to
 	// ignore devices that meter wants to classify
 	static bool is_meter(const nlohmann::json& json);
 
