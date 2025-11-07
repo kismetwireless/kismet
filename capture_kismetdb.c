@@ -276,6 +276,8 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
 
     struct cf_params_gps subgps;
 
+    memset(&subgps, 0, sizeof(struct cf_params_gps));
+
     /* If we're doing 'realtime' playback, delay accordingly based on the
      * previous packet.
      *
@@ -490,7 +492,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     /* Packet data */
     unsigned int packet_len, packet_fulllen;
     const void *packet_data;
-    // double packet_frequency;
+    uint64_t packet_frequency;
     int dlt;
 
     /* Last data timestamp */
@@ -502,7 +504,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     /* V4 didn't have speed, heading, etc, and used the normalized encoding */
     const char *basic_packet_sql_v4 =
-        "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet FROM packets ORDER BY ts_sec, ts_usec";
+        "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet, packet_len FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v4 =
         "SELECT ts_sec, ts_usec, (lat / 100000.0), (lon / 100000.0), type, json FROM data ORDER BY ts_sec, ts_usec";
@@ -510,14 +512,14 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     /* V5 has full GPS, and in natural doubles */
     const char *basic_packet_sql_v5 =
-        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet FROM packets ORDER BY ts_sec, ts_usec";
+        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet, packet_len FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v5 =
         "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data ORDER BY ts_sec, ts_usec";
 
     /* V9 has original capture length */
     const char *basic_packet_sql_v9 =
-        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet, packet_full_len FROM packets ORDER BY ts_sec, ts_usec";
+        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet, packet_len, packet_full_len FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v9 =
         "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data ORDER BY ts_sec, ts_usec";
@@ -606,7 +608,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec)) {
             colno = 2;
 
-            // packet_frequency = sqlite3_column_double(packet_stmt, colno++);
+            packet_frequency = sqlite3_column_int64(packet_stmt, colno++);
 
             lat = sqlite3_column_double(packet_stmt, colno++);
             lon = sqlite3_column_double(packet_stmt, colno++);
@@ -619,9 +621,15 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             dlt = sqlite3_column_int(packet_stmt, colno++);
 
-            packet_len = sqlite3_column_bytes(packet_stmt, colno);
             packet_data = sqlite3_column_blob(packet_stmt, colno++);
-            packet_fulllen = sqlite3_column_int64(packet_stmt, colno++);
+
+            packet_len = sqlite3_column_int64(packet_stmt, colno++);
+
+            if (local_pcap->db_version >= 9) {
+                packet_fulllen = sqlite3_column_int64(packet_stmt, colno++);
+            } else {
+                packet_fulllen = packet_len;
+            }
 
             kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
                     packet_fulllen, packet_len, (const u_char *) packet_data,
