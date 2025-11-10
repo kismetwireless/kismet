@@ -2967,8 +2967,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         ret = cf_handle_rb_rx_data(caph);
 
                         if (ret < 0) {
-                            fprintf(stderr, "FATAL:  Datasource helper (%s) failed, could not process incoming control packet.\n",
-                                    caph->capsource_type);
+                            // fprintf(stderr, "FATAL:  Datasource helper (%s) failed, could not process incoming control packet.\n", caph->capsource_type);
                             cf_handler_spindown(caph);
                         }
                     } while (ret > 0);
