@@ -10,7 +10,7 @@ import requests
 manufs = []
 
 # Original IEEE URI
-OUIURI = "http://standards-oui.ieee.org/oui.txt"
+OUIURI = "https://standards-oui.ieee.org/oui.txt"
 
 if len(sys.argv) < 2:
     print("Expected output file")

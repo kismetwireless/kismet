@@ -284,7 +284,7 @@ extern WIErr WirelessJoin(
  *  - It can also be the empty string, meaning no encryption.
  *  
  *  For more info see:
- *  http://kbase.info.apple.com/cgi-bin/WebObjects/kbase.woa/11/wa/query?searchMode=Expert&type=id&val=KC.106424
+ *  https://kbase.info.apple.com/cgi-bin/WebObjects/kbase.woa/11/wa/query?searchMode=Expert&type=id&val=KC.106424
  */
 extern WIErr WirelessJoinWEP(
 	WirelessContextPtr inContext,
@@ -358,7 +358,7 @@ extern WIErr WirelessGetBestChannel(
  *  - It can also be the empty string, meaning no encryption.
  *  
  *  For more info see:
- *  http://kbase.info.apple.com/cgi-bin/WebObjects/kbase.woa/11/wa/query?searchMode=Expert&type=id&val=KC.106424
+ *  https://kbase.info.apple.com/cgi-bin/WebObjects/kbase.woa/11/wa/query?searchMode=Expert&type=id&val=KC.106424
  */
 extern WIErr WirelessMakeIBSS(
 	WirelessContextPtr inContex,
