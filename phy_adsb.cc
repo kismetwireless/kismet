@@ -1193,7 +1193,7 @@ double kis_adsb_phy::cpr_dlon(double lat, int odd) {
 void kis_adsb_phy::decode_cpr(const std::shared_ptr<adsb_tracked_adsb>& adsb,
         const std::shared_ptr<kis_packet>& packet) {
     /* This algorithm comes from:
-     * http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
+     * https://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
      *
      *
      * A few remarks:

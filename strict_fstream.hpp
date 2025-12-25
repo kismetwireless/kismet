@@ -30,7 +30,7 @@ namespace strict_fstream
 {
 
 /// Overload of error-reporting function, to enable use with VS.
-/// Ref: http://stackoverflow.com/a/901316/717706
+/// Ref: https://stackoverflow.com/a/901316/717706
 static std::string strerror()
 {
     std::string buff(80, '\0');

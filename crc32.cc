@@ -3,7 +3,7 @@
 // Copyright (c) 2011-2019 Stephan Brumme. All rights reserved.
 // Slicing-by-16 contributed by Bulat Ziganshin
 // Tableless bytewise CRC contributed by Hagai Gold
-// see http://create.stephan-brumme.com/disclaimer.html
+// see https://create.stephan-brumme.com/disclaimer.html
 //
 
 // if running on an embedded system, you might consider shrinking the
@@ -678,8 +678,8 @@ const uint32_t Crc32Lookup[MaxSlice][256] =
   //  Crc32Lookup[0][i] = crc;
   //}
   //// ... and the following slicing-by-8 algorithm (from Intel):
-  //// http://www.intel.com/technology/comms/perfnet/download/CRC_generators.pdf
-  //// http://sourceforge.net/projects/slicing-by-8/
+  //// https://www.intel.com/technology/comms/perfnet/download/CRC_generators.pdf
+  //// https://sourceforge.net/projects/slicing-by-8/
   //for (int slice = 1; slice < MaxSlice; slice++)
   //  Crc32Lookup[slice][i] = (Crc32Lookup[slice - 1][i] >> 8) ^ Crc32Lookup[0][Crc32Lookup[slice - 1][i] & 0xFF];
   {
