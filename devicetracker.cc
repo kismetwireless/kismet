@@ -87,7 +87,7 @@ device_tracker::device_tracker() :
         Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
     device_base_id =
-        entrytracker->register_field("kismet.device.base", 
+        entrytracker->register_field("kismet.device.base",
                 tracker_element_factory<kis_tracked_device_base>(),
                 "core device record");
     device_builder = std::make_shared<kis_tracked_device_base>(device_base_id);
@@ -114,20 +114,20 @@ device_tracker::device_tracker() :
     // These need unique IDs to be put in the map for serialization.
     // They also need unique field names, we can rename them with setlocalname
     dt_length_id =
-        entrytracker->register_field("kismet.datatables.recordsTotal", 
+        entrytracker->register_field("kismet.datatables.recordsTotal",
                 tracker_element_factory<tracker_element_uint64>(),
                 "datatable records total");
     dt_filter_id =
-        entrytracker->register_field("kismet.datatables.recordsFiltered", 
+        entrytracker->register_field("kismet.datatables.recordsFiltered",
                 tracker_element_factory<tracker_element_uint64>(),
                 "datatable records filtered");
     dt_draw_id =
-        entrytracker->register_field("kismet.datatables.draw", 
+        entrytracker->register_field("kismet.datatables.draw",
                 tracker_element_factory<tracker_element_uint64>(),
                 "Datatable records draw ID");
 
     // Generate the system-wide packet RRD
-    packets_rrd = 
+    packets_rrd =
         entrytracker->register_and_get_field_as<kis_tracked_rrd<>>("kismet.device.packets_rrd",
             tracker_element_factory<kis_tracked_rrd<>>(), "Packets seen RRD");
 
@@ -139,13 +139,13 @@ device_tracker::device_tracker() :
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
-	pack_comp_device = 
+	pack_comp_device =
 		packetchain->register_packet_component("DEVICE");
 
-	pack_comp_common =  
+	pack_comp_common =
 		packetchain->register_packet_component("COMMON");
 
-	pack_comp_basicdata = 
+	pack_comp_basicdata =
 		packetchain->register_packet_component("BASICDATA");
 
     pack_comp_mangleframe =
@@ -157,14 +157,14 @@ device_tracker::device_tracker() :
 	pack_comp_gps =
 		packetchain->register_packet_component("GPS");
 
-	pack_comp_datasrc = 
+	pack_comp_datasrc =
 		packetchain->register_packet_component("KISDATASRC");
 
-    pack_comp_devicetag = 
+    pack_comp_devicetag =
         packetchain->register_packet_component("DEVICETAG");
 
 	// Common tracker, very early in the tracker chain
-    packetchain_common_id = 
+    packetchain_common_id =
         packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& in_packet) -> int {
 				auto devicetracker = reinterpret_cast<device_tracker *>(auxdata);
                 return devicetracker->common_tracker(in_packet);
@@ -206,7 +206,7 @@ device_tracker::device_tracker() :
     }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
-        unsigned int lograte = 
+        unsigned int lograte =
             Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
         _MSG_INFO("Saving devices to the Kismet database log every {} seconds", lograte);
@@ -215,13 +215,16 @@ device_tracker::device_tracker() :
 
         databaselog_timer =
             timetracker->register_timer(std::chrono::seconds(lograte), 1,
-                [this](int) -> int {
+                [this](int id) -> int {
+                    // _MSG_DEBUG("logging at {}", std::chrono::system_clock::now());
+
                     if (databaselog_logging) {
-                        _MSG("Attempting to log devices, but devices are still being "
+                        // _MSG_DEBUG("tried to log at {}", std::chrono::system_clock::now());
+                        _MSG_ERROR("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
                                 "system is slow or you have a very large number of devices "
                                 "to log.  Try increasing the delay in 'kis_log_device_rate' "
-                                "in kismet_logging.conf", MSGFLAG_ERROR);
+                                "in kismet_logging.conf");
                         return 1;
                     }
 
@@ -233,13 +236,8 @@ device_tracker::device_tracker() :
                     if (!dbf->is_enabled())
                         return 1;
 
-                    // Run the device storage in its own thread
-                    std::thread t([this] {
-                        databaselog_write_devices();
-                    });
-
-                    // Detach the thread, we don't care about it
-                    t.detach();
+                    databaselog_write_devices();
+                    // _MSG_DEBUG("done logging at {}", std::chrono::system_clock::now());
 
                     return 1;
                 });
@@ -254,7 +252,7 @@ device_tracker::device_tracker() :
     last_database_logged = 0;
 
     // Preload the vector for speed
-    unsigned int preload_sz = 
+    unsigned int preload_sz =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
     immutable_tracked_vec->reserve(preload_sz);
@@ -271,7 +269,7 @@ device_tracker::device_tracker() :
         ss << "Removing tracked devices which have been inactive for more than " <<
             device_idle_expiration << " seconds";
 
-        if (device_idle_min_packets > 2) 
+        if (device_idle_min_packets > 2)
             ss << " and fewer than " << device_idle_min_packets << " packets";
 
         _MSG(ss.str(), MSGFLAG_INFO);
@@ -296,7 +294,7 @@ device_tracker::device_tracker() :
 
 		// Schedule max device reaping every 5 seconds
 		max_devices_timer =
-			timetracker->register_timer(SERVER_TIMESLICES_SEC * 5, NULL, 1, 
+			timetracker->register_timer(SERVER_TIMESLICES_SEC * 5, NULL, 1,
                 [this](int eventid) -> int {
                     timetracker_event(eventid);
                     return 1;
@@ -389,8 +387,11 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
+                    std::ostream os(&con->response_stream());
                     auto ts_k = con->uri_params().find(":timestamp");
                     auto tv = string_to_n<long>(ts_k->second);
+
+                    auto regex = con->json()["regex"];
 
                     time_t ts;
 
@@ -407,7 +408,22 @@ device_tracker::device_tracker() :
                             return true;
                         });
 
-                    return do_readonly_device_work(ts_worker);
+                    auto next_work_vec = do_device_work(ts_worker);
+
+                    if (!regex.is_null()) {
+                        try {
+                            auto worker =
+                                device_tracker_view_regex_worker(regex);
+                            auto r_vec = do_readonly_device_work(worker, next_work_vec);
+                            next_work_vec = r_vec;
+                        } catch (const std::exception& e) {
+                            con->set_status(400);
+                            os << "Invalid regex: " << e.what() << "\n";
+                            return nullptr;
+                        }
+                    }
+
+                    return next_work_vec;
                 }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -464,19 +480,17 @@ device_tracker::device_tracker() :
                     if (devkey.get_error())
                         throw std::runtime_error("invalid device key");
 
-                    auto pcapng = 
+                    auto pcapng =
 						std::make_shared<pcapng_stream_packetchain<pcapng_devicetracker_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
-								pcapng_devicetracker_accept_ftor(devkey),
-								pcapng_stream_select_ftor(),
-								1024*512);
-        
+								pcapng_devicetracker_accept_ftor(devkey), pcapng_stream_select_ftor(), (size_t) 1024*512);
+
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
-                    auto sid = 
+                    auto sid =
                         streamtracker->register_streamer(pcapng, fmt::format("kismet-device-{}.pcapng", devkey),
-                            "pcapng", "httpd", 
+                            "pcapng", "httpd",
                             fmt::format("pcapng of packets for dev key {}", devkey));
 
                     pcapng->start_stream();
@@ -523,7 +537,7 @@ device_tracker::device_tracker() :
                         }
                     }
 
-                    if (mac_list.size() == 0) 
+                    if (mac_list.size() == 0)
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
                     for (auto mi : mac_list) {
@@ -573,7 +587,7 @@ device_tracker::device_tracker() :
                         }
                     }
 
-                    if (mac_list.size() == 0) 
+                    if (mac_list.size() == 0)
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
                     for (auto mi : mac_list) {
@@ -628,17 +642,17 @@ device_tracker::device_tracker() :
                 // consumer-supplied key# per monitor request, timer id of monitor event
                 std::unordered_map<unsigned int, int> key_timer_map;
 
-                auto ws = 
+                auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [this, &key_timer_map, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
 
                         if (!text) {
                             ws->close();
                             return;
                         }
 
-                        std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                        std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
                         nlohmann::json json;
 
                         unsigned int req_id;
@@ -661,11 +675,11 @@ device_tracker::device_tracker() :
 
                                 if (!json["format"].is_null())
                                     format_t = json["format"];
-                                    
+
                                 auto dev_r = json["monitor"];
                                 auto dev_k = device_key(json["monitor"].get<std::string>());
                                 auto dev_m = mac_addr(json["monitor"].get<std::string>());
-                                
+
                                 if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
@@ -682,7 +696,7 @@ device_tracker::device_tracker() :
 
                                 // Generate a timer event that goes and looks for the devices and
                                 // serializes them with the fields record
-                                auto tid = 
+                                auto tid =
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
                                             [this, con, dev_r, dev_k, dev_m, json, ws, &last_tm, rename_map, format_t](int) -> int {
                                                 if (dev_r == "*") {
@@ -786,13 +800,13 @@ device_tracker::device_tracker() :
     database_open("");
     database_upgrade_db();
 
-    new_datasource_evt_id = 
+    new_datasource_evt_id =
         eventbus->register_listener(datasource_tracker::event_new_datasource(),
                 [this](std::shared_ptr<eventbus_event> evt) {
                     handle_new_datasource_event(std::move(evt));
                 });
 
-    new_device_evt_id = 
+    new_device_evt_id =
         eventbus->register_listener(device_tracker::event_new_device(),
                 [this](std::shared_ptr<eventbus_event> evt) {
                     handle_new_device_event(std::move(evt));
@@ -812,7 +826,7 @@ device_tracker::device_tracker() :
                 "SYSTEM", kis_alert_severity::high,
                 "A target device has timed out", -1);
 
-    auto found_vec = 
+    auto found_vec =
         Globalreg::globalreg->kismet_config->fetch_opt_vec("devicefound");
     for (const auto& m : found_vec) {
         auto mac = mac_addr(m);
@@ -860,7 +874,7 @@ device_tracker::device_tracker() :
 void device_tracker::trigger_deferred_startup() {
     // Defer view creation
     all_view =
-        std::make_shared<device_tracker_view>("all", 
+        std::make_shared<device_tracker_view>("all",
                 "All devices",
                 [](const std::shared_ptr<kis_tracked_device_base>&) -> bool {
                     return true;
@@ -917,13 +931,13 @@ void device_tracker::macdevice_timer_event() {
     auto keep_vec = std::vector<std::shared_ptr<kis_tracked_device_base>>{};
     for (const auto& k : macdevice_flagged_vec) {
         if (now - k->get_mod_time() > devicelost_timeout) {
-            auto alrt = 
+            auto alrt =
                 fmt::format("Monitored device {} ({}) hasn't been seen for {} "
                         "seconds.", k->get_macaddr(), k->get_commonname(),
                         devicelost_timeout);
             alertracker->raise_alert(alert_macdevice_lost_ref,
-                    nullptr, mac_addr{0}, k->get_macaddr(), 
-                    mac_addr{0}, mac_addr{0}, k->get_channel(), 
+                    nullptr, mac_addr{0}, k->get_macaddr(),
+                    mac_addr{0}, mac_addr{0}, k->get_channel(),
                     alrt);
         } else {
             keep_vec.push_back(k);
@@ -1001,7 +1015,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 
         auto k = phy_view_map.find(phy_id);
         if (k == phy_view_map.end()) {
-            auto phy_view = 
+            auto phy_view =
                 std::make_shared<device_tracker_view>(fmt::format("phy-{}", strongphy->fetch_phy_name()),
                         fmt::format("{} devices", strongphy->fetch_phy_name()),
                         std::vector<std::string>{"phy", strongphy->fetch_phy_name()},
@@ -1023,7 +1037,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
     }
 
     auto evt = eventbus->get_eventbus_event(event_new_phy());
-    evt->get_event_content()->insert(event_new_phy(), 
+    evt->get_event_content()->insert(event_new_phy(),
             std::make_shared<tracker_element_string>(strongphy->fetch_phy_name()));
     eventbus->publish(evt);
 
@@ -1060,7 +1074,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(const d
 std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devices(const mac_addr& in_mac) {
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
     std::vector<std::shared_ptr<kis_tracked_device_base>> ret;
-   
+
     const auto mmp = tracked_mac_multimap.equal_range(in_mac);
     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
         ret.push_back(mmpi->second);
@@ -1135,14 +1149,14 @@ int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
 	return 1;
 }
 
-// This function handles populating the base common info about a device, transforming a 
+// This function handles populating the base common info about a device, transforming a
 // kis_common_info record into a full kis_tracked_device_base (or updating an existing
-// kis_tracked_device_base record); 
+// kis_tracked_device_base record);
 //
 // Because a phy can create multiple devices from a single packet (such as WiFi creating
-// the access point, source, and destination devices), only the specific common device 
+// the access point, source, and destination devices), only the specific common device
 // being passed will be updated.
-std::shared_ptr<kis_tracked_device_base> 
+std::shared_ptr<kis_tracked_device_base>
     device_tracker::update_common_device(const std::shared_ptr<kis_common_info>& pack_common,
             const mac_addr& in_mac, kis_phy_handler *in_phy, const std::shared_ptr<kis_packet>& in_pack,
             unsigned int in_flags, const std::string& in_basic_type) {
@@ -1233,7 +1247,7 @@ std::shared_ptr<kis_tracked_device_base>
                     fmt::format("Monitored device {} ({}) has been found.",
                             device->get_macaddr(), device->get_commonname());
                    alertracker->raise_alert(alert_macdevice_found_ref,
-                           in_pack, netmac, device->get_macaddr(), dstmac, transmac, 
+                           in_pack, netmac, device->get_macaddr(), dstmac, transmac,
                            device->get_channel(), alrt);
             }
             if (k->second & 0x2) {
@@ -1319,9 +1333,9 @@ std::shared_ptr<kis_tracked_device_base>
         }
 	}
 
-    if (((in_flags & UCD_UPDATE_LOCATION) || 
+    if (((in_flags & UCD_UPDATE_LOCATION) ||
          ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
-            pack_gpsinfo != NULL && (device_location_signal_threshold == 0 || 
+            pack_gpsinfo != NULL && (device_location_signal_threshold == 0 ||
                 ( device_location_signal_threshold != 0 && pack_l1info != nullptr &&
                   pack_l1info->signal_dbm >= device_location_signal_threshold))) {
 
@@ -1337,7 +1351,7 @@ std::shared_ptr<kis_tracked_device_base>
             // Throttle history cloud to one update per second to prevent floods of
             // data from swamping the cloud
             if (track_history_cloud && pack_gpsinfo->fix >= 2) {
-                auto histloc = Globalreg::new_from_pool<kis_historic_location>();
+                auto histloc = Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>();
 
                 histloc->set_lat(pack_gpsinfo->lat);
                 histloc->set_lon(pack_gpsinfo->lon);
@@ -1377,7 +1391,7 @@ std::shared_ptr<kis_tracked_device_base>
         if (track_persource_history) {
             // Only populate signal, frequency map, etc per-source if we're tracking that
             auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, 
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f,
                     sc.get(), !ram_no_rrd);
         } else {
             device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
@@ -1393,8 +1407,8 @@ std::shared_ptr<kis_tracked_device_base>
     if (pack_common != nullptr)
         device->add_basic_crypt(pack_common->basic_crypt_set);
 
-    if (pack_tags != nullptr) { 
-        for (const auto& i : pack_tags->tagmap) { 
+    if (pack_tags != nullptr) {
+        for (const auto& i : pack_tags->tagmap) {
             set_device_tag(device, i.first, i.second);
         }
     }
@@ -1437,7 +1451,7 @@ bool devicetracker_sort_internal_id(const std::shared_ptr<kis_tracked_device_bas
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(device_tracker_view_worker& worker, 
+std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(device_tracker_view_worker& worker,
         std::shared_ptr<tracker_element_vector> vec) {
 
     return all_view->do_readonly_device_work(worker, vec);
@@ -1455,7 +1469,7 @@ std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(
 // seen devices
 bool devicetracker_sort_lastseen(const std::shared_ptr<tracker_element>& a,
     const std::shared_ptr<tracker_element>& b) {
-    
+
     if (a == nullptr)
         return true;
     if (b == nullptr)
@@ -1583,13 +1597,13 @@ int device_tracker::database_upgrade_db() {
         // for notes; we store them outside the device record so that we have an
         // architecture available for saving them without requiring device snapshotting
         //
-        // Names and tags are saved in both the custom tables AND the stored device 
+        // Names and tags are saved in both the custom tables AND the stored device
         // record; stored devices retain their internal state, only new devices query
         // these tables.
     }
 
     if (dbv < 3) {
-        sql = 
+        sql =
             "DROP TABLE device_storage";
 
         sqlite3_exec(db, sql.c_str(),
@@ -1597,19 +1611,19 @@ int device_tracker::database_upgrade_db() {
     }
 
     if (dbv < 4) {
-        sql = 
+        sql =
             "DROP TABLE device_names";
 
         sqlite3_exec(db, sql.c_str(),
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
-        sql = 
+        sql =
             "DROP TABLE device_tags";
 
         sqlite3_exec(db, sql.c_str(),
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
-        sql = 
+        sql =
             "CREATE TABLE device_names ("
             "key TEXT, "
             "name TEXT, "
@@ -1626,9 +1640,9 @@ int device_tracker::database_upgrade_db() {
             return -1;
         }
 
-        // Tags are stored as a combination of phy, device, and tag name, and are loaded 
+        // Tags are stored as a combination of phy, device, and tag name, and are loaded
         // into the tag map
-        sql = 
+        sql =
             "CREATE TABLE device_tags ("
             "key TEXT, "
             "tag TEXT, "
@@ -1656,7 +1670,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
 
     if (fetch_device_nr(device->get_key()) != NULL) {
-        _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
+        _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() +
                 " which already exists", MSGFLAG_ERROR);
         return;
     }
@@ -1677,7 +1691,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 
     for (const auto& i : *view_vec) {
         auto vi = static_cast<device_tracker_view *>(i.get());
-        if (vi->get_view_id() == in_view->get_view_id()) 
+        if (vi->get_view_id() == in_view->get_view_id())
             return false;
     }
 
@@ -1693,7 +1707,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 
 void device_tracker::remove_view(const std::string& in_id) {
     kis_lock_guard<kis_mutex> lk(devicelist_mutex);
-        
+
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
         auto vi = static_cast<device_tracker_view *>((*i).get());
         if (vi->get_view_id() == in_id) {
@@ -1742,7 +1756,7 @@ std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) 
 
 void device_tracker::databaselog_write_devices() {
     auto dbf = Globalreg::fetch_global_as<kis_database_logfile>();
-    
+
     if (dbf == nullptr)
         return;
 
@@ -1760,10 +1774,15 @@ void device_tracker::databaselog_write_devices() {
     // Remember the time BEFORE we spend time looking at all the devices
     uint64_t log_time = Globalreg::globalreg->last_tv_sec;
 
+    // _MSG_DEBUG("starting database log at {}", log_time);
+
     databaselog_logging = true;
 
-    // Explicitly use the non-ro worker, because we're phasing out the RO version because of too much contention
+    // _MSG_DEBUG("got devicelist lock at {}", (uint64_t) Globalreg::globalreg->last_tv_sec);
+
     do_device_work(worker);
+
+    // _MSG_DEBUG("finished database log at {}", (uint64_t) Globalreg::globalreg->last_tv_sec);
 
     databaselog_logging = false;
 
@@ -1790,7 +1809,7 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
-    sql = 
+    sql =
         "SELECT name FROM device_names WHERE key = ? ";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
@@ -1817,7 +1836,7 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
         } else if (r == SQLITE_DONE) {
             break;
         } else {
-            _MSG("device_tracker encountered an error loading stored device username: " + 
+            _MSG("device_tracker encountered an error loading stored device username: " +
                     std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
@@ -1844,7 +1863,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
-    sql = 
+    sql =
         "SELECT tag, content FROM device_tags WHERE key = ?";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
@@ -1875,7 +1894,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
         } else if (r == SQLITE_DONE) {
             break;
         } else {
-            _MSG("device_tracker encountered an error loading stored device username: " + 
+            _MSG("device_tracker encountered an error loading stored device username: " +
                     std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
@@ -1905,7 +1924,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 
     std::string keystring = in_dev->get_key().as_string();
 
-    sql = 
+    sql =
         "INSERT INTO device_names "
         "(key, name) "
         "VALUES (?, ?)";
@@ -1917,7 +1936,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
- 
+
     sqlite3_reset(stmt);
 
     sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
@@ -1965,7 +1984,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
 
     std::string keystring = in_dev->get_key().as_string();
 
-    sql = 
+    sql =
         "INSERT INTO device_tags "
         "(key, tag, content) "
         "VALUES (?, ?, ?)";
@@ -1977,7 +1996,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
- 
+
     sqlite3_reset(stmt);
 
     sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
@@ -2011,7 +2030,7 @@ void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event>
 
         if (k == seenby_view_map.end()) {
             auto seenby_view =
-                std::make_shared<device_tracker_view>(fmt::format("seenby-{}", source_uuid), 
+                std::make_shared<device_tracker_view>(fmt::format("seenby-{}", source_uuid),
                         fmt::format("Devices seen by datasource {}", source_uuid),
                         std::vector<std::string>{"seenby-uuid", source_uuid.as_string()},
                         [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {

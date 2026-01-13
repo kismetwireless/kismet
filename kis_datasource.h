@@ -34,8 +34,13 @@
 #include "kis_external.h"
 #include "timetracker.h"
 
+#ifdef HAVE_PROTOBUF_CPP
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/datasource.pb.h"
+#endif
+
+#include "mpack/mpack.h"
+#include "mpack/mpack_cpp.h"
 
 // Builder class responsible for making an instance of this datasource
 class kis_datasource_builder;
@@ -52,25 +57,6 @@ class datasource_tracker;
 class kis_datasource;
 
 class kis_gps;
-
-class kis_packreport_packinfo : public packet_component {
-public:
-    kis_packreport_packinfo(std::shared_ptr<KismetDatasource::DataReport> r) :
-        report{r} { }
-
-    kis_packreport_packinfo() {  }
-
-    void set_report(std::shared_ptr<KismetDatasource::DataReport> r) {
-        report = r;
-    }
-
-    void reset() {
-        report.reset();
-    }
-
-protected:
-    std::shared_ptr<KismetDatasource::DataReport> report;
-};
 
 class kis_datasource_builder : public tracker_component {
 public:
@@ -111,12 +97,12 @@ public:
     virtual void initialize() { };
 
     // Build the actual data source; when subclassing this MUST fill in the prototype!
-    // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
-    // to the instantiated datasource, so we need to take a pointer to ourselves 
+    // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr
+    // to the instantiated datasource, so we need to take a pointer to ourselves
     // in the input.
     // Typical implementation:
     // return shared_datasource(new SomeKismetDatasource(globalreg, in_shared_builder));
-    virtual std::shared_ptr<kis_datasource> 
+    virtual std::shared_ptr<kis_datasource>
         build_datasource(std::shared_ptr<kis_datasource_builder> in_shared_builder) { return nullptr; };
 
     __Proxy(source_type, std::string, std::string, std::string, source_type);
@@ -143,28 +129,28 @@ protected:
         register_field("kismet.datasource.driver.type", "Type", &source_type);
         register_field("kismet.datasource.driver.description", "Description", &source_description);
 
-        register_field("kismet.datasource.driver.probe_capable", 
+        register_field("kismet.datasource.driver.probe_capable",
                 "Datasource can automatically probe", &probe_capable);
 
-        register_field("kismet.datasource.driver.probe_ipc", 
+        register_field("kismet.datasource.driver.probe_ipc",
                 "Datasource requires IPC to probe", &probe_ipc);
 
         register_field("kismet.datasource.driver.list_capable",
                 "Datasource can list interfaces", &list_capable);
 
-        register_field("kismet.datasource.driver.list_ipc", 
+        register_field("kismet.datasource.driver.list_ipc",
                 "Datasource requires IPC to list interfaces", &list_ipc);
 
-        register_field("kismet.datasource.driver.local_capable", 
+        register_field("kismet.datasource.driver.local_capable",
                 "Datasource can support local interfaces", &local_capable);
 
-        register_field("kismet.datasource.driver.local_ipc", 
+        register_field("kismet.datasource.driver.local_ipc",
                 "Datasource requires IPC for local interfaces", &local_ipc);
 
         register_field("kismet.datasource.driver.remote_capable",
                 "Datasource can support remote interfaces", &remote_capable);
 
-        register_field("kismet.datasource.driver.passive_capable", 
+        register_field("kismet.datasource.driver.passive_capable",
                 "Datasource can support passive interface-less data", &passive_capable);
 
         register_field("kismet.datasource.driver.tuning_capable",
@@ -251,7 +237,7 @@ public:
     // To marshal this, all commands take a transaction id (arbitrary number provided
     // by the caller) and a callback function.  If the function exists, it is called
     // when the command completes.
-    
+
     // 'List' callback - called with caller-supplied transaction id and contents,
     // if any, of the interface list command
     typedef std::function<void (std::shared_ptr<kis_datasource> src,
@@ -261,7 +247,7 @@ public:
     virtual void list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
 
     // 'Probe' callback - called with caller-supplied transaction id and success
-    // or failure of the probe command and string message of any additional 
+    // or failure of the probe command and string message of any additional
     // information if there was a MESSAGE key in the PROBERESP or if there was a
     // local communications error.
     typedef std::function<void (unsigned int, bool, std::string)> probe_callback_t;
@@ -294,27 +280,27 @@ public:
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     // Set the channel hop rate using a tracker_element vector object
-    virtual void set_channel_hop(double in_rate, 
+    virtual void set_channel_hop(double in_rate,
             std::shared_ptr<tracker_element_vector_string> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
-    // Set just the channel hop rate; internally this is the same as setting a 
+    // Set just the channel hop rate; internally this is the same as setting a
     // hop+vector but we simplify the API for callers
     virtual void set_channel_hop_rate(double in_rate, unsigned int in_transaction,
             configure_callback_t in_cb);
     // Set just the hop channels; internally this is the same as setting a
     // hop+vector but we simplify the API for callers
-    virtual void set_channel_hop_list(std::vector<std::string> in_chans, 
+    virtual void set_channel_hop_list(std::vector<std::string> in_chans,
             unsigned int in_transaction, configure_callback_t in_cb);
 
 
     // Instantiate from an incoming remote; caller must then assign tcpsocket or callbacks and trigger
     // a datasource open
-    virtual void connect_remote(std::string in_definition, kis_datasource* in_remote, 
-            bool in_tcp, configure_callback_t in_cb);
+    virtual void connect_remote(std::string in_definition, kis_datasource* in_remote,
+            const uuid& uuid, bool in_tcp, configure_callback_t in_cb);
 
     // close the source
-    // This must be called from either our own strand async functions, or fully 
+    // This must be called from either our own strand async functions, or fully
     // outside of ANY strand.
     //
     // See close_source_async for closing a source safely from another strand, like
@@ -358,7 +344,12 @@ public:
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
     __ProxyM(source_name, std::string, std::string, std::string, source_name, data_mutex);
-    __ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex);
+    //__ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex);
+    __ProxyLM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex,
+            [this](uuid u) -> bool {
+                set_source_key(adler32_checksum(u.uuid_to_string()));
+                return true;
+            });
 
     // Source key is a checksum of the uuid for us to do fast indexing
     __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, data_mutex);
@@ -405,16 +396,19 @@ public:
     __ProxyM(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets, data_mutex);
     __ProxyIncDecM(Msource_num_error_packets, uint64_t, uint64_t, source_num_error_packets, data_mutex);
 
-    __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_rrd<>, 
+    __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_rrd<>,
             packet_rate_rrd, packet_rate_rrd_id, data_mutex);
 
-    __ProxyDynamicTrackableM(source_packet_size_rrd, kis_tracked_rrd<>, 
+    __ProxyDynamicTrackableM(source_packet_size_rrd, kis_tracked_rrd<>,
             packet_size_rrd, packet_size_rrd_id, data_mutex);
 
     // IPC binary name, if any
     __ProxyGetM(source_ipc_binary, std::string, std::string, source_ipc_binary, data_mutex);
     // IPC channel pid, if any
     __ProxyGetM(source_ipc_pid, int64_t, pid_t, source_ipc_pid, data_mutex);
+
+    // datasource version
+    __ProxyGetM(datasource_version, std::string, std::string, datasource_version, data_mutex);
 
     // Retry API - do we try to re-open when there's a problem?
     __ProxyGetM(source_error, uint8_t, bool, source_error, data_mutex);
@@ -435,12 +429,12 @@ public:
     __ProxyM(source_info_amp_gain, double, double, double, source_info_amp_gain, data_mutex);
 
     // Overridden linktype
-    __ProxyPrivSplitM(source_override_linktype, unsigned int, unsigned int, uint32_t, 
+    __ProxyPrivSplitM(source_override_linktype, unsigned int, unsigned int, uint32_t,
             source_override_linktype, data_mutex);
 
     __ProxyGetM(source_error_reason, std::string, std::string, source_error_reason, data_mutex);
 
-    
+
     // Perform a checksum on a packet after it's decapsulated; this is always
     // called; a source should override it and check flags in the source
     // definition to see if it should be checksummed
@@ -466,17 +460,35 @@ public:
     static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
     static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
 
+#ifdef HAVE_PROTOBUF_CPP
     // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
     // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
     // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
     // base function.
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+    virtual void handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
             const KismetDatasource::SubPacket& report);
 
     // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
     // this to modify the json before it hits the jsoninfo buffer
-    virtual void handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+    virtual void handle_rx_jsonlayer_v2(std::shared_ptr<kis_packet> packet,
             const KismetDatasource::SubJson& report);
+#endif
+
+    // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
+    // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
+    // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
+    // base function.
+    virtual void handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
+            mpack_node_t& root, mpack_tree_t *tree);
+
+    // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
+    // this to modify the json before it hits the jsoninfo buffer
+    virtual void handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
+            mpack_node_t& root, mpack_tree_t *tree);
+
+    // Manipulate and insert the decapsulated data into a packet
+    virtual int handle_rx_data_content(kis_packet *packet,
+            kis_datachunk *datachunk, const uint8_t *content, size_t content_sz);
 
     // Handle injecting packets into the packet chain after the data report has been received
     // and processed.  Subclasses can override this to manipulate packet content.
@@ -502,7 +514,7 @@ protected:
 
 
     // Common interface parsing to set our name/uuid/interface and interface
-    // config pairs.  Once this is done it will have automatically set any 
+    // config pairs.  Once this is done it will have automatically set any
     // local variables like name, uuid, etc that needed to get set.
     virtual bool parse_source_definition(std::string in_definition);
 
@@ -539,7 +551,7 @@ protected:
             command_seq = in_seq;
             command_time = Globalreg::globalreg->last_tv_sec;
 
-            timetracker = 
+            timetracker =
                 Globalreg::fetch_mandatory_global_as<time_tracker>();
 
             // Generate a timeout for 5 seconds from now
@@ -583,41 +595,108 @@ protected:
     // Cancel a specific command; exposed as a function for easy callbacks
     virtual void cancel_command(uint32_t in_transaction, std::string in_reason);
 
-    // Kill any pending commands - we're entering error state or closing, so 
+    // Kill any pending commands - we're entering error state or closing, so
     // any pending callbacks get cleared out
     virtual void cancel_all_commands(std::string in_error);
 
-
-    // Central packet dispatch override to add the datasource commands
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
-            uint32_t seqno, const nonstd::string_view& content) override;
-
-    virtual void handle_msg_proxy(const std::string& msg, const int type) override;
-
-    virtual void handle_packet_configure_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_data_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_error_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_interfaces_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_opensource_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_probesource_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-    virtual void handle_packet_warning_report(uint32_t in_seqno, const nonstd::string_view& in_packet);
-
-    virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
+    // common send functions that pick based on protocol version and compile time options
+    virtual unsigned int send_configure_channel(const std::string& in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_configure_channel_hop(double in_rate,
             std::shared_ptr<tracker_element_vector_string> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
-    virtual unsigned int send_open_source(std::string in_definition, unsigned int in_transaction, 
+    virtual unsigned int send_open_source(const std::string& in_definition, unsigned int in_transaction,
             open_callback_t in_cb);
-    virtual unsigned int send_probe_source(std::string in_defintion, unsigned int in_transaction,
+    virtual unsigned int send_probe_source(const std::string& in_defintion, unsigned int in_transaction,
             probe_callback_t in_cb);
 
-    // Break out packet generation sub-functions so that custom datasources can easily
-    // piggyback onto the decoders
+    // new v3 protocol dispatch and handlers, always built
+
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+            uint16_t command, uint16_t code, uint32_t seqno,
+            const std::string_view& content) override;
+
+    // V3 Packet handlers
+    virtual void handle_configsource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+            kis_unique_lock<kis_mutex>& lock, const std::string& msg);
+    virtual void handle_packet_configure_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet);
+    virtual void handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet,
+            std::shared_ptr<boost::asio::streambuf> buffer);
+
+	virtual void handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
+			kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces);
+    virtual void handle_packet_interfaces_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet);
+
+    virtual void handle_opensource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+            kis_unique_lock<kis_mutex>& lock, const std::string& msg);
+    virtual void handle_packet_opensource_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet);
+
+    virtual void handle_probesource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+            kis_unique_lock<kis_mutex>& lock, const std::string& msg);
+    virtual void handle_packet_probesource_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet);
+
+    virtual unsigned int send_configure_channel_v3(const std::string& in_channel,
+            unsigned int in_transaction, configure_callback_t in_cb);
+    virtual unsigned int send_configure_channel_hop_v3(double in_rate,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb);
+    virtual unsigned int send_list_interfaces_v3(unsigned int in_transaction,
+            list_callback_t in_cb);
+    virtual unsigned int send_open_source_v3(const std::string& in_definition,
+            unsigned int in_transaction, open_callback_t in_cb);
+    virtual unsigned int send_probe_source_v3(const std::string& in_defintion,
+            unsigned int in_transaction, probe_callback_t in_cb);
+
+    virtual void handle_msg_proxy(const std::string& msg, const int type) override;
+
+    // specific decoders to break out signal and gps extraction for derivitive classes; to be passed the
+    // decoded packet mpack tree.  most child classes shouldn't ever need to touch this since it also
+    // implies handling the whole raw packet.
+    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(mpack_node_t& root,
+            mpack_tree_t *tree);
+    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(mpack_node_t& root,
+            mpack_tree_t *tree);
+
+#ifdef HAVE_PROTOBUF_CPP
+    // legacy v2 protocol handlers, to be phased out.  these are all optional, and require Kismet to be
+    // compiled with protobufs support.
+
+    // central packet dispatch override to add the datasource commands
+    virtual bool dispatch_rx_packet(const std::string_view& command,
+            uint32_t seqno, const std::string_view& content) override;
+
+    virtual void handle_packet_configure_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_data_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_error_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_interfaces_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_opensource_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_probesource_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+    virtual void handle_packet_warning_report_v2(uint32_t in_seqno, const std::string_view& in_packet);
+
+    virtual unsigned int send_configure_channel_v2(std::string in_channel, unsigned int in_transaction,
+            configure_callback_t in_cb);
+    virtual unsigned int send_configure_channel_hop_v2(double in_rate,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb);
+    virtual unsigned int send_list_interfaces_v2(unsigned int in_transaction, list_callback_t in_cb);
+    virtual unsigned int send_open_source_v2(std::string in_definition, unsigned int in_transaction,
+            open_callback_t in_cb);
+    virtual unsigned int send_probe_source_v2(std::string in_defintion, unsigned int in_transaction,
+            probe_callback_t in_cb);
+
+    // specific decoders broken out for derivitive classes to access signal and gps easily
     virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(KismetDatasource::SubGps in_gps);
     virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(KismetDatasource::SubSignal in_signal);
+#endif
 
 
     // Launch the IPC binary
@@ -632,6 +711,8 @@ protected:
     // element ID is - it's a generic tracker_map which holds our serializable
     // presentation data for indexing sources
     int datasource_entity_id;
+
+    __ProxyM(source_cmd_pending, uint8_t, uint8_t, uint8_t, source_cmd_pending, data_mutex);
 
     // We define internal proxies for the set_ commands because we don't present
     // a writeable trackercomponent interface - these are just mirrors of the state
@@ -659,6 +740,9 @@ protected:
     // Prototype object which created us, defines our overall capabilities
     std::shared_ptr<kis_datasource_builder> source_builder;
 
+    // command pending completion
+    std::shared_ptr<tracker_element_uint8> source_cmd_pending;
+
     // RW fields, they're relevant only to Kismet
     std::shared_ptr<tracker_element_string> source_name;
     std::shared_ptr<tracker_element_uuid> source_uuid;
@@ -666,7 +750,7 @@ protected:
     std::shared_ptr<tracker_element_uint32> source_key;
 
     // Read-only tracked element states
-    
+
     // Raw definition
     std::shared_ptr<tracker_element_string> source_definition;
 
@@ -714,8 +798,8 @@ protected:
     std::shared_ptr<kis_tracked_rrd<>> packet_size_rrd;
 
 
-    // Local ID number is an increasing number assigned to each 
-    // unique UUID; it's used inside Kismet for fast mapping for seenby, 
+    // Local ID number is an increasing number assigned to each
+    // unique UUID; it's used inside Kismet for fast mapping for seenby,
     // etc.  DST maps this to unique UUIDs after an Open
     std::shared_ptr<tracker_element_uint64> source_number;
 
@@ -725,7 +809,7 @@ protected:
 
     // Retry API
     // Try to re-open sources in error automatically
-    
+
     // Are we in error state?
     __ProxySetM(int_source_error, uint8_t, bool, source_error, data_mutex);
     std::shared_ptr<tracker_element_uint8> source_error;
@@ -766,7 +850,7 @@ protected:
     std::shared_ptr<tracker_element_double> source_info_amp_gain;
 
     std::shared_ptr<tracker_element_uint32> source_override_linktype;
-    
+
 
     // Do we clobber the remote timestamp?
     bool clobber_timestamp;
@@ -786,6 +870,11 @@ protected:
     __ProxySetM(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid, data_mutex);
     std::shared_ptr<tracker_element_int64> source_ipc_pid;
 
+    std::shared_ptr<tracker_element_string> datasource_version;
+    __ProxySetM(int_datasource_version, std::string, std::string, datasource_version, data_mutex);
+
+    std::shared_ptr<tracker_element_string> remote_ip;
+    __ProxySetM(int_source_remote_ip, std::string, std::string, remote_ip, data_mutex);
 
     // Interfaces we found via list
     std::vector<shared_interface> listed_interfaces;
@@ -811,6 +900,9 @@ protected:
     int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_l1_agg,
         pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
+
+    virtual void handle_v2_pong_event() override;
+    std::function<void ()> deferred_event;
 
 };
 
@@ -860,6 +952,7 @@ public:
     __Proxy(in_use_uuid, uuid, uuid, uuid, in_use_uuid);
     __Proxy(hardware, std::string, std::string, std::string, hardware);
     __Proxy(cap_interface, std::string, std::string, std::string, cap_interface);
+    __Proxy(datasource_version, std::string, std::string, std::string, version);
 
     void populate(std::string in_interface, std::string in_options) {
         std::vector<std::string> optvec = str_tokenize(in_options, ",");
@@ -871,7 +964,7 @@ public:
 
         if (in_options.size() != 0) {
             for (auto i : *options_vec) {
-                auto o = std::make_shared<tracker_element_string>(options_entry_id, 
+                auto o = std::make_shared<tracker_element_string>(options_entry_id,
                         get_tracker_value<std::string>(i));
                 options_vec->push_back(o);
             }
@@ -898,6 +991,9 @@ protected:
         register_field("kismet.datasource.probed.hardware",
                 "Hardware / chipset", &hardware);
 
+        register_field("kismet.datasource.probed.datasource_version",
+                "datasource binary version", &version);
+
     }
 
     std::shared_ptr<tracker_element_string> interface;
@@ -909,8 +1005,9 @@ protected:
     std::shared_ptr<tracker_element_uuid> in_use_uuid;
     std::shared_ptr<tracker_element_string> hardware;
 
-    int options_entry_id;
+    std::shared_ptr<tracker_element_string> version;
 
+    int options_entry_id;
 };
 
 // Packet chain component; we need to use a raw pointer here but it only exists

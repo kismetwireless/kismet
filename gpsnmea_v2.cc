@@ -114,6 +114,8 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
     try {
         if (gpstoks.size() == 0) {
             throw kis_gps_nmea_v2_soft_fail();
+        } else if (gpstoks[0].length() < 3) {
+            throw kis_gps_nmea_v2_soft_fail();
         } else {
             // The NMEA sentence should be the last 3 characters of the first string in gpstoks
             // NMEA sentences can be rerferenced at: https://gpsd.io/NMEA.html
@@ -232,7 +234,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
 
                 if (gpstoks[2] == "A") {
                     // Kluge - if we have a 3d fix, we're getting another sentence
-                    // which contains better information, so we don't override it. 
+                    // which contains better information, so we don't override it.
                     // If we < a 2d fix, we up it to 2d.
                     if (new_location->fix < 2)
                         new_location->fix = 2;
@@ -259,7 +261,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
                     new_location->fix = 2;
                 set_fix = true;
 
-                if (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) != 1) 
+                if (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) != 1)
                     throw kis_gps_nmea_v2_soft_fail();
 
                 new_location->speed = tdouble;
@@ -301,7 +303,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
 
                 double tdouble;
 
-                if (gpstoks.size() < 10) 
+                if (gpstoks.size() < 10)
                     throw kis_gps_nmea_v2_soft_fail();
 
                 // Only use VTG if we didn't get our speed from another sentence in this series
@@ -326,9 +328,9 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
             /*
                 NMEA GSV standard referenced from: https://gpsd.io/NMEA.html#_gsv_satellites_in_view
                 These sentences describe the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3
-                Example: 
-                $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74 
-                $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74 
+                Example:
+                $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74
+                $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74
                 $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
 
                 $--GSV,x,x,x,x,x,x,x,...*hh<CR><LF>
@@ -373,13 +375,13 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
         new_location->gpsname = get_gps_name();
 
         if (time(0) - last_heading_time > 5 &&
-                gps_location != nullptr && gps_location->fix >= 2 
+                gps_location != nullptr && gps_location->fix >= 2
                 && set_heading == false) {
-            new_location->heading = 
-                gps_calc_heading(new_location->lat, new_location->lon, 
+            new_location->heading =
+                gps_calc_heading(new_location->lat, new_location->lon,
                         gps_location->lat, gps_location->lon);
             last_heading_time = new_location->tv.tv_sec;
-        }        
+        }
 
         gps_last_location = gps_location;
         gps_location = new_location;

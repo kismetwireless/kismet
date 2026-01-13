@@ -171,7 +171,7 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
@@ -238,7 +238,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
@@ -341,7 +341,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan;
     char errstr[STATUS_MAX];
@@ -419,11 +419,9 @@ void capture_thread(kis_capture_handler_t *caph) {
 
                     gettimeofday(&tv, NULL);
 
-                    if ((r = cf_send_data(caph,
-                                    NULL, NULL, NULL,
-                                    tv,
-                                    0,
-                                    buf_rx_len, buf)) < 0) {
+                    if ((r = cf_send_data(caph, NULL, 0,
+                                    NULL, NULL, tv, 0,
+                                    buf_rx_len, buf_rx_len, buf)) < 0) {
                         cf_send_error(caph, 0, "unable to send DATA frame");
                         cf_handler_spindown(caph);
                     } else if (r == 0) {

@@ -93,14 +93,14 @@ exports.BuildDeviceViewSelector = function(element) {
     }
 
     var insert_selector = false;
-    var selector = $('select', element);
-    if (selector.length == 0) { 
+    var selector = $('#devices_views_select', element);
+    if (selector.length == 0) {
         selector = $('<select>', {
             name: 'devices_views_select',
             id: 'devices_views_select',
         });
         insert_selector = true;
-    } else { 
+    } else {
         selector.empty();
     }
 
@@ -132,7 +132,7 @@ exports.BuildDeviceViewSelector = function(element) {
     var selected_option = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
     $('option[value="' + selected_option + '"]', selector).prop("selected", "selected");
 
-    if (insert_selector) { 
+    if (insert_selector) {
         element.append(selector);
     }
 
@@ -220,7 +220,7 @@ function ScheduleDeviceViewListUpdate() {
                 if ($("div.viewselector > .ui-selectmenu-button").hasClass("ui-selectmenu-button-open")) {
                     ;
                 } else {
-                    exports.BuildDeviceViewSelector($('div.viewselector'));
+                    exports.BuildDeviceViewSelector($('span#device_view_holder'));
                 }
             });
         });
@@ -234,12 +234,12 @@ var DeviceColumns = new Array();
 // Device row highlights, consisting of fields, function, name, and color
 var DeviceRowHighlights = new Array();
 
-/* Add a column to the device list which is called by the table renderer 
+/* Add a column to the device list which is called by the table renderer
  *
- * The formatter should return an object, and is given the cell content and 
+ * The formatter should return an object, and is given the cell content and
  * row content.
  *
- * Formatters define the columns they pull - multiple fields can be added as 
+ * Formatters define the columns they pull - multiple fields can be added as
  * invisible helpers for the current column.
  *
  * Required options:
@@ -254,14 +254,14 @@ var DeviceRowHighlights = new Array();
  *
  * Optional functional options:
  * 'searchable': Field is included in searches
- * 'fields': Array of optional fields (as single or Kismet alias array); additional fields are used 
+ * 'fields': Array of optional fields (as single or Kismet alias array); additional fields are used
  *           by some column renderers to process additional information or to ensure that additional
  *           fields are available; for example the 'channel' column utilizes additional fields to ensure
  *           the presence of the frequency and phyname fields required to render channels intelligently
  *           if the basic info is not available.
  * 'sortfield': Field used for sorting on this column; by default, this is the field passed
  *              as 'field'
- * 'render': Render function that accepts field data, row data, raw cell, an onrender callback 
+ * 'render': Render function that accepts field data, row data, raw cell, an onrender callback
  *           for manipulating the cell once the dom has rendered, and optional parameter
  *           data, and returns a formatted result.
  * 'auxdata': Optional parameter data passed to the render function
@@ -326,7 +326,7 @@ exports.AddDeviceColumn = (id, options) => {
 }
 
 /* Add a hidden device column that is used for other utility, but not specifically displayed;
- * for instance the device key column must always be present. 
+ * for instance the device key column must always be present.
  *
  * Required elements in the column definition:
  * 'field': Field definition, either string, path, or Kismet simplification array
@@ -351,10 +351,10 @@ exports.AddHiddenDeviceColumn({'field': "kismet.device.base.key"});
 
 var devicelistIconMatch = [];
 
-/* Add an icon matcher; return a html string for the icon (font-awesome or self-embedded svg) 
+/* Add an icon matcher; return a html string for the icon (font-awesome or self-embedded svg)
  * that is used in the menu/icon column.  Return null if not matched.
  *
- * Matcher function 
+ * Matcher function
  */
 exports.AddDeviceIcon = (matcher) => {
     devicelistIconMatch.push(matcher);
@@ -554,7 +554,7 @@ exports.GetDeviceDetails = function() {
 }
 
 exports.DeviceDetailWindow = function(key) {
-    exports.DetailWindow(key, "Device Details", 
+    exports.DetailWindow(key, "Device Details",
         {
             storage: {}
         },
@@ -566,12 +566,14 @@ exports.DeviceDetailWindow = function(key) {
 
             window['storage_devlist_' + key] = {};
 
-            window['storage_devlist_' + key]['foobar'] = 'bar';
-
             panel.updater = function() {
                 if (exports.window_visible) {
                     $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                         .done(function(fulldata) {
+                            if (!panel.active) {
+                                return;
+                            }
+
                             fulldata = kismet.sanitizeObject(fulldata);
 
                             panel.headerTitle("Device: " + kismet.censorString(fulldata['kismet.device.base.commonname']));
@@ -638,16 +640,19 @@ exports.DeviceDetailWindow = function(key) {
                             accordion.accordion({ heightStyle: 'fill' });
                         })
                         .fail(function(jqxhr, texterror) {
-                            content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
+                            content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key +
                                 "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
                         })
                         .always(function() {
-                            panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                            if (panel.active) {
+                                panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                            }
                         })
                 } else {
-                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                    if (panel.active) {
+                        panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                    }
                 }
-
             };
 
             panel.updater();
@@ -769,7 +774,7 @@ exports.HealthCheck = function() {
                     timerid = setTimeout(exports.HealthCheck, 1000);
                 else
                     timerid = setTimeout(exports.HealthCheck, 5000);
-            }); 
+            });
     } else {
         if (exports.connection_error)
             timerid = setTimeout(exports.HealthCheck, 1000);
@@ -858,160 +863,6 @@ exports.renderTemperature = function(c, precision = 5) {
         return (c * (9/5) + 32).toFixed(precision) + '&deg; F';
     }
 }
-
-kismet_ui_settings.AddSettingsPane({
-    id: 'core_devicelist_columns',
-    listTitle: 'Device List Columns',
-    create: function(elem) {
-
-        var rowcontainer =
-            $('<div>', {
-                id: 'k-c-p-rowcontainer'
-            });
-
-        var cols = exports.GetDeviceColumns(true);
-
-        for (var ci in cols) {
-            var c = cols[ci];
-
-            if (! c.user_selectable)
-                continue;
-
-            var crow =
-                $('<div>', {
-                    class: 'k-c-p-column',
-                    id: c.kismetId,
-                })
-                .append(
-                    $('<i>', {
-                        class: 'k-c-p-c-mover fa fa-arrows-v'
-                    })
-                )
-                .append(
-                    $('<div>', {
-                        class: 'k-c-p-c-enable',
-                    })
-                    .append(
-                        $('<input>', {
-                            type: 'checkbox',
-                            id: 'k-c-p-c-enable'
-                        })
-                        .on('change', function() {
-                            kismet_ui_settings.SettingsModified();
-                            })
-                    )
-                )
-                .append(
-                    $('<div>', {
-                        class: 'k-c-p-c-name',
-                    })
-                    .text(c.description)
-                )
-                .append(
-                    $('<div>', {
-                        class: 'k-c-p-c-title',
-                    })
-                    .text(c.sTitle)
-                )
-                .append(
-                    $('<div>', {
-                        class: 'k-c-p-c-notes',
-                        id: 'k-c-p-c-notes',
-                    })
-                );
-
-            var notes = new Array;
-
-            if (c.bVisible != false) {
-                $('#k-c-p-c-enable', crow).prop('checked', true);
-            }
-
-            if (c.bSortable != false) {
-                notes.push("sortable");
-            }
-
-            if (c.bSearchable != false) {
-                notes.push("searchable");
-            }
-
-            $('#k-c-p-c-notes', crow).html(notes.join(", "));
-
-            rowcontainer.append(crow);
-        }
-
-        elem.append(
-            $('<div>', { })
-            .append(
-                $('<p>', { })
-                .html('Drag and drop columns to re-order the device display table.  Columns may also be shown or hidden individually.')
-            )
-        )
-        .append(
-            $('<div>', {
-                class: 'k-c-p-header',
-            })
-            .append(
-                $('<i>', {
-                    class: 'k-c-p-c-mover fa fa-arrows-v',
-                    style: 'color: transparent !important',
-                })
-            )
-            .append(
-                $('<div>', {
-                    class: 'k-c-p-c-enable',
-                })
-                .append(
-                    $('<i>', {
-                        class: 'fa fa-eye'
-                    })
-                )
-            )
-            .append(
-                $('<div>', {
-                    class: 'k-c-p-c-name',
-                })
-                .html('<i>Column</i>')
-            )
-            .append(
-                $('<div>', {
-                    class: 'k-c-p-c-title',
-                })
-                .html('<i>Title</i>')
-            )
-            .append(
-                $('<div>', {
-                    class: 'k-c-p-c-notes',
-                })
-                .html('<i>Info</i>')
-            )
-        );
-
-        elem.append(rowcontainer);
-
-        rowcontainer.sortable({
-            change: function(event, ui) {
-                kismet_ui_settings.SettingsModified();
-            }
-        });
-
-
-    },
-    save: function(elem) {
-        // Generate a config array of objects which defines the user config for
-        // the datatable; save it; then kick the datatable redraw
-        var col_defs = new Array();
-
-        $('.k-c-p-column', elem).each(function(i, e) {
-            col_defs.push({
-                id: $(this).attr('id'),
-                enable: $('#k-c-p-c-enable', $(this)).is(':checked')
-            });
-        });
-
-        kismet.putStorage('kismet.datatable.columns', col_defs);
-        exports.ResetDeviceTable(devicetableHolder);
-    },
-});
 
 // Add the row highlighting
 kismet_ui_settings.AddSettingsPane({
@@ -1163,6 +1014,13 @@ function GenerateDeviceFieldList2() {
         }
     }
 
+    for (var i in DeviceRowHighlights) {
+        for (var f in DeviceRowHighlights[i]['fields']) {
+            retcols.set(DeviceRowHighlights[i]['fields'][f],
+                DeviceRowHighlights[i]['fields'][f]);
+        }
+    }
+
     var ret = [];
 
     for (const [k, v] of retcols) {
@@ -1283,7 +1141,7 @@ function GenerateDeviceColumns2() {
                         .then(col => {
                             ScheduleDeviceSummary();
                         });
-            
+
                     }
                 });
             }
@@ -1340,7 +1198,7 @@ exports.PrepDeviceTable = function(element) {
 
 /* Create the device table */
 exports.CreateDeviceTable = function(element) {
-    element.ready(function() { 
+    element.ready(function() {
         exports.InitializeDeviceTable(element);
     });
 }
@@ -1410,8 +1268,12 @@ function ScheduleDeviceSummary() {
 
             var viewname = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
 
-            $.post(local_uri_prefix + `devices/views/${viewname}/devices.json`, postdata, 
-                function(data) { 
+            $.post(local_uri_prefix + `devices/views/${viewname}/devices.json`, postdata,
+                function(data) {
+                    if (data === undefined) {
+                        return;
+                    }
+
                     deviceTableTotal = data["last_row"];
                     deviceTableTotalPages = data["last_page"];
 
@@ -1468,7 +1330,7 @@ function ScheduleDeviceSummary() {
                     var paginator = $('#devices-table2 .tabulator-paginator');
                     paginator.empty();
 
-                    var firstpage = 
+                    var firstpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1484,7 +1346,7 @@ function ScheduleDeviceSummary() {
                     }
                     paginator.append(firstpage);
 
-                    var prevpage = 
+                    var prevpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1495,7 +1357,7 @@ function ScheduleDeviceSummary() {
                         deviceTablePage = deviceTablePage - 1;
                         return ScheduleDeviceSummary();
                     });
-                    if (deviceTablePage <= 1) {
+                    if (deviceTablePage <= 0) {
                         prevpage.attr('disabled', 'disabled');
                     }
                     paginator.append(prevpage);
@@ -1514,7 +1376,7 @@ function ScheduleDeviceSummary() {
                     if (lp > deviceTableTotalPages)
                         lp = deviceTableTotalPages;
                     for (let p = fp; p <= lp; p++) {
-                        var ppage = 
+                        var ppage =
                             $('<button>', {
                                 'class': 'tabulator-page',
                                 'type': 'button',
@@ -1528,7 +1390,7 @@ function ScheduleDeviceSummary() {
                         paginator.append(ppage);
                     }
 
-                    var nextpage = 
+                    var nextpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1544,7 +1406,7 @@ function ScheduleDeviceSummary() {
                     }
                     paginator.append(nextpage);
 
-                    var lastpage = 
+                    var lastpage =
                         $('<button>', {
                             'class': 'tabulator-page',
                             'type': 'button',
@@ -1581,7 +1443,7 @@ function ScheduleDeviceSummary() {
         // console.log(error);
         deviceTableRefreshing = false;
     }
-    
+
     return;
 }
 
@@ -1593,8 +1455,8 @@ var devicetable_prefs = {};
 
 function LoadDeviceTablePrefs() {
     devicetable_prefs = kismet.getStorage('kismet.ui.devicetable.prefs', {
-        "columns": ["commonname", "type", "crypt", "last_time", "packet_rrd", 
-            "signal", "channel", "manuf", "wifi_clients", "wifi_bss_uptime", 
+        "columns": ["commonname", "type", "crypt", "last_time", "packet_rrd",
+            "signal", "channel", "manuf", "wifi_clients", "wifi_bss_uptime",
             "wifi_qbss_usage"],
         "colsettings": {},
         "sort": {
@@ -1609,7 +1471,7 @@ function LoadDeviceTablePrefs() {
         "sort": {
             "column": "",
             "dir": "asc",
-        }, 
+        },
     }, devicetable_prefs);
 }
 
@@ -1635,9 +1497,8 @@ exports.InitializeDeviceTable = function(element) {
 
     if ($('#center-device-extras').length == 0) {
         var devviewmenu = $(`<form action="#"><span id="device_view_holder"></span></form><input class="device_search" type="search" id="device_search" placeholder="Filter..." value="${searchterm}"></input>`);
-
         $('#centerpane-tabs').append($('<div id="center-device-extras" style="position: absolute; right: 10px; top: 5px; height: 30px; display: flex;">').append(devviewmenu));
-        exports.BuildDeviceViewSelector($('#device_view_holder', devviewmenu));
+        exports.BuildDeviceViewSelector($('span#device_view_holder'));
 
         $('#device_search').on('keydown', (evt) => {
             var code = evt.charCode || evt.keyCode;
@@ -1646,14 +1507,14 @@ exports.InitializeDeviceTable = function(element) {
             }
         });
 
-        $('#device_search').on('keyup', $.debounce(300, () => {
+        $('#device_search').on('input change keyup copy paste cut', $.debounce(300, () => {
             var searchterm = $('#device_search').val();
             kismet.putStorage('kismet.ui.deviceview.search', searchterm);
             ScheduleDeviceSummary();
         }));
     }
 
-    if ($('#devices-table2', element).length == 0) { 
+    if ($('#devices-table2', element).length == 0) {
         devicetableElement2 =
             $('<div>', {
                 id: 'devices-table2',
@@ -1695,7 +1556,7 @@ exports.InitializeDeviceTable = function(element) {
                 frow = 1;
 
             var lrow = frow + pageSize;
-            if (lrow > deviceTableTotal) 
+            if (lrow > deviceTableTotal)
                 lrow = deviceTableTotal;
 
             return `Showing rows ${frow} - ${lrow} of ${deviceTableTotal}`;
@@ -1769,7 +1630,7 @@ exports.InitializeDeviceTable = function(element) {
         }
 
         devicetable_prefs['columns'] = cols;
-       
+
         SaveDeviceTablePrefs();
 
     });

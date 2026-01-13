@@ -527,6 +527,49 @@ kismet_ui_sidebar.AddSidebarItem({
 
 var ds_state = {};
 
+function alpha_insert(container, clss, index, data) {
+	var prev = null;
+	var after = null;
+
+	$(clss, container).each((i, v) => {
+		if (prev != null) {
+			return;
+		}
+
+		if ($(v).data(index) === undefined) {
+			return;
+		}
+
+		var lt = String.prototype.localeCompare.call($(data).data(index).toLowerCase(), 
+			$(v).data(index).toLowerCase());
+
+		// Insert before the current item if less than, and stop processing
+		if (lt < 0) {
+			prev = v;
+			after = null;
+			return;
+		}
+
+		// Keep incrementing the after item, if we're greater than or equal
+		after = v;
+	});
+
+	// If we have a prev item, we insert before
+	if (prev != null) {
+		$(prev).before(data);
+		return;
+	}
+
+	// If we have an after item, we insert after
+	if (after != null) {
+		$(after).after(data);
+		return;
+	}
+
+	// otherwise just append
+	$(container).append(data);
+}
+
 function update_datasource2(data) {
     if (!"ds_content" in ds_state)
         return;
@@ -654,6 +697,7 @@ function update_datasource2(data) {
             idiv = $('<div>', {
                 id: intf['kismet.datasource.probed.interface'],
                 class: 'accordion interface',
+				'data-sortpname': intf['kismet.datasource.probed.interface'],
                 })
             .append(
                 $('<h3>', {
@@ -706,13 +750,16 @@ function update_datasource2(data) {
 
             idiv.accordion({ collapsible: true, active: false });
 
-            ds_state['ds_content'].append(idiv);
+            // ds_state['ds_content'].append(idiv);
+			alpha_insert(ds_state['ds_content'], '.interface', 'sortpname', idiv);
         }
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
         set_row(idiv, 'driver', '<b>Capture Driver</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
-        if (intf['kismet.datasource.probed.hardware'] !== '')
+        if ('kismet.datasource.probed.hardware' in intf && intf['kismet.datasource.probed.hardware'] !== '')
             set_row(idiv, 'hardware', '<b>Hardware</b>', intf['kismet.datasource.probed.hardware']);
+        if ('kismet.datasource.probed.datasource_version' in intf && intf['kismet.datasource.probed.datasource_version'] !== '')
+            set_row(idiv, 'dsversion', '<b>Version</b>', intf['kismet.datasource.probed.datasource_version']);
         set_row(idiv, 'description', '<b>Type</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.description']);
 
         var addbutton = $('#add', idiv);
@@ -761,6 +808,7 @@ function update_datasource2(data) {
             sdiv = $('<div>', {
                 id: source['kismet.datasource.uuid'],
                 class: 'accordion source',
+				'data-sortname': source['kismet.datasource.name'],
                 })
             .append(
                 $('<h3>', {
@@ -829,7 +877,9 @@ function update_datasource2(data) {
 
             sdiv.accordion({ collapsible: true, active: false });
 
-            ds_state['ds_content'].append(sdiv);
+			alpha_insert(ds_state['ds_content'], '.source', 'sortname', sdiv);
+
+            // ds_state['ds_content'].append(sdiv);
         }
 
         if (typeof(source['kismet.datasource.packets_rrd']) !== 'undefined' &&
@@ -1447,6 +1497,12 @@ function update_datasource2(data) {
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
         if (source['kismet.datasource.hardware'] !== '')
             set_row(sdiv, 'hardware', '<b>Hardware</b>', source['kismet.datasource.hardware']);
+        if ('kismet.datasource.remote_ip' in source && source['kismet.datasource.remote_ip'] !== '')
+            set_row(sdiv, 'address', '<b>Address</b>', source['kismet.datasource.remote_ip']);
+        if ('kismet.datasource.ipc_pid' in source && source['kismet.datasource.ipc_pid'] !== 0)
+            set_row(sdiv, 'address', '<b>Process ID</b>', source['kismet.datasource.ipc_pid']);
+        if ('kismet.datasource.datasource_version' in source && source['kismet.datasource.datasource_version'] !== '')
+            set_row(sdiv, 'version', '<b>Version</b>', source['kismet.datasource.datasource_version']);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
 

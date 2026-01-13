@@ -103,6 +103,19 @@ public:
     }
     std::shared_ptr<tracker_element> get_shared_instance(uint16_t in_id);
 
+    // cascade to globalreg new from pool, but lock the entry mutex first
+    template<typename T>
+    std::shared_ptr<T> new_from_pool(const T* model, std::function<std::shared_ptr<T> (const T*)> fallback_new = nullptr) {
+        kis_lock_guard<kis_mutex> lg(entry_mutex, "entrytracker new_from_pool");
+        return Globalreg::new_from_pool<T>(model, fallback_new);
+    }
+
+    template<typename T>
+    std::shared_ptr<T> new_from_pool(std::function<std::shared_ptr<T> ()> fallback_new = nullptr) {
+        kis_lock_guard<kis_mutex> lg(entry_mutex, "entrytracker new_from_pool");
+        return Globalreg::new_from_pool<T>(fallback_new);
+    }
+
     // Serializer manipulation
     //
     // These ARE NOT THREAD SAFE.  

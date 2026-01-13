@@ -165,7 +165,7 @@ int nrf_receive_payload(
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
-    char *definition, char *msg, char **uuid, KismetExternal__Command *frame,
+    char *definition, char *msg, char **uuid,
     cf_params_interface_t **ret_interface,
     cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
@@ -227,7 +227,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-    char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+    char *msg, uint32_t *dlt, char **uuid,
     cf_params_interface_t **ret_interface,
     cf_params_spectrum_t **ret_spectrum) {
     char *placeholder;
@@ -421,7 +421,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
                 /* check the packet_type from the header */
                 if (buf[pkt_start + 6] == EVENT_PACKET_DATA ||
-                        (buf[pkt_start + 3] == 0x03 && buf[pkt_start + 6] == EVENT_PACKET_ADVERTISING)) {
+                        (buf[pkt_start + 3] == 0x03 &&
+                         buf[pkt_start + 6] == EVENT_PACKET_ADVERTISING)) {
                     valid_pkt = true;
                     /* pld_ctr = 0; */
                     pkt_ctr = 0;
@@ -442,8 +443,9 @@ void capture_thread(kis_capture_handler_t *caph) {
 
                         gettimeofday(&tv, NULL);
 
-                        if ((r = cf_send_data(caph, NULL, NULL, NULL, tv, 0,
-                                 pkt_ctr, pkt)) < 0) {
+                        if ((r = cf_send_data(caph, NULL, 0,
+                                        NULL, NULL, tv, 0,
+                                        pkt_ctr, pkt_ctr, pkt)) < 0) {
                             cf_send_error(caph, 0, "unable to send DATA frame");
                             cf_handler_spindown(caph);
                         } else if (r == 0) {

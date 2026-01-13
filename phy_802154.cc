@@ -27,6 +27,7 @@
 #include <string>
 #include <memory>
 
+#include "devicetracker_component.h"
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -75,9 +76,9 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
 
     set_phy_name("802.15.4");
 
-    packetchain = 
+    packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
-    entrytracker = 
+    entrytracker =
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
@@ -92,12 +93,15 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
 
     // Extract the dynamic DLT
-    auto dltt = 
+    auto dltt =
         Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
     dlt = KDLT_IEEE802_15_4_NOFCS;
 
     packetchain->register_handler(&dissector802154, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&commonclassifier802154, this, CHAINPOS_CLASSIFIER, -100);
+
+    auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
+    httpregistry->register_js_module("kismet_ui_802_15_4", "js/kismet.ui.802_15_4.js");
 }
 
 kis_802154_phy::~kis_802154_phy() {
@@ -117,15 +121,14 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     unsigned short fcf = 0;
     auto hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
 
-    if (packdata == NULL)
+    if (packdata == nullptr) {
         return 0;
+    }
 
     // Is it a packet we care about?
-    if (packdata == NULL ||
-        (packdata != NULL &&
-            (packdata->dlt != KDLT_IEEE802_15_4_NOFCS &&
-                packdata->dlt != KDLT_IEEE802_15_4_TAP)))
+    if (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP) {
         return 0;
+    }
 
     // Do we have enough data for an OUI? and are within the Zigbee spec
     if (packdata->length() < 6 || packdata->length() > 128)
@@ -134,9 +137,12 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     // Did something already classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
 
-    if (common != NULL)
+    if (common != nullptr) {
         return 0;
+    }
 
+    // the tap header could contain multiple packets in a single frame, but
+    // we probably only handle the first one right now
     unsigned int pkt_ctr = 0;
     if (packdata->dlt == KDLT_IEEE802_15_4_TAP) {
         uint64_t tap_header_size = sizeof(_802_15_4_tap);
@@ -175,7 +181,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         // Check if the specific packet types are actually valid
 
-        // Look for an invalid  Beacon
+        // Look for an invalid Beacon
         if (hdr_802_15_4_fcf->type == BEACON_802154) {
             // Beacon should not have security enabled
             if (hdr_802_15_4_fcf->security == 0x01)
@@ -258,7 +264,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 	    dest_pan[1] = packdata->data()[pkt_ctr];
             dest_pan[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
-		
+
             dest[1] = packdata->data()[pkt_ctr];
             dest[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
@@ -350,13 +356,19 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         }
     }
 
-    // Setting the source and dest
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
-        common = std::make_shared<kis_common_info>();
+
+        if (common == nullptr) {
+            common = mphy->packetchain->new_packet_component<kis_common_info>();
+        }
+
         common->phyid = mphy->fetch_phy_id();
-        common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;
+
+        if (hdr_802_15_4_fcf->security) {
+            common->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
+        }
 
         if (hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             common->source = mac_addr(ext_source, 8);
@@ -392,8 +404,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
     // Is it a packet we care about?
     if (packdata->dlt != mphy->dlt &&
-        (packdata->dlt != KDLT_IEEE802_15_4_NOFCS &&
-            packdata->dlt != KDLT_IEEE802_15_4_TAP))
+        (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP))
         return 0;
 
     // Did we classify this?
@@ -405,7 +416,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     if (in_pack->duplicate) {
         auto source_dev = mphy->devicetracker->update_common_device(common,
                 common->source, mphy, in_pack,
-                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | 
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
                 "802.15.4");
     }

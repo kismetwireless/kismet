@@ -2,7 +2,7 @@
 // detail/timer_queue_ptime.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,6 +17,8 @@
 
 #include <boost/asio/detail/config.hpp>
 
+#if !defined(BOOST_ASIO_NO_DEPRECATED)
+
 #if defined(BOOST_ASIO_HAS_BOOST_DATE_TIME)
 
 #include <boost/asio/time_traits.hpp>
@@ -30,9 +32,9 @@ namespace detail {
 
 struct forwarding_posix_time_traits : time_traits<boost::posix_time::ptime> {};
 
-// Template specialisation for the commonly used instantation.
+// Template specialisation for the commonly used instantiation.
 template <>
-class timer_queue<time_traits<boost::posix_time::ptime> >
+class timer_queue<time_traits<boost::posix_time::ptime>>
   : public timer_queue_base
 {
 public:
@@ -101,5 +103,7 @@ private:
 #endif // defined(BOOST_ASIO_HEADER_ONLY)
 
 #endif // defined(BOOST_ASIO_HAS_BOOST_DATE_TIME)
+
+#endif // !defined(BOOST_ASIO_NO_DEPRECATED)
 
 #endif // BOOST_ASIO_DETAIL_TIMER_QUEUE_PTIME_HPP

@@ -1,7 +1,7 @@
 
 "use strict";
 
-var local_uri_prefix = ""; 
+var local_uri_prefix = "";
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
@@ -11,9 +11,11 @@ kismet_ui.AddDeviceIcon((row) => {
     }
 });
 
+kismet_ui.AddHiddenDeviceColumn({'field': 'adsb.device/adsb.device.callsign', 'searchable': true});
+
 $('<link>')
     .attr({
-        type: 'text/css', 
+        type: 'text/css',
         rel: 'stylesheet',
         href: local_uri_prefix + 'css/leaflet.css'
     })
@@ -21,7 +23,7 @@ $('<link>')
 
 $('<link>')
     .attr({
-        type: 'text/css', 
+        type: 'text/css',
         rel: 'stylesheet',
         href: local_uri_prefix + 'css/Control.Loading.css'
     })
@@ -29,7 +31,7 @@ $('<link>')
 
 $('<link>')
     .attr({
-        type: 'text/css', 
+        type: 'text/css',
         rel: 'stylesheet',
         href: local_uri_prefix + 'css/kismet.adsb.css'
     })
@@ -236,7 +238,7 @@ kismet_ui.AddDeviceDetail("adsb", "ADSB (SDR)", 0, {
                 filterOnEmpty: true,
                 draw: function(opts) {
                     try {
-                        return opts['data']['adsb.device']['adsb.device.latitude'] + ', ' + opts['data']['adsb.device']['adsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['adsb.device']['adsb.device.latitude'] + '&mlon=' + opts['data']['adsb.device']['adsb.device.longitude'] + '">View on Open Street Maps</a>';
+                        return opts['data']['adsb.device']['adsb.device.latitude'] + ', ' + opts['data']['adsb.device']['adsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['adsb.device']['adsb.device.latitude'] + '&mlon=' + opts['data']['adsb.device']['adsb.device.longitude'] + '">View on OpenStreetMap</a>';
                     } catch (error) {
                         return 'n/a'
                     }
@@ -263,7 +265,7 @@ kismet_ui_tabpane.AddTab({
             BuildContentElement(div);
 
             /*
-             
+
             var url = new URL(parent.document.URL);
             url.searchParams.append('parent_url', url.origin)
             url.searchParams.append('local_uri_prefix', local_uri_prefix);
@@ -300,7 +302,7 @@ function BuildContentElement(element) {
     <div id="adsb-holder" style="height: 100%; width: 100%; position: relative;">
     <div id="warning" class="warning">
         <p><b>Warning!</b>
-        <p>To display the live ADSB map, your browser will connect to the Leaflet and Open Street Map servers to fetch the map tiles.  This requires you have a functional Internet connection, and will reveal something about your location (the bounding region where planes have been seen.)
+        <p>To display the live ADSB map, your browser will connect to the Leaflet and OpenStreetMap servers to fetch the map tiles.  This requires you have a functional Internet connection, and will reveal something about your location (the bounding region where planes have been seen.)
         <p><input id="dontwarn" type="checkbox">Don't warn me again</input>
         <p><button id="continue">Continue</button>
     </div>
@@ -420,9 +422,9 @@ function ActivateTab() {
 
             $('#plane-detail').html(`
                 <b>Flight: </b>${d['callsign']}<br>
-                <b>Model: </b>${d['model'].MiddleShorten(20)}<br> 
+                <b>Model: </b>${d['model'].MiddleShorten(20)}<br>
                 <b>Operator: </b>${d['operator'].MiddleShorten(20)}<br>
-                <b>Altitude: </b>${kismet_units.renderHeightDistance(d['alt'], 0, true)}<br> 
+                <b>Altitude: </b>${kismet_units.renderHeightDistance(d['alt'], 0, true)}<br>
                 <b>Speed: </b>${kismet_units.renderSpeed(d['spd'], 0)}<br>
                 `);
 
@@ -564,7 +566,7 @@ function map_cb(d) {
                 icontype == 'fa-helicopter';
 
             var myIcon = L.divIcon({
-                className: 'plane-icon', 
+                className: 'plane-icon',
                 html: `<div id="adsb_marker_${key}" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_${key}" class="marker-center fa ${icontype}" style="font-size: 18px; color: ${get_alt_color(altitude)};"></div>`,
                 iconAnchor: [12, 12],
             });
@@ -576,7 +578,7 @@ function map_cb(d) {
                 // Move the marker
                 $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
                 var new_loc = new L.LatLng(lat, lon);
-                marker.setLatLng(new_loc); 
+                marker.setLatLng(new_loc);
 
                 // Recolor the marker
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(altitude));
@@ -635,9 +637,9 @@ function map_cb(d) {
 
                         $('#plane-detail').html(`
                             <b>Flight: </b>${d['callsign']}<br>
-                            <b>Model: </b>${d['model'].MiddleShorten(20)}<br> 
+                            <b>Model: </b>${d['model'].MiddleShorten(20)}<br>
                             <b>Operator: </b>${d['operator'].MiddleShorten(20)}<br>
-                            <b>Altitude: </b>${kismet_units.renderHeightDistance(d['alt'], 0, true)}<br> 
+                            <b>Altitude: </b>${kismet_units.renderHeightDistance(d['alt'], 0, true)}<br>
                             <b>Speed: </b>${kismet_units.renderSpeed(d['spd'], 0)}<br>
                             `);
 
@@ -671,7 +673,7 @@ function map_cb(d) {
                 var history = data['kismet.adsb.map.devices'][d]['kismet.device.base.location_cloud']['kis.gps.rrd.samples_100'];
 
                 for (var s in history) {
-                    // Ignore non-location historic points (caused by heading/altitude before we got 
+                    // Ignore non-location historic points (caused by heading/altitude before we got
                     // a location lock
                     var s_lat = history[s]['kismet.historic.location.geopoint'][1];
                     var s_lon = history[s]['kismet.historic.location.geopoint'][0];

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -19,7 +19,6 @@
 #include "config.h"
 
 #include "kis_datasource.h"
-#include "endian_magic.h"
 #include "configfile.h"
 #include "datasourcetracker.h"
 #include "entrytracker.h"
@@ -42,7 +41,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
         ext_mutex.set_name(fmt::format("kis_datasource(base)"));
 
     data_mutex.set_name("kds_data");
-    
+
     register_fields();
     reserve_fields(nullptr);
 
@@ -51,7 +50,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
         insert(in_builder);
     }
 
-    timetracker = 
+    timetracker =
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     packetchain =
@@ -127,12 +126,12 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
     if (in_transaction == 0)
         in_transaction = next_transaction++;
 
-    // If we can't list interfaces according to our prototype, die 
+    // If we can't list interfaces according to our prototype, die
     // and call the cb instantly
     if (!get_source_builder()->get_list_capable()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, 
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction,
                     std::vector<shared_interface>());
         }
 
@@ -143,7 +142,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
     if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, 
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction,
                     std::vector<shared_interface>());
         }
         return;
@@ -163,7 +162,15 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
         return;
     }
 
-    send_list_interfaces(in_transaction, in_cb);
+    deferred_event = [this, in_transaction, in_cb]() {
+        kis_lock_guard<kis_mutex> lg(ext_mutex, "list lambda");
+
+        send_list_interfaces(in_transaction, in_cb);
+
+        deferred_event = {};
+    };
+
+    send_v2_probe_ping();
 }
 
 void kis_datasource::probe_interface(std::string in_definition, unsigned int in_transaction,
@@ -223,8 +230,14 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
 
     // Launch the IPC
     if (launch_ipc()) {
-        // Create and send probe command
-        send_probe_source(get_source_definition(), in_transaction, in_cb);
+        // queue events after a ping handshake
+        deferred_event = [this, in_transaction, in_cb]() {
+            kis_lock_guard<kis_mutex> lg(ext_mutex, "probe lambda");
+
+            send_probe_source(get_source_definition(), in_transaction, in_cb);
+            deferred_event = {};
+        };
+        send_v2_probe_ping();
     } else {
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Failed to launch IPC to probe source");
@@ -232,7 +245,7 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     }
 }
 
-void kis_datasource::open_interface(std::string in_definition, unsigned int in_transaction, 
+void kis_datasource::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource open_interface");
     lock.lock();
@@ -265,7 +278,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
             set_device_gps(gpstracker->create_gps(gpsdef));
         }
     }
-   
+
 
     if (get_source_builder()->get_passive_capable()) {
         if (get_source_uuid().error && !local_uuid) {
@@ -274,7 +287,6 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
             nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
 
             set_source_uuid(nuuid);
-            set_source_key(adler32_checksum(nuuid.uuid_to_string()));
         }
 
         set_int_source_retry_attempts(0);
@@ -290,7 +302,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
         return;
     }
-    
+
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
         if (in_cb != NULL) {
@@ -298,7 +310,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
             in_cb(in_transaction, false, "Driver does not support direct capture");
             lock.lock();
         }
-        
+
         return;
     }
 
@@ -316,36 +328,49 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     if (error_timer_id > 0)
         timetracker->remove_timer(error_timer_id);
 
-    // Launch the IPC, outside of lock 
+    // Launch the IPC, outside of lock
     lock.unlock();
 
-    if (!launch_ipc()) { 
+    if (!launch_ipc()) {
         return;
     }
 
     lock.lock();
 
-    set_int_source_running(true);
+    // Store the cb, and send a v2 discovery probe
+    deferred_event = [this, in_transaction, in_cb]() mutable {
+        kis_lock_guard<kis_mutex> lg(ext_mutex, "handle_v2_pong_event");
 
-    last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
+        set_int_source_running(true);
 
-    // If we got here we're valid; start a PING timer
-    timetracker->remove_timer(ping_timer_id);
-    ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
-        // kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
+        last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
-        if (!get_source_running()) {
-            ping_timer_id = -1;
-            return 0;
-        }
-       
-        send_ping();
+        // If we got here we're valid; start a PING timer
+        timetracker->remove_timer(ping_timer_id);
+        ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
+                if (!get_source_running()) {
+                    ping_timer_id = -1;
+                    return 0;
+                }
 
-        return 1;
-    });
+                send_ping();
 
-    // Create and send open command
-    send_open_source(get_source_definition(), in_transaction, in_cb);
+                return 1;
+            });
+
+        // Create and send open command
+        send_open_source(get_source_definition(), in_transaction, in_cb);
+
+        deferred_event = {};
+    };
+
+    send_v2_probe_ping();
+}
+
+void kis_datasource::handle_v2_pong_event() {
+    if (deferred_event) {
+        deferred_event();
+    }
 }
 
 void kis_datasource::set_channel(std::string in_channel, unsigned int in_transaction,
@@ -369,7 +394,7 @@ void kis_datasource::set_channel(std::string in_channel, unsigned int in_transac
 }
 
 void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
-        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
         configure_callback_t in_cb) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource set_channel_hop");
 
@@ -401,9 +426,9 @@ void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in
     set_channel_hop(in_rate, vec, in_shuffle, in_offt, in_transaction, in_cb);
 }
 
-void kis_datasource::set_channel_hop(double in_rate, 
+void kis_datasource::set_channel_hop(double in_rate,
         std::shared_ptr<tracker_element_vector_string> in_chans,
-        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
         configure_callback_t in_cb) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource set_channel_hop");
 
@@ -425,7 +450,7 @@ void kis_datasource::set_channel_hop(double in_rate,
     }
 
     // Generate the command and send it
-    send_configure_channel_hop(in_rate, in_chans, in_shuffle, in_offt, 
+    send_configure_channel_hop(in_rate, in_chans, in_shuffle, in_offt,
             in_transaction, in_cb);
 }
 
@@ -444,15 +469,18 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote, 
-        bool in_tcp, configure_callback_t in_cb) {
+void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote,
+        const uuid& uuid, bool in_tcp, configure_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource connect_remote");
 
     cancelled = false;
 
+    // Get the remote version type immediately
+    set_protocol_version(in_remote->get_prototocol_version());
+
     // We can't reconnect failed interfaces that are remote
     set_int_source_retry(false);
-    
+
     // We're remote
     set_int_source_remote(true);
 
@@ -464,7 +492,9 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     set_int_source_running(true);
     set_int_source_definition(in_definition);
     set_int_source_error(false);
-    
+
+    set_source_uuid(uuid);
+
     // Populate our local info about the interface
     if (!parse_source_definition(in_definition)) {
         set_int_source_running(false);
@@ -490,7 +520,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
             set_device_gps(gpstracker->create_gps(gpsdef));
         }
     }
-   
+
     last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
     if (ping_timer_id > 0)
@@ -498,7 +528,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
-        
+
         if (!get_source_running()) {
             ping_timer_id = -1;
             return 0;
@@ -509,7 +539,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
             trigger_error("did not get a ping response from the capture");
             return 0;
         }
-       
+
         send_ping();
         return 1;
     });
@@ -526,6 +556,9 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     // Inherit the incoming closure
     closure_cb = in_remote->move_closure_cb();
+
+    // Set the remote address
+    set_int_source_remote_ip(io_->remote_addresss());
 
     // Send an opensource
     send_open_source(get_source_definition(), 0, in_cb);
@@ -607,7 +640,7 @@ void kis_datasource::close_source_async(std::function<void (void)> in_callback) 
         close_external_impl();
         in_callback();
     } else {
-        boost::asio::post(io_->strand(), 
+        boost::asio::post(io_->strand(),
                 std::packaged_task<void()>([this, in_callback]() mutable {
                     close_external_impl();
                     in_callback();
@@ -620,7 +653,7 @@ void kis_datasource::close_external() {
     if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
         close_external_impl();
     } else {
-        auto ft = boost::asio::post(io_->strand(), 
+        auto ft = boost::asio::post(io_->strand(),
                 std::packaged_task<void()>([this]() mutable {
                     close_external_impl();
                 }));
@@ -725,7 +758,7 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
         set_int_source_interface(in_definition.substr(0, cpos));
 
         // Blow up if we fail parsing
-        if (string_to_opts(in_definition.substr(cpos + 1, 
+        if (string_to_opts(in_definition.substr(cpos + 1,
                         in_definition.size() - cpos - 1), ",", &options) < 0) {
             return false;
         }
@@ -750,7 +783,7 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
     set_int_source_definition(generate_source_definition());
 
     // Set some basic options
-   
+
     std::string namestr = get_definition_opt("name");
 
     if (namestr != "") {
@@ -765,23 +798,22 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
         uuid u(uuidstr);
 
         if (u.error) {
-            _MSG("Invalid UUID for data source " + get_source_name() + "/" + 
+            _MSG("Invalid UUID for data source " + get_source_name() + "/" +
                     get_source_interface(), MSGFLAG_ERROR);
             return false;
         }
 
         set_source_uuid(u);
         local_uuid = true;
-        set_source_key(adler32_checksum(u.uuid_to_string()));
     }
 
     auto datasourcetracker =
         Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
 
-    set_int_source_retry(get_definition_opt_bool("retry", 
+    set_int_source_retry(get_definition_opt_bool("retry",
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));
 
-    clobber_timestamp = get_definition_opt_bool("timestamp", 
+    clobber_timestamp = get_definition_opt_bool("timestamp",
             datasourcetracker->get_config_defaults()->get_remote_cap_timestamp());
 
     set_source_info_antenna_type(get_definition_opt("info_antenna_type"));
@@ -926,8 +958,1675 @@ void kis_datasource::cancel_all_commands(std::string in_error) {
     command_ack_map.clear();
 }
 
-bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
-        uint32_t seqno, const nonstd::string_view& content) {
+void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
+    if (get_source_remote())
+        _MSG(fmt::format("{} - {}", get_source_name(), msg), type);
+    else
+        _MSG(msg, type);
+}
+
+void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
+    auto datasrcinfo = packetchain->new_packet_component<packetchain_comp_datasource>();
+    datasrcinfo->ref_source = this;
+
+    packet->insert(pack_comp_datasrc, datasrcinfo);
+
+    inc_source_num_packets(1);
+    get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+    // Insert GPS data as soon as possible in the chain if there's no data
+    // from the rest of the processing
+    if (packet->fetch(pack_comp_gps) == nullptr &&
+            packet->fetch(pack_comp_no_gps) == nullptr) {
+        auto gpsloc = gpstracker->get_best_location();
+
+        if (gpsloc != nullptr) {
+            packet->insert(pack_comp_gps, std::move(gpsloc));
+        }
+
+    }
+
+    // Inject the packet into the packetchain if we have one
+    packetchain->process_packet(packet);
+}
+
+unsigned int kis_datasource::send_configure_channel(const std::string& in_channel, unsigned int in_transaction,
+        configure_callback_t in_cb) {
+
+    if (protocol_version < 3) {
+#ifdef HAVE_PROTOBUF_CPP
+        return send_configure_channel_v2(in_channel, in_transaction, in_cb);
+#else
+        trigger_error("cannot use v2 protocol on this build");
+        return 0;
+#endif
+    }
+
+    if (protocol_version == 3) {
+        return send_configure_channel_v3(in_channel, in_transaction, in_cb);
+    }
+
+    std::string err = fmt::format("unknown protocol version {}", protocol_version.load());
+    trigger_error(err);
+    return 0;
+}
+
+unsigned int kis_datasource::send_configure_channel_hop(double in_rate, std::shared_ptr<tracker_element_vector_string> in_chans,
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+        configure_callback_t in_cb) {
+
+    if (protocol_version < 3) {
+#ifdef HAVE_PROTOBUF_CPP
+        return send_configure_channel_hop_v2(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
+#else
+        trigger_error("cannot use v2 protocol on this build");
+        return 0;
+#endif
+    }
+
+    if (protocol_version == 3) {
+        return send_configure_channel_hop_v3(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
+    }
+
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
+    return 0;
+}
+
+unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
+    if (protocol_version < 3) {
+#ifdef HAVE_PROTOBUF_CPP
+        return send_list_interfaces_v2(in_transaction, in_cb);
+#else
+        trigger_error("cannot use v2 protocol on this build");
+        return 0;
+#endif
+    }
+
+    if (protocol_version == 3) {
+        return send_list_interfaces_v3(in_transaction, in_cb);
+    }
+
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
+    return 0;
+}
+
+unsigned int kis_datasource::send_open_source(const std::string& in_definition, unsigned int in_transaction,
+        open_callback_t in_cb) {
+    if (protocol_version < 3) {
+#ifdef HAVE_PROTOBUF_CPP
+        return send_open_source_v2(in_definition, in_transaction, in_cb);
+#else
+        trigger_error("cannot use v2 protocol on this build");
+        return 0;
+#endif
+    }
+
+    if (protocol_version == 3) {
+        return send_open_source_v3(in_definition, in_transaction, in_cb);
+    }
+
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
+    return 0;
+}
+
+unsigned int kis_datasource::send_probe_source(const std::string& in_definition, unsigned int in_transaction,
+        probe_callback_t in_cb) {
+    if (protocol_version < 3) {
+#ifdef HAVE_PROTOBUF_CPP
+        return send_probe_source_v2(in_definition, in_transaction, in_cb);
+#else
+        trigger_error("cannot use v2 protocol on this build");
+        return 0;
+#endif
+    }
+
+    if (protocol_version == 3) {
+        return send_probe_source_v3(in_definition, in_transaction, in_cb);
+    }
+
+    trigger_error(fmt::format("unknown protocol version {}", protocol_version.load()));
+    return 0;
+}
+
+bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+        uint16_t command, uint16_t seqno,
+        uint32_t code, const std::string_view& content) {
+
+    if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, code, seqno, content)) {
+        return true;
+    }
+
+    // v3 drops explicit error/warning reports and rolls them into the return codes of the
+    // packet headers itself.  The error message is sent as a message prior to the packet
+    // being sent.
+    switch (command) {
+        case KIS_EXTERNAL_V3_KDS_CONFIGREPORT:
+            handle_packet_configure_report_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_KDS_PACKET:
+            handle_packet_data_report_v3(seqno, code, content, buffer);
+            return true;
+        case KIS_EXTERNAL_V3_KDS_LISTREPORT:
+            handle_packet_interfaces_report_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_KDS_OPENREPORT:
+            handle_packet_opensource_report_v3(seqno, code, content);
+            return true;
+        case KIS_EXTERNAL_V3_KDS_PROBEREPORT:
+            handle_packet_probesource_report_v3(seqno, code, content);
+            return true;
+    }
+
+    return false;
+}
+
+void kis_datasource::handle_probesource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+        kis_unique_lock<kis_mutex>& lock, const std::string& msg) {
+
+    // Get the sequence number and look up our command
+    auto ci = command_ack_map.find(in_seqno);
+    if (ci != command_ack_map.end()) {
+        auto cb = ci->second->probe_cb;
+        auto transaction = ci->second->transaction;
+
+        command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, code != 0, msg);
+            lock.lock();
+        }
+    }
+}
+
+void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_t code,
+        const std::string_view& in_packet) {
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_probe_report_v3");
+    lock.lock();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 PROBEREPORT");
+        trigger_error("invalid v3 PROBEREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto report_seqno = mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_SEQNO));
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
+        trigger_error("invalid v3 PROBEREPORT");
+        return;
+    }
+
+    std::string msg;
+    auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG);
+    if (!mpack_node_is_missing(msg_n)) {
+        auto msg_len = mpack_node_data_len(msg_n);
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
+            trigger_error("invalid v3 PROBEREPORT");
+            handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
+            return;
+        }
+
+        msg = std::string(mpack_node_data(msg_n), msg_len);
+    }
+
+    /* interface sub block */
+    if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE)) {
+        auto subif = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE);
+
+        if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST)) {
+            auto chanvec = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHAN_LIST);
+            auto chans_sz = mpack_node_array_length(chanvec);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
+                trigger_error("invalid v3 PROBEREPORT");
+                handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
+                return;
+            }
+
+            source_hop_vec->clear();
+
+            for (size_t szi = 0; szi < chans_sz; szi++) {
+                auto ch_n = mpack_node_array_at(chanvec, szi);
+                auto ch_sz = mpack_node_data_len(ch_n);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
+                    trigger_error("invalid v3 PROBEREPORT");
+                    handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
+                    return;
+                }
+
+                source_hop_vec->push_back(std::string(mpack_node_data(ch_n), ch_sz));
+            }
+        }
+
+        if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL)) {
+            auto ch_n = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
+            auto ch_sz = mpack_node_data_len(ch_n);
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+
+                _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
+                trigger_error("invalid v3 PROBEREPORT");
+                handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
+                return;
+            }
+
+            set_int_source_channel(std::string(mpack_node_data(ch_n), ch_sz));
+        }
+
+        if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW)) {
+            auto hw_n = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            auto hw_sz = mpack_node_data_len(hw_n);
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
+                trigger_error("invalid v3 PROBEREPORT");
+                handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
+                return;
+            }
+
+            set_int_source_hardware(std::string(mpack_node_data(hw_n), hw_sz));
+        }
+    }
+
+    handle_probesource_report_v3_callback(report_seqno, code, lock, msg);
+}
+
+void kis_datasource::handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
+        kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces) {
+
+    // Get the sequence number and look up our command
+    auto ci = command_ack_map.find(in_seqno);
+    if (ci != command_ack_map.end()) {
+        auto cb = ci->second->list_cb;
+        auto transaction = ci->second->transaction;
+
+        command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), transaction, interfaces);
+            lock.lock();
+        }
+    }
+}
+
+void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t code,
+        const std::string_view& in_packet) {
+
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report_v3");
+    lock.lock();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    std::vector<shared_interface> ifaces;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 LISTREPORT");
+        trigger_error("invalid v3 LISTREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto report_seqno = mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_SEQNO));
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+        trigger_error("invalid v3 LISTREPORT");
+        return;
+    }
+
+    std::string msg;
+    auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_MSG);
+    if (!mpack_node_is_missing(msg_n)) {
+        auto msg_len = mpack_node_data_len(msg_n);
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+            trigger_error("invalid v3 LISTREPORT");
+            handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+            return;
+        }
+
+        msg = std::string(mpack_node_data(msg_n), msg_len);
+    }
+
+    if (code != 0) {
+        _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+        trigger_error(msg);
+        set_int_source_error_reason(msg);
+        handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+    }
+
+    std::string version;
+    auto vr_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_VERSION);
+    if (!mpack_node_is_missing(vr_n)) {
+        auto vr_sz = mpack_node_data_len(vr_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+            trigger_error("invalid v3 LISTREPORT");
+            handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+            return;
+        }
+
+        version = std::string(mpack_node_data(vr_n), vr_sz);
+    }
+
+
+    /* interfaces array */
+    auto ifaces_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
+    if (!mpack_node_is_missing(ifaces_n)) {
+        auto ifaces_sz = mpack_node_array_length(ifaces_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+            trigger_error("invalid v3 LISTREPORT");
+            handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+            return;
+        }
+
+        for (size_t szi = 0; szi < ifaces_sz; szi++) {
+            auto iface_n = mpack_node_array_at(ifaces_n, szi);
+
+            auto intf = std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
+            intf->set_prototype(get_source_builder());
+            intf->set_datasource_version(version);
+
+            std::string ifname, ifflags;
+
+            auto iface_name_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE);
+            if (!mpack_node_is_missing(iface_name_n)) {
+                auto iface_name_sz = mpack_node_data_len(iface_name_n);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                ifname = std::string(mpack_node_data(iface_name_n), iface_name_sz);
+            }
+
+            auto flags_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_FLAGS);
+            if (!mpack_node_is_missing(flags_n)) {
+                auto flags_sz = mpack_node_data_len(flags_n);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                ifflags = std::string(mpack_node_data(flags_n), flags_sz);
+            }
+
+            intf->populate(ifname, ifflags);
+
+            auto capif_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
+            if (!mpack_node_is_missing(capif_n)) {
+                auto capif_sz = mpack_node_data_len(capif_n);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                intf->set_cap_interface(std::string(mpack_node_data(capif_n), capif_sz));
+            }
+
+            auto hw_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
+            if (!mpack_node_is_missing(hw_n)) {
+                auto hw_sz = mpack_node_data_len(hw_n);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+                    trigger_error("invalid v3 LISTREPORT");
+                    handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+                    return;
+                }
+
+                intf->set_hardware(std::string(mpack_node_data(hw_n), hw_sz));
+            }
+
+            ifaces.push_back(intf);
+        }
+    }
+
+
+    handle_interfaces_report_v3_callback(report_seqno, code, lock, ifaces);
+}
+
+
+void kis_datasource::handle_configsource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+        kis_unique_lock<kis_mutex>& lock, const std::string& msg) {
+
+    // Get the sequence number and look up our command
+    auto ci = command_ack_map.find(in_seqno);
+    if (ci != command_ack_map.end()) {
+        auto cb = ci->second->configure_cb;
+        auto transaction = ci->second->transaction;
+
+        command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, code != 0, msg);
+            lock.lock();
+        }
+    }
+}
+
+void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t code,
+        const std::string_view& in_packet) {
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_configure_report_v3");
+    lock.lock();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    // _MSG_DEBUG("got config report {} code {}", seqno, code);
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 CONFIGREPORT");
+        trigger_error("invalid v3 CONFIGREPORT (unparseable)");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto report_seqno = mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_SEQNO));
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT (no seqno)");
+        trigger_error("invalid v3 CONFIGUREREPORT (no seqno)");
+        return;
+    }
+
+    std::string msg;
+    auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_MSG);
+    if (!mpack_node_is_missing(msg_n)) {
+        auto msg_sz = mpack_node_data_len(msg_n);
+        auto msg_s = mpack_node_str(msg_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+            trigger_error("invalid v3 CONFIGUREREPORT");
+            handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+            return;
+        }
+
+        msg = std::string(msg_s, msg_sz);
+    }
+
+    if (code == 0) {
+        trigger_error(msg);
+        set_int_source_error_reason(msg);
+        handle_configsource_report_v3_callback(report_seqno, code, lock, msg);
+        return;
+    }
+
+    auto channel_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
+    auto hopmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANHOPBLOCK);
+
+    if (!mpack_node_is_missing(channel_n)) {
+        auto chan_sz = mpack_node_data_len(channel_n);
+        auto chan_s = mpack_node_str(channel_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+            trigger_error("invalid v3 CONFIGUREREPORT");
+            handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+            return;
+        }
+
+        set_int_source_hopping(false);
+        set_int_source_channel(std::string(chan_s, chan_sz));
+
+        // _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} single channel {} disabling hopping", get_source_name(), get_source_uuid(), seqno, get_source_channel());
+    }
+
+    if (!mpack_node_is_missing(hopmap)) {
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+            trigger_error("invalid v3 CONFIGUREREPORT");
+            handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+            return;
+        }
+
+        set_int_source_hopping(true);
+
+        auto rate_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
+        if (!mpack_node_is_missing(rate_n)) {
+            auto rate = mpack_node_float(rate_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+                trigger_error("invalid v3 CONFIGUREREPORT");
+                handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+                return;
+            }
+
+            set_int_source_hop_rate(rate);
+        } else {
+            // _MSG_DEBUG("got CONFIGREPORT for {}/{} seqno {} with no CHANHOP_FIELD_RATE", get_source_name(), get_source_uuid(), seqno);
+            // don't actually disable channel hopping here; this is an invalid state to be in but we
+            // won't have a channel reported for our non-hopping channel
+            // set_int_source_hopping(false);
+        }
+
+
+        auto shuffle_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE);
+        if (!mpack_node_is_missing(shuffle_n)) {
+            auto shuffle = mpack_node_bool(shuffle_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+                trigger_error("invalid v3 CONFIGUREREPORT");
+                handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+                return;
+            }
+
+            set_int_source_hop_shuffle(shuffle);
+        } else {
+            set_int_source_hop_shuffle(false);
+        }
+
+        auto skip_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
+        if (!mpack_node_is_missing(skip_n)) {
+            auto skip = mpack_node_u16(skip_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+                trigger_error("invalid v3 CONFIGUREREPORT");
+                handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+                return;
+            }
+
+            set_int_source_hop_shuffle_skip(skip);
+        }
+
+        auto offset_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
+        if (!mpack_node_is_missing(offset_n)) {
+            auto offset = mpack_node_u16(offset_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+                trigger_error("invalid v3 CONFIGUREREPORT");
+                handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+                return;
+            }
+
+            set_int_source_hop_offset(offset);
+        }
+
+        auto chanvec = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
+        if (!mpack_node_is_missing(chanvec)) {
+            auto chans_sz = mpack_node_array_length(chanvec);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+                trigger_error("invalid v3 CONFIGUREREPORT");
+                handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+                return;
+            }
+
+            source_hop_vec->clear();
+
+            for (size_t szi = 0; szi < chans_sz; szi++) {
+                auto chan_n = mpack_node_array_at(chanvec, szi);
+                auto chan_s = mpack_node_str(chan_n);
+                auto chan_sz = mpack_node_data_len(chan_n);
+
+                if (mpack_tree_error(&tree) != mpack_ok) {
+                    _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
+                    trigger_error("invalid v3 CONFIGUREREPORT");
+                    handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
+                    return;
+                }
+
+                source_hop_vec->push_back(std::string(chan_s, chan_sz));
+            }
+        }
+    }
+
+    handle_configsource_report_v3_callback(report_seqno, code, lock, msg);
+}
+
+void kis_datasource::handle_opensource_report_v3_callback(uint32_t in_seqno, uint16_t code,
+        kis_unique_lock<kis_mutex>& lock, const std::string& msg) {
+
+    // Get the sequence number and look up our command
+    auto ci = command_ack_map.find(in_seqno);
+    if (ci != command_ack_map.end()) {
+        auto cb = ci->second->open_cb;
+        auto transaction = ci->second->transaction;
+
+        command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, code != 0, msg);
+            lock.lock();
+        }
+    }
+}
+
+void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t code,
+        const std::string_view& in_packet) {
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report_v3");
+    lock.lock();
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 OPENREPORT");
+        trigger_error("invalid v3 OPENREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto report_seqno = mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_SEQNO));
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 OPENREPORT");
+        trigger_error("invalid v3 OPENREPORT");
+        return;
+    }
+
+    std::string msg;
+    auto msg_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_MSG);
+    if (!mpack_node_is_missing(msg_n)) {
+        auto msg_s = mpack_node_str(msg_n);
+        auto msg_sz = mpack_node_data_len(msg_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            return;
+        }
+
+        msg = std::string(msg_s, msg_sz);
+    }
+
+    auto version_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION);
+    if (!mpack_node_is_missing(version_n)) {
+        auto ver_s = mpack_node_str(version_n);
+        auto ver_sz = mpack_node_data_len(version_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            return;
+        }
+
+        set_int_datasource_version(std::string(ver_s, ver_sz));
+    }
+
+    if (code == 0) {
+        trigger_error(msg);
+        set_int_source_error_reason(msg);
+        handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
+        return;
+    }
+
+    auto uuid_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID);
+    if (!mpack_node_is_missing(uuid_n) && get_source_uuid() == 0) {
+        auto uuid_s = mpack_node_str(uuid_n);
+        auto uuid_sz = mpack_node_data_len(uuid_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+            return;
+        }
+
+        uuid u(std::string(uuid_s, uuid_sz));
+        set_source_uuid(u);
+    } else if (!local_uuid && get_source_uuid() == 0) {
+        uuid u;
+        u.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+        set_source_uuid(u);
+    }
+
+    auto dlt_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_DLT);
+    if (!mpack_node_is_missing(dlt_n)) {
+        const auto dlt = mpack_node_uint(dlt_n);
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+            return;
+        }
+
+        if (get_source_dlt() == 0) {
+            set_int_source_dlt(dlt);
+        }
+    }
+
+    auto capif_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CAPIF);
+    if (!mpack_node_is_missing(capif_n)) {
+        auto capif_s = mpack_node_str(capif_n);
+        auto capif_sz = mpack_node_data_len(capif_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+            return;
+        }
+
+        set_int_source_cap_interface(std::string(capif_s, capif_sz));
+    }
+
+    auto hw_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_HARDWARE);
+    if (!mpack_node_is_missing(hw_n)) {
+        auto hw_s = mpack_node_str(hw_n);
+        auto hw_sz = mpack_node_data_len(hw_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+            return;
+        }
+
+        set_int_source_hardware(std::string(hw_s, hw_sz));
+    }
+
+    // set the basic channel and channel hopping parameters from the remote in case we're
+    // not directing them, as in the case of a remote source
+    auto channel_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANNEL);
+    if (!mpack_node_is_missing(channel_n)) {
+        auto chan_s = mpack_node_str(channel_n);
+        auto chan_sz = mpack_node_data_len(channel_n);
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+            return;
+        }
+
+        set_int_source_channel(std::string(chan_s, chan_sz));
+    }
+
+    auto hopmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHANHOPBLOCK);
+    if (!mpack_node_is_missing(hopmap)) {
+        auto rate_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
+        if (!mpack_node_is_missing(rate_n)) {
+            auto rate = mpack_node_float(rate_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+                trigger_error("invalid v3 OPENREPORT");
+                handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+                return;
+            }
+
+            set_int_source_hop_rate(rate);
+            set_int_source_hop_rate(true);
+        } else {
+            set_int_source_hopping(false);
+        }
+
+        auto shuffle_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE);
+        if (!mpack_node_is_missing(shuffle_n)) {
+            auto shuffle = mpack_node_bool(shuffle_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+                trigger_error("invalid v3 OPENREPORT");
+                handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+                return;
+            }
+
+            set_int_source_hop_shuffle(shuffle);
+        } else {
+            set_int_source_hop_shuffle(false);
+        }
+
+        auto skip_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
+        if (!mpack_node_is_missing(skip_n)) {
+            auto skip = mpack_node_u16(skip_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+                trigger_error("invalid v3 OPENREPORT");
+                handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+                return;
+            }
+
+            set_int_source_hop_shuffle_skip(skip);
+        }
+
+        auto offset_n = mpack_node_map_uint_optional(hopmap, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
+        if (!mpack_node_is_missing(offset_n)) {
+            auto offset = mpack_node_u16(offset_n);
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+                trigger_error("invalid v3 OPENREPORT");
+                handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+                return;
+            }
+
+            set_int_source_hop_offset(offset);
+        }
+    }
+
+    // populate the supplied source channels list, these are auto-detected by the datasource
+    auto chanvec = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHAN_LIST);
+    if (!mpack_node_is_missing(chanvec)) {
+        auto chans_sz = mpack_node_array_length(chanvec);
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+            return;
+        }
+
+        source_channels_vec->clear();
+
+        for (size_t szi = 0; szi < chans_sz; szi++) {
+            auto chan_n = mpack_node_array_at(chanvec, szi);
+            auto chan_s = mpack_node_str(chan_n);
+            auto chan_sz = mpack_node_data_len(chan_n);
+
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+                trigger_error("invalid v3 OPENREPORT");
+                handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
+                return;
+            }
+
+            source_channels_vec->push_back(std::string(chan_s, chan_sz));
+        }
+    }
+
+
+    // if we have a channels= in the source definition, override the channels list,
+    // merge the custom channels list and the supplied channels list.  Otherwise,
+    // copy the source list to the hop list.
+    //
+    // if we have a 'channel=' in the source definition that isnt in the list, add it.
+    //
+    // if we havce an 'add_channels=' in the source, use the provided list + the
+    // added list as the hop list
+    //
+    // if we have a 'block_channels=' in the source, mask the provided list with the
+    // block list to remove any channels otherwise automatically detected.
+    //
+    // many of the insert patterns are not very efficient, but it's a drop in the bucket
+    // compared to operational code so a simple setup is fine
+
+    source_hop_vec->clear();
+
+    // add the channel= to the source channels list
+    const auto def_chan = get_definition_opt("channel");
+    if (def_chan != "") {
+        string_vector_merge<std::vector<std::string>, tracker_element_vector_string>({def_chan}, source_channels_vec.get(),
+                [](const std::string& a, const std::string& b) -> bool {
+                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                });
+    }
+
+    const std::vector<std::string> def_vec = str_tokenize(get_definition_opt("channels"), ",");
+    const std::vector<std::string> add_vec = str_tokenize(get_definition_opt("add_channels"), ",");
+    const std::vector<std::string> block_vec = str_tokenize(get_definition_opt("block_channels"), ",");
+
+    // handle the channel list merge
+
+    if (def_vec.size() != 0) {
+        // if a channels= option was given, merge it into the known possible
+        // channels as reported by the source
+        string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(def_vec, source_channels_vec.get(),
+                [](const std::string& a, const std::string& b) -> bool {
+                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                });
+
+        // and apply them to the source hopping vector as the only hopping channels, using merge
+        // to clean up any duplicate channels
+        source_hop_vec->clear();
+        string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(def_vec, source_hop_vec.get(),
+                [](const std::string& a, const std::string& b) -> bool {
+                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                });
+    } else {
+        // otherwise we use the reported list of supported channels on the source to hop,
+        // with optional filtering of blocked channels and addition of non-auto-detected
+        // channels.
+
+        string_vector_inline_filter<tracker_element_vector_string, std::vector<std::string>>(source_channels_vec.get(),
+                block_vec,
+                [](const std::string& a, const std::string& b) -> bool {
+                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                });
+
+        string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(add_vec, source_channels_vec.get(),
+                [](const std::string& a, const std::string& b) -> bool {
+                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                });
+
+        source_hop_vec->clear();
+        string_vector_merge<tracker_element_vector_string, tracker_element_vector_string>(source_channels_vec.get(),
+                source_hop_vec.get(),
+                [](const std::string& a, const std::string& b) -> bool {
+                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                });
+    }
+
+    set_int_source_running(code != 0);
+    set_source_paused(0);
+    set_int_source_error(code == 0);
+
+    handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
+}
+
+std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& root,
+        mpack_tree_t *tree) {
+    auto gpsmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_GPSBLOCK);
+
+    if (mpack_node_is_missing(gpsmap)) {
+        return nullptr;
+    }
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (gps block)", get_source_name());
+        trigger_error("invalid v3 DATAREPORT");
+        return nullptr;
+    }
+
+    auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
+
+    auto n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->lat = mpack_node_double(n);
+    }
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->lon = mpack_node_double(n);
+    }
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->alt = mpack_node_float(n);
+    }
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->fix = mpack_node_u8(n);
+    }
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->speed = mpack_node_float(n);
+    }
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->heading = mpack_node_float(n);
+    }
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION);
+    if (!mpack_node_is_missing(n)) {
+        gpsinfo->precision = mpack_node_float(n);
+    }
+
+    n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
+    gpsinfo->tv.tv_sec = mpack_node_u64(n);
+
+    n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
+    gpsinfo->tv.tv_usec = mpack_node_u64(n);
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
+    if (!mpack_node_is_missing(n)) {
+        auto name_s = mpack_node_str(n);
+        auto name_sz = mpack_node_data_len(n);
+
+        gpsinfo->gpsname = std::string(name_s, name_sz);
+    }
+
+    /* type not currently used in packinfo
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
+    if (!mpack_node_is_missing(n)) {
+        auto type_s = mpack_node_str(n);
+        auto type_sz = mpack_node_data_len(n);
+    }
+    */
+
+    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_UUID);
+    if (!mpack_node_is_missing(n)) {
+        auto uuid_s = mpack_node_str(n);
+        auto uuid_sz = mpack_node_data_len(n);
+
+        gpsinfo->gpsuuid = std::string(uuid_s, uuid_sz);
+    }
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (gps block)",
+                get_source_name());
+        trigger_error("invalid v3 DATAREPORT");
+        return nullptr;
+    }
+
+    return gpsinfo;
+}
+
+std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_node_t& root,
+        mpack_tree_t *tree) {
+    if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK)) {
+        return nullptr;
+    }
+    auto sigmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (signal block)", get_source_name());
+        trigger_error("invalid v3 DATAREPORT");
+        return nullptr;
+    }
+
+    auto siginfo = packetchain->new_packet_component<kis_layer1_packinfo>();
+
+    auto s_dbm_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM);
+    if (!mpack_node_is_missing(s_dbm_n)) {
+        siginfo->signal_dbm = mpack_node_u32(s_dbm_n);
+    }
+
+    auto n_dbm_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM);
+    if (!mpack_node_is_missing(n_dbm_n)) {
+        siginfo->noise_dbm = mpack_node_u32(n_dbm_n);
+    }
+
+    auto s_rssi_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI);
+    if (!mpack_node_is_missing(s_rssi_n)) {
+        siginfo->signal_rssi = mpack_node_u32(s_rssi_n);
+    }
+
+    auto n_rssi_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI);
+    if (!mpack_node_is_missing(n_rssi_n)) {
+        siginfo->noise_rssi = mpack_node_u32(n_rssi_n);
+    }
+
+    auto freq_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ);
+    if (!mpack_node_is_missing(freq_n)) {
+        siginfo->freq_khz = mpack_node_u64(freq_n);
+    }
+
+    auto rate_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE);
+    if (!mpack_node_is_missing(rate_n)) {
+        siginfo->datarate = mpack_node_u64(rate_n);
+    }
+
+    auto channel_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
+    if (!mpack_node_is_missing(channel_n)) {
+        auto channel_s = mpack_node_str(channel_n);
+        auto channel_sz = mpack_node_data_len(channel_n);
+
+        siginfo->channel = std::string(channel_s, channel_sz);
+    }
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (signal block)", get_source_name());
+        trigger_error("invalid v3 DATAREPORT");
+        return nullptr;
+    }
+
+    return siginfo;
+}
+
+void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
+        mpack_node_t& root, mpack_tree_t *tree) {
+
+    if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_PACKETBLOCK)) {
+        return;
+    }
+
+    auto datamap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_PACKETBLOCK);
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        trigger_error("invalid v3 DATAREPORT");
+        return;
+    }
+
+    // If we have a packet report, but somehow we don't have data in the
+    // packet report, get out.
+    auto content_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT);
+    if (mpack_node_is_missing(content_n)) {
+        return;
+    }
+
+    auto datachunk = packetchain->new_packet_component<kis_datachunk>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        auto ts_s_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_S);
+        if (!mpack_node_is_missing(ts_s_n)) {
+            packet->ts.tv_sec = mpack_node_u64(ts_s_n);
+
+            auto ts_us_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_TS_US);
+            if (!mpack_node_is_missing(ts_us_n)) {
+                packet->ts.tv_usec = mpack_node_u64(ts_us_n);
+            }
+        } else {
+            gettimeofday(&(packet->ts), NULL);
+        }
+    }
+
+    // Override the DLT if we have one
+    if (get_source_override_linktype()) {
+        datachunk->dlt = get_source_override_linktype();
+    } else {
+        auto dlt_m = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_DLT);
+        if (!mpack_node_is_missing(dlt_m)) {
+            datachunk->dlt = mpack_node_u32(dlt_m);
+        }
+    }
+
+    auto olen_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH);
+
+    auto content_sz = mpack_node_data_len(content_n);
+    auto content_data = mpack_node_data(content_n);
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        trigger_error("invalid v3 DATAREPORT");
+        return;
+    }
+
+    if (!mpack_node_is_missing(olen_n)) {
+        packet->original_len = mpack_node_u32(olen_n);
+    } else {
+        packet->original_len = content_sz;
+    }
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        trigger_error("invalid v3 DATAREPORT");
+        return;
+    }
+
+    if (!handle_rx_data_content(packet.get(), datachunk.get(),
+                (const uint8_t *) content_data, content_sz)) {
+        return;
+    }
+
+    packet->insert(pack_comp_linkframe, datachunk);
+
+    get_source_packet_size_rrd()->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
+}
+
+int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+        const uint8_t *content, size_t content_sz) {
+    // basic assignment of packet data to the data chunk, sufficient for datasources returning
+    // real DLTs or other already-formatted data.  The content buffer here
+    // is a portion of the stream buffer associated with the packet, so
+    // setting a bare view around it is safe and lifetimed to the packet
+    // itself
+    packet->set_data(std::string_view((const char *) content, content_sz));
+    datachunk->set_data(packet->data);
+
+    return 1;
+}
+
+void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
+        mpack_node_t& root, mpack_tree_t *tree) {
+
+    if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_JSONBLOCK)) {
+        return;
+    }
+
+    auto jsonmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_JSONBLOCK);
+
+    if (mpack_tree_error(tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
+        trigger_error("invalid v3 DATAREPORT");
+        return;
+    }
+
+    // bail if no json or type
+    auto json_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON);
+    auto json_s = mpack_node_str(json_n);
+    auto json_sz = mpack_node_data_len(json_n);
+    if (mpack_node_is_missing(json_n)) {
+        return;
+    }
+
+    auto type_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TYPE);
+    auto type_s = mpack_node_str(type_n);
+    auto type_sz = mpack_node_data_len(type_n);
+    if (mpack_node_is_missing(type_n)) {
+        return;
+    }
+
+    auto jsoninfo = packetchain->new_packet_component<kis_json_packinfo>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        auto ts_s_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_S);
+        if (!mpack_node_is_missing(ts_s_n)) {
+            packet->ts.tv_sec = mpack_node_u64(ts_s_n);
+
+            auto ts_us_n = mpack_node_map_uint_optional(jsonmap, KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_TS_US);
+            if (!mpack_node_is_missing(ts_us_n)) {
+                packet->ts.tv_usec = mpack_node_u64(ts_us_n);
+            }
+        } else {
+            gettimeofday(&(packet->ts), NULL);
+        }
+    }
+
+    jsoninfo->type = std::string(type_s, type_sz);
+    jsoninfo->json_string = std::string(json_s, json_sz);
+
+    packet->insert(pack_comp_json, jsoninfo);
+}
+
+void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t code,
+        const std::string_view& in_packet,
+        std::shared_ptr<boost::asio::streambuf> buffer) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report_v3");
+
+    if (get_source_paused()) {
+        return;
+    }
+
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet external interface got unparseable v3 OPENREPORT");
+        trigger_error("invalid v3 OPENREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    // acquire and remember the gpstracker on the first packet, if we haven't done so
+    if (gpstracker == nullptr) {
+        gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+    }
+
+    auto packet = packetchain->generate_packet();
+
+    // use the buffer alias if we can, copy the packet content if we can't
+    if (buffer != nullptr) {
+        packet->set_streambuf(buffer);
+    } else {
+        packet->set_data(std::string(in_packet));
+    }
+
+    auto gpsinfo = handle_sub_gps(root, &tree);
+
+    if (cancelled) {
+        return;
+    }
+
+    if (gpsinfo != nullptr) {
+        packet->insert(pack_comp_gps, gpsinfo);
+    } else if (suppress_gps) {
+        auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
+        packet->insert(pack_comp_no_gps, nogpsinfo);
+    } else if (device_gps != nullptr) {
+        auto gpsinfo = device_gps->get_location();
+
+        if (gpsinfo != nullptr)
+            packet->insert(pack_comp_gps, gpsinfo);
+    }
+
+    auto siginfo = handle_sub_signal(root, &tree);
+    if (cancelled) {
+        return;
+    }
+
+    if (siginfo != nullptr) {
+        packet->insert(pack_comp_l1info, siginfo);
+    }
+
+    handle_rx_jsonlayer_v3(packet, root, &tree);
+    if (cancelled) {
+        return;
+    }
+
+    handle_rx_datalayer_v3(packet, root, &tree);
+    if (cancelled) {
+        return;
+    }
+
+    handle_rx_packet(packet);
+}
+
+unsigned int kis_datasource::send_configure_channel_v3(const std::string& in_channel,
+        unsigned int in_transaction, configure_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL);
+    mpack_write_cstr(&writer, in_channel.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 CONFIGREQ");
+            trigger_error("failed to serialize v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 CONFIGREQ");
+            trigger_error("failed to send v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->configure_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_hop_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer); // total map
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK);
+    mpack_build_map(&writer);  // chanhop map
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE);
+    mpack_write_float(&writer, in_rate);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SHUFFLE);
+    mpack_write_bool(&writer, in_shuffle);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_OFFSET);
+    mpack_write_u16(&writer, in_offt);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST);
+    mpack_start_array(&writer, in_chans->size()); // hop list
+
+    for (const auto& ci : *in_chans) {
+        mpack_write_cstr(&writer, ci.c_str());
+    }
+
+    mpack_finish_array(&writer); // hop list
+
+    mpack_complete_map(&writer); // chanhop map
+    mpack_complete_map(&writer); // total map
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 CONFIGREQ");
+            trigger_error("failed to serialize v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 CONFIGREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 CONFIGREQ");
+            trigger_error("failed to send v3 CONFIGREQ");
+            return 0;
+        }
+    }
+
+    // _MSG_DEBUG("sent config_req {}/{}", in_transaction, seqno);
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->configure_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_list_interfaces_v3(unsigned int in_transaction,
+        list_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_list_interfaces_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    uint32_t seqno = 0;
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_LISTREQ, 0, 1, nullptr, 0);
+
+    if (seqno == 0) {
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, {});
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 LISTREQ");
+            trigger_error("failed to send v3 LISTREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->list_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_open_source_v3(const std::string& in_definition,
+        unsigned int in_transaction, open_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_open_source_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION);
+    mpack_write_cstr(&writer, in_definition.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 OPENREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 OPENREQ");
+            trigger_error("failed to serialize v3 OPENREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_OPENREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 OPENREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 OPENREQ");
+            trigger_error("failed to send v3 OPENREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->open_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definition,
+        unsigned int in_transaction, probe_callback_t in_cb) {
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_probe_source_v3");
+
+    if (in_transaction == 0) {
+        in_transaction = next_transaction++;
+    }
+
+    char *data = NULL;
+    size_t size;
+    uint32_t seqno = 0;
+
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_build_map(&writer);
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_PROBEREQ_FIELD_DEFINITION);
+    mpack_write_cstr(&writer, in_definition.c_str());
+
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to serialize v3 PROBEREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed serializing v3 PROBEREQ");
+            trigger_error("failed to serialize v3 PROBEREQ");
+            return 0;
+        }
+    }
+
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_PROBEREQ, 0, 1, data, size);
+
+    if (seqno == 0) {
+        if (data != nullptr) {
+            free(data);
+        }
+
+        if (in_cb != NULL) {
+            lk.unlock();
+            in_cb(in_transaction, false, "failed to send v3 PROBEREQ");
+            return 0;
+        } else {
+            _MSG_ERROR("Kismet datasource failed sending v3 PROBEREQ");
+            trigger_error("failed to send v3 PROBEREQ");
+            return 0;
+        }
+    }
+
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
+    cmd->probe_cb = in_cb;
+    command_ack_map.insert(std::make_pair(seqno, cmd));
+
+    return 1;
+}
+
+#ifdef HAVE_PROTOBUF_CPP
+bool kis_datasource::dispatch_rx_packet(const std::string_view& command,
+        uint32_t seqno, const std::string_view& content) {
     // Handle all the default options first; ping, pong, message, etc are all
     // handled for us by the overhead of the KismetExternal protocol, we only need
     // to worry about our specific ones
@@ -936,43 +2635,36 @@ bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
 
     // Handle all the KisDataSource sub-protocols
     if (command.compare("KDSCONFIGUREREPORT") == 0) {
-        handle_packet_configure_report(seqno, content);
+        handle_packet_configure_report_v2(seqno, content);
         return true;
     } else if (command.compare("KDSDATAREPORT") == 0) {
-        handle_packet_data_report(seqno, content);
+        handle_packet_data_report_v2(seqno, content);
         return true;
     } else if (command.compare("KDSERRORREPORT") == 0) {
-        handle_packet_error_report(seqno, content);
+        handle_packet_error_report_v2(seqno, content);
         return true;
     } else if (command.compare("KDSINTERFACESREPORT") == 0) {
         quiet_errors = true;
-        handle_packet_interfaces_report(seqno, content);
+        handle_packet_interfaces_report_v2(seqno, content);
         return true;
     } else if (command.compare("KDSOPENSOURCEREPORT") == 0) {
-        handle_packet_opensource_report(seqno, content);
+        handle_packet_opensource_report_v2(seqno, content);
         return true;
     } else if (command.compare("KDSPROBESOURCEREPORT") == 0) {
         quiet_errors = true;
-        handle_packet_probesource_report(seqno, content);
+        handle_packet_probesource_report_v2(seqno, content);
         return true;
     } else if (command.compare("KDSWARNINGREPORT") == 0) {
-        handle_packet_warning_report(seqno, content);
+        handle_packet_warning_report_v2(seqno, content);
         return true;
     }
 
     return false;
 }
 
-void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
-    if (get_source_remote())
-        _MSG(fmt::format("{} - {}", get_source_name(), msg), type);
-    else
-        _MSG(msg, type);
-}
-
-void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, 
+void kis_datasource::handle_packet_probesource_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock,
             "datasource handle_packet_probesource_report");
     lock.lock();
 
@@ -1025,17 +2717,17 @@ void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno,
 
 }
 
-void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
+void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
 
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, 
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock,
             "datasource handle_packet_opensource_report");
     lock.lock();
 
     KismetDatasource::OpenSourceReport report;
 
     if (!report.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() +
                 std::string(" could not parse the open report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         trigger_error("Invalid KDSOPENSOURCEREPORT");
@@ -1053,20 +2745,18 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         // Don't clobber local UUID
         uuid u(report.uuid());
         set_source_uuid(u);
-        set_source_key(adler32_checksum(u.uuid_to_string()));
     } else if (!local_uuid && get_source_uuid() == 0) {
         // Only generate a new UUID if we don't already have one
         uuid nuuid;
         nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
         set_source_uuid(nuuid);
-        set_source_key(adler32_checksum(nuuid.uuid_to_string()));
     }
 
 
     if (!report.success().success()) {
         trigger_error(msg);
         set_int_source_error_reason(msg);
-    } 
+    }
 
     if (report.has_channels()) {
         source_channels_vec->clear();
@@ -1081,11 +2771,10 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     }
 
     if (report.has_hop_config()) {
-
         // Set the basics, if we got them we're being overridden by the remote
         // end; this might be a remote capture triggering remote-side options
-        
-        if (report.hop_config().has_rate()) 
+
+        if (report.hop_config().has_rate())
             set_int_source_hop_rate(report.hop_config().rate());
 
         if (report.hop_config().has_shuffle())
@@ -1119,7 +2808,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     // add it.
     //
     // If we have a 'add_channels=' in the source, use the provided list + that
-    // for hop, 
+    // for hop,
     //
     // If we have a 'block_channels=' in the source, use the list to mask
     // out any channels we think we support that are otherwise blocked
@@ -1162,7 +2851,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
                 }
             }
 
-            if (append) 
+            if (append)
                 source_channels_vec->push_back(dc);
         }
     } else if (add_vec.size() != 0) {
@@ -1235,8 +2924,8 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
 }
 
-void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
+void kis_datasource::handle_packet_interfaces_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report");
     lock.lock();
 
@@ -1245,7 +2934,7 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
     KismetDatasource::InterfacesReport report;
 
     if (!report.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() +
                 std::string(" could not parse the interface report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         lock.unlock();
@@ -1260,7 +2949,7 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
     }
 
     for (auto rintf : report.interfaces()) {
-        auto intf = 
+        auto intf =
             std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
 
         intf->populate(rintf.interface(), rintf.flags());
@@ -1296,14 +2985,14 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
 }
 
-void kis_datasource::handle_packet_error_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
+void kis_datasource::handle_packet_error_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_error_report");
 
     KismetDatasource::ErrorReport report;
 
     if (!report.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() +
                 std::string(" could not parse the error report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         trigger_error("Invalid KDSERRORREPORT");
@@ -1318,15 +3007,15 @@ void kis_datasource::handle_packet_error_report(uint32_t in_seqno,
     }
 }
 
-void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
+void kis_datasource::handle_packet_configure_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_configure_report");
     lock.lock();
 
     KismetDatasource::ConfigureReport report;
 
     if (!report.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() +
                 std::string(" could not parse the configure report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         trigger_error("Invalid KDSCONFIGUREREPORT");
@@ -1392,8 +3081,8 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno,
 
 }
 
-void kis_datasource::handle_packet_data_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
+void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
     {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report");
 
@@ -1410,14 +3099,14 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
     auto report = std::make_shared<KismetDatasource::DataReport>();
 
     if (!report->ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() +
                 std::string(" could not parse the data report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         trigger_error("Invalid KDSDATAREPORT");
         return;
     }
 
-    if (report->has_message()) 
+    if (report->has_message())
         handle_msg_proxy(report->message().msgtext(), report->message().msgtype());
 
     if (report->has_warning())
@@ -1425,17 +3114,14 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
 
     auto packet = packetchain->generate_packet();
 
-    auto packreport = packetchain->new_packet_component<kis_packreport_packinfo>();
-    packreport->set_report(report);
-
     // Process the data chunk
     if (report->has_packet()) {
-        handle_rx_datalayer(packet, report->packet());
+        handle_rx_datalayer_v2(packet, report->packet());
     }
 
     // Process JSON
     if (report->has_json()) {
-        handle_rx_jsonlayer(packet, report->json());
+        handle_rx_jsonlayer_v2(packet, report->json());
     }
 
     // Process protobufs
@@ -1476,15 +3162,15 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno,
     }
 
     // TODO handle spectrum
-   
+
     handle_rx_packet(packet);
 
 }
 
-void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
+void kis_datasource::handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
         const KismetDatasource::SubPacket& report) {
 
-    // If we have a packet report, but somehow we don't have data in the 
+    // If we have a packet report, but somehow we don't have data in the
     // packet report, get out.
     if (!report.has_data())
         return;
@@ -1522,7 +3208,7 @@ void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
     packet->insert(pack_comp_linkframe, datachunk);
 }
 
-void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+void kis_datasource::handle_rx_jsonlayer_v2(std::shared_ptr<kis_packet> packet,
         const KismetDatasource::SubJson& report) {
     auto jsoninfo = packetchain->new_packet_component<kis_json_packinfo>();
 
@@ -1539,39 +3225,14 @@ void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
     packet->insert(pack_comp_json, jsoninfo);
 }
 
-void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
-    auto datasrcinfo = packetchain->new_packet_component<packetchain_comp_datasource>();
-    datasrcinfo->ref_source = this;
-
-    packet->insert(pack_comp_datasrc, datasrcinfo);
-
-    inc_source_num_packets(1);
-    get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
-
-    // Insert GPS data as soon as possible in the chain if there's no data
-    // from the rest of the processing
-    if (packet->fetch(pack_comp_gps) == nullptr &&
-            packet->fetch(pack_comp_no_gps) == nullptr) {
-        auto gpsloc = gpstracker->get_best_location();
-
-        if (gpsloc != nullptr) {
-            packet->insert(pack_comp_gps, std::move(gpsloc));
-        }
-
-    }
-
-    // Inject the packet into the packetchain if we have one
-    packetchain->process_packet(packet);
-}
-
-void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, 
-        const nonstd::string_view& in_content) {
+void kis_datasource::handle_packet_warning_report_v2(uint32_t in_seqno,
+        const std::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_warning_report");
 
     KismetDatasource::WarningReport report;
 
     if (!report.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() +
                 std::string(" could not parse the warning report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         trigger_error("Invalid KDSWARNINGREPORT");
@@ -1606,13 +3267,13 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(KismetDat
         siginfo->noise_rssi = in_sig.noise_rssi();
     }
 
-    if (in_sig.has_freq_khz()) 
+    if (in_sig.has_freq_khz())
         siginfo->freq_khz = in_sig.freq_khz();
 
     if (in_sig.has_channel())
         siginfo->channel = in_sig.channel();
 
-    if (in_sig.has_datarate()) 
+    if (in_sig.has_datarate())
         siginfo->datarate = in_sig.datarate();
 
     return siginfo;
@@ -1637,7 +3298,7 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(KismetDatasourc
     return gpsinfo;
 }
 
-unsigned int kis_datasource::send_probe_source(std::string in_definition,
+unsigned int kis_datasource::send_probe_source_v2(std::string in_definition,
         unsigned int in_transaction, probe_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_probe_source");
 
@@ -1650,14 +3311,10 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
     KismetDatasource::ProbeSource probe;
     probe.set_definition(in_definition);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSPROBESOURCE");
-        c->set_content(probe.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSPROBESOURCE", 0, probe);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -1679,7 +3336,7 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
     return seqno;
 }
 
-unsigned int kis_datasource::send_open_source(std::string in_definition,
+unsigned int kis_datasource::send_open_source_v2(std::string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_open_source");
 
@@ -1692,14 +3349,10 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
     KismetDatasource::OpenSource o;
     o.set_definition(in_definition);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSOPENSOURCE");
-        c->set_content(o.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSOPENSOURCE", 0, o);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -1721,7 +3374,7 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
     return seqno;
 }
 
-unsigned int kis_datasource::send_configure_channel(std::string in_chan,
+unsigned int kis_datasource::send_configure_channel_v2(std::string in_chan,
         unsigned int in_transaction, configure_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel");
 
@@ -1737,14 +3390,10 @@ unsigned int kis_datasource::send_configure_channel(std::string in_chan,
     ch->set_channel(in_chan);
     o.set_allocated_channel(ch);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSCONFIGURE");
-        c->set_content(o.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSCONFIGURE", 0, o);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -1766,7 +3415,7 @@ unsigned int kis_datasource::send_configure_channel(std::string in_chan,
     return seqno;
 }
 
-unsigned int kis_datasource::send_configure_channel_hop(double in_rate, 
+unsigned int kis_datasource::send_configure_channel_hop_v2(double in_rate,
         std::shared_ptr<tracker_element_vector_string> in_chans,
         bool in_shuffle, unsigned int in_offt,
         unsigned int in_transaction,
@@ -1792,14 +3441,10 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 
     o.set_allocated_hopping(ch);
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSCONFIGURE");
-        c->set_content(o.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSCONFIGURE", 0, o);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -1821,7 +3466,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
     return seqno;
 }
 
-unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
+unsigned int kis_datasource::send_list_interfaces_v2(unsigned int in_transaction, list_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_list_interfaces");
 
     if (in_transaction == 0)
@@ -1832,14 +3477,10 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
     KismetDatasource::ListInterfaces l;
 
-    if (protocol_version == 0) {
-        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-        c->set_command("KDSLISTINTERFACES");
-        c->set_content(l.SerializeAsString());
-        seqno = send_packet(c);
-    } else if (protocol_version == 2) {
+    if (protocol_version == 2) {
         seqno = send_packet_v2("KDSLISTINTERFACES", 0, l);
     } else {
+        _MSG_ERROR("unhandled protocol version {}", protocol_version.load());
         seqno = 0;
     }
 
@@ -1860,6 +3501,7 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
     return seqno;
 }
+#endif
 
 
 void kis_datasource::register_fields() {
@@ -1869,7 +3511,9 @@ void kis_datasource::register_fields() {
             &source_number);
     register_field("kismet.datasource.source_key", "hashed UUID key", &source_key);
 
-    register_field("kismet.datasource.paused", 
+    register_field("kismet.datasource.cmd_pending", "pending command count", &source_cmd_pending);
+
+    register_field("kismet.datasource.paused",
             "capture is paused (no packets will be processed from this source)", &source_paused);
 
     register_field("kismet.datasource.ipc_binary", "capture command", &source_ipc_binary);
@@ -1877,10 +3521,14 @@ void kis_datasource::register_fields() {
 
     register_field("kismet.datasource.running", "capture is running", &source_running);
 
-    register_field("kismet.datasource.remote", 
+    register_field("kismet.datasource.datasource_version", "datasource binary version", &datasource_version);
+
+    register_field("kismet.datasource.remote_ip", "IP if a remote datasource", &remote_ip);
+
+    register_field("kismet.datasource.remote",
             "capture is connected from a remote server", &source_remote);
 
-    register_field("kismet.datasource.passive", 
+    register_field("kismet.datasource.passive",
             "capture is a post-able passive capture", &source_passive);
 
     register_field("kismet.datasource.name", "Human-readable name", &source_name);
@@ -1895,7 +3543,7 @@ void kis_datasource::register_fields() {
 
     register_field("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
 
-    channel_entry_id = 
+    channel_entry_id =
         register_field("kismet.datasource.channel_entry",
                 tracker_element_factory<tracker_element_string>(),
                 "Channel");
@@ -1904,56 +3552,56 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.hopping", "Source is channel hopping", &source_hopping);
     register_field("kismet.datasource.channel", "Current channel", &source_channel);
     register_field("kismet.datasource.hop_rate", "Hop rate if channel hopping", &source_hop_rate);
-    source_hop_vec_id = 
+    source_hop_vec_id =
         register_field("kismet.datasource.hop_channels", "Hop pattern if hopping", &source_hop_vec);
-    register_field("kismet.datasource.hop_split", 
+    register_field("kismet.datasource.hop_split",
             "Split hopping among same type interfaces", &source_hop_split);
-    register_field("kismet.datasource.hop_offset", 
+    register_field("kismet.datasource.hop_offset",
             "Offset into hopping list for multiple sources", &source_hop_offset);
-    register_field("kismet.datasource.hop_shuffle", 
+    register_field("kismet.datasource.hop_shuffle",
             "Shuffle channels while hopping", &source_hop_shuffle);
-    register_field("kismet.datasource.hop_shuffle_skip", 
-            "Number of channels skipped by source during hop shuffling", 
+    register_field("kismet.datasource.hop_shuffle_skip",
+            "Number of channels skipped by source during hop shuffling",
             &source_hop_shuffle_skip);
 
     register_field("kismet.datasource.error", "Source is in error state", &source_error);
-    register_field("kismet.datasource.error_reason", 
+    register_field("kismet.datasource.error_reason",
             "Last known reason for error state", &source_error_reason);
 
-    register_field("kismet.datasource.num_packets", 
+    register_field("kismet.datasource.num_packets",
             "Number of packets seen by source", &source_num_packets);
-    register_field("kismet.datasource.num_error_packets", 
+    register_field("kismet.datasource.num_error_packets",
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
 
-    packet_rate_rrd_id = 
-        register_dynamic_field("kismet.datasource.packets_rrd", 
+    packet_rate_rrd_id =
+        register_dynamic_field("kismet.datasource.packets_rrd",
                 "received packet rate RRD",
                 &packet_rate_rrd);
 
-    packet_size_rrd_id = 
-        register_dynamic_field("kismet.datasource.packets_datasize_rrd", 
+    packet_size_rrd_id =
+        register_dynamic_field("kismet.datasource.packets_datasize_rrd",
                 "received data RRD (in bytes)",
                 &packet_size_rrd);
 
-    register_field("kismet.datasource.retry", 
+    register_field("kismet.datasource.retry",
             "Source will try to re-open after failure", &source_retry);
-    register_field("kismet.datasource.retry_attempts", 
+    register_field("kismet.datasource.retry_attempts",
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
-    register_field("kismet.datasource.total_retry_attempts", 
+    register_field("kismet.datasource.total_retry_attempts",
             "Total unsuccessful retry attempts", &source_total_retry_attempts);
 
-    register_field("kismet.datasource.info.antenna_type", 
+    register_field("kismet.datasource.info.antenna_type",
             "User-supplied antenna type", &source_info_antenna_type);
-    register_field("kismet.datasource.info.antenna_gain", 
+    register_field("kismet.datasource.info.antenna_gain",
             "User-supplied antenna gain in dB", &source_info_antenna_gain);
-    register_field("kismet.datasource.info.antenna_orientation", 
+    register_field("kismet.datasource.info.antenna_orientation",
             "User-supplied antenna orientation", &source_info_antenna_orientation);
-    register_field("kismet.datasource.info.antenna_beamwidth", 
+    register_field("kismet.datasource.info.antenna_beamwidth",
             "User-supplied antenna beamwidth", &source_info_antenna_beamwidth);
-    register_field("kismet.datasource.info.amp_type", 
+    register_field("kismet.datasource.info.amp_type",
             "User-supplied amplifier type", &source_info_amp_type);
-    register_field("kismet.datasource.info.amp_gain", 
+    register_field("kismet.datasource.info.amp_gain",
             "User-supplied amplifier gain in dB", &source_info_amp_gain);
 
     register_field("kismet.datasource.linktype_override",
@@ -1978,7 +3626,7 @@ void kis_datasource::handle_source_error() {
         if (get_source_running()) {
             auto alrt = fmt::format("Source {} ({}) has encountered an error ({}).  "
                 "Remote sources are not locally reconnected; waiting for the remote source "
-                "to reconnect to resume capture.", get_source_name(), get_source_uuid(), 
+                "to reconnect to resume capture.", get_source_name(), get_source_uuid(),
                 get_source_error_reason());
 
             std::shared_ptr<alert_tracker> alertracker =
@@ -2009,10 +3657,10 @@ void kis_datasource::handle_source_error() {
 
         return;
     }
-    
+
     set_int_source_running(false);
 
-    // If we already have an error timer, we're thinking about restarting, 
+    // If we already have an error timer, we're thinking about restarting,
     // be quiet about things; otherwise, talk about restarting, increment the
     // count, and set a timer
     if (error_timer_id <= 0 && get_source_retry()) {
@@ -2042,7 +3690,7 @@ void kis_datasource::handle_source_error() {
                 _MSG("Attempting to re-open source " + get_source_name(), MSGFLAG_INFO);
 
                 // Call open on the same sourceline, no transaction
-                open_interface(generate_source_definition(), 0, 
+                open_interface(generate_source_definition(), 0,
                         [this](int, bool success, std::string) {
                             if (!success)
                                 return;
@@ -2099,10 +3747,11 @@ bool kis_datasource::launch_ipc() {
 
     if (run_ipc()) {
         set_int_source_ipc_pid(ipc.pid);
+
         return true;
     }
 
-    _MSG_ERROR("Data source '{} / {}' could not launch IPC helper", get_source_name(), 
+    _MSG_ERROR("Data source '{} / {}' could not launch IPC helper", get_source_name(),
             generate_source_definition());
 
     return false;

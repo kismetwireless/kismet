@@ -32,8 +32,11 @@
 
 #include "config.h"
 
+#include <condition_variable>
 #include <functional>
 #include <list>
+#include <mutex>
+#include <string_view>
 
 #include "endian_magic.h"
 #include "eventbus.h"
@@ -45,12 +48,18 @@
 #include "boost/asio.hpp"
 using boost::asio::ip::tcp;
 
+// Protobufs are now optional & will be phased out
+#ifdef HAVE_PROTOBUF_CPP
 #include <google/protobuf/message_lite.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 #include "protobuf_cpp/eventbus.pb.h"
+#endif
+
+// maximum size of a single IPC protocol frame
+#define MAX_EXTERNAL_FRAME_LEN       16384
 
 // Namespace stub and forward class definition to make deps hopefully easier going forward
 namespace KismetExternal {
@@ -75,19 +84,20 @@ public:
         stopped_{false},
         interface_{ext},
         strand_{Globalreg::globalreg->io} { }
-    
+
     virtual ~kis_external_io() {
         close();
     }
 
     virtual void attach_interface(std::shared_ptr<kis_external_interface> ext) {
-        boost::asio::post(strand(), 
+        boost::asio::post(strand(),
                 [self = shared_from_this(), ext]() mutable {
             self->interface_ = ext;
         });
     }
 
     virtual void start_read() = 0;
+    virtual int packet_read() = 0;
 
     virtual void write(const char *data, size_t len) {
         if (stopped_)
@@ -95,13 +105,13 @@ public:
 
         auto buf = std::make_shared<std::string>(data, len);
 
-        boost::asio::post(strand(), 
+        boost::asio::post(strand(),
                 [self = shared_from_this(), buf]() mutable {
 
                 self->out_bufs_.push_back(buf);
 
                 if (self->out_bufs_.size() > 1) {
-                return;
+                    return;
                 }
 
                 self->write_impl();
@@ -112,9 +122,11 @@ public:
 
     virtual bool connected() { return false; }
 
-    virtual boost::asio::io_service::strand &strand() { return strand_; }
+    virtual std::string remote_addresss() { return ""; }
 
-    virtual void close() { 
+    virtual boost::asio::io_context::strand &strand() { return strand_; }
+
+    virtual void close() {
         stopped_ = true;
     }
 
@@ -129,9 +141,9 @@ public:
     std::atomic<bool> stopped_;
 
     std::shared_ptr<kis_external_interface> interface_;
-    boost::asio::io_service::strand strand_;
+    boost::asio::io_context::strand strand_;
 
-    boost::asio::streambuf in_buf_;
+    std::shared_ptr<boost::asio::streambuf> in_buf_;
     std::list<std::shared_ptr<std::string>> out_bufs_;
 };
 
@@ -139,7 +151,7 @@ class kis_external_ipc : public kis_external_io {
 public:
     kis_external_ipc(std::shared_ptr<kis_external_interface> iface,
             kis_ipc_record& ipc,
-            boost::asio::posix::stream_descriptor &ipc_in, 
+            boost::asio::posix::stream_descriptor &ipc_in,
             boost::asio::posix::stream_descriptor &ipc_out) :
         kis_external_io{iface},
         ipc_in_{std::move(ipc_in)},
@@ -150,6 +162,7 @@ public:
     virtual ~kis_external_ipc() override;
 
     virtual void start_read() override;
+    virtual int packet_read() override;
 
     virtual bool connected() override {
         return (ipc_in_.is_open() && ipc_out_.is_open());
@@ -158,6 +171,8 @@ public:
     virtual void write_impl() override;
 
     virtual void close() override;
+
+    virtual std::string remote_addresss() override;
 
     void close_impl();
 
@@ -178,6 +193,7 @@ public:
     virtual ~kis_external_tcp() override;
 
     virtual void start_read() override;
+    virtual int packet_read() override;
 
     virtual bool connected() override {
         return tcpsocket_.is_open();
@@ -187,6 +203,8 @@ public:
 
     virtual void close() override;
     void close_impl();
+
+    virtual std::string remote_addresss() override;
 
     tcp::socket tcpsocket_;
 };
@@ -203,11 +221,12 @@ public:
         ws_strand_{ws->strand()},
         write_cb_{write_cb} { }
 
-    virtual boost::asio::io_service::strand &strand() override {
+    virtual boost::asio::io_context::strand &strand() override {
         return ws_strand_;
     }
 
     virtual void start_read() override { };
+    virtual int packet_read() override { return 0; };
 
     virtual void write_impl() override;
 
@@ -217,9 +236,10 @@ public:
 
     virtual void close() override;
 
+    virtual std::string remote_addresss() override;
 
     std::shared_ptr<kis_net_web_websocket_endpoint> ws_;
-    boost::asio::io_service::strand ws_strand_;
+    boost::asio::io_context::strand ws_strand_;
     cb_func_t write_cb_;
 };
 
@@ -234,7 +254,7 @@ public:
     }
 
     // Launch the external binary and connect the IPC channel to our buffer
-    // interface; most tools will use this unless they support network; 
+    // interface; most tools will use this unless they support network;
     // datasources are the primary exception
     virtual bool run_ipc();
 
@@ -267,6 +287,18 @@ public:
     // close the external interface, opportunistically wraps in strand
     virtual void close_external();
 
+    // get and set the protocol version; this is necessary for the datasourcetracker
+    // to inherit the proper DS version from the incoming source, but generally
+    // shouldn't be used by any other protocols.  We leverage the std::atomic-ness
+    // of the protocol version since we know when this is called.
+    int get_prototocol_version() {
+        return protocol_version.load();
+    }
+
+    void set_protocol_version(int version) {
+        protocol_version.store(version);
+    }
+
     // We use the raw http server APIs instead of the newer endpoint handlers because we
     // potentially mess with the headers and other internals
 
@@ -275,6 +307,9 @@ public:
 
     // Get the IO handler
     virtual std::shared_ptr<kis_external_io> move_io(std::shared_ptr<kis_external_interface> newif) {
+        if (io_ == nullptr) {
+            _MSG_DEBUG("IO was already null!  uhoh!");
+        }
         auto io_ref = io_;
         io_ = nullptr;
         io_ref->attach_interface(newif);
@@ -290,10 +325,95 @@ protected:
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
 
-    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence number
-    // Uses the legacy v0 protocol
-    unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
+    // Metafunction to send a packet.  If Protobufs is enabled and our version is
+    // <= 2, use the protobufs v2 generation, translating the v3 packet type
+    // to the v2 string type.
+    //
+    // Otherwise, use the v3 IPC, which is what we're moving to anyhow.
+    //
+    // At this point, we're able phase out the v0 protocol since it hasn't been
+    // used in a shipping version for years.
+    template <class CT, class T>
+    unsigned int send_external_packet(const CT& command, uint32_t seqno,
+            bool success, const T& content) {
+        if (protocol_version == 2) {
+#ifdef HAVE_PROTOBUF_CPP
+            return send_packet_v2(command, seqno, content);
+#else
+            _MSG_ERROR("Kismet was compiled without protobufs support, please update "
+                    "the capture tools to a more recent version which replaces "
+                    "protobufs");
+            trigger_error("unhandleable protocol version");
+            close_external();
+            return 1;
+#endif
+        } else if (protocol_version == 3) {
+            return send_packet_v3(command, seqno, success, content);
+        } else {
+            _MSG_ERROR("This build of Kismet does not handle this version of the IPC protocol ({}), "
+                    "ensure that the capture tools and Kismet server are running similar "
+                    "compatible versions.", protocol_version.load());
+            trigger_error("unhandleable protocol version");
+            close_external();
+            return 1;
+        }
+    }
 
+    // Generate a v3 frame header for the content and transmit, returning the sequence
+    // number of the generated frame.  Packet data is copied into the tx buffer; the caller
+    // can safely dispose of the content after this call.  This is not hugely optimized for
+    // zero-copy, but the external protocol is extremely asymmetric and Kismet does not send
+    // large amounts of content to the external binaries
+    unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
+            unsigned int code, const char *content, size_t content_sz) {
+
+        if ((io_ != nullptr && io_->stopped()) || cancelled) {
+            _MSG_DEBUG("Attempt to send {} on closed external interface", command);
+            return 0;
+        }
+
+        if (sizeof(kismet_external_frame_v3_t) + content_sz > MAX_EXTERNAL_FRAME_LEN) {
+            _MSG_ERROR("Attempt to send a {} byte frame; max {}",
+                    sizeof(kismet_external_frame_v3_t) + content_sz, MAX_EXTERNAL_FRAME_LEN);
+            trigger_error("tx frame too large");
+            close_external();
+            return 0;
+        }
+
+        if (in_seqno == 0) {
+            kis_lock_guard<kis_mutex> lk(ext_mutex, "kei send_packet_v3");
+            if (++seqno == 0)
+                seqno = 1;
+            in_seqno = seqno;
+        }
+
+        char frame_buf[MAX_EXTERNAL_FRAME_LEN];
+        auto frame = reinterpret_cast<kismet_external_frame_v3_t *>(frame_buf);
+
+        frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+        frame->v3_sentinel = kis_hton16(KIS_EXTERNAL_V3_SIG);
+        frame->v3_version = kis_ntoh16(3);
+        frame->length = kis_hton32(content_sz);
+        frame->pkt_type = kis_hton16(command);
+        frame->code = kis_hton16(code);
+        frame->seqno = kis_hton32(in_seqno);
+
+        memcpy(frame->data, content, content_sz);
+
+        start_write(frame_buf, sizeof(kismet_external_frame_v3_t) + content_sz);
+
+        return in_seqno;
+    }
+
+    unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
+            unsigned int code, const std::string& content) {
+        return send_packet_v3(command, in_seqno, code, content.data(), content.size());
+    }
+
+    // Generic msg proxy
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype);
+
+#ifdef HAVE_PROTOBUF_CPP
     // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
     template<class T>
     unsigned int send_packet_v2(const std::string& command, uint32_t in_seqno, const T& content) {
@@ -336,19 +456,35 @@ protected:
     }
 
     // Central packet dispatch handler, common layer and v2+ handler
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
-            uint32_t seqno, const nonstd::string_view& content);
+    virtual bool dispatch_rx_packet(const std::string_view& command,
+            uint32_t seqno, const std::string_view& content);
 
-    // Generic msg proxy
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
+    // V2 Packet handlers
+    virtual void handle_packet_message(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_ping(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_pong(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string_view& in_content);
 
-    // Packet handlers
-    virtual void handle_packet_message(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_ping(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_pong(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_shutdown(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const nonstd::string_view& in_content);
+    // Eventbus
+    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const std::string_view& in_content);
+#endif
+
+
+    // New/modern packet dispatch for v3+
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
+            uint16_t code, uint32_t seqno,
+            const std::string_view& content);
+
+    // V3 Packet handlers
+    virtual void handle_packet_message_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_ping_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_pong_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+
+    // Eventbus
+    virtual void handle_packet_eventbus_register_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_eventbus_publish_v3(uint32_t in_seqno, uint16_t code, const std::string_view& in_content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -385,20 +521,38 @@ protected:
 
     void proxy_event(std::shared_ptr<eventbus_event>);
 
-
     // Webserver proxy code
-
-    virtual void handle_packet_http_register(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_http_response(uint32_t in_seqno, const nonstd::string_view& in_content);
-    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const nonstd::string_view& in_content);
+#ifdef HAVE_PROTOBUF_CPP
+    virtual void handle_packet_http_register(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_http_response(uint32_t in_seqno, const std::string_view& in_content);
+    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const std::string_view& in_content);
 
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
     unsigned int send_http_auth(std::string in_session);
 
+#endif
+
+    virtual void handle_packet_http_register_v3(uint32_t in_seqno,
+            uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_http_response_v3(uint32_t in_seqno,
+            uint16_t code, const std::string_view& in_content);
+    virtual void handle_packet_http_auth_request_v3(uint32_t in_seqno,
+            uint16_t code, const std::string_view& in_content);
+
+    unsigned int send_http_request_v3(uint32_t in_http_sequence,
+            const std::string& in_uri, const std::string& in_method,
+            std::map<std::string, std::string> in_postdata);
+    unsigned int send_http_auth_v3(const std::string& in_session);
+
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
+
+    // send a specially hand-crafted ping to determine if we have a legacy v2 datasource
+    unsigned int send_v2_probe_ping();
+    bool v2_probe_ack;
+    virtual void handle_v2_pong_event() { }
 
 public:
     static const int result_handle_packet_cancelled = -2;
@@ -406,254 +560,16 @@ public:
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;
 
+    // returned from command dispatches
+    static const int result_handle_command_returnbuf = 0;
+    static const int result_handle_command_keepbuf = 1;
+
     std::shared_ptr<KismetExternal::Command> cached_cmd;
 
-    // Handle a buffer containing a network frame packet
-    template<class BoostBuffer>
-    int handle_packet(BoostBuffer& buffer) {
-        const kismet_external_frame_t *frame = nullptr;
-        const kismet_external_frame_v2_t *frame_v2 = nullptr;
-        uint32_t frame_sz, data_sz;
-
-        // Consume everything in the buffer that we can
-        while (1) {
-            // See if we have enough to get a frame header
-            size_t buffamt = buffer.size();
-
-            if (buffamt < sizeof(kismet_external_frame_t)) {
-                return result_handle_packet_needbuf;
-            }
-
-            frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(buffer.data());
-            frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(buffer.data());
-
-            // Check the frame signature
-            if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-                _MSG_ERROR("Kismet external interface got command frame with invalid signature");
-                trigger_error("Invalid signature on command frame");
-                return result_handle_packet_error;
-            }
-
-            // Detect and process the v2 frames
-            if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
-                    kis_ntoh16(frame_v2->frame_version) == 0x02) {
-
-                data_sz = kis_ntoh32(frame_v2->data_sz);
-                frame_sz = data_sz + sizeof(kismet_external_frame_v2);
-
-                if (frame_sz >= 16384) {
-                    _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                            "be processed ({}); either the frame is malformed or you are connecting to "
-                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                            "Kismet on all connected systems.", frame_sz);
-                    trigger_error("Command frame too large for buffer");
-                    return result_handle_packet_error;
-                }
-
-                // If we don't have the whole buffer available, bail on this read
-                if (frame_sz > buffamt) {
-                    return result_handle_packet_needbuf;
-                }
-
-                // No checksum anymore
-
-                uint32_t seqno = kis_ntoh32(frame_v2->seqno);
-
-                nonstd::string_view command(frame_v2->command, 32);
-
-                auto trim_pos = command.find('\0');
-                if (trim_pos != command.npos)
-                    command.remove_suffix(command.size() - trim_pos);
-
-                nonstd::string_view content((const char *) frame_v2->data, data_sz);
-
-                // If we've gotten this far it's a valid newer protocol, switch to v2 mode
-                protocol_version = 2;
-
-                // Dispatch the received command
-                dispatch_rx_packet(command, seqno, content);
-
-                buffer.consume(frame_sz);
-            } else {
-                // Check the length
-                data_sz = kis_ntoh32(frame->data_sz);
-                frame_sz = data_sz + sizeof(kismet_external_frame);
-
-                // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-                if ((long int) frame_sz >= 16384) {
-                    _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                            "be processed ({}); either the frame is malformed or you are connecting to "
-                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                            "Kismet on all connected systems.", frame_sz);
-                    trigger_error("Command frame too large for buffer");
-                    return result_handle_packet_error;
-                }
-
-                // If we don't have the whole buffer available, bail on this read
-                if (frame_sz > buffamt) {
-                    return result_handle_packet_needbuf;
-                }
-
-                // Process the data payload as a protobuf frame
-                // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
-
-                // Re-use a cached command
-                if (cached_cmd == nullptr) {
-                    cached_cmd = std::make_shared<KismetExternal::Command>();
-                } else {
-                    cached_cmd->Clear();
-                }
-
-                auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
-
-                if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
-                    delete(ai);
-                    _MSG_ERROR("Kismet external interface could not interpret the payload of the "
-                            "command frame; either the frame is malformed, a network error occurred, or "
-                            "an unsupported tool is connected to the external interface API");
-                    trigger_error("unparsable command frame");
-                    return result_handle_packet_error;
-                }
-
-                // Dispatch the received command
-                dispatch_rx_packet(cached_cmd->command(), cached_cmd->seqno(),
-                        cached_cmd->content());
-
-                delete(ai);
-
-                buffer.consume(frame_sz);
-            }
-        }
-
-        return result_handle_packet_ok;
-    }
-
-    // Handle a buffer with a single frame in it; for instance, fed by the websocket api.  The buffer is not
-    // consumed.
-    template<class ConstBufferSequence>
-    int handle_external_command(const ConstBufferSequence& data, size_t sz) {
-        const kismet_external_frame_t *frame = nullptr;
-        const kismet_external_frame_v2_t *frame_v2 = nullptr;
-
-        uint32_t frame_sz, data_sz;
-        uint32_t data_checksum;
-
-        if (sz < sizeof(kismet_external_frame_t)) {
-            return result_handle_packet_needbuf;
-        }
-
-        frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(data);
-        frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(data);
-
-        // Check the frame signature
-        if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-            _MSG_ERROR("Kismet external interface got command frame with invalid signature");
-            trigger_error("Invalid signature on command frame");
-            return result_handle_packet_error;
-        }
-
-        // Detect and process the v2 frames
-        if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
-                kis_ntoh16(frame_v2->frame_version) == 0x02) {
-
-            data_sz = kis_ntoh32(frame_v2->data_sz);
-            frame_sz = data_sz + sizeof(kismet_external_frame_v2);
-
-            if (frame_sz >= 16386) {
-                _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                           "be processed ({}); either the frame is malformed or you are connecting to "
-                           "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                           "Kismet on all connected systems.", frame_sz);
-                trigger_error("Command frame too large for buffer");
-                return result_handle_packet_error;
-            }
-
-            // If we don't have the whole buffer available, bail on this read
-            if (frame_sz > sz) {
-                return result_handle_packet_needbuf;
-            }
-
-            // No checksum anymore
-
-            uint32_t seqno = kis_ntoh32(frame_v2->seqno);
-
-            nonstd::string_view command(frame_v2->command, 32);
-
-            auto trim_pos = command.find('\0');
-            if (trim_pos != command.npos)
-                command.remove_suffix(command.size() - trim_pos);
-
-            nonstd::string_view content((const char *) frame_v2->data, data_sz);
-
-            // If we've gotten this far it's a valid newer protocol, switch to v2 mode
-            protocol_version = 2;
-
-            // Dispatch the received command
-            dispatch_rx_packet(command, seqno, content);
-
-            return result_handle_packet_ok;
-        } else {
-            // Check the length
-            data_sz = kis_ntoh32(frame->data_sz);
-            frame_sz = data_sz + sizeof(kismet_external_frame);
-
-            // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-            if ((long int) frame_sz >= 16384) {
-                _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                           "be processed ({}); either the frame is malformed or you are connecting to "
-                           "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                           "Kismet on all connected systems.", frame_sz);
-                trigger_error("Command frame too large for buffer");
-                return result_handle_packet_error;
-            }
-
-            // If we don't have the whole buffer available, bail on this read
-            if (frame_sz > sz) {
-                return result_handle_packet_needbuf;
-            }
-
-            // We have a complete payload, checksum 
-            data_checksum = adler32_checksum((const char *) frame->data, data_sz);
-
-            if (data_checksum != kis_ntoh32(frame->data_checksum)) {
-                _MSG_ERROR("Kismet external interface got a command frame with an invalid checksum; "
-                           "either the frame is malformed, a network error occurred, or an unsupported tool "
-                           "has connected to the external interface API.");
-                trigger_error("command frame has invalid checksum");
-                return result_handle_packet_error;
-            }
-
-            // Process the data payload as a protobuf frame
-            // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
-
-            // Re-use a cached command
-            if (cached_cmd == nullptr) {
-                cached_cmd = std::make_shared<KismetExternal::Command>();
-            } else {
-                cached_cmd->Clear();
-            }
-
-            auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
-
-            if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
-                delete(ai);
-                _MSG_ERROR("Kismet external interface could not interpret the payload of the "
-                           "command frame; either the frame is malformed, a network error occurred, or "
-                           "an unsupported tool is connected to the external interface API");
-                trigger_error("unparsable command frame");
-                return result_handle_packet_error;
-            }
-
-            // Dispatch the received command
-            dispatch_rx_packet(cached_cmd->command(), cached_cmd->seqno(),
-                    cached_cmd->content());
-
-            delete(ai);
-
-            return result_handle_packet_ok;
-
-        }
-    }
+    // handle a kis_external with a dedicated buffer to be contained in
+    // any longer-lifespan data like packet records; this is allocated from
+    // the global buffer pool and will be recycled there automatically
+    int handle_packet(std::shared_ptr<boost::asio::streambuf> buffer);
 };
 
 #endif

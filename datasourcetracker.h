@@ -22,10 +22,11 @@
 #include "config.h"
 
 #include <atomic>
-#include <string>
-#include <vector>
-#include <map>
 #include <functional>
+#include <map>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "globalregistry.h"
 #include "util.h"
@@ -48,22 +49,22 @@
  * This code replaces the old packetsource tracker.
  *
  * Data sources are registered passing a builder instance which is used to
- * instantiate the final versions of the data sources.  
+ * instantiate the final versions of the data sources.
  *
- * Data sources communicate via the protocol defined in simple_cap_proto.h 
+ * Data sources communicate via the protocol defined in simple_cap_proto.h
  * and may communicate packets or complete device objects.
  *
- * 'Auto' type sources (sources with type=auto or no type given) are 
- * probed automatically via all the registered datasource drivers.  
+ * 'Auto' type sources (sources with type=auto or no type given) are
+ * probed automatically via all the registered datasource drivers.
  * Datasource drivers may require starting a process in order to perform the
  * probe, or they may be able to perform the probe in C++ native code.
  *
  * Once a source driver is found, it is instantiated as an active source and
- * put in the list of sources.  Opening the source may result in an error, 
+ * put in the list of sources.  Opening the source may result in an error,
  * but as the source is actually assigned, it will remain in the source list.
  * This is to allow defining sources that may not be plugged in yet, etc.
  *
- * Devices which encounter errors are placed in the error vector and 
+ * Devices which encounter errors are placed in the error vector and
  * periodically re-tried
  *
  */
@@ -89,7 +90,7 @@ public:
 //
 // Scans drivers which don't need IPC for probing first and returns immediately
 // if one of them is able to handle the probe without an IPC.
-// 
+//
 // Spawns IPC sources for all prototype sources concurrently.
 // The first source to answer a probe with an affirmative wins; the rest of the
 // probes are cancelled.
@@ -152,9 +153,9 @@ typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe
 //
 // Handles listing interfaces supported by kismet
 //
-// Populated with a list transaction ID, and the prototype sources, 
+// Populated with a list transaction ID, and the prototype sources,
 //
-// Scans drivers which don't need IPC launching first, then launches all 
+// Scans drivers which don't need IPC launching first, then launches all
 // IPC sources capable of doing an interface list and sends a query.
 //
 // IPC sources spawned concurrently, and results aggregated.
@@ -168,9 +169,9 @@ public:
     void list_sources(std::shared_ptr<datasource_tracker_source_list> ref, std::function<void (std::vector<shared_interface>)> in_cb);
 
     std::string get_definition() { return definition; }
-    
+
     // Complete a list - when the last one completes we're done
-    void complete_list(std::shared_ptr<kis_datasource> source, 
+    void complete_list(std::shared_ptr<kis_datasource> source,
             std::vector<shared_interface> interfaces, unsigned int in_transaction);
 
     void cancel();
@@ -184,7 +185,7 @@ protected:
 
     std::shared_ptr<tracker_element_vector> proto_vec;
 
-    // Vector of sources we're still waiting to return from listing 
+    // Vector of sources we're still waiting to return from listing
     std::vector<shared_datasource> list_vec;
 
     // Vector of sources which are complete and waiting for cleanup
@@ -257,18 +258,18 @@ protected:
 
         register_field("kismet.datasourcetracker.default.hop_rate",
                 "default hop rate for sources", &hop_rate);
-        register_field("kismet.datasourcetracker.default.hop", 
+        register_field("kismet.datasourcetracker.default.hop",
                 "do sources hop by default", &hop);
-        register_field("kismet.datasourcetracker.default.split", 
-                "split channels among sources with the same type", 
+        register_field("kismet.datasourcetracker.default.split",
+                "split channels among sources with the same type",
                 &split_same_sources);
-        register_field("kismet.datasourcetracker.default.random_order", 
+        register_field("kismet.datasourcetracker.default.random_order",
                 "scramble channel order to maximize use of overlap",
                 &random_channel_order);
-        register_field("kismet.datasourcetracker.default.retry_on_error", 
+        register_field("kismet.datasourcetracker.default.retry_on_error",
                 "re-open sources if an error occurs", &retry_on_error);
 
-        register_field("kismet.datasourcetracker.default.remote_cap_listen", 
+        register_field("kismet.datasourcetracker.default.remote_cap_listen",
                 "listen address for remote capture",
                 &remote_cap_listen);
         register_field("kismet.datasourcetracker.default.remote_cap_port",
@@ -345,7 +346,7 @@ public:
     //
     // Optional completion function will be called, asynchronously,
     // on completion.
-    void open_datasource(const std::string& in_source, 
+    void open_datasource(const std::string& in_source,
             const std::function<void (bool, std::string, shared_datasource)>& in_cb);
 
     // Launch a source with a known prototype, given a basic source line
@@ -363,7 +364,7 @@ public:
     bool remove_datasource(const uuid& in_uuid);
 
     // Try to instantiate a remote data source
-    std::shared_ptr<kis_datasource> open_remote_datasource(dst_incoming_remote *incoming, 
+    std::shared_ptr<kis_datasource> open_remote_datasource(dst_incoming_remote *incoming,
             const std::string& in_type, const std::string& in_definition, const uuid& in_uuid,
             bool connect_tcp);
 
@@ -497,15 +498,21 @@ public:
     dst_incoming_remote(callback_t in_cb);
     ~dst_incoming_remote();
 
+#ifdef HAVE_PROTOBUF_CPP
     // Override the dispatch commands to handle the new source
-    virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
-            uint32_t seqno, const nonstd::string_view& content) override;
+    virtual bool dispatch_rx_packet(const std::string_view& command,
+            uint32_t seqno, const std::string_view& content) override;
+    virtual void handle_packet_newsource(uint32_t in_seqno, std::string_view in_packet);
+#endif
+
+    virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
+            uint16_t command, uint16_t code, uint32_t seqno,
+            const std::string_view& content) override;
+    virtual void handle_packet_newsource_v3(uint32_t in_seqno, uint16_t in_code, std::string_view in_packet);
 
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
         _MSG(fmt::format("(Remote) - {}", msg), msgtype);
     }
-
-    virtual void handle_packet_newsource(uint32_t in_seqno, nonstd::string_view in_packet);
 
     virtual void kill();
 

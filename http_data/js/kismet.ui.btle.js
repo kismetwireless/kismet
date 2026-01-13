@@ -64,6 +64,24 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 },
                 help: "Device supports BT classic BR/EDR modes as a host",
             },
+            {
+                field: "btle.device/btle.device.pdu_type",
+                title: "PDU Type",
+                draw: function(opts) {
+                    var pdu_types = {
+                        0x0: "ADV_IND (Connectable)",
+                        0x1: "ADV_DIRECT_IND",
+                        0x2: "ADV_NONCONN_IND (Non-connectable)",
+                        0x3: "SCAN_REQ",
+                        0x4: "SCAN_RSP",
+                        0x5: "CONNECT_REQ",
+                        0x6: "ADV_SCAN_IND (Scannable)",
+                        0x7: "ADV_EXT_IND"
+                    };
+                    return pdu_types[opts['value']] || "Unknown (" + opts['value'] + ")";
+                },
+                help: "BLE advertising PDU type indicating if device is connectable",
+            },
             ],
         });
     },

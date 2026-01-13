@@ -83,30 +83,48 @@ time_tracker::~time_tracker() {
 }
 
 void time_tracker::time_dispatcher() {
-    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
-        kis_unique_lock<kis_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
+    unsigned int interval = 0;
 
-        // Calculate the next tick
-        auto start = std::chrono::system_clock::now();
-        auto end = start + std::chrono::milliseconds(1000 / SERVER_TIMESLICES_SEC);
+    auto start = time(0);
+    auto then = std::chrono::system_clock::from_time_t(start + 1);
+
+    std::this_thread::sleep_until(then);
+
+    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
+        auto now = time(0);
+        std::chrono::system_clock::time_point next;
+
+        switch (++interval % 10) {
+            case 0:
+                next = std::chrono::system_clock::from_time_t(now + 1);
+                break;
+            default:
+                next = std::chrono::system_clock::from_time_t(now) +
+                    std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) *
+                            (interval % SERVER_TIMESLICES_SEC));
+                break;
+        }
+
+        kis_unique_lock<kis_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
 
         // Handle scheduled events
         struct timeval cur_tm;
         gettimeofday(&cur_tm, NULL);
 
+        auto chrono_now = std::chrono::system_clock::now();
+
         Globalreg::globalreg->last_tv_sec = cur_tm.tv_sec;
         Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
 
-        // Sort and duplicate the vector to a safe list; we have to re-sort 
+        // Sort and duplicate the vector to a safe list; we have to re-sort
         // timers from recurring events
         lock.lock();
 
         if (timer_sort_required)
-            sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
+            std::stable_sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
 
         timer_sort_required = false;
 
-        // Sort the timers
         auto action_timers = std::vector<std::shared_ptr<timer_event>>(sorted_timers.begin(), sorted_timers.end());
         lock.unlock();
 
@@ -119,8 +137,7 @@ void time_tracker::time_dispatcher() {
             }
 
             // We're into the future, bail
-            if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
-                    ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
+            if (chrono_now < evt->trigger_tm) {
                 break;
             }
 
@@ -141,7 +158,7 @@ void time_tracker::time_dispatcher() {
                     if (time_workers[t].joinable()) {
                         time_workers[t].join();
 
-                        time_workers[t] = std::thread([evt, this]() {
+                        time_workers[t] = std::thread([evt, this, chrono_now]() {
                             thread_set_process_name("TIME_EVT");
 
                             // Call the function with the given parameters
@@ -160,16 +177,10 @@ void time_tracker::time_dispatcher() {
                                 struct timeval cur_tm;
                                 gettimeofday(&cur_tm, NULL);
 
-                                evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-                                evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-                                evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
-                                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-                                    ((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
+                                evt->schedule_tm = chrono_now;
 
-                                if (evt->trigger_tm.tv_usec >= 999999L) {
-                                    evt->trigger_tm.tv_sec++;
-                                    evt->trigger_tm.tv_usec %= 1000000L;
-                                }
+                                evt->trigger_tm = chrono_now +
+                                    std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
 
                                 timer_sort_required = true;
                             } else {
@@ -209,20 +220,12 @@ void time_tracker::time_dispatcher() {
             removed_timer_ids.clear();
         }
 
-        /*
-        if (std::chrono::system_clock::now() >= end) {
-            fmt::print("debug - timetracker missed time slot by {} ms\n",
-                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - end).count());
-        }
-        */
-
-
-        std::this_thread::sleep_until(end);
+        std::this_thread::sleep_until(next);
     }
 }
 
 int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
-                               int in_recurring, 
+                               int in_recurring,
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
@@ -233,17 +236,20 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->last_ms = 0;
 
     evt->timer_id = next_timer_id++;
-    gettimeofday(&(evt->schedule_tm), NULL);
+
+    evt->schedule_tm = std::chrono::system_clock::now();
 
     if (in_trigger != NULL) {
-        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
-        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->trigger_tm =
+            std::chrono::system_clock::from_time_t(in_trigger->tv_sec) +
+            std::chrono::microseconds(in_trigger->tv_usec);
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->trigger_tm = evt->schedule_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * in_timeslices);
         evt->timeslices = in_timeslices;
     }
+
 
     evt->recurring = in_recurring;
     evt->callback = in_callback;
@@ -271,24 +277,16 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
 
-    gettimeofday(&(evt->schedule_tm), NULL);
+    evt->schedule_tm = std::chrono::system_clock::now();
 
     if (in_trigger != NULL) {
-        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
-        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->trigger_tm =
+            std::chrono::system_clock::from_time_t(in_trigger->tv_sec) +
+            std::chrono::microseconds(in_trigger->tv_usec);
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
-            (in_timeslices / SERVER_TIMESLICES_SEC);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-            ((in_timeslices % SERVER_TIMESLICES_SEC) *
-             (1000000L / SERVER_TIMESLICES_SEC));
-
-        if (evt->trigger_tm.tv_usec >= 999999L) {
-            evt->trigger_tm.tv_sec++;
-            evt->trigger_tm.tv_usec %= 1000000L;
-        }
-            
+        evt->trigger_tm = evt->schedule_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * in_timeslices);
         evt->timeslices = in_timeslices;
     }
 
@@ -318,31 +316,24 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
 
-    gettimeofday(&(evt->schedule_tm), NULL);
+    evt->schedule_tm = std::chrono::system_clock::now();
 
     if (in_trigger != NULL) {
-        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
-        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->trigger_tm =
+            std::chrono::system_clock::from_time_t(in_trigger->tv_sec) +
+            std::chrono::microseconds(in_trigger->tv_usec);
         evt->timeslices = -1;
     } else {
-        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
-            (in_timeslices / SERVER_TIMESLICES_SEC);
-        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-            ((in_timeslices % SERVER_TIMESLICES_SEC) * 
-             (1000000L / SERVER_TIMESLICES_SEC));
+        evt->trigger_tm = evt->schedule_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * in_timeslices);
         evt->timeslices = in_timeslices;
-
-        if (evt->trigger_tm.tv_usec >= 999999L) {
-            evt->trigger_tm.tv_sec++;
-            evt->trigger_tm.tv_usec %= 1000000L;
-        }
     }
 
     evt->recurring = in_recurring;
     evt->callback = NULL;
     evt->callback_parm = NULL;
     evt->event = NULL;
-    
+
     evt->event_func = in_event;
 
     timer_map[evt->timer_id] = evt;
@@ -355,7 +346,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
 }
 
 int time_tracker::register_timer(const slice& in_timeslices,
-                               int in_recurring, 
+                               int in_recurring,
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
     kis_lock_guard<kis_mutex> lk(time_mutex);
@@ -366,16 +357,13 @@ int time_tracker::register_timer(const slice& in_timeslices,
     evt->last_ms = 0;
 
     evt->timer_id = next_timer_id++;
-    gettimeofday(&(evt->schedule_tm), NULL);
 
-    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices.count() / 10);
-    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices.count() % 10);
+    evt->schedule_tm = std::chrono::system_clock::now();
+
     evt->timeslices = in_timeslices.count();
 
-    if (evt->trigger_tm.tv_usec >= 999999L) {
-        evt->trigger_tm.tv_sec++;
-        evt->trigger_tm.tv_usec %= 1000000L;
-    }
+    evt->trigger_tm = evt->schedule_tm +
+        std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
 
     evt->recurring = in_recurring;
     evt->callback = in_callback;
@@ -403,25 +391,18 @@ int time_tracker::register_timer(const slice& in_timeslices,
     evt->timer_cancelled = false;
     evt->timer_id = next_timer_id++;
 
-    gettimeofday(&(evt->schedule_tm), NULL);
+    evt->schedule_tm = std::chrono::system_clock::now();
 
-    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
-        (in_timeslices.count() / SERVER_TIMESLICES_SEC);
-    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-        ((in_timeslices.count() % SERVER_TIMESLICES_SEC) * 
-         (1000000L / SERVER_TIMESLICES_SEC));
     evt->timeslices = in_timeslices.count();
 
-    if (evt->trigger_tm.tv_usec >= 999999L) {
-        evt->trigger_tm.tv_sec++;
-        evt->trigger_tm.tv_usec %= 1000000L;
-    }
+    evt->trigger_tm = evt->schedule_tm +
+        std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
 
     evt->recurring = in_recurring;
     evt->callback = NULL;
     evt->callback_parm = NULL;
     evt->event = NULL;
-    
+
     evt->event_func = in_event;
 
     timer_map[evt->timer_id] = evt;
@@ -436,7 +417,7 @@ int time_tracker::register_timer(const slice& in_timeslices,
 int time_tracker::remove_timer(int in_timerid) {
     // Removing a timer sets the atomic cancelled and puts us on the abort list;
     // we'll get cleaned out of the main list the next iteration through the main code.
-    
+
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
     auto itr = timer_map.find(in_timerid);

@@ -266,3 +266,10 @@ div.cellright {
 #datasources-graph {
     height: 100%;
 }
+
+@media (max-width: 45rem) {
+    #center-device-extras {
+        display: none !important;
+    }
+}
+

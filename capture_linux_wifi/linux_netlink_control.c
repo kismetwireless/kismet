@@ -171,7 +171,6 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
             "support, check the output of ./configure for why");
     return -1;
 #else
-
     void *nl_sock;
     int nl80211_id;
 

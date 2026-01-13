@@ -73,7 +73,7 @@ device_key::device_key(std::string in_keystr) {
     error = false;
 }
 
-std::string device_key::as_string() {
+std::string device_key::as_string() const {
     std::stringstream ss;
     ss << *this;
     return ss.str();
@@ -134,11 +134,12 @@ void tracker_element_string::coercive_set(double in_num) {
 }
 
 void tracker_element_string::coercive_set(const shared_tracker_element& e) {
-    if (e->is_stringable())
+    if (e->is_stringable()) {
         coercive_set(e->as_string());
-    else
-        throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                    e->get_type_as_string(), get_type_as_string()));
+    } else {
+        const auto es = fmt::format("Could not coerce {} to {}", e->get_type_as_string(), get_type_as_string());
+        throw std::runtime_error(es);
+    }
 }
 
 bool tracker_element_string::less_than(const tracker_element_string& rhs) const {
@@ -165,8 +166,8 @@ void tracker_element_uuid::coercive_set(const shared_tracker_element& e) {
             coercive_set(static_cast<tracker_element_uuid *>(e.get())->get().uuid_to_string());
             break;
         default:
-            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                        e->get_type_as_string(), get_type_as_string()));
+            const auto es = fmt::format("Could not coerce {} to {}", e->get_type_as_string(), get_type_as_string());
+            throw std::runtime_error(es);
     }
 }
 
@@ -190,8 +191,8 @@ void tracker_element_mac_addr::coercive_set(const shared_tracker_element& e) {
             coercive_set(static_cast<tracker_element_mac_addr *>(e.get())->get().mac_to_string());
             break;
         default:
-            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                        e->get_type_as_string(), get_type_as_string()));
+            const auto es = fmt::format("Could not coerce {} to {}", e->get_type_as_string(), get_type_as_string());
+            throw std::runtime_error(es);
     }
 }
 
@@ -444,8 +445,9 @@ template<> std::string get_tracker_value(const shared_tracker_element& e) {
         return e->as_string();
 
 #ifdef TE_TYPE_SAFETY
-    throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
-                "as a string", e->get_id(), e->get_type_as_string()));
+    const auto es = fmt::format("invalid trackedelement access id {}, cannot use a {} "
+            "as a string", e->get_id(), e->get_type_as_string());
+    throw std::runtime_error(es);
 #endif
 
     return "";
@@ -667,6 +669,63 @@ template<> void set_tracker_value(const shared_tracker_element& e, const device_
     static_cast<tracker_element_device_key *>(e.get())->set(v);
 }
 
+
+void tracker_element_map::as_json(std::ostream& os, struct json_adapter::opts *opts) {
+    bool as_vec = as_vector();
+    bool need_comma = false;
+
+    if (as_vec)
+        fmt::print(os, "{}", "[");
+    else
+        fmt::print(os, "{}", "{");
+
+    for (const auto& [k, v] : map) {
+        if (need_comma) {
+            fmt::print(os, ",");
+        } else {
+            need_comma = true;
+        }
+
+        if (as_vec) {
+            v->as_json(os, opts);
+        } else {
+            std::string tname;
+            bool named = false;
+
+            if (opts != nullptr && opts->name_map != nullptr) {
+                const auto nmi = opts->name_map->find(v);
+                if (nmi != opts->name_map->end() && nmi->second->rename.length() != 0) {
+                    tname = nmi->second->rename;
+                    named = true;
+                }
+            }
+
+            if (!named) {
+                if (v == nullptr) {
+                    tname = Globalreg::globalreg->entrytracker->get_field_name(k);
+                } else {
+                    if (v->get_type() == tracker_type::tracker_placeholder_missing) {
+                        tname = static_cast<tracker_element_placeholder *>(v.get())->get_name();
+                    } else if (v->get_type() == tracker_type::tracker_alias) {
+                        tname = static_cast<tracker_element_alias *>(v.get())->get_alias_name();
+                    } else {
+                        tname = Globalreg::globalreg->entrytracker->get_field_name(k);
+                    }
+
+                    if (tname == "")
+                        tname = Globalreg::globalreg->entrytracker->get_field_name(k);
+                }
+            }
+
+            if (opts != nullptr)
+                tname = json_adapter::sanitize_string(opts->permuter(tname));
+
+            else
+                tname = json_adapter::sanitize_string(tname);
+        }
+    }
+}
+
 void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& in_summary) {
 
     // Iterate through the path on this object, calling pre-serialize as
@@ -748,7 +807,7 @@ tracker_element_summary::tracker_element_summary(const SharedElementSummary& in_
     rename = in_c->rename;
 }
 
-tracker_element_summary::tracker_element_summary(const std::string& in_path, 
+tracker_element_summary::tracker_element_summary(const std::string& in_path,
         const std::string& in_rename) {
     parse_path(str_tokenize(in_path, "/"), in_rename);
 }
@@ -786,7 +845,7 @@ void tracker_element_summary::assign(const std::string& in_path, const std::stri
     parse_path(str_tokenize(in_path, "/"), in_rename);
 }
 
-void tracker_element_summary::assign(const std::vector<std::string>& in_path, 
+void tracker_element_summary::assign(const std::vector<std::string>& in_path,
         const std::string& in_rename) {
     parse_path(in_path, in_rename);
 }
@@ -808,7 +867,7 @@ void tracker_element_summary::assign(const std::vector<int>& in_path) {
     resolved_path = in_path;
 }
 
-void tracker_element_summary::parse_path(const std::vector<std::string>& in_path, 
+void tracker_element_summary::parse_path(const std::vector<std::string>& in_path,
         const std::string& in_rename) {
 
     if (in_path.size() == 0) {
@@ -836,12 +895,12 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
     }
 }
 
-shared_tracker_element get_tracker_element_path(const std::string& in_path, 
+shared_tracker_element get_tracker_element_path(const std::string& in_path,
         shared_tracker_element elem) {
     return get_tracker_element_path(str_tokenize(in_path, "/"), elem);
 }
 
-shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem) {
 
     if (in_path.size() < 1)
@@ -882,7 +941,7 @@ shared_tracker_element get_tracker_element_path(const std::vector<std::string>& 
     return next_elem;
 }
 
-shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
         shared_tracker_element elem) {
 
     if (in_path.size() < 1)
@@ -930,12 +989,12 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
     return next_elem;
 }
 
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path,
         shared_tracker_element elem) {
     return get_tracker_element_multi_path(str_tokenize(in_path, "/"), elem);
 }
 
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem) {
 
     std::vector<shared_tracker_element> ret;
@@ -983,7 +1042,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
         }
 
         // If we're at the termination of the path, we just return the
-        // object.  If we're in the middle of a path, we iterate over the 
+        // object.  If we're in the middle of a path, we iterate over the
         // contents of the container, and find the rest of the path in it
         if (x != std::next(in_path.end(), -1)) {
             auto type = next_elem->get_type();
@@ -1078,7 +1137,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
     return ret;
 }
 
-std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path,
         shared_tracker_element elem) {
 
     std::vector<shared_tracker_element> ret;
@@ -1121,7 +1180,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
         }
 
         // If we're at the termination of the path, we just return the
-        // object.  If we're in the middle of a path, we iterate over the 
+        // object.  If we're in the middle of a path, we iterate over the
         // contents of the container, and find the rest of the path in it
         if (x != std::next(in_path.end(), -1)) {
             auto type = next_elem->get_type();
@@ -1322,7 +1381,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = Globalreg::new_from_pool<tracker_element_uuid_map>();
 
-    for (const auto& i : *elem) 
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1341,7 +1400,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 }
 
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element> in,
-        const std::vector<std::shared_ptr<tracker_element_summary>>& in_summarization, 
+        const std::vector<std::shared_ptr<tracker_element_summary>>& in_summarization,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     // Always return a map
@@ -1408,7 +1467,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
                     "unallocated field");
 
             std::static_pointer_cast<tracker_element_placeholder>(f)->set(0);
-        
+
             if (si->rename.length() != 0) {
                 // fmt::print("debug - setting summary rename on missing field {} {}\n", fn, si->rename);
                 std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(si->rename);
@@ -1421,7 +1480,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
                     // fmt::print("debug - setting last id rename on missing field {} {}\n", fn, Globalreg::globalreg->entrytracker->get_field_name(lastid));
                 }
             }
-        } 
+        }
 
         // If we're renaming it or we're a path, we put the record in.  We need
         // to duplicate the summary object and make a reference to our parent
@@ -1442,7 +1501,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     return ret_elem;
 }
 
-std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element> data, 
+std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element> data,
         const nlohmann::json& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
@@ -1473,13 +1532,15 @@ std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared
     return summarize_tracker_element(data, summary_vec, rename_map);
 }
 
-bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs) {
 
     // Only allow equal compares
-    if (lhs->get_type() != rhs->get_type())
-        throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
-                    "{} < {}", lhs->get_type_as_string(), rhs->get_type_as_string()));
+    if (lhs->get_type() != rhs->get_type()) {
+        const auto e = fmt::format("Attempted to compare two non-equal field types, "
+                "{} < {}", lhs->get_type_as_string(), rhs->get_type_as_string());
+        throw std::runtime_error(e);
+    }
 
     switch (lhs->get_type()) {
         case tracker_type::tracker_string:
@@ -1532,14 +1593,14 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_placeholder_missing:
         case tracker_type::tracker_summary_mapvec:
         case tracker_type::tracker_string_pointer:
-            throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
-                        lhs->get_type_as_string()));
+            const auto e = fmt::format("Attempted to compare a complex field type, {}", lhs->get_type_as_string());
+            throw std::runtime_error(e);
     }
 
     return false;
 }
 
-bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         const std::shared_ptr<tracker_element> rhs) noexcept {
 
     switch (lhs->get_type()) {

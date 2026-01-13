@@ -2,7 +2,7 @@
 // impl/execution_context.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,6 +27,13 @@ namespace asio {
 execution_context::execution_context()
   : service_registry_(new boost::asio::detail::service_registry(*this))
 {
+}
+
+execution_context::execution_context(
+    const execution_context::service_maker& initial_services)
+  : service_registry_(new boost::asio::detail::service_registry(*this))
+{
+  initial_services.make(*this);
 }
 
 execution_context::~execution_context()
@@ -63,6 +70,10 @@ execution_context::service::~service()
 }
 
 void execution_context::service::notify_fork(execution_context::fork_event)
+{
+}
+
+execution_context::service_maker::~service_maker()
 {
 }
 

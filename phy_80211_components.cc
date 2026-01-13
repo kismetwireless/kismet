@@ -101,8 +101,9 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
     if (ssid_re == nullptr) {
         PCRE2_UCHAR buffer[256];
         pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
-        throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
-                    (int) erroroffset, (char *) buffer));
+        const auto e = fmt::format("Could not parse PCRE regex: {} at {}",
+                (int) erroroffset, (char *) buffer);
+        throw std::runtime_error(e);
     }
 
 	ssid_match_data = pcre2_match_data_create_from_pattern(ssid_re, NULL);
@@ -348,7 +349,7 @@ void dot11_advertised_ssid::register_fields() {
                 "802.11 IE tag content of last beacon");
 
     ie_tag_builder = 
-        Globalreg::new_from_pool<dot11_tracked_ietag>();
+        Globalreg::globalreg->entrytracker->new_from_pool<dot11_tracked_ietag>();
     ie_tag_builder->set_id(ie_tag_content_id);
 
     ie_tag_content_element_id =
@@ -386,7 +387,7 @@ void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_
 
     for (auto t : *(tags->tags())) {
         auto tag =
-            Globalreg::new_from_pool<dot11_tracked_ietag>(ie_tag_builder.get());
+            Globalreg::globalreg->entrytracker->new_from_pool<dot11_tracked_ietag>(ie_tag_builder.get());
         tag->set_from_tag(t);
         tagmap->insert(tag->get_unique_tag_id(), tag);
     }

@@ -16,15 +16,13 @@
 #include <boost/beast/http/detail/type_traits.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/optional.hpp>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
 namespace boost {
 namespace beast {
 namespace http {
-
-template<bool, class, class>
-class message;
 
 /** Determine if a type meets the <em>Body</em> named requirements.
 

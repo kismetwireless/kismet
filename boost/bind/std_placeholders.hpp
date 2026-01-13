@@ -12,10 +12,6 @@
 // https://www.boost.org/LICENSE_1_0.txt
 
 #include <boost/is_placeholder.hpp>
-#include <boost/config.hpp>
-
-#if !defined(BOOST_NO_CXX11_HDR_FUNCTIONAL) && !defined(BOOST_NO_CXX11_DECLTYPE) && !defined(BOOST_NO_CXX11_HDR_TYPE_TRAITS)
-
 #include <functional>
 #include <type_traits>
 
@@ -33,7 +29,5 @@ template<> struct is_placeholder< typename std::decay<decltype(std::placeholders
 template<> struct is_placeholder< typename std::decay<decltype(std::placeholders::_9)>::type > { enum _vt { value = 9 }; };
 
 } // namespace boost
-
-#endif
 
 #endif // #ifndef BOOST_BIND_STD_PLACEHOLDERS_HPP_INCLUDED

@@ -54,6 +54,7 @@
 #include <sstream>
 #include <future>
 #include <exception>
+#include <string_view>
 
 #include <sys/time.h>
 
@@ -62,7 +63,6 @@
 #include "fmt.h"
 
 #include "multi_constexpr.h"
-#include "string_view.hpp"
 
 #include "nlohmann/json.hpp"
 
@@ -140,7 +140,8 @@ T string_to_n(const std::string& s, std::ios_base&(*base)(std::ios_base &) = nul
     ss >> t;
 
     if (ss.fail())
-        throw std::runtime_error("unable to parse string value");
+        throw std::runtime_error(fmt::format("unable to parse string value '{}' as {}", s,
+                    typeid(T).name()));
 
     return t;
 }
@@ -417,7 +418,7 @@ struct constant_time_string_compare_ne {
         return r == false;
     }
 
-    bool operator()(const nonstd::string_view& a, const nonstd::string_view& b) const {
+    bool operator()(const std::string_view& a, const std::string_view& b) const {
         bool r = true;
 
         if (a.length() != b.length())
@@ -545,6 +546,110 @@ bool is_valid_utf8(const std::string& subject);
 
 bool iequals(const std::string& a, const std::string& b);
 uint64_t human_to_freq_khz(const std::string&);
+
+template <class S, class D>
+void string_vector_merge(S *source, D *destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    bool dest_empty = destination->size() == 0;
+
+    for (const auto& si : *source) {
+        if (dest_empty) {
+            destination->push_back(si);
+            continue;
+        } else {
+            bool merge = true;
+            for (const auto& sd : *destination) {
+                merge = merge_fn(si, sd);
+
+                if (!merge) {
+                    break;
+                }
+            }
+
+            if (merge) {
+                destination->push_back(si);
+            }
+        }
+    }
+}
+
+template <class S, class D>
+void string_vector_merge(const S& source, D *destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    bool dest_empty = destination->size() == 0;
+
+    for (const auto& si : source) {
+        if (dest_empty) {
+            destination->push_back(si);
+            continue;
+        } else {
+            bool merge = true;
+            for (const auto& sd : *destination) {
+                merge = merge_fn(si, sd);
+
+                if (!merge) {
+                    break;
+                }
+            }
+
+            if (merge) {
+                destination->push_back(si);
+            }
+        }
+    }
+}
+
+template <class S, class D>
+void string_vector_merge(S& source, D *destination,
+        std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
+    return string_vector_merge<S, D>(&source, destination, merge_fn);
+}
+
+// highly inefficient inline filtering without recreating the object
+template <class D, class S>
+void string_vector_inline_filter(D *destination, S *filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+    if (filter->size() == 0) {
+        return;
+    }
+
+    for (const auto& fi : *filter) {
+        for (size_t i = 0; i < destination->size(); i++) {
+            if (match_fn(fi, *(destination->begin() + i))) {
+                destination->erase(destination->begin() + i);
+                break;
+            }
+        }
+    }
+}
+
+template <class D, class S>
+void string_vector_inline_filter(D *destination, const S& filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+
+    if (filter.size() == 0) {
+        return;
+    }
+
+    for (const auto& fi : filter) {
+        for (size_t i = 0; i < destination->size(); i++) {
+            if (match_fn(fi, *(destination->begin() + i))) {
+                destination->erase(destination->begin() + i);
+                break;
+            }
+        }
+    }
+}
+
+template <class D, class S>
+void string_vector_inline_filter(D& destination, S *filter,
+        std::function<bool (const std::string& a, const std::string& b)> match_fn) {
+    return string_vector_inline_filter<D, S>(&destination, filter, match_fn);
+}
+
+// an inefficient regex compare that has to compile the regex each time; only call from
+// queries that aren't high load
+bool regex_string_compare(const std::string& restr, const std::string& content);
 
 #endif
 

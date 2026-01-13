@@ -48,15 +48,18 @@ device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in
 
     re = pcre_compile(in_regex.c_str(), 0, &compile_error, &err_offt, NULL);
 
-    if (re == nullptr)
-        throw std::runtime_error(fmt::format("Could not parse PCRE Regex: {} at {}",
-                    compile_error, err_offt));
+    if (re == nullptr) {
+        const auto e = fmt::format("Could not parse PCRE Regex: {} at {}",
+                compile_error, err_offt);
+        throw std::runtime_error(e);
+    }
 
     study = pcre_study(re, 0, &study_error);
     if (study_error != nullptr) {
         pcre_free(re);
-        throw std::runtime_error(fmt::format("Could not parse PCRE Regex, optimization failed: {}",
-                    study_error));
+        
+        const auto e = fmt::format("Could not parse PCRE Regex, optimization failed: {}", study_error);
+        throw std::runtime_error(e);
     }
 }
 
@@ -86,8 +89,10 @@ device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in
     if (re == nullptr) {
         PCRE2_UCHAR buffer[256];
         pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
-        throw std::runtime_error(fmt::format("Could not parse PCRE regex: {} at {}",
-                    (int) erroroffset, (char *) buffer));
+
+        const auto e = fmt::format("Could not parse PCRE regex: {} at {}",
+                (int) erroroffset, (char *) buffer);
+        throw std::runtime_error(e);
     }
 
 	match_data = pcre2_match_data_create_from_pattern(re, NULL);

@@ -99,7 +99,7 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = Globalreg::new_from_pool<this_t>();
+        auto r = Globalreg::globalreg->entrytracker->new_from_pool<this_t>();
         r->set_id(this->get_id());
         return r;
     }
@@ -184,7 +184,7 @@ public:
         return "MESSAGE";
     }
 
-    void inject_message(const std::string& msg, int flags) {
+    void inject_message(const std::string msg, int flags) {
         // Force fatal messages out to stderr immediately
         if (flags & MSGFLAG_FATAL) {
             fprintf(stderr, "FATAL: %s\n", msg.c_str());

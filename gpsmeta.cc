@@ -95,10 +95,10 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
     httpd->register_websocket_route(update_rte, {httpd->LOGON_ROLE, "WEBGPS"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    auto ws = 
+                    auto ws =
                         std::make_shared<kis_net_web_websocket_endpoint>(con,
                                 [this](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                                    boost::beast::flat_buffer& buf, bool text) {
+                                    std::shared_ptr<boost::asio::streambuf> buf, bool text) {
 
                                     if (!text) {
                                         ws->close();
@@ -107,7 +107,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
 
                                     std::stringstream stream;
 
-                                    std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                                    std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
                                     nlohmann::json json;
 
                                     try {

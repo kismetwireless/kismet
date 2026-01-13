@@ -13,9 +13,9 @@ CCLD		= @CC@
 # make current gcc/clang awful cranky under -wall
 
 LDFLAGS		+= @LDFLAGS@
-CFLAGS		+= -Wall -Wno-unknown-warning-option -Wno-format-truncation -Wno-unused-function -g -I. -I@PROTOBUF_C_DIR@ -fPIE @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PROTOCCFLAGS@ @PCAPCFLAGS@ @LIBWSCFLAGS@
-CXXFLAGS 	+= -Wall -Wno-unknown-warning-option -Wno-deprecated-declarations -Wno-format-truncation -Wno-unused-local-typedefs -Wno-unused-function -Wno-infinite-recursion -g -I. -fPIE @CXXFLAGS@ @PROTOCFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@ @OPENSSL_INCLUDES@
-CPPFLAGS 	+= @CPPFLAGS@ 
+CFLAGS		+= -Wall -Wno-unknown-warning-option -Wno-format-truncation -Wno-unused-function -g -I. -fPIE @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PCAPCFLAGS@ @LIBWSCFLAGS@
+CXXFLAGS 	+= -Wall -Wno-unknown-warning-option -Wno-deprecated-declarations -Wno-format-truncation -Wno-unused-local-typedefs -Wno-unused-function -Wno-infinite-recursion -g -I. -fPIE @CXXFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@ @OPENSSL_INCLUDES@
+CPPFLAGS 	+= @CPPFLAGS@
 
 INSTALL		= @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -28,7 +28,7 @@ CXXLIBS 	+= @CXXLIBS@
 LIBS		+= @LIBS@
 KSLIBS		+= @KSLIBS@ @PTHREAD_LIBS@ @PROTOLIBS@ @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 
-PTHREADLIBS = @PTHREAD_LIBS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 CAPLIBS		= @caplibs@ @LIBWSLIBS@
 NETLINKLIBS	= @NLLIBS@
 AIRCAPLIBS	= @airpcaplib@
@@ -36,10 +36,6 @@ AIRCAPLIBS	= @airpcaplib@
 PROTOLIBS 	= @PROTOLIBS@
 PROTOCFLAGS	= @PROTOCFLAGS@
 PROTOCBIN 	?= @PROTOCBIN@
-
-PROTOCLIBS	= @PROTOCLIBS@
-PROCOCCFLAGS	= @PROTOCCFLAGS@
-PROTOCCBIN	?= @PROTOCCBIN@
 
 PTHREADCFLAGS = @PTHREAD_CFLAGS@
 NMFLAGS		= @NMCFLAGS@
@@ -66,7 +62,7 @@ LIBWSCFLAGS = @LIBWSCFLAGS@
 
 SUIDGROUP 	= @suidgroup@
 
-DATASOURCE_LIBS	+= $(CAPLIBS) @PTHREAD_LIBS@ @PROTOCLIBS@ -lm
+DATASOURCE_LIBS	+= $(CAPLIBS) $(PTHREAD_LIBS) -lm
 
 PYTHON		?= @PYTHON@
 

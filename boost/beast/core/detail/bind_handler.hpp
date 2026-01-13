@@ -12,13 +12,11 @@
 
 #include <boost/beast/core/error.hpp>
 #include <boost/beast/core/detail/tuple.hpp>
-#include <boost/asio/associated_allocator.hpp>
-#include <boost/asio/associated_executor.hpp>
-#include <boost/asio/handler_alloc_hook.hpp>
+#include <boost/asio/associator.hpp>
 #include <boost/asio/handler_continuation_hook.hpp>
-#include <boost/asio/handler_invoke_hook.hpp>
 #include <boost/core/ignore_unused.hpp>
 #include <boost/mp11/integer_sequence.hpp>
+#include <boost/bind/std_placeholders.hpp>
 #include <boost/is_placeholder.hpp>
 #include <functional>
 #include <type_traits>
@@ -42,11 +40,9 @@ class bind_wrapper
     Handler h_;
     args_type args_;
 
-    template<class T, class Executor>
-    friend struct net::associated_executor;
-
-    template<class T, class Allocator>
-    friend struct net::associated_allocator;
+    template <template <typename, typename> class,
+        typename, typename, typename>
+    friend struct net::associator;
 
     template<class Arg, class Vals>
     static
@@ -81,7 +77,9 @@ class bind_wrapper
     static
     typename std::enable_if<
         boost::is_placeholder<typename
-            std::decay<Arg>::type>::value != 0,
+            std::decay<Arg>::type>::value != 0 &&
+        std::is_placeholder<typename
+            std::decay<Arg>::type>::value == 0,
         tuple_element<boost::is_placeholder<
             typename std::decay<Arg>::type>::value - 1,
         Vals>>::type&&
@@ -153,16 +151,6 @@ public:
 
     //
 
-    template<class Function>
-    friend
-    boost::asio::asio_handler_invoke_is_deprecated
-    asio_handler_invoke(
-        Function&& f, bind_wrapper* op)
-    {
-        using boost::asio::asio_handler_invoke;
-        return asio_handler_invoke(f, std::addressof(op->h_));
-    }
-
     friend
     bool asio_handler_is_continuation(
         bind_wrapper* op)
@@ -170,26 +158,6 @@ public:
         using boost::asio::asio_handler_is_continuation;
         return asio_handler_is_continuation(
                 std::addressof(op->h_));
-    }
-
-    friend
-    boost::asio::asio_handler_allocate_is_deprecated
-    asio_handler_allocate(
-        std::size_t size, bind_wrapper* op)
-    {
-        using boost::asio::asio_handler_allocate;
-        return asio_handler_allocate(
-            size, std::addressof(op->h_));
-    }
-
-    friend
-    boost::asio::asio_handler_deallocate_is_deprecated
-    asio_handler_deallocate(
-        void* p, std::size_t size, bind_wrapper* op)
-    {
-        using boost::asio::asio_handler_deallocate;
-        return asio_handler_deallocate(
-            p, size, std::addressof(op->h_));
     }
 };
 
@@ -211,11 +179,9 @@ class bind_front_wrapper
     Handler h_;
     detail::tuple<Args...> args_;
 
-    template<class T, class Executor>
-    friend struct net::associated_executor;
-
-    template<class T, class Allocator>
-    friend struct net::associated_allocator;
+    template <template <typename, typename> class,
+        typename, typename, typename>
+    friend struct net::associator;
 
     template<std::size_t... I, class... Ts>
     void
@@ -266,16 +232,6 @@ public:
 
     //
 
-    template<class Function>
-    friend
-    boost::asio::asio_handler_invoke_is_deprecated
-    asio_handler_invoke(
-        Function&& f, bind_front_wrapper* op)
-    {
-        using boost::asio::asio_handler_invoke;
-        return asio_handler_invoke(f, std::addressof(op->h_));
-    }
-
     friend
     bool asio_handler_is_continuation(
         bind_front_wrapper* op)
@@ -283,26 +239,6 @@ public:
         using boost::asio::asio_handler_is_continuation;
         return asio_handler_is_continuation(
             std::addressof(op->h_));
-    }
-
-    friend
-    boost::asio::asio_handler_allocate_is_deprecated
-    asio_handler_allocate(
-        std::size_t size, bind_front_wrapper* op)
-    {
-        using boost::asio::asio_handler_allocate;
-        return asio_handler_allocate(
-            size, std::addressof(op->h_));
-    }
-
-    friend
-    boost::asio::asio_handler_deallocate_is_deprecated
-    asio_handler_deallocate(
-        void* p, std::size_t size, bind_front_wrapper* op)
-    {
-        using boost::asio::asio_handler_deallocate;
-        return asio_handler_deallocate(
-            p, size, std::addressof(op->h_));
     }
 };
 
@@ -315,73 +251,43 @@ public:
 namespace boost {
 namespace asio {
 
-template<class Handler, class... Args, class Executor>
-struct associated_executor<
-    beast::detail::bind_wrapper<Handler, Args...>, Executor>
+template <template <typename, typename> class Associator,
+    typename Handler, typename... Args, typename DefaultCandidate>
+struct associator<Associator,
+    beast::detail::bind_wrapper<Handler, Args...>, DefaultCandidate>
+    : Associator<Handler, DefaultCandidate>
 {
-    using type = typename
-        associated_executor<Handler, Executor>::type;
-
-    static
-    type
-    get(beast::detail::bind_wrapper<Handler, Args...> const& op,
-        Executor const& ex = Executor{}) noexcept
+    static typename Associator<Handler, DefaultCandidate>::type get(
+        const beast::detail::bind_wrapper<Handler, Args...>& h) noexcept
     {
-        return associated_executor<
-            Handler, Executor>::get(op.h_, ex);
+        return Associator<Handler, DefaultCandidate>::get(h.h_);
+    }
+
+    static auto get(const beast::detail::bind_wrapper<Handler, Args...>& h,
+        const DefaultCandidate& c) noexcept
+    -> decltype(Associator<Handler, DefaultCandidate>::get(h.h_, c))
+    {
+    return Associator<Handler, DefaultCandidate>::get(h.h_, c);
     }
 };
 
-template<class Handler, class... Args, class Executor>
-struct associated_executor<
-    beast::detail::bind_front_wrapper<Handler, Args...>, Executor>
+template <template <typename, typename> class Associator,
+    typename Handler, typename... Args, typename DefaultCandidate>
+struct associator<Associator,
+    beast::detail::bind_front_wrapper<Handler, Args...>, DefaultCandidate>
+    : Associator<Handler, DefaultCandidate>
 {
-    using type = typename
-        associated_executor<Handler, Executor>::type;
-
-    static
-    type
-    get(beast::detail::bind_front_wrapper<Handler, Args...> const& op,
-        Executor const& ex = Executor{}) noexcept
+    static typename Associator<Handler, DefaultCandidate>::type get(
+        const beast::detail::bind_front_wrapper<Handler, Args...>& h) noexcept
     {
-        return associated_executor<
-            Handler, Executor>::get(op.h_, ex);
+        return Associator<Handler, DefaultCandidate>::get(h.h_);
     }
-};
 
-//
-
-template<class Handler, class... Args, class Allocator>
-struct associated_allocator<
-    beast::detail::bind_wrapper<Handler, Args...>, Allocator>
-{
-    using type = typename
-        associated_allocator<Handler, Allocator>::type;
-
-    static
-    type
-    get(beast::detail::bind_wrapper<Handler, Args...> const& op,
-        Allocator const& alloc = Allocator{}) noexcept
+    static auto get(const beast::detail::bind_front_wrapper<Handler, Args...>& h,
+        const DefaultCandidate& c) noexcept
+    -> decltype(Associator<Handler, DefaultCandidate>::get(h.h_, c))
     {
-        return associated_allocator<
-            Handler, Allocator>::get(op.h_, alloc);
-    }
-};
-
-template<class Handler, class... Args, class Allocator>
-struct associated_allocator<
-    beast::detail::bind_front_wrapper<Handler, Args...>, Allocator>
-{
-    using type = typename
-        associated_allocator<Handler, Allocator>::type;
-
-    static
-    type
-    get(beast::detail::bind_front_wrapper<Handler, Args...> const& op,
-        Allocator const& alloc = Allocator{}) noexcept
-    {
-        return associated_allocator<
-            Handler, Allocator>::get(op.h_, alloc);
+        return Associator<Handler, DefaultCandidate>::get(h.h_, c);
     }
 };
 

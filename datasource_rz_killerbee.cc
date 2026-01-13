@@ -18,36 +18,40 @@
 
 #include "datasource_rz_killerbee.h"
 
-void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-        const KismetDatasource::SubPacket& report) {
+int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
+        kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
-    auto& rxdata = report.data();
-
-    if (rxdata.length() < 9) {
+    if (content_sz < 9) {
         packet->error = 1;
-        return;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return 1;
     }
 
-    if (rxdata[7]) {
-        unsigned int rz_payload_len = rxdata[8];
+    if (content[7]) {
+        const unsigned int rz_payload_len = content[8];
 
-        if (rxdata.length() < rz_payload_len + 9) {
+        if (content_sz < rz_payload_len + 9) {
             packet->error = 1;
-            return;
+            // error, but preserve the packet for logging
+            packet->set_data((const char *) content, content_sz);
+            datachunk->set_data(packet->data);
+            return 1;
         }
 
 
-        int rssi = rxdata[6];
-        uint8_t channel = rxdata[5];
+        int rssi = content[6];
+        uint8_t channel = content[5];
 
 	    // We can make a valid payload from this much
-        auto conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
+        const size_t conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
         char conv_buf[conv_buf_len];
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
 
         // Copy the actual packet payload into the header
-        memcpy(conv_header->payload, &rxdata.data()[9], rz_payload_len);
+        memcpy(conv_header->payload, &content[9], rz_payload_len);
 
         conv_header->version = kis_htole16(0);// currently only one version
         conv_header->reserved = kis_htole16(0);// must be set to 0
@@ -68,27 +72,14 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
         conv_header->tlv[2].value = kis_htole32(channel);
 
         //size
-        conv_header->length = sizeof(_802_15_4_tap); 
-
-        // Put the modified data into the packet & fill in the rest of the base data info
-        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
-
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report.time_sec();
-            packet->ts.tv_usec = report.time_usec();
-        }
+        conv_header->length = sizeof(_802_15_4_tap);
 
         packet->original_len = conv_buf_len;
+
         packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
+
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
-
-        get_source_packet_size_rrd()->add_sample(conv_buf_len, time(0));
-
-        packet->insert(pack_comp_linkframe, datachunk);
-
 
         auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
@@ -96,7 +87,12 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
         radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
+
+        return 1;
     } else {
-        return;
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return 1;
     }
 }

@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +35,6 @@
 
 #include "../capture_framework.h"
 #include "../config.h"
-#include "../simple_ringbuf_c.h"
 #include "../kis_endian.h"
 
 #define BUFFER_SIZE 2048
@@ -99,7 +99,7 @@ int is_valid_utf8(const char* string, size_t len) {
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
-    char *definition, char *msg, char **uuid, KismetExternal__Command *frame,
+    char *definition, char *msg, char **uuid,
     cf_params_interface_t **ret_interface,
     cf_params_spectrum_t **ret_spectrum) {
 
@@ -172,7 +172,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-    char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+    char *msg, uint32_t *dlt, char **uuid,
     cf_params_interface_t **ret_interface,
     cf_params_spectrum_t **ret_spectrum) {
     char *placeholder;
@@ -446,7 +446,9 @@ void capture_thread(kis_capture_handler_t *caph) {
         gettimeofday(&tv, NULL);
 
         while (1) {
-            r = cf_send_json(caph, NULL, NULL, NULL, tv, "antsdr-droneid", (char *) json);
+            r = cf_send_json(caph, NULL, 0,
+                    NULL, NULL, tv,
+                    "antsdr-droneid", (char *) json);
 
 
             if (r < 0) {

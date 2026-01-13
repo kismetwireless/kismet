@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#include "fmt/core.h"
+#include "fmt.h"
 #include "nlohmann/json.hpp"
 #include "phy_meter.h"
 #include "devicetracker.h"
@@ -41,13 +41,13 @@ kis_meter_phy::kis_meter_phy(int in_phyid) :
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-	pack_comp_common = 
+	pack_comp_common =
 		packetchain->register_packet_component("COMMON");
-    pack_comp_json = 
+    pack_comp_json =
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
-	pack_comp_device = 
+	pack_comp_device =
 		packetchain->register_packet_component("DEVICE");
 
     tracked_meter_id =
@@ -70,8 +70,8 @@ kis_meter_phy::~kis_meter_phy() {
 }
 
 mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
-	// Derive a MAC from the ID; previously we used the model as well but 
-	// rtl_433 decodes multiple meter models from a single signal so we 
+	// Derive a MAC from the ID; previously we used the model as well but
+	// rtl_433 decodes multiple meter models from a single signal so we
 	// use the decoded ID only
 
     uint8_t bytes[6];
@@ -171,7 +171,7 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtlamr_json_to_phy");
 
-    auto meterdev = 
+    auto meterdev =
         basedev->get_sub_as<tracked_meter>(tracked_meter_id);
 
     if (meterdev == nullptr) {
@@ -230,32 +230,32 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
 /*
 
-DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "IDM", "PacketTypeID": "0x1C", "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "ConsumptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "AsynchronousCounters": 0, "PowerOutageFlags": "0x000000000000", "LastConsumptionCount": 6823922, "DifferentialConsumptionIntervals": [11, 9, 8, 7, 40, 30, 4, 7, 7, 8, 8, 8, 7, 6, 5, 5, 5, 5, 5, 6, 5, 6, 6, 8, 7, 8, 6, 7, 7, 6, 5, 5, 6, 6, 5, 6, 7, 8, 8, 8, 6, 6, 8, 6, 9, 7, 6], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21.437, "noise": -21.891}                         
+DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "IDM", "PacketTypeID": "0x1C", "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "ConsumptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "AsynchronousCounters": 0, "PowerOutageFlags": "0x000000000000", "LastConsumptionCount": 6823922, "DifferentialConsumptionIntervals": [11, 9, 8, 7, 40, 30, 4, 7, 7, 8, 8, 8, 7, 6, 5, 5, 5, 5, 5, 6, 5, 6, 6, 8, 7, 8, 6, 7, 7, 6, 5, 5, 6, 6, 5, 6, 7, 8, 8, 8, 6, 6, 8, 6, 9, 7, 6], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21.437, "noise": -21.891}
 debug - error processing rtl json [json.exception.type_error.302] type must be number, but is nul
-l                                                                                                
+l
 DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "NETIDM", "PacketTypeID": "0x1C"
 , "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "Consu
 mptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "Unk
-nown_field_1": "0x00000000000000", "LastGenerationCount": 104, "Unknown_field_2": "0x1FF205", "LastConsumptionCount": -2109669263, "DifferentialConsumptionIntervals": [4126, 128, 7182, 513, 32, 897, 8232, 1282, 8272, 2566, 160, 6156, 512, 14368, 769, 12344, 1538, 8272, 3078, 160, 6158, 513, 32, 769, 8256, 1540, 8304], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21. 437, "noise": -21.891}                                                                           
+nown_field_1": "0x00000000000000", "LastGenerationCount": 104, "Unknown_field_2": "0x1FF205", "LastConsumptionCount": -2109669263, "DifferentialConsumptionIntervals": [4126, 128, 7182, 513, 32, 897, 8232, 1282, 8272, 2566, 160, 6156, 512, 14368, 769, 12344, 1538, 8272, 3078, 160, 6158, 513, 32, 769, 8256, 1540, 8304], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21. 437, "noise": -21.891}
 debug - error processing rtl json [json.exception.type_error.302] type must be number, but is nul
-l                                                                                                
-DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "ERT-SCM", "id": 22156790, "physical_tamper": 2, "ert_type": 7, "encoder_tamper": 2, "consumption_data": 6823922, "mic": "CRC", "mod": "ASK", "freq": 915.358, "rssi": -0.571, "snr": 19.871, "noise": -20.442}                   
+l
+DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "ERT-SCM", "id": 22156790, "physical_tamper": 2, "ert_type": 7, "encoder_tamper": 2, "consumption_data": 6823922, "mic": "CRC", "mod": "ASK", "freq": 915.358, "rssi": -0.571, "snr": 19.871, "noise": -20.442}
 debug - error processing rtl json [json.exception.type_error.302] type must be string, but is nul
 l
 
 */
 
-bool kis_meter_phy::is_meter(const nlohmann::json &json) { 
+bool kis_meter_phy::is_meter(const nlohmann::json &json) {
     // This list will need to be updated as rtl_433 adds more meter types
     auto model_j = json["model"];
 
     if (model_j.is_string()) {
-        if (model_j == "IDM") 
+        if (model_j == "IDM")
             return true;
         if (model_j == "NETIDM")
-            return true; 
-        if (model_j == "ERT-SCM") 
-            return true; 
+            return true;
+        if (model_j == "ERT-SCM")
+            return true;
         if (model_j == "SCMplus")
             return true;
         if (model_j == "SCM+")
@@ -265,7 +265,7 @@ bool kis_meter_phy::is_meter(const nlohmann::json &json) {
     return false;
 }
 
-bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) { 
+bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -285,8 +285,8 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     if (model_j.is_null())
         return false;
 
-    uint64_t decoded_id = 0; 
-    int64_t decoded_consumption = 0; 
+    uint64_t decoded_id = 0;
+    int64_t decoded_consumption = 0;
     // internal decoded type
     // 0 unknown 1 elec 2 gas 3 water
     int decoded_type = -1;
@@ -294,27 +294,27 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 	double freq_khz = 0;
 
     // Look for the ID, consumption records, and type for the different variant types
-    if (!id_j.is_null() && id_j.is_number()) { 
+    if (!id_j.is_null() && id_j.is_number()) {
         decoded_id = id_j.get<uint64_t>();
-    } else if (!ert_serial_j.is_null() && ert_serial_j.is_number()) { 
+    } else if (!ert_serial_j.is_null() && ert_serial_j.is_number()) {
         decoded_id = ert_serial_j.get<uint64_t>();
-    } else { 
+    } else {
         return false;
     }
 
-    if (!consumption_j.is_null() && consumption_j.is_number()) { 
+    if (!consumption_j.is_null() && consumption_j.is_number()) {
         decoded_consumption = consumption_j.get<int64_t>();
-    } else if (!consumption_2_j.is_null() && consumption_2_j.is_number()) { 
+    } else if (!consumption_2_j.is_null() && consumption_2_j.is_number()) {
         decoded_consumption = consumption_2_j.get<int64_t>();
-    } else if (!consumption_data_j.is_null() && consumption_data_j.is_number()) { 
+    } else if (!consumption_data_j.is_null() && consumption_data_j.is_number()) {
         decoded_consumption = consumption_data_j.get<int64_t>();
 	} else if (!last_consumption_j.is_null() && last_consumption_j.is_number()) {
 		decoded_consumption = last_consumption_j.get<int64_t>();
-    } else { 
+    } else {
         return false;
     }
 
-	// Some meters appear to decode improperly and get a negative consumption; set the 
+	// Some meters appear to decode improperly and get a negative consumption; set the
 	// consumption to 0 if that happens but still log that the meter exists
     if (decoded_consumption < 0)
         decoded_consumption = 0;
@@ -329,7 +329,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         } else {
             decoded_type = 0;
         }
-    } else if (!model_j.is_null() && model_j.get<std::string>() == "ERT-SCM") { 
+    } else if (!model_j.is_null() && model_j.get<std::string>() == "ERT-SCM") {
         if (!ert_type_j.is_null() && ert_type_j.is_number()) {
             switch (ert_type_j.get<int>()) {
                 case 4:
@@ -376,7 +376,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
             }
 
         } else {
-            return false; 
+            return false;
         }
 
     } else {
@@ -394,7 +394,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     std::shared_ptr<kis_tracked_device_base> basedev;
 
     if (devinfo != nullptr) {
-        // rf sensor packets should only create a single device, so we'll take a risk 
+        // rf sensor packets should only create a single device, so we'll take a risk
         // here and assume the first one in the device list is what we want
         if (devinfo->devrefs.size() > 0)
             basedev = devinfo->devrefs.begin()->second;
@@ -426,7 +426,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtlamr_json_to_phy");
 
-    auto meterdev = 
+    auto meterdev =
         basedev->get_sub_as<tracked_meter>(tracked_meter_id);
 
     if (meterdev == nullptr) {
@@ -441,16 +441,16 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         meterdev->set_meter_id(decoded_id);
         meterdev->set_meter_type_code(decoded_type);
 
-        if (decoded_type == 1) { 
+        if (decoded_type == 1) {
             meterdev->set_meter_type("Electric");
             basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Electric Meter"));
-        } else if (decoded_type == 2) { 
+        } else if (decoded_type == 2) {
             meterdev->set_meter_type("Gas");
             basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gas Meter"));
-        } else if (decoded_type == 3) { 
+        } else if (decoded_type == 3) {
             meterdev->set_meter_type("Water");
             basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Water Meter"));
-        } else { 
+        } else {
             meterdev->set_meter_type("Meter");
             basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
         }
@@ -505,7 +505,7 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
 
             ss >> device_json;
 
-            if (phy->rtl433_json_to_phy(device_json, in_pack)) { 
+            if (phy->rtl433_json_to_phy(device_json, in_pack)) {
                 auto adata = in_pack->fetch_or_add<packet_metablob>(phy->pack_comp_meta);
                 adata->set_data("METER", json->json_string);
             }
@@ -514,7 +514,7 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
         try {
             ss >> device_json;
 
-            if (phy->rtl433_json_to_phy(device_json, in_pack)) { 
+            if (phy->rtl433_json_to_phy(device_json, in_pack)) {
                 auto adata = in_pack->fetch_or_add<packet_metablob>(phy->pack_comp_meta);
                 adata->set_data("METER", json->json_string);
             }

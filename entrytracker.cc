@@ -123,12 +123,14 @@ int entry_tracker::register_field(const std::string& in_name,
     auto field_iter = field_name_map.find(in_name);
 
     if (field_iter != field_name_map.end()) {
-        if (field_iter->second->builder->get_signature() != in_builder->get_signature()) 
-            throw std::runtime_error(fmt::format("tried to register field {} of type {}/{} "
-                        "but field already exists with conflicting type/signature {}/{}",
-                        in_name, in_builder->get_type_as_string(), in_builder->get_signature(),
-                        field_iter->second->builder->get_type_as_string(),
-                        field_iter->second->builder->get_signature()));
+        if (field_iter->second->builder->get_signature() != in_builder->get_signature())  {
+            const auto e = fmt::format("tried to register field {} of type {}/{} "
+                    "but field already exists with conflicting type/signature {}/{}",
+                    in_name, in_builder->get_type_as_string(), in_builder->get_signature(),
+                    field_iter->second->builder->get_type_as_string(),
+                    field_iter->second->builder->get_signature());
+            throw std::runtime_error(e);
+        }
 
         return field_iter->second->field_id;
     }
@@ -156,12 +158,14 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
     auto field_iter = field_name_map.find(in_name);
 
     if (field_iter != field_name_map.end()) {
-        if (field_iter->second->builder->get_signature() != in_builder->get_signature()) 
-            throw std::runtime_error(fmt::format("tried to register field {} of type {}/{} "
-                        "but field already exists with conflicting type/signature {}/{}",
-                        in_name, in_builder->get_type_as_string(), in_builder->get_signature(),
-                        field_iter->second->builder->get_type_as_string(),
-                        field_iter->second->builder->get_signature()));
+        if (field_iter->second->builder->get_signature() != in_builder->get_signature()) {
+            const auto e = fmt::format("tried to register field {} of type {}/{} "
+                    "but field already exists with conflicting type/signature {}/{}",
+                    in_name, in_builder->get_type_as_string(), in_builder->get_signature(),
+                    field_iter->second->builder->get_type_as_string(),
+                    field_iter->second->builder->get_signature());
+            throw std::runtime_error(e);
+        }
 
         return field_iter->second->builder->clone_type();
     }

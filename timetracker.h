@@ -61,10 +61,10 @@ public:
         std::atomic<bool> timer_cancelled;
 
         // Time it was scheduled
-        struct timeval schedule_tm;
+        std::chrono::system_clock::time_point schedule_tm;
 
         // Explicit trigger time or number of 100000us timeslices
-        struct timeval trigger_tm;
+        std::chrono::system_clock::time_point trigger_tm;
         int timeslices;
 
         // Event is rescheduled again once it expires, if it's a timesliced event
@@ -86,12 +86,21 @@ public:
     public:
         inline bool operator() (std::shared_ptr<time_tracker::timer_event> x, 
 								std::shared_ptr<time_tracker::timer_event> y) const {
+
+            if (x->trigger_tm < y->trigger_tm) {
+                return 1;
+            }
+
+            return 0;
+
+            /*
             if ((x->trigger_tm.tv_sec < y->trigger_tm.tv_sec) ||
                 ((x->trigger_tm.tv_sec == y->trigger_tm.tv_sec) && 
 				 (x->trigger_tm.tv_usec < y->trigger_tm.tv_usec)))
                 return 1;
 
             return 0;
+            */
         }
     };
 

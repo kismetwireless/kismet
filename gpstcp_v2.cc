@@ -110,43 +110,42 @@ void kis_gps_tcp_v2::close_impl() {
 
 void kis_gps_tcp_v2::start_read_impl() {
     boost::asio::async_read_until(socket, in_buf, '\n',
-            boost::asio::bind_executor(strand_, 
+            boost::asio::bind_executor(strand_,
                 [self = shared_from_this()](const boost::system::error_code& error, std::size_t t) {
                     self->handle_read(error, t);
                 }));
 }
 
 void kis_gps_tcp_v2::start_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
-        const boost::system::error_code& error, tcp::resolver::iterator endpoints) {
+        const boost::system::error_code& error,
+        const tcp::resolver::results_type& endpoints) {
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve TCP GPS server address {}:{} - {}", host, port, error.message());
         stopped = true;
         set_int_device_connected(false);
     } else {
         boost::asio::async_connect(socket, endpoints,
-                [this, ref](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
+                [this, ref](const boost::system::error_code& ec, tcp::endpoint endpoint) {
                     handle_connect(ref, ec, endpoint);
                 });
     }
 }
 
 void kis_gps_tcp_v2::handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
-        const boost::system::error_code& error, tcp::resolver::iterator endpoint) {
+        const boost::system::error_code& error,
+        tcp::endpoint endpoint) {
     if (stopped) {
         return;
     }
 
     if (error) {
-        if (endpoint == tcp::resolver::iterator())
-            _MSG_ERROR("(GPS) Could not connect to TCP GPS {}:{} - {}", host, port, error.message());
-        else
-            _MSG_ERROR("(GPS) Could not connect to TCP GPS server {} - {}", endpoint->endpoint(), 
-                    error.message());
+        _MSG_ERROR("(GPS) Could not connect to TCP GPS {}:{} - {}", host, port, error.message());
         close_impl();
         return;
     }
 
-    _MSG_INFO("(GPS) Connected to TCP GPS server {}", endpoint->endpoint());
+    _MSG_INFO("(GPS) Connected to TCP GPS server {}:{}", endpoint.address().to_string(),
+            endpoint.port());
 
     stopped = false;
     set_int_device_connected(true);
@@ -198,11 +197,11 @@ bool kis_gps_tcp_v2::open_gps(std::string in_opts) {
 
     _MSG_INFO("(GPS) Connecting to TCP GPS on {}:{}", host, port);
 
-    resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
-            [this](const boost::system::error_code& error, tcp::resolver::iterator endp) {
-                start_connect(std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()), 
-                        error, endp);
-            });
+    resolver.async_resolve(host, port,
+            std::bind(&kis_gps_tcp_v2::start_connect, this,
+                std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()),
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::results));
 
     return 1;
 }

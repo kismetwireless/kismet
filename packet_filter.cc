@@ -121,7 +121,7 @@ packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const s
         devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
 
         eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
-        eb_id = 
+        eb_id =
             eventbus->register_listener(device_tracker::event_new_phy(),
                     [this](std::shared_ptr<eventbus_event> evt) {
                     update_phy_map(evt);
@@ -162,7 +162,7 @@ void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt)
     if (unknown_phy_mac_filter_map.size() == 0)
         return;
 
-    const auto phyname_k = 
+    const auto phyname_k =
         evt->get_event_content()->find(device_tracker::event_new_phy());
 
     if (phyname_k == evt->get_event_content()->end())
@@ -187,7 +187,7 @@ void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt)
     unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
-void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, 
+void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy,
         const std::string& in_block, bool value) {
     kis_lock_guard<kis_mutex> lk(mutex);
 
@@ -199,19 +199,21 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
     std::shared_ptr<tracker_element_macfilter_map> target_block_map;
     int target_block_map_id;
 
-    if (in_block == "source")
+    if (in_block == "source") {
         target_block_map_id = filter_source_id;
-    else if (in_block == "destination")
+    } else if (in_block == "destination") {
         target_block_map_id = filter_dest_id;
-    else if (in_block == "network")
+    } else if (in_block == "network") {
         target_block_map_id = filter_network_id;
-    else if (in_block == "other")
+    } else if (in_block == "other") {
         target_block_map_id = filter_other_id;
-    else if (in_block == "any")
+    } else if (in_block == "any") {
         target_block_map_id = filter_any_id;
-    else
-        throw std::runtime_error(fmt::format("Unknown target block '{}' in filter", 
-                    kis_net_beast_httpd_connection::escape_html(in_block)));
+    } else {
+        const auto e = fmt::format("Unknown target block '{}' in filter",
+                kis_net_beast_httpd_connection::escape_html(in_block));
+        throw std::runtime_error(e);
+    }
 
     if (tracked_phy_key == filter_phy_blocks->end()) {
         // Generate all the required blocks
@@ -279,7 +281,7 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
         phy_mac_filter_map[phy->fetch_phy_id()].filter_any[in_mac] = value;
 }
 
-void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy, 
+void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy,
         const std::string& in_block) {
     kis_lock_guard<kis_mutex> lk(mutex);
 
@@ -302,8 +304,9 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
     } else if (in_block == "any") {
         target_block_map_id = filter_any_id;
     } else {
-        throw std::runtime_error(fmt::format("Unknown target block '{}' in filter", 
-                   kis_net_beast_httpd_connection::escape_html(in_block)));
+        const auto e = fmt::format("Unknown target block '{}' in filter",
+                kis_net_beast_httpd_connection::escape_html(in_block));
+        throw std::runtime_error(e);
     }
 
 	if (tracked_phy_key == filter_phy_blocks->end()) {
@@ -375,7 +378,7 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
 
 void packet_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     std::ostream stream(&con->response_stream());
-    
+
     auto filter = con->json()["filter"];
 
     if (!filter.is_object()) {
@@ -388,9 +391,10 @@ void packet_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_htt
         mac_addr m(i.key());
         bool v = i.value();
 
-        if (m.state.error) 
-            throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                        con->escape_html(i.key())));
+        if (m.state.error) {
+            const auto e = fmt::format("Invalid MAC address: '{}'", con->escape_html(i.key()));
+            throw std::runtime_error(e);
+        }
 
         set_filter(m, con->uri_params()[":phyname"], con->uri_params()[":block"], v);
     }
@@ -413,9 +417,10 @@ void packet_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_h
     for (const auto& i : filter) {
         mac_addr m{i.get<std::string>()};
 
-        if (m.state.error) 
-            throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                        con->escape_html(i)));
+        if (m.state.error) {
+            const auto e = fmt::format("Invalid MAC address: '{}'", con->escape_html(i));
+            throw std::runtime_error(e);
+        }
 
         remove_filter(m, con->uri_params()[":phyname"], con->uri_params()[":block"]);
     }
@@ -462,10 +467,10 @@ bool packet_filter_mac_addr::filter_packet(std::shared_ptr<kis_packet> packet) {
 
     if (ai == phy_filter_group->second.filter_any.end())
         ai = phy_filter_group->second.filter_any.find(common->network);
-    
+
     if (ai == phy_filter_group->second.filter_any.end())
         ai = phy_filter_group->second.filter_any.find(common->transmitter);
-   
+
     if (ai == phy_filter_group->second.filter_any.end())
         ai = phy_filter_group->second.filter_any.find(common->dest);
 
@@ -481,7 +486,7 @@ std::shared_ptr<tracker_element_map> packet_filter_mac_addr::self_endp_handler()
     return ret;
 }
 
-void packet_filter_mac_addr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
+void packet_filter_mac_addr::build_self_content(std::shared_ptr<tracker_element_map> content) {
     packet_filter::build_self_content(content);
 
     content->insert(filter_phy_blocks);

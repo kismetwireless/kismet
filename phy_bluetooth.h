@@ -177,7 +177,9 @@ public:
 	static int common_classifier_bluetooth(CHAINCALL_PARMS);
 
     static int packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS);
-   
+
+    static int packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS);
+
     // Tracker entry
 	static int packet_tracker_bluetooth(CHAINCALL_PARMS);
 

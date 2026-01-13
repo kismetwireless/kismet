@@ -125,6 +125,7 @@ public:
    __Proxy(br_edr_unsupported, uint8_t, bool, bool, br_edr_unsupported);
    __Proxy(simultaneous_br_edr_controller, uint8_t, bool, bool, simultaneous_br_edr_controller);
    __Proxy(simultaneous_br_edr_host, uint8_t, bool, bool, simultaneous_br_edr_host);
+   __Proxy(pdu_type, uint8_t, uint8_t, uint8_t, pdu_type);
 
 protected:
     virtual void register_fields() override { 
@@ -141,6 +142,8 @@ protected:
                 &simultaneous_br_edr_controller);
         register_field("btle.device.simultaneous_br_edr_host", "BT LE simultaneous BR/EDR host mode",
                 &simultaneous_br_edr_host);
+        register_field("btle.device.pdu_type", "BTLE advertising PDU type",
+                &pdu_type);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -148,6 +151,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> br_edr_unsupported;
     std::shared_ptr<tracker_element_uint8> simultaneous_br_edr_controller;
     std::shared_ptr<tracker_element_uint8> simultaneous_br_edr_host;
+    std::shared_ptr<tracker_element_uint8> pdu_type;
 };
 
 class kis_btle_phy : public kis_phy_handler {

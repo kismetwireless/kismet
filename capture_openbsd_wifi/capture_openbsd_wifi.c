@@ -686,7 +686,7 @@ enum wifi_chan_band wifi_freq_to_band(unsigned int in_freq) {
 
 /* Convert a string into a local interpretation; allocate ret_localchan.
  */
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     local_channel_t *ret_localchan = NULL;
     unsigned int parsechan;
@@ -786,7 +786,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         /* Send a config response with a reconstituted channel if we're
         * configuring the interface; re-use errstr as a buffer */
         local_channel_to_str(channel, errstr);
-        cf_send_configresp(caph, seqno, 1, NULL, errstr);
+        cf_send_configresp(caph, seqno, 1, errstr);
     }
 
     return 1;
@@ -794,7 +794,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, KismetExternal__Command *frame,
+        char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     return 1;
@@ -814,7 +814,7 @@ int build_explicit_filters(char **stringmacs, int num_macs, char **filter) {
 
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     /* Try to open an interface for monitoring
@@ -1497,11 +1497,14 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     ts.tv_sec = header->ts.tv_sec;
     ts.tv_usec = header->ts.tv_usec;
     while (1) {
-        if ((ret = cf_send_data(caph, 
-                        NULL, NULL, NULL,
-                        ts, 
-                        local_wifi->datalink_type,
-                        header->caplen, (uint8_t *) data)) < 0) {
+        if ((ret = cf_send_data(caph,
+                                NULL, 0,
+                                NULL, NULL,
+                                ts,
+                                local_wifi->datalink_type,
+                                header->len,
+                                header->caplen,
+                                (uint8_t *) data)) < 0) {
             pcap_breakloop(local_wifi->pd);
             fprintf(stderr, "%s %s/%s could not send packet to Kismet server, terminating.", 
                     local_wifi->name, local_wifi->interface, local_wifi->cap_interface);

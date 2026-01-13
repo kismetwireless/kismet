@@ -805,7 +805,7 @@ exports.AlertDetailWindow = function(key) {
                             var accordion = $('div#accordion', content);
 
                             if (accordion.length == 0) {
-                                accordion = $('<div />', {
+                                accordion = $('<div>', {
                                     id: 'accordion'
                                 });
 
@@ -993,7 +993,7 @@ exports.AddAlertDetail("alert", "Alert", 0, {
                                     return '<i>All / Broadcast</i>'
                                 return kismet.censorMAC(opts['value']);
                             },
-                            help: 'MAC address of the destionation the packet triggering this alert.',
+                            help: 'MAC address of the destination the packet triggering this alert.',
                         },
                     ]
                 },
@@ -1004,7 +1004,7 @@ exports.AddAlertDetail("alert", "Alert", 0, {
 
 exports.AddAlertDetail("devel", "Dev/Debug Options", 10000, {
     render: function(data) {
-        return 'Alert JSON: <a href="alerts/by-id/' + data['kismet.alert.hash'] + '/alert.prettyjson" target="_new">link</a><br />';
+        return 'Alert JSON: <a href="alerts/by-id/' + data['kismet.alert.hash'] + '/alert.prettyjson" target="_new">link</a><br>';
     }});
 
 exports.load_complete = 1;

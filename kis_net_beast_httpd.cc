@@ -39,9 +39,9 @@ const std::string kis_net_beast_httpd::RO_ROLE{"readonly"};
 const std::string kis_net_beast_httpd::AUTH_COOKIE{"KISMET"};
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
-    auto httpd_interface = 
+    auto httpd_interface =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_bind_address", "0.0.0.0");
-    auto httpd_port = 
+    auto httpd_port =
         Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned short>("httpd_port", 2501);
 
     boost::asio::ip::address bind_address;
@@ -49,7 +49,7 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     try {
        bind_address = boost::asio::ip::make_address(httpd_interface);
     } catch (const std::exception& e) {
-        _MSG_FATAL("Invalid bind address {} for httpd server; expected interface address: {}", 
+        _MSG_FATAL("Invalid bind address {} for httpd server; expected interface address: {}",
                 httpd_interface,  e.what());
         Globalreg::globalreg->fatal_condition = 1;
         return nullptr;
@@ -136,7 +136,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     admin_username = Globalreg::globalreg->kismet_config->fetch_opt("httpd_username");
     admin_password = Globalreg::globalreg->kismet_config->fetch_opt("httpd_password");
 
-    auto user_config_path = 
+    auto user_config_path =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_auth_file",
                 "%h/.kismetkismet_httpd.conf");
 
@@ -228,11 +228,11 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         register_static_dir("/", http_data_dir);
     }
 
-    allowed_prefix = 
+    allowed_prefix =
         Globalreg::globalreg->kismet_config->fetch_opt("httpd_uri_prefix");
 
     // Basic session management endpoints
-    register_unauth_route("/session/check_setup_ok", {"GET"}, 
+    register_unauth_route("/session/check_setup_ok", {"GET"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                 con->set_mime_type("text/plain");
@@ -266,7 +266,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 os << "Session valid\n";
             }));
 
-    register_unauth_route("/session/set_password", {"POST"}, 
+    register_unauth_route("/session/set_password", {"POST"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
@@ -344,7 +344,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
                     auto r = remove_auth(n_auth_name);
 
-                    if (!r) 
+                    if (!r)
                         throw std::runtime_error("cannot delete unknown auth record");
 
                     std::ostream os(&con->response_stream());
@@ -354,7 +354,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_route("/auth/apikey/list", {"GET"}, LOGON_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-               
+
                 auto ret = std::make_shared<tracker_element_vector>();
 
                 for (const auto& a : auth_vec) {
@@ -363,7 +363,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
                     // Be lazy and don't generate a full tracked element, this is a super rare endpoint anyhow
                     auto amap = std::make_shared<tracker_element_string_map>();
-                    amap->insert(std::make_pair("kismet.httpd.auth.name", 
+                    amap->insert(std::make_pair("kismet.httpd.auth.name",
                                 std::make_shared<tracker_element_string>(a->name())));
                     amap->insert(std::make_pair("kismet.httpd.auth.role",
                                 std::make_shared<tracker_element_string>(a->role())));
@@ -387,13 +387,12 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                 con->stream().expires_never();
-                auto ws = 
-                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
+                auto ws =
+                    std::make_shared<kis_net_web_websocket_endpoint>(con,
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
                             // Simple echo protocol
-                            ws->write(boost::asio::buffer_cast<const char *>(buf.data()),
-                                    buf.size());
+                            ws->write(static_cast<const char *>(buf->data().data()), buf->size());
                         });
 
                 ws->text();
@@ -414,7 +413,7 @@ int kis_net_beast_httpd::start_httpd() {
 
     acceptor.open(endpoint.protocol(), ec);
     if (ec) {
-        _MSG_FATAL("Could not initialize HTTP server on {}:{} - {}", endpoint.address(), endpoint.port(), 
+        _MSG_FATAL("Could not initialize HTTP server on {}:{} - {}", endpoint.address(), endpoint.port(),
                 ec.message());
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
@@ -493,12 +492,12 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                 thread_set_process_name("BEAST");
 
                 while (tcp_socket.socket().is_open()) {
-					// Reset the timeout every loop through; each request in this 
+					// Reset the timeout every loop through; each request in this
 					// socket pipeline has up to 30 seconds to complete
 					boost::beast::get_lowest_layer(tcp_socket).expires_after(std::chrono::seconds(30));
 
                     // Associate the socket
-                    auto conn = 
+                    auto conn =
                         std::make_shared<kis_net_beast_httpd_connection>(tcp_socket, shared_from_this());
 
                     // Run the connection
@@ -529,7 +528,7 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool q
     std::string::size_type p = 0;
 
     while (p < in.length()) {
-        if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) && 
+        if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) &&
                 std::isxdigit(in[p+2])) {
             char c1 = in[p+1] - (in[p+1] <= '9' ? '0' : (in[p+1] <= 'F' ? 'A' : 'a') - 10);
             char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
@@ -552,7 +551,7 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool q
 }
 
 void kis_net_beast_httpd::set_admin_login(const std::string& username, const std::string& password) {
-    auto user_config_path = 
+    auto user_config_path =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_auth_file",
                 "%h/.kismet/kismet_httpd.conf");
 
@@ -573,7 +572,7 @@ bool kis_net_beast_httpd::check_admin_login(const std::string& username, const s
     return !compare(username, admin_username) && !compare(password, admin_password);
 }
 
-void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decoded, 
+void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decoded,
         http_var_map_t& var_map) {
     boost::beast::string_view::size_type pos = 0;
     while (pos != boost::beast::string_view::npos) {
@@ -594,16 +593,16 @@ void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decod
         if (eqpos == boost::beast::string_view::npos)
             var_map[static_cast<std::string>(varline)] = "";
         else
-            var_map[static_cast<std::string>(varline.substr(0, eqpos))] = 
+            var_map[static_cast<std::string>(varline.substr(0, eqpos))] =
                 static_cast<std::string>(varline.substr(eqpos + 1, varline.length()));
     }
 }
 
-std::string kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view uri, 
+std::string kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view uri,
         http_var_map_t& var_map) {
 
     auto q_pos = uri.find_first_of("?");
-    
+
     if (q_pos == boost::beast::string_view::npos)
         return std::string(uri);
 
@@ -620,7 +619,7 @@ void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded
             pos++;
             continue;
         }
-            
+
         auto eq = decoded.find("=", pos);
 
         if (eq == boost::beast::string_view::npos)
@@ -631,7 +630,7 @@ void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded
         if (end == boost::beast::string_view::npos)
             end = decoded.length();
 
-        var_map[static_cast<std::string>(decoded.substr(pos, eq - pos))] = 
+        var_map[static_cast<std::string>(decoded.substr(pos, eq - pos))] =
             static_cast<std::string>(decoded.substr(eq + 1, end - (eq + 1)));
 
         pos = end + 1;
@@ -692,20 +691,20 @@ void kis_net_beast_httpd::register_route(const std::string& route, const std::li
 
 void kis_net_beast_httpd::register_route(const std::string& route, const std::list<std::string>& verbs,
         const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler) {
-    
+
     if (roles.size() == 0)
         throw std::runtime_error("can not register auth http route with no role");
 
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_route");
 
     std::list<boost::beast::http::verb> b_verbs;
-    for (const auto& v : verbs) 
+    for (const auto& v : verbs)
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
 
     route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, roles, handler));
 }
 
-void kis_net_beast_httpd::register_route(const std::string& route, 
+void kis_net_beast_httpd::register_route(const std::string& route,
         const std::list<std::string>& verbs, const std::string& role,
         const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) {
 
@@ -715,7 +714,7 @@ void kis_net_beast_httpd::register_route(const std::string& route,
     return register_route(route, verbs, std::list<std::string>{role}, extensions, handler);
 }
 
-void kis_net_beast_httpd::register_route(const std::string& route, 
+void kis_net_beast_httpd::register_route(const std::string& route,
         const std::list<std::string>& verbs, const std::list<std::string>& roles,
         const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) {
 
@@ -725,7 +724,7 @@ void kis_net_beast_httpd::register_route(const std::string& route,
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_route (extensions)");
 
     std::list<boost::beast::http::verb> b_verbs;
-    for (const auto& v : verbs) 
+    for (const auto& v : verbs)
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
 
     route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, roles, extensions, handler));
@@ -742,41 +741,41 @@ void kis_net_beast_httpd::remove_route(const std::string& route) {
     }
 }
 
-void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
+void kis_net_beast_httpd::register_unauth_route(const std::string& route,
         const std::list<std::string>& verbs,
         std::shared_ptr<kis_net_web_endpoint> handler) {
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_unauth_route");
     std::list<boost::beast::http::verb> b_verbs;
-    for (const auto& v : verbs) 
+    for (const auto& v : verbs)
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
-    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, false, 
+    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, false,
                 std::list<std::string>{""}, handler));
 }
 
-void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
+void kis_net_beast_httpd::register_unauth_route(const std::string& route,
         const std::list<std::string>& verbs,
         const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) {
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_unauth_route (extensions)");
     std::list<boost::beast::http::verb> b_verbs;
-    for (const auto& v : verbs) 
+    for (const auto& v : verbs)
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
-    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, false, 
+    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, false,
                 std::list<std::string>{""},
                 extensions, handler));
 }
 
-void kis_net_beast_httpd::register_websocket_route(const std::string& route, 
-        const std::string& role, const std::list<std::string>& extensions, 
+void kis_net_beast_httpd::register_websocket_route(const std::string& route,
+        const std::string& role, const std::list<std::string>& extensions,
         std::shared_ptr<kis_net_web_endpoint> handler) {
     return register_websocket_route(route, std::list<std::string>{role}, extensions, handler);
 }
 
-void kis_net_beast_httpd::register_websocket_route(const std::string& route, 
-        const std::list<std::string>& roles, const std::list<std::string>& extensions, 
+void kis_net_beast_httpd::register_websocket_route(const std::string& route,
+        const std::list<std::string>& roles, const std::list<std::string>& extensions,
         std::shared_ptr<kis_net_web_endpoint> handler) {
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_websocket_route");
 
-    websocket_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, 
+    websocket_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route,
                 std::list<boost::beast::http::verb>{}, true, roles, extensions, handler));
 
 }
@@ -813,7 +812,7 @@ std::string kis_net_beast_httpd::create_auth_impl(const std::string& name, const
     return token;
 }
 
-std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, 
+std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name,
         const std::string& role, time_t expiry) {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd create_or_find_auth");
 
@@ -821,14 +820,14 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name,
     for (const auto& a : auth_vec) {
         if (a->name() == name) {
             /*
-            if (a->role() != role) 
+            if (a->role() != role)
                 throw std::runtime_error(fmt::format("conflicting role for creating or finding "
-                            "auth (found existing login for {} tried to create for {})", 
+                            "auth (found existing login for {} tried to create for {})",
                             a->role, role));
                             */
-            
+
             // Reset the role to the new one
-            if (a->role() != role) 
+            if (a->role() != role)
                 a->set_role(role);
 
             if (a->expires() < expiry) {
@@ -876,14 +875,14 @@ bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
 std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const boost::beast::string_view& token) {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd check_auth_token");
 
-    // Step one: is it a JWT token? 
+    // Step one: is it a JWT token?
     auto authtoken = check_jwt_token(token);
 
-    if (authtoken != nullptr) 
+    if (authtoken != nullptr)
         return authtoken;
 
     for (const auto& a : auth_vec) {
-        if (a->check_auth(token)) 
+        if (a->check_auth(token))
             return a;
 
     }
@@ -931,12 +930,12 @@ void kis_net_beast_httpd::store_auth() {
     }
     */
 
-    auto sessiondb_file = 
+    auto sessiondb_file =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", "%h/.kismet/session.db");
     FILE *sf = fopen(sessiondb_file.c_str(), "w");
 
     if (sf == NULL) {
-        _MSG_ERROR("(HTTPD) Could not write session data file: {}", 
+        _MSG_ERROR("(HTTPD) Could not write session data file: {}",
                 kis_strerror_r(errno));
         return;
     }
@@ -950,8 +949,8 @@ void kis_net_beast_httpd::load_auth() {
 
     auth_vec.clear();
 
-    auto sessiondb_file = 
-        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", 
+    auto sessiondb_file =
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db",
                 "%h/.kismet/session.db");
     auto sf = std::ifstream(sessiondb_file, std::ifstream::binary);
 
@@ -984,7 +983,7 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::sha
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd find_endpoint");
 
     for (const auto& r : route_vec) {
-        if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_)) 
+        if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_))
             return r;
     }
 
@@ -1093,7 +1092,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
         auto const size = body.size();
 
         if (con->request().method() == boost::beast::http::verb::head) {
-            boost::beast::http::response<boost::beast::http::empty_body> res{boost::beast::http::status::ok, 
+            boost::beast::http::response<boost::beast::http::empty_body> res{boost::beast::http::status::ok,
                 con->request().version()};
 
             con->append_common_headers(res, uri);
@@ -1108,7 +1107,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
         }
 
         boost::beast::http::response<boost::beast::http::file_body> res{std::piecewise_construct,
-                std::make_tuple(std::move(body)), std::make_tuple(boost::beast::http::status::ok, 
+                std::make_tuple(std::move(body)), std::make_tuple(boost::beast::http::status::ok,
                         con->request().version())};
 
         con->append_common_headers(res, uri);
@@ -1224,7 +1223,7 @@ bool kis_net_beast_httpd_connection::start() {
 
     // Fix any double-slashes which will break the parser/splitter
     std::regex re("/+/");
-    trimmed_uri = std::regex_replace(trimmed_uri, re, "/"); 
+    trimmed_uri = std::regex_replace(trimmed_uri, re, "/");
 
     uri_ = boost::beast::string_view(trimmed_uri);
 
@@ -1263,7 +1262,7 @@ bool kis_net_beast_httpd_connection::start() {
         boost::system::error_code error;
         boost::beast::http::write_header(stream_, sr, error);
 
-        if (error) 
+        if (error)
             return do_close();
 
         // Send the completion record for the chunked response
@@ -1273,7 +1272,7 @@ bool kis_net_beast_httpd_connection::start() {
 
         boost::beast::http::write(stream_, sr, error);
 
-        if (error || client_req_close) 
+        if (error || client_req_close)
             return do_close();
 
         return true;
@@ -1290,7 +1289,7 @@ bool kis_net_beast_httpd_connection::start() {
             auth_token_ = auth_cookie_k->second;
     } else {
         auto uri_cookie_k = http_variables_.find(httpd->AUTH_COOKIE);
-        if (uri_cookie_k != http_variables_.end()) 
+        if (uri_cookie_k != http_variables_.end())
             auth_token_ = uri_cookie_k->second;
     }
 
@@ -1309,8 +1308,8 @@ bool kis_net_beast_httpd_connection::start() {
             if (sp != boost::beast::string_view::npos) {
                 auto auth_type = auth_h->value().substr(0, sp);
                 if (auth_type == "Basic") {
-                    auto auth_data = 
-                        base64::decode(static_cast<std::string>(auth_h->value().substr(sp + 1, 
+                    auto auth_data =
+                        base64::decode(static_cast<std::string>(auth_h->value().substr(sp + 1,
                                         auth_h->value().length())));
 
                     auto cp = auth_data.find_first_of(":");
@@ -1354,12 +1353,12 @@ bool kis_net_beast_httpd_connection::start() {
         auto route = httpd->find_websocket_endpoint(shared_from_this());
 
         if (route == nullptr) {
-            boost::beast::http::response<boost::beast::http::string_body> 
+            boost::beast::http::response<boost::beast::http::string_body>
                 res{boost::beast::http::status::not_found, request_.version()};
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = 
+            res.body() =
                 std::string(fmt::format("<html><head><title>404 not found</title></head>"
                             "<body><h1>404 Not Found</h1><br>"
                             "<p>Could not find <code>{}</code></p></body></html>\n",
@@ -1374,7 +1373,7 @@ bool kis_net_beast_httpd_connection::start() {
         }
 
         if (!route->match_role(login_valid_, login_role_)) {
-            boost::beast::http::response<boost::beast::http::string_body> 
+            boost::beast::http::response<boost::beast::http::string_body>
                 res{boost::beast::http::status::unauthorized, request_.version()};
 
             res.set(boost::beast::http::field::server, "Kismet");
@@ -1403,7 +1402,7 @@ bool kis_net_beast_httpd_connection::start() {
 
     if (route != nullptr) {
         if (!route->match_verb(verb_)) {
-            boost::beast::http::response<boost::beast::http::string_body> 
+            boost::beast::http::response<boost::beast::http::string_body>
                 res{boost::beast::http::status::method_not_allowed, request_.version()};
 
             res.set(boost::beast::http::field::server, "Kismet");
@@ -1415,14 +1414,14 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::beast::http::write(stream_, res, error);
 
-            if (error || client_req_close) 
+            if (error || client_req_close)
                 return do_close();
 
             return true;
         }
 
         if (!route->match_role(login_valid_, login_role_)) {
-            boost::beast::http::response<boost::beast::http::string_body> 
+            boost::beast::http::response<boost::beast::http::string_body>
                 res{boost::beast::http::status::unauthorized, request_.version()};
 
             // We don't generally want to send a WWW-Authorize header because it makes browsers prompt for logins
@@ -1446,7 +1445,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::beast::http::write(stream_, res, error);
 
-            if (error || client_req_close) 
+            if (error || client_req_close)
                 return do_close();
 
             return true;
@@ -1462,12 +1461,12 @@ bool kis_net_beast_httpd_connection::start() {
 
         // If we still didn't serve content, 404
         if (!file_served) {
-            boost::beast::http::response<boost::beast::http::string_body> 
+            boost::beast::http::response<boost::beast::http::string_body>
                 res{boost::beast::http::status::not_found, request_.version()};
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = 
+            res.body() =
                 std::string(fmt::format("<html><head><title>404 not found</title></head>"
                             "<body><h1>404 Not Found</h1><br>"
                             "<p>Could not find <code>{}</code></p></body></html>\n",
@@ -1478,7 +1477,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::beast::http::write(stream_, res, error);
 
-            if (error || client_req_close) 
+            if (error || client_req_close)
                 return do_close();
 
             return true;
@@ -1603,7 +1602,7 @@ bool kis_net_beast_httpd_connection::start() {
         }
 
         // If the buffer has any pending data, regardless of error or completeness,
-        // this will instantly return, otherwise it will stall waiting for it to be 
+        // this will instantly return, otherwise it will stall waiting for it to be
         // populated
         response_stream_.wait();
     }
@@ -1644,8 +1643,8 @@ bool kis_net_beast_httpd_connection::do_close() {
 }
 
 
-kis_net_beast_route::kis_net_beast_route(const std::string& route, 
-        const std::list<boost::beast::http::verb>& verbs, 
+kis_net_beast_route::kis_net_beast_route(const std::string& route,
+        const std::list<boost::beast::http::verb>& verbs,
         bool login, const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler) :
     handler{handler},
     route_{route},
@@ -1655,7 +1654,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     match_types{false} {
 
     // Generate the keys list
-    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re); 
+    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re);
             i != std::sregex_token_iterator(); i++) {
         match_keys.push_back(static_cast<std::string>(*i));
     }
@@ -1668,7 +1667,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     match_re = std::regex(fmt::format("^{}(\\?.*?)?$", ext_str));
 }
 
-kis_net_beast_route::kis_net_beast_route(const std::string& route, 
+kis_net_beast_route::kis_net_beast_route(const std::string& route,
         const std::list<boost::beast::http::verb>& verbs,
         bool login, const std::list<std::string>& roles,
         const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) :
@@ -1680,7 +1679,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     match_types{true} {
 
     // Generate the keys list
-    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re); 
+    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re);
             i != std::sregex_token_iterator(); i++) {
         match_keys.push_back(static_cast<std::string>(*i));
     }
@@ -1712,13 +1711,13 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     match_re = std::regex(fmt::format("^{}{}(\\?.*?)?$", ext_str, ft_regex));
 }
 
-bool kis_net_beast_route::match_url(const std::string& url, 
+bool kis_net_beast_route::match_url(const std::string& url,
         kis_net_beast_httpd_connection::uri_param_t& uri_params,
         kis_net_beast_httpd::http_var_map_t& uri_variables) {
 
     auto match_values = std::smatch();
 
-    if (!std::regex_match(url, match_values, match_re)) 
+    if (!std::regex_match(url, match_values, match_re))
         return false;
 
     if (match_values.size() != match_keys.size() + 1) {
@@ -1869,7 +1868,7 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
 
         auto summary = con->summarize_with_json(output_content, rename_map);
 
-        Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, 
+        Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os,
                 summary, rename_map);
 
         os.flush();
@@ -1925,7 +1924,7 @@ void kis_net_web_websocket_endpoint::close_impl() {
 
     try {
         ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-    } catch (...) { } 
+    } catch (...) { }
 
     try {
         running_promise.set_value();
@@ -1935,7 +1934,10 @@ void kis_net_web_websocket_endpoint::close_impl() {
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
-    ws_.async_read(buffer_,
+
+    buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
+
+    ws_.async_read(*buffer_.get(),
             boost::asio::bind_executor(
                 strand_,
                 std::bind(
@@ -1947,19 +1949,22 @@ void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_webs
 
 void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, std::size_t) {
     if (ec) {
+        buffer_ = nullptr;
         return close_impl();
     }
 
     if (!running) {
+        buffer_ = nullptr;
         return close_impl();
     }
 
     try {
         handler_cb(shared_from_this(), buffer_, ws_.got_text());
 
-        buffer_.consume(buffer_.size());
 
-        ws_.async_read(buffer_,
+        buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
+
+        ws_.async_read(*buffer_.get(),
                 boost::asio::bind_executor(
                     strand_,
                     std::bind(

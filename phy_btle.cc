@@ -366,6 +366,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         new_dev = true;
     }
 
+    // Store the PDU type from the packet
+    btle_dev->set_pdu_type(btle_info->btle_decode->pdu_type());
+
     if (btle_info->btle_decode->is_txaddr_random())
         device->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
 

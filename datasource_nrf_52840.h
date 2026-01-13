@@ -33,7 +33,7 @@ class kis_datasource_nrf52840;
 typedef std::shared_ptr<kis_datasource_nrf52840> shared_datasource_nrf52840;
 
 #ifndef KDLT_IEEE802_15_4_TAP
-#define KDLT_IEEE802_15_4_TAP             283 
+#define KDLT_IEEE802_15_4_TAP             283
 #endif
 
 #ifndef KDLT_IEEE802_15_4_NOFCS
@@ -60,8 +60,8 @@ public:
     virtual ~kis_datasource_nrf52840() { };
 
 protected:
-    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
-            const KismetDatasource::SubPacket& report) override;
+    virtual int handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz) override;
 
     int pack_comp_decap, pack_comp_radiodata;
 };
@@ -101,7 +101,7 @@ public:
 
     virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
-        
+
         set_source_type("nrf52840");
         set_source_description("NRF 52840 with sniffer firmware");
 

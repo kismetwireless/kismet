@@ -66,7 +66,7 @@
 #define EVENT_PACKET_ADVERTISING 0x02
 #define EVENT_PACKET_DATA        0x06
 
-#define D_BAUDRATE B1000000
+#define D_BAUDRATE B460800
 
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 

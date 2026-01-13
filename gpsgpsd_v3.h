@@ -46,10 +46,12 @@ protected:
 
     void handle_open_gps();
 
-    void start_connect(const boost::system::error_code& error, 
-            tcp::resolver::iterator endpoint_iter);
-    void handle_connect(const boost::system::error_code& error, 
-            tcp::resolver::iterator endpoint);
+    void start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
+            const boost::system::error_code& error,
+            const tcp::resolver::results_type& endpoints);
+    void handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
+            const boost::system::error_code& error,
+            tcp::endpoint endpoint);
 
     void start_read();
     void handle_read(const boost::system::error_code& error, std::size_t sz);
