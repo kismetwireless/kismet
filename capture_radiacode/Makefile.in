@@ -20,10 +20,10 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) -I../@PROTOBUF_C_DIR@ $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
-	$(CC) -I../@PROTOBUF_C_DIR@ -MM $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 .PRECIOUS: %.c.d
 
