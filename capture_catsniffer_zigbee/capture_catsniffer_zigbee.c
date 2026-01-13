@@ -16,9 +16,6 @@
 #include "../config.h"
 #include "catsniffer_zigbee.h"
 
-#include "../protobuf_c_1005000/kismet.pb-c.h"
-#include "../protobuf_c_1005000/datasource.pb-c.h"
-
 #if defined(__linux__)
 #include <endian.h>
 #elif defined(__APPLE__)
