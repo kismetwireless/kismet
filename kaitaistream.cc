@@ -35,9 +35,15 @@
 // Supposed to work on NetBSD: https://man.netbsd.org/NetBSD-10.0/bswap16.3
 #include <sys/endian.h>
 #include <sys/types.h>
+#if defined(__OpenBSD__)
+#define bswap_16(x) swap16(x)
+#define bswap_32(x) swap32(x)
+#define bswap_64(x) swap64(x)
+#else
 #define bswap_16(x) bswap16(x)
 #define bswap_32(x) bswap32(x)
 #define bswap_64(x) bswap64(x)
+#endif
 #define __BYTE_ORDER    BYTE_ORDER
 #define __BIG_ENDIAN    BIG_ENDIAN
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
