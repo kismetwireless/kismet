@@ -453,13 +453,12 @@ static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) ctx;
     local_adsb_t *adsb = (local_adsb_t *) caph->userdata;
 
-    if (caph->spindown || adsb->do_exit) {
-        return;
-    }
+    if (caph->spindown || adsb->do_exit) return;
 
+    pthread_mutex_lock(&adsb->ready_mutex);
     memcpy(adsb->buffer, buf, len);
-
-    wrap_cond_signal(&adsb->ready, &adsb->ready_mutex);
+    pthread_cond_signal(&adsb->ready);
+    pthread_mutex_unlock(&adsb->ready_mutex);
 }
 
 static void *rtlsdr_demod_thread(void *arg) {
@@ -467,15 +466,16 @@ static void *rtlsdr_demod_thread(void *arg) {
     local_adsb_t *adsb = (local_adsb_t *) caph->userdata;
 
     int len;
-
     while (!caph->spindown && !adsb->do_exit) {
-        wrap_cond_wait(&adsb->ready, &adsb->ready_mutex);
+        pthread_mutex_lock(&adsb->ready_mutex);
+        pthread_cond_wait(&adsb->ready, &adsb->ready_mutex);
+
         len = magnitude(caph, adsb->buffer, DEFAULT_BUF_LENGTH);
         manchester(caph, (uint16_t *) adsb->buffer, len);
         messages(caph, (uint16_t *) adsb->buffer, len);
+
         pthread_mutex_unlock(&adsb->ready_mutex);
     }
-
     rtlsdr_cancel_async(adsb->dev);
     return NULL;
 }
