@@ -84,7 +84,7 @@ bool kis_database::database_open(std::string in_file_path, int in_flags) {
             (void *) &k_t_exists, &sErrMsg);
 
     if (r != SQLITE_OK) {
-        _MSG("kis_database unable to query for KISMET master table in " + ds_dbfile + ": " + 
+        _MSG("kis_database unable to query for KISMET main table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -131,7 +131,7 @@ bool kis_database::database_create_master_table() {
             [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
     if (r != SQLITE_OK) {
-        _MSG("kis_database unable to create KISMET master table in " + ds_dbfile + ": " +
+        _MSG("kis_database unable to create KISMET main table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
