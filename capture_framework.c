@@ -2484,6 +2484,7 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
         return;
     }
 
+    memset(&caph->lwsci, 0, sizeof(struct lws_client_connect_info));
     caph->lwsci.context = caph->lwscontext;
     caph->lwsci.port = caph->remote_port;
     caph->lwsci.address = caph->remote_host;
