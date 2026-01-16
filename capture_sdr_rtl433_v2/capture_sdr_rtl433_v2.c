@@ -490,8 +490,6 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     wrap_cond_wait(&local433->rtl433_valid_cond,
             &local433->rtl433_valid_cond_mutex);
-    pthread_mutex_unlock(&local433->rtl433_valid_cond_mutex);
-
 }
 
 int main(int argc, char *argv[]) {
