@@ -17,8 +17,6 @@ jobs:
     -
       name: Ubuntu Default Build Test
       run: |
-        sudo apt-get update
-        sudo apt-get dist-upgrade -y
         sudo apt-get install build-essential git libwebsockets-dev pkg-config \
         zlib1g-dev libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
         libnm-dev libdw-dev libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
@@ -28,5 +26,5 @@ jobs:
         libubertooth-dev libbtbb-dev libmosquitto-dev librtlsdr-dev
         sudo apt install rtl-433
         ./configure
-        make --shuffle -j$(nproc)
-        make --shuffle suidinstall
+        make -j$(nproc)
+        make suidinstall
