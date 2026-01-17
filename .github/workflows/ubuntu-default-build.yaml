@@ -1,9 +1,6 @@
 name: Ubuntu Default Build Test
 
-on:
-  pull_request:
-    branches:
-      - master
+on: [push, pull_request]
 
 jobs:
   ubuntu-default-build-test:
@@ -31,4 +28,3 @@ jobs:
         ./configure
         make --shuffle -j$(nproc)
         make --shuffle suidinstall
-        touch /dev/null
