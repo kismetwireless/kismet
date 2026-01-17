@@ -31,3 +31,4 @@ jobs:
         ./configure
         make --shuffle -j$(nproc)
         make --shuffle suidinstall
+        touch /dev/null
