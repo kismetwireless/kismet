@@ -3,7 +3,7 @@ name: Ubuntu All Build Test
 on: [push, pull_request]
 
 jobs:
-  ubuntu-all-build-test:
+  ubuntu-all-no-wext-build-test:
     runs-on: ubuntu-latest
     steps:
     -
@@ -15,7 +15,7 @@ jobs:
       name: List added files
       run: git --no-pager diff --name-only "$(git rev-parse --verify origin/master 2> /dev/null)" HEAD
     -
-      name: Ubuntu All Build Test
+      name: Ubuntu All No WEXT Build Test
       run: |
         sudo apt-get install build-essential git libwebsockets-dev pkg-config \
         zlib1g-dev libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
@@ -26,6 +26,6 @@ jobs:
         libubertooth-dev libbtbb-dev libmosquitto-dev librtlsdr-dev -y
         sudo apt install rtl-433 -y
         sudo apt install libbladerf-dev -y
-        ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
+        ./configure --disable-linuxwext --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
         make -j$(nproc)
         make suidinstall
