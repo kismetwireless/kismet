@@ -27,17 +27,23 @@ SOURCES = {
     "NMAP": "https://raw.githubusercontent.com/nmap/nmap/master/nmap-mac-prefixes",
 }
 
+headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"}
+
 def fetch_ieee(url, name):
     """Parse IEEE format: XX-XX-XX (hex) Manufacturer"""
     manufs = {}
     try:
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, headers=headers, timeout=30)
         for line in r.text.splitlines():
             m = re.match(r"([0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2})\s+\(hex\)\s+(.*)", line)
             if m:
                 oui = m.group(1).replace("-", ":").upper()
                 if oui not in manufs:
                     manufs[oui] = m.group(2).strip()
+                else:
+                    print(f"duplicate in own file {oui}")
+            else:
+                print(f"failed to match {line}")
         print(f"  {name}: {len(manufs)} entries", file=sys.stderr)
     except Exception as e:
         print(f"  {name}: FAILED ({e})", file=sys.stderr)
@@ -47,13 +53,13 @@ def fetch_wireshark(url):
     """Parse Wireshark format: XX:XX:XX ShortName LongName"""
     manufs = {}
     try:
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, headers=headers, timeout=30)
         for line in r.text.splitlines():
             if line.startswith("#") or not line.strip():
                 continue
             parts = line.split("	")
             if len(parts) >= 2:
-                oui = parts[0].upper()
+                oui = parts[0].upper().strip()
                 if len(oui) == 8 and ":" in oui:  # XX:XX:XX format
                     name = parts[2] if len(parts) > 2 else parts[1]
                     if oui not in manufs:
@@ -67,7 +73,7 @@ def fetch_nmap(url):
     """Parse Nmap format: XXXXXX Manufacturer"""
     manufs = {}
     try:
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, headers=headers, timeout=30)
         for line in r.text.splitlines():
             if line.startswith("#") or not line.strip():
                 continue
@@ -119,6 +125,6 @@ if __name__ == "__main__":
 
     with gzip.open(sys.argv[1], "wt") as gzf:
         for oui, manuf in sorted_manufs:
-            print(f"{oui}	{manuf}", file=gzf)
+            print(f"{oui}\t{manuf}", file=gzf)
 
     print(f"Written to {sys.argv[1]}", file=sys.stderr)
