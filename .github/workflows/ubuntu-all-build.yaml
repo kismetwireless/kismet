@@ -28,4 +28,4 @@ jobs:
         sudo apt install libbladerf-dev -y
         ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
         make -j$(nproc)
-        make suidinstall
+        sudo make suidinstall

@@ -27,4 +27,4 @@ jobs:
         sudo apt install rtl-433
         ./configure
         make -j$(nproc)
-        make suidinstall
+        sudo make suidinstall
