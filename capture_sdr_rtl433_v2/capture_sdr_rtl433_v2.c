@@ -342,8 +342,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     char buf[STATUS_MAX];
 
-    // rtl_433 -F json -M level -d X -f Y [additional]
-    unsigned int num_args = 9;
+    // rtl_433 -F json -M level -s 1024k -d X -f Y [additional]
+    unsigned int num_args = 11;
 
     // Channel, if any
     char *channel = NULL;
@@ -452,6 +452,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     local433->rtl_argv[n++] = strdup("json");
     local433->rtl_argv[n++] = strdup("-M");
     local433->rtl_argv[n++] = strdup("level");
+    local433->rtl_argv[n++] = strdup("-s");
+    local433->rtl_argv[n++] = strdup("1024k");
     local433->rtl_argv[n++] = strdup("-f");
     snprintf(buf, STATUS_MAX, "%lu", local433->freq);
     local433->rtl_argv[n++] = strdup(buf);
