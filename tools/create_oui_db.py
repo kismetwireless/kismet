@@ -40,6 +40,10 @@ def fetch_ieee(url, name):
                 oui = m.group(1).replace("-", ":").upper()
                 if oui not in manufs:
                     manufs[oui] = m.group(2).strip()
+                else:
+                    print(f"duplicate in own file {oui}")
+            else:
+                print(f"failed to match {line}")
         print(f"  {name}: {len(manufs)} entries", file=sys.stderr)
     except Exception as e:
         print(f"  {name}: FAILED ({e})", file=sys.stderr)
