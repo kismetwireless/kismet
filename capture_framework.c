@@ -685,8 +685,10 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
          * is not a factor of the maximum so that we get full coverage.
          */
 
-        if (caph->channel_hop_shuffle_spacing > chan_sz)
+        if (caph->channel_hop_shuffle_spacing >= chan_sz)
             caph->channel_hop_shuffle_spacing = 1;
+
+        /* this math is wrong, fix it in the hop iterator by offsetting the loop start
 
         while ((chan_sz % (chan_sz / caph->channel_hop_shuffle_spacing)) == 0) {
             if (caph->channel_hop_shuffle_spacing >= chan_sz - 1) {
@@ -695,6 +697,7 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
             }
             caph->channel_hop_shuffle_spacing++;
         }
+        */
     }
 
     pthread_mutex_unlock(&(caph->handler_lock));
@@ -1436,6 +1439,7 @@ void *cf_int_chanhop_thread(void *arg) {
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
     size_t hoppos;
+    size_t hoppos_start = 0;
 
     /* How long we're waiting until the next time */
     unsigned int wait_sec = 0;
@@ -1489,7 +1493,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
         errstr[0] = 0;
         if ((r = (caph->chancontrol_cb)(caph, 0,
-                    caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz],
+                    caph->custom_channel_hop_list[hoppos],
                     errstr)) < 0) {
             fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
             cf_send_error(caph, 0, errstr);
@@ -1525,6 +1529,11 @@ void *cf_int_chanhop_thread(void *arg) {
             hoppos += caph->channel_hop_shuffle_spacing;
         else
             hoppos++;
+
+        /* offset the restart of the loop */
+        if (hoppos >= caph->channel_hop_list_sz) {
+            hoppos = ++hoppos_start % caph->channel_hop_shuffle_spacing;
+        }
 
         /* If we've gotten back to 0, look at the failed channel list.  This is super
          * inefficient because it has to do multiple crawls of a linked list, but
