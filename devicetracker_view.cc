@@ -30,7 +30,7 @@
 #include "kis_mutex.h"
 #include "kismet_algorithm.h"
 
-device_tracker_view::device_tracker_view(const std::string& in_id, const std::string& in_description, 
+device_tracker_view::device_tracker_view(const std::string& in_id, const std::string& in_description,
         new_device_cb in_new_cb, updated_device_cb in_update_cb) :
     tracker_component{},
     new_cb {in_new_cb},
@@ -51,7 +51,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 }
 
 device_tracker_view::device_tracker_view(const std::string& in_id, const std::string& in_description,
-        const std::vector<std::string>& in_aux_path, 
+        const std::vector<std::string>& in_aux_path,
         new_device_cb in_new_cb, updated_device_cb in_update_cb) :
     tracker_component{},
     new_cb {in_new_cb},
@@ -81,7 +81,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     register_urls(ss.str());
 }
 
-void device_tracker_view::register_urls(const std::string& in_id) { 
+void device_tracker_view::register_urls(const std::string& in_id) {
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
@@ -142,7 +142,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                                 std::string dev_r = json["monitor"];
                                 auto dev_k = device_key(json["monitor"]);
                                 auto dev_m = mac_addr(json["monitor"].get<std::string>());
-                                
+
                                 if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
@@ -159,7 +159,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
 
                                 // Generate a timer event that goes and looks for the devices and
                                 // serializes them with the fields record
-                                auto tid = 
+                                auto tid =
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
                                             [this, con, dev_r, dev_k, dev_m, json, ws, &last_tm, rename_map, format_t](int) -> int {
                                                 if (dev_r == "*") {
@@ -269,7 +269,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
     // Lock the whole device list for the duration; we may already hold this lock if we're inside the webserver
     // but that's OK
-    kis_lock_guard<kis_mutex> dev_lg(devicetracker->get_devicelist_mutex(), 
+    kis_lock_guard<kis_mutex> dev_lg(devicetracker->get_devicelist_mutex(),
             "device_tracker_view do_device_work");
 
     std::for_each(devices->begin(), devices->end(),
@@ -283,7 +283,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             bool m;
             m = worker.match_device(dev);
 
-            if (m) 
+            if (m)
                 ret->push_back(dev);
 
         });
@@ -307,7 +307,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
 
-    kis_lock_guard<kis_mutex> ul_devlist(devicetracker->get_devicelist_mutex(), 
+    kis_lock_guard<kis_mutex> ul_devlist(devicetracker->get_devicelist_mutex(),
             "device_tracker_view do_readonly_device_work");
 
     std::for_each(devices->begin(), devices->end(),
@@ -320,7 +320,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
 
             auto m = worker.match_device(dev);
 
-            if (m) 
+            if (m)
                 ret->push_back(dev);
 
         });
@@ -369,7 +369,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
 
     // Only called under guard from devicetracker already
     // kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
-    
+
     bool retain = update_cb(device);
 
     auto dpmi = device_presence_map.find(device->get_key());
@@ -413,7 +413,7 @@ void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base>
                 break;
             }
         }
-        
+
         list_sz->set(device_list->size());
     }
 }
@@ -446,12 +446,12 @@ void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_devic
                 break;
             }
         }
-        
+
         list_sz->set(device_list->size());
     }
 }
 
-std::shared_ptr<tracker_element> 
+std::shared_ptr<tracker_element>
 device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     auto ret = Globalreg::new_from_pool<tracker_element_vector>();
     std::ostream os(&con->response_stream());
@@ -469,7 +469,7 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
     // Regular expression terms, if any
     auto regex = con->json()["regex"];
 
-    auto worker = 
+    auto worker =
         device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < ts)
                     return false;
@@ -482,7 +482,7 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
     // Apply a regex filter
     if (!regex.is_null()) {
         try {
-            auto worker = 
+            auto worker =
                 device_tracker_view_regex_worker(regex);
             auto r_vec = do_readonly_device_work(worker, next_work_vec);
             next_work_vec = r_vec;
@@ -550,7 +550,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             if (i.is_string()) {
                 summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
             } else if (i.is_array()) {
-                if (i.size() != 2) 
+                if (i.size() != 2)
                     throw std::runtime_error("Invalid field map, expected [field, rename]");
 
                 summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(), i[1].get<std::string>()));
@@ -615,11 +615,11 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
             // We transmit the wrapper elem
             transmit = wrapper_elem;
-        } 
+        }
 
         // Handle legacy datatable otpions, if datatable=true
         if (con->json().value("datatable", false)) {
-            // Extract from the raw postvars 
+            // Extract from the raw postvars
             auto start_k = con->http_variables().find("start");
             if (start_k != con->http_variables().end())
                 in_window_start = string_to_n<unsigned int>(start_k->second);
@@ -637,7 +637,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
                 search_term = search_k->second;
 
             // Search every field we return
-            if (search_term.length() != 0) 
+            if (search_term.length() != 0)
                 for (const auto& svi : summary_vec)
                     search_paths.push_back(svi->resolved_path);
 
@@ -673,7 +673,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
             }
 
-            if (in_window_len > 500) 
+            if (in_window_len > 500)
                 in_window_len = 500;
 
             // Set the window elements for datatables
@@ -710,7 +710,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
                 search_term = search_k->second;
 
             // Search every field we return
-            if (search_term.length() != 0) 
+            if (search_term.length() != 0)
                 for (const auto& svi : summary_vec)
                     search_paths.push_back(svi->resolved_path);
 
@@ -731,7 +731,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
     // If we have a time filter, apply that first, it's the fastest.
     if (timestamp_min > 0) {
-        auto worker = 
+        auto worker =
             device_tracker_view_function_worker([timestamp_min] (std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < timestamp_min)
                     return false;
@@ -754,7 +754,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // Apply a regex filter
     if (!regex.is_null()) {
         try {
-            auto worker = 
+            auto worker =
                 device_tracker_view_regex_worker(regex);
             auto r_vec = do_readonly_device_work(worker, next_work_vec);
             next_work_vec = r_vec;
@@ -774,7 +774,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     }
 
     // Slice from the beginning of the list
-    if (in_window_start >= next_work_vec->size()) 
+    if (in_window_start >= next_work_vec->size())
         in_window_start = 0;
 
     // Update the start
@@ -792,7 +792,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     length_elem->set(ei - si);
 
     // if (in_order_column_num.length() && order_field.size() > 0) {
-    
+
     if (order_field.size() > 0) {
         std::stable_sort(
 #if defined(HAVE_CPP17_PARALLEL)
@@ -806,7 +806,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
                 fa = get_tracker_element_path(order_field, a);
                 fb = get_tracker_element_path(order_field, b);
 
-                if (fa == nullptr) 
+                if (fa == nullptr)
                     return in_order_direction == 0;
 
                 if (fb == nullptr)
