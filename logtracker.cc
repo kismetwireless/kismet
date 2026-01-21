@@ -19,7 +19,7 @@
 #include "config.h"
 
 #include <getopt.h>
-
+#include "json_adapter.h"
 #include "logtracker.h"
 #include "globalregistry.h"
 #include "messagebus.h"
@@ -229,6 +229,10 @@ void log_tracker::trigger_deferred_startup() {
 
                     if (builder == nullptr)
                         throw std::runtime_error("invalid logclass");
+                    
+                    if (!con->json()["title"].is_null()) {
+                        set_int_log_title(json_adapter::sanitize_string(con->json()["title"]));
+                    }
 
                     shared_logfile logf = open_log(builder);
 
