@@ -171,9 +171,9 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
 
     set_phy_name("BTLE");
 
-    packetchain = 
+    packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
-    entrytracker = 
+    entrytracker =
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
@@ -203,12 +203,12 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
     packetchain->register_handler(&dissector, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&common_classifier, this, CHAINPOS_CLASSIFIER, -100);
 
-    btle_device_id = 
+    btle_device_id =
         entrytracker->register_field("btle.device",
                 tracker_element_factory<btle_tracked_device>(),
                 "BTLE device");
 
-    btle_uuid_id = 
+    btle_uuid_id =
         entrytracker->register_field("btle.common.uuid_vendor",
                 tracker_element_factory<tracker_element_string>(),
                 "UUID vendor");
@@ -250,7 +250,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
         return 0;
 
-    // If this packet hasn't been checksummed already at the capture layer, 
+    // If this packet hasn't been checksummed already at the capture layer,
     // do a checksum now.  We assume the last 3 bytes are the checksum.
     // ticc and nrf don't provide an in-packet checksum, and we rely on the
     // crc_ok from the firmware-specific radio headers that get turned into the
@@ -263,14 +263,14 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
         }
 
         uint32_t line_crc;
-        line_crc = 
+        line_crc =
             packdata->data()[packdata->length() - 3] << 16 |
             packdata->data()[packdata->length() - 2] << 8 |
             packdata->data()[packdata->length() - 1];
 
         // Get the CRC as if it was a broadcast; we'll redo this later if we get
         // data packets
-        uint32_t packet_crc = 
+        uint32_t packet_crc =
             calc_btle_crc(0x555555, packdata->data(), packdata->length() - 3);
 
         if (reverse_bits(packet_crc) != line_crc) {
@@ -296,7 +296,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 
         common->source = btle->advertising_address();
         common->transmitter = btle->advertising_address();
-        // We don't set the channel or freq because it's already in l1info and gets picked 
+        // We don't set the channel or freq because it's already in l1info and gets picked
         // up from there automatically
 
         btle_info->btle_decode = btle;
@@ -327,12 +327,12 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info->btle_decode == nullptr)
         return 0;
 
-    // Drop randoms 
+    // Drop randoms
     if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random)
         return 0;
 
     if (in_pack->duplicate) {
-        auto device = 
+        auto device =
             mphy->devicetracker->update_common_device(common,
                     common->source, mphy, in_pack,
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
@@ -344,7 +344,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     // Update with all the options in case we can add signal and frequency
     // in the future
-    auto device = 
+    auto device =
         mphy->devicetracker->update_common_device(common,
                 common->source, mphy, in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
@@ -400,7 +400,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     }
 
     if (new_dev) {
-        if (device->get_devicename().length() > 0) 
+        if (device->get_devicename().length() > 0)
             _MSG_INFO("Detected new BTLE device {} {}", common->source, device->get_devicename());
         else
             _MSG_INFO("Detected new BTLE device {}", common->source);
