@@ -2044,6 +2044,7 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_nod
     auto s_dbm_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM);
     if (!mpack_node_is_missing(s_dbm_n)) {
         siginfo->signal_dbm = mpack_node_u32(s_dbm_n);
+        siginfo->signal_type = kis_l1_signal_type_dbm;
     }
 
     auto n_dbm_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM);
@@ -2054,6 +2055,7 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_nod
     auto s_rssi_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI);
     if (!mpack_node_is_missing(s_rssi_n)) {
         siginfo->signal_rssi = mpack_node_u32(s_rssi_n);
+        siginfo->signal_type = kis_l1_signal_type_rssi;
     }
 
     auto n_rssi_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI);
