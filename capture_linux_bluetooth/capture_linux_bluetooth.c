@@ -140,8 +140,14 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
         free(name);
     }
 
+    /* Pass RSSI from management event to Kismet via signal params */
+    struct cf_params_signal sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.signal_dbm = (int8_t) dev->rssi;
+    sig.freq_khz = 2400000;
+
     while (1) {
-        if ((r = cf_send_json(localbt->caph, NULL, 0, NULL, NULL, tv, "linuxbthci", json)) < 0) {
+        if ((r = cf_send_json(localbt->caph, NULL, 0, &sig, NULL, tv, "linuxbthci", json)) < 0) {
             cf_send_error(localbt->caph, 0, "unable to send JSON frame");
             cf_handler_spindown(localbt->caph);
             continue;
