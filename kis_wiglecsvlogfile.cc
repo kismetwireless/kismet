@@ -52,7 +52,7 @@ std::string wifi_crypt_to_string(unsigned long cryptset) {
     if (cryptset & crypt_wps)
         ss << "[WPS] ";
 
-    if ((cryptset & crypt_protectmask) == crypt_wep) 
+    if ((cryptset & crypt_protectmask) == crypt_wep)
         ss << "[WEP] ";
 
     if (cryptset & crypt_wpa) {
@@ -135,17 +135,17 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
 	pack_comp_device = packetchain->register_packet_component("DEVICE");
 	pack_comp_common = packetchain->register_packet_component("COMMON");
 
-    throttle_seconds = 
+    throttle_seconds =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("wigle_log_throttle", 1);
 
     auto devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-    dot11_phy = 
+    dot11_phy =
         static_cast<kis_80211_phy *>(devicetracker->fetch_phy_handler_by_name("IEEE802.11"));
-    bt_phy = 
+    bt_phy =
         static_cast<kis_bluetooth_phy *>(devicetracker->fetch_phy_handler_by_name("Bluetooth"));
-    btle_phy = 
+    btle_phy =
         static_cast<kis_btle_phy *>(devicetracker->fetch_phy_handler_by_name("BTLE"));
 
     if (dot11_phy == nullptr || bt_phy == nullptr || btle_phy == nullptr) {
@@ -180,7 +180,7 @@ bool kis_wiglecsv_logfile::open_log(const std::string& in_template, const std::s
 
     // CSV headers
     fmt::print(csvfile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,release={0}.{1}.{2}-{3},"
-            "device=kismet,display=kismet,board=kismet,brand=kismet\n", 
+            "device=kismet,display=kismet,board=kismet,brand=kismet\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
     fmt::print(csvfile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,Type\n");
@@ -206,7 +206,7 @@ void kis_wiglecsv_logfile::close_log() {
 
     csvfile = nullptr;
 
-    auto packetchain = 
+    auto packetchain =
         Globalreg::fetch_global_as<packet_chain>();
     if (packetchain != nullptr) {
         packetchain->remove_handler(&kis_wiglecsv_logfile::packet_handler, CHAINPOS_LOGGING);
@@ -263,7 +263,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
     // Stop looking at all if we're w/in the timeout for logging this device
     const auto& time_k = wigle->timer_map.find(dev->get_key());
-    
+
     if (time_k != wigle->timer_map.end()) {
         if (time(0) < time_k->second)
             return 1;
