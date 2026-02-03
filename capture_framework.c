@@ -1493,8 +1493,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
         errstr[0] = 0;
         if ((r = (caph->chancontrol_cb)(caph, 0,
-                    caph->custom_channel_hop_list[hoppos],
-                    errstr)) < 0) {
+                    caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], errstr)) < 0) {
             fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
             cf_send_error(caph, 0, errstr);
             caph->hopping_running = 0;
@@ -1532,7 +1531,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
         /* offset the restart of the loop */
         if (hoppos >= caph->channel_hop_list_sz) {
-            hoppos = ++hoppos_start % caph->channel_hop_shuffle_spacing;
+            hoppos = (++hoppos_start % caph->channel_hop_shuffle_spacing) % caph->channel_hop_list_sz;
         }
 
         /* If we've gotten back to 0, look at the failed channel list.  This is super
