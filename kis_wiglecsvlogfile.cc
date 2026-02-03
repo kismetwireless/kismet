@@ -361,6 +361,37 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 signal,
                 gps->lat, gps->lon, gps->alt,
                 type);
+    } else if (wigle->btle_phy->device_is_a(dev)) {
+        auto bt = wigle->btle_phy->fetch_btle_record(dev);
+
+        if (bt == nullptr)
+            return 1;
+
+        auto timestamp = dev->get_first_time();
+        auto name = munge_for_csv(dev->get_commonname());
+
+        std::time_t timet(timestamp);
+        std::tm tm;
+        std::stringstream ts;
+
+        gmtime_r(&timet, &tm);
+
+        char tmstr[256];
+        strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+        ts << tmstr;
+
+        const auto type = std::string{"BLE"};
+        const auto crypt = std::string{"Misc [LE]"};
+
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+                dev->get_macaddr(),
+                name,
+                crypt,
+                ts.str(),
+                0,
+                signal,
+                gps->lat, gps->lon, gps->alt,
+                type);
     }
 
     wigle->timer_map[dev->get_key()] = time(0) + wigle->throttle_seconds;

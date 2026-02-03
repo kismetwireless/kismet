@@ -49,6 +49,7 @@ kis_database_logfile::kis_database_logfile():
     pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
     pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_metablob = packetchain->register_packet_component("METABLOB");
+    pack_comp_json = packetchain->register_packet_component("JSON");
 
     last_device_log = 0;
 
@@ -932,6 +933,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
     auto commoninfo = in_pack->fetch<kis_common_info>(pack_comp_common);
     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
     auto metablob = in_pack->fetch<packet_metablob>(pack_comp_metablob);
+    auto jsonblob = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
 
     kis_phy_handler *phyh = NULL;
 
@@ -1086,6 +1088,18 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
 
         log_data(gpsdata, in_pack->ts, phystring, smac, puuid,
                 metablob->meta_type, metablob->meta_data);
+    } else if (jsonblob != nullptr) {
+        mac_addr smac("00:00:00:00:00:00");
+        uuid puuid;
+
+        if (commoninfo != nullptr)
+            smac = commoninfo->source;
+
+        if (datasrc != nullptr)
+            puuid = datasrc->ref_source->get_source_uuid();
+
+        log_data(gpsdata, in_pack->ts, phystring, smac, puuid,
+                jsonblob->type, jsonblob->json_string);
     }
 
     return 1;

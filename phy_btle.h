@@ -179,6 +179,10 @@ public:
 
     virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 
+    std::shared_ptr<btle_tracked_device> fetch_btle_record(const std::shared_ptr<kis_tracked_device_base>& dev) {
+        return dev->get_sub_as<btle_tracked_device>(btle_device_id);
+    }
+
 protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
