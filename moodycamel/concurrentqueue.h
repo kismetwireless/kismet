@@ -1,8 +1,8 @@
 // Provides a C++11 implementation of a multi-producer, multi-consumer lock-free queue.
 // An overview, including benchmark results, is provided here:
-//     http://moodycamel.com/blog/2014/a-fast-general-purpose-lock-free-queue-for-c++
+//     https://moodycamel.com/blog/2014/a-fast-general-purpose-lock-free-queue-for-c++
 // The full design is also described in excruciating detail at:
-//    http://moodycamel.com/blog/2014/detailed-design-of-a-lock-free-queue
+//    https://moodycamel.com/blog/2014/detailed-design-of-a-lock-free-queue
 
 // Simplified BSD license:
 // Copyright (c) 2013-2020, Cameron Desrochers.
@@ -101,7 +101,7 @@ extern "C" __declspec(dllimport) unsigned long __stdcall GetCurrentThreadId(void
 namespace moodycamel { namespace details {
 	static_assert(sizeof(unsigned long) == sizeof(std::uint32_t), "Expected size of unsigned long to be 32 bits on Windows");
 	typedef std::uint32_t thread_id_t;
-	static const thread_id_t invalid_thread_id  = 0;			// See http://blogs.msdn.com/b/oldnewthing/archive/2004/02/23/78395.aspx
+	static const thread_id_t invalid_thread_id  = 0;			// See https://blogs.msdn.com/b/oldnewthing/archive/2004/02/23/78395.aspx
 	static const thread_id_t invalid_thread_id2 = 0xFFFFFFFFU;	// Not technically guaranteed to be invalid, but is never used in practice. Note that all Win32 thread IDs are presently multiples of 4.
 	static inline thread_id_t thread_id() { return static_cast<thread_id_t>(::GetCurrentThreadId()); }
 } }
@@ -140,7 +140,7 @@ namespace moodycamel { namespace details {
 	};
 } }
 #else
-// Use a nice trick from this answer: http://stackoverflow.com/a/8438730/21475
+// Use a nice trick from this answer: https://stackoverflow.com/a/8438730/21475
 // In order to get a numeric thread ID in a platform-independent way, we use a thread-local
 // static variable's address as a thread identifier :-)
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
@@ -214,7 +214,7 @@ namespace moodycamel { namespace details {
 #ifdef MCDBGQ_USE_RELACY
 #define MOODYCAMEL_CPP11_THREAD_LOCAL_SUPPORTED
 #else
-// VS2013 doesn't support `thread_local`, and MinGW-w64 w/ POSIX threading has a crippling bug: http://sourceforge.net/p/mingw-w64/bugs/445
+// VS2013 doesn't support `thread_local`, and MinGW-w64 w/ POSIX threading has a crippling bug: https://sourceforge.net/p/mingw-w64/bugs/445
 // g++ <=4.7 doesn't support thread_local either.
 // Finally, iOS/ARM doesn't have support for it either, and g++/ARM allows it to compile but it's unconfirmed to actually work
 #if (!defined(_MSC_VER) || _MSC_VER >= 1900) && (!defined(__MINGW32__) && !defined(__MINGW64__) || !defined(__WINPTHREADS_VERSION)) && (!defined(__GNUC__) || __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) && (!defined(__APPLE__) || !TARGET_OS_IPHONE) && !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__)
@@ -494,7 +494,7 @@ namespace details
 	{
 		static_assert(std::is_integral<T>::value && !std::numeric_limits<T>::is_signed, "ceil_to_pow_2 is intended to be used only with unsigned integer types");
 
-		// Adapted from http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+		// Adapted from https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
 		--x;
 		x |= x >> 1;
 		x |= x >> 2;
@@ -758,7 +758,7 @@ private: // but shared with ConcurrentQueue
 };
 
 // Need to forward-declare this swap because it's in a namespace.
-// See http://stackoverflow.com/questions/4492062/why-does-a-c-friend-class-need-a-forward-declaration-only-in-other-namespaces
+// See https://stackoverflow.com/questions/4492062/why-does-a-c-friend-class-need-a-forward-declaration-only-in-other-namespaces
 template<typename T, typename Traits>
 inline void swap(typename ConcurrentQueue<T, Traits>::ImplicitProducerKVP& a, typename ConcurrentQueue<T, Traits>::ImplicitProducerKVP& b) MOODYCAMEL_NOEXCEPT;
 
@@ -1972,7 +1972,7 @@ private:
 				// Note that I believe a compiler (signal) fence here would be sufficient due to the nature of fetch_add (all
 				// read-modify-write operations are guaranteed to work on the latest value in the modification order), but
 				// unfortunately that can't be shown to be correct using only the C++11 standard.
-				// See http://stackoverflow.com/questions/18223161/what-are-the-c11-memory-ordering-guarantees-in-this-corner-case
+				// See https://stackoverflow.com/questions/18223161/what-are-the-c11-memory-ordering-guarantees-in-this-corner-case
 				std::atomic_thread_fence(std::memory_order_acquire);
 				
 				// Increment optimistic counter, then check if it went over the boundary
@@ -1987,7 +1987,7 @@ private:
 				
 				// Note that we reload tail here in case it changed; it will be the same value as before or greater, since
 				// this load is sequenced after (happens after) the earlier load above. This is supported by read-read
-				// coherency (as defined in the standard), explained here: http://en.cppreference.com/w/cpp/atomic/memory_order
+				// coherency (as defined in the standard), explained here: https://en.cppreference.com/w/cpp/atomic/memory_order
 				tail = this->tailIndex.load(std::memory_order_acquire);
 				if ((details::likely)(details::circular_less_than<index_t>(myDequeueCount - overcommit, tail))) {
 					// Guaranteed to be at least one element to dequeue!
@@ -3395,7 +3395,7 @@ private:
 		// If it's not found, it must not be in there yet, since this same thread would
 		// have added it previously to one of the tables that we traversed.
 		
-		// Code and algorithm adapted from http://preshing.com/20130605/the-worlds-simplest-lock-free-hash-table
+		// Code and algorithm adapted from https://preshing.com/20130605/the-worlds-simplest-lock-free-hash-table
 		
 #ifdef MCDBGQ_NOLOCKFREE_IMPLICITPRODHASH
 		debug::DebugLock lock(implicitProdMutex);

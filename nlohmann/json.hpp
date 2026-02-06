@@ -5040,7 +5040,7 @@ struct from_json_fn
 #ifndef JSON_HAS_CPP_17
 /// namespace to hold default `from_json` function
 /// to see why this is required:
-/// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4381.html
+/// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4381.html
 namespace // NOLINT(cert-dcl59-cpp,fuchsia-header-anon-namespaces,google-build-namespaces)
 {
 #endif
@@ -5739,7 +5739,7 @@ struct to_json_fn
 #ifndef JSON_HAS_CPP_17
 /// namespace to hold default `to_json` function
 /// to see why this is required:
-/// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4381.html
+/// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4381.html
 namespace // NOLINT(cert-dcl59-cpp,fuchsia-header-anon-namespaces,google-build-namespaces)
 {
 #endif
@@ -9335,7 +9335,7 @@ class binary_reader
 
     /*!
     @brief Read a BSON document element of the given @a element_type.
-    @param[in] element_type The BSON element type, c.f. http://bsonspec.org/spec.html
+    @param[in] element_type The BSON element type, c.f. https://bsonspec.org/spec.html
     @param[in] element_type_parse_position The position in the input stream,
                where the `element_type` was read.
     @warning Not all BSON element types are supported yet. An unsupported
@@ -16811,7 +16811,7 @@ conversion.
 
 This implementation is a slightly modified version of the reference
 implementation which may be obtained from
-http://florian.loitsch.com/publications (bench.tar.gz).
+https://florian.loitsch.com/publications (bench.tar.gz).
 
 The code is distributed under the MIT license, Copyright (c) 2009 Florian Loitsch.
 
@@ -18779,7 +18779,7 @@ class serializer
     @note The function has been edited: a std::array is used.
 
     @copyright Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
-    @sa http://bjoern.hoehrmann.de/utf-8/decoder/dfa/
+    @sa https://bjoern.hoehrmann.de/utf-8/decoder/dfa/
     */
     static std::uint8_t decode(std::uint8_t& state, std::uint32_t& codep, const std::uint8_t byte) noexcept
     {

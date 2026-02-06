@@ -107,7 +107,7 @@ public:
 #elif defined(__MACH__)
 //---------------------------------------------------------
 // Semaphore (Apple iOS and OSX)
-// Can't use POSIX semaphores due to http://lists.apple.com/archives/darwin-kernel/2009/Apr/msg00010.html
+// Can't use POSIX semaphores due to https://lists.apple.com/archives/darwin-kernel/2009/Apr/msg00010.html
 //---------------------------------------------------------
 class Semaphore
 {
@@ -193,7 +193,7 @@ public:
 
 	bool wait()
 	{
-		// http://stackoverflow.com/questions/2013181/gdb-causes-sem-wait-to-fail-with-eintr-error
+		// https://stackoverflow.com/questions/2013181/gdb-causes-sem-wait-to-fail-with-eintr-error
 		int rc;
 		do {
 			rc = sem_wait(&m_sema);

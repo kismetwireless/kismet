@@ -1597,7 +1597,7 @@ MPACK_EXTERN_C_BEGIN
 
                 // The GCC bswap builtins are apparently poorly optimized on older
                 // versions of GCC, so we set a minimum version here just in case.
-                //     http://hardwarebug.org/2010/01/14/beware-the-builtins/
+                //     https://hardwarebug.org/2010/01/14/beware-the-builtins/
 
                 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
                     #define MPACK_NHSWAP64(x) __builtin_bswap64(x)
