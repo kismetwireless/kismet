@@ -56,7 +56,7 @@
 
 // Kismetdb version
 
-#define KISMETDB_LOG_VERSION        9
+#define KISMETDB_LOG_VERSION            10
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
@@ -105,12 +105,14 @@ public:
     virtual time_t get_last_device_log_ts() { return last_device_log; }
 
     // Log a packet
-    virtual int log_packet(const std::shared_ptr<kis_packet>& in_packet);
+    virtual int log_packet(const kis_packet* in_packet);
 
     // Log data that isn't a packet; this is a slightly more clunky API because we
     // can't derive the data from the simple packet interface.  GPS may be null,
     // and other attributes may be empty, if that data is not available
-    virtual int log_data(const std::shared_ptr<kis_gps_packinfo>& gps, const struct timeval& tv,
+    virtual int log_data(const kis_gps_packinfo *gps,
+            const kis_layer1_packinfo *l1info,
+            const struct timeval& tv,
             const std::string& phystring, const mac_addr& devmac, const uuid& datasource_uuid,
             const std::string& type, const std::string& json);
 

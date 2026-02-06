@@ -164,12 +164,12 @@ public:
     std::shared_ptr<packet_component> fetch(const unsigned int index) const;
 
     template<class T>
-    std::shared_ptr<T> fetch() {
+    std::shared_ptr<T> fetch() const {
         return nullptr;
     }
 
     template<class T, typename... Pn>
-    std::shared_ptr<T> fetch(const unsigned int index, const Pn& ... args) {
+    std::shared_ptr<T> fetch(const unsigned int index, const Pn& ... args) const {
         auto k = std::static_pointer_cast<T>(this->fetch(index));
 
         if (k != nullptr)

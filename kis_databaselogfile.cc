@@ -411,7 +411,7 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         packet_handler_id =
             packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) -> int {
 					auto dbl = reinterpret_cast<kis_database_logfile *>(auxdata);
-                    return dbl->log_packet(packet);
+                    return dbl->log_packet(packet.get());
                 }, this, CHAINPOS_LOGGING, -100);
     } else {
         packet_handler_id = -1;
@@ -585,7 +585,9 @@ int kis_database_logfile::database_upgrade_db() {
 
         "type TEXT, " // Type of arbitrary record
 
-        "json BLOB " // Arbitrary JSON record
+        "json BLOB, " // Arbitrary JSON record
+
+        "signal INT " // signal
         ")";
 
     r = sqlite3_exec(db, sql.c_str(),
@@ -904,7 +906,7 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     return 1;
 }
 
-int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack) {
+int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     if (!db_enabled) {
         return 0;
     }
@@ -1086,7 +1088,7 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
-        log_data(gpsdata, in_pack->ts, phystring, smac, puuid,
+        log_data(gpsdata.get(), radioinfo.get(), in_pack->ts, phystring, smac, puuid,
                 metablob->meta_type, metablob->meta_data);
     } else if (jsonblob != nullptr) {
         mac_addr smac("00:00:00:00:00:00");
@@ -1098,14 +1100,15 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
-        log_data(gpsdata, in_pack->ts, phystring, smac, puuid,
+        log_data(gpsdata.get(), radioinfo.get(), in_pack->ts, phystring, smac, puuid,
                 jsonblob->type, jsonblob->json_string);
     }
 
     return 1;
 }
 
-int kis_database_logfile::log_data(const std::shared_ptr<kis_gps_packinfo>& gps,
+int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
+        const kis_layer1_packinfo *l1info,
         const struct timeval& tv, const std::string& phystring, const mac_addr& devmac,
         const uuid& datasource_uuid, const std::string& type, const std::string& json) {
 
@@ -1126,8 +1129,8 @@ int kis_database_logfile::log_data(const std::shared_ptr<kis_gps_packinfo>& gps,
         "phyname, devmac, "
         "lat, lon, alt, speed, heading, "
         "datasource, "
-        "type, json) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "type, json, signal) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
@@ -1167,6 +1170,12 @@ int kis_database_logfile::log_data(const std::shared_ptr<kis_gps_packinfo>& gps,
 
     sqlite3_bind_text(data_stmt, sql_pos++, type.data(), type.length(), SQLITE_TRANSIENT);
     sqlite3_bind_text(data_stmt, sql_pos++, json.data(), json.length(), SQLITE_TRANSIENT);
+
+    if (l1info != nullptr) {
+        sqlite3_bind_int(data_stmt, sql_pos++, l1info->signal_dbm);
+    } else {
+        sqlite3_bind_int(data_stmt, sql_pos++, 0);
+    }
 
 #if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_data");

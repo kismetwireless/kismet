@@ -43,6 +43,7 @@ public:
     __Proxy(filter_default, uint8_t, bool, bool, filter_default);
 
     virtual bool filter_packet(std::shared_ptr<kis_packet> packet) = 0;
+    virtual bool filter_packet(const kis_packet* packet) = 0;
 
 protected:
     bool filterstring_to_bool(const std::string& str);
@@ -90,6 +91,7 @@ public:
     virtual ~packet_filter_mac_addr();
 
     virtual bool filter_packet(std::shared_ptr<kis_packet> packet) override;
+    virtual bool filter_packet(const kis_packet* packet) override;
 
     // We use strings for blocks here for maximum flexibility in the future since
     // *adding* a filter should be a relatively non-realtime task
