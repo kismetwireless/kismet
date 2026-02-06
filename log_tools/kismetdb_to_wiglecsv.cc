@@ -434,6 +434,8 @@ int main(int argc, char *argv[]) {
     long int n_total_packets_db = 0L;
     long int n_packets_db = 0L;
     long int n_devices_db = 0L;
+    long int n_total_data_db = 0L;
+    long int n_data_db = 0L;
 
     try {
         // Get the version
@@ -459,8 +461,22 @@ int main(int argc, char *argv[]) {
             sqlite3_close(db);
             exit(1);
         }
+
+        auto ndata_q = _SELECT(db, "data",
+                {
+                "count(*), sum(case when (devmac != '00:00:00:00:00:00' "
+                "and lat != 0 and lon != 0 and (phyname = 'Bluetooth' or phyname = 'BTLE')) then 1 else 0 end)"});
+        auto ndata_ret = ndata_q.begin();
+        if (ndata_ret == ndata_q.end()) {
+            fmt::print(stderr, "ERROR:  Unable to fetch packet count.\n");
+            sqlite3_close(db);
+            exit(1);
+        }
+
         n_total_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
         n_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 1);
+        n_total_data_db = sqlite3_column_as<unsigned long>(*ndata_ret, 0);
+        n_data_db = sqlite3_column_as<unsigned long>(*ndata_ret, 1);
 
         auto ndevices_q = _SELECT(db, "devices", {"count(*)"});
         auto ndevices_ret = ndevices_q.begin();
@@ -473,12 +489,12 @@ int main(int argc, char *argv[]) {
 
         if (verbose)
             fmt::print(stderr, "* Found {} devices, {} packets with GPS, {} total packets\n",
-                    n_devices_db, n_packets_db, n_total_packets_db);
+                    n_devices_db, n_packets_db + n_total_data_db, n_total_packets_db + n_total_data_db);
 
-        if (n_packets_db == 0) {
+        if (n_packets_db == 0 && n_devices_db == 0 && n_data_db == 0) {
             fmt::print(stderr, "ERROR:  No usable data in the provided log; Wigle export currently works\n"
-                            "        with WiFi devices which were captured with GPS data.  Make sure\n"
-                            "        you have a GPS connected with a signal lock.\n");
+                            "        with WiFi and Bluetooth devices which were captured with GPS data.\n"
+                            "        Make sure you have a GPS connected with a signal lock.\n");
             sqlite3_close(db);
             exit(1);
         }
@@ -560,8 +576,16 @@ int main(int argc, char *argv[]) {
         case 4:
             bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon"};
             break;
-        default:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
             bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon", "alt"};
+            break;
+        case 10:
+        default:
+            bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon", "alt", "signal"};
             break;
     }
 
@@ -791,7 +815,7 @@ int main(int argc, char *argv[]) {
         if (n_logs % n_division == 0 && verbose)
             std::cerr <<
                 fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
-                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1,
+                    (int) (((float) n_logs / (float) n_data_db) * 100) + 1,
                     n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
 
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
@@ -799,6 +823,7 @@ int main(int argc, char *argv[]) {
         auto phy = sqlite3_column_as<std::string>(p, 2);
 
         auto lat = 0.0f, lon = 0.0f, alt = 0.0f;
+        auto signal = 0;
 
         if (db_version < 5) {
             lat = sqlite3_column_as<double>(p, 3) / 100000;
@@ -806,7 +831,11 @@ int main(int argc, char *argv[]) {
         } else {
             lat = sqlite3_column_as<double>(p, 3);
             lon = sqlite3_column_as<double>(p, 4);
-            alt = sqlite3_column_as<double>(p, 7);
+            alt = sqlite3_column_as<double>(p, 5);
+        }
+
+        if (db_version >= 10) {
+            signal = sqlite3_column_as<int>(p, 6);
         }
 
         auto ci = device_cache_map.find(sourcemac);
@@ -903,7 +932,7 @@ int main(int argc, char *argv[]) {
                 cached->crypto,
                 cached->first_time,
                 0, // channel always 0
-                0, // currently no bt signal in kismet
+                signal,
                 lat, lon, alt,
                 cached->type);
 
