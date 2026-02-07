@@ -553,7 +553,7 @@ int main(int argc, char *argv[]) {
     // CSV headers
     fmt::print(ofile, "WigleWifi-1.6,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,"
             "release={0}.{1}.{2}-{3},device=kismet,display=kismet,board=kismet,brand=Kismet,"
-            "star=Sol,body=4,subBody=0\n",
+            "star=Sol,body=3,subBody=0\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
     fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,Frequency,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,RCOIs,MfgrId,Type\n");
