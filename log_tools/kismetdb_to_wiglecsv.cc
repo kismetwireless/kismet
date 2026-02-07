@@ -551,11 +551,12 @@ int main(int argc, char *argv[]) {
         fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
     // CSV headers
-    fmt::print(ofile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2},model=Kismet,release={0}.{1}.{2}.{3},"
-            "device=kismet,display=kismet,board=kismet,brand=kismet\n",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, db_version);
-    fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
-            "AltitudeMeters,AccuracyMeters,Type\n");
+    fmt::print(ofile, "WigleWifi-1.6,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,"
+            "release={0}.{1}.{2}-{3},device=kismet,display=kismet,board=kismet,brand=Kismet,"
+            "star=Sol,body=4,subBody=0\n",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
+    fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,Frequency,RSSI,CurrentLatitude,CurrentLongitude,"
+            "AltitudeMeters,AccuracyMeters,RCOIs,MfgrId,Type\n");
 
     // Prep the packet list for different kismetdb versions
     std::list<std::string> packet_fields;
@@ -635,6 +636,7 @@ int main(int argc, char *argv[]) {
 
         auto signal = sqlite3_column_as<int>(p, 5);
         auto channel = sqlite3_column_as<double>(p, 6);
+        auto frequency = channel;
 
         auto crypt = std::string{""};
 
@@ -782,16 +784,18 @@ int main(int argc, char *argv[]) {
         if (phy == "IEEE802.11")
             channel = FrequencyToWifiChannel(channel);
 
-        // printf("MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,AltitudeMeters,AccuracyMeters,Type\n");
-
-        fmt::print(ofile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+        // [BSSID],[SSID],[Capabilities],[First timestamp seen],[Channel],[Frequency],[RSSI],
+        //    [Latitude],[Longitude],[Altitude],[Accuracy],[RCOIs],[MfgrId],[Type]
+        fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{}\n",
                 sourcemac,
                 cached->name,
                 cached->crypto,
                 cached->first_time,
                 (int) channel,
+                frequency / 1000,
                 signal,
                 lat, lon, alt,
+                0, // TODO - dereive a gps accuracy
                 "WIFI");
 
         n_saved++;
@@ -926,14 +930,22 @@ int main(int argc, char *argv[]) {
 
         cached->last_time_sec = ts;
 
-        fmt::print(ofile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+        // [bd_addr],[device name],[capabilities],[first timestamp seen],[channel],
+        //   [frequency],[rssi],[latitude],[longitude],[altitude],[accuracy],[rcois],
+        //   [mfgrid],[type]
+
+        fmt::print(ofile, "{},{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},{},{},{},{}\n",
                 sourcemac,
                 cached->name,
                 cached->crypto,
                 cached->first_time,
-                0, // channel always 0
+                0, // no channel for bluetooth
+                "", // todo - fill in device type code
                 signal,
                 lat, lon, alt,
+                0, // todo - derive accuracy from gps
+                "", // rcoi blank
+                "", // todo - fill bt mfgr id
                 cached->type);
 
         n_saved++;

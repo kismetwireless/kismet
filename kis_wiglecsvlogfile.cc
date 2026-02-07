@@ -179,11 +179,13 @@ bool kis_wiglecsv_logfile::open_log(const std::string& in_template, const std::s
     _MSG_INFO("Opened wiglecsv log file '{}'", in_path);
 
     // CSV headers
-    fmt::print(csvfile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,release={0}.{1}.{2}-{3},"
-            "device=kismet,display=kismet,board=kismet,brand=kismet\n",
+    fmt::print(csvfile, "WigleWifi-1.6,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,"
+            "release={0}.{1}.{2}-{3},device=kismet,display=kismet,board=kismet,brand=Kismet,"
+            "star=Sol,body=4,subBody=0\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
-    fmt::print(csvfile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
-            "AltitudeMeters,AccuracyMeters,Type\n");
+    fmt::print(csvfile, "MAC,SSID,AuthMode,FirstSeen,Channel,Frequency,RSSI,CurrentLatitude,CurrentLongitude,"
+            "AltitudeMeters,AccuracyMeters,RCOIs,MfgrId,Type\n");
+
 
     set_int_log_open(true);
 
@@ -309,14 +311,18 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
         auto channel = frequency_to_wifi_channel(dev->get_frequency());
 
-        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},0,{}\n",
+        // [BSSID],[SSID],[Capabilities],[First timestamp seen],[Channel],[Frequency],[RSSI],
+        //    [Latitude],[Longitude],[Altitude],[Accuracy],[RCOIs],[MfgrId],[Type]
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{}\n",
                 dev->get_macaddr(),
                 name,
                 crypt,
                 ts.str(),
                 (int) channel,
+                dev->get_frequency(),
                 signal,
                 gps->lat, gps->lon, gps->alt,
+                0, // TODO - dereive a gps accuracy
                 "WIFI");
 
     } else if (wigle->bt_phy->device_is_a(dev)) {
@@ -352,15 +358,24 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 break;
         }
 
-        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+        // [bd_addr],[device name],[capabilities],[first timestamp seen],[channel],
+        //   [frequency],[rssi],[latitude],[longitude],[altitude],[accuracy],[rcois],
+        //   [mfgrid],[type]
+
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},{},{},{},{}\n",
                 dev->get_macaddr(),
                 name,
                 crypt,
                 ts.str(),
-                0,
+                0, // no channel for bluetooth
+                "", // todo - fill in device type code
                 signal,
                 gps->lat, gps->lon, gps->alt,
+                0, // todo - derive accuracy from gps
+                "", // rcoi blank
+                "", // todo - fill bt mfgr id
                 type);
+
     } else if (wigle->btle_phy->device_is_a(dev)) {
         auto bt = wigle->btle_phy->fetch_btle_record(dev);
 
@@ -383,14 +398,22 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         const auto type = std::string{"BLE"};
         const auto crypt = std::string{"Misc [LE]"};
 
-        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+        // [bd_addr],[device name],[capabilities],[first timestamp seen],[channel],
+        //   [frequency],[rssi],[latitude],[longitude],[altitude],[accuracy],[rcois],
+        //   [mfgrid],[type]
+
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},{},{},{},{}\n",
                 dev->get_macaddr(),
                 name,
                 crypt,
                 ts.str(),
                 0,
+                "", // todo - fill in device type code
                 signal,
                 gps->lat, gps->lon, gps->alt,
+                0, // todo - derive accuracy from gps
+                "", // rcoi blank
+                "", // todo - fill bt mfgr id
                 type);
     }
 
