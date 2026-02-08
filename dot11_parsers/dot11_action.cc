@@ -21,18 +21,20 @@
 
 void dot11_action::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_category_code = p_io->read_u1();
-    m_action_data = p_io->read_bytes_full();
-    m_action_data_stream.reset(new kaitai::kstream(m_action_data));
+
     if (category_code() == category_code_radio_measurement) {
-        auto r = Globalreg::new_from_pool<action_rmm>();
-        r->parse(m_action_data_stream);
-        m_action_frame = r;
+        m_rmm_action_code = p_io->read_u1();
+        m_rmm_dialog_token = p_io->read_u1();
+        m_tags_data = p_io->read_bytes_full();
     }
 }
 
-void dot11_action::action_rmm::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_rmm_action_code = p_io->read_u1();
-    m_dialog_token = p_io->read_u1();
-    m_tags_data = p_io->read_bytes_full();
-    m_tags_data_stream.reset(new kaitai::kstream(m_tags_data));
+void dot11_action::parse(kaitai::kstream& p_io) {
+    m_category_code = p_io.read_u1();
+    if (category_code() == category_code_radio_measurement) {
+        m_rmm_action_code = p_io.read_u1();
+        m_rmm_dialog_token = p_io.read_u1();
+        m_tags_data = p_io.read_bytes_full();
+    }
 }
+

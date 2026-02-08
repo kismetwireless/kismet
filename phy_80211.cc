@@ -117,7 +117,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
     // This is clunky but valuable
     Globalreg::enable_pool_type<dot11_action>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_action::action_rmm>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<dot11_ie>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie::dot11_ie_tag>([](auto *a) { a->reset(); });

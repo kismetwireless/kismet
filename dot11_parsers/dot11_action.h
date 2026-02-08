@@ -70,97 +70,46 @@ public:
     ~dot11_action() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
+    void parse(kaitai::kstream& p_io);
 
     constexpr17 category_code_type_e category_code() const {
         return (category_code_type_e) m_category_code;
     }
 
-    std::string action_rmm_data() const {
-        return m_action_data;
-    }
-
-    std::shared_ptr<kaitai::kstream> action_rmm_data_stream() const {
-        return m_action_data_stream;
-    }
-
-    std::shared_ptr<action_frame_common> action_frame() const {
-        return m_action_frame;
-    }
-
-    std::shared_ptr<action_rmm> action_frame_rmm() const {
-        if (category_code() == category_code_radio_measurement) 
-            return std::static_pointer_cast<action_rmm>(action_frame());
-        return NULL;
-    }
-
     void reset() {
         m_category_code = 0;
-        m_action_data = "";
-        m_action_data_stream.reset();
-        m_action_frame.reset();
+        m_rmm_action_code = 0;
+        m_rmm_dialog_token = 0;
+        m_tags_data.clear();
+    }
+
+    enum rmm_action_type_e {
+        rmm_action_measurement_req = 0,
+        rmm_action_measurement_report = 1,
+        rmm_action_link_measurement_req = 2,
+        rmm_action_link_measurement_report = 3,
+        rmm_action_neighbor_req = 4,
+        rmm_action_neighbor_report = 5
+    };
+
+    constexpr17 rmm_action_type_e rmm_action_code() const {
+        return (rmm_action_type_e) m_rmm_action_code;
+    }
+
+    constexpr17 uint8_t dialog_token() const {
+        return m_rmm_dialog_token;
+    }
+
+    const std::string& tags_data() const {
+        return m_tags_data;
     }
 
 protected:
     uint8_t m_category_code;
-    std::string m_action_data;
-    std::shared_ptr<kaitai::kstream> m_action_data_stream;
-    std::shared_ptr<action_frame_common> m_action_frame;
 
-public:
-    class action_frame_common {
-    public:
-        action_frame_common() {}
-        virtual ~action_frame_common() {}
-    };
-
-    class action_rmm : public action_frame_common {
-    public:
-        enum rmm_action_type_e {
-            rmm_action_measurement_req = 0,
-            rmm_action_measurement_report = 1,
-            rmm_action_link_measurement_req = 2,
-            rmm_action_link_measurement_report = 3,
-            rmm_action_neighbor_req = 4,
-            rmm_action_neighbor_report = 5
-        };
-
-        action_rmm() {}
-        virtual ~action_rmm() {}
-
-        void parse(std::shared_ptr<kaitai::kstream> p_io);
-
-        constexpr17 rmm_action_type_e rmm_action_code() const {
-            return (rmm_action_type_e) m_rmm_action_code;
-        }
-
-        constexpr17 uint8_t dialog_token() const {
-            return m_dialog_token;
-        }
-
-        std::string tags_data() const {
-            return m_tags_data;
-        }
-
-        std::shared_ptr<kaitai::kstream> tags_data_stream() const {
-            return m_tags_data_stream;
-        }
-
-        void reset() {
-            m_rmm_action_code = 0;
-            m_dialog_token = 0;
-            m_tags_data = "";
-            m_tags_data_stream.reset();
-        }
-
-    protected:
-        uint8_t m_rmm_action_code;
-        uint8_t m_dialog_token;
-        std::string m_tags_data;
-        std::shared_ptr<kaitai::kstream> m_tags_data_stream;
-
-    };
-
-
+    uint8_t m_rmm_action_code;
+    uint8_t m_rmm_dialog_token;
+    std::string m_tags_data;
 };
 
 

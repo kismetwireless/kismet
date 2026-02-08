@@ -1110,7 +1110,7 @@ int kis_80211_phy::packet_dot11_dissector(const std::shared_ptr<kis_packet>& in_
                     auto action = Globalreg::new_from_pool<dot11_action>();
 
                     try {
-                        std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
+                        kaitai::kstream ks(&pack_stream);
                         action->parse(ks);
                     } catch (const std::exception& e) {
                         // fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
@@ -1120,14 +1120,12 @@ int kis_80211_phy::packet_dot11_dissector(const std::shared_ptr<kis_packet>& in_
                     }
 
                     // We only care about RMM for wids purposes right now
-                    std::shared_ptr<dot11_action::action_rmm> action_rmm;
-                    if (action->category_code() == dot11_action::category_code_radio_measurement &&
-                        (action_rmm = action->action_frame_rmm()) != NULL) {
+                    if (action->category_code() == dot11_action::category_code_radio_measurement) {
                         // Scan the action IE tags
                         auto rmm_tags = Globalreg::new_from_pool<dot11_ie>();
 
                         try {
-                            rmm_tags->parse(action_rmm->tags_data_stream());
+                            rmm_tags->parse(action->tags_data());
                         } catch (const std::exception& e) {
                             // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
                             packinfo->corrupt = 1;
