@@ -1524,10 +1524,10 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
                 (char *) &(chunk->data()[chunk->length()]));
         std::istream istream_ietags(&tags_membuf);
 
-		packinfo->ie_tags = Globalreg::new_from_pool<dot11_ie>();
+        packinfo->ie_tags = Globalreg::new_from_pool<dot11_ie>();
 
         try {
-            std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
+            auto stream_ietags = kaitai::kstream(&istream_ietags);
             packinfo->ie_tags->parse(stream_ietags);
         } catch (const std::exception& e) {
             return packinfo->ie_tags_listed;
@@ -1537,7 +1537,7 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
     for (const auto& ie_tag : *(packinfo->ie_tags->tags())) {
         if (ie_tag->tag_num() == 150) {
             try {
-				auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
+                auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
                 vendor->parse(ie_tag->tag_data());
 
                 packinfo->ie_tags_listed->push_back(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
@@ -1546,7 +1546,7 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
             }
         } else if (ie_tag->tag_num() == 221) {
             try {
-				auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
+                auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
                 vendor->parse(ie_tag->tag_data());
 
                 packinfo->ie_tags_listed->push_back(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
@@ -1564,8 +1564,8 @@ std::shared_ptr<std::vector<kis_80211_phy::ie_tag_tuple>> kis_80211_phy::packet_
 int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& in_pack,
         const std::shared_ptr<dot11_packinfo>& packinfo) {
 
-	// Called opportunistically by the main dot11 processor when the checksum over all IE
-	// tags has changed
+    // Called opportunistically by the main dot11 processor when the checksum over all IE
+    // tags has changed
 
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
