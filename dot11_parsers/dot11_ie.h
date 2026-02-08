@@ -45,8 +45,8 @@ public:
     ~dot11_ie() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(kaitai::kstream& p_io);
-	void parse(const std::string& data);
+    void parse(kaitai::kstream& p_io);
+    void parse(const std::string& data);
 
     std::shared_ptr<shared_ie_tag_vector> tags() const {
         return m_tags;
