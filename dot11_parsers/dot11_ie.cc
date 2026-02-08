@@ -44,9 +44,9 @@ void dot11_ie::parse(kaitai::kstream& p_io) {
 }
 
 void dot11_ie::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
 
     m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
     m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
