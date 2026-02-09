@@ -1042,8 +1042,8 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                         throw std::runtime_error("invalid mac");
 
                     auto pcapng =
-					std::make_shared<pcapng_stream_packetchain<pcapng_phy80211_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
-							pcapng_phy80211_accept_ftor(mac), pcapng_stream_select_ftor(), (size_t) 1024*512);
+                    std::make_shared<pcapng_stream_packetchain<pcapng_phy80211_accept_ftor, pcapng_stream_select_ftor>>(&con->response_stream(),
+                            pcapng_phy80211_accept_ftor(mac), pcapng_stream_select_ftor(), (size_t) 1024*512);
 
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-80211-bssid-{}.pcapng", mac));
@@ -1063,9 +1063,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 }
 
 kis_80211_phy::~kis_80211_phy() {
-	packetchain->remove_handler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
-	packetchain->remove_handler(&phydot11_packethook_dot11, CHAINPOS_LLCDISSECT);
-	packetchain->remove_handler(&packet_dot11_common_classifier, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
+    packetchain->remove_handler(&phydot11_packethook_dot11, CHAINPOS_LLCDISSECT);
+    packetchain->remove_handler(&packet_dot11_common_classifier, CHAINPOS_CLASSIFIER);
 
     timetracker->remove_timer(device_idle_timer);
 }
