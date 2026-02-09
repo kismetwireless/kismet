@@ -64,15 +64,15 @@ enum ieee_80211_subtype {
     packet_sub_disassociation = 10,
     packet_sub_authentication = 11,
     packet_sub_deauthentication = 12,
-	packet_sub_action = 13,
-	packet_sub_action_noack = 14,
-	packet_sub_aruba = 15,
+    packet_sub_action = 13,
+    packet_sub_action_noack = 14,
+    packet_sub_aruba = 15,
 
     // Phy subtypes
     packet_sub_vht_ndp = 5,
     packet_sub_block_ack_req = 8,
     packet_sub_block_ack = 9,
-	packet_sub_pspoll = 10,
+    packet_sub_pspoll = 10,
     packet_sub_rts = 11,
     packet_sub_cts = 12,
     packet_sub_ack = 13,
@@ -112,8 +112,8 @@ enum phy_carrier_type {
     carrier_80211g,
     carrier_80211fhss,
     carrier_80211dsss,
-	carrier_80211n20,
-	carrier_80211n40
+    carrier_80211n20,
+    carrier_80211n40
 };
 
 // Packet encoding info - how are packets encoded?
@@ -122,8 +122,8 @@ enum phy_encoding_type {
     encoding_cck,
     encoding_pbcc,
     encoding_ofdm,
-	encoding_dynamiccck,
-	encoding_gfsk
+    encoding_dynamiccck,
+    encoding_gfsk
 };
 
 // Turbocell modes
@@ -210,7 +210,7 @@ typedef struct {
     unsigned pdu_len : 16;
 } __attribute__ ((packed)) iapp_pdu_header;
 
-// New 64-bit encryption field describing the overall state, plus broken out 
+// New 64-bit encryption field describing the overall state, plus broken out
 // group/pairwise and keying ciphers.
 
 // General capabilities/summaries
@@ -293,44 +293,44 @@ typedef struct {
 // will not contain all the info of the new one!
 
 // Basic types
-#define crypt_none 			0
-#define crypt_unknown		1
-#define crypt_wep			(1 << 1)
-#define crypt_layer3		(1 << 2)
+#define crypt_none             0
+#define crypt_unknown        1
+#define crypt_wep            (1 << 1)
+#define crypt_layer3        (1 << 2)
 // Derived from WPA IEs
-#define crypt_wep40			(1 << 3)
-#define crypt_wep104		(1 << 4)
-#define crypt_tkip			(1 << 5)
-#define crypt_wpa			(1 << 6)
-#define crypt_psk			(1 << 7)
-#define crypt_aes_ocb		(1 << 8)
-#define crypt_aes_ccm		(1 << 9)
+#define crypt_wep40            (1 << 3)
+#define crypt_wep104        (1 << 4)
+#define crypt_tkip            (1 << 5)
+#define crypt_wpa            (1 << 6)
+#define crypt_psk            (1 << 7)
+#define crypt_aes_ocb        (1 << 8)
+#define crypt_aes_ccm        (1 << 9)
 //WPA Migration Mode
-#define crypt_wpa_migmode	(1 << 10)
-#define crypt_eap			(1 << 11)
-#define crypt_leap			(1 << 12)
-#define crypt_ttls			(1 << 13)
-#define crypt_tls			(1 << 14)
-#define crypt_peap			(1 << 15)
+#define crypt_wpa_migmode    (1 << 10)
+#define crypt_eap            (1 << 11)
+#define crypt_leap            (1 << 12)
+#define crypt_ttls            (1 << 13)
+#define crypt_tls            (1 << 14)
+#define crypt_peap            (1 << 15)
 #define crypt_sae           (1 << 16)
 #define crypt_wpa_owe       (1 << 17)
 // Lower byte mask - cryptset & protectmask yields basic setting, ie cannot be
 // WEP+PEAP, but COULD be WEP+ISAKMP or WEP+WPS
-#define crypt_protectmask 	0xFFFFF
-#define crypt_isakmp		(1 << 20)
-#define crypt_pptp			(1 << 21)
-#define crypt_fortress		(1 << 22)
-#define crypt_keyguard		(1 << 23)
-#define crypt_unknown_protected 	(1 << 24)
-#define crypt_unknown_nonwep		(1 << 25)
-#define crypt_wps 					(1 << 26)
+#define crypt_protectmask     0xFFFFF
+#define crypt_isakmp        (1 << 20)
+#define crypt_pptp            (1 << 21)
+#define crypt_fortress        (1 << 22)
+#define crypt_keyguard        (1 << 23)
+#define crypt_unknown_protected     (1 << 24)
+#define crypt_unknown_nonwep        (1 << 25)
+#define crypt_wps                     (1 << 26)
 #define crypt_version_wpa   (1 << 27)
 #define crypt_version_wpa2  (1 << 28)
 #define crypt_version_wpa3  (1 << 29)
 // L3 encryption mask
-#define crypt_l3_mask		0x300004
+#define crypt_l3_mask        0x300004
 // L2 encryption mask
-#define crypt_l2_mask		0xFBFA
+#define crypt_l2_mask        0xFBFA
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not
 // do it in the future but for now it'll work until we redo it with bitmanip
