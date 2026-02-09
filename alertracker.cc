@@ -33,7 +33,7 @@
 alert_tracker::alert_tracker() : lifetime_global() {
     alert_mutex.set_name("alertracker");
 
-	next_alert_id = 0;
+    next_alert_id = 0;
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
@@ -41,12 +41,12 @@ alert_tracker::alert_tracker() : lifetime_global() {
 
     alert_vec_id =
         entrytracker->register_field("kismet.alert.list",
-                tracker_element_factory<tracker_element_vector>(), 
+                tracker_element_factory<tracker_element_vector>(),
                 "list of alerts");
 
     alert_timestamp_id =
         entrytracker->register_field("kismet.alert.timestamp",
-                tracker_element_factory<tracker_element_double>(), 
+                tracker_element_factory<tracker_element_double>(),
                 "alert update timestamp");
 
     alert_entry_id =
@@ -54,9 +54,9 @@ alert_tracker::alert_tracker() : lifetime_global() {
                 tracker_element_factory<tracked_alert>(),
                 "Kismet alert");
 
-    alert_defs_vec = 
+    alert_defs_vec =
         entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.alert.definition_list",
-                tracker_element_factory<tracker_element_vector>(), 
+                tracker_element_factory<tracker_element_vector>(),
                 "Kismet alert definitions");
 
     alert_backlog_vec =
@@ -69,24 +69,24 @@ alert_tracker::alert_tracker() : lifetime_global() {
                 tracker_element_factory<tracked_alert_definition>(),
                 "Kismet alert definition");
 
-	// Register the alert component
+    // Register the alert component
     pack_comp_alert =
-		packetchain->register_packet_component("alert");
+        packetchain->register_packet_component("alert");
 
-	// Register the GPS component
+    // Register the GPS component
     pack_comp_gps =
-		packetchain->register_packet_component("GPS");
+        packetchain->register_packet_component("GPS");
 
-	// Register a KISMET alert type with no rate restrictions
+    // Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
-		register_alert("KISMET", 
+        register_alert("KISMET",
                 "SYSTEM", kis_alert_severity::info,
-                "Server events", 
+                "Server events",
                 sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    httpd->register_route("/alerts/definitions/define_alert", {"POST"}, httpd->LOGON_ROLE, {"cmd"}, 
+    httpd->register_route("/alerts/definitions/define_alert", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return define_alert_endpoint(con);
@@ -98,10 +98,10 @@ alert_tracker::alert_tracker() : lifetime_global() {
                     return raise_alert_endpoint(con);
                 }));
 
-    httpd->register_route("/alerts/definitions", {"GET", "POST"}, httpd->RO_ROLE, {}, 
+    httpd->register_route("/alerts/definitions", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(alert_defs_vec, alert_mutex));
 
-    httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {}, 
+    httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(alert_backlog_vec, alert_mutex));
 
     httpd->register_route("/alerts/alerts_view", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -127,7 +127,7 @@ alert_tracker::alert_tracker() : lifetime_global() {
                     return std::make_shared<tracker_element_map>();
                 }, alert_mutex));
 
-    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE, {}, 
+    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                 return last_alerts_endpoint(con, false);
@@ -147,7 +147,7 @@ alert_tracker::alert_tracker() : lifetime_global() {
         int ret;
         try {
             ret = prelude_init(0, NULL);
-            if (ret < 0) 
+            if (ret < 0)
                 throw Prelude::PreludeError(ret);
 
         } catch (Prelude::PreludeError const & error) {
@@ -162,7 +162,7 @@ alert_tracker::alert_tracker() : lifetime_global() {
 
     if (Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog") != "") {
         int scantmp;
-        if (sscanf(Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog").c_str(), 
+        if (sscanf(Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog").c_str(),
                     "%d", &scantmp) != 1 || scantmp < 0) {
             _MSG("Illegal value for 'alertbacklog' in kismet.conf, expected number greater than zero.",
                     MSGFLAG_FATAL);
@@ -203,13 +203,13 @@ void alert_tracker::trigger_deferred_startup() {
 void alert_tracker::prelude_init_client(const char *analyzer_name) {
 #ifdef PRELUDE
     try {
-        std::string version = 
-            Globalreg::globalreg->version_major + "." + 
+        std::string version =
+            Globalreg::globalreg->version_major + "." +
             Globalreg::globalreg->version_minor + "." +
             Globalreg::globalreg->version_tiny;
 
-        prelude_client = 
-            new Prelude::ClientEasy(analyzer_name, 4, PRELUDE_ANALYZER_MODEL, 
+        prelude_client =
+            new Prelude::ClientEasy(analyzer_name, 4, PRELUDE_ANALYZER_MODEL,
                 PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
         prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
@@ -221,7 +221,7 @@ void alert_tracker::prelude_init_client(const char *analyzer_name) {
 #endif
 }
 
-int alert_tracker::register_alert(std::string in_header, std::string in_class, 
+int alert_tracker::register_alert(std::string in_header, std::string in_class,
         kis_alert_severity in_severity,
         std::string in_description, alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
         int in_burst, int in_phy) {
@@ -292,7 +292,7 @@ int alert_tracker::check_times(shared_alert_def arec) {
 
     // If the last time we sent anything was longer than the main rate limit,
     // then we reset back to empty
-    if (arec->get_time_last() < (now.tv_sec - 
+    if (arec->get_time_last() < (now.tv_sec -
                 alert_time_unit_conv[arec->get_limit_unit()])) {
         arec->set_total_sent(0);
         arec->set_burst_sent(0);
@@ -301,13 +301,13 @@ int alert_tracker::check_times(shared_alert_def arec) {
 
     // If the last time we sent anything was longer than the burst rate, we can
     // reset the burst to 0
-    if (arec->get_time_last() < (now.tv_sec - 
+    if (arec->get_time_last() < (now.tv_sec -
                 alert_time_unit_conv[arec->get_burst_unit()])) {
         arec->set_burst_sent(0);
     }
 
     // If we're under the limit on both, we're good to go
-    if (arec->get_burst_sent() < arec->get_limit_burst() && 
+    if (arec->get_burst_sent() < arec->get_limit_burst() &&
             arec->get_total_sent() < arec->get_limit_rate())
         return 1;
 
@@ -328,7 +328,7 @@ int alert_tracker::potential_alert(int in_ref) {
 }
 
 int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
-        mac_addr bssid, mac_addr source, mac_addr dest, 
+        mac_addr bssid, mac_addr source, mac_addr dest,
         mac_addr other, std::string in_channel, std::string in_text) {
 
     kis_unique_lock<kis_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_alert");
@@ -367,7 +367,7 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
     info->dest  = dest;
     info->other = other;
 
-    info->channel = in_channel;	
+    info->channel = in_channel;
 
     info->text = in_text;
 
@@ -384,7 +384,7 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
     auto alert_t = std::make_shared<tracked_alert>(alert_entry_id, info);
 
     alert_backlog_vec->push_back(alert_t);
-    if ((int) alert_backlog_vec->size() > num_backlog) 
+    if ((int) alert_backlog_vec->size() > num_backlog)
         alert_backlog_vec->erase(alert_backlog_vec->begin());
 
     // Publish an alert to the eventbus
@@ -415,43 +415,43 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
 #ifdef PRELUDE
     // Send alert to Prelude
     if (prelude_alerts)
-        raise_prelude_alert(in_ref, in_pack, info->bssid, info->source, 
+        raise_prelude_alert(in_ref, in_pack, info->bssid, info->source,
             info->dest, info->other, info->channel, info->text);
 #endif
 
-	// Send the text info
-	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
+    // Send the text info
+    _MSG(info->header + " " + info->text, MSGFLAG_ALERT);
 
-	return 1;
+    return 1;
 }
 
-int alert_tracker::raise_one_shot(std::string in_header, std::string in_class, 
+int alert_tracker::raise_one_shot(std::string in_header, std::string in_class,
         kis_alert_severity in_severity, std::string in_text, int in_phy) {
     kis_unique_lock<kis_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_one_shot");
 
-	kis_alert_info info;
+    kis_alert_info info;
 
-	info.header = in_header;
+    info.header = in_header;
     info.alertclass = in_class;
     info.severity = static_cast<unsigned int>(in_severity);
-	info.phy = in_phy;
-	gettimeofday(&(info.tm), NULL);
+    info.phy = in_phy;
+    gettimeofday(&(info.tm), NULL);
 
-	info.bssid = mac_addr(0);
-	info.source = mac_addr(0);
-	info.dest  = mac_addr(0);
-	info.other = mac_addr(0);
+    info.bssid = mac_addr(0);
+    info.source = mac_addr(0);
+    info.dest  = mac_addr(0);
+    info.other = mac_addr(0);
 
-	info.channel = "";	
+    info.channel = "";
 
-	info.text = in_text;
+    info.text = in_text;
 
     lock.lock();
 
     auto alert_t = std::make_shared<tracked_alert>(alert_entry_id, &info);
 
     alert_backlog_vec->push_back(alert_t);
-    if ((int) alert_backlog_vec->size() > num_backlog) 
+    if ((int) alert_backlog_vec->size() > num_backlog)
         alert_backlog_vec->erase(alert_backlog_vec->begin());
 
     // Publish an alert to the eventbus
@@ -467,10 +467,10 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_class,
         raise_prelude_one_shot(in_header, in_text);
 #endif
 
-	// Send the text info
-	_MSG(info.header + " " + info.text, MSGFLAG_ALERT);
+    // Send the text info
+    _MSG(info.header + " " + info.text, MSGFLAG_ALERT);
 
-	return 1;
+    return 1;
 }
 
 int alert_tracker::raise_prelude_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
@@ -556,27 +556,27 @@ int alert_tracker::raise_prelude_one_shot(std::string in_header, std::string in_
     return 0;
 }
 
-int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name, 
+int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name,
         alert_time_unit *ret_limit_unit, int *ret_limit_rate,
-        alert_time_unit *ret_limit_burst, 
+        alert_time_unit *ret_limit_burst,
         int *ret_burst_rate) {
 
-	std::vector<std::string> tokens = str_tokenize(alert_str, ",");
+    std::vector<std::string> tokens = str_tokenize(alert_str, ",");
 
-	if (tokens.size() != 3) {
+    if (tokens.size() != 3) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
-		return -1;
-	}
+        return -1;
+    }
 
-	(*ret_name) = str_upper(tokens[0]);
+    (*ret_name) = str_upper(tokens[0]);
 
-	if (parse_rate_unit(str_lower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
-		parse_rate_unit(str_lower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
+    if (parse_rate_unit(str_lower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
+        parse_rate_unit(str_lower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
-		return -1;
-	}
+        return -1;
+    }
 
-	return 1;
+    return 1;
 }
 
 // Split up a rate/unit string into real values
@@ -593,12 +593,12 @@ int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
             (*ret_unit) = sat_second;
         } else if (units[1] == "min" || units[1] == "minute") {
             (*ret_unit) = sat_minute;
-        } else if (units[1] == "hr" || units[1] == "hour") { 
+        } else if (units[1] == "hr" || units[1] == "hour") {
             (*ret_unit) = sat_hour;
         } else if (units[1] == "day") {
             (*ret_unit) = sat_day;
         } else {
-            _MSG("Invalid time unit for alert rate '" + units[1] + "'", 
+            _MSG("Invalid time unit for alert rate '" + units[1] + "'",
                     MSGFLAG_ERROR);
             return -1;
         }
@@ -619,8 +619,8 @@ int alert_tracker::parse_alert_config(config_file *in_conf) {
     for (unsigned int x = 0; x < clines.size(); x++) {
         alert_conf_rec *rec = new alert_conf_rec;
 
-        if (parse_alert_str(clines[x], &(rec->header), &(rec->limit_unit), 
-                    &(rec->limit_rate), &(rec->burst_unit), 
+        if (parse_alert_str(clines[x], &(rec->header), &(rec->limit_unit),
+                    &(rec->limit_rate), &(rec->burst_unit),
                     &(rec->limit_burst)) < 0) {
             _MSG_FATAL("Invalid 'alert' config option {}; expected HEADER,rate,burstrate", clines[x]);
             Globalreg::globalreg->fatal_condition = 1;
@@ -656,9 +656,9 @@ int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, in
     return 1;
 }
 
-int alert_tracker::activate_configured_alert(std::string in_header, 
+int alert_tracker::activate_configured_alert(std::string in_header,
         std::string in_class, kis_alert_severity in_severity, std::string in_desc) {
-	return activate_configured_alert(in_header, in_class, in_severity, in_desc, KIS_PHY_UNKNOWN);
+    return activate_configured_alert(in_header, in_class, in_severity, in_desc, KIS_PHY_UNKNOWN);
 }
 
 int alert_tracker::activate_configured_alert(std::string in_header, std::string in_class,
@@ -688,8 +688,8 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
         }
     }
 
-	return register_alert(rec->header, in_class, in_severity, in_desc, 
-            rec->limit_unit, rec->limit_rate, 
+    return register_alert(rec->header, in_class, in_severity, in_desc,
+            rec->limit_unit, rec->limit_rate,
             rec->burst_unit, rec->limit_burst, in_phy);
 }
 
@@ -704,7 +704,7 @@ int alert_tracker::find_activated_alert(std::string in_header) {
     return -1;
 }
 
-std::shared_ptr<tracker_element> 
+std::shared_ptr<tracker_element>
 alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool wrap) {
 
     std::shared_ptr<tracker_element> transmit;
@@ -776,7 +776,7 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
         auto phyname = con->json().value("phyname", "");
 
         if (phyname != "any" && phyname != "") {
-            auto devicetracker = 
+            auto devicetracker =
                 Globalreg::fetch_mandatory_global_as<device_tracker>();
             kis_phy_handler *phyh = devicetracker->fetch_phy_handler_by_name(phyname);
 
@@ -804,7 +804,7 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
 
     } catch (const std::exception& e) {
         con->set_status(400);
-        
+
         std::ostream os(&con->response_stream());
         os << "Invalid request: " << e.what() << "\n";
         return;
@@ -846,7 +846,7 @@ void alert_tracker::raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_con
         if (other.length() != 0)
             other_mac = mac_addr(other);
 
-        if (bssid_mac.state.error || source_mac.state.error || 
+        if (bssid_mac.state.error || source_mac.state.error ||
                 dest_mac.state.error || other_mac.state.error)
             throw std::runtime_error("invalid MAC address");
 
@@ -959,7 +959,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
                 search_term = search_k->second;
 
             // Search every field we return
-            if (search_term.length() != 0) 
+            if (search_term.length() != 0)
                 for (const auto& svi : summary_vec)
                     search_paths.push_back(svi->resolved_path);
 
@@ -981,7 +981,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
     // vector we do work on
     auto next_work_vec = std::make_shared<tracker_element_vector>();
 
-    // Copy the alerts under lock; in the future this should populate them from the 
+    // Copy the alerts under lock; in the future this should populate them from the
     // databaselog too perhaps
     {
         kis_lock_guard<kis_mutex> lk(alert_mutex, "alertracker dt view copy");
@@ -1026,7 +1026,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
                 fa = get_tracker_element_path(order_field, a);
                 fb = get_tracker_element_path(order_field, b);
 
-                if (fa == nullptr) 
+                if (fa == nullptr)
                     return in_order_direction == 0;
 
                 if (fb == nullptr)
@@ -1049,7 +1049,7 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
         transmit = output_alerts_elem;
 
     // serialize
-    Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, 
+    Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os,
             transmit, rename_map);
 
 }
