@@ -40,10 +40,10 @@
 template <>struct fmt::formatter<std::thread::id> : fmt::ostream_formatter {};
 
 class kis_mutex : public std::recursive_timed_mutex {
-private:
-    std::string name;
-
 public:
+    std::string name;
+    bool debug;
+
     kis_mutex() :
         name{"UNNAMED"} { }
     kis_mutex(const std::string& name) :
@@ -91,9 +91,11 @@ public:
 class kis_shared_mutex {
 private:
     std::shared_timed_mutex mutex;
-    std::string name;
 
 public:
+    std::string name;
+    bool debug;
+
     kis_shared_mutex() :
         name{"UNNAMED"} { }
     kis_shared_mutex(const std::string& name) :
@@ -172,6 +174,9 @@ public:
         mutex{m},
         op{op},
         retain{false} {
+            if (mutex.debug)
+                fmt::print(stderr, "DEBUG: locking {} op {}\n", mutex.name, op);
+
             mutex.lock();
         }
 
@@ -184,6 +189,9 @@ public:
         mutex{m},
         op{op},
         retain{true} {
+            if (mutex.debug)
+                fmt::print(stderr, "DEBUG: locking {} op {}\n", mutex.name, op);
+
             mutex.lock();
         }
 
@@ -208,11 +216,9 @@ public:
     kis_unique_lock(M& m, const std::string& op) :
         mutex{m},
         op{op} {
-            /*
-            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
-                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
-                            "timeout period for op {}", mutex.get_name(), op));
-                            */
+            if (mutex.debug)
+                fmt::print(stderr, "locking {} op {}\n", mutex.name, op);
+
             mutex.lock();
             locked = true;
         }
@@ -242,6 +248,10 @@ public:
                     std::this_thread::get_id(), mutex.get_name(), op);
             throw std::runtime_error(e);
         }
+
+        if (mutex.debug)
+            fmt::print(stderr, "DEBUG: locking {} op {}\n", mutex.name, op);
+
         mutex.lock();
         locked = true;
 
