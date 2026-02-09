@@ -532,8 +532,6 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
 
-        _MSG_DEBUG("remote ping");
-
         if (!get_source_running()) {
             ping_timer_id = -1;
             return 0;
