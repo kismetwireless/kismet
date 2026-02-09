@@ -1108,7 +1108,7 @@ int kis_80211_phy::load_wepkeys() {
         if (rwsplit == std::string::npos) {
             _MSG_FATAL("Malformed 'wepkey' option in the config file");
             Globalreg::globalreg->fatal_condition = 1;
-			return -1;
+            return -1;
         }
 
         mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
@@ -1116,7 +1116,7 @@ int kis_80211_phy::load_wepkeys() {
         if (bssid_mac.state.error == 1) {
             _MSG_FATAL("Malformed 'wepkey' option in the config file");
             Globalreg::globalreg->fatal_condition = 1;
-			return -1;
+            return -1;
         }
 
         std::string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
@@ -1125,9 +1125,9 @@ int kis_80211_phy::load_wepkeys() {
         int len = hex_to_uchar((unsigned char *) rawkey.c_str(), key);
 
         if (len != 5 && len != 13 && len != 16) {
-			_MSG_FATAL("Invalid key '{}' length {} in a wepkey= config file entry", rawkey, len);
+            _MSG_FATAL("Invalid key '{}' length {} in a wepkey= config file entry", rawkey, len);
             Globalreg::globalreg->fatal_condition = 1;
-			return -1;
+            return -1;
         }
 
         dot11_wep_key *keyinfo = new dot11_wep_key;
@@ -1143,7 +1143,7 @@ int kis_80211_phy::load_wepkeys() {
         _MSG_INFO("Using key '{}' for BSSID '{}'", rawkey, bssid_mac);
     }
 
-	return 1;
+    return 1;
 }
 
 
@@ -2587,7 +2587,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     }
 
     // If we've processed an identical set of beacon IE tags, don't waste time parsing again,
-	// just update the last-seen time and the number of beacons seen this second
+    // just update the last-seen time and the number of beacons seen this second
     if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
         ssid = dot11dev->get_last_adv_ssid();
 
@@ -2604,7 +2604,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
     dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
-	// Parse the new set of IE tags
+    // Parse the new set of IE tags
     if (packet_dot11_ie_dissector(in_pack.get(), dot11info.get()) < 0) {
         return;
     }
