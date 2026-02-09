@@ -377,15 +377,11 @@ void dot11_advertised_ssid::register_fields() {
             "advertised transmit power (TPC)", &adv_tx_power);
 }
 
-void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags) {
+void dot11_advertised_ssid::set_ietag_content_from_packet(const dot11_ie& tags) {
     auto tagmap = get_ie_tag_content();
-
     tagmap->clear();
 
-    if (tags == nullptr)
-        return;
-
-    for (auto t : *(tags->tags())) {
+    for (auto t : *(tags.tags())) {
         auto tag =
             Globalreg::globalreg->entrytracker->new_from_pool<dot11_tracked_ietag>(ie_tag_builder.get());
         tag->set_from_tag(t);

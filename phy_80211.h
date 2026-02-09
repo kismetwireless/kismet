@@ -193,7 +193,7 @@ class dot11_packinfo : public packet_component {
             ietag_hash_map.clear();
             dot11d_country = "";
             ie_tags.reset();
-            ie_tags_listed.reset();
+            ie_tags_listed.clear();
             dot11d_vec.clear();
 
             qbss.reset();
@@ -289,10 +289,10 @@ class dot11_packinfo : public packet_component {
         std::multimap<std::tuple<uint8_t, uint32_t, uint8_t>, size_t> ietag_hash_map;
 
         // Parsed IE tags, if we've parsed them
-        std::shared_ptr<dot11_ie> ie_tags;
+        dot11_ie ie_tags;
 
         using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
-        std::shared_ptr<std::vector<ie_tag_tuple>> ie_tags_listed;
+        std::vector<ie_tag_tuple> ie_tags_listed;
 
         std::string dot11d_country;
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
@@ -435,8 +435,9 @@ public:
     // IE tags to the best of our ability
     int packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& in_dot11info);
-    // Generate a list of IE tag numbers
-    std::shared_ptr<std::vector<ie_tag_tuple>> packet_dot11_ie_list(const std::shared_ptr<kis_packet>& in_pack,
+
+    // Parse a list of IE tag tuples into a packinfo
+    void packet_dot11_parse_ie_list(const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& in_dot11info);
 
     // Special decoders, not called as part of a chain

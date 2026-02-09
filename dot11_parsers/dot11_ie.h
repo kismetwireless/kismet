@@ -57,8 +57,18 @@ public:
     }
 
     void reset() {
-        m_tags->clear();
-        m_tags_map->clear();
+        if (m_tags != nullptr)
+            m_tags->clear();
+
+        if (m_tags_map != nullptr)
+            m_tags_map->clear();
+    }
+
+    size_t size() {
+        if (m_tags_map != nullptr)
+            return m_tags_map->size();
+
+        return 0;
     }
 
 protected:

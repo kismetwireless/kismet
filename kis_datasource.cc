@@ -348,6 +348,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         // If we got here we're valid; start a PING timer
         timetracker->remove_timer(ping_timer_id);
         ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
+                _MSG_DEBUG("source ping");
                 if (!get_source_running()) {
                     ping_timer_id = -1;
                     return 0;
@@ -473,6 +474,8 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         const uuid& uuid, bool in_tcp, configure_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource connect_remote");
 
+    // ext_mutex.debug = true;
+
     cancelled = false;
 
     // Get the remote version type immediately
@@ -528,6 +531,8 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
+
+        _MSG_DEBUG("remote ping");
 
         if (!get_source_running()) {
             ping_timer_id = -1;

@@ -818,7 +818,7 @@ public:
     __ProxyFullyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list_id);
     __ProxyFullyDynamicTrackable(ie_tag_content, tracker_element_int_map, ie_tag_content_id);
 
-    void set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags);
+    void set_ietag_content_from_packet(const dot11_ie& tags);
 
     __ProxyFullyDynamic(meshid, std::string, std::string, std::string, tracker_element_string, meshid_id);
 	__ProxyFullyDynamic(mesh_gateway, uint8_t, bool, bool, tracker_element_uint8, mesh_gateway_id);
