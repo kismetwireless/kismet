@@ -87,13 +87,13 @@ static kis_alert_severity int_to_alert_severity(unsigned int i) {
 
 class kis_alert_info : public packet_component {
 public:
-	kis_alert_info() {
-		tm.tv_sec = 0;
-		tm.tv_usec = 0;
-		channel = "0";
+    kis_alert_info() {
+        tm.tv_sec = 0;
+        tm.tv_usec = 0;
+        channel = "0";
 
         gps = NULL;
-	}
+    }
 
     virtual ~kis_alert_info() { }
 
@@ -102,12 +102,12 @@ public:
     std::string header;
     std::string alertclass;
     unsigned int severity;
-	int phy;
-	struct timeval tm;
-	mac_addr bssid;
-	mac_addr source;
-	mac_addr dest;
-	mac_addr other;
+    int phy;
+    struct timeval tm;
+    mac_addr bssid;
+    mac_addr source;
+    mac_addr dest;
+    mac_addr other;
     std::string channel;
     std::string text;
 
@@ -116,7 +116,7 @@ public:
 
 class kis_alert_component : public packet_component {
 public:
-	kis_alert_component() { }
+    kis_alert_component() { }
 
     std::vector<std::shared_ptr<kis_alert_info>> alert_vec;
 };
@@ -443,14 +443,14 @@ typedef std::shared_ptr<tracked_alert_definition> shared_alert_def;
 
 class alert_tracker : public lifetime_global, public deferred_startup {
 public:
-	// Simple struct from reading config lines
-	struct alert_conf_rec {
+    // Simple struct from reading config lines
+    struct alert_conf_rec {
         std::string header;
         alert_time_unit limit_unit;
         int limit_rate;
-		alert_time_unit burst_unit;
+        alert_time_unit burst_unit;
         int limit_burst;
-	};
+    };
 
     static std::string global_name() { return "ALERTTRACKER"; }
 
@@ -500,21 +500,21 @@ public:
             std::string in_text, int in_phy);
 
     // parse an alert config string
-	int parse_alert_str(std::string alert_str, std::string *ret_name, 
-					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
-					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
+    int parse_alert_str(std::string alert_str, std::string *ret_name,
+            alert_time_unit *ret_limit_unit, int *ret_limit_rate,
+            alert_time_unit *ret_limit_burst, int *ret_burst_rate);
 
-	// Load alert rates from a config file
-	int parse_alert_config(config_file *in_conf);
+    // Load alert rates from a config file
+    int parse_alert_config(config_file *in_conf);
 
     // Define an alert and limits
     int define_alert(std::string name, alert_time_unit limit_unit, int limit_rate,
             alert_time_unit limit_burst, int burst_rate);
 
-	// Activate a preconfigured alert from a file
-	int activate_configured_alert(std::string in_header, std::string in_class, 
+    // Activate a preconfigured alert from a file
+    int activate_configured_alert(std::string in_header, std::string in_class,
             kis_alert_severity in_severity, std::string in_desc);
-	int activate_configured_alert(std::string in_header, std::string in_class, 
+    int activate_configured_alert(std::string in_header, std::string in_class,
             kis_alert_severity in_severity,
             std::string in_desc, int in_phy);
 
@@ -538,8 +538,8 @@ protected:
     // Check and age times
     int check_times(shared_alert_def arec);
 
-	// Parse a foo/bar rate/unit option
-	int parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
+    // Parse a foo/bar rate/unit option
+    int parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
     int pack_comp_alert, pack_comp_gps;
     int alert_ref_kismet;
@@ -559,7 +559,7 @@ protected:
     std::shared_ptr<tracker_element_vector> alert_backlog_vec;
 
     // Alert configs we read before we know the alerts themselves
-	std::map<std::string, alert_conf_rec *> alert_conf_map;
+    std::map<std::string, alert_conf_rec *> alert_conf_map;
 
 #ifdef PRELUDE
     // Prelude client
