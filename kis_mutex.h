@@ -45,9 +45,9 @@ public:
     bool debug;
 
     kis_mutex() :
-        name{"UNNAMED"} { }
+        name{"UNNAMED"}, debug{false} { }
     kis_mutex(const std::string& name) :
-        name{name} { }
+        name{name}, debug{false} { }
 
     kis_mutex(const kis_mutex&) = delete;
     kis_mutex& operator=(const kis_mutex&) = delete;
@@ -97,9 +97,9 @@ public:
     bool debug;
 
     kis_shared_mutex() :
-        name{"UNNAMED"} { }
+        name{"UNNAMED"}, debug{false} { }
     kis_shared_mutex(const std::string& name) :
-        name{name} { }
+        name{name}, debug{false} { }
 
     kis_shared_mutex(const kis_shared_mutex&) = delete;
     kis_shared_mutex& operator=(const kis_shared_mutex&) = delete;
