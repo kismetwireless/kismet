@@ -118,10 +118,10 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     // This is clunky but valuable
     Globalreg::enable_pool_type<dot11_action>([](auto *a) { a->reset(); });
 
-    Globalreg::enable_pool_type<dot11_ie>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie::dot11_ie_tag>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
-    Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_map>([](auto *a) { a->clear(); });
+    // Globalreg::enable_pool_type<dot11_ie>([](auto *a) { a->reset(); });
+    // Globalreg::enable_pool_type<dot11_ie::dot11_ie_tag>([](auto *a) { a->reset(); });
+    // Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
+    // Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_map>([](auto *a) { a->clear(); });
 
     Globalreg::enable_pool_type<dot11_ie_150_vendor>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_221_vendor>([](auto *a) { a->reset(); });
@@ -2728,8 +2728,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
         }
 
-        auto meshid = dot11info->ie_tags.tags_map()->find(114);
-        if (meshid != dot11info->ie_tags.tags_map()->end()) {
+        auto meshid = dot11info->ie_tags.tags_map().find(114);
+        if (meshid != dot11info->ie_tags.tags_map().end()) {
             ssid->set_meshid(munge_to_printable(meshid->second->tag_data()));
         }
 
@@ -3047,8 +3047,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         // Pull specific tags we don't pre-parse
 
         // Update mesh capabilities
-        auto meshcap = dot11info->ie_tags.tags_map()->find(113);
-        if (meshcap != dot11info->ie_tags.tags_map()->end()) {
+        auto meshcap = dot11info->ie_tags.tags_map().find(113);
+        if (meshcap != dot11info->ie_tags.tags_map().end()) {
             try {
                 auto mc = Globalreg::new_from_pool<dot11_ie_113_mesh_config>();
                 mc->parse(meshcap->second->tag_data());
@@ -3061,8 +3061,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             }
         }
 
-        auto tpc = dot11info->ie_tags.tags_map()->find(35);
-        if (tpc != dot11info->ie_tags.tags_map()->end()) {
+        auto tpc = dot11info->ie_tags.tags_map().find(35);
+        if (tpc != dot11info->ie_tags.tags_map().end()) {
             try {
                 auto tpc_ie = Globalreg::new_from_pool<dot11_ie_35_tpc>();
                 tpc_ie->parse(tpc->second->tag_data());

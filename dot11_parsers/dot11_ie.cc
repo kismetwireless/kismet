@@ -20,26 +20,39 @@
 #include "dot11_ie.h"
 
 void dot11_ie::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
-    m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
+    // m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
+    // m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
 
     while (!p_io->is_eof()) {
-        auto t = Globalreg::new_from_pool<dot11_ie_tag>();
-        t->parse(p_io);
-        m_tags->push_back(t);
-        (*m_tags_map)[t->tag_num()] = t;
+        // auto t = Globalreg::new_from_pool<dot11_ie_tag>();
+        // t->parse(p_io);
+
+        auto& tag = m_tags.emplace_back();
+        tag.parse(p_io);
+
+        m_tags_map[tag.tag_num()] = &tag;
+
+        // m_tags->push_back(t);
+        // (*m_tags_map)[t->tag_num()] = t;
     }
 }
 
 void dot11_ie::parse(kaitai::kstream& p_io) {
-    m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
-    m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
+    // m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
+    // m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
 
     while (!p_io.is_eof()) {
+        /*
         auto t = Globalreg::new_from_pool<dot11_ie_tag>();
         t->parse(p_io);
         m_tags->push_back(t);
         (*m_tags_map)[t->tag_num()] = t;
+        */
+
+        auto& tag = m_tags.emplace_back();
+        tag.parse(p_io);
+
+        m_tags_map[tag.tag_num()] = &tag;
     }
 }
 
@@ -48,14 +61,21 @@ void dot11_ie::parse(const std::string& data) {
     std::istream is(&d_membuf);
     kaitai::kstream p_io(&is);
 
-    m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
-    m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
+    // m_tags = Globalreg::new_from_pool<shared_ie_tag_vector>();
+    // m_tags_map = Globalreg::new_from_pool<shared_ie_tag_map>();
 
     while (!p_io.is_eof()) {
+        auto& tag = m_tags.emplace_back();
+        tag.parse(p_io);
+
+        m_tags_map[tag.tag_num()] = &tag;
+
+        /*
         auto t = Globalreg::new_from_pool<dot11_ie_tag>();
         t->parse(p_io);
         m_tags->push_back(t);
         (*m_tags_map)[t->tag_num()] = t;
+        */
     }
 }
 

@@ -381,7 +381,7 @@ void dot11_advertised_ssid::set_ietag_content_from_packet(const dot11_ie& tags) 
     auto tagmap = get_ie_tag_content();
     tagmap->clear();
 
-    for (auto t : *(tags.tags())) {
+    for (const auto& t : tags.tags()) {
         auto tag =
             Globalreg::globalreg->entrytracker->new_from_pool<dot11_tracked_ietag>(ie_tag_builder.get());
         tag->set_from_tag(t);
@@ -423,14 +423,14 @@ void dot11_tracked_ietag::register_fields() {
         "Complete IE tag data", &complete_tag_data);
 }
 
-void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> tag) {
-    set_tag_number(tag->tag_num());
-    set_complete_tag_data(tag->tag_data());
+void dot11_tracked_ietag::set_from_tag(const dot11_ie::dot11_ie_tag& tag) {
+    set_tag_number(tag.tag_num());
+    set_complete_tag_data(tag.tag_data());
 
-    if (tag->tag_num() == 150) {
+    if (tag.tag_num() == 150) {
         try {
             dot11_ie_150_vendor tag150;
-            tag150.parse(tag->tag_data());
+            tag150.parse(tag.tag_data());
 
             set_tag_oui(tag150.vendor_oui_int());
 
@@ -439,17 +439,17 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_vendor_or_sub(tag150.vendor_oui_type());
 
-            set_unique_tag_id(adler32_checksum(fmt::format("{}{}{}", tag->tag_num(), tag150.vendor_oui_int(), tag150.vendor_oui_type())));
+            set_unique_tag_id(adler32_checksum(fmt::format("{}{}{}", tag.tag_num(), tag150.vendor_oui_int(), tag150.vendor_oui_type())));
 
             return;
         } catch (const std::exception& e) {
             // Do nothing; fall through to setting the tag num
             ;
         }
-    } else if (tag->tag_num() == 221) {
+    } else if (tag.tag_num() == 221) {
         try {
             dot11_ie_221_vendor tag221;
-            tag221.parse(tag->tag_data());
+            tag221.parse(tag.tag_data());
 
             set_tag_oui(tag221.vendor_oui_int());
 
@@ -458,21 +458,21 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_vendor_or_sub(tag221.vendor_oui_type());
 
-            set_unique_tag_id(adler32_checksum(fmt::format("{}{}{}", tag->tag_num(), tag221.vendor_oui_int(), tag221.vendor_oui_type())));
+            set_unique_tag_id(adler32_checksum(fmt::format("{}{}{}", tag.tag_num(), tag221.vendor_oui_int(), tag221.vendor_oui_type())));
 
-            return; 
+            return;
         } catch (const std::exception& e) {
             // Do nothing; fall through to setting the tag num
             ;
         }
-    } else if (tag->tag_num() == 255) {
+    } else if (tag.tag_num() == 255) {
         try {
             dot11_ie_255_ext tag255;
-            tag255.parse(tag->tag_data());
+            tag255.parse(tag.tag_data());
 
             set_tag_vendor_or_sub(tag255.subtag_num());
-            
-            set_unique_tag_id(adler32_checksum(fmt::format("{}{}", tag->tag_num(), tag255.subtag_num())));
+
+            set_unique_tag_id(adler32_checksum(fmt::format("{}{}", tag.tag_num(), tag255.subtag_num())));
             return;
         } catch (const std::exception& e) {
             // Do nothing; fall through to setting the tag num
@@ -482,6 +482,6 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
         set_tag_vendor_or_sub(-1);
     }
 
-    set_unique_tag_id(tag->tag_num());
+    set_unique_tag_id(tag.tag_num());
 }
 

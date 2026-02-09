@@ -418,7 +418,7 @@ public:
     __Proxy(tag_vendor_or_sub, int16_t, int16_t, int16_t, tag_vendor_or_sub);
     __Proxy(complete_tag_data, std::string, std::string, std::string, complete_tag_data);
 
-    void set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> ie);
+    void set_from_tag(const dot11_ie::dot11_ie_tag& ie);
 
 protected:
     virtual void register_fields() override;

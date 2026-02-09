@@ -30,7 +30,7 @@
 
 #include <string>
 #include <memory>
-#include <vector>
+#include <list>
 #include <unordered_map>
 #include <kaitai/kaitaistream.h>
 #include "multi_constexpr.h"
@@ -48,6 +48,15 @@ public:
     void parse(kaitai::kstream& p_io);
     void parse(const std::string& data);
 
+    const std::list<dot11_ie_tag>& tags() const {
+        return m_tags;
+    }
+
+    const std::unordered_map<uint8_t, dot11_ie_tag*>& tags_map() const {
+        return m_tags_map;
+    }
+
+    /*
     std::shared_ptr<shared_ie_tag_vector> tags() const {
         return m_tags;
     }
@@ -55,30 +64,44 @@ public:
     std::shared_ptr<shared_ie_tag_map> tags_map() const {
         return m_tags_map;
     }
+    */
 
     void reset() {
+        m_tags.clear();
+        m_tags_map.clear();
+
+        /*
         if (m_tags != nullptr)
             m_tags->clear();
 
         if (m_tags_map != nullptr)
             m_tags_map->clear();
+            */
     }
 
     size_t size() {
-        if (m_tags_map != nullptr)
-            return m_tags_map->size();
-
-        return 0;
+        return m_tags_map.size();
     }
 
 protected:
+    /*
     std::shared_ptr<shared_ie_tag_vector> m_tags;
     std::shared_ptr<shared_ie_tag_map> m_tags_map;
+    */
+
+    std::list<dot11_ie_tag> m_tags;
+    std::unordered_map<uint8_t, dot11_ie_tag *> m_tags_map;
 
 public:
     class dot11_ie_tag {
     public:
-        dot11_ie_tag() { } 
+        dot11_ie_tag() { }
+
+        dot11_ie_tag(dot11_ie_tag& a) :
+            m_tag_num{a.m_tag_num},
+            m_tag_len{a.m_tag_len},
+            m_tag_data{a.m_tag_data} { }
+
         ~dot11_ie_tag() { }
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
