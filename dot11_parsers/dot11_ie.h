@@ -38,8 +38,6 @@
 class dot11_ie {
 public:
     class dot11_ie_tag;
-    typedef std::vector<std::shared_ptr<dot11_ie_tag>> shared_ie_tag_vector;
-    typedef std::unordered_map<uint8_t, std::shared_ptr<dot11_ie_tag>> shared_ie_tag_map;
 
     dot11_ie() { }
     ~dot11_ie() { }
