@@ -29,9 +29,7 @@ public:
     dot11_s1g() { }
     ~dot11_s1g() { }
 
-    void parse(std::shared_ptr<kaitai::kstream> p_io);
-    void parse(kaitai::kstream& p_io);
-    void parse(const std::string& data);
+    void parse(const std::string_view *view);
 
     constexpr uint16_t framecontrol() const {
         return m_framecontrol;

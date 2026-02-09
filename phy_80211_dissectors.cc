@@ -1467,6 +1467,13 @@ eap_end:
             ;
 
         }
+    } else if (fc->type == packet_extension) {
+        _MSG_DEBUG("s1g packet");
+
+        dot11_s1g s1g;
+        s1g.parse(chunk.get());
+
+        _MSG_DEBUG("s1g type {} sub {} compressed ssid present {}", s1g.fc_type(), s1g.fc_subtype(), s1g.fc_compressed_ssid_present());
     }
 
     // Populate the common addressing
