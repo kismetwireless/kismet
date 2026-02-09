@@ -95,11 +95,11 @@ unsigned int Ieee80211Interval2NSecs(int in_interval) {
 }
 
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
-    return ((kis_80211_phy *) auxdata)->packet_wep_decryptor(in_pack);
+    return ((kis_80211_phy *) auxdata)->packet_wep_decryptor(in_pack.get());
 }
 
 int phydot11_packethook_dot11(CHAINCALL_PARMS) {
-    return ((kis_80211_phy *) auxdata)->packet_dot11_dissector(in_pack);
+    return ((kis_80211_phy *) auxdata)->packet_dot11_dissector(in_pack.get());
 }
 
 kis_80211_phy::kis_80211_phy(int in_phyid) :
@@ -117,11 +117,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
     // This is clunky but valuable
     Globalreg::enable_pool_type<dot11_action>([](auto *a) { a->reset(); });
-
-    // Globalreg::enable_pool_type<dot11_ie>([](auto *a) { a->reset(); });
-    // Globalreg::enable_pool_type<dot11_ie::dot11_ie_tag>([](auto *a) { a->reset(); });
-    // Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
-    // Globalreg::enable_pool_type<dot11_ie::shared_ie_tag_map>([](auto *a) { a->clear(); });
 
     Globalreg::enable_pool_type<dot11_ie_150_vendor>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_ie_221_vendor>([](auto *a) { a->reset(); });
@@ -1957,7 +1952,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
 
             // Look for WPS floods
-            int wps = d11phy->packet_dot11_wps_m3(in_pack);
+            int wps = d11phy->packet_dot11_wps_m3(in_pack.get());
 
             if (wps) {
                 // if we're w/in time of the last one, update, otherwise clear
@@ -2610,7 +2605,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
 	// Parse the new set of IE tags
-    if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
+    if (packet_dot11_ie_dissector(in_pack.get(), dot11info.get()) < 0) {
         return;
     }
 
@@ -2701,7 +2696,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     }
 
     if (new_ssid) {
-        packet_dot11_parse_ie_list(in_pack, dot11info);
+        packet_dot11_parse_ie_list(in_pack.get(), dot11info.get());
 
         ssid->set_ssid_hash(dot11info->ssid_csum);
 
@@ -2911,7 +2906,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
     if (keep_ie_tags_per_bssid) {
-        packet_dot11_parse_ie_list(in_pack, dot11info);
+        packet_dot11_parse_ie_list(in_pack.get(), dot11info.get());
         ssid->get_ie_tag_list()->clear();
         for (const auto& ti : dot11info->ie_tags_listed)
             ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
@@ -3323,7 +3318,7 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
     std::shared_ptr<dot11_probed_ssid> probessid;
 
     // Parse IE tags on probe req, assoc, reassoc
-    if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
+    if (packet_dot11_ie_dissector(in_pack.get(), dot11info.get()) < 0) {
         return;
     }
 
@@ -3414,7 +3409,7 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
 
         // Update the IE listing at the device level
         if (keep_ie_tags_per_bssid) {
-            packet_dot11_parse_ie_list(in_pack, dot11info);
+            packet_dot11_parse_ie_list(in_pack.get(), dot11info.get());
             probessid->get_ie_tag_list()->clear();
             for (const auto& ti : dot11info->ie_tags_listed)
                 probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
@@ -3717,7 +3712,8 @@ void kis_80211_phy::process_wpa_handshake(const std::shared_ptr<kis_tracked_devi
         const std::shared_ptr<kis_packet>& in_pack,
         const std::shared_ptr<dot11_packinfo>& dot11info) {
 
-    std::shared_ptr<dot11_tracked_eapol> eapol = packet_dot11_eapol_handshake(in_pack, bssid_dot11);
+    std::shared_ptr<dot11_tracked_eapol> eapol =
+        packet_dot11_eapol_handshake(in_pack.get(), bssid_dot11.get());
 
     if (eapol == NULL)
         return;

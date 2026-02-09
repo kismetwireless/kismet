@@ -428,26 +428,24 @@ public:
 
 
     // Dot11 decoders, wep decryptors, etc
-    int packet_wep_decryptor(const std::shared_ptr<kis_packet>& in_pack);
+    int packet_wep_decryptor(kis_packet* in_pack);
     // Top-level dissector; decodes basic type and populates the dot11 packet
-    int packet_dot11_dissector(const std::shared_ptr<kis_packet>& in_pack);
+    int packet_dot11_dissector(kis_packet* in_pack);
     // Expects an existing dot11 packet with the basic type intact, interprets
     // IE tags to the best of our ability
-    int packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& in_pack,
-            const std::shared_ptr<dot11_packinfo>& in_dot11info);
+    int packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo* in_dot11info);
 
     // Parse a list of IE tag tuples into a packinfo
-    void packet_dot11_parse_ie_list(const std::shared_ptr<kis_packet>& in_pack,
-            const std::shared_ptr<dot11_packinfo>& in_dot11info);
+    void packet_dot11_parse_ie_list(kis_packet* in_pack, dot11_packinfo* in_dot11info);
 
     // Special decoders, not called as part of a chain
 
     // Is packet a WPS M3 message?  Used to detect Reaver, etc
-    int packet_dot11_wps_m3(const std::shared_ptr<kis_packet>& in_pack);
+    int packet_dot11_wps_m3(const kis_packet* in_pack);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
-    std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(const std::shared_ptr<kis_packet>& in_pack,
-            const std::shared_ptr<dot11_tracked_device>& dot11device);
+    std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet* in_pack,
+            dot11_tracked_device* dot11device);
 
     // static in case some other component wants to use it
     static std::shared_ptr<kis_datachunk> DecryptWEP(const std::shared_ptr<dot11_packinfo>& in_packinfo,

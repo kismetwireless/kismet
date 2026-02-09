@@ -493,11 +493,16 @@ public:
     // Raise an alert ...
     int raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
-                   std::string in_channel, std::string in_text);
+                   const std::string& in_channel, const std::string& in_text);
+
+    int raise_alert(int in_ref, kis_packet* in_pack,
+                   mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
+                   const std::string& in_channel, const std::string& in_text);
 
     // Raise a one-shot communications alert
-    int raise_one_shot(std::string in_header, std::string in_class, kis_alert_severity in_severity, 
-            std::string in_text, int in_phy);
+    int raise_one_shot(const std::string& in_header, const std::string& in_class,
+            kis_alert_severity in_severity,
+            const std::string& in_text, int in_phy);
 
     // parse an alert config string
     int parse_alert_str(std::string alert_str, std::string *ret_name,

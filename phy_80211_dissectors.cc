@@ -560,7 +560,7 @@ uint64_t kis_80211_phy::wfa_auth_conv(ie221_wfa_mgmt cipher) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int kis_80211_phy::packet_dot11_dissector(const std::shared_ptr<kis_packet>& in_pack) {
+int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     if (in_pack->error) {
         return 0;
     }
@@ -1489,10 +1489,7 @@ eap_end:
     return 1;
 }
 
-void kis_80211_phy::packet_dot11_parse_ie_list(
-        const std::shared_ptr<kis_packet>& in_pack,
-        const std::shared_ptr<dot11_packinfo>& packinfo) {
-
+void kis_80211_phy::packet_dot11_parse_ie_list(kis_packet* in_pack, dot11_packinfo* packinfo) {
     // don't double-parse
     if (packinfo->ie_tags_listed.size()) {
         return;
@@ -1557,8 +1554,7 @@ void kis_80211_phy::packet_dot11_parse_ie_list(
     }
 }
 
-int kis_80211_phy::packet_dot11_ie_dissector(const std::shared_ptr<kis_packet>& in_pack,
-        const std::shared_ptr<dot11_packinfo>& packinfo) {
+int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo* packinfo) {
 
     // Called opportunistically by the main dot11 processor when the checksum over all IE
     // tags has changed
@@ -2697,7 +2693,7 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
     return manglechunk;
 }
 
-int kis_80211_phy::packet_wep_decryptor(const std::shared_ptr<kis_packet>& in_pack) {
+int kis_80211_phy::packet_wep_decryptor(kis_packet* in_pack) {
     std::shared_ptr<kis_datachunk> manglechunk;
 
     if (in_pack->error)
@@ -2762,7 +2758,7 @@ int kis_80211_phy::packet_wep_decryptor(const std::shared_ptr<kis_packet>& in_pa
     return 1;
 }
 
-int kis_80211_phy::packet_dot11_wps_m3(const std::shared_ptr<kis_packet>& in_pack) {
+int kis_80211_phy::packet_dot11_wps_m3(const kis_packet* in_pack) {
     if (in_pack->error) {
         return 0;
     }
@@ -2863,9 +2859,7 @@ int kis_80211_phy::packet_dot11_wps_m3(const std::shared_ptr<kis_packet>& in_pac
 }
 
 std::shared_ptr<dot11_tracked_eapol>
-kis_80211_phy::packet_dot11_eapol_handshake(const std::shared_ptr<kis_packet>& in_pack,
-    const std::shared_ptr<dot11_tracked_device>& dot11dev) {
-
+kis_80211_phy::packet_dot11_eapol_handshake(kis_packet* in_pack, dot11_tracked_device* dot11dev) {
     if (in_pack->error) {
         return NULL;
     }
