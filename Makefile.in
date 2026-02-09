@@ -46,6 +46,7 @@ PARSERS = \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o \
 	dot11_parsers/dot11_p2p_ie.cc.o \
+	dot11_parsers/dot11_s1g.cc.o \
 	bluetooth_parsers/btle.cc.o
 
 # To prevent a deps problem, we define these targets via autoconf to reference

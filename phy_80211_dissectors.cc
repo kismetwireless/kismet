@@ -67,6 +67,7 @@
 #include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
 #include "dot11_parsers/dot11_ie_221_wfa.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
+#include "dot11_parsers/dot11_s1g.h"
 
 #include "crc32.h"
 
