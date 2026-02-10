@@ -69,19 +69,22 @@
 #endif
 
 kis_dlt_radiotap::kis_dlt_radiotap() :
-	kis_dlt_handler() {
+    kis_dlt_handler() {
 
-	dlt_name = "Radiotap";
-	dlt = DLT_IEEE802_11_RADIO;
+    dlt_name = "Radiotap";
+    dlt = DLT_IEEE802_11_RADIO;
 
-	_MSG("Registering support for DLT_RADIOTAP packet header decoding", MSGFLAG_INFO);
+    _MSG("Registering support for DLT_RADIOTAP packet header decoding", MSGFLAG_INFO);
 
     crc32_init_table_80211(crc32_table);
 }
 
 #define ALIGN_OFFSET(offset, width) \
-	    ( (((offset) + ((width) - 1)) & (~((width) - 1))) - offset )
+        ( (((offset) + ((width) - 1)) & (~((width) - 1))) - offset )
 
+#define IEEE80211_CHAN_700 0x0001
+#define IEEE80211_CHAN_800 0x0002
+#define IEEE80211_CHAN_900 0x0004
 #define IEEE80211_CHAN_TURBO 0x0010
 #define IEEE80211_CHAN_CCK 0x0020
 #define IEEE80211_CHAN_OFDM 0x0040
@@ -94,55 +97,63 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 /*
  * Useful combinations of channel characteristics.
  */
-#define	IEEE80211_CHAN_FHSS \
-	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
-#define	IEEE80211_CHAN_A \
-	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
-#define	IEEE80211_CHAN_BPLUS \
-	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK | IEEE80211_CHAN_TURBO)
-#define	IEEE80211_CHAN_B \
-	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
-#define	IEEE80211_CHAN_PUREG \
-	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_OFDM)
-#define	IEEE80211_CHAN_G \
-	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
-#define	IEEE80211_CHAN_T \
-	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+#define    IEEE80211_CHAN_FHSS \
+    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
+#define    IEEE80211_CHAN_A \
+    (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define    IEEE80211_CHAN_BPLUS \
+    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK | IEEE80211_CHAN_TURBO)
+#define    IEEE80211_CHAN_B \
+    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
+#define    IEEE80211_CHAN_PUREG \
+    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_OFDM)
+#define    IEEE80211_CHAN_G \
+    (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
+#define    IEEE80211_CHAN_T \
+    (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
 
-#define	IEEE80211_IS_CHAN_FHSS(_flags) \
-	((_flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
-#define	IEEE80211_IS_CHAN_A(_flags) \
-	((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)
-#define	IEEE80211_IS_CHAN_BPLUS(_flags) \
-	((_flags & IEEE80211_CHAN_BPLUS) == IEEE80211_CHAN_BPLUS)
-#define	IEEE80211_IS_CHAN_B(_flags) \
-	((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)
-#define	IEEE80211_IS_CHAN_PUREG(_flags) \
-	((_flags & IEEE80211_CHAN_PUREG) == IEEE80211_CHAN_PUREG)
-#define	IEEE80211_IS_CHAN_G(_flags) \
-	((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)
-#define	IEEE80211_IS_CHAN_T(_flags) \
-	((_flags & IEEE80211_CHAN_T) == IEEE80211_CHAN_T)
+#define    IEEE80211_IS_CHAN_700MHZ(_flags) \
+    ((_flags & IEEE80211_CHAN_700) == IEEE80211_CHAN_700)
+#define    IEEE80211_IS_CHAN_800MHZ(_flags) \
+    ((_flags & IEEE80211_CHAN_800) == IEEE80211_CHAN_800)
+#define    IEEE80211_IS_CHAN_900MHZ(_flags) \
+    ((_flags & IEEE80211_CHAN_900) == IEEE80211_CHAN_900)
+#define    IEEE80211_IS_CHAN_S1G(_flags) \
+    ((_flags & (IEEE80211_CHAN_700 | IEEE80211_CHAN_800 | IEEE80211_CHAN_900)) != 0)
+#define    IEEE80211_IS_CHAN_FHSS(_flags) \
+    ((_flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
+#define    IEEE80211_IS_CHAN_A(_flags) \
+    ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)
+#define    IEEE80211_IS_CHAN_BPLUS(_flags) \
+    ((_flags & IEEE80211_CHAN_BPLUS) == IEEE80211_CHAN_BPLUS)
+#define    IEEE80211_IS_CHAN_B(_flags) \
+    ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)
+#define    IEEE80211_IS_CHAN_PUREG(_flags) \
+    ((_flags & IEEE80211_CHAN_PUREG) == IEEE80211_CHAN_PUREG)
+#define    IEEE80211_IS_CHAN_G(_flags) \
+    ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)
+#define    IEEE80211_IS_CHAN_T(_flags) \
+    ((_flags & IEEE80211_CHAN_T) == IEEE80211_CHAN_T)
 
 #define BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
 #define BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
 #define BITNO_8(x) (((x) >> 4) ? 4 + BITNO_4((x) >> 4) : BITNO_4((x)))
 #define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
-#define BIT(n)	(1 << n)
+#define BIT(n)    (1 << n)
 int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     if (in_pack->has(pack_comp_decap))
         return 1;
 
     auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
 
-	if (linkchunk == nullptr) {
-		return 1;
-	}
+    if (linkchunk == nullptr) {
+        return 1;
+    }
 
-	if (linkchunk->dlt != dlt) {
-		return 1;
-	}
+    if (linkchunk->dlt != dlt) {
+        return 1;
+    }
 
     if (linkchunk->length() == 0) {
         return 1;
@@ -151,40 +162,39 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
     // Everything needs a data source so we know how to checksum
-	if (datasrc == nullptr) {
-		return 1;
-	}
+    if (datasrc == nullptr) {
+        return 1;
+    }
 
-	union {
-		int8_t	i8;
-		int16_t	i16;
-		u_int8_t	u8;
-		u_int16_t	u16;
-		u_int32_t	u32;
-		u_int64_t	u64;
-	} u;
-	union {
-		int8_t		i8;
-		int16_t		i16;
-		u_int8_t	u8;
-		u_int16_t	u16;
-		u_int32_t	u32;
-		u_int64_t	u64;
-	} u2;
+    union {
+        int8_t    i8;
+        int16_t    i16;
+        u_int8_t    u8;
+        u_int16_t    u16;
+        u_int32_t    u32;
+        u_int64_t    u64;
+    } u;
+    union {
+        int8_t        i8;
+        int16_t        i16;
+        u_int8_t    u8;
+        u_int16_t    u16;
+        u_int32_t    u32;
+        u_int64_t    u64;
+    } u2;
 
-	u2.u64 = 0;
+    u2.u64 = 0;
 
-	const struct ieee80211_radiotap_header *hdr;
-	u_int32_t present, next_present;
-	const u_int32_t *presentp, *last_presentp;
-	enum ieee80211_radiotap_presence bit;
-	int bit0;
-	const u_char *iter;
-	const u_char *iter_start;
-	unsigned int iter_align;
-	int fcs_cut = 0; // Is the FCS bit set?
+    const struct ieee80211_radiotap_header *hdr;
+    u_int32_t present, next_present;
+    const u_int32_t *presentp, *last_presentp;
+    enum ieee80211_radiotap_presence bit;
+    int bit0;
+    const u_char *iter;
+    const u_char *iter_start;
+    unsigned int iter_align;
+    int fcs_cut = 0; // Is the FCS bit set?
     bool fcs_flag_invalid = false; // Do we have a flag that tells us the fcs is known bad?
-    int record_num = 0;
 
     std::shared_ptr<kis_layer1_packinfo> radioheader;
 
@@ -192,41 +202,41 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
         return 0;
     }
 
-	// Assign it to the callback data
+    // Assign it to the callback data
     hdr = reinterpret_cast<const struct ieee80211_radiotap_header *>(linkchunk->data());
     if (linkchunk->length() < EXTRACT_LE_16BITS(&hdr->it_len)) {
         return 0;
     }
 
-	// null-statement for-loop
+    // null-statement for-loop
     for (last_presentp = &hdr->it_present;
          (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (const u_char *) (last_presentp + 1) <= (const u_char *) linkchunk->data() + 
+         (const u_char *) (last_presentp + 1) <= (const u_char *) linkchunk->data() +
          EXTRACT_LE_16BITS(&(hdr->it_len)); last_presentp++);
 
     /* are there more bitmap extensions than bytes in header? */
     if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
-		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap bitmap length");
-		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
+        // snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap bitmap length");
+        // globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
     radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
 
-	decapchunk->dlt = KDLT_IEEE802_11;
-	
-    iter = (const u_char*) (last_presentp + 1); 
-    // Alignment in Radiotap must be done from the beginning of the header, 
-    // not from the byte following the last bitmap. 
-    iter_start = (const u_char*) (linkchunk->data()); 
+    decapchunk->dlt = KDLT_IEEE802_11;
+
+    iter = (const u_char*) (last_presentp + 1);
+    // Alignment in Radiotap must be done from the beginning of the header,
+    // not from the byte following the last bitmap.
+    iter_start = (const u_char*) (linkchunk->data());
 
     bool assigned_signal = false;
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp; presentp++, bit0 += 32) {
         // printf("record num %d\n", record_num);
         // printf("present %x\n", *presentp);
-        
+
         int record_antenna = -1;
         int record_signal = 0;
         bool signal_present = false;
@@ -325,9 +335,13 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             // static int pnum = 0;
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
-                    // radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
                     radioheader->freq_khz = (double) u.u16 * 1000;
-                    // printf("debug - %d freq %u\n", pnum++, radioheader->freq_mhz);
+
+                    // handle broken drivers reporting s1g wrong
+                    if (IEEE80211_IS_CHAN_S1G(u2.u16) && radioheader->freq_khz > 1e6) {
+                        radioheader->freq_khz /= 10;
+                    }
+
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
                         radioheader->carrier = carrier_80211fhss;
                     else if (IEEE80211_IS_CHAN_A(u2.u16))
@@ -408,7 +422,6 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             }
         }
 
-        record_num++;
     }
 
     auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
