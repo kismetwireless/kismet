@@ -141,11 +141,11 @@ public:
             rsn_bip_128 = 6,
             rsn_no_group = 7,
             rsn_gcmp_128 = 8,
-			rsn_gcmp_256 = 9,
-			rsn_ccmp_256 = 10,
-			rsn_bip_gmac_128 = 11,
-			rsn_bip_gmac_256 = 12,
-			rsn_bip_cmac_256 = 13
+            rsn_gcmp_256 = 9,
+            rsn_ccmp_256 = 10,
+            rsn_bip_gmac_128 = 11,
+            rsn_bip_gmac_256 = 12,
+            rsn_bip_cmac_256 = 13
         };
 
         dot11_ie_48_rsn_rsn_cipher() { }
@@ -174,28 +174,28 @@ public:
     class dot11_ie_48_rsn_rsn_management {
     public:
         enum rsn_management {
-			mgmt_none = 0,
-			mgmt_1x = 1,
-			mgmt_psk = 2,
-			mgmt_ft_dot1x = 3,
-			mgmt_ft_psk = 4,
-			mgmt_1x_sha256 = 5,
-			mgmt_psk_sha256 = 6,
-			mgmt_tdls_sha256 = 7,
-			mgmt_sae_sha256 = 8,
-			mgmt_ft_sae = 9,
-			mgmt_ap_peerkey = 10,
-			mgmt_1x_sha256_suite_b = 11,
-			mgmt_1x_sha384_suite_b = 12,
-			mgmt_ft_dot1x_sha384 = 13,
-			mgmt_fils_sha256 = 14,
-			mgmt_fils_sha384 = 15,
-			mgmt_ft_fils_sha256 = 16,
-			mgmt_ft_fils_sha384 = 17,
-			mgmt_owe = 18,
-			mgmt_ft_psk_sha384 = 19,
-			mgmt_psk_sha384 = 20,
-			mgmt_pasn = 21
+            mgmt_none = 0,
+            mgmt_1x = 1,
+            mgmt_psk = 2,
+            mgmt_ft_dot1x = 3,
+            mgmt_ft_psk = 4,
+            mgmt_1x_sha256 = 5,
+            mgmt_psk_sha256 = 6,
+            mgmt_tdls_sha256 = 7,
+            mgmt_sae_sha256 = 8,
+            mgmt_ft_sae = 9,
+            mgmt_ap_peerkey = 10,
+            mgmt_1x_sha256_suite_b = 11,
+            mgmt_1x_sha384_suite_b = 12,
+            mgmt_ft_dot1x_sha384 = 13,
+            mgmt_fils_sha256 = 14,
+            mgmt_fils_sha384 = 15,
+            mgmt_ft_fils_sha256 = 16,
+            mgmt_ft_fils_sha384 = 17,
+            mgmt_owe = 18,
+            mgmt_ft_psk_sha384 = 19,
+            mgmt_psk_sha384 = 20,
+            mgmt_pasn = 21
         };
 
         dot11_ie_48_rsn_rsn_management() { }
@@ -229,7 +229,7 @@ public:
     ~dot11_ie_48_rsn_partial() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 uint16_t rsn_version() const {
         return m_rsn_version;
