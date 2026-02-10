@@ -2052,16 +2052,16 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             try {
                 packinfo->rsn.parse(ie_tag.tag_data());
 
-                packinfo->cryptset |= wpa_rsn_group_conv(packinfo->rsn.group_cipher()->cipher_type());
+                packinfo->cryptset |= wpa_rsn_group_conv(packinfo->rsn.group_cipher().cipher_type());
 
-                for (auto i : *(packinfo->rsn.pairwise_ciphers())) {
-                    packinfo->cryptset |= wpa_rsn_pairwise_conv(i->cipher_type());
+                for (auto i : packinfo->rsn.pairwise_ciphers()) {
+                    packinfo->cryptset |= wpa_rsn_pairwise_conv(i.cipher_type());
                 }
 
                 // Merge the authkey types
-                for (auto i : *(packinfo->rsn.akm_ciphers())) {
+                for (auto i : packinfo->rsn.akm_ciphers()) {
                     packinfo->cryptset |= dot11_crypt_general_wpa;
-                    packinfo->cryptset |= wpa_rsn_auth_conv(i->management_type());
+                    packinfo->cryptset |= wpa_rsn_auth_conv(i.management_type());
                 }
 
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;

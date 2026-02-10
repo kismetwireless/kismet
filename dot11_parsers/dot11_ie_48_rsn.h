@@ -36,11 +36,118 @@
 
 class dot11_ie_48_rsn {
 public:
-    class dot11_ie_48_rsn_rsn_cipher;
-    class dot11_ie_48_rsn_rsn_management;
+    class dot11_ie_48_rsn_rsn_cipher {
+    public:
+        enum rsn_cipher_type {
+            rsn_cipher_none = 0,
+            rsn_wep_40 = 1,
+            rsn_tkip = 2,
+            rsn_aes_ocb = 3,
+            rsn_aes_ccm = 4,
+            rsn_wep_104 = 5,
+            rsn_bip_128 = 6,
+            rsn_no_group = 7,
+            rsn_gcmp_128 = 8,
+            rsn_gcmp_256 = 9,
+            rsn_ccmp_256 = 10,
+            rsn_bip_gmac_128 = 11,
+            rsn_bip_gmac_256 = 12,
+            rsn_bip_cmac_256 = 13
+        };
 
-    typedef std::vector<std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> > shared_rsn_cipher_vector;
-    typedef std::vector<std::shared_ptr<dot11_ie_48_rsn_rsn_management> > shared_rsn_management_vector;
+        dot11_ie_48_rsn_rsn_cipher() {
+            m_parsed = false;
+        }
+        ~dot11_ie_48_rsn_rsn_cipher() { }
+
+        constexpr bool parsed() const {
+            return m_parsed;
+        }
+
+        void parse(kaitai::kstream& p_io);
+
+        const std::string& cipher_suite_oui() const {
+            return m_cipher_suite_oui;
+        }
+
+        constexpr17 rsn_cipher_type cipher_type() const {
+            return (rsn_cipher_type) m_cipher_type;
+        }
+
+        void reset() {
+            m_parsed = false;
+            m_cipher_suite_oui = "";
+            m_cipher_type = 0;
+        }
+
+    protected:
+        bool m_parsed;
+        std::string m_cipher_suite_oui;
+        uint8_t m_cipher_type;
+    };
+
+    class dot11_ie_48_rsn_rsn_management {
+    public:
+        enum rsn_management {
+            mgmt_none = 0,
+            mgmt_1x = 1,
+            mgmt_psk = 2,
+            mgmt_ft_dot1x = 3,
+            mgmt_ft_psk = 4,
+            mgmt_1x_sha256 = 5,
+            mgmt_psk_sha256 = 6,
+            mgmt_tdls_sha256 = 7,
+            mgmt_sae_sha256 = 8,
+            mgmt_ft_sae = 9,
+            mgmt_ap_peerkey = 10,
+            mgmt_1x_sha256_suite_b = 11,
+            mgmt_1x_sha384_suite_b = 12,
+            mgmt_ft_dot1x_sha384 = 13,
+            mgmt_fils_sha256 = 14,
+            mgmt_fils_sha384 = 15,
+            mgmt_ft_fils_sha256 = 16,
+            mgmt_ft_fils_sha384 = 17,
+            mgmt_owe = 18,
+            mgmt_ft_psk_sha384 = 19,
+            mgmt_psk_sha384 = 20,
+            mgmt_pasn = 21
+        };
+
+        dot11_ie_48_rsn_rsn_management() {
+            m_parsed = false;
+        }
+        ~dot11_ie_48_rsn_rsn_management() { }
+
+        constexpr bool parsed() const {
+            return m_parsed;
+        }
+
+
+        void parse(kaitai::kstream& p_io);
+
+        constexpr17 const std::string& management_suite_oui() const {
+            return m_management_suite_oui;
+        }
+
+        constexpr17 rsn_management management_type() const {
+            return (rsn_management) m_management_type;
+        }
+
+        void reset() {
+            m_parsed = false;
+            m_management_suite_oui = "";
+            m_management_type = 0;
+        }
+
+    protected:
+        bool m_parsed;
+        std::string m_management_suite_oui;
+        uint8_t m_management_type;
+    };
+
+
+    typedef std::vector<dot11_ie_48_rsn_rsn_cipher> rsn_cipher_vector;
+    typedef std::vector<dot11_ie_48_rsn_rsn_management> rsn_management_vector;
 
     dot11_ie_48_rsn() {
         m_parsed = false;
@@ -59,7 +166,7 @@ public:
         return m_rsn_version;
     }
 
-    std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> group_cipher() const {
+    const dot11_ie_48_rsn_rsn_cipher& group_cipher() const {
         return m_group_cipher;
     }
 
@@ -67,7 +174,7 @@ public:
         return m_pairwise_count;
     }
 
-    std::shared_ptr<shared_rsn_cipher_vector> pairwise_ciphers() const {
+    const rsn_cipher_vector& pairwise_ciphers() const {
         return m_pairwise_ciphers;
     }
 
@@ -75,7 +182,7 @@ public:
         return m_akm_count;
     }
 
-    std::shared_ptr<shared_rsn_management_vector> akm_ciphers() const {
+    const rsn_management_vector& akm_ciphers() const {
         return m_akm_ciphers;
     }
 
@@ -112,115 +219,23 @@ public:
         m_rsn_version = 0;
         m_group_cipher.reset();
         m_pairwise_count = 0;
-        m_pairwise_ciphers.reset();
+        m_pairwise_ciphers.clear();
         m_akm_count = 0;
-        m_akm_ciphers.reset();
+        m_akm_ciphers.clear();
         m_rsn_capabilities = 0;
     }
 
 protected:
     bool m_parsed;
     uint16_t m_rsn_version;
-    std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> m_group_cipher;
+    dot11_ie_48_rsn_rsn_cipher m_group_cipher;
     uint16_t m_pairwise_count;
-    std::shared_ptr<shared_rsn_cipher_vector> m_pairwise_ciphers;
+    rsn_cipher_vector m_pairwise_ciphers;
     uint16_t m_akm_count;
-    std::shared_ptr<shared_rsn_management_vector> m_akm_ciphers;
+    rsn_management_vector m_akm_ciphers;
     uint16_t m_rsn_capabilities;
 
 public:
-    class dot11_ie_48_rsn_rsn_cipher {
-    public:
-        enum rsn_cipher_type {
-            rsn_cipher_none = 0,
-            rsn_wep_40 = 1,
-            rsn_tkip = 2,
-            rsn_aes_ocb = 3,
-            rsn_aes_ccm = 4,
-            rsn_wep_104 = 5,
-            rsn_bip_128 = 6,
-            rsn_no_group = 7,
-            rsn_gcmp_128 = 8,
-            rsn_gcmp_256 = 9,
-            rsn_ccmp_256 = 10,
-            rsn_bip_gmac_128 = 11,
-            rsn_bip_gmac_256 = 12,
-            rsn_bip_cmac_256 = 13
-        };
-
-        dot11_ie_48_rsn_rsn_cipher() { }
-        ~dot11_ie_48_rsn_rsn_cipher() { }
-
-        void parse(kaitai::kstream& p_io);
-
-        const std::string& cipher_suite_oui() const {
-            return m_cipher_suite_oui;
-        }
-
-        constexpr17 rsn_cipher_type cipher_type() const {
-            return (rsn_cipher_type) m_cipher_type;
-        }
-
-        void reset() {
-            m_cipher_suite_oui = "";
-            m_cipher_type = 0;
-        }
-
-    protected:
-        std::string m_cipher_suite_oui;
-        uint8_t m_cipher_type;
-    };
-
-    class dot11_ie_48_rsn_rsn_management {
-    public:
-        enum rsn_management {
-            mgmt_none = 0,
-            mgmt_1x = 1,
-            mgmt_psk = 2,
-            mgmt_ft_dot1x = 3,
-            mgmt_ft_psk = 4,
-            mgmt_1x_sha256 = 5,
-            mgmt_psk_sha256 = 6,
-            mgmt_tdls_sha256 = 7,
-            mgmt_sae_sha256 = 8,
-            mgmt_ft_sae = 9,
-            mgmt_ap_peerkey = 10,
-            mgmt_1x_sha256_suite_b = 11,
-            mgmt_1x_sha384_suite_b = 12,
-            mgmt_ft_dot1x_sha384 = 13,
-            mgmt_fils_sha256 = 14,
-            mgmt_fils_sha384 = 15,
-            mgmt_ft_fils_sha256 = 16,
-            mgmt_ft_fils_sha384 = 17,
-            mgmt_owe = 18,
-            mgmt_ft_psk_sha384 = 19,
-            mgmt_psk_sha384 = 20,
-            mgmt_pasn = 21
-        };
-
-        dot11_ie_48_rsn_rsn_management() { }
-        ~dot11_ie_48_rsn_rsn_management() { }
-
-        void parse(kaitai::kstream& p_io);
-
-        constexpr17 const std::string& management_suite_oui() const {
-            return m_management_suite_oui;
-        }
-
-        constexpr17 rsn_management management_type() const {
-            return (rsn_management) m_management_type;
-        }
-
-        void reset() {
-            m_management_suite_oui = "";
-            m_management_type = 0;
-        }
-
-    protected:
-        std::string m_management_suite_oui;
-        uint8_t m_management_type;
-    };
-
 };
 
 class dot11_ie_48_rsn_partial {

@@ -25,22 +25,18 @@ void dot11_ie_48_rsn::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_parsed = true;
 
     m_rsn_version = p_io->read_u2le();
-    m_group_cipher = Globalreg::new_from_pool<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher>();
-    m_group_cipher->parse(*p_io);
+    m_group_cipher.parse(*p_io);
     m_pairwise_count = p_io->read_u2le();
-    m_pairwise_ciphers.reset(new shared_rsn_cipher_vector());
-    m_pairwise_ciphers = Globalreg::new_from_pool<shared_rsn_cipher_vector>();
+    m_pairwise_ciphers.clear();
     for (unsigned int i = 0; i < pairwise_count(); i++) {
-        auto c = Globalreg::new_from_pool<dot11_ie_48_rsn_rsn_cipher>();
-        c->parse(*p_io);
-        m_pairwise_ciphers->push_back(c);
+        auto& c = m_pairwise_ciphers.emplace_back();
+        c.parse(*p_io);
     }
     m_akm_count = p_io->read_u2le();
-    m_akm_ciphers.reset(new shared_rsn_management_vector());
+    m_akm_ciphers.clear();
     for (unsigned int i = 0; i < akm_count(); i++) {
-        auto a = Globalreg::new_from_pool<dot11_ie_48_rsn_rsn_management>();
-        a->parse(*p_io);
-        m_akm_ciphers->push_back(a);
+        auto& a = m_pairwise_ciphers.emplace_back();
+        a.parse(*p_io);
     }
     m_rsn_capabilities = p_io->read_u2le();
 }
@@ -53,22 +49,18 @@ void dot11_ie_48_rsn::parse(const std::string& data) {
     m_parsed = true;
 
     m_rsn_version = p_io.read_u2le();
-    m_group_cipher = Globalreg::new_from_pool<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher>();
-    m_group_cipher->parse(p_io);
+    m_group_cipher.parse(p_io);
     m_pairwise_count = p_io.read_u2le();
-    m_pairwise_ciphers.reset(new shared_rsn_cipher_vector());
-    m_pairwise_ciphers = Globalreg::new_from_pool<shared_rsn_cipher_vector>();
+    m_pairwise_ciphers.clear();
     for (unsigned int i = 0; i < pairwise_count(); i++) {
-        auto c = Globalreg::new_from_pool<dot11_ie_48_rsn_rsn_cipher>();
-        c->parse(p_io);
-        m_pairwise_ciphers->push_back(c);
+        auto& c = m_pairwise_ciphers.emplace_back();
+        c.parse(p_io);
     }
     m_akm_count = p_io.read_u2le();
-    m_akm_ciphers.reset(new shared_rsn_management_vector());
+    m_akm_ciphers.clear();
     for (unsigned int i = 0; i < akm_count(); i++) {
-        auto a = Globalreg::new_from_pool<dot11_ie_48_rsn_rsn_management>();
-        a->parse(p_io);
-        m_akm_ciphers->push_back(a);
+        auto& a = m_akm_ciphers.emplace_back();
+        a.parse(p_io);
     }
     m_rsn_capabilities = p_io.read_u2le();
 
@@ -91,9 +83,9 @@ void dot11_ie_48_rsn_partial::parse(std::shared_ptr<kaitai::kstream> p_io) {
 }
 
 void dot11_ie_48_rsn_partial::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
 
     m_rsn_version = p_io.read_u2le();
     m_group_cipher = p_io.read_bytes(4);

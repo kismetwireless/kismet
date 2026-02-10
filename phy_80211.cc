@@ -129,9 +129,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     Globalreg::enable_pool_type<dot11_ie_45_ht_cap::dot11_ie_45_rx_mcs>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<dot11_ie_48_rsn>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_management>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_48_rsn::shared_rsn_cipher_vector>([](auto *a) { a->clear(); });
     Globalreg::enable_pool_type<dot11_ie_48_rsn_partial>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<dot11_ie_54_mobility>([](auto *a) { a->reset(); });
