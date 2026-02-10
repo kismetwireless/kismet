@@ -28,7 +28,7 @@
 #include "packetchain.h"
 #include "kis_dlt.h"
 
-#ifndef DLT_IEEE802_11_RADIO	
+#ifndef DLT_IEEE802_11_RADIO
 #define DLT_IEEE802_11_RADIO 127
 #endif
 
@@ -44,13 +44,13 @@ public:
     }
 
 private:
-	kis_dlt_radiotap();
+    kis_dlt_radiotap();
 
 public:
-	virtual ~kis_dlt_radiotap() { };
+    virtual ~kis_dlt_radiotap() { };
 
 protected:
-	virtual int handle_packet(const std::shared_ptr<kis_packet>& in_pack) override;
+    virtual int handle_packet(const std::shared_ptr<kis_packet>& in_pack) override;
 
     unsigned int update_crc32_80211(unsigned int crc, const char *data,
             int len, unsigned int poly);
