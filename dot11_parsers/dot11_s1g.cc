@@ -48,4 +48,6 @@ void dot11_s1g::parse(const std::string_view *view) {
     }
 
     m_header_len = p_io.pos();
+
+    m_parsed = true;
 }

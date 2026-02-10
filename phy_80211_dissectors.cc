@@ -1468,8 +1468,6 @@ eap_end:
 
         }
     } else if (fc->type == packet_extension) {
-        _MSG_DEBUG("s1g packet");
-
         try {
             packinfo->s1g.parse(chunk.get());
         } catch (...) {
@@ -1483,7 +1481,12 @@ eap_end:
             case packet_sub_s1g_beacon:
                 packinfo->type = packet_extension;
                 packinfo->subtype = packet_sub_s1g_beacon;
-                packinfo->source_mac =packinfo-> s1g.addr0_mac();
+                packinfo->bssid_mac = packinfo-> s1g.addr0_mac();
+                packinfo->source_mac = packinfo->bssid_mac;
+
+                packinfo->ietag_csum =
+                    crc32_fast(chunk->data() + packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset);
 
                 break;
         }
@@ -1592,15 +1595,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
     // Called opportunistically by the main dot11 processor when the checksum over all IE
     // tags has changed
-
-    // If we can't have IE tags at all
-    if (packinfo->type != packet_management || !(
-                packinfo->subtype == packet_sub_beacon ||
-                packinfo->subtype == packet_sub_probe_req ||
-                packinfo->subtype == packet_sub_probe_resp ||
-                packinfo->subtype == packet_sub_association_req ||
-                packinfo->subtype == packet_sub_reassociation_req))
-        return 0;
 
     auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 

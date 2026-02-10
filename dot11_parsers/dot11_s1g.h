@@ -26,8 +26,14 @@
 
 class dot11_s1g {
 public:
-    dot11_s1g() { }
+    dot11_s1g() {
+        m_parsed = false;
+    }
     ~dot11_s1g() { }
+
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
 
     void parse(const std::string_view *view);
 
@@ -116,11 +122,14 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_addr0 = "";
         m_addr1 = "";
     }
 
 protected:
+    bool m_parsed;
+
     uint16_t m_framecontrol;
     uint16_t m_duration;
 
