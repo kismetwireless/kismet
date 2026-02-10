@@ -34,11 +34,18 @@
 
 class dot11_ie_11_qbss {
 public:
-    dot11_ie_11_qbss() { }
+    dot11_ie_11_qbss() {
+        m_parsed = false;
+    }
+
     ~dot11_ie_11_qbss() { }
 
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string &data);
+    void parse(const std::string &data);
 
     constexpr17 uint16_t station_count() const {
         return m_station_count;
@@ -53,12 +60,14 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_station_count = 0;
         m_channel_utilization = 0;
         m_available_admissions = 0;
     }
 
 protected:
+    bool m_parsed;
     uint16_t m_station_count;
     uint8_t m_channel_utilization;
     uint16_t m_available_admissions;

@@ -2716,11 +2716,11 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
         ssid->set_ssid_len(dot11info->ssid_len);
 
-        if (dot11info->owe_transition != nullptr) {
-            ssid->set_owe_bssid(dot11info->owe_transition->bssid());
-            ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
+        if (dot11info->owe_transition.parsed()) {
+            ssid->set_owe_bssid(dot11info->owe_transition.bssid());
+            ssid->set_owe_ssid_len(dot11info->owe_transition.ssid().length());
             // owe transition ssid is raw tag content
-            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
+            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition.ssid()));
         }
 
         auto meshid = dot11info->ie_tags.tags_map().find(114);
@@ -2796,13 +2796,13 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         std::string ssidstr;
         if (ssid->get_ssid_cloaked()) {
             // Use the OWE SSID if we can
-            if (dot11info->owe_transition != nullptr) {
-                if (dot11info->owe_transition->ssid().length() != 0)
+            if (dot11info->owe_transition.parsed()) {
+                if (dot11info->owe_transition.ssid().length() != 0)
                     ssidstr = fmt::format("an OWE SSID '{}' for BSSID {}",
-                            munge_to_printable(dot11info->owe_transition->ssid()),
-                            dot11info->owe_transition->bssid());
+                            munge_to_printable(dot11info->owe_transition.ssid()),
+                            dot11info->owe_transition.bssid());
                 else
-                {} {}                    ssidstr = "a cloaked SSID";
+                    ssidstr = "a cloaked SSID";
             } else {
                 ssidstr = "a cloaked SSID";
             }
@@ -2922,9 +2922,9 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     // Update MFP
-    if (dot11info->rsn != nullptr) {
-        ssid->set_wpa_mfp_required(dot11info->rsn->rsn_capability_mfp_required());
-        ssid->set_wpa_mfp_supported(dot11info->rsn->rsn_capability_mfp_supported());
+    if (dot11info->rsn.parsed()) {
+        ssid->set_wpa_mfp_required(dot11info->rsn.rsn_capability_mfp_required());
+        ssid->set_wpa_mfp_supported(dot11info->rsn.rsn_capability_mfp_supported());
     } else {
         ssid->set_wpa_mfp_required(false);
         ssid->set_wpa_mfp_supported(false);
@@ -2960,9 +2960,9 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             ssid->set_beacon_info(dot11info->beacon_info);
 
         // Set the mobility
-        if (dot11info->dot11r_mobility != NULL) {
+        if (dot11info->dot11r_mobility.parsed()) {
             ssid->set_dot11r_mobility(true);
-            ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
+            ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility.mobility_domain());
         }
 
         // Set tx power
@@ -2972,42 +2972,42 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         ssid->set_cisco_client_mfp(dot11info->cisco_client_mfp);
 
         // Set QBSS
-        if (dot11info->qbss != NULL) {
+        if (dot11info->qbss.parsed()) {
             ssid->set_dot11e_qbss(true);
-            ssid->set_dot11e_qbss_stations(dot11info->qbss->station_count());
+            ssid->set_dot11e_qbss_stations(dot11info->qbss.station_count());
 
             // Percentage is value / max (1 byte, 255)
-            double chperc = (double) ((double) dot11info->qbss->channel_utilization() /
+            double chperc = (double) ((double) dot11info->qbss.channel_utilization() /
                     (double) 255.0f) * 100.0f;
             ssid->set_dot11e_qbss_channel_load(chperc);
         }
 
         // Set the HT and VHT info.  If we have VHT, we assume we must have HT; I've never
         // seen VHT without HT.  We handle HT only later on.
-        if (dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
+        if (dot11info->dot11vht.parsed() && dot11info->dot11ht.parsed()) {
             channel_from_ht = true;
 
             // Grab the primary channel from the HT data
-            ssid->set_channel(n_to_string<int>(dot11info->dot11ht->primary_channel()));
+            ssid->set_channel(n_to_string<int>(dot11info->dot11ht.primary_channel()));
 
-            if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80) {
+            if (dot11info->dot11vht.channel_width() == dot11_ie_192_vht_op::ch_80) {
                 ssid->set_ht_mode("HT80");
-                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
-                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
-            } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_160) {
+                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht.center1()));
+                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht.center2()));
+            } else if (dot11info->dot11vht.channel_width() == dot11_ie_192_vht_op::ch_160) {
                 ssid->set_ht_mode("HT160");
-                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht.center1()));
                 ssid->set_ht_center_2(0);
-            } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80_80) {
+            } else if (dot11info->dot11vht.channel_width() == dot11_ie_192_vht_op::ch_80_80) {
                 ssid->set_ht_mode("HT80+80");
-                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
-                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
-            } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_20_40) {
-                if (dot11info->dot11ht->ht_info_chan_offset_none()) {
+                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht.center1()));
+                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht.center2()));
+            } else if (dot11info->dot11vht.channel_width() == dot11_ie_192_vht_op::ch_20_40) {
+                if (dot11info->dot11ht.ht_info_chan_offset_none()) {
                     ssid->set_ht_mode("HT20");
-                } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
+                } else if (dot11info->dot11ht.ht_info_chan_offset_above()) {
                     ssid->set_ht_mode("HT40+");
-                } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
+                } else if (dot11info->dot11ht.ht_info_chan_offset_below()) {
                     ssid->set_ht_mode("HT40-");
                 }
 
@@ -3015,13 +3015,13 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                 ssid->set_ht_center_2(0);
 
             }
-        } else if (dot11info->dot11ht != nullptr) {
+        } else if (dot11info->dot11ht.parsed()) {
             // Only HT info no VHT
-            if (dot11info->dot11ht->ht_info_chan_offset_none()) {
+            if (dot11info->dot11ht.ht_info_chan_offset_none()) {
                 ssid->set_ht_mode("HT20");
-            } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
+            } else if (dot11info->dot11ht.ht_info_chan_offset_above()) {
                 ssid->set_ht_mode("HT40+");
-            } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
+            } else if (dot11info->dot11ht.ht_info_chan_offset_below()) {
                 ssid->set_ht_mode("HT40-");
             }
 
@@ -3029,14 +3029,14 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
             ssid->set_ht_center_1(0);
             ssid->set_ht_center_2(0);
-            ssid->set_channel(n_to_string<int>(dot11info->dot11ht->primary_channel()));
+            ssid->set_channel(n_to_string<int>(dot11info->dot11ht.primary_channel()));
         }
 
         // Update OWE
-        if (dot11info->owe_transition != nullptr) {
-            ssid->set_owe_bssid(dot11info->owe_transition->bssid());
-            ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
-            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
+        if (dot11info->owe_transition.parsed()) {
+            ssid->set_owe_bssid(dot11info->owe_transition.bssid());
+            ssid->set_owe_ssid_len(dot11info->owe_transition.ssid().length());
+            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition.ssid()));
         }
 
         // Pull specific tags we don't pre-parse
@@ -3367,9 +3367,9 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
             }
         }
 
-        if (dot11info->dot11r_mobility != nullptr) {
+        if (dot11info->dot11r_mobility.parsed()) {
             probessid->set_dot11r_mobility(true);
-            probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
+            probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility.mobility_domain());
         }
 
         // Alias the last ssid snapshot
@@ -3377,9 +3377,9 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
         lpr->set(probessid);
 
         // Update MFP
-        if (dot11info->rsn != nullptr) {
-            probessid->set_wpa_mfp_required(dot11info->rsn->rsn_capability_mfp_required());
-            probessid->set_wpa_mfp_supported(dot11info->rsn->rsn_capability_mfp_supported());
+        if (dot11info->rsn.parsed()) {
+            probessid->set_wpa_mfp_required(dot11info->rsn.rsn_capability_mfp_required());
+            probessid->set_wpa_mfp_supported(dot11info->rsn.rsn_capability_mfp_supported());
         } else {
             probessid->set_wpa_mfp_required(false);
             probessid->set_wpa_mfp_supported(false);
@@ -3552,20 +3552,21 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
     if (dot11info->type == packet_management) {
         // Client-level assoc req advertisements
         if (dot11info->subtype == packet_sub_association_req) {
-            if (dot11info->tx_power != nullptr) {
-                clientdot11->set_min_tx_power(dot11info->tx_power->min_power());
-                clientdot11->set_max_tx_power(dot11info->tx_power->max_power());
+            if (dot11info->tx_power.parsed()) {
+                clientdot11->set_min_tx_power(dot11info->tx_power.min_power());
+                clientdot11->set_max_tx_power(dot11info->tx_power.max_power());
             }
 
-            if (dot11info->supported_channels != nullptr) {
+            if (dot11info->supported_channels.parsed()) {
                 auto clichannels = clientdot11->get_supported_channels();
                 clichannels->clear();
 
-                for (const auto& c : dot11info->supported_channels->supported_channels())
+                for (const auto& c : dot11info->supported_channels.supported_channels())
                     clichannels->push_back(c);
             }
 
-            if ((dot11info->rsn == nullptr || !dot11info->rsn->rsn_capability_mfp_supported()) &&
+            // TODO how often do we warn about MFP
+            if ((dot11info->rsn.parsed() && !dot11info->rsn.rsn_capability_mfp_supported()) &&
                     alertracker->potential_alert(alert_noclientmfp_ref)) {
                 std::string al = "IEEE80211 network BSSID " +
                     client_record->get_bssid().mac_to_string() +

@@ -28,12 +28,13 @@ void dot11_ie_221_owe_transition::parse(std::shared_ptr<kaitai::kstream> p_io) {
     auto ssid_len = p_io->read_u1();
     m_ssid = p_io->read_bytes(ssid_len);
 
+    m_parsed = true;
 }
 
 void dot11_ie_221_owe_transition::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
 
     m_vendor_type = p_io.read_u1();
 
@@ -41,5 +42,7 @@ void dot11_ie_221_owe_transition::parse(const std::string& data) {
 
     auto ssid_len = p_io.read_u1();
     m_ssid = p_io.read_bytes(ssid_len);
+
+    m_parsed = true;
 }
 

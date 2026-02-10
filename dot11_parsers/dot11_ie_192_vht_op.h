@@ -33,8 +33,14 @@
 
 class dot11_ie_192_vht_op {
 public:
-    dot11_ie_192_vht_op() { }
+    dot11_ie_192_vht_op() {
+        m_parsed = false;
+    }
     ~dot11_ie_192_vht_op() { }
+
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
 
     enum ch_channel_width {
         ch_20_40 = 0,
@@ -44,7 +50,7 @@ public:
     };
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 ch_channel_width channel_width() const {
         return (ch_channel_width) m_channel_width;
@@ -91,6 +97,7 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_channel_width = 0;
         m_center1 = 0;
         m_center2 = 0;
@@ -98,6 +105,7 @@ public:
     }
 
 protected:
+    bool m_parsed;
     uint8_t m_channel_width;
     uint8_t m_center1;
     uint8_t m_center2;

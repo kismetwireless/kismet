@@ -31,11 +31,18 @@
 
 class dot11_ie_54_mobility {
 public:
-    dot11_ie_54_mobility() { }
+    dot11_ie_54_mobility() {
+        m_parsed = false;
+    }
+
     ~dot11_ie_54_mobility() { }
 
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 uint16_t mobility_domain() const {
         return m_mobility_domain;
@@ -53,12 +60,14 @@ public:
         return mobility_policy() & 0x02;
     }
 
-    void reset() { 
+    void reset() {
+        m_parsed = false;
         m_mobility_domain = 0;
         m_mobility_policy = 0;
     }
 
 protected:
+    bool m_parsed;
     uint16_t m_mobility_domain;
     uint8_t m_mobility_policy;
 

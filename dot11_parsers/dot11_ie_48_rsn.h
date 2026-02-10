@@ -42,11 +42,18 @@ public:
     typedef std::vector<std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> > shared_rsn_cipher_vector;
     typedef std::vector<std::shared_ptr<dot11_ie_48_rsn_rsn_management> > shared_rsn_management_vector;
 
-    dot11_ie_48_rsn() { }
+    dot11_ie_48_rsn() {
+        m_parsed = false;
+    }
+
     ~dot11_ie_48_rsn() { }
 
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 uint16_t rsn_version() const {
         return m_rsn_version;
@@ -101,6 +108,7 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_rsn_version = 0;
         m_group_cipher.reset();
         m_pairwise_count = 0;
@@ -111,6 +119,7 @@ public:
     }
 
 protected:
+    bool m_parsed;
     uint16_t m_rsn_version;
     std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> m_group_cipher;
     uint16_t m_pairwise_count;

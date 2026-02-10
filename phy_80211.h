@@ -73,6 +73,7 @@
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
+#include "dot11_parsers/dot11_s1g.h"
 
 #define PHY80211_MAC_LEN	6
 // Dot11 SSID max len
@@ -205,6 +206,7 @@ class dot11_packinfo : public packet_component {
             owe_transition.reset();
             rsn.reset();
             droneid.reset();
+            s1g.reset();
 
             basic_rates.clear();
             extended_rates.clear();
@@ -313,14 +315,16 @@ class dot11_packinfo : public packet_component {
         std::string wps_uuid_e;
 
         // Direct kaitai structs pulled from the beacon
-        std::shared_ptr<dot11_ie_11_qbss> qbss;
-        std::shared_ptr<dot11_ie_33_power> tx_power;
-        std::shared_ptr<dot11_ie_36_supported_channels> supported_channels;
-        std::shared_ptr<dot11_ie_54_mobility> dot11r_mobility;
-        std::shared_ptr<dot11_ie_61_ht_op> dot11ht;
-        std::shared_ptr<dot11_ie_192_vht_op> dot11vht;
-        std::shared_ptr<dot11_ie_221_owe_transition> owe_transition;
-        std::shared_ptr<dot11_ie_48_rsn> rsn;
+        dot11_ie_11_qbss qbss;
+        dot11_ie_33_power tx_power;
+        dot11_ie_36_supported_channels supported_channels;
+        dot11_ie_54_mobility dot11r_mobility;
+        dot11_ie_61_ht_op dot11ht;
+        dot11_ie_192_vht_op dot11vht;
+        dot11_ie_221_owe_transition owe_transition;
+        dot11_ie_48_rsn rsn;
+
+        dot11_s1g s1g;
 
         std::shared_ptr<dot11_ie_221_dji_droneid> droneid;
 

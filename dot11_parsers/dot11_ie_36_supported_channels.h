@@ -33,8 +33,14 @@
 
 class dot11_ie_36_supported_channels {
 public:
-    dot11_ie_36_supported_channels() { }
+    dot11_ie_36_supported_channels() {
+        m_parsed = false;
+    }
     ~dot11_ie_36_supported_channels() { }
+
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
@@ -43,10 +49,12 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_supported_channels.clear();
     }
 
 protected:
+    bool m_parsed;
     std::vector<unsigned int> m_supported_channels;
 };
 

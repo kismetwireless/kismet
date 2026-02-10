@@ -20,6 +20,8 @@
 #include "dot11_s1g.h"
 #include "util.h"
 
+#include "fmt.h"
+
 void dot11_s1g::parse(const std::string_view *view) {
     membuf view_membuf(view->data(), view->data() + view->length());
     std::istream istream_view(&view_membuf);
@@ -45,5 +47,5 @@ void dot11_s1g::parse(const std::string_view *view) {
         m_fixparm_ano = p_io.read_u1();
     }
 
-    m_tag_data = p_io.read_bytes_full();
+    m_header_len = p_io.pos();
 }

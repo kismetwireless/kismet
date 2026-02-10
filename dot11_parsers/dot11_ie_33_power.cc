@@ -23,13 +23,17 @@
 void dot11_ie_33_power::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_min_power = p_io->read_u1();
     m_max_power = p_io->read_u1();
+
+    m_parsed = true;
 }
 
 void dot11_ie_33_power::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
 
     m_min_power = p_io.read_u1();
     m_max_power = p_io.read_u1();
+
+    m_parsed = true;
 }

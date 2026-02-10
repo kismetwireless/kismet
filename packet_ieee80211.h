@@ -93,7 +93,10 @@ enum ieee_80211_subtype {
     packet_sub_data_qos_data_cf_ack_poll = 11,
     packet_sub_data_qos_null = 12,
     packet_sub_data_qos_cf_poll_nod = 14,
-    packet_sub_data_qos_cf_ack_poll = 15
+    packet_sub_data_qos_cf_ack_poll = 15,
+
+    // s1g extension subtypes
+    packet_sub_s1g_beacon = 1,
 };
 
 // distribution directions

@@ -111,8 +111,13 @@ public:
         return m_fixparm_ano;
     }
 
-    const std::string& tag_data() const {
-        return m_tag_data;
+    constexpr size_t header_len() const {
+        return m_header_len;
+    }
+
+    void reset() {
+        m_addr0 = "";
+        m_addr1 = "";
     }
 
 protected:
@@ -128,7 +133,7 @@ protected:
     uint32_t m_fixparm_compressed_ssid;
     uint8_t m_fixparm_ano;
 
-    std::string m_tag_data;
+    size_t m_header_len;
 };
 
 #endif /* __DOT11_S1G_H__ */

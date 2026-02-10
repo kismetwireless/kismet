@@ -22,6 +22,8 @@
 #include "dot11_ie_48_rsn.h"
 
 void dot11_ie_48_rsn::parse(std::shared_ptr<kaitai::kstream> p_io) {
+    m_parsed = true;
+
     m_rsn_version = p_io->read_u2le();
     m_group_cipher = Globalreg::new_from_pool<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher>();
     m_group_cipher->parse(*p_io);
@@ -44,9 +46,11 @@ void dot11_ie_48_rsn::parse(std::shared_ptr<kaitai::kstream> p_io) {
 }
 
 void dot11_ie_48_rsn::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
+
+    m_parsed = true;
 
     m_rsn_version = p_io.read_u2le();
     m_group_cipher = Globalreg::new_from_pool<dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher>();

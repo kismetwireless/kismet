@@ -25,15 +25,17 @@ void dot11_ie_192_vht_op::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_center1 = p_io->read_u1();
     m_center2 = p_io->read_u1();
     m_basic_mcs_map = p_io->read_u2be();
+    m_parsed = true;
 }
 
 void dot11_ie_192_vht_op::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
 
     m_channel_width = p_io.read_u1();
     m_center1 = p_io.read_u1();
     m_center2 = p_io.read_u1();
     m_basic_mcs_map = p_io.read_u2be();
+    m_parsed = true;
 }

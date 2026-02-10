@@ -1470,10 +1470,36 @@ eap_end:
     } else if (fc->type == packet_extension) {
         _MSG_DEBUG("s1g packet");
 
-        dot11_s1g s1g;
-        s1g.parse(chunk.get());
+        try {
+            packinfo->s1g.parse(chunk.get());
+        } catch (...) {
+            packinfo->corrupt = 1;
+            return -1;
+        }
 
-        _MSG_DEBUG("s1g type {} sub {} compressed ssid present {}", s1g.fc_type(), s1g.fc_subtype(), s1g.fc_compressed_ssid_present());
+        packinfo->header_offset = packinfo->s1g.header_len();
+
+        switch (packinfo->s1g.fc_subtype()) {
+            case packet_sub_s1g_beacon:
+                packinfo->type = packet_extension;
+                packinfo->subtype = packet_sub_s1g_beacon;
+                packinfo->source_mac =packinfo-> s1g.addr0_mac();
+
+                break;
+        }
+
+#if 0
+        _MSG_DEBUG("s1g type {} sub {} header len {} {:x} {:x}", s1g.fc_type(), s1g.fc_subtype(), s1g.header_len(), chunk->data()[packinfo->header_offset], chunk->data()[packinfo->header_offset + 1]);
+
+        membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]),
+                (char *) &(chunk->data()[chunk->length()]));
+        std::istream istream_ietags(&tags_membuf);
+
+        auto stream_ietags = kaitai::kstream(&istream_ietags);
+        packinfo->ie_tags.parse(stream_ietags);
+
+        _MSG_DEBUG("  {} tags", packinfo->ie_tags.size());
+#endif
     }
 
     // Populate the common addressing
@@ -1912,9 +1938,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         // IE 11 QBSS
         if (ie_tag.tag_num() == 11) {
             try {
-                auto qbss = Globalreg::new_from_pool<dot11_ie_11_qbss>();
-                qbss->parse(ie_tag.tag_data());
-                packinfo->qbss = qbss;
+                packinfo->qbss.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
                 // fprintf(stderr, "debug - corrupt QBSS %s\n", e.what());
                 packinfo->corrupt = 1;
@@ -1927,8 +1951,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         // IE 33 advertised txpower in probe req
         if (ie_tag.tag_num() == 33) {
             try {
-                packinfo->tx_power = Globalreg::new_from_pool<dot11_ie_33_power>();
-                packinfo->tx_power->parse(ie_tag.tag_data());
+                packinfo->tx_power.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
                 // fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
             }
@@ -2033,23 +2056,21 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             bool rsn_invalid = false;
 
             try {
-                auto rsn = Globalreg::new_from_pool<dot11_ie_48_rsn>();
-                rsn->parse(ie_tag.tag_data());
+                packinfo->rsn.parse(ie_tag.tag_data());
 
-                packinfo->cryptset |= wpa_rsn_group_conv(rsn->group_cipher()->cipher_type());
+                packinfo->cryptset |= wpa_rsn_group_conv(packinfo->rsn.group_cipher()->cipher_type());
 
-                for (auto i : *(rsn->pairwise_ciphers())) {
+                for (auto i : *(packinfo->rsn.pairwise_ciphers())) {
                     packinfo->cryptset |= wpa_rsn_pairwise_conv(i->cipher_type());
                 }
 
                 // Merge the authkey types
-                for (auto i : *(rsn->akm_ciphers())) {
+                for (auto i : *(packinfo->rsn.akm_ciphers())) {
                     packinfo->cryptset |= dot11_crypt_general_wpa;
                     packinfo->cryptset |= wpa_rsn_auth_conv(i->management_type());
                 }
 
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-                packinfo->rsn = rsn;
             } catch (const std::exception& e) {
                 rsn_invalid = true;
                 packinfo->corrupt = 1;
@@ -2093,9 +2114,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         // IE 54 Mobility
         if (ie_tag.tag_num() == 54) {
             try {
-                auto mobility = Globalreg::new_from_pool<dot11_ie_54_mobility>();
-                mobility->parse(ie_tag.tag_data());
-                packinfo->dot11r_mobility = mobility;
+                packinfo->dot11r_mobility.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
                 packinfo->corrupt = 1;
                 return -1;
@@ -2106,9 +2125,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         // IE 61 HT
         if (ie_tag.tag_num() == 61) {
             try {
-                auto ht = Globalreg::new_from_pool<dot11_ie_61_ht_op>();
-                ht->parse(ie_tag.tag_data());
-                packinfo->dot11ht = ht;
+                packinfo->dot11ht.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
                 // fprintf(stderr, "debug - unparsable HT\n");
                 // Don't consider unparsable HT a corrupt packet (for now)
@@ -2265,10 +2282,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         // IE 192 VHT Operation
         if (ie_tag.tag_num() == 192) {
             try {
-                auto vht = Globalreg::new_from_pool<dot11_ie_192_vht_op>();
-                vht->parse(ie_tag.tag_data());
-                packinfo->dot11vht = vht;
-
+                packinfo->dot11vht.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
                 // fprintf(stderr, "debug - vht 192 error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
@@ -2373,9 +2387,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 } else if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
                     // Look for wpa owe transitional tags
                     if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
-                        auto owe_trans = Globalreg::new_from_pool<dot11_ie_221_owe_transition>();
-                        owe_trans->parse(vendor->vendor_tag());
-                        packinfo->owe_transition = owe_trans;
+                        packinfo->owe_transition.parse(vendor->vendor_tag());
                         packinfo->cryptset |= crypt_wpa_owe;
                     }
                 } else if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {

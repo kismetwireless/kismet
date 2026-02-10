@@ -36,11 +36,16 @@ public:
     dot11_ie_33_power() {
         m_min_power = 0;
         m_max_power = 0;
+        m_parsed = false;
     }
     ~dot11_ie_33_power() { }
 
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 uint8_t min_power() const {
         return m_min_power;
@@ -56,6 +61,7 @@ public:
     }
 
 protected:
+    bool m_parsed;
     uint8_t m_min_power;
     uint8_t m_max_power;
 };

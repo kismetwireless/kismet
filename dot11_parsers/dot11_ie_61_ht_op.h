@@ -33,11 +33,17 @@
 
 class dot11_ie_61_ht_op {
 public:
-    dot11_ie_61_ht_op() { }
+    dot11_ie_61_ht_op() {
+        m_parsed = false;
+    }
     ~dot11_ie_61_ht_op() { }
 
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 uint8_t primary_channel() const {
         return m_primary_channel;
@@ -92,6 +98,7 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_primary_channel = 0;
         m_info_subset_1 = 0;
         m_info_subset_2 = 0;
@@ -100,6 +107,7 @@ public:
     }
 
 protected:
+    bool m_parsed;
     uint8_t m_primary_channel;
     uint8_t m_info_subset_1;
     uint16_t m_info_subset_2;

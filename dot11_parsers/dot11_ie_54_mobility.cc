@@ -23,12 +23,16 @@
 void dot11_ie_54_mobility::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_mobility_domain = p_io->read_u2le();
     m_mobility_policy = p_io->read_u1();
+
+    m_parsed = true;
 }
 
 void dot11_ie_54_mobility::parse(const std::string& data) {
-	membuf d_membuf(data.data(), data.data() + data.length());
-	std::istream is(&d_membuf);
-	kaitai::kstream p_io(&is);
+    membuf d_membuf(data.data(), data.data() + data.length());
+    std::istream is(&d_membuf);
+    kaitai::kstream p_io(&is);
+
+    m_parsed = true;
 
     m_mobility_domain = p_io.read_u2le();
     m_mobility_policy = p_io.read_u1();

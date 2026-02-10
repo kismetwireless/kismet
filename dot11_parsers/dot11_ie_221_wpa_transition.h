@@ -28,8 +28,15 @@
 
 class dot11_ie_221_owe_transition {
 public:
-    dot11_ie_221_owe_transition() { }
+    dot11_ie_221_owe_transition() {
+        m_parsed = false;
+    }
+
     ~dot11_ie_221_owe_transition() { }
+
+    constexpr bool parsed() const {
+        return m_parsed;
+    }
 
     constexpr17 static unsigned int vendor_oui() {
         return 0x506f9a;
@@ -40,7 +47,7 @@ public:
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
+    void parse(const std::string& data);
 
     constexpr17 uint8_t vendor_type() const {
         return m_vendor_type;
@@ -55,12 +62,14 @@ public:
     }
 
     void reset() {
+        m_parsed = false;
         m_vendor_type = 0;
         m_bssid = mac_addr();
         m_ssid = "";
     }
 
 protected:
+    bool m_parsed;
     uint8_t m_vendor_type;
     mac_addr m_bssid;
     std::string m_ssid;

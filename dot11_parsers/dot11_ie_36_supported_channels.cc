@@ -20,6 +20,8 @@
 #include "fmt.h"
 
 void dot11_ie_36_supported_channels::parse(std::shared_ptr<kaitai::kstream> p_io) {
+    m_parsed = true;
+
     while (!p_io->is_eof()) {
         unsigned int start, count;
 
