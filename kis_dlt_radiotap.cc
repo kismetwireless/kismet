@@ -252,8 +252,8 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     u.i8 = *iter++;
                     break;
                 case IEEE80211_RADIOTAP_CHANNEL:
-					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
-					iter += iter_align;
+                    iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+                    iter += iter_align;
 
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
@@ -264,15 +264,15 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                 case IEEE80211_RADIOTAP_LOCK_QUALITY:
                 case IEEE80211_RADIOTAP_TX_ATTENUATION:
                 case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
-					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
-					iter += iter_align;
+                    iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+                    iter += iter_align;
 
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
                     break;
                 case IEEE80211_RADIOTAP_TSFT:
-					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 8);
-					iter += iter_align;
+                    iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 8);
+                    iter += iter_align;
 
                     u.u64 = EXTRACT_LE_64BITS(iter);
                     iter += sizeof(u.u64);
@@ -286,8 +286,8 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     break;
 #else
                 case IEEE80211_RADIOTAP_RX_FLAGS:
-					iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
-					iter += iter_align;
+                    iter_align = ALIGN_OFFSET((unsigned int) (iter - iter_start), 2);
+                    iter += iter_align;
 
                     u.u16 = EXTRACT_LE_16BITS(iter);
                     iter += sizeof(u.u16);
@@ -322,12 +322,12 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     continue;
             }
 
-			// static int pnum = 0;
+            // static int pnum = 0;
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
                     // radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
                     radioheader->freq_khz = (double) u.u16 * 1000;
-					// printf("debug - %d freq %u\n", pnum++, radioheader->freq_mhz);
+                    // printf("debug - %d freq %u\n", pnum++, radioheader->freq_mhz);
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
                         radioheader->carrier = carrier_80211fhss;
                     else if (IEEE80211_IS_CHAN_A(u2.u16))
@@ -356,24 +356,24 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                         radioheader->encoding = encoding_unknown;
                     break;
                 case IEEE80211_RADIOTAP_RATE:
-					/* strip basic rate bit & convert to kismet units */
+                    /* strip basic rate bit & convert to kismet units */
                     radioheader->datarate = ((float) (u.u8 &~ 0x80) / 2) * 10;
                     break;
                 case IEEE80211_RADIOTAP_ANTENNA:
                     record_antenna = u.u8;
                     break;
-				case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
                     record_signal = u.i8;
                     signal_present = true;
-					break;
-				case IEEE80211_RADIOTAP_DBM_ANTNOISE:
+                    break;
+                case IEEE80211_RADIOTAP_DBM_ANTNOISE:
                     radioheader->signal_type = kis_l1_signal_type_dbm;
-					radioheader->noise_dbm = u.i8;
-					break;
+                    radioheader->noise_dbm = u.i8;
+                    break;
                 case IEEE80211_RADIOTAP_FLAGS:
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS) {
-						fcs_cut = 4;
-					}
+                        fcs_cut = 4;
+                    }
 
                     if (u.u8 & IEEE80211_RADIOTAP_F_BADFCS) {
                         fcs_flag_invalid = true;
@@ -383,7 +383,7 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 #if defined(SYS_OPENBSD)
                 case IEEE80211_RADIOTAP_RSSI:
                     /* Convert to Kismet units...  No reason to use RSSI units
-					 * here since we know the conversion factor */
+                     * here since we know the conversion factor */
                     radioheader->signal_type = kis_l1_signal_type_dbm;
                     radioheader->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
                     break;
@@ -412,10 +412,10 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     }
 
     auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
-    
+
     if (fcs_cut && offset + fcs_cut > (int) linkchunk->length()) {
         return 0;
-	}
+    }
 
     // Slice the rtap headers off and put them in the l1chunk record
     auto l1chunk = packetchain->new_packet_component<kis_datachunk>();
@@ -424,13 +424,13 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
     decapchunk->set_data(linkchunk->substr(offset, linkchunk->length() - offset - fcs_cut));
 
-	in_pack->insert(pack_comp_radiodata, radioheader);
-	in_pack->insert(pack_comp_decap, decapchunk);
+    in_pack->insert(pack_comp_radiodata, radioheader);
+    in_pack->insert(pack_comp_decap, decapchunk);
 
     std::shared_ptr<kis_packet_checksum> fcschunk;
 
     // If we're slicing the FCS into its own record and we have the space
-	if (fcs_cut && linkchunk->length() > 4) {
+    if (fcs_cut && linkchunk->length() > 4) {
         fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
 
         fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
@@ -439,8 +439,8 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
         // it's assumed good until proven otherwise
         fcschunk->checksum_valid = !fcs_flag_invalid;
 
-		in_pack->insert(pack_comp_checksum, fcschunk);
-	}
+        in_pack->insert(pack_comp_checksum, fcschunk);
+    }
 
     // If we're not slicing the fcs into its own record, but we know
     // it's bad, we make a junk FCS and set it bad
@@ -455,27 +455,27 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
         in_pack->insert(pack_comp_checksum, fcschunk);
     }
 
-    // Radiotap only encapsulates wireless so we can do our own fcs algo locally; 
+    // Radiotap only encapsulates wireless so we can do our own fcs algo locally;
     // if we have an unknown FCS, and FCS bytes available, we should do a full
     // checksum
-	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
+    if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
         fcschunk->checksum_valid) {
 
-		// Compare it and flag the packet
-		uint32_t calc_crc =
-			crc32_le_80211(crc32_table, decapchunk->data(), decapchunk->length());
+        // Compare it and flag the packet
+        uint32_t calc_crc =
+            crc32_le_80211(crc32_table, decapchunk->data(), decapchunk->length());
         uint32_t flipped_crc = kis_swap32(calc_crc);
 
         auto checksum_ptr = reinterpret_cast<const uint32_t *>(fcschunk->data());
 
         // compare both representations
-		if (memcmp(checksum_ptr, &calc_crc, 4) && memcmp(checksum_ptr, &flipped_crc, 4)) {
-			fcschunk->checksum_valid = 0;
-		} else {
-			fcschunk->checksum_valid = 1;
-		}
+        if (memcmp(checksum_ptr, &calc_crc, 4) && memcmp(checksum_ptr, &flipped_crc, 4)) {
+            fcschunk->checksum_valid = 0;
+        } else {
+            fcschunk->checksum_valid = 1;
+        }
 
-	}
+    }
 
     // If we've validated the FCS and know this packet is junk, flag it at the
     // packet level
@@ -496,44 +496,44 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 // Taken from the BBN USRP 802.11 encoding code
 unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const char *data,
         int len, unsigned int poly) {
-	int i, j;
-	unsigned short ch;
+    int i, j;
+    unsigned short ch;
 
-	for ( i = 0; i < len; ++i) {
-		ch = data[i];
-		for (j = 0; j < 8; ++j) {
-			if ((crc ^ ch) & 0x0001) {
-				crc = (crc >> 1) ^ poly;
-			} else {
-				crc = (crc >> 1);
-			}
-			ch >>= 1;
-		}
-	}
-	return crc;
+    for ( i = 0; i < len; ++i) {
+        ch = data[i];
+        for (j = 0; j < 8; ++j) {
+            if ((crc ^ ch) & 0x0001) {
+                crc = (crc >> 1) ^ poly;
+            } else {
+                crc = (crc >> 1);
+            }
+            ch >>= 1;
+        }
+    }
+    return crc;
 }
 
 void kis_dlt_radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
-	int i;
-	char c;
+    int i;
+    char c;
 
-	for (i = 0; i < 256; ++i) {
-		c = i;
-		crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
-	}
+    for (i = 0; i < 256; ++i) {
+        c = i;
+        crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
+    }
 }
 
-unsigned int kis_dlt_radiotap::crc32_le_80211(unsigned int *crc32_table, 
+unsigned int kis_dlt_radiotap::crc32_le_80211(unsigned int *crc32_table,
         const char *buf, int len) {
-	int i;
-	unsigned int crc = 0xFFFFFFFF;
+    int i;
+    unsigned int crc = 0xFFFFFFFF;
 
-	for (i = 0; i < len; ++i) {
-		crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFF];
-	}
+    for (i = 0; i < len; ++i) {
+        crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFF];
+    }
 
-	crc ^= 0xFFFFFFFF;
+    crc ^= 0xFFFFFFFF;
 
-	return crc;
+    return crc;
 }
 
