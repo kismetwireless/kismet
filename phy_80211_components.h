@@ -729,6 +729,16 @@ public:
 
     __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
 
+    // This is only used in s1g for matching short ssids, don't turn into a full
+    // field because we probably don't need it to be one
+    const uint32_t get_ssid_crc32_hash() const {
+        return ssid_crc32_hash;
+    }
+
+    void set_ssid_crc32_hash(uint32_t hash) {
+        ssid_crc32_hash = hash;
+    }
+
     __ProxyFullyDynamic(owe_ssid, std::string, std::string, std::string, tracker_element_string, owe_ssid_id);
     __ProxyFullyDynamic(owe_ssid_len, uint32_t, unsigned int, unsigned int, tracker_element_uint8, owe_ssid_len_id);
     __ProxyFullyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, tracker_element_mac_addr, owe_bssid_id);
@@ -821,9 +831,9 @@ public:
     void set_ietag_content_from_packet(const dot11_ie& tags);
 
     __ProxyFullyDynamic(meshid, std::string, std::string, std::string, tracker_element_string, meshid_id);
-	__ProxyFullyDynamic(mesh_gateway, uint8_t, bool, bool, tracker_element_uint8, mesh_gateway_id);
-	__ProxyFullyDynamic(mesh_peerings, uint8_t, uint8_t, uint8_t, tracker_element_uint8, mesh_peerings_id);
-	__ProxyFullyDynamic(mesh_forwarding, uint8_t, bool, bool, tracker_element_uint8, mesh_forwarding_id);
+    __ProxyFullyDynamic(mesh_gateway, uint8_t, bool, bool, tracker_element_uint8, mesh_gateway_id);
+    __ProxyFullyDynamic(mesh_peerings, uint8_t, uint8_t, uint8_t, tracker_element_uint8, mesh_peerings_id);
+    __ProxyFullyDynamic(mesh_forwarding, uint8_t, bool, bool, tracker_element_uint8, mesh_forwarding_id);
 
     __Proxy(adv_tx_power, uint8_t, uint8_t, uint8_t, adv_tx_power);
 
@@ -855,6 +865,8 @@ protected:
     std::shared_ptr<tracker_element_uint32> ssid_len;
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
+
+    uint32_t ssid_crc32_hash;
 
     uint16_t owe_ssid_id;
     uint16_t owe_ssid_len_id;

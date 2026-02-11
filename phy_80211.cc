@@ -83,6 +83,8 @@
 #include "dot11_parsers/dot11_ie_221_wfa.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
 
+#include "crc32.h"
+
 // static std::atomic<int> packetnum {0};
 
 // Convert the beacon interval to # of packets per second
@@ -2762,12 +2764,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
         ssid->set_ssid_len(dot11info->ssid_len);
 
-        if (dot11info->owe_transition.parsed()) {
-            ssid->set_owe_bssid(dot11info->owe_transition.bssid());
-            ssid->set_owe_ssid_len(dot11info->owe_transition.ssid().length());
-            // owe transition ssid is raw tag content
-            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition.ssid()));
-        }
+        ssid->set_ssid_crc32_hash(crc32_fast(dot11info->ssid.data(), dot11info->ssid.length()));
 
         auto meshid = dot11info->ie_tags.tags_map().find(114);
         if (meshid != dot11info->ie_tags.tags_map().end()) {
