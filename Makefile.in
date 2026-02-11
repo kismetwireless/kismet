@@ -33,6 +33,9 @@ PARSERS = \
 	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
 	dot11_parsers/dot11_ie_192_vht_op.cc.o \
 	dot11_parsers/dot11_ie_127_extended_capabilities.cc.o \
+	dot11_parsers/dot11_ie_213_s1g_beacon_compat.cc.o \
+	dot11_parsers/dot11_ie_214_short_beacon_interval.cc.o \
+	dot11_parsers/dot11_ie_217_s1g_capabilities.cc.o \
 	dot11_parsers/dot11_ie_221_vendor.cc.o \
 	dot11_parsers/dot11_ie_221_ms_wps.cc.o \
 	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
@@ -42,6 +45,7 @@ PARSERS = \
 	dot11_parsers/dot11_ie_221_wpa_transition.cc.o \
 	dot11_parsers/dot11_ie_221_rsn_pmkid.cc.o \
 	dot11_parsers/dot11_ie_221_wfa.cc.o \
+	dot11_parsers/dot11_ie_232_s1g_operation.cc.o \
 	dot11_parsers/dot11_ie_255_ext_tag.cc.o \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o \
