@@ -41,6 +41,8 @@
 /* USB command timeout */
 #define NRF_USB_TIMEOUT     2500
 
+#define USB_DEBUG 0
+
 /* Unique instance data passed around by capframework */
 typedef struct {
     libusb_context *libusb_ctx;
@@ -64,6 +66,7 @@ typedef struct {
 
 int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    char errstr[STATUS_MAX];
     uint8_t *cmdbuf = NULL;
     int actual_length;
     int r;
@@ -74,14 +77,28 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
     if (len > 0) 
         memcpy(cmdbuf + 1, data, len);
 
+    #if USB_DEBUG > 0
+    printf("sending command %u\n", cmdbuf);
+    #endif
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
             cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
+
+    if ( r < 0 ) {
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
+      snprintf(errstr, STATUS_MAX, "mousejack command buffer was %02x", *cmdbuf);
+    }
+    #if USB_DEBUG > 0
+    else {
+      printf("got response %u\n", r);
+    }
+    #endif
 
     free(cmdbuf);
 
     return r;
 }
 
+/* Nothing calls this function?
 int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     int r;
@@ -94,6 +111,7 @@ int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data
 
     return r;
 }
+*/
 
 int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uint8_t *data,
         size_t len) {
@@ -101,18 +119,20 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
     int r;
     unsigned char rx_buf[64];
     int actual_length;
+    char errstr[STATUS_MAX];
 
     pthread_mutex_lock(&(localnrf->usb_mutex));
     r = nrf_send_command_nb(caph, request, data, len);
 
     if (r < 0) {
-        printf("command send failed\n");
         pthread_mutex_unlock(&(localnrf->usb_mutex));
         return r;
     }
 
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
+    if (r < 0)
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
@@ -164,12 +184,21 @@ int nrf_enter_sniffer_mode(kis_capture_handler_t *caph, uint8_t *address, size_t
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     int actual_len, r;
+    char errstr[STATUS_MAX];
 
     pthread_mutex_lock(&(localnrf->usb_mutex));
 
     r = nrf_send_command_nb(caph, MOUSEJACK_RECEIVE_PAYLOAD, NULL, 0);
+    if (r < 0) {
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
+      pthread_mutex_unlock(&(localnrf->usb_mutex));
+      return r;
+    }
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
+    if (r < 0) {
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
+    }
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
@@ -529,7 +558,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    libusb_set_configuration(localnrf->nrf_handle, 0);
+    r = libusb_set_configuration(localnrf->nrf_handle, 0);
+    if (r < 0)
+        snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf->busno, localnrf->devno, libusb_strerror((enum libusb_error) r));
 
     nrf_enter_promisc_mode(caph, NULL, 0);
     nrf_enable_pa(caph);
@@ -659,6 +690,7 @@ int main(int argc, char *argv[]) {
         .nrf_handle = NULL,
         .caph = NULL,
     };
+    char errstr[STATUS_MAX];
 
     pthread_mutex_init(&(localnrf.usb_mutex), NULL);
 
@@ -673,6 +705,7 @@ int main(int argc, char *argv[]) {
 
     r = libusb_init(&localnrf.libusb_ctx);
     if (r < 0) {
+        snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf.busno, localnrf.devno, libusb_strerror((enum libusb_error) r));
         return -1;
     }
 
@@ -718,8 +751,13 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
+    // Let libusb gracefully shut itself down
+    usleep(NRF_USB_TIMEOUT);
+    struct timeval t = { 0, 0 };
+    r = libusb_handle_events_timeout_completed(localnrf.libusb_ctx, &t, 0);
+    if (r<0)
+      snprintf(errstr, STATUS_MAX, "mousejack (mousejack-%u-%u) libusb error %s", localnrf.busno, localnrf.devno, libusb_strerror((enum libusb_error) r));
     libusb_exit(localnrf.libusb_ctx);
-
     return 0;
 }
 
