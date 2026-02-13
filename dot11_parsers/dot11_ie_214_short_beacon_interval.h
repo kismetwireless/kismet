@@ -21,10 +21,10 @@
 
 #include <kaitai/kaitaistream.h>
 
-class dot11_short_beacon_interval {
+class dot11_ie_214_short_beacon_interval {
 public:
-    dot11_short_beacon_interval() : m_parsed{false} { }
-    ~dot11_short_beacon_interval() { }
+    dot11_ie_214_short_beacon_interval() : m_parsed{false} { }
+    ~dot11_ie_214_short_beacon_interval() { }
 
     constexpr bool parsed() const {
         return m_parsed;

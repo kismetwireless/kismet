@@ -21,12 +21,12 @@
 
 #include <kaitai/kaitaistream.h>
 
-class dot11_s1g_beacon_compat {
+class dot11_ie_213_s1g_beacon_compat {
 public:
-    dot11_s1g_beacon_compat() {
+    dot11_ie_213_s1g_beacon_compat() {
         m_parsed = false;
     }
-    ~dot11_s1g_beacon_compat() { }
+    ~dot11_ie_213_s1g_beacon_compat() { }
 
     constexpr bool parsed() const {
         return m_parsed;

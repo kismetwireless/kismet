@@ -21,12 +21,12 @@
 
 #include <kaitai/kaitaistream.h>
 
-class dot11_s1g_capabilities {
+class dot11_ie_217_s1g_capabilities {
 public:
-    dot11_s1g_capabilities() {
+    dot11_ie_217_s1g_capabilities() {
         m_parsed = false;
     }
-    ~dot11_s1g_capabilities() { }
+    ~dot11_ie_217_s1g_capabilities() { }
 
     constexpr bool parsed() const {
         return m_parsed;

@@ -21,7 +21,7 @@
 
 #include <kaitai/kaitaistream.h>
 
-class dot11_s1g_operation {
+class dot11_ie_232_s1g_operation {
 public:
     class channel_width {
     public:
@@ -89,8 +89,8 @@ public:
         uint8_t m_width;
     };
 
-    dot11_s1g_operation() : m_parsed{false} { }
-    ~dot11_s1g_operation() { }
+    dot11_ie_232_s1g_operation() : m_parsed{false} { }
+    ~dot11_ie_232_s1g_operation() { }
 
     constexpr bool parsed() const {
         return m_parsed;

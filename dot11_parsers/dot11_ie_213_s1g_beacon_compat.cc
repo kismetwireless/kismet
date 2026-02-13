@@ -22,7 +22,7 @@
 
 #include "fmt.h"
 
-void dot11_s1g_beacon_compat::parse(const std::string_view *view) {
+void dot11_ie_213_s1g_beacon_compat::parse(const std::string_view *view) {
     membuf view_membuf(view->data(), view->data() + view->length());
     std::istream istream_view(&view_membuf);
     auto p_io = kaitai::kstream(&istream_view);
