@@ -73,6 +73,7 @@
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
+#include "dot11_parsers/dot11_ie_232_s1g_operation.h"
 #include "dot11_parsers/dot11_s1g.h"
 
 #define PHY80211_MAC_LEN	6
@@ -325,6 +326,7 @@ class dot11_packinfo : public packet_component {
         dot11_ie_48_rsn rsn;
 
         dot11_s1g s1g;
+        dot11_ie_232_s1g_operation s1g_operation;
 
         std::shared_ptr<dot11_ie_221_dji_droneid> droneid;
 

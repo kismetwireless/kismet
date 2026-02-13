@@ -2658,8 +2658,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
     }
 
     // If we're looking for the beacon, snapshot it
-    if (dot11info->subtype == packet_sub_s1g_beacon &&
-            dot11dev->get_snap_next_beacon()) {
+    if (dot11info->subtype == packet_sub_s1g_beacon && dot11dev->get_snap_next_beacon()) {
 
         // Grab the 80211 frame, if that doesn't exist, grab the link frame
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
@@ -2719,7 +2718,9 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
-    } else {
+    } else if (!dot11info->s1g.fc_compressed_ssid_present()) {
+        // compressed ssid isn't helpful to us, ignore it
+
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
 
         if (adv_ssid_map == nullptr) {

@@ -66,6 +66,7 @@
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
 #include "dot11_parsers/dot11_ie_221_wfa.h"
+#include "dot11_parsers/dot11_ie_232_s1g_operation.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
 #include "dot11_parsers/dot11_s1g.h"
 
@@ -1694,11 +1695,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 1 Basic Rates
-        // IE 50 Extended Rates
-        if (ie_tag.tag_num() == 1 || ie_tag.tag_num() == 50) {
+        } else if (ie_tag.tag_num() == 1 || ie_tag.tag_num() == 50) {
             if (ie_tag.tag_num() == 1) {
                 /*
                 if (seen_basicrates) {
@@ -1874,10 +1871,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             packinfo->basic_rates = basicrates;
             continue;
-        }
-
-        // IE 3 channel
-        if (ie_tag.tag_num() == 3) {
+        } else if (ie_tag.tag_num() == 3) {
             if (ie_tag.tag_len() > 1) {
                 std::string al = fmt::format("IEEE80211 packet from {0} to {1} BSSID {2} included an IE "
                         "tag {3} entry with an invalid length; IE {3} should be {4} bytes, but was {5}. "
@@ -1896,10 +1890,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             packinfo->channel = fmt::format("{}", (uint8_t) (ie_tag.tag_data()[0]));
             continue;
-        }
-
-        // IE 7 802.11d
-        if (ie_tag.tag_num() == 7) {
+        } else if (ie_tag.tag_num() == 7) {
             try {
                 dot11_ie_7_country dot11d;
                 // Allow fragmented 11d, take what we can parse
@@ -1927,10 +1918,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 11 QBSS
-        if (ie_tag.tag_num() == 11) {
+        } else if (ie_tag.tag_num() == 11) {
             try {
                 packinfo->qbss.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
@@ -1940,32 +1928,14 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 33 advertised txpower in probe req
-        if (ie_tag.tag_num() == 33) {
+        } else if (ie_tag.tag_num() == 33) {
             try {
                 packinfo->tx_power.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
                 // fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
             }
 
-        }
-
-#if 0
-        // We don't use this, don't decode
-        // IE 36, advertised supported channels in probe req
-        if (ie_tag->tag_num() == 36) {
-            try {
-                packinfo->supported_channels = Globalreg::new_from_pool<dot11_ie_36_supported_channels>();
-                packinfo->supported_channels->parse(ie_tag->tag_data_stream());
-            } catch (const std::exception& e) {
-                // fmt::print(stderr, "debug  corrupt ie36 supported channels: {}\n", e.what());
-            }
-        }
-#endif
-
-        if (ie_tag.tag_num() == 45) {
+        } else if (ie_tag.tag_num() == 45) {
             /*
             if (seen_mcsrates) {
                 fprintf(stderr, "debug - duplicate ie45 mcs rates\n");
@@ -2043,10 +2013,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             packinfo->mcs_rates = mcsrates;
             continue;
-        }
-
-        // IE 48, RSN
-        if (ie_tag.tag_num() == 48) {
+        } else if (ie_tag.tag_num() == 48) {
             bool rsn_invalid = false;
 
             try {
@@ -2103,10 +2070,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 54 Mobility
-        if (ie_tag.tag_num() == 54) {
+        } else if (ie_tag.tag_num() == 54) {
             try {
                 packinfo->dot11r_mobility.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
@@ -2114,10 +2078,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 return -1;
             }
             continue;
-        }
-
-        // IE 61 HT
-        if (ie_tag.tag_num() == 61) {
+        } else if (ie_tag.tag_num() == 61) {
             try {
                 packinfo->dot11ht.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
@@ -2127,10 +2088,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 133 CISCO CCX
-        if (ie_tag.tag_num() == 133) {
+        } else if (ie_tag.tag_num() == 133) {
             try {
                 auto ccx1 = Globalreg::new_from_pool<dot11_ie_133_cisco_ccx>();
                 ccx1->parse(ie_tag.tag_data());
@@ -2141,9 +2099,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        if (ie_tag.tag_num() == 127) {
+        } else if (ie_tag.tag_num() == 127) {
             if (ie_tag.tag_len() > 13) {
                 std::string al = fmt::format("IEEE80211 Access Point BSSID {} sent a beacon with "
                     "an invalid IE 127 Extended Capabilities tag; this may indicate attempts to "
@@ -2159,10 +2115,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 113 Mesh ID field
-        if (ie_tag.tag_num() == 113) {
+        } else if (ie_tag.tag_num() == 113) {
             // If we have no SSID tag, use the mesh ID as the SSID checksum to differentiate
             // between multiple mesh advertisements; otherwise use the SSID
             if (packinfo->ssid_len == 0) {
@@ -2171,11 +2124,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 191 VHT Capabilities TODO compbine with VHT OP to derive actual usable
-        // rate
-        if (ie_tag.tag_num() == 191) {
+        } else if (ie_tag.tag_num() == 191) {
+            // IE 191 VHT Capabilities TODO compbine with VHT OP to derive actual usable
+            // rate
             try {
                 auto vht = Globalreg::new_from_pool<dot11_ie_191_vht_cap>();
                 vht->parse(ie_tag.tag_data());
@@ -2251,11 +2202,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-
-        // Vendor 150 collection
-        if (ie_tag.tag_num() == 150) {
+        } else if (ie_tag.tag_num() == 150) {
             try {
                 auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
                 vendor->parse(ie_tag.tag_data());
@@ -2271,10 +2218,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        // IE 192 VHT Operation
-        if (ie_tag.tag_num() == 192) {
+        } else if (ie_tag.tag_num() == 192) {
             try {
                 packinfo->dot11vht.parse(ie_tag.tag_data());
             } catch (const std::exception& e) {
@@ -2283,9 +2227,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        }
-
-        if (ie_tag.tag_num() == 221) {
+        } else if (ie_tag.tag_num() == 221) {
             try {
                 auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
                 vendor->parse(ie_tag.tag_data());
@@ -2575,6 +2517,15 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 }
             } catch (const std::exception &e) {
                 // fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
+                packinfo->corrupt = 1;
+                return -1;
+            }
+
+            continue;
+        } else if (ie_tag.tag_num() == 232) {
+            try {
+                packinfo->s1g_operation.parse(ie_tag.tag_data());
+            } catch (...) {
                 packinfo->corrupt = 1;
                 return -1;
             }

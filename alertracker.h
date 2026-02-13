@@ -501,8 +501,7 @@ public:
 
     // Raise a one-shot communications alert
     int raise_one_shot(const std::string& in_header, const std::string& in_class,
-            kis_alert_severity in_severity,
-            const std::string& in_text, int in_phy);
+            kis_alert_severity in_severity, const std::string& in_text, int in_phy);
 
     // parse an alert config string
     int parse_alert_str(std::string alert_str, std::string *ret_name,
