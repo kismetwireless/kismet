@@ -96,7 +96,7 @@ public:
         return m_parsed;
     }
 
-    void parse(const std::string_view *view);
+    void parse(const std::string& data);
 
     const channel_width& width() const {
         return m_width;
