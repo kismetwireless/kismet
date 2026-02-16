@@ -263,6 +263,7 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.ht_center_2",
             "HT/VHT Center Frequency (secondary, for 80+80 Wave2)",
             &ht_center_2);
+    register_field("dot11.advertisedssid.channel_width", "channel width in mhz", &channel_width);
 
     register_field("dot11.advertisedssid.first_time", "first time seen", &first_time);
     register_field("dot11.advertisedssid.last_time", "last time seen", &last_time);

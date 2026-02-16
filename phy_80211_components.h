@@ -638,6 +638,7 @@ public:
             __ImportField(ht_mode, p);
             __ImportField(ht_center_1, p);
             __ImportField(ht_center_2, p);
+            __ImportField(channel_width, p);
 
             __ImportField(first_time, p);
             __ImportField(last_time, p);
@@ -750,6 +751,7 @@ public:
     __Proxy(ht_mode, std::string, std::string, std::string, ht_mode);
     __Proxy(ht_center_1, uint64_t, uint64_t, uint64_t, ht_center_1);
     __Proxy(ht_center_2, uint64_t, uint64_t, uint64_t, ht_center_2);
+    __Proxy(channel_width, uint64_t, uint64_t, uint64_t, channel);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
@@ -880,6 +882,7 @@ protected:
     std::shared_ptr<tracker_element_string> ht_mode;
     std::shared_ptr<tracker_element_uint64> ht_center_1;
     std::shared_ptr<tracker_element_uint64> ht_center_2;
+    std::shared_ptr<tracker_element_uint64> channel_width;
 
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
