@@ -1110,11 +1110,11 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                                        (char *) &(chunk->data()[chunk->length()]));
                     std::istream pack_stream(&pack_membuf);
 
-                    auto action = Globalreg::new_from_pool<dot11_action>();
+                    dot11_action action;
 
                     try {
                         kaitai::kstream ks(&pack_stream);
-                        action->parse(ks);
+                        action.parse(ks);
                     } catch (const std::exception& e) {
                         // fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
                         packinfo->corrupt = 1;
@@ -1123,12 +1123,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     }
 
                     // We only care about RMM for wids purposes right now
-                    if (action->category_code() == dot11_action::category_code_radio_measurement) {
+                    if (action.category_code() == dot11_action::category_code_radio_measurement) {
                         // Scan the action IE tags
-                        auto rmm_tags = Globalreg::new_from_pool<dot11_ie>();
+                        dot11_ie rmm_tags;
 
                         try {
-                            rmm_tags->parse(action->tags_data());
+                            rmm_tags.parse(action.tags_data());
                         } catch (const std::exception& e) {
                             // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
                             packinfo->corrupt = 1;
@@ -1136,7 +1136,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                             return 0;
                         }
 
-                        for (const auto& t : rmm_tags->tags()) {
+                        for (const auto& t : rmm_tags.tags()) {
                             if (t.tag_num() == 52) {
                                 try {
                                     dot11_ie_52_rmm ie_rmm;
@@ -1158,9 +1158,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                                                                  packinfo->channel, ss.str());
                                     }
 
-                                } catch (const std::exception& e) {
-                                    // fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
-                                }
+                                } catch (...) { }
                             }
                         }
                     }
@@ -1571,19 +1569,19 @@ void kis_80211_phy::packet_dot11_parse_ie_list(kis_packet* in_pack, dot11_packin
     for (const auto& ie_tag : packinfo->ie_tags.tags()) {
         if (ie_tag.tag_num() == 150) {
             try {
-                auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
-                vendor->parse(ie_tag.tag_data());
+                dot11_ie_150_vendor vendor;
+                vendor.parse(ie_tag.tag_data());
 
-                packinfo->ie_tags_listed.push_back(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
+                packinfo->ie_tags_listed.push_back(ie_tag_tuple{150, vendor.vendor_oui_int(), vendor.vendor_oui_type()});
             } catch (const std::exception &e) {
                 return;
             }
         } else if (ie_tag.tag_num() == 221) {
             try {
-                auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
-                vendor->parse(ie_tag.tag_data());
+                dot11_ie_150_vendor vendor;
+                vendor.parse(ie_tag.tag_data());
 
-                packinfo->ie_tags_listed.push_back(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
+                packinfo->ie_tags_listed.push_back(ie_tag_tuple{221, vendor.vendor_oui_int(), vendor.vendor_oui_type()});
             } catch (const std::exception &e) {
                 return;
             }
@@ -1635,22 +1633,22 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
         if (ie_tag.tag_num() == 150) {
             try {
-                auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
-                vendor->parse(ie_tag.tag_data());
+                dot11_ie_150_vendor vendor;
+                vendor.parse(ie_tag.tag_data());
 
-                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{150, vendor->vendor_oui_int(),
-                    vendor->vendor_oui_type()}, hash(ie_tag.tag_data())));
+                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{150, vendor.vendor_oui_int(),
+                    vendor.vendor_oui_type()}, hash(ie_tag.tag_data())));
             } catch (const std::exception& e) {
                 packinfo->corrupt = 1;
                 return -1;
             }
         } else if (ie_tag.tag_num() == 221) {
             try {
-                auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
-                vendor->parse(ie_tag.tag_data());
+                dot11_ie_221_vendor vendor;
+                vendor.parse(ie_tag.tag_data());
 
-                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor->vendor_oui_int(),
-                    vendor->vendor_oui_type()}, hash(ie_tag.tag_data())));
+                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor.vendor_oui_int(),
+                    vendor.vendor_oui_type()}, hash(ie_tag.tag_data())));
             } catch (const std::exception& e) {
                 packinfo->corrupt = 1;
                 return -1;
@@ -1662,14 +1660,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
         // IE 0 SSID
         if (ie_tag.tag_num() == 0) {
-            /*
-            if (seen_ssid) {
-                fprintf(stderr, "debug - multiple SSID ie tags?\n");
-            }
-
-            seen_ssid = true;
-            */
-
             packinfo->ssid_len = ie_tag.tag_data().length();
             packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag.tag_data().data(),
                     ie_tag.tag_data().length());
@@ -1697,27 +1687,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             continue;
         } else if (ie_tag.tag_num() == 1 || ie_tag.tag_num() == 50) {
-            if (ie_tag.tag_num() == 1) {
-                /*
-                if (seen_basicrates) {
-                    fprintf(stderr, "debug - seen multiple basicrates?\n");
-                }
-
-                seen_basicrates = true;
-                */
-
-            }
-
-            if (ie_tag.tag_num() == 50) {
-                /*
-                if (seen_extendedrates) {
-                    fprintf(stderr, "debug - seen multiple extendedrates?\n");
-                }
-
-                seen_extendedrates = true;
-                */
-            }
-
             if (ie_tag.tag_data().find("\x75\xEB\x49") != std::string::npos) {
                 _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
                         "MSF-style poisoned rate field in beacon for network " +
@@ -1948,22 +1917,22 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             std::vector<std::string> mcsrates;
 
             try {
-                auto ht = Globalreg::new_from_pool<dot11_ie_45_ht_cap>();
-                ht->parse(ie_tag.tag_data());
+                dot11_ie_45_ht_cap ht;
+                ht.parse(ie_tag.tag_data());
 
                 std::stringstream mcsstream;
 
                 // See if we support 40mhz channels and aren't 40mhz intolerant
-                bool ch40 = (ht->ht_cap_40mhz_channel() && !ht->ht_cap_40mhz_intolerant());
+                bool ch40 = (ht.ht_cap_40mhz_channel() && !ht.ht_cap_40mhz_intolerant());
 
-                bool gi20 = ht->ht_cap_20mhz_shortgi();
-                bool gi40 = ht->ht_cap_40mhz_shortgi();
+                bool gi20 = ht.ht_cap_20mhz_shortgi();
+                bool gi40 = ht.ht_cap_40mhz_shortgi();
 
                 uint8_t mcs_byte;
                 uint8_t mcs_offt = 0;
 
                 for (int x = 0; x < 4; x++) {
-                    mcs_byte = ht->mcs()->rx_mcs()[x];
+                    mcs_byte = ht.mcs()->rx_mcs()[x];
                     for (int i = 0; i < 8; i++) {
                         if (mcs_byte & (1 << i)) {
                             int mcsindex = mcs_offt + i;
@@ -2044,10 +2013,10 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             // CVE-2017-9714
             if (rsn_invalid) {
                 try {
-                    auto rsn = Globalreg::new_from_pool<dot11_ie_48_rsn_partial>();
-                    rsn->parse(ie_tag.tag_data());
+                    dot11_ie_48_rsn_partial rsn;
+                    rsn.parse(ie_tag.tag_data());
 
-                    if (rsn->pairwise_count() > 1024) {
+                    if (rsn.pairwise_count() > 1024) {
                         alertracker->raise_alert(alert_atheros_rsnloop_ref,
                                 in_pack,
                                 packinfo->bssid_mac, packinfo->source_mac,
@@ -2091,9 +2060,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             continue;
         } else if (ie_tag.tag_num() == 133) {
             try {
-                auto ccx1 = Globalreg::new_from_pool<dot11_ie_133_cisco_ccx>();
-                ccx1->parse(ie_tag.tag_data());
-                packinfo->beacon_info = munge_to_printable(ccx1->ap_name());
+                dot11_ie_133_cisco_ccx ccx1;
+                ccx1.parse(ie_tag.tag_data());
+                packinfo->beacon_info = munge_to_printable(ccx1.ap_name());
             } catch (const std::exception& e) {
                 // fprintf(stderr, "debug - ccx error %s\n", e.what());
                 continue;
@@ -2129,12 +2098,12 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             // IE 191 VHT Capabilities TODO compbine with VHT OP to derive actual usable
             // rate
             try {
-                auto vht = Globalreg::new_from_pool<dot11_ie_191_vht_cap>();
-                vht->parse(ie_tag.tag_data());
+                dot11_ie_191_vht_cap vht;
+                vht.parse(ie_tag.tag_data());
 
-                bool gi80 = vht->vht_cap_80mhz_shortgi();
-                bool gi160 = vht->vht_cap_160mhz_shortgi();
-                bool supp160 = vht->vht_cap_160mhz();
+                bool gi80 = vht.vht_cap_80mhz_shortgi();
+                bool gi160 = vht.vht_cap_160mhz_shortgi();
+                bool supp160 = vht.vht_cap_160mhz();
 
                 int stream = -1;
                 unsigned int mcs = 0;
@@ -2155,28 +2124,28 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 }
 
                 // Count back from stream 4 looking for the highest MCS setting
-                if (vht->rx_mcs_s4() == 2) {
+                if (vht.rx_mcs_s4() == 2) {
                     stream = 3;
                     mcs = 9;
-                } else if (vht->rx_mcs_s4() == 1) {
+                } else if (vht.rx_mcs_s4() == 1) {
                     stream = 3;
                     mcs = 7;
-                } else if (vht->rx_mcs_s3() == 2) {
+                } else if (vht.rx_mcs_s3() == 2) {
                     stream = 2;
                     mcs = 9;
-                } else if (vht->rx_mcs_s3() == 1) {
+                } else if (vht.rx_mcs_s3() == 1) {
                     stream = 2;
                     mcs = 7;
-                } else if (vht->rx_mcs_s2() == 2) {
+                } else if (vht.rx_mcs_s2() == 2) {
                     stream = 1;
                     mcs = 9;
-                } else if (vht->rx_mcs_s2() == 1) {
+                } else if (vht.rx_mcs_s2() == 1) {
                     stream = 1;
                     mcs = 7;
-                } else if (vht->rx_mcs_s1() == 2) {
+                } else if (vht.rx_mcs_s1() == 2) {
                     stream = 0;
                     mcs = 9;
-                } else if (vht->rx_mcs_s1() == 1) {
+                } else if (vht.rx_mcs_s1() == 1) {
                     stream = 0;
                     mcs = 7;
                 }
@@ -2205,13 +2174,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             continue;
         } else if (ie_tag.tag_num() == 150) {
             try {
-                auto vendor = Globalreg::new_from_pool<dot11_ie_150_vendor>();
-                vendor->parse(ie_tag.tag_data());
+                dot11_ie_150_vendor vendor;
+                vendor.parse(ie_tag.tag_data());
 
-                if (vendor->vendor_oui_int() == dot11_ie_150_cisco_powerlevel::cisco_oui()) {
-                    auto ccx_power = Globalreg::new_from_pool<dot11_ie_150_cisco_powerlevel>();
-                    ccx_power->parse(vendor->vendor_tag());
-                    packinfo->ccx_txpower = ccx_power->cisco_ccx_txpower();
+                if (vendor.vendor_oui_int() == dot11_ie_150_cisco_powerlevel::cisco_oui()) {
+                    dot11_ie_150_cisco_powerlevel ccx_power;
+                    ccx_power.parse(vendor.vendor_tag());
+                    packinfo->ccx_txpower = ccx_power.cisco_ccx_txpower();
                 }
             } catch (...) { }
 
@@ -2291,52 +2260,49 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 } else if (vendor.vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() &&
                         vendor.vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
                     // Look for MS/WFA WPA
-                    auto wpa = Globalreg::new_from_pool<dot11_ie_221_wfa_wpa>();
-                    wpa->parse(vendor.vendor_tag());
+                    dot11_ie_221_wfa_wpa wpa;
+                    wpa.parse(vendor.vendor_tag());
 
                     // Merge the group cipher
                     packinfo->cryptset |=
-                        wfa_group_conv(static_cast<ie221_wfa_cipher>(wpa->multicast_cipher()->cipher_type()));
+                        wfa_group_conv(static_cast<ie221_wfa_cipher>(wpa.multicast_cipher()->cipher_type()));
 
                     // Merge the unicast ciphers
-                    for (auto i : *(wpa->unicast_ciphers())) {
+                    for (auto i : *(wpa.unicast_ciphers())) {
                         packinfo->cryptset |= wfa_pairwise_conv(static_cast<ie221_wfa_cipher>(i->cipher_type()));
                     }
 
                     // Merge the authkey types
-                    for (auto i : *(wpa->akm_ciphers())) {
+                    for (auto i : *(wpa.akm_ciphers())) {
                         packinfo->cryptset |= wfa_auth_conv(static_cast<ie221_wfa_mgmt>(i->cipher_type()));
                     }
 
-                    if (wpa->wpa_version() == 1)
+                    if (wpa.wpa_version() == 1)
                         packinfo->cryptset |= dot11_crypt_general_wpa1;
-                    if (wpa->wpa_version() == 2)
+                    if (wpa.wpa_version() == 2)
                         packinfo->cryptset |= dot11_crypt_general_wpa2;
-                    if (wpa->wpa_version() == 3)
+                    if (wpa.wpa_version() == 3)
                         packinfo->cryptset |= dot11_crypt_general_wpa3;
 
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 } else if (vendor.vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
                         vendor.vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
-                    // Look for cisco client MFP
-                    auto mfp = Globalreg::new_from_pool<dot11_ie_221_cisco_client_mfp>();
-                    mfp->parse(vendor.vendor_tag());
-
-                    packinfo->cisco_client_mfp = mfp->client_mfp();
+                    dot11_ie_221_cisco_client_mfp mfp;
+                    mfp.parse(vendor.vendor_tag());
+                    packinfo->cisco_client_mfp = mfp.client_mfp();
                 } else if (vendor.vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
-                    // Look for wpa owe transitional tags
                     if (vendor.vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
                         packinfo->owe_transition.parse(vendor.vendor_tag());
                         packinfo->cryptset |= crypt_wpa_owe;
                     }
                 } else if (vendor.vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
                     // Look for WFA p2p to check the rtlwifi exploit
-                    auto wfa = Globalreg::new_from_pool<dot11_ie_221_wfa>();
-                    wfa->parse(vendor.vendor_tag());
+                    dot11_ie_221_wfa wfa;
+                    wfa.parse(vendor.vendor_tag());
 
-                    if (wfa->wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
+                    if (wfa.wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
                         auto ietags = Globalreg::new_from_pool<dot11_wfa_p2p_ie>();
-                        ietags->parse(wfa->wfa_content());
+                        ietags->parse(wfa.wfa_content());
 
                         for (const auto& wfa_ie_tag : *(ietags->tags())) {
                             if (ie_tag.tag_num() == 12) {
@@ -2359,10 +2325,10 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 } else if (vendor.vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() &&
                         vendor.vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
                     // Look for WPS MS
-                    auto wps = Globalreg::new_from_pool<dot11_ie_221_ms_wps>();
-                    wps->parse(vendor.vendor_tag());
+                    dot11_ie_221_ms_wps wps;
+                    wps.parse(vendor.vendor_tag());
 
-                    for (const auto& wpselem : *(wps->wps_elements())) {
+                    for (const auto& wpselem : *(wps.wps_elements())) {
                         auto version = wpselem->sub_element_version();
                         if (version != NULL) {
                             packinfo->wps_version = version->version();
@@ -3010,10 +2976,10 @@ kis_80211_phy::packet_dot11_eapol_handshake(kis_packet* in_pack, dot11_tracked_d
                     }
                 }
 
-                auto ietags = Globalreg::new_from_pool<dot11_ie>();
-                ietags->parse(rsnkey->wpa_key_data());
+                dot11_ie ietags;
+                ietags.parse(rsnkey->wpa_key_data());
 
-                for (const auto& tag : ietags->tags()) {
+                for (const auto& tag : ietags.tags()) {
                     if (tag.tag_num() == 221) {
                         auto vendor = dot11_ie_221_vendor();
                         vendor.parse(tag.tag_data());
