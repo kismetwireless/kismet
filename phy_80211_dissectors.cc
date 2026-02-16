@@ -2525,6 +2525,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         } else if (ie_tag.tag_num() == 232) {
             try {
                 packinfo->s1g_operation.parse(ie_tag.tag_data());
+
+                packinfo->channel = fmt::format("{}ah", packinfo->s1g_operation.primary_channel());
             } catch (...) {
                 packinfo->corrupt = 1;
                 return -1;
