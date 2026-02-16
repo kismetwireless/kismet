@@ -46,7 +46,7 @@ void dot11_tracked_ssid_alert::register_fields() {
     register_field("dot11.ssidalert.allowed_macs", "Allowed MAC addresses", &allowed_macs_vec);
 
     allowed_mac_id =
-        register_field("dot11.ssidalert.allowed_mac", 
+        register_field("dot11.ssidalert.allowed_mac",
                 tracker_element_factory<tracker_element_mac_addr>(),
                 "mac address");
 }
@@ -69,7 +69,7 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
     ssid_re = pcre_compile(s.c_str(), 0, &compile_error, &erroroffset, NULL);
 
     if (ssid_re == NULL) {
-        errordesc << "Could not parse PCRE: " << compile_error << 
+        errordesc << "Could not parse PCRE: " << compile_error <<
             "at character " << erroroffset;
         throw std::runtime_error(errordesc.str());
     }
@@ -79,7 +79,7 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
     if (study_error != NULL) {
         errordesc << "Could not parse PCRE, optimization failure: " << study_error;
         throw std::runtime_error(errordesc.str());
-    } 
+    }
 
 #elif defined(HAVE_LIBPCRE2)
 
@@ -162,7 +162,7 @@ void dot11_tracked_nonce::register_fields() {
 
     register_field("dot11.eapol.nonce.timestamp", "packet timestamp (second.usecond)", &eapol_time);
     register_field("dot11.eapol.nonce.message_num", "handshake message number", &eapol_msg_num);
-    register_field("dot11.eapol.nonce.replay_counter", 
+    register_field("dot11.eapol.nonce.replay_counter",
             "eapol frame replay counter", &eapol_replay_counter);
     register_field("dot11.eapol.nonce.install", "eapol rsn key install", &eapol_install);
     register_field("dot11.eapol.nonce.nonce", "eapol rsn nonce", &eapol_nonce);
@@ -184,20 +184,20 @@ void dot11_tracked_nonce::set_from_eapol(shared_tracker_element in_tracked_eapol
 void dot11_probed_ssid::register_fields() {
     register_field("dot11.probedssid.ssid", "probed ssid string", &ssid);
 
-    register_field("dot11.probedssid.ssidlen", 
+    register_field("dot11.probedssid.ssidlen",
             "probed ssid string length (original bytes)", &ssid_len);
     register_field("dot11.probedssid.bssid", "probed ssid BSSID", &bssid);
     register_field("dot11.probedssid.first_time", "first time probed", &first_time);
     register_field("dot11.probedssid.last_time", "last time probed", &last_time);
 
-    location_id = 
+    location_id =
         register_dynamic_field<kis_tracked_location>("dot11.probedssid.location", "estimated location");
 
-    dot11r_mobility_id = 
-        register_dynamic_field<tracker_element_uint8>("dot11.probedssid.dot11r_mobility", 
+    dot11r_mobility_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.probedssid.dot11r_mobility",
             "advertised dot11r mobility support");
-    dot11r_mobility_domain_id_id = 
-        register_dynamic_field<tracker_element_uint16>("dot11.probedssid.dot11r_mobility_domain_id", 
+    dot11r_mobility_domain_id_id =
+        register_dynamic_field<tracker_element_uint16>("dot11.probedssid.dot11r_mobility_domain_id",
             "advertised dot11r mobility domain id");
 
     register_field("dot11.probedssid.crypt_bitfield", "Requested encryption set", &crypt_set);
@@ -228,7 +228,7 @@ void dot11_probed_ssid::register_fields() {
         register_dynamic_field<tracker_element_string>("dot11.probedssid.wps_model_name", "wps model name");
     wps_model_number_id =
         register_dynamic_field<tracker_element_string>("dot11.probedssid.wps_model_number", "wps model number");
-    wps_serial_number_id = 
+    wps_serial_number_id =
         register_dynamic_field<tracker_element_string>("dot11.probedssid.wps_serial_number", "wps serial number");
     wps_uuid_e_id =
         register_dynamic_field<tracker_element_string>("dot11.probedssid.wps_uuid_e", "wps euuid");
@@ -237,7 +237,7 @@ void dot11_probed_ssid::register_fields() {
 void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.ssid", "beaconed ssid string", &ssid);
 
-    register_field("dot11.advertisedssid.ssidlen", 
+    register_field("dot11.advertisedssid.ssidlen",
             "beaconed ssid string length (original bytes)", &ssid_len);
 
     register_field("dot11.advertisedssid.ssid_hash", "hashed key of the SSID+Length", &ssid_hash);
@@ -253,21 +253,21 @@ void dot11_advertised_ssid::register_fields() {
                 "Opportunistic Wireless Encryption (OWE) companion BSSID");
 
     register_field("dot11.advertisedssid.beacon", "ssid advertised via beacon", &ssid_beacon);
-    register_field("dot11.advertisedssid.probe_response", "ssid advertised via probe response", 
+    register_field("dot11.advertisedssid.probe_response", "ssid advertised via probe response",
             &ssid_probe_response);
 
     register_field("dot11.advertisedssid.channel", "channel", &channel);
     register_field("dot11.advertisedssid.ht_mode", "HT (11n or 11ac) mode", &ht_mode);
-    register_field("dot11.advertisedssid.ht_center_1", 
+    register_field("dot11.advertisedssid.ht_center_1",
             "HT/VHT Center Frequency (primary)", &ht_center_1);
-    register_field("dot11.advertisedssid.ht_center_2", 
+    register_field("dot11.advertisedssid.ht_center_2",
             "HT/VHT Center Frequency (secondary, for 80+80 Wave2)",
             &ht_center_2);
 
     register_field("dot11.advertisedssid.first_time", "first time seen", &first_time);
     register_field("dot11.advertisedssid.last_time", "last time seen", &last_time);
     beacon_info_id =
-        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.beacon_info", 
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.beacon_info",
                 "beacon info / vendor description");
     register_field("dot11.advertisedssid.cloaked", "SSID is hidden / cloaked", &ssid_cloaked);
     register_field("dot11.advertisedssid.crypt_bitfield", "bitfield of encryption options", &crypt_set);
@@ -278,7 +278,7 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.maxrate", "advertised maximum rate", &maxrate);
     register_field("dot11.advertisedssid.beaconrate", "beacon rate", &beaconrate);
     register_field("dot11.advertisedssid.beacons_sec", "beacons seen in past second", &beacons_sec);
-    register_field("dot11.advertisedssid.ietag_checksum", 
+    register_field("dot11.advertisedssid.ietag_checksum",
             "checksum of all ie tags", &ietag_checksum);
 
     register_field("dot11.advertisedssid.wpa_mfp_required",
@@ -286,14 +286,14 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.wpa_mfp_supported",
             "WPA management protection supported", &wpa_mfp_supported);
 
-    dot11d_country_id = 
+    dot11d_country_id =
         register_dynamic_field<tracker_element_string>("dot11.advertisedssid.dot11d_country", "802.11d country");
-    
+
     dot11d_vec_id =
         register_dynamic_field<tracker_element_vector>("dot11.advertisedssid.dot11d_list", "802.11d channel list");
 
     dot11d_country_entry_id =
-        register_field("dot11.advertisedssid.dot11d_entry", 
+        register_field("dot11.advertisedssid.dot11d_entry",
                 tracker_element_factory<dot11_11d_tracked_range_info>(0),
                 "dot11d entry");
 
@@ -312,26 +312,26 @@ void dot11_advertised_ssid::register_fields() {
         register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_model_name", "wps model name");
     wps_model_number_id =
         register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_model_number", "wps model number");
-    wps_serial_number_id = 
-        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_serial_number", 
+    wps_serial_number_id =
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_serial_number",
                 "wps serial number");
     wps_uuid_e_id =
         register_dynamic_field<tracker_element_byte_array>("dot11.advertisedssid.wps_uuid_e", "wps euuid");
 
-    location_id = 
+    location_id =
         register_dynamic_field<kis_tracked_location>("dot11.advertisedssid.location", "location");
 
-    register_field("dot11.advertisedssid.dot11r_mobility", 
+    register_field("dot11.advertisedssid.dot11r_mobility",
             "advertised dot11r mobility support", &dot11r_mobility);
-    register_field("dot11.advertisedssid.dot11r_mobility_domain_id", 
+    register_field("dot11.advertisedssid.dot11r_mobility_domain_id",
             "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
 
-    register_field("dot11.advertisedssid.dot11e_qbss", 
+    register_field("dot11.advertisedssid.dot11e_qbss",
             "SSID advertises 802.11e QBSS", &dot11e_qbss);
-    register_field("dot11.advertisedssid.dot11e_qbss_stations", 
+    register_field("dot11.advertisedssid.dot11e_qbss_stations",
             "802.11e QBSS station count", &dot11e_qbss_stations);
-    register_field("dot11.advertisedssid.dot11e_channel_utilization_perc", 
-            "802.11e QBSS reported channel utilization, as percentage", 
+    register_field("dot11.advertisedssid.dot11e_channel_utilization_perc",
+            "802.11e QBSS reported channel utilization, as percentage",
             &dot11e_qbss_channel_load);
 
     register_field("dot11.advertisedssid.ccx_txpower",
@@ -348,7 +348,7 @@ void dot11_advertised_ssid::register_fields() {
         register_dynamic_field<tracker_element_int_map>("dot11.advertisedssid.ie_tag_content",
                 "802.11 IE tag content of last beacon");
 
-    ie_tag_builder = 
+    ie_tag_builder =
         Globalreg::globalreg->entrytracker->new_from_pool<dot11_tracked_ietag>();
     ie_tag_builder->set_id(ie_tag_content_id);
 
@@ -373,7 +373,7 @@ void dot11_advertised_ssid::register_fields() {
         register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.dot11s.forwarding",
                 "802.11s Mesh forwarding enabled");
 
-    register_field("dot11.advertisedssid.advertised_txpower", 
+    register_field("dot11.advertisedssid.advertised_txpower",
             "advertised transmit power (TPC)", &adv_tx_power);
 }
 
@@ -406,7 +406,7 @@ void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_ent
 void dot11_tracked_ietag::register_fields() {
     register_field("dot11.ietag.uniqueid",
         "Unique hash of IE tag number and sub-tag numbers", &unique_tag_id);
-    
+
     register_field("dot11.ietag.number",
         "IE tag number", &tag_number);
 
