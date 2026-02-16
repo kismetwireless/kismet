@@ -19,8 +19,8 @@
 #include "dot11_ie_214_short_beacon_interval.h"
 #include "util.h"
 
-void dot11_ie_214_short_beacon_interval::parse(const std::string_view *view) {
-    membuf view_membuf(view->data(), view->data() + view->length());
+void dot11_ie_214_short_beacon_interval::parse(const std::string& data) {
+    membuf view_membuf(data.data(), data.data() + data.length());
     std::istream istream_view(&view_membuf);
     auto p_io = kaitai::kstream(&istream_view);
 

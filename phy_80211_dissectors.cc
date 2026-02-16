@@ -57,6 +57,7 @@
 #include "dot11_parsers/dot11_ie_150_cisco_powerlevel.h"
 #include "dot11_parsers/dot11_ie_191_vht_cap.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
+#include "dot11_parsers/dot11_ie_214_short_beacon_interval.h"
 #include "dot11_parsers/dot11_ie_221_vendor.h"
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_ms_wmm.h"
@@ -2227,6 +2228,14 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
+        } else if (ie_tag.tag_num() == 214) {
+            dot11_ie_214_short_beacon_interval sbi_tag;
+
+            try {
+                sbi_tag.parse(ie_tag.tag_data());
+            } catch (...) { }
+
+            packinfo->beacon_interval = sbi_tag.interval();
         } else if (ie_tag.tag_num() == 221) {
             try {
                 auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();

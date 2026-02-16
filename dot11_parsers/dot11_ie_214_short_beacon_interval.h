@@ -30,7 +30,7 @@ public:
         return m_parsed;
     }
 
-    void parse(const std::string_view *view);
+    void parse(const std::string& data);
 
     constexpr uint16_t interval() const {
         return m_interval;
