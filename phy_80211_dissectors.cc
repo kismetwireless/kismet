@@ -2213,19 +2213,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     ccx_power->parse(vendor->vendor_tag());
                     packinfo->ccx_txpower = ccx_power->cisco_ccx_txpower();
                 }
-            } catch (const std::exception& e) {
-                // fprintf(stderr, "debug - ie150 vendor tag error: %s\n", e.what());
-                // Don't consider this a corrupt packet because ie150 can be highly variable
-            }
+            } catch (...) { }
 
             continue;
         } else if (ie_tag.tag_num() == 192) {
             try {
                 packinfo->dot11vht.parse(ie_tag.tag_data());
-            } catch (const std::exception& e) {
-                // fprintf(stderr, "debug - vht 192 error %s\n", e.what());
-                // Don't consider this a corrupt packet just because we didn't parse it
-            }
+            } catch (...) { }
 
             continue;
         } else if (ie_tag.tag_num() == 214) {
@@ -2238,13 +2232,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             packinfo->beacon_interval = sbi_tag.interval();
         } else if (ie_tag.tag_num() == 221) {
             try {
-                auto vendor = Globalreg::new_from_pool<dot11_ie_221_vendor>();
-                vendor->parse(ie_tag.tag_data());
+                dot11_ie_221_vendor vendor;
+                vendor.parse(ie_tag.tag_data());
 
                 // Match mis-sized WMM
                 if (packinfo->subtype == packet_sub_beacon &&
-                        vendor->vendor_oui_int() == 0x0050f2 &&
-                        vendor->vendor_oui_type() == 2 &&
+                        vendor.vendor_oui_int() == 0x0050f2 &&
+                        vendor.vendor_oui_type() == 2 &&
                         ie_tag.tag_data().length() > 24) {
 
                     std::string al = "IEEE80211 Access Point BSSID " +
@@ -2263,10 +2257,10 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 // CVE-2017-11013
                 // https://pleasestopnamingvulnerabilities.com/
                 if (packinfo->subtype == packet_sub_association_resp &&
-                        vendor->vendor_oui_int() == 0x0050f2 &&
-                        vendor->vendor_oui_type() == 2) {
+                        vendor.vendor_oui_int() == 0x0050f2 &&
+                        vendor.vendor_oui_type() == 2) {
                     dot11_ie_221_ms_wmm wmm;
-                    wmm.parse(vendor->vendor_tag());
+                    wmm.parse(vendor.vendor_tag());
 
                     if (wmm.wme_subtype() == 0x02) {
                         wmmtspec_responses++;
@@ -2288,17 +2282,17 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                             packinfo->channel, al);
                 }
 
-                if (vendor->vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
+                if (vendor.vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
                     // Look for DJI DroneID OUIs
                     auto droneid = Globalreg::new_from_pool<dot11_ie_221_dji_droneid>();
-                    droneid->parse(vendor->vendor_tag());
+                    droneid->parse(vendor.vendor_tag());
 
                     packinfo->droneid = droneid;
-                } else if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() &&
-                        vendor->vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
+                } else if (vendor.vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() &&
+                        vendor.vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
                     // Look for MS/WFA WPA
                     auto wpa = Globalreg::new_from_pool<dot11_ie_221_wfa_wpa>();
-                    wpa->parse(vendor->vendor_tag());
+                    wpa->parse(vendor.vendor_tag());
 
                     // Merge the group cipher
                     packinfo->cryptset |=
@@ -2322,23 +2316,23 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                         packinfo->cryptset |= dot11_crypt_general_wpa3;
 
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-                } else if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
-                        vendor->vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
+                } else if (vendor.vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
+                        vendor.vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
                     // Look for cisco client MFP
                     auto mfp = Globalreg::new_from_pool<dot11_ie_221_cisco_client_mfp>();
-                    mfp->parse(vendor->vendor_tag());
+                    mfp->parse(vendor.vendor_tag());
 
                     packinfo->cisco_client_mfp = mfp->client_mfp();
-                } else if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
+                } else if (vendor.vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
                     // Look for wpa owe transitional tags
-                    if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
-                        packinfo->owe_transition.parse(vendor->vendor_tag());
+                    if (vendor.vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
+                        packinfo->owe_transition.parse(vendor.vendor_tag());
                         packinfo->cryptset |= crypt_wpa_owe;
                     }
-                } else if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
+                } else if (vendor.vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
                     // Look for WFA p2p to check the rtlwifi exploit
                     auto wfa = Globalreg::new_from_pool<dot11_ie_221_wfa>();
-                    wfa->parse(vendor->vendor_tag());
+                    wfa->parse(vendor.vendor_tag());
 
                     if (wfa->wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
                         auto ietags = Globalreg::new_from_pool<dot11_wfa_p2p_ie>();
@@ -2362,11 +2356,11 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                             }
                         }
                     }
-                } else if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() &&
-                        vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
+                } else if (vendor.vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() &&
+                        vendor.vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
                     // Look for WPS MS
                     auto wps = Globalreg::new_from_pool<dot11_ie_221_ms_wps>();
-                    wps->parse(vendor->vendor_tag());
+                    wps->parse(vendor.vendor_tag());
 
                     for (const auto& wpselem : *(wps->wps_elements())) {
                         auto version = wpselem->sub_element_version();
@@ -2440,9 +2434,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                         }
 #endif
                     }
-                } else if (vendor->vendor_oui_int() == 0x00000b86 && vendor->vendor_oui_type() == 1) {
+                } else if (vendor.vendor_oui_int() == 0x00000b86 && vendor.vendor_oui_type() == 1) {
                     // Aruba/HP AP name field
-                    membuf d_membuf(vendor->vendor_tag().data(), vendor->vendor_tag().data() + vendor->vendor_tag().length());
+                    membuf d_membuf(vendor.vendor_tag().data(), vendor.vendor_tag().data() + vendor.vendor_tag().length());
                     std::istream is(&d_membuf);
                     kaitai::kstream p_io(&is);
 
@@ -2454,9 +2448,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                         auto name = p_io.read_bytes_full();
                         packinfo->beacon_info = munge_to_printable(name);
                     }
-                } else if (vendor->vendor_oui_int() == 0x005c5b35 && vendor->vendor_oui_type() == 1) {
+                } else if (vendor.vendor_oui_int() == 0x005c5b35 && vendor.vendor_oui_type() == 1) {
                     // Mist Systems AP name
-                    membuf d_membuf(vendor->vendor_tag().data(), vendor->vendor_tag().data() + vendor->vendor_tag().length());
+                    membuf d_membuf(vendor.vendor_tag().data(), vendor.vendor_tag().data() + vendor.vendor_tag().length());
                     std::istream is(&d_membuf);
                     kaitai::kstream p_io(&is);
 
@@ -2464,9 +2458,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     p_io.read_bytes(1);
                     auto name = p_io.read_bytes_full();
                     packinfo->beacon_info = munge_to_printable(name);
-                } else if (vendor->vendor_oui_int() == 0x00001174 && vendor->vendor_oui_type() == 0) {
+                } else if (vendor.vendor_oui_int() == 0x00001174 && vendor.vendor_oui_type() == 0) {
                     // Mojo / Arista AP name
-                    membuf d_membuf(vendor->vendor_tag().data(), vendor->vendor_tag().data() + vendor->vendor_tag().length());
+                    membuf d_membuf(vendor.vendor_tag().data(), vendor.vendor_tag().data() + vendor.vendor_tag().length());
                     std::istream is(&d_membuf);
                     kaitai::kstream p_io(&is);
 
@@ -2479,9 +2473,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                         auto name = p_io.read_bytes_full();
                         packinfo->beacon_info = munge_to_printable(name);
                     }
-                } else if (vendor->vendor_oui_int() == 0x00001392 && vendor->vendor_oui_type() == 3) {
+                } else if (vendor.vendor_oui_int() == 0x00001392 && vendor.vendor_oui_type() == 3) {
                     // Ruckus AP name
-                    membuf d_membuf(vendor->vendor_tag().data(), vendor->vendor_tag().data() + vendor->vendor_tag().length());
+                    membuf d_membuf(vendor.vendor_tag().data(), vendor.vendor_tag().data() + vendor.vendor_tag().length());
                     std::istream is(&d_membuf);
                     kaitai::kstream p_io(&is);
 
@@ -2489,9 +2483,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     p_io.read_bytes(1);
                     auto name = p_io.read_bytes_full();
                     packinfo->beacon_info = munge_to_printable(name);
-                } else if (vendor->vendor_oui_int() == 0x00001977 && vendor->vendor_oui_type() == 33) {
+                } else if (vendor.vendor_oui_int() == 0x00001977 && vendor.vendor_oui_type() == 33) {
                     // Extreme / Aerohive
-                    membuf d_membuf(vendor->vendor_tag().data(), vendor->vendor_tag().data() + vendor->vendor_tag().length());
+                    membuf d_membuf(vendor.vendor_tag().data(), vendor.vendor_tag().data() + vendor.vendor_tag().length());
                     std::istream is(&d_membuf);
                     kaitai::kstream p_io(&is);
 
@@ -2506,9 +2500,9 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                         auto name = p_io.read_bytes(len);
                         packinfo->beacon_info = munge_to_printable(name);
                     }
-                } else if (vendor->vendor_oui_int() == 0x0000090f && vendor->vendor_oui_type() == 10) {
+                } else if (vendor.vendor_oui_int() == 0x0000090f && vendor.vendor_oui_type() == 10) {
                     // Fortinet
-                    membuf d_membuf(vendor->vendor_tag().data(), vendor->vendor_tag().data() + vendor->vendor_tag().length());
+                    membuf d_membuf(vendor.vendor_tag().data(), vendor.vendor_tag().data() + vendor.vendor_tag().length());
                     std::istream is(&d_membuf);
                     kaitai::kstream p_io(&is);
 
