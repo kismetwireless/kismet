@@ -23,11 +23,9 @@
 
 void dot11_ie_221_ms_wps::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_vendor_subtype = p_io->read_u1();
-    m_wps_elements = Globalreg::new_from_pool<shared_wps_de_sub_element_vector>();
     while (!p_io->is_eof()) {
-        auto e = Globalreg::new_from_pool<wps_de_sub_element>();
-        e->parse(*p_io);
-        m_wps_elements->push_back(e);
+        auto& e = m_wps_elements.emplace_back();
+        e.parse(*p_io);
     }
 }
 
@@ -37,11 +35,9 @@ void dot11_ie_221_ms_wps::parse(const std::string& data) {
 	kaitai::kstream p_io(&is);
 
     m_vendor_subtype = p_io.read_u1();
-    m_wps_elements = Globalreg::new_from_pool<shared_wps_de_sub_element_vector>();
     while (!p_io.is_eof()) {
-        auto e = Globalreg::new_from_pool<wps_de_sub_element>();
-        e->parse(p_io);
-        m_wps_elements->push_back(e);
+        auto& e = m_wps_elements.emplace_back();
+        e.parse(p_io);
     }
 }
 
@@ -50,54 +46,35 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::parse(kaitai::kstream& p_io) {
     m_wps_de_len = p_io.read_u2be();
     m_wps_de_content = p_io.read_bytes(wps_de_len());
 
-    if (wps_de_type() == wps_de_device_name) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_manuf) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_model) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_model_num) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_rfbands) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_rfband>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_serial) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_string>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_version) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_version>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_state) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_state>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_ap_setup) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_ap_setup>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_config_methods) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_config_methods>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else if (wps_de_type() == wps_de_uuid_e) {
-        auto s = Globalreg::new_from_pool<wps_de_sub_uuid_e>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
-    } else {
-        auto s = Globalreg::new_from_pool<wps_de_sub_generic>();
-        s->parse(m_wps_de_content);
-        m_sub_element = s;
+    switch (wps_de_type()) {
+        case wps_de_device_name:
+        case wps_de_manuf:
+        case wps_de_model:
+        case wps_de_model_num:
+        case wps_de_serial:
+            m_sub_string.parse(m_wps_de_content);
+            break;
+        case wps_de_rfbands:
+            m_sub_rfband.parse(m_wps_de_content);
+            break;
+        case wps_de_version:
+            m_sub_version.parse(m_wps_de_content);
+            break;
+        case wps_de_state:
+            m_sub_state.parse(m_wps_de_content);
+            break;
+        case wps_de_ap_setup:
+            m_sub_ap_setup.parse(m_wps_de_content);
+            break;
+        case wps_de_config_methods:
+            m_sub_config_methods.parse(m_wps_de_content);
+            break;
+        case wps_de_uuid_e:
+            m_sub_uuid_e.parse(m_wps_de_content);
+            break;
+        default:
+            m_sub_generic.parse(m_wps_de_content);
+            break;
     }
 }
 
@@ -107,14 +84,16 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_string::parse(const std
 	kaitai::kstream p_io(&is);
 
     m_str = p_io.read_bytes_full();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_rfband::parse(const std::string& data) {
 	membuf d_membuf(data.data(), data.data() + data.length());
 	std::istream is(&d_membuf);
-	
+
 	kaitai::kstream p_io(&is);
     m_rfband = p_io.read_u1();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_state::parse(const std::string& data) {
@@ -123,6 +102,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_state::parse(const std:
 	kaitai::kstream p_io(&is);
 
     m_state = p_io.read_u1();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_uuid_e::parse(const std::string& data) {
@@ -131,6 +111,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_uuid_e::parse(const std
 	kaitai::kstream p_io(&is);
 
     m_uuid = p_io.read_bytes_full();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_primary_type::parse(const std::string& data) {
@@ -141,6 +122,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_primary_type::parse(con
     m_category = p_io.read_u2be();
     m_typedata = p_io.read_u4be();
     m_subcategory = p_io.read_u2be();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_vendor_extension::parse(const std::string& data) {
@@ -152,6 +134,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_vendor_extension::parse
     m_wfa_sub_id = p_io.read_u1();
     m_wfa_sub_len = p_io.read_u1();
     m_wfa_sub_data = p_io.read_bytes(wfa_sub_len());
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_version::parse(const std::string& data) {
@@ -160,6 +143,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_version::parse(const st
 	kaitai::kstream p_io(&is);
 
     m_version = p_io.read_u1();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_ap_setup::parse(const std::string& data) {
@@ -168,6 +152,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_ap_setup::parse(const s
 	kaitai::kstream p_io(&is);
 
     m_ap_setup_locked = p_io.read_u1();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_config_methods::parse(const std::string& data) {
@@ -176,6 +161,7 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_config_methods::parse(c
 	kaitai::kstream p_io(&is);
 
     m_config_methods = p_io.read_u2be();
+    m_parsed = true;
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_generic::parse(const std::string& data) {
@@ -184,5 +170,6 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_generic::parse(const st
 	kaitai::kstream p_io(&is);
 
     m_wps_de_data = p_io.read_bytes_full();
+    m_parsed = true;
 }
 

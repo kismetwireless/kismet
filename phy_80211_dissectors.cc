@@ -1932,7 +1932,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 uint8_t mcs_offt = 0;
 
                 for (int x = 0; x < 4; x++) {
-                    mcs_byte = ht.mcs()->rx_mcs()[x];
+                    mcs_byte = ht.mcs().rx_mcs()[x];
                     for (int i = 0; i < 8; i++) {
                         if (mcs_byte & (1 << i)) {
                             int mcsindex = mcs_offt + i;
@@ -2328,16 +2328,16 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     dot11_ie_221_ms_wps wps;
                     wps.parse(vendor.vendor_tag());
 
-                    for (const auto& wpselem : *(wps.wps_elements())) {
-                        auto version = wpselem->sub_element_version();
-                        if (version != NULL) {
-                            packinfo->wps_version = version->version();
+                    for (const auto& wpselem : wps.wps_elements()) {
+                        const auto& version = wpselem.sub_element_version();
+                        if (version.parsed()) {
+                            packinfo->wps_version = version.version();
                             continue;
                         }
 
-                        auto state = wpselem->sub_element_state();
-                        if (state != NULL) {
-                            if (state->wps_state_configured()) {
+                        const auto& state = wpselem.sub_element_state();
+                        if (state.parsed()) {
+                            if (state.wps_state_configured()) {
                                 packinfo->wps |= DOT11_WPS_CONFIGURED;
                             } else {
                                 packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
@@ -2346,49 +2346,49 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                             continue;
                         }
 
-                        auto ap_setup = wpselem->sub_element_ap_setup();
-                        if (ap_setup != NULL) {
-                            if (ap_setup->ap_setup_locked()) {
+                        const auto& ap_setup = wpselem.sub_element_ap_setup();
+                        if (ap_setup.parsed()) {
+                            if (ap_setup.ap_setup_locked()) {
                                 packinfo->wps |= DOT11_WPS_LOCKED;
                             }
 
                             continue;
                         }
 
-                        auto config_methods = wpselem->sub_element_config_methods();
-                        if (config_methods != NULL) {
-                            packinfo->wps_config_methods = config_methods->wps_config_methods();
+                        const auto& config_methods = wpselem.sub_element_config_methods();
+                        if (config_methods.parsed()) {
+                            packinfo->wps_config_methods = config_methods.wps_config_methods();
                             continue;
                         }
 
-                        auto device_name = wpselem->sub_element_name();
-                        if (device_name != NULL) {
-                            packinfo->wps_device_name = munge_to_printable(device_name->str());
+                        const auto& device_name = wpselem.sub_element_name();
+                        if (device_name.parsed()) {
+                            packinfo->wps_device_name = munge_to_printable(device_name.str());
 
                             continue;
                         }
 
-                        auto manuf = wpselem->sub_element_manuf();
-                        if (manuf != NULL) {
-                            packinfo->wps_manuf = munge_to_printable(manuf->str());
+                        const auto& manuf = wpselem.sub_element_manuf();
+                        if (manuf.parsed()) {
+                            packinfo->wps_manuf = munge_to_printable(manuf.str());
                             continue;
                         }
 
-                        auto model = wpselem->sub_element_model();
-                        if (model != NULL) {
-                            packinfo->wps_model_name = munge_to_printable(model->str());
+                        const auto& model = wpselem.sub_element_model();
+                        if (model.parsed()) {
+                            packinfo->wps_model_name = munge_to_printable(model.str());
                             continue;
                         }
 
-                        auto model_num = wpselem->sub_element_model_num();
-                        if (model_num != NULL) {
-                            packinfo->wps_model_number = munge_to_printable(model_num->str());
+                        const auto& model_num = wpselem.sub_element_model_num();
+                        if (model_num.parsed()) {
+                            packinfo->wps_model_number = munge_to_printable(model_num.str());
                             continue;
                         }
 
-                        auto serial_num = wpselem->sub_element_serial();
-                        if (serial_num != NULL) {
-                            packinfo->wps_serial_number = munge_to_printable(serial_num->str());
+                        const auto& serial_num = wpselem.sub_element_serial();
+                        if (serial_num.parsed()) {
+                            packinfo->wps_serial_number = munge_to_printable(serial_num.str());
                             continue;
                         }
 

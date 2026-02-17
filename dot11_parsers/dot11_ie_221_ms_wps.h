@@ -33,191 +33,24 @@
 
 class dot11_ie_221_ms_wps {
 public:
-    class wps_de_sub_element;
-
-    typedef std::vector<std::shared_ptr<wps_de_sub_element> > shared_wps_de_sub_element_vector;
-
-    dot11_ie_221_ms_wps() { }
-    ~dot11_ie_221_ms_wps() { }
-
-    void parse(std::shared_ptr<kaitai::kstream> p_io);
-	void parse(const std::string& data);
-
-    constexpr17 uint8_t vendor_subtype() const {
-        return m_vendor_subtype;
-    }
-
-    std::shared_ptr<shared_wps_de_sub_element_vector> wps_elements() const {
-        return m_wps_elements;
-    }
-
-    constexpr17 static uint32_t ms_wps_oui() {
-        return 0x0050f2;
-    }
-
-    constexpr17 static uint8_t ms_wps_subtype() {
-        return 0x04;
-    }
-
-    void reset() {
-        m_vendor_subtype = 0;
-        m_wps_elements.reset();
-    }
-
-protected:
-    uint8_t m_vendor_subtype;
-    std::shared_ptr<shared_wps_de_sub_element_vector> m_wps_elements;
-
-public:
     class wps_de_sub_element {
-    public:
-        class wps_de_sub_common;
-        class wps_de_sub_string;
-        class wps_de_sub_rfband;
-        class wps_de_sub_state;
-        class wps_de_sub_uuid_e;
-        class wps_de_sub_vendor_extension;
-        class wps_de_sub_version;
-        class wps_de_sub_primary_type;
-        class wps_de_sub_ap_setup;
-        class wps_de_sub_config_methods;
-        class wps_de_sub_generic;
-
-        enum wps_de_type_e {
-            wps_de_config_methods = 0x1008,
-            wps_de_device_name = 0x1011,
-            wps_de_manuf = 0x1021,
-            wps_de_model = 0x1023,
-            wps_de_model_num = 0x1024,
-            wps_de_rfbands = 0x103c,
-            wps_de_serial = 0x1042,
-            wps_de_state = 0x1044,
-            wps_de_uuid_e = 0x1047,
-            wps_de_vendor_extension = 0x1049,
-            wps_de_version = 0x104a,
-            wps_de_primary_type = 0x1054,
-            wps_de_ap_setup = 0x1057
-        };
-
-
-        wps_de_sub_element() {};
-        ~wps_de_sub_element() {};
-
-        void parse(kaitai::kstream& p_io);
-
-        constexpr17 wps_de_type_e wps_de_type() const {
-            return (wps_de_type_e) m_wps_de_type;
-        }
-
-        constexpr17 uint16_t wps_de_len() const {
-            return m_wps_de_len;
-        }
-
-        constexpr17 const std::string& wps_de_content() const {
-            return m_wps_de_content;
-        }
-
-        std::shared_ptr<wps_de_sub_common> sub_element() const {
-            return m_sub_element;
-        }
-
-        std::shared_ptr<wps_de_sub_string> sub_element_as_string() const {
-            return std::static_pointer_cast<wps_de_sub_string>(sub_element());
-        }
-
-        std::shared_ptr<wps_de_sub_string> sub_element_name() const {
-            if (wps_de_type() == wps_de_device_name)
-                return sub_element_as_string();
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_string> sub_element_manuf() const {
-            if (wps_de_type() == wps_de_manuf)
-                return sub_element_as_string();
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_string> sub_element_model() const {
-            if (wps_de_type() == wps_de_model)
-                return sub_element_as_string();
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_string> sub_element_model_num() const {
-            if (wps_de_type() == wps_de_model_num)
-                return sub_element_as_string();
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_rfband> sub_element_rfbands() const {
-            if (wps_de_type() == wps_de_rfbands)
-                return std::static_pointer_cast<wps_de_sub_rfband>(sub_element());
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_string> sub_element_serial() const {
-            if (wps_de_type() == wps_de_serial)
-                return sub_element_as_string();
-            return NULL;
-        }
-
-       std::shared_ptr<wps_de_sub_version> sub_element_version() const {
-            if (wps_de_type() == wps_de_version)
-                return std::static_pointer_cast<wps_de_sub_version>(sub_element());
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_state> sub_element_state() const {
-            if (wps_de_type() == wps_de_state)
-                return std::static_pointer_cast<wps_de_sub_state>(sub_element());
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_ap_setup> sub_element_ap_setup() const {
-            if (wps_de_type() == wps_de_ap_setup)
-                return std::static_pointer_cast<wps_de_sub_ap_setup>(sub_element());
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_config_methods> sub_element_config_methods() const {
-            if (wps_de_type() == wps_de_config_methods)
-                return std::static_pointer_cast<wps_de_sub_config_methods>(sub_element());
-            return NULL;
-        }
-
-        std::shared_ptr<wps_de_sub_uuid_e> sub_element_uuid_e() const {
-            if (wps_de_type() == wps_de_uuid_e)
-                return std::static_pointer_cast<wps_de_sub_uuid_e>(sub_element());
-            return NULL;
-        }
-
-        void reset() {
-            m_wps_de_type = 0;
-            m_wps_de_len = 0;
-            m_wps_de_content = "";
-            m_sub_element.reset();
-        }
-
-    protected:
-        uint16_t m_wps_de_type;
-        uint16_t m_wps_de_len;
-        std::string m_wps_de_content;
-        std::shared_ptr<wps_de_sub_common> m_sub_element;
-
     public:
         class wps_de_sub_common {
         public:
-            wps_de_sub_common() { };
+            wps_de_sub_common() : m_parsed{false} { };
             virtual ~wps_de_sub_common() { };
-
             virtual void parse(const std::string& data) { }
-
             virtual void reset() = 0;
+
+            constexpr bool parsed() const { return m_parsed; }
+
+        protected:
+            bool m_parsed;
         };
 
         class wps_de_sub_string : public wps_de_sub_common {
         public:
-            wps_de_sub_string() { }
+            wps_de_sub_string() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_string() { }
 
             virtual void parse(const std::string& data) override;
@@ -227,6 +60,7 @@ public:
             }
 
             virtual void reset() override {
+                m_parsed = false;
                 m_str = "";
             }
 
@@ -236,7 +70,7 @@ public:
 
         class wps_de_sub_rfband : public wps_de_sub_common {
         public:
-            wps_de_sub_rfband() { }
+            wps_de_sub_rfband() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_rfband() { }
 
             virtual void parse(const std::string& data) override;
@@ -254,6 +88,7 @@ public:
             }
 
             virtual void reset() override {
+                m_parsed = false;
                 m_rfband = 0;
             }
 
@@ -263,7 +98,7 @@ public:
 
         class wps_de_sub_state : public wps_de_sub_common {
         public:
-            wps_de_sub_state() { }
+            wps_de_sub_state() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_state() { }
 
             virtual void parse(const std::string& data) override;
@@ -277,6 +112,7 @@ public:
             }
 
             virtual void reset() override {
+                m_parsed = false;
                 m_state = 0;
             }
 
@@ -286,7 +122,7 @@ public:
 
         class wps_de_sub_uuid_e : public wps_de_sub_common {
         public:
-            wps_de_sub_uuid_e() { }
+            wps_de_sub_uuid_e() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_uuid_e() { }
 
             virtual void parse(const std::string& data) override;
@@ -296,6 +132,7 @@ public:
             }
 
             virtual void reset() override {
+                m_parsed = 0;
                 m_uuid = "";
             }
 
@@ -305,7 +142,7 @@ public:
 
         class wps_de_sub_primary_type : public wps_de_sub_common {
         public:
-            wps_de_sub_primary_type() { }
+            wps_de_sub_primary_type() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_primary_type() { }
 
             virtual void parse(const std::string& data) override;
@@ -323,6 +160,7 @@ public:
             }
 
             virtual void reset() override {
+                m_parsed = false;
                 m_category = 0;
                 m_typedata = 0;
                 m_subcategory = 0;
@@ -336,7 +174,7 @@ public:
 
         class wps_de_sub_vendor_extension : public wps_de_sub_common {
         public:
-            wps_de_sub_vendor_extension() { }
+            wps_de_sub_vendor_extension() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_vendor_extension() { }
 
             virtual void parse(const std::string& data) override;
@@ -358,6 +196,7 @@ public:
             }
 
             virtual void reset() override {
+                m_parsed = false;
                 m_vendor_id = "";
                 m_wfa_sub_id = 0;
                 m_wfa_sub_len = 0;
@@ -373,7 +212,7 @@ public:
 
         class wps_de_sub_version : public wps_de_sub_common {
         public:
-            wps_de_sub_version() { }
+            wps_de_sub_version() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_version() { }
 
             virtual void parse(const std::string& data) override;
@@ -383,6 +222,7 @@ public:
             }
 
             void reset() override {
+                m_parsed = false;
                 m_version = 0;
             }
 
@@ -392,7 +232,7 @@ public:
 
         class wps_de_sub_ap_setup : public wps_de_sub_common {
         public:
-            wps_de_sub_ap_setup() { }
+            wps_de_sub_ap_setup() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_ap_setup() { }
 
             virtual void parse(const std::string& data) override;
@@ -402,6 +242,7 @@ public:
             }
 
             void reset() override {
+                m_parsed = false;
                 m_ap_setup_locked = 0;
             }
 
@@ -411,7 +252,7 @@ public:
 
         class wps_de_sub_config_methods : public wps_de_sub_common {
         public:
-            wps_de_sub_config_methods() { }
+            wps_de_sub_config_methods() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_config_methods() { }
 
             virtual void parse(const std::string& data) override;
@@ -421,6 +262,7 @@ public:
             }
 
             void reset() override {
+                m_parsed = false;
                 m_config_methods = 0;
             }
 
@@ -430,7 +272,7 @@ public:
 
         class wps_de_sub_generic : public wps_de_sub_common {
         public:
-            wps_de_sub_generic() { }
+            wps_de_sub_generic() : wps_de_sub_common{} { }
             virtual ~wps_de_sub_generic() { }
 
             virtual void parse(const std::string& data) override;
@@ -440,6 +282,7 @@ public:
             }
 
             void reset() override {
+                m_parsed = false;
                 m_wps_de_data = "";
             }
 
@@ -447,7 +290,153 @@ public:
             std::string m_wps_de_data;
         };
 
+        enum wps_de_type_e {
+            wps_de_config_methods = 0x1008,
+            wps_de_device_name = 0x1011,
+            wps_de_manuf = 0x1021,
+            wps_de_model = 0x1023,
+            wps_de_model_num = 0x1024,
+            wps_de_rfbands = 0x103c,
+            wps_de_serial = 0x1042,
+            wps_de_state = 0x1044,
+            wps_de_uuid_e = 0x1047,
+            wps_de_vendor_extension = 0x1049,
+            wps_de_version = 0x104a,
+            wps_de_primary_type = 0x1054,
+            wps_de_ap_setup = 0x1057
+        };
+
+
+        wps_de_sub_element() { };
+        ~wps_de_sub_element() { };
+
+        void parse(kaitai::kstream& p_io);
+
+        constexpr17 wps_de_type_e wps_de_type() const {
+            return (wps_de_type_e) m_wps_de_type;
+        }
+
+        constexpr17 uint16_t wps_de_len() const {
+            return m_wps_de_len;
+        }
+
+        constexpr17 const std::string& wps_de_content() const {
+            return m_wps_de_content;
+        }
+
+        const wps_de_sub_string& sub_element_as_string() const {
+            return m_sub_string;
+        }
+
+        const wps_de_sub_string& sub_element_name() const {
+            return m_sub_string;
+        }
+
+        const wps_de_sub_string& sub_element_manuf() const {
+            return m_sub_string;
+        }
+
+        const wps_de_sub_string& sub_element_model() const {
+            return m_sub_string;
+        }
+
+        const wps_de_sub_string& sub_element_model_num() const {
+            return m_sub_string;
+        }
+
+        const wps_de_sub_rfband& sub_element_rfbands() const {
+            return m_sub_rfband;
+        }
+
+        const wps_de_sub_string& sub_element_serial() const {
+            return m_sub_string;
+        }
+
+        const wps_de_sub_version& sub_element_version() const {
+            return m_sub_version;
+        }
+
+        const wps_de_sub_state& sub_element_state() const {
+            return m_sub_state;
+        }
+
+        const wps_de_sub_ap_setup& sub_element_ap_setup() const {
+            return m_sub_ap_setup;
+        }
+
+        const wps_de_sub_config_methods& sub_element_config_methods() const {
+            return m_sub_config_methods;
+        }
+
+        const wps_de_sub_uuid_e& sub_element_uuid_e() const {
+            return m_sub_uuid_e;
+        }
+
+        const wps_de_sub_generic& sub_element_generic() const {
+            return m_sub_generic;
+        }
+
+        void reset() {
+            m_wps_de_type = 0;
+            m_wps_de_len = 0;
+            m_wps_de_content = "";
+            m_sub_string.reset();
+            m_sub_rfband.reset();
+            m_sub_version.reset();
+            m_sub_state.reset();
+            m_sub_ap_setup.reset();
+            m_sub_config_methods.reset();
+            m_sub_uuid_e.reset();
+            m_sub_generic.reset();
+        }
+
+    protected:
+        uint16_t m_wps_de_type;
+        uint16_t m_wps_de_len;
+        std::string m_wps_de_content;
+
+        wps_de_sub_string m_sub_string;
+        wps_de_sub_rfband m_sub_rfband;
+        wps_de_sub_version m_sub_version;
+        wps_de_sub_state m_sub_state;
+        wps_de_sub_ap_setup m_sub_ap_setup;
+        wps_de_sub_config_methods m_sub_config_methods;
+        wps_de_sub_uuid_e m_sub_uuid_e;
+        wps_de_sub_generic m_sub_generic;
     };
+
+    typedef std::vector<wps_de_sub_element> wps_de_sub_element_vector;
+
+    dot11_ie_221_ms_wps() { }
+    ~dot11_ie_221_ms_wps() { }
+
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
+	void parse(const std::string& data);
+
+    constexpr17 uint8_t vendor_subtype() const {
+        return m_vendor_subtype;
+    }
+
+    const wps_de_sub_element_vector& wps_elements() const {
+        return m_wps_elements;
+    }
+
+    constexpr17 static uint32_t ms_wps_oui() {
+        return 0x0050f2;
+    }
+
+    constexpr17 static uint8_t ms_wps_subtype() {
+        return 0x04;
+    }
+
+    void reset() {
+        m_vendor_subtype = 0;
+        m_wps_elements.clear();
+    }
+
+protected:
+    uint8_t m_vendor_subtype;
+    wps_de_sub_element_vector m_wps_elements;
 
 };
 

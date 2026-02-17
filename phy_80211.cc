@@ -156,18 +156,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     Globalreg::enable_pool_type<dot11_ie_221_owe_transition>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<dot11_ie_221_ms_wps>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::shared_wps_de_sub_element_vector>([](auto *a) { a->clear(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_string>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_rfband>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_state>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_uuid_e>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_primary_type>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_vendor_extension>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_version>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_ap_setup>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_config_methods>([](auto *a) { a->reset(); });
-    Globalreg::enable_pool_type<dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_generic>([](auto *a) { a->reset(); });
 
     Globalreg::enable_pool_type<dot11_wfa_p2p_ie>([](auto *a) { a->reset(); });
     Globalreg::enable_pool_type<dot11_wfa_p2p_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });

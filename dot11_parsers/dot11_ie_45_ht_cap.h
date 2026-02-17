@@ -33,7 +33,36 @@
 
 class dot11_ie_45_ht_cap {
 public:
-    class dot11_ie_45_rx_mcs;
+    class dot11_ie_45_rx_mcs {
+    public:
+        dot11_ie_45_rx_mcs() { }
+        ~dot11_ie_45_rx_mcs() { }
+
+        void parse(kaitai::kstream& p_io);
+
+        std::string rx_mcs() const {
+            return m_rx_mcs;
+        }
+
+        constexpr17 uint16_t supported_data_rate() const {
+            return m_supported_data_rate;
+        }
+
+        constexpr17 uint32_t txflags() const {
+            return m_txflags;
+        }
+
+        void reset() {
+            m_rx_mcs = "";
+            m_supported_data_rate = 0;
+            m_txflags = 0;
+        }
+
+    protected:
+        std::string m_rx_mcs;
+        uint16_t m_supported_data_rate;
+        uint32_t m_txflags;
+    };
 
     dot11_ie_45_ht_cap() { }
     ~dot11_ie_45_ht_cap() { }
@@ -49,7 +78,7 @@ public:
         return m_ampdu;
     }
 
-    std::shared_ptr<dot11_ie_45_rx_mcs> mcs() const {
+    const dot11_ie_45_rx_mcs& mcs() const {
         return m_mcs;
     }
 
@@ -133,43 +162,10 @@ public:
 protected:
     uint16_t m_ht_capabilities;
     uint8_t m_ampdu;
-    std::shared_ptr<dot11_ie_45_rx_mcs> m_mcs;
+    dot11_ie_45_rx_mcs m_mcs;
     uint16_t m_ht_extended_caps;
     uint32_t m_txbf_caps;
     uint8_t m_asel_caps;
-
-public:
-    class dot11_ie_45_rx_mcs {
-    public:
-        dot11_ie_45_rx_mcs() { }
-        ~dot11_ie_45_rx_mcs() { }
-
-        void parse(kaitai::kstream& p_io);
-
-        std::string rx_mcs() const {
-            return m_rx_mcs;
-        }
-
-        constexpr17 uint16_t supported_data_rate() const {
-            return m_supported_data_rate;
-        }
-
-        constexpr17 uint32_t txflags() const {
-            return m_txflags;
-        }
-
-        void reset() {
-            m_rx_mcs = "";
-            m_supported_data_rate = 0;
-            m_txflags = 0;
-        }
-
-    protected:
-        std::string m_rx_mcs;
-        uint16_t m_supported_data_rate;
-        uint32_t m_txflags;
-    };
-
 };
 
 
