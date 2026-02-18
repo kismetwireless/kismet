@@ -2070,11 +2070,11 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             continue;
         } else if (ie_tag.tag_num() == 127) {
-            if (ie_tag.tag_len() > 13) {
+            if (ie_tag.tag_len() > 15) {
                 std::string al = fmt::format("IEEE80211 Access Point BSSID {} sent a beacon with "
-                    "an invalid IE 127 Extended Capabilities tag; this may indicate attempts to "
+                    "an unusual IE 127 Extended Capabilities tag; this may indicate attempts to "
                     "exploit Qualcomm drivers using the CVE-2019-10539 vulnerability.  Extended "
-                    "capability tags should typically have 10-11 bytes, but saw {}.",
+                    "capability tags should typically have 10-15 bytes, but saw {}.",
                     packinfo->bssid_mac, ie_tag.tag_len());
 
                 alertracker->raise_alert(alert_qcom_extended_ref, in_pack,
