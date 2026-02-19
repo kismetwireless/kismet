@@ -1825,7 +1825,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             } else if (dot11info->distrib == distrib_inter) {
                 // We don't change the type of the presumed bssid device here because it's not an AP;
                 // not entirely sure how to record this relationship currently
-            } else {
+            } else if (dot11info->distrib == distrib_from) {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 dot11info->bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
                 dot11info->bssid_dev->set_tracker_type_string(d11phy->devtype_ap);
@@ -2449,7 +2449,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             if (ssid->get_ssid() != "") {
                 bssid_dev->set_devicename(ssid->get_ssid());
             } else {
-                bssid_dev->set_devicename(bssid_dev->get_macaddr().mac_to_string());
+                // bssid_dev->set_devicename(bssid_dev->get_macaddr().mac_to_string());
             }
 
             if (ssid_str.length() != 0 && d11phy->alertracker->potential_alert(d11phy->alert_ssidcanary_ref)) {
@@ -2886,7 +2886,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
         } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
             basedev->set_devicename(ssid->get_meshid());
         } else {
-            basedev->set_devicename(basedev->get_macaddr().mac_to_string());
+            // basedev->set_devicename(basedev->get_macaddr().mac_to_string());
         }
 
         // If we have a new ssid and we can consider raising an alert, do the
@@ -3407,7 +3407,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
             basedev->set_devicename(ssid->get_meshid());
         } else {
-            basedev->set_devicename(basedev->get_macaddr().mac_to_string());
+            // basedev->set_devicename(basedev->get_macaddr().mac_to_string());
         }
 
         // If we have a new ssid and we can consider raising an alert, do the
