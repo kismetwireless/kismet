@@ -112,8 +112,7 @@ std::vector<std::string> kis_datasource::get_source_channels_vec_copy() {
 }
 
 void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource list_interfaces");
-    lock.lock();
+    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource list_interfaces");
 
     set_source_name("list");
     set_int_source_interface("n/a");
@@ -123,14 +122,12 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
 
     mode_listing = true;
 
-    if (in_transaction == 0)
-        in_transaction = next_transaction++;
-
     // If we can't list interfaces according to our prototype, die
     // and call the cb instantly
     if (!get_source_builder()->get_list_capable()) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction,
                     std::vector<shared_interface>());
         }
@@ -140,11 +137,13 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
 
     // If we don't have our local binary, die and call cb instantly
     if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction,
                     std::vector<shared_interface>());
         }
+
         return;
     }
 
@@ -175,8 +174,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
 
 void kis_datasource::probe_interface(std::string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource probe_interface");
-    lock.lock();
+    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource probe_interface");
 
     set_source_name("probe");
     set_int_source_interface("n/a");
@@ -186,38 +184,37 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
 
     mode_probing = true;
 
-    if (in_transaction == 0)
-        in_transaction = next_transaction++;
-
     set_int_source_definition(in_definition);
 
     // If we can't probe interfaces according to our prototype, die
     // and call the cb instantly
     if (!get_source_builder()->get_probe_capable()) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Driver not capable of probing");
-            lock.lock();
         }
+
         return;
     }
 
     // If we don't have our local binary, die and call cb instantly
     if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Capture tool not installed");
-            lock.lock();
         }
+
         return;
     }
 
     // Populate our local info about the interface
     if (!parse_source_definition(in_definition)) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Malformed source config");
-            lock.lock();
         }
 
         return;
@@ -225,8 +222,6 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
 
     // Squelch errors from probe because they're not useful
     quiet_errors = true;
-
-    lock.unlock();
 
     // Launch the IPC
     if (launch_ipc()) {
@@ -237,8 +232,11 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
             send_probe_source(get_source_definition(), in_transaction, in_cb);
             deferred_event = {};
         };
+
         send_v2_probe_ping();
     } else {
+        lock.unlock();
+
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Failed to launch IPC to probe source");
         }
@@ -247,8 +245,7 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
 
 void kis_datasource::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource open_interface");
-    lock.lock();
+    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource open_interface");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -257,10 +254,10 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // Populate our local info about the interface
     if (!parse_source_definition(in_definition)) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Malformed source config");
-            lock.lock();
         }
 
         return;
@@ -294,10 +291,9 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         set_int_source_running(1);
         set_int_source_error(0);
 
+        lock.unlock();
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, true, "Source opened");
-            lock.lock();
         }
 
         return;
@@ -305,10 +301,10 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Driver does not support direct capture");
-            lock.lock();
         }
 
         return;
@@ -316,11 +312,12 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // If we don't have our local binary, die and call cb instantly
     if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
+        lock.unlock();
+
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Capture tool not installed");
-            lock.lock();
         }
+
         return;
     }
 
@@ -328,16 +325,11 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     if (error_timer_id > 0)
         timetracker->remove_timer(error_timer_id);
 
-    // Launch the IPC, outside of lock
-    lock.unlock();
-
     if (!launch_ipc()) {
         return;
     }
 
-    lock.lock();
-
-    // Store the cb, and send a v2 discovery probe
+    // Store the cb, and queue sending a v2 discovery probe
     deferred_event = [this, in_transaction, in_cb]() mutable {
         kis_lock_guard<kis_mutex> lg(ext_mutex, "handle_v2_pong_event");
 
