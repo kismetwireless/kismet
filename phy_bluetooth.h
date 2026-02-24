@@ -119,6 +119,8 @@ public:
     __Proxy(pathloss, int16_t, int16_t, int16_t, pathloss);
     __Proxy(bt_device_type, uint8_t, uint8_t, uint8_t, bt_device_type);
 
+    __Proxy(connectable, uint8_t, uint8_t, uint8_t, connectable);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -134,6 +136,7 @@ protected:
         register_field("bluetooth.device.service_data_bytes", "per-service result bytes", &service_data_bytes);
         register_field("bluetooth.device.txpower", "advertised transmit power", &txpower);
         register_field("bluetooth.device.pathloss", "signal pathloss", &pathloss);
+        register_field("bluetooth.device.connectable", "device is connectable", &connectable);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -154,6 +157,8 @@ protected:
 
     std::shared_ptr<tracker_element_int16> txpower;
 	std::shared_ptr<tracker_element_int16> pathloss;
+
+    std::shared_ptr<tracker_element_uint8> connectable;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
