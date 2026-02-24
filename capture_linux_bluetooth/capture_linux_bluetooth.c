@@ -128,9 +128,10 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     snprintf(json, 2048, "{"
             "\"addr\": \"%s\","
             "\"name\": \"%s\","
-            "\"type\": %u"
+            "\"type\": %u,"
+            "\"connectable\": %u"
             "}",
-            address, safe_name, dev->addr.type);
+            address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1);
 
     if (safe_name != name) {
         free(safe_name);

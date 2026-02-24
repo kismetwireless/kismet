@@ -245,6 +245,13 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     break;
             }
         }
+
+        // Read connectable flag from HCI capture source
+        auto connectable_j = json["connectable"];
+        if (connectable_j.is_number()) {
+            btdev->set_connectable(connectable_j.get<unsigned int>());
+        }
+
     } catch (const std::exception& e) {
         in_pack->error = true;
         return 0;
