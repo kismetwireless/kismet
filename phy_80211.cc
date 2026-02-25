@@ -1323,11 +1323,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             unsigned int bflags =
                 (UCD_UPDATE_PACKETS | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION);
 
-            // Only update source signal info if it's TO the AP, don't inherit the AP
-            // resending bridged packets
-            if (dot11info->distrib == distrib_to)
-                bflags |= (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                        UCD_UPDATE_LOCATION);
+            bflags |= (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                    UCD_UPDATE_LOCATION);
 
             dot11info->source_dev =
                 d11phy->devicetracker->update_common_device(commoninfo,
