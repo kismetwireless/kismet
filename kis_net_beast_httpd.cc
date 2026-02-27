@@ -66,7 +66,10 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
 
         mon = std::shared_ptr<kis_net_beast_httpd>(new kis_net_beast_httpd(endpoint));
     } catch (const std::exception& e) {
-
+        _MSG_FATAL("Unable to start httpd server on {}:{}: {}",
+                httpd_interface, httpd_port, e.what());
+        Globalreg::globalreg->fatal_condition = 1;
+        return nullptr;
     }
 
     Globalreg::globalreg->register_lifetime_global(mon);
