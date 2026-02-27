@@ -49,44 +49,44 @@ std::string munge_for_csv(const std::string& in_data) {
 std::string wifi_crypt_to_string(unsigned long cryptset) {
     std::stringstream ss;
 
-    if (cryptset & crypt_wps)
+    if (cryptset & dot11_crypt_akm_wps)
         ss << "[WPS] ";
 
-    if ((cryptset & crypt_protectmask) == crypt_wep)
+    if (cryptset & dot11_crypt_general_wep)
         ss << "[WEP] ";
 
-    if (cryptset & crypt_wpa) {
+    if (cryptset & dot11_crypt_general_wpa) {
 
         std::string cryptver = "";
 
-        if (cryptset & crypt_tkip) {
-            if (cryptset & crypt_aes_ccm) {
+        if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip)) {
+            if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128)) {
                 cryptver = "CCMP+TKIP";
             } else {
                 cryptver = "TKIP";
             }
-        } else if (cryptset & crypt_aes_ccm) {
+        } else if (cryptset & dot11_crypt_pairwise_ccmp128) {
             cryptver = "CCMP";
         }
 
         std::string authver = "";
 
-        if (cryptset & crypt_psk) {
+        if (cryptset & dot11_crypt_akm_psk) {
             authver = "PSK";
-        } else if (cryptset & crypt_eap) {
+        } else if (cryptset & dot11_crypt_akm_1x) {
             authver = "EAP";
-        } else if (cryptset & crypt_wpa_owe) {
+        } else if (cryptset & dot11_crypt_akm_owe) {
             authver = "OWE";
         } else {
             authver = "UNKNOWN";
         }
 
-        if ((cryptset & crypt_version_wpa) && (cryptset & crypt_version_wpa2)) {
+        if ((cryptset & dot11_crypt_general_wpa2) && (cryptset & dot11_crypt_general_wpa1)) {
             ss << "[WPA-" << authver << "-" << cryptver << "] ";
             ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if (cryptset & crypt_version_wpa2) {
+        } else if (cryptset & dot11_crypt_general_wpa2) {
             ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if ((cryptset & crypt_version_wpa3) || (cryptset & crypt_wpa_owe)) {
+        } else if ((cryptset & dot11_crypt_general_wpa3) || (cryptset & dot11_crypt_akm_owe)) {
             ss << "[WPA3-" << authver << "-" << cryptver << "] ";
         } else {
             ss << "[WPA-" << authver << "-" << cryptver << "] ";
