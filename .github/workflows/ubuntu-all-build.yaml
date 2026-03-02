@@ -21,6 +21,7 @@ jobs:
         image: dragorn/kismet-build-ubuntu-noble-amd64:latest
         options: -v ${{ github.workspace }}:/github/workspace
         run: |
+          cd /github/workspace
           ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
           make -j$(nproc)
           sudo make suidinstall
