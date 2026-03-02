@@ -15,7 +15,7 @@ jobs:
       name: List added files
       run: git --no-pager diff --name-only "$(git rev-parse --verify origin/master 2> /dev/null)" HEAD
     -
-      name: Indexer
+      name: Builder
       uses: addnab/docker-run-action@v3
       with:
         image: dragorn/kismet-build-ubuntu-noble-amd64:latest
