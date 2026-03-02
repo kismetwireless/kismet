@@ -20,10 +20,10 @@ jobs:
       with:
         image: dragorn/kismet-build-ubuntu-noble-amd64:latest
         options: -v ${{ github.workspace }}:/github/workspace
-      run: |
-        ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
-        make -j$(nproc)
-        sudo make suidinstall
+        run: |
+          ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
+          make -j$(nproc)
+          sudo make suidinstall
 #    -
 #      name: Ubuntu All Build Test
 #      run: |
