@@ -167,6 +167,9 @@ BUILD_CAPTURE_ANTSDR_DRONEID = @BUILD_CAPTURE_ANTSDR_DRONEID@
 CAPTURE_CATSNIFFER_ZIGBEE = capture_catsniffer_zigbee/kismet_cap_catsniffer_zigbee
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE = @BUILD_CAPTURE_CATSNIFFER_ZIGBEE@
 
+CAPTURE_WCH_BLE_ANALYZER_PRO = capture_wch_ble_analyzer_pro/kismet_cap_wch_ble_analyzer_pro
+BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO = @BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -433,6 +436,9 @@ $(CAPTURE_USB_RADIACODE): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_ANTSDR_DRONEID): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_antsdr_droneid && $(MAKE))
 
+$(CAPTURE_WCH_BLE_ANALYZER_PRO): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_wch_ble_analyzer_pro && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -522,15 +528,19 @@ binsuidinstall: $(DATASOURCE_BINS)
 	@if test "$(BUILD_CAPTURE_CATSNIFFER_ZIGBEE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CATSNIFFER_ZIGBEE) $(BIN)/`basename $(CAPTURE_CATSNIFFER_ZIGBEE)` ; \
 	fi;
-	
+
+	@if test "$(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)` ; \
+	fi;
+
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS);
 
 	# Install the alias script
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 kismet_server $(BIN)/kismet_server; 
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 kismet_server $(BIN)/kismet_server;
 
 	# Install the compiled log tools
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_STRIP) $(BIN)/`basename $(LOGTOOL_KISMETDB_STRIP)`;
@@ -645,7 +655,11 @@ commoninstall: $(INSTBINS)
 	@if test "$(BUILD_CAPTURE_CATSNIFFER_ZIGBEE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CATSNIFFER_ZIGBEE) $(BIN)/`basename $(CAPTURE_CATSNIFFER_ZIGBEE)`; \
 	fi;
-	
+
+	@if test "$(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)`; \
+	fi;
+
 	mkdir -p $(LIB)/pkgconfig
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 packaging/kismet.pc $(LIB)/pkgconfig/kismet.pc
 
@@ -841,6 +855,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_serial_radview && make clean)
 	@(cd capture_radiacode && make clean)
 	@(cd capture_antsdr_droneid && make clean)
+	@(cd capture_wch_ble_analyzer_pro && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*

@@ -46,6 +46,7 @@ BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE=1
+BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 BUILD_CAPTURE_USB_RADIACODE=0
 BUILD_CAPTURE_ANTSDR_DRONEID=1
 
@@ -1873,6 +1874,8 @@ if test "$have_usb" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_RZ_KILLERBEE)"
 fi
 
+BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WCH_BLE_ANALYZER_PRO)"
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -2073,9 +2076,10 @@ AC_CONFIG_FILES([
     capture_nrf_52840/Makefile
     capture_catsniffer_zigbee/Makefile
     capture_hak5_wifi_coconut/Makefile
-	capture_serial_radview/Makefile
-	capture_radiacode/Makefile
+    capture_serial_radview/Makefile
+    capture_radiacode/Makefile
     capture_antsdr_droneid/Makefile
+    capture_wch_ble_analyzer_pro/Makefile
     ])
 AC_OUTPUT
 
@@ -2299,6 +2303,12 @@ else
 fi
 printf "     catsniffer-zigbee: "
 if test "$BUILD_CAPTURE_CATSNIFFER_ZIGBEE" = 1; then
+	echo "yes";
+else
+	echo "no";
+fi
+printf "  WCH BLE Analyzer Pro: "
+if test "$BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO" = 1; then
 	echo "yes";
 else
 	echo "no";
