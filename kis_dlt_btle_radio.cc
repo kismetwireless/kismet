@@ -109,12 +109,9 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
     }  else if (rf_ll->monitor_channel <= 10) {
         radioheader->channel = fmt::format("{}", rf_ll->monitor_channel - 1);
         radioheader->freq_khz = (2404 + (rf_ll->monitor_channel * 2)) * 1000;
-    } else if (rf_ll->monitor_channel <= 36) {
+    } else {
         radioheader->channel = fmt::format("{}", rf_ll->monitor_channel);
         radioheader->freq_khz = (2428 + ((rf_ll->monitor_channel - 11) * 2)) * 1000;
-    } else {
-        radioheader->channel = "0";
-        radioheader->freq_khz = 0;
     }
 
     in_pack->insert(pack_comp_radiodata, radioheader);
