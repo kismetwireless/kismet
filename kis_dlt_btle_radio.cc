@@ -70,10 +70,9 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
         return 1;
     }
 
-    // Make sure the packet can hold the rf_ll and a little extra - 6 seems good,
-    // that's the size of the advertised address info and a packet header
-    if (linkchunk->length() < sizeof(btle_rf) + 6)
+    if (linkchunk->length() < sizeof(btle_rf)) {
         return 1;
+    }
 
     const auto rf_ll = reinterpret_cast<const btle_rf *>(linkchunk->data());
     auto flags = kis_letoh16(rf_ll->flags_le);
@@ -85,7 +84,7 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
             return 1;
         }
 
-        // Flag that we know the CRC is good
+        // Otherwise flag that we know the CRC is good
         in_pack->crc_ok = 1;
     }
 
@@ -98,17 +97,17 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
     if (flags & btle_rf_flag_noisevalid)
         radioheader->noise_dbm = rf_ll->noise;
 
-    if (rf_ll->monitor_channel == 37) {
+    if (rf_ll->monitor_channel == 0) {
         radioheader->channel = "37";
         radioheader->freq_khz = (2402 * 1000);
-    } else if (rf_ll->monitor_channel == 38) {
+    } else if (rf_ll->monitor_channel == 12) {
         radioheader->channel = "38";
         radioheader->freq_khz = (2426 * 1000);
     } else if (rf_ll->monitor_channel == 39) {
         radioheader->channel = "39";
         radioheader->freq_khz = (2480 * 1000);
     }  else if (rf_ll->monitor_channel <= 10) {
-        radioheader->channel = fmt::format("{}", rf_ll->monitor_channel);
+        radioheader->channel = fmt::format("{}", rf_ll->monitor_channel - 1);
         radioheader->freq_khz = (2404 + (rf_ll->monitor_channel * 2)) * 1000;
     } else if (rf_ll->monitor_channel <= 36) {
         radioheader->channel = fmt::format("{}", rf_ll->monitor_channel);
@@ -121,7 +120,7 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
     in_pack->insert(pack_comp_radiodata, radioheader);
 
     // TODO handle dewhitening
-    
+
     auto decapchunk = std::make_shared<kis_datachunk>();
     decapchunk->set_data(in_pack->data.substr(sizeof(btle_rf), in_pack->data.length() - sizeof(btle_rf)));
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;

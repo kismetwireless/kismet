@@ -72,99 +72,20 @@ public:
 #define BTLE_ADVDATA_FLAG_SIMUL_BREDR_CONTROLLER    (1 << 3)
 #define BTLE_ADVDATA_FLAG_SIMUL_BREDR_HOST          (1 << 4)
 
-/*
- * Implements Bluetooth Vol 6, Part B, Section 3.1.1 (ref Figure 3.2)
- *
- * At entry: tvb is entire BTLE packet without preamble
- *           payload_len is the Length field from the BTLE PDU header
- *           crc_init as defined in the specifications
- *
- * This implementation operates on nibbles and is therefore
- * endian-neutral.
- *
- * Taken from the Wireshark implementation
- */
-uint32_t kis_btle_phy::calc_btle_crc(uint32_t crc_init, const char *payload, size_t len) {
-    static const uint16_t btle_crc_next_state_flips[256] = {
-        0x0000, 0x32d8, 0x196c, 0x2bb4, 0x0cb6, 0x3e6e, 0x15da, 0x2702,
-        0x065b, 0x3483, 0x1f37, 0x2def, 0x0aed, 0x3835, 0x1381, 0x2159,
-        0x065b, 0x3483, 0x1f37, 0x2def, 0x0aed, 0x3835, 0x1381, 0x2159,
-        0x0000, 0x32d8, 0x196c, 0x2bb4, 0x0cb6, 0x3e6e, 0x15da, 0x2702,
-        0x0cb6, 0x3e6e, 0x15da, 0x2702, 0x0000, 0x32d8, 0x196c, 0x2bb4,
-        0x0aed, 0x3835, 0x1381, 0x2159, 0x065b, 0x3483, 0x1f37, 0x2def,
-        0x0aed, 0x3835, 0x1381, 0x2159, 0x065b, 0x3483, 0x1f37, 0x2def,
-        0x0cb6, 0x3e6e, 0x15da, 0x2702, 0x0000, 0x32d8, 0x196c, 0x2bb4,
-        0x196c, 0x2bb4, 0x0000, 0x32d8, 0x15da, 0x2702, 0x0cb6, 0x3e6e,
-        0x1f37, 0x2def, 0x065b, 0x3483, 0x1381, 0x2159, 0x0aed, 0x3835,
-        0x1f37, 0x2def, 0x065b, 0x3483, 0x1381, 0x2159, 0x0aed, 0x3835,
-        0x196c, 0x2bb4, 0x0000, 0x32d8, 0x15da, 0x2702, 0x0cb6, 0x3e6e,
-        0x15da, 0x2702, 0x0cb6, 0x3e6e, 0x196c, 0x2bb4, 0x0000, 0x32d8,
-        0x1381, 0x2159, 0x0aed, 0x3835, 0x1f37, 0x2def, 0x065b, 0x3483,
-        0x1381, 0x2159, 0x0aed, 0x3835, 0x1f37, 0x2def, 0x065b, 0x3483,
-        0x15da, 0x2702, 0x0cb6, 0x3e6e, 0x196c, 0x2bb4, 0x0000, 0x32d8,
-        0x32d8, 0x0000, 0x2bb4, 0x196c, 0x3e6e, 0x0cb6, 0x2702, 0x15da,
-        0x3483, 0x065b, 0x2def, 0x1f37, 0x3835, 0x0aed, 0x2159, 0x1381,
-        0x3483, 0x065b, 0x2def, 0x1f37, 0x3835, 0x0aed, 0x2159, 0x1381,
-        0x32d8, 0x0000, 0x2bb4, 0x196c, 0x3e6e, 0x0cb6, 0x2702, 0x15da,
-        0x3e6e, 0x0cb6, 0x2702, 0x15da, 0x32d8, 0x0000, 0x2bb4, 0x196c,
-        0x3835, 0x0aed, 0x2159, 0x1381, 0x3483, 0x065b, 0x2def, 0x1f37,
-        0x3835, 0x0aed, 0x2159, 0x1381, 0x3483, 0x065b, 0x2def, 0x1f37,
-        0x3e6e, 0x0cb6, 0x2702, 0x15da, 0x32d8, 0x0000, 0x2bb4, 0x196c,
-        0x2bb4, 0x196c, 0x32d8, 0x0000, 0x2702, 0x15da, 0x3e6e, 0x0cb6,
-        0x2def, 0x1f37, 0x3483, 0x065b, 0x2159, 0x1381, 0x3835, 0x0aed,
-        0x2def, 0x1f37, 0x3483, 0x065b, 0x2159, 0x1381, 0x3835, 0x0aed,
-        0x2bb4, 0x196c, 0x32d8, 0x0000, 0x2702, 0x15da, 0x3e6e, 0x0cb6,
-        0x2702, 0x15da, 0x3e6e, 0x0cb6, 0x2bb4, 0x196c, 0x32d8, 0x0000,
-        0x2159, 0x1381, 0x3835, 0x0aed, 0x2def, 0x1f37, 0x3483, 0x065b,
-        0x2159, 0x1381, 0x3835, 0x0aed, 0x2def, 0x1f37, 0x3483, 0x065b,
-        0x2702, 0x15da, 0x3e6e, 0x0cb6, 0x2bb4, 0x196c, 0x32d8, 0x0000
-    };
-
-    uint8_t offset = 4;
-    uint32_t state = crc_init;
-
-    for (size_t pos = offset; pos < len; pos++) {
-        uint8_t byte = payload[pos];
-        uint8_t nibble = (byte & 0xF);
-        uint8_t byte_index = ((state >> 16) & 0xF0) | nibble;
-
-        state = ((state << 4) ^ btle_crc_next_state_flips[byte_index]) & 0xFFFFFF;
-        nibble = ((byte >> 4) & 0xF);
-        byte_index = ((state >> 16) & 0xF0) | nibble;
-        state = ((state << 4) ^ btle_crc_next_state_flips[byte_index]) & 0xFFFFFF;
+uint32_t kis_btle_phy::ble_crc24(uint32_t init, const char *buf, size_t len) {
+    uint32_t lfsr = init & 0xFFFFFF;
+    for (size_t i = 0; i < len; i++) {
+        uint8_t byte = buf[i];
+        for (int j = 0; j < 8; j++) {
+            int in = (byte ^ (int)lfsr) & 1;
+            lfsr >>= 1;
+            byte >>= 1;
+            if (in)
+                lfsr ^= 0xDA6000u;  /* reflected BLE polynomial */
+        }
     }
-
-    return state;
+    return lfsr;
 }
-
-/*
- * Reverses the bits in each byte of a 32-bit word.
- *
- * Needed because CRCs are transmitted in bit-reversed order compared
- * to the rest of the BTLE packet.  See BT spec, Vol 6, Part B,
- * Section 1.2.
- *
- * Taken from the Wireshark implementation
- */
-uint32_t kis_btle_phy::reverse_bits(const uint32_t val) {
-    const uint8_t nibble_rev[16] = {
-        0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-        0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf
-    };
-
-    uint32_t retval = 0;
-    unsigned byte_index;
-    for (byte_index=0; byte_index<4; byte_index++) {
-        uint32_t shiftA = byte_index*8;
-        uint32_t shiftB = shiftA+4;
-
-        retval |= (nibble_rev[((val >> shiftA) & 0xf)] << shiftB);
-        retval |= (nibble_rev[((val >> shiftB) & 0xf)] << shiftA);
-    }
-
-    return retval;
-}
-
 
 kis_btle_phy::kis_btle_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -181,7 +102,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
     pack_comp_common = packetchain->register_packet_component("COMMON");
-	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_btle = packetchain->register_packet_component("BTLE");
 
@@ -264,16 +185,14 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 
         uint32_t line_crc;
         line_crc =
-            packdata->data()[packdata->length() - 3] << 16 |
-            packdata->data()[packdata->length() - 2] << 8 |
-            packdata->data()[packdata->length() - 1];
+            (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 1])) << 16 |
+            (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 2])) << 8 |
+            (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 3]));
 
-        // Get the CRC as if it was a broadcast; we'll redo this later if we get
-        // data packets
         uint32_t packet_crc =
-            calc_btle_crc(0x555555, packdata->data(), packdata->length() - 3);
+            ble_crc24(0x555555, packdata->data() + 4, packdata->length() - 7);
 
-        if (reverse_bits(packet_crc) != line_crc) {
+        if (packet_crc != line_crc) {
             in_pack->error = 1;
             return 0;
         }

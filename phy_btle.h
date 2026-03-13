@@ -45,7 +45,7 @@
 
 class btle_tracked_advertised_service : public tracker_component {
 public:
-    btle_tracked_advertised_service() : 
+    btle_tracked_advertised_service() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -57,7 +57,7 @@ public:
         reserve_fields(NULL);
     }
 
-    btle_tracked_advertised_service(int in_id, 
+    btle_tracked_advertised_service(int in_id,
             std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
@@ -76,7 +76,7 @@ public:
     }
 
 protected:
-    virtual void register_fields() override { 
+    virtual void register_fields() override {
         // Manufacturer is added in dynamically
         tracker_component::register_fields();
         register_field("btle.short_service.uuid", "16bit service UUID", &short_uuid);
@@ -90,7 +90,7 @@ protected:
 // Future btle attributes
 class btle_tracked_device : public tracker_component {
 public:
-    btle_tracked_device() : 
+    btle_tracked_device() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -102,7 +102,7 @@ public:
         reserve_fields(NULL);
     }
 
-    btle_tracked_device(int in_id, 
+    btle_tracked_device(int in_id,
             std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
@@ -128,7 +128,7 @@ public:
    __Proxy(pdu_type, uint8_t, uint8_t, uint8_t, pdu_type);
 
 protected:
-    virtual void register_fields() override { 
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
         register_field("btle.device.le_limited_discoverable", "BT LE limited discoverable mode",
@@ -173,9 +173,7 @@ public:
     virtual void load_phy_storage(shared_tracker_element in_storage,
             shared_tracker_element in_device) override;
 
-    /* From the BTLE spec and Wireshark */
-    static uint32_t calc_btle_crc(uint32_t crc_init, const char *data, size_t len);
-    static uint32_t reverse_bits(const uint32_t val);
+    static uint32_t ble_crc24(uint32_t crc_init, const char *data, size_t len);
 
     virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 

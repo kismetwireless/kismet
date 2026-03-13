@@ -950,6 +950,24 @@ int cf_send_data(kis_capture_handler_t *caph,
         struct timeval ts, uint32_t dlt, uint32_t original_sz,
         uint32_t packet_sz, uint8_t *pack);
 
+/* Send a DATA frame composed of a header and a packet; useful when synthesizing
+ * custom headers.  The final packet size and captured size is synthesized from
+ * the header_sz + original_sz + footer_sz and header_sz + packet_sz + footer_sz.
+ * The contents of the header and packet are delivered to Kismet as a single packet.
+ *
+ * Returns:
+ * -1   An error occurred
+ *  0   Insufficient space in buffer
+ *  1   Success
+ */
+int cf_send_data_multi(kis_capture_handler_t *caph,
+        const char *msg, unsigned int msg_type,
+        struct cf_params_signal *signal, struct cf_params_gps *gps,
+        struct timeval ts, uint32_t dlt,
+        uint32_t header_sz, uint8_t *hdr,
+        uint32_t original_sz, uint32_t packet_sz, uint8_t *pack,
+        uint32_t footer_sz, uint8_t *foot);
+
 /* Send a DATA frame with JSON non-packet data
  * Can be called from any thread
  *

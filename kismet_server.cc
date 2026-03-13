@@ -92,6 +92,7 @@
 #include "datasource_radiacode.h"
 #include "datasource_antsdr_droneid.h"
 #include "datasource_catsniffer_zigbee.h"
+#include "datasource_wch_ble_analyzer_pro.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -927,7 +928,6 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf52840_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
-    //printf("Server: Registered datasource_ticc_2531_builder\n");
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_adsbproxy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bt_geiger_builder()));
@@ -937,6 +937,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radiacode_usb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_antsdr_droneid_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_catsniffer_zigbee_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wch_ble_pro_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();
