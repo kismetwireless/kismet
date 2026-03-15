@@ -1,0 +1,1 @@
+ATTR{idVendor}=="1a86", ATTR{idProduct}=="8009", SYMLINK+="wch-ble-pro-mcu-%k", MODE="660", GROUP="plugdev"
