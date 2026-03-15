@@ -48,7 +48,7 @@
  *   --- payload (payload_len bytes) ---
  *      4     4  timestamp_us  (LE uint32, microseconds from device boot)
  *      8     1  channel_index (BLE RF channel 0-39)
- *      9     1  flags         (0x00 or 0x01; meaning unclear)
+ *      9     1  flags         (0x00 or 0x01; appears to indicate original checksum was valid)
  *     10     2  reserved      (0x00 0x00)
  *     12     1  rssi          (signed int8, dBm)
  *     13     1  reserved      (0x00)

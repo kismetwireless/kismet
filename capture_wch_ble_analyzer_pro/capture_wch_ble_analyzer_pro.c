@@ -552,21 +552,6 @@ static uint8_t ble_ch_to_rf_ch(uint8_t ch) {
     return ch + 2;
 }
 
-static uint32_t ble_crc24(uint32_t init, const uint8_t *buf, int len) {
-    uint32_t lfsr = init & 0xFFFFFF;
-    for (int i = 0; i < len; i++) {
-        uint8_t byte = buf[i];
-        for (int j = 0; j < 8; j++) {
-            int in = (byte ^ (int)lfsr) & 1;
-            lfsr >>= 1;
-            byte >>= 1;
-            if (in)
-                lfsr ^= 0xDA6000u;  /* reflected BLE polynomial */
-        }
-    }
-    return lfsr;
-}
-
 static void on_packet(const wch_pkt_hdr_t *hdr, const uint8_t *pdu, int pdu_len, void *ctx) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) ctx;
     /* local_wch_btle_t *local = (local_wch_btle_t *) caph->userdata; */
@@ -574,7 +559,10 @@ static void on_packet(const wch_pkt_hdr_t *hdr, const uint8_t *pdu, int pdu_len,
 
     uint16_t flags = 0x0001 /* DEWHITENED */
                    | 0x0002 /* SIGPOWER_VALID */
-                   | 0x0010; /* REF_AA_VALID */
+                   | 0x0010 /* REF_AA_VALID */
+                   | 0x0400 /* checksum inspected */
+                   | 0x0800; /* checksum valid */
+
 
     ble_phdr_with_aa_t ph = {
         .rf_channel = ble_ch_to_rf_ch(hdr->channel_index),
@@ -589,13 +577,7 @@ static void on_packet(const wch_pkt_hdr_t *hdr, const uint8_t *pdu, int pdu_len,
     struct timeval tv;
     gettimeofday(&tv, NULL);
 
-    uint32_t crc_val = ble_crc24(0x555555, pdu, pdu_len);
-    uint8_t  crc[3] = {
-        (uint8_t)(crc_val),
-        (uint8_t)(crc_val >> 8),
-        (uint8_t)(crc_val >> 16),
-    };
-
+    uint8_t  crc[3] = {0, 0, 0};
     while (1) {
         if ((ret = cf_send_data_multi(caph, NULL, 0,
                         NULL, NULL, tv, KDLT_BTLE_RADIO,

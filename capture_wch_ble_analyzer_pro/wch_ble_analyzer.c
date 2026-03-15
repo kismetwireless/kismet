@@ -230,18 +230,36 @@ int wch_start_capture(wch_device_t *dev, const wch_capture_config_t *cfg)
                 resp[0] ? "firmware present, state=3" : "no firmware?");
     */
 
+    /* 0                       8                       16                      24
+     * aa 81 19 00 ff 01 27 00 00 00 00 00 00 00 00 d6 be 89 8e 55 55 55 10 00 00 00 00 00 00
+     */
+
     /* ── Step 2: AA 81 BLE monitor config ───────────────────────── */
     memset(frame, 0, sizeof(frame));
     frame[0] = WCH_MAGIC;
     frame[1] = CMD_BLE_CONFIG;
     frame[2] = 0x19;            /* payload len = 25 */
     frame[3] = 0x00;
+    frame[4] = 0xFF;
+    frame[5] = 0x01;
+#if 0
     frame[4] = 0x01;            /* BLE monitor mode flag */
     if (cfg->ble_channel)
         frame[4] |= 0x02;       /* channel-nonzero flag (RE: bit set when ch != 0) */
     frame[5] = cfg->phy ? cfg->phy : 1;   /* PHY: 1=1M 2=2M 3/4=Coded */
+#endif
     frame[6] = cfg->ble_channel;  /* BLE adv channel: 37/38/39 (0 = all) */
-    /* bytes [7..28] = zeros (no MAC filters, no LTK, no pass-key) */
+
+    /* frame[7..14] = 0x00; */
+    frame[15] = 0xd6;
+    frame[16] = 0xbe;
+    frame[17] = 0x89;
+    frame[18] = 0x8e;
+    frame[19] = 0x55;
+    frame[20] = 0x55;
+    frame[21] = 0x55;
+    frame[22] = 0x10;
+    /* frmae[23..28] = 0x00; */
 
     r = bulk_write(dev, frame, 4 + 25);
     if (r != 0 && r != LIBUSB_ERROR_TIMEOUT)
@@ -340,6 +358,12 @@ int wch_read_packets(wch_device_t    *dev,
 
         if (offset + frame_size > xfer)
             break;   /* truncated frame – wait for more data */
+
+        /* appears to indicate a junk packet - process the length of the packet but don't send it */
+        if (buf[offset + 9] != 0) {
+            offset += frame_size;
+            continue;
+        }
 
         /* Status echo: skip silently */
         if (ftype == FRAME_TYPE_STS) {
