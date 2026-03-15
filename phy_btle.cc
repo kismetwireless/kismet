@@ -250,6 +250,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random)
         return 0;
 
+#if 0
     if (in_pack->duplicate) {
         auto device =
             mphy->devicetracker->update_common_device(common,
@@ -259,7 +260,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                     "BTLE Device");
         return 1;
     }
-
+#endif
 
     // Update with all the options in case we can add signal and frequency
     // in the future
