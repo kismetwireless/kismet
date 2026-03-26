@@ -16,15 +16,25 @@ jobs:
       run: git --no-pager diff --name-only "$(git rev-parse --verify origin/master 2> /dev/null)" HEAD
     -
       name: Builder
-      uses: addnab/docker-run-action@v3
-      with:
-        image: ghcr.io/kismetwireless/kismet/build-ubuntu-noble-amd64:latest
-        options: -v ${{ github.workspace }}:/github/workspace
-        run: |
-          cd /github/workspace
-          ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
-          make -j$(nproc)
-          sudo make suidinstall
+      env:
+          WORKSPACE: ${{ github.workspace }}
+      run: |
+          docker run -v "/var/run/docker.sock":"/var/run/docker.sock" \
+              --entrypoint /all-build.sh \
+              -v ${WORKSPACE}:/github/workspace \
+              ghcr.io/kismetwireless/kismet/build-ubuntu-noble-amd64:latest
+
+#    -
+#      name: Builder
+#      uses: addnab/docker-run-action@v3
+#      with:
+#        image: ghcr.io/kismetwireless/kismet/build-ubuntu-noble-amd64:latest
+#        options: -v ${{ github.workspace }}:/github/workspace
+#        run: |
+#          cd /github/workspace
+#          ./configure --enable-wifi-coconut --enable-bladerf --enable-protobuf --enable-require-pcre2
+#          make -j$(nproc)
+#          sudo make suidinstall
 #    -
 #      name: Ubuntu All Build Test
 #      run: |
