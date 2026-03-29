@@ -27,6 +27,8 @@
 
 #include <pthread.h>
 
+#include <execution>
+
 #include "alertracker.h"
 #include "configfile.h"
 #include "globalregistry.h"
@@ -461,33 +463,36 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
             packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
 
-            for (unsigned int i = 0; i < 1024; i++) {
-                if (dedupe_list[i].hash == packet->hash) {
-                    packet->duplicate = true;
-                    packet->packet_no = dedupe_list[i].packno;
-                    packet->original = dedupe_list[i].original_pkt;
+            const auto& p = std::find_if(std::execution::par, dedupe_list.begin(), dedupe_list.end(),
+                    [&packet](packno_map_t &i) {
+                    return i.hash != 0 && packet->hash != 0 && i.hash == packet->hash;
+                    });
 
-                    // We have to wait until everything is done being changed in the packet
-                    // before we can copy the duplicate decoded state over, grab the lock that
-                    // is released at the end of the chain
-                    kis_lock_guard<kis_mutex> lg(dedupe_list[i].original_pkt->mutex);
-                    for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
-                        auto cp = dedupe_list[i].original_pkt->content_vec[c];
-                        if (cp != nullptr) {
-                            if (cp->unique())
-                                continue;
+            if (p->hash == packet->hash) {
+                packet->duplicate = true;
+                packet->packet_no = p->packno;
+                packet->original = p->original_pkt;
 
-                            packet->content_vec[c] = cp;
-                        }
+                // We have to wait until everything is done being changed in the packet
+                // before we can copy the duplicate decoded state over, grab the lock that
+                // is released at the end of the chain
+                kis_lock_guard<kis_mutex> lg(p->original_pkt->mutex);
+                for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
+                    auto cp = p->original_pkt->content_vec[c];
+                    if (cp != nullptr) {
+                        if (cp->unique())
+                            continue;
+
+                        packet->content_vec[c] = cp;
                     }
+                }
 
-                    // Merge the signal levels
-                    if (packet->has(pack_comp_l1) && packet->has(pack_comp_datasource)) {
-                        auto l1 = packet->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
-                        auto radio_agg = packet->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
-                        auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
-                        radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
-                    }
+                // Merge the signal levels
+                if (packet->has(pack_comp_l1) && packet->has(pack_comp_datasource)) {
+                    auto l1 = packet->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
+                    auto radio_agg = packet->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
+                    auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+                    radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
                 }
             }
 

@@ -805,6 +805,7 @@ tracker_element_summary::tracker_element_summary(const SharedElementSummary& in_
     parent_element = in_c->parent_element;
     resolved_path = in_c->resolved_path;
     rename = in_c->rename;
+    as_count = in_c->as_count;
 }
 
 tracker_element_summary::tracker_element_summary(const std::string& in_path,
@@ -825,20 +826,11 @@ tracker_element_summary::tracker_element_summary(const std::vector<std::string>&
     parse_path(in_path, "");
 }
 
-tracker_element_summary::tracker_element_summary(const std::vector<int>& in_path,
-        const std::string& in_rename) {
-    resolved_path = in_path;
-    rename = in_rename;
-}
-
-tracker_element_summary::tracker_element_summary(const std::vector<int>& in_path) {
-    resolved_path = in_path;
-}
-
 void tracker_element_summary::assign(const SharedElementSummary& in_c) {
     parent_element = in_c->parent_element;
     resolved_path = in_c->resolved_path;
     rename = in_c->rename;
+    as_count = in_c->as_count;
 }
 
 void tracker_element_summary::assign(const std::string& in_path, const std::string& in_rename) {
@@ -858,17 +850,10 @@ void tracker_element_summary::assign(const std::vector<std::string>& in_path) {
     parse_path(in_path, "");
 }
 
-void tracker_element_summary::assign(const std::vector<int>& in_path, const std::string& in_rename) {
-    resolved_path = in_path;
-    rename = in_rename;
-}
-
-void tracker_element_summary::assign(const std::vector<int>& in_path) {
-    resolved_path = in_path;
-}
-
 void tracker_element_summary::parse_path(const std::vector<std::string>& in_path,
         const std::string& in_rename) {
+
+    as_count = false;
 
     if (in_path.size() == 0) {
         return;
@@ -880,9 +865,16 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
         if (pe.length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe);
+        uint16_t id;
 
-        if (id < 0)
+        if (pe[0] == '#') {
+            id = Globalreg::globalreg->entrytracker->get_field_id(pe.substr(1, pe.length() - 1));
+            as_count = true;
+        } else {
+            id = Globalreg::globalreg->entrytracker->get_field_id(pe);
+        }
+
+        if (id == 0)
             path_full = false;
 
         resolved_path.push_back(id);
@@ -916,9 +908,15 @@ shared_tracker_element get_tracker_element_path(const std::vector<std::string>& 
         if (pe.length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe);
+        uint16_t id;
 
-        if (id < 0)
+        if (pe[0] == '#') {
+            id = Globalreg::globalreg->entrytracker->get_field_id(pe.substr(1, pe.length() - 1));
+        } else {
+            id = Globalreg::globalreg->entrytracker->get_field_id(pe);
+        }
+
+        if (id == 0)
             return nullptr;
 
         if (next_elem == nullptr) {
@@ -1015,9 +1013,15 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
         if (x->length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->get_field_id(*x);
+        uint16_t id;
 
-        if (id < 0) {
+        if ((*x)[0] == '#') {
+            id = Globalreg::globalreg->entrytracker->get_field_id(x->substr(1, x->length() - 1));
+        } else {
+            id = Globalreg::globalreg->entrytracker->get_field_id(*x);
+        }
+
+        if (id == 0) {
             return ret;
         }
 
@@ -1409,6 +1413,67 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     if (in == nullptr)
         return ret_elem;
 
+    // Process counted elements
+    for (const auto& si : in_summarization) {
+        if (si->resolved_path.size() == 0)
+            continue;
+
+        if (si->as_count) {
+            shared_tracker_element f = get_tracker_element_path(si->resolved_path, in);
+            auto cf = Globalreg::new_from_pool<tracker_element_uint32>();
+
+            if (f == nullptr) {
+                cf->set(0);
+            } else {
+                switch (f->get_type()) {
+                    case tracker_type::tracker_vector:
+                        cf->set(std::static_pointer_cast<tracker_element_vector>(f)->size());
+                        break;
+                    case tracker_type::tracker_map:
+                        cf->set(std::static_pointer_cast<tracker_element_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_double_map:
+                        cf->set(std::static_pointer_cast<tracker_element_double_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_int_map:
+                        cf->set(std::static_pointer_cast<tracker_element_int_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_string_map:
+                        cf->set(std::static_pointer_cast<tracker_element_string_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_mac_map:
+                        cf->set(std::static_pointer_cast<tracker_element_mac_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_macfilter_map:
+                        cf->set(std::static_pointer_cast<tracker_element_macfilter_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_key_map:
+                        cf->set(std::static_pointer_cast<tracker_element_device_key_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_uuid_map:
+                        cf->set(std::static_pointer_cast<tracker_element_uuid_map>(f)->size());
+                        break;
+                    case tracker_type::tracker_hashkey_map:
+                        cf->set(std::static_pointer_cast<tracker_element_hashkey_map>(f)->size());
+                        break;
+                    default:
+                        cf->set(0);
+                        break;
+                }
+            }
+
+            if (si->rename.length() != 0 || si->resolved_path.size() > 1) {
+                auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+                sum->assign(si);
+                sum->parent_element = in;
+                (*rename_map)[cf] = sum;
+            }
+
+            ret_elem->push_back(cf);
+        }
+    }
+
+
     // Dispatch any generics which made it this far
     switch (in->get_type()) {
         case tracker_type::tracker_vector:
@@ -1451,49 +1516,51 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         return in;
     }
 
+    // Process non-count
     unsigned int fn = 0;
-
     for (const auto& si : in_summarization) {
         fn++;
 
         if (si->resolved_path.size() == 0)
             continue;
 
-        shared_tracker_element f = get_tracker_element_path(si->resolved_path, in);
+        if (!si->as_count) {
+            shared_tracker_element f = get_tracker_element_path(si->resolved_path, in);
 
-        if (f == nullptr) {
-            f = Globalreg::globalreg->entrytracker->register_and_get_field(fmt::format("unknown{}", fn),
-                    tracker_element_factory<tracker_element_placeholder>(),
-                    "unallocated field");
+            if (f == nullptr) {
+                f = Globalreg::globalreg->entrytracker->register_and_get_field(fmt::format("unknown{}", fn),
+                        tracker_element_factory<tracker_element_placeholder>(),
+                        "unallocated field");
 
-            std::static_pointer_cast<tracker_element_placeholder>(f)->set(0);
+                std::static_pointer_cast<tracker_element_placeholder>(f)->set(0);
 
-            if (si->rename.length() != 0) {
-                // fmt::print("debug - setting summary rename on missing field {} {}\n", fn, si->rename);
-                std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(si->rename);
-            } else {
-                // Get the last name of the field in the path, if we can...
-                int lastid = si->resolved_path[si->resolved_path.size() - 1];
+                if (si->rename.length() != 0) {
+                    // fmt::print("debug - setting summary rename on missing field {} {}\n", fn, si->rename);
+                    std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(si->rename);
+                } else {
+                    // Get the last name of the field in the path, if we can...
+                    int lastid = si->resolved_path[si->resolved_path.size() - 1];
 
-                if (lastid >= 0) {
-                    std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
-                    // fmt::print("debug - setting last id rename on missing field {} {}\n", fn, Globalreg::globalreg->entrytracker->get_field_name(lastid));
+                    if (lastid >= 0) {
+                        std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
+                        // fmt::print("debug - setting last id rename on missing field {} {}\n", fn, Globalreg::globalreg->entrytracker->get_field_name(lastid));
+                    }
                 }
             }
-        }
 
-        // If we're renaming it or we're a path, we put the record in.  We need
-        // to duplicate the summary object and make a reference to our parent
-        // object so that when we serialize we can descend the path calling
-        // the proper pre-serialization methods
-        if (si->rename.length() != 0 || si->resolved_path.size() > 1) {
-            auto sum = Globalreg::new_from_pool<tracker_element_summary>();
-            sum->assign(si);
-            sum->parent_element = in;
-            (*rename_map)[f] = sum;
-        }
+            // If we're renaming it or we're a path, we put the record in.  We need
+            // to duplicate the summary object and make a reference to our parent
+            // object so that when we serialize we can descend the path calling
+            // the proper pre-serialization methods
+            if (si->rename.length() != 0 || si->resolved_path.size() > 1) {
+                auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+                sum->assign(si);
+                sum->parent_element = in;
+                (*rename_map)[f] = sum;
+            }
 
-        ret_elem->push_back(f);
+            ret_elem->push_back(f);
+        }
     }
 
     in->post_serialize();

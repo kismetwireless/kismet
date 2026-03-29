@@ -275,7 +275,8 @@ protected:
         std::shared_ptr<kis_packet> original_pkt;
     } packno_map_t;
 
-    packno_map_t dedupe_list[1024];
+    std::array<packno_map_t, 1024> dedupe_list;
+    // packno_map_t dedupe_list[1024];
 
     // Current position in the dedupe list
     std::atomic<unsigned int> dedupe_list_pos;

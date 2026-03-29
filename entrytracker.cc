@@ -191,7 +191,7 @@ uint16_t entry_tracker::get_field_id(const std::string& in_name) {
 
     auto iter = field_name_map.find(in_name);
     if (iter == field_name_map.end()) 
-        return -1;
+        return 0;
 
     return iter->second->field_id;
 }

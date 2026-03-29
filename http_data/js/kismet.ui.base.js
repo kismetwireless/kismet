@@ -347,14 +347,17 @@ kismet_ui.AddDeviceColumn("packets", {
 kismet_ui.AddDeviceColumn("seenbycount", {
     'title': 'Seen by #',
     'description': '# of datasources which have seen this device',
-    'field': 'kismet.device.base.seenby',
+    'field': ['#kismet.device.base.seenby', 'seenbycount'],
     'sortable': true,
     'searchable': false,
+    'alignment': 'right',
+    /*
     'render': (data, row, cell, onrender, aux) => {
         onrender(() => {
             $(cell.getElement()).html(`${row['seenbycount'].length}`);
         });
     },
+    */
 });
 
 kismet_ui.AddHiddenDeviceColumn({'field': 'kismet.device.base.phyname', 'searchable': true});
