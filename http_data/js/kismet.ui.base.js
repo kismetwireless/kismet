@@ -291,7 +291,11 @@ kismet_ui.AddDeviceColumn("manuf", {
 kismet_ui.AddDeviceColumn("packet_rrd", {
     'title': 'Packets',
     'description': 'Packet history graph',
-    'field': ['kismet.device.base.packets.rrd', 'packet_rrd'],
+    'field': ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'packet_minute_vec'],
+    'fields': [
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.serial_time', 'packet_serial_time'],
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'packet_last_time'],
+    ],
     'sortable': true,
     'sortfield': 'kismet.device.base.packets.rrd/kismet.common.rrd.last_value',
     'render': (data, row, cell, onrender, aux) => {
@@ -303,7 +307,10 @@ kismet_ui.AddDeviceColumn("packet_rrd", {
         // We use the aliased field names we extracted from just the minute
         // component of the per-device packet RRD
         var simple_rrd =
-            kismet.RecalcRrdData2(data, kismet.RRD_SECOND, {
+            kismet.RecalcRrdData2(row['original_data'], kismet.RRD_SECOND, {
+                data_field: 'packet_minute_vec',
+                serial_time_field: 'packet_serial_time',
+                last_time_field: 'packet_last_time',
                 transform: function(data, opt) {
                     var slices = 3;
                     var peak = 0;
@@ -351,13 +358,6 @@ kismet_ui.AddDeviceColumn("seenbycount", {
     'sortable': true,
     'searchable': false,
     'alignment': 'right',
-    /*
-    'render': (data, row, cell, onrender, aux) => {
-        onrender(() => {
-            $(cell.getElement()).html(`${row['seenbycount'].length}`);
-        });
-    },
-    */
 });
 
 kismet_ui.AddHiddenDeviceColumn({'field': 'kismet.device.base.phyname', 'searchable': true});

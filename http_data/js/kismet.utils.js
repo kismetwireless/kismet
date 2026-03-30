@@ -186,16 +186,20 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
 }
 
 exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
-    let record = "";
+    let record = '';
 
-    if (type == exports.RRD_SECOND)
-        record = "kismet.common.rrd.minute_vec";
-    else if (type == exports.RRD_MINUTE)
-        record = "kismet.common.rrd.hour_vec";
-    else if (type == exports.RRD_HOUR)
-        record = "kismet.common.rrd.day_vec";
-    else
-        record = "kismet.common.rrd.minute_vec";
+    if ('data_field' in opt) {
+        record = opt['data_field'];
+    } else {
+        if (type == exports.RRD_SECOND)
+            record = 'kismet.common.rrd.minute_vec';
+        else if (type == exports.RRD_MINUTE)
+            record = 'kismet.common.rrd.hour_vec';
+        else if (type == exports.RRD_HOUR)
+            record = 'kismet.common.rrd.day_vec';
+        else
+            record = 'kismet.common.rrd.minute_vec';
+    }
 
     let data = [];
     let rrd_len;
@@ -231,8 +235,17 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
 
         // fill_val = rrddata['kismet.common.rrd.blank_val'];
 
-        now = rrddata['kismet.common.rrd.serial_time'];
-        start = rrddata['kismet.common.rrd.last_time'];
+        if ('serial_time_field' in opt) {
+            now = rrddata[opt['serial_time_field']];
+        } else {
+            now = rrddata['kismet.common.rrd.serial_time'];
+        }
+
+        if ('last_time_field' in opt) {
+            now = rrddata[opt['last_time_field']];
+        } else {
+            start = rrddata['kismet.common.rrd.last_time'];
+        }
     }
 
     rrd_len = data.length;
