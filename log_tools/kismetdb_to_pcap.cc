@@ -975,8 +975,10 @@ int main(int argc, char *argv[]) {
             fmt::print("Datasource #{} ({} {} {}) {} packets\n", 
                     ifnum++, i->uuid, i->name, i->interface, i->num_packets);
             for (auto d : i->dlts) {
+                const char* n = pcap_datalink_val_to_name(d);
+                const char* v = pcap_datalink_val_to_description(d);
                 fmt::print("   DLT {}: {} {}\n",
-                        d, pcap_datalink_val_to_name(d), pcap_datalink_val_to_description(d));
+                        d, n ? n : "unknown", v ? v : "unknown");
             }
 
             if (i->dlts.size() == 0) 
