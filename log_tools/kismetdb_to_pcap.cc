@@ -222,14 +222,29 @@ void write_pcap_packet(FILE *pcap_file, const std::string& packet,
     hdr.incl_len = packet.size();
     hdr.orig_len = packet.size();
 
-    if (fwrite(&hdr, sizeof(pcap_packet_hdr_t), 1, pcap_file) != 1)
-        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
-                    strerror(errno), errno));
+    // Skip empty packets to avoid write errors and malformed pcap blocks
+    if (packet.empty()) {
+        fmt::print(stderr, "DEBUG: Skipping empty pcap packet for TS {}.{}\n",
+                   ts_sec, ts_usec);
+        return;
+    }
 
-    if (fwrite(packet.data(), packet.size(), 1, pcap_file) != 1)
-        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
-                    strerror(errno), errno));
+    // Clear errno to avoid reporting stale "No such file" errors
+    errno = 0;
+
+    if (fwrite(&hdr, sizeof(pcap_packet_hdr_t), 1, pcap_file) != 1) {
+        int errsv = errno;
+        throw std::runtime_error(fmt::format("failed writing pcap HEADER: {} (errno {})",
+                    errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+    }
+
+    if (fwrite(packet.data(), packet.size(), 1, pcap_file) != 1) {
+        int errsv = errno;
+        throw std::runtime_error(fmt::format("failed writing pcap DATA (size {}): {} (errno {})",
+                    packet.size(), errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+    }
 }
+
 
 
 FILE *open_pcapng_file(const std::string& path, bool force) {
@@ -465,6 +480,13 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         unsigned long ts_sec, unsigned long ts_usec, const std::string& tag,
         unsigned int ngindex, double lat, double lon, double alt) {
 
+    // Skip empty packets to avoid write errors and malformed pcapng blocks
+    if (packet.empty()) {
+        fmt::print(stderr, "DEBUG: Skipping empty pcapng packet at TS {}.{}\n",
+                   ts_sec, ts_usec);
+        return;
+    }
+
     // Assemble the packet in the file in steps to avoid another memcpy
     pcapng_epb_t epb;
 
@@ -501,13 +523,20 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
     epb.captured_length = packet.size();
     epb.original_length = packet.size();
 
-    if (fwrite(&epb, sizeof(pcapng_epb_t), 1, pcapng_file) != 1)
-        throw std::runtime_error(fmt::format("error writing pcapng packet header: {} (errno {})",
-                strerror(errno), errno));
+    // Clear errno for clean reporting
+    errno = 0;
 
-    if (fwrite(packet.data(), packet.size(), 1, pcapng_file) != 1)
-        throw std::runtime_error(fmt::format("error writing pcapng packet content: {} (errno {})",
-                    strerror(errno), errno));
+    if (fwrite(&epb, sizeof(pcapng_epb_t), 1, pcapng_file) != 1) {
+        int errsv = errno;
+        throw std::runtime_error(fmt::format("failed writing pcapng EPB HEADER: {} (errno {})",
+                    errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+    }
+
+    if (fwrite(packet.data(), packet.size(), 1, pcapng_file) != 1) {
+        int errsv = errno;
+        throw std::runtime_error(fmt::format("failed writing pcapng DATA (size {}): {} (errno {})",
+                    packet.size(), errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+    }
 
     // Data has to be 32bit padded
     uint32_t pad = 0;
@@ -515,10 +544,13 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
 
     pad_sz = PAD_TO_32BIT(packet.size()) - packet.size();
 
-    if (pad_sz > 0)
-        if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
-            throw std::runtime_error(fmt::format("error writing pcapng packet padding: {} (errno {})",
-                        strerror(errno), errno));
+    if (pad_sz > 0) {
+        if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)  {
+            int errsv = errno;
+            throw std::runtime_error(fmt::format("failed writing pcapng PADDING: {} (errno {})",
+                        errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+        }
+    }
 
     pcapng_option_t opt;
 
@@ -526,20 +558,27 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         opt.option_code = PCAPNG_OPT_COMMENT;
         opt.option_length = tag.length();
 
-        if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1) 
-            throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
-                        strerror(errno), errno));
+        if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1){
+            int errsv = errno;
+            throw std::runtime_error(fmt::format("failed writing pcapng OPTION HEADER: {} (errno {})",
+                errsv ? strerror(errsv) : "Unknown error", errsv));
+        }
 
-        if (fwrite(tag.c_str(), tag.length(), 1, pcapng_file) != 1)
-            throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
-                        strerror(errno), errno));
+        if (fwrite(tag.c_str(), tag.length(), 1, pcapng_file) != 1) {
+            int errsv = errno;
+            throw std::runtime_error(fmt::format("failed writing pcapng OPTION DATA (tag): {} (errno {})",
+                errsv ? strerror(errsv) : "Unknown error", errsv));
+        }
 
         pad_sz = PAD_TO_32BIT(tag.length()) - tag.length();
 
-        if (pad_sz > 0)
-            if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
-                throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
-                            strerror(errno), errno));
+        if (pad_sz > 0) {
+            if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1) {
+                int errsv = errno;
+                throw std::runtime_error(fmt::format("failed writing pcapng OPTION PADDING: {} (errno {})",
+                    errsv ? strerror(errsv) : "Unknown error", errsv));
+            }
+        }
     }
 
     // If we have gps data, tag the packet with a kismet custom GPS entry under the kismet PEN
@@ -590,42 +629,55 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
 
         // Lon, lat, [alt]
         u.u32 = double_to_fixed3_7(lon);
-        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
-            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
-                        strerror(errno), errno));
+        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1){
+            int errsv = errno;
+            throw std::runtime_error(fmt::format("failed writing pcapng GPS LONGITUDE: {} (errno {})",
+                errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+        }
 
         u.u32 = double_to_fixed3_7(lat);
-        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
-            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
-                        strerror(errno), errno));
+        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1){
+            int errsv = errno;
+            throw std::runtime_error(fmt::format("failed writing pcapng GPS LATITUDE: {} (errno {})",
+                errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+        }
 
         if (alt != 0) {
             u.u32 = double_to_fixed6_4(alt);
-            if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
-                throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
-                            strerror(errno), errno));
+            if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) {
+                int errsv = errno;
+                throw std::runtime_error(fmt::format("failed writing pcapng GPS ALTITUDE: {} (errno {})",
+                    errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+            }
         }
 
         pad_sz = PAD_TO_32BIT(copt.option_length) - copt.option_length;
 
-        if (pad_sz > 0)
-            if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
-                throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
-                            strerror(errno), errno));
+        if (pad_sz > 0) {
+            if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1) {
+                int errsv = errno;
+                throw std::runtime_error(fmt::format("failed writing pcapng GPS OPTION PADDING: {} (errno {})",
+                    errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+            }
+        }
     }
 
     opt.option_code = PCAPNG_OPT_ENDOFOPT;
     opt.option_length = 0;
 
-    if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1) 
-        throw std::runtime_error(fmt::format("error writing packet end-of-options: {} (errno {})",
-                    strerror(errno), errno));
+    if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1) {
+        int errsv = errno;
+        throw std::runtime_error(fmt::format("failed writing pcapng END-OF-OPTIONS: {} (errno {})",
+            errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+    }
 
     data_sz += 4;
 
-    if (fwrite(&data_sz, 4, 1, pcapng_file) != 1)
-        throw std::runtime_error(fmt::format("error writing packet end-of-packet: {} (errno {})",
-                    strerror(errno), errno));
+    if (fwrite(&data_sz, 4, 1, pcapng_file) != 1) {
+        int errsv = errno;
+        throw std::runtime_error(fmt::format("failed writing pcapng BLOCK TRAILER (total length): {} (errno {})",
+            errsv ? strerror(errsv) : "Unknown/Buffered Error", errsv));
+    }
 }
     
 
