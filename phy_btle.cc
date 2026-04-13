@@ -257,7 +257,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                     common->source, mphy, in_pack,
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                      UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
-                    "BTLE Device");
+                    "BTLE");
         return 1;
     }
 #endif
@@ -270,7 +270,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-                "BTLE Device");
+                "BTLE");
 
     kis_lock_guard<kis_mutex> lk(mphy->devicetracker->get_devicelist_mutex(), "btle_common_classifier");
 
