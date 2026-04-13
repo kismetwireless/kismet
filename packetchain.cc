@@ -468,7 +468,7 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
                     return i.hash != 0 && packet->hash != 0 && i.hash == packet->hash;
                     });
 
-            if (p->hash == packet->hash) {
+            if (p != dedupe_list.end() && p->hash == packet->hash) {
                 packet->duplicate = true;
                 packet->packet_no = p->packno;
                 packet->original = p->original_pkt;
