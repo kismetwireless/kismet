@@ -61,6 +61,22 @@
 <script src="js/jquery.ui.position.min.js"></script>
 <script src="js/jquery.debounce.min.js"></script>
 
+<script src="js/vendor/i18next.min.js"></script>
+<script src="js/vendor/i18next-browser-languagedetector.min.js"></script>
+<script src="js/vendor/chart.min.js"></script>
+<script src="js/vendor/papaparse.min.js"></script>
+<script src="js/vendor/jspdf.min.js"></script>
+<script src="js/vendor/jspdf-autotable.min.js"></script>
+<script src="js/kismet_i18n.js"></script>
+<script src="js/kismet_whitelist_api.js"></script>
+<script src="js/kismet_ui_signal_filter.js"></script>
+<script src="js/kismet_ui_signal_monitor.js"></script>
+<script src="js/kismet_ui_export.js"></script>
+<script src="js/kismet_ui_whitelist.js"></script>
+<script src="js/kismet_ui_unassociated.js"></script>
+<script src="js/kismet_ui_enhanced.js"></script>
+<script src="js/kismet_enhanced_loader.js"></script>
+
 <link rel="stylesheet" type="text/css" href="css/fontawesome.min.css">
 <link rel="stylesheet" type="text/css" href="css/regular.min.css">
 <link rel="stylesheet" type="text/css" href="css/solid.min.css">
@@ -231,19 +247,28 @@ function load_main_ui() {
             shrinker();
         });
         kismet_ui_tabpane.AddElement(shrink, 'south');
-    
-        // Finalize the sidebar
-        kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
-   
-        // Try to scrape the server name
-        kismet_ui_base.FetchServerName(function(name) {
-            if (name.length > 0) {
-                $('#topbar_title').html("Kismet - " + name);
-                top.document.title = "Kismet - " + name;
-            }
-        
-        });
-    
+
+        function kismet_finalize_sidebar_and_title() {
+            kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
+            kismet_ui_base.FetchServerName(function(name) {
+                if (name.length > 0) {
+                    $('#topbar_title').html("Kismet - " + name);
+                    top.document.title = "Kismet - " + name;
+                }
+            });
+        }
+
+        if (typeof kismet_enhanced_run_async === 'function') {
+            kismet_enhanced_run_async()
+                .then(kismet_finalize_sidebar_and_title)
+                .catch(function (err) {
+                    console.error(err);
+                    kismet_finalize_sidebar_and_title();
+                });
+        } else {
+            kismet_finalize_sidebar_and_title();
+        }
+
     }); // always head fetch
 
     });

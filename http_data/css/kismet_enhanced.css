@@ -1,0 +1,231 @@
+/* Kismet Enhanced UI — signal filter, monitor, whitelist, unassociated, export, modals */
+
+.signal-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+.signal-filter-btn {
+    border: 2px solid #3498db;
+    background: #fff;
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.signal-filter-btn.active {
+    background: #3498db;
+    color: #fff;
+}
+
+.signal-filter-btn:hover {
+    background: #2980b9;
+    color: #fff;
+}
+
+.signal-filter-note {
+    font-size: 12px;
+    color: #e67e22;
+    margin-top: 4px;
+}
+
+.signal-monitor-content {
+    padding: 16px;
+}
+
+.signal-device-info {
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.signal-bar-container {
+    width: 100%;
+    height: 32px;
+    background: #ecf0f1;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.signal-bar {
+    height: 100%;
+    border-radius: 16px;
+    transition: width 0.3s, background 0.3s;
+}
+
+.signal-value {
+    font-size: 28px;
+    font-weight: bold;
+    font-family: monospace, monospace;
+}
+
+.signal-level-text {
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.signal-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #7f8c8d;
+}
+
+.signal-chart-container {
+    margin-top: 12px;
+}
+
+.signal-controls {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.whitelist-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+    align-items: center;
+}
+
+.whitelist-toolbar .btn {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+.whitelist-toolbar .btn-primary {
+    background: #3498db;
+    color: #fff;
+}
+
+.whitelist-toolbar .btn-success {
+    background: #2ecc71;
+    color: #fff;
+}
+
+.whitelist-toolbar .btn-warning {
+    background: #f39c12;
+    color: #fff;
+}
+
+.whitelist-dialog {
+    padding: 16px;
+}
+
+.whitelist-dialog label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+
+.whitelist-dialog input,
+.whitelist-dialog select,
+.whitelist-dialog textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.whitelist-status-icon {
+    font-size: 16px;
+}
+
+.whitelist-approved {
+    color: #2ecc71;
+}
+
+.whitelist-unknown {
+    color: #e74c3c;
+}
+
+.unassoc-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.unassoc-bulk-bar {
+    display: flex;
+    gap: 12px;
+    padding: 8px;
+    background: #f9f9f9;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.unassoc-bulk-bar .btn-register {
+    background: #27ae60;
+    color: #fff;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.export-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 1px solid;
+    background: #fff;
+    cursor: pointer;
+}
+
+.export-btn-csv {
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.export-btn-pdf {
+    border-color: #c0392b;
+    color: #c0392b;
+}
+
+.kismet-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+.kismet-modal {
+    background: #fff;
+    border-radius: 8px;
+    max-width: 500px;
+    margin: 10% auto;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.kismet-modal-header {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 16px;
+}
+
+.kismet-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
