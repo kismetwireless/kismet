@@ -990,7 +990,9 @@ int main(int argc, char *argv[], char *envp[]) {
     glob_silent = local_silent;
 
     // finalize any plugins which were waiting for other code to load
-    plugintracker->finalize_plugins();
+    if (plugintracker != nullptr) {
+        plugintracker->finalize_plugins();
+    }
 
     // Load alerts from the config
     auto config_alerts = Globalreg::globalreg->kismet_config->fetch_opt_vec("load_alert");
