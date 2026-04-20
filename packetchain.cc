@@ -66,33 +66,33 @@ packet_chain::packet_chain() {
     last_packet_queue_user_warning = 0;
     last_packet_drop_user_warning = 0;
 
-    packet_queue_warning = 
+    packet_queue_warning =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_log_warning", 0);
     packet_queue_drop =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_backlog_limit", 8192);
 
-    auto entrytracker = 
+    auto entrytracker =
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
-    packet_peak_rrd_id = 
+    packet_peak_rrd_id =
         entrytracker->register_field("kismet.packetchain.peak_packets_rrd",
                 tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_default_aggregator,
-                    kis_tracked_rrd_prev_pos_extreme_aggregator, 
+                    kis_tracked_rrd_prev_pos_extreme_aggregator,
                     kis_tracked_rrd_prev_pos_extreme_aggregator>>(),
                 "incoming packets peak rrd");
-    packet_peak_rrd = 
+    packet_peak_rrd =
         std::make_shared<kis_tracked_rrd<kis_tracked_rrd_default_aggregator,
-            kis_tracked_rrd_prev_pos_extreme_aggregator, 
+            kis_tracked_rrd_prev_pos_extreme_aggregator,
             kis_tracked_rrd_prev_pos_extreme_aggregator>>(packet_peak_rrd_id);
 
-    packet_rate_rrd_id = 
+    packet_rate_rrd_id =
         entrytracker->register_field("kismet.packetchain.packets_rrd",
                 tracker_element_factory<kis_tracked_rrd<>>(),
                 "total packet rate rrd");
-    packet_rate_rrd = 
+    packet_rate_rrd =
         std::make_shared<kis_tracked_rrd<>>(packet_rate_rrd_id);
 
-    packet_error_rrd_id = 
+    packet_error_rrd_id =
         entrytracker->register_field("kismet.packetchain.error_packets_rrd",
                 tracker_element_factory<kis_tracked_rrd<>>(),
                 "error packet rate rrd");
@@ -127,7 +127,7 @@ packet_chain::packet_chain() {
     packet_processed_rrd =
         std::make_shared<kis_tracked_rrd<>>(packet_processed_rrd_id);
 
-    packet_stats_map = 
+    packet_stats_map =
         std::make_shared<tracker_element_map>();
     packet_stats_map->insert(packet_peak_rrd);
     packet_stats_map->insert(packet_rate_rrd);
@@ -142,9 +142,9 @@ packet_chain::packet_chain() {
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these 
-    // out directly without protecting them behind our own mutex; required, because we're mixing 
-    // RRDs from different data sources, like chain-level packet processing and worker mutex 
+    // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these
+    // out directly without protecting them behind our own mutex; required, because we're mixing
+    // RRDs from different data sources, like chain-level packet processing and worker mutex
     // locked buffer queuing.
     httpd->register_route("/packetchain/packet_stats", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(packet_stats_map));
@@ -166,8 +166,8 @@ packet_chain::packet_chain() {
    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
-    event_timer_id = 
-        timetracker->register_timer(std::chrono::seconds(1), true, 
+    event_timer_id =
+        timetracker->register_timer(std::chrono::seconds(1), true,
                 [this](int) -> int {
 
                 auto evt = eventbus->get_eventbus_event(event_packetstats());
@@ -195,12 +195,12 @@ packet_chain::packet_chain() {
 
 #if 0
     // Checksum and dedupe function runs at the end of LLC dissection, which should be
-    // after any phy demangling and DLT demangling; lock the packet for the rest of the 
+    // after any phy demangling and DLT demangling; lock the packet for the rest of the
     // packet chain
     register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
 			auto packetchain = reinterpret_cast<packet_chain *>(auxdata);
 
-			// Lock the hash list, gating all hash comparisons 
+			// Lock the hash list, gating all hash comparisons
 			kis_lock_guard<kis_shared_mutex> lk(packetchain->pack_no_mutex, "hash handler");
 
 			auto chunk = in_pack->fetch<kis_datachunk>(packetchain->pack_comp_decap, packetchain->pack_comp_linkframe);
@@ -317,7 +317,7 @@ void packet_chain::start_processing() {
 
     for (unsigned int n = 0; n < n_packet_threads; n++) {
         packet_threads[n] = new packet_thread();
-        packet_threads[n]->packet_thread = 
+        packet_threads[n]->packet_thread =
             std::thread([this, n]() {
             auto name = fmt::format("PACKET {}/{}", n, n_packet_threads);
             thread_set_process_name(name);
@@ -384,8 +384,8 @@ std::shared_ptr<kis_packet> packet_chain::generate_packet() {
 void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue) {
     std::shared_ptr<kis_packet> packet;
 
-    while (!packetchain_shutdown && 
-            !Globalreg::globalreg->spindown && 
+    while (!packetchain_shutdown &&
+            !Globalreg::globalreg->spindown &&
             !Globalreg::globalreg->fatal_condition &&
             !Globalreg::globalreg->complete) {
 
@@ -602,7 +602,7 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>();
-            alertracker->raise_one_shot("PACKETLOST", 
+            alertracker->raise_one_shot("PACKETLOST",
                     "SYSTEM", kis_alert_severity::high,
                     fmt::format("The packet queue has exceeded the maximum size of {}; Kismet "
                         "will start dropping packets.  Your system may not have enough CPU to keep "
@@ -623,7 +623,7 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
             last_packet_queue_user_warning = now;
 
             auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
-            alertracker->raise_one_shot("PACKETQUEUE", 
+            alertracker->raise_one_shot("PACKETQUEUE",
                     "SYSTEM", kis_alert_severity::medium,
                     fmt::format("The packet queue has a backlog of {} packets; "
                     "your system may not have enough CPU to keep up with the packet rate "
@@ -661,7 +661,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             postcap_chain_new.push_back(link);
-            stable_sort(postcap_chain_new.begin(), postcap_chain_new.end(), 
+            stable_sort(postcap_chain_new.begin(), postcap_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -672,7 +672,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             llcdissect_chain_new.push_back(link);
-            stable_sort(llcdissect_chain_new.begin(), llcdissect_chain_new.end(), 
+            stable_sort(llcdissect_chain_new.begin(), llcdissect_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -683,7 +683,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             decrypt_chain_new.push_back(link);
-            stable_sort(decrypt_chain_new.begin(), decrypt_chain_new.end(), 
+            stable_sort(decrypt_chain_new.begin(), decrypt_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -694,7 +694,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             datadissect_chain_new.push_back(link);
-            stable_sort(datadissect_chain_new.begin(), datadissect_chain_new.end(), 
+            stable_sort(datadissect_chain_new.begin(), datadissect_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -705,7 +705,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             classifier_chain_new.push_back(link);
-            stable_sort(classifier_chain_new.begin(), classifier_chain_new.end(), 
+            stable_sort(classifier_chain_new.begin(), classifier_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -716,7 +716,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             tracker_chain_new.push_back(link);
-            stable_sort(tracker_chain_new.begin(), tracker_chain_new.end(), 
+            stable_sort(tracker_chain_new.begin(), tracker_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -727,7 +727,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
             }
 
             logging_chain_new.push_back(link);
-            stable_sort(logging_chain_new.begin(), logging_chain_new.end(), 
+            stable_sort(logging_chain_new.begin(), logging_chain_new.end(),
                     SortLinkPriority());
             break;
 
@@ -841,7 +841,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
             break;
 
         default:
-            _MSG("packet_chain::remove_handler requested unknown chain", 
+            _MSG("packet_chain::remove_handler requested unknown chain",
                     MSGFLAG_ERROR);
             return -1;
     }
@@ -947,7 +947,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
             break;
 
         default:
-            _MSG("packet_chain::remove_handler requested unknown chain", 
+            _MSG("packet_chain::remove_handler requested unknown chain",
                     MSGFLAG_ERROR);
             return -1;
     }
