@@ -178,22 +178,22 @@ protected:
     std::map<int, std::string> component_id_map;
 
     // Core chain components
-    std::vector<std::shared_ptr<packet_chain::pc_link>> postcap_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> llcdissect_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> decrypt_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> datadissect_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> classifier_chain;
-	std::vector<std::shared_ptr<packet_chain::pc_link>> tracker_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> logging_chain;
+    std::vector<packet_chain::pc_link*> postcap_chain;
+    std::vector<packet_chain::pc_link*> llcdissect_chain;
+    std::vector<packet_chain::pc_link*> decrypt_chain;
+    std::vector<packet_chain::pc_link*> datadissect_chain;
+    std::vector<packet_chain::pc_link*> classifier_chain;
+	std::vector<packet_chain::pc_link*> tracker_chain;
+    std::vector<packet_chain::pc_link*> logging_chain;
 
     // Updated chain components
-    std::vector<std::shared_ptr<packet_chain::pc_link>> postcap_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> llcdissect_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> decrypt_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> datadissect_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> classifier_chain_new;
-	std::vector<std::shared_ptr<packet_chain::pc_link>> tracker_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> logging_chain_new;
+    std::vector<packet_chain::pc_link*> postcap_chain_new;
+    std::vector<packet_chain::pc_link*> llcdissect_chain_new;
+    std::vector<packet_chain::pc_link*> decrypt_chain_new;
+    std::vector<packet_chain::pc_link*> datadissect_chain_new;
+    std::vector<packet_chain::pc_link*> classifier_chain_new;
+	std::vector<packet_chain::pc_link*> tracker_chain_new;
+    std::vector<packet_chain::pc_link*> logging_chain_new;
 
     bool postcap_chain_update;
     bool llcdissect_chain_update;
@@ -207,7 +207,8 @@ protected:
     kis_mutex packetcomp_mutex;
 
     // Packet chain mutex
-    kis_shared_mutex packetchain_mutex;
+    std::shared_mutex packetchain_mutex;
+    // kis_shared_mutex packetchain_mutex;
 
     struct packet_thread {
         std::thread packet_thread;

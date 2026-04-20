@@ -17,6 +17,7 @@
 */
 
 #include "config.h"
+#include <mutex>
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -41,8 +42,8 @@
 
 class SortLinkPriority {
 public:
-    inline bool operator() (const std::shared_ptr<packet_chain::pc_link>& x,
-                            const std::shared_ptr<packet_chain::pc_link>& y) const {
+    inline bool operator() (const packet_chain::pc_link* x,
+                            const packet_chain::pc_link* y) const {
         if (x->priority < y->priority)
             return 1;
         return 0;
@@ -51,7 +52,7 @@ public:
 
 packet_chain::packet_chain() {
     packetcomp_mutex.set_name("packetchain packet_comp");
-    packetchain_mutex.set_name("packetchain packetchain");
+    // packetchain_mutex.set_name("packetchain packetchain");
     pack_no_mutex.set_name("packetchain packetno");
 
     unique_packet_no = 1;
@@ -290,7 +291,8 @@ packet_chain::~packet_chain() {
     }
 
     {
-        kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "~packet_chain");
+        // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "~packet_chain");
+        auto lk = std::unique_lock(packetchain_mutex);
 
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
@@ -398,7 +400,9 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         // Lock the packet chain and update any processing queues by replacing
         // the old queue with the new one.
 
-        kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
+        // kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
+
+        auto lk = std::shared_lock(packetchain_mutex);
 
         if (llcdissect_chain_update) {
             llcdissect_chain = llcdissect_chain_new;
@@ -562,7 +566,8 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     packet_peak_rrd->add_sample(1, now);
 
     // Import the new postcap chain, if it has been modified
-    kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "process_packet");
+    // kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "process_packet");
+    auto lk = std::unique_lock(packetchain_mutex);
     if (postcap_chain_update) {
         postcap_chain = postcap_chain_new;
         postcap_chain_new.clear();
@@ -643,9 +648,10 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
 int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
 
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
+    // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
+    auto lk = std::unique_lock(packetchain_mutex);
 
-    auto link = std::make_shared<pc_link>();
+    auto link = new pc_link;
 
     // Generate packet, we'll nuke it if it's invalid later
     link->priority = in_prio;
@@ -744,7 +750,8 @@ int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
+    // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
+    auto lk = std::unique_lock(packetchain_mutex);
 
     unsigned int x;
 
@@ -757,6 +764,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < postcap_chain_new.size(); x++) {
                 if (postcap_chain_new[x]->id == in_id) {
+                    delete(*(postcap_chain_new.begin() + x));
                     postcap_chain_new.erase(postcap_chain_new.begin() + x);
                 }
             }
@@ -770,6 +778,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < llcdissect_chain_new.size(); x++) {
                 if (llcdissect_chain_new[x]->id == in_id) {
+                    delete(*(llcdissect_chain_new.begin() + x));
                     llcdissect_chain_new.erase(llcdissect_chain_new.begin() + x);
                 }
             }
@@ -783,6 +792,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < decrypt_chain_new.size(); x++) {
                 if (decrypt_chain_new[x]->id == in_id) {
+                    delete(*(decrypt_chain_new.begin() + x));
                     decrypt_chain_new.erase(decrypt_chain_new.begin() + x);
                 }
             }
@@ -796,6 +806,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < datadissect_chain_new.size(); x++) {
                 if (datadissect_chain_new[x]->id == in_id) {
+                    delete(*(datadissect_chain_new.begin() + x));
                     datadissect_chain_new.erase(datadissect_chain_new.begin() + x);
                 }
             }
@@ -809,6 +820,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < classifier_chain_new.size(); x++) {
                 if (classifier_chain_new[x]->id == in_id) {
+                    delete(*(classifier_chain_new.begin() + x));
                     classifier_chain_new.erase(classifier_chain_new.begin() + x);
                 }
             }
@@ -822,6 +834,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < tracker_chain_new.size(); x++) {
                 if (tracker_chain_new[x]->id == in_id) {
+                    delete(*(tracker_chain_new.begin() + x));
                     tracker_chain_new.erase(tracker_chain_new.begin() + x);
                 }
             }
@@ -835,6 +848,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
             for (x = 0; x < logging_chain_new.size(); x++) {
                 if (logging_chain_new[x]->id == in_id) {
+                    delete(*(logging_chain_new.begin() + x));
                     logging_chain_new.erase(logging_chain_new.begin() + x);
                 }
             }
@@ -850,7 +864,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
+    // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
+    auto lk = std::unique_lock(packetchain_mutex);
 
     unsigned int x;
 
@@ -863,6 +878,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < postcap_chain_new.size(); x++) {
                 if (postcap_chain_new[x]->callback == in_cb) {
+                    delete(*(postcap_chain_new.begin() + x));
                     postcap_chain_new.erase(postcap_chain_new.begin() + x);
                 }
             }
@@ -876,6 +892,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < llcdissect_chain_new.size(); x++) {
                 if (llcdissect_chain_new[x]->callback == in_cb) {
+                    delete(*(llcdissect_chain_new.begin() + x));
                     llcdissect_chain_new.erase(llcdissect_chain_new.begin() + x);
                 }
             }
@@ -889,6 +906,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < decrypt_chain_new.size(); x++) {
                 if (decrypt_chain_new[x]->callback == in_cb) {
+                    delete(*(decrypt_chain_new.begin() + x));
                     decrypt_chain_new.erase(decrypt_chain_new.begin() + x);
                 }
             }
@@ -902,6 +920,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < datadissect_chain_new.size(); x++) {
                 if (datadissect_chain_new[x]->callback == in_cb) {
+                    delete(*(datadissect_chain_new.begin() + x));
                     datadissect_chain_new.erase(datadissect_chain_new.begin() + x);
                 }
             }
@@ -915,6 +934,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < classifier_chain_new.size(); x++) {
                 if (classifier_chain_new[x]->callback == in_cb) {
+                    delete(*(classifier_chain_new.begin() + x));
                     classifier_chain_new.erase(classifier_chain_new.begin() + x);
                 }
             }
@@ -928,6 +948,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < tracker_chain_new.size(); x++) {
                 if (tracker_chain_new[x]->callback == in_cb) {
+                    delete(*(tracker_chain_new.begin() + x));
                     tracker_chain_new.erase(tracker_chain_new.begin() + x);
                 }
             }
@@ -941,6 +962,7 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
             for (x = 0; x < logging_chain_new.size(); x++) {
                 if (logging_chain_new[x]->callback == in_cb) {
+                    delete(*(logging_chain_new.begin() + x));
                     logging_chain_new.erase(logging_chain_new.begin() + x);
                 }
             }
