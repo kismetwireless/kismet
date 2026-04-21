@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include <mutex>
+#include <shared_mutex>
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -51,7 +52,7 @@ public:
 };
 
 packet_chain::packet_chain() {
-    packetcomp_mutex.set_name("packetchain packet_comp");
+    // packetcomp_mutex.set_name("packetchain packet_comp");
     // packetchain_mutex.set_name("packetchain packetchain");
     pack_no_mutex.set_name("packetchain packetno");
 
@@ -164,7 +165,7 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-   timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
     event_timer_id =
@@ -191,75 +192,6 @@ packet_chain::packet_chain() {
     classifier_chain_update = false;
     tracker_chain_update = false;
     logging_chain_update = false;
-
-    // Because dedupe has to actually store references to packets, we run it outside of the chain functions
-
-#if 0
-    // Checksum and dedupe function runs at the end of LLC dissection, which should be
-    // after any phy demangling and DLT demangling; lock the packet for the rest of the
-    // packet chain
-    register_handler([](void *auxdata, std::shared_ptr<kis_packet> in_pack) -> int {
-			auto packetchain = reinterpret_cast<packet_chain *>(auxdata);
-
-			// Lock the hash list, gating all hash comparisons
-			kis_lock_guard<kis_shared_mutex> lk(packetchain->pack_no_mutex, "hash handler");
-
-			auto chunk = in_pack->fetch<kis_datachunk>(packetchain->pack_comp_decap, packetchain->pack_comp_linkframe);
-
-			if (chunk == nullptr)
-				return 1;
-
-			if (chunk->data() == nullptr)
-				return 1;
-
-			if (chunk->length() == 0)
-				return 1;
-
-			in_pack->hash = crc32_fast(chunk->data(), chunk->length(), 0);
-
-			for (unsigned int i = 0; i < 1024; i++) {
-			if (packetchain->dedupe_list[i].hash == in_pack->hash) {
-				in_pack->duplicate = true;
-				in_pack->packet_no = packetchain->dedupe_list[i].packno;
-				in_pack->original = packetchain->dedupe_list[i].original_pkt;
-
-				// We have to wait until everything is done being changed in the packet
-				// before we can copy the duplicate decoded state over, grab the lock that
-				// is released at the end of the chain
-				kis_lock_guard<kis_mutex> lg(packetchain->dedupe_list[i].original_pkt->mutex);
-				for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
-					auto cp = packetchain->dedupe_list[i].original_pkt->content_vec[c];
-					if (cp != nullptr) {
-						if (cp->unique())
-							continue;
-
-						in_pack->content_vec[c] = cp;
-					}
-				}
-
-				// Merge the signal levels
-				if (in_pack->has(packetchain->pack_comp_l1) && in_pack->has(packetchain->pack_comp_datasource)) {
-					auto l1 = in_pack->original->fetch<kis_layer1_packinfo>(packetchain->pack_comp_l1);
-					auto radio_agg = in_pack->fetch_or_add<kis_layer1_aggregate_packinfo>(packetchain->pack_comp_l1_agg);
-					auto datasrc = in_pack->fetch<packetchain_comp_datasource>(packetchain->pack_comp_datasource);
-					radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
-				}
-			}
-			}
-
-			// Assign a new packet number and cache it in the dedupe
-			if (!in_pack->duplicate) {
-				auto listpos = packetchain->dedupe_list_pos++ % 1024;
-				in_pack->packet_no = packetchain->unique_packet_no++;
-				packetchain->dedupe_list[listpos].hash = in_pack->hash;
-				packetchain->dedupe_list[listpos].packno = packetchain->unique_packet_no++;
-				packetchain->dedupe_list[listpos].original_pkt = in_pack;
-			}
-
-			return 1;
-		}, this, CHAINPOS_LLCDISSECT, -100000);
-#endif
-
 }
 
 packet_chain::~packet_chain() {
@@ -304,7 +236,6 @@ packet_chain::~packet_chain() {
         classifier_chain.clear();
         tracker_chain.clear();
         logging_chain.clear();
-
     }
 
 }
@@ -326,11 +257,10 @@ void packet_chain::start_processing() {
             packet_queue_processor(&packet_threads[n]->packet_queue);
         });
     }
-
 }
 
 int packet_chain::register_packet_component(std::string in_component) {
-    kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
+    auto lk = std::shared_lock(packetcomp_mutex);
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {
         _MSG_FATAL("Attempted to register more than the maximum defined number of "
@@ -344,6 +274,10 @@ int packet_chain::register_packet_component(std::string in_component) {
         return component_str_map[str_lower(in_component)];
     }
 
+    lk.unlock();
+
+    auto ulk = std::unique_lock(packetcomp_mutex);
+
     int num = next_componentid++;
 
     component_str_map[str_lower(in_component)] = num;
@@ -352,24 +286,8 @@ int packet_chain::register_packet_component(std::string in_component) {
     return num;
 }
 
-int packet_chain::remove_packet_component(int in_id) {
-    kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
-
-    std::string str;
-
-    if (component_id_map.find(in_id) == component_id_map.end()) {
-        return -1;
-    }
-
-    str = component_id_map[in_id];
-    component_id_map.erase(component_id_map.find(in_id));
-    component_str_map.erase(component_str_map.find(str));
-
-    return 1;
-}
-
 std::string packet_chain::fetch_packet_component_name(int in_id) {
-    kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
+    auto lk = std::shared_lock(packetcomp_mutex);
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
 		return "<UNKNOWN>";
