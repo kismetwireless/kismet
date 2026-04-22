@@ -17,6 +17,8 @@
 */
 
 #include "config.h"
+
+#include <algorithm>
 #include <mutex>
 #include <shared_mutex>
 
@@ -243,8 +245,9 @@ packet_chain::~packet_chain() {
 void packet_chain::start_processing() {
     n_packet_threads = Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_packet_threads", 0);
 
-    if (n_packet_threads == 0)
-        n_packet_threads = static_cast<unsigned int>(std::thread::hardware_concurrency());
+    if (n_packet_threads == 0) {
+        n_packet_threads = std::max(4, static_cast<int>(std::thread::hardware_concurrency() / 4));
+    }
 
     packet_threads = new packet_thread*[n_packet_threads];
 
