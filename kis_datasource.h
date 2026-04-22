@@ -344,7 +344,6 @@ public:
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
     __ProxyM(source_name, std::string, std::string, std::string, source_name, data_mutex);
-    //__ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex);
     __ProxyLM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex,
             [this](uuid u) -> bool {
                 set_source_key(adler32_checksum(u.uuid_to_string()));
@@ -355,7 +354,7 @@ public:
     __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, data_mutex);
 
     // Prototype/driver definition
-    __ProxyTrackable(source_builder, kis_datasource_builder, source_builder);
+    __ProxyTrackableM(source_builder, kis_datasource_builder, source_builder, data_mutex);
 
     // Read-only access to the source state; this mirrors the state in the capture
     // binary. Set commands queue a command to the binary and then update as

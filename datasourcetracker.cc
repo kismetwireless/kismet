@@ -190,7 +190,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (unsigned
     for (const auto& i : build_map) {
         // Set up the cancellation timer
         int cancel_timer =
-            timetracker->register_timer(std::chrono::seconds(10), false,
+            timetracker->register_timer(std::chrono::seconds(2), false,
                     [self = shared_from_this()] (int) -> int {
                         _MSG_ERROR("Datasource {} cancelling source probe due to timeout", self->definition);
                         self->cancel();
@@ -227,9 +227,7 @@ datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<t
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
     kis_unique_lock<kis_mutex> lk(list_lock, "~dstlist");
-
     list_cb = nullptr;
-
     lk.unlock();
 
     cancel();
@@ -246,9 +244,7 @@ void datasource_tracker_source_list::cancel() {
     timetracker->remove_timer(cancel_event_id);
 
     if (ipc_list_map.size() == 0 && list_cb) {
-        lk.unlock();
         list_cb(listed_sources);
-        lk.lock();
     }
 
     // Abort anything already underway
@@ -278,12 +274,6 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
         return;
-
-    /*
-    for (auto i = in_list.begin(); i != in_list.end(); ++i) {
-        listed_sources.push_back(*i);
-    }
-    */
 
     for (const auto& i : in_list) {
         listed_sources.push_back(i);
@@ -315,7 +305,7 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
     bool created_ipc = false;
 
-    for (auto i : *proto_vec) {
+    for (const auto& i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
 
         if (!b->get_list_capable())
@@ -326,12 +316,9 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
         // Instantiate a local lister
         shared_datasource pds = b->build_datasource(b);
 
-        {
-            kis_lock_guard<kis_mutex> lk(list_lock, "dstlist list_sources");
-            ipc_list_map[transaction] = pds;
-            list_vec.push_back(pds);
-            created_ipc = true;
-        }
+        ipc_list_map[transaction] = pds;
+        list_vec.push_back(pds);
+        created_ipc = true;
 
         pds->list_interfaces(transaction,
             [self = shared_from_this()] (std::shared_ptr<kis_datasource> src, unsigned int transaction,
@@ -340,15 +327,13 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
             });
     }
 
-    // If we didn't create any IPC events we'll never complete; call cancel directly
     if (!created_ipc)
         cancel();
 
     cancel_event_id =
-        timetracker->register_timer(std::chrono::seconds(5), false,
+        timetracker->register_timer(std::chrono::seconds(2), false,
             [self = shared_from_this()] (int) mutable -> int {
                 self->cancel();
-
                 return 0;
             });
 }
