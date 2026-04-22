@@ -447,6 +447,20 @@ class tracker_component : public tracker_element_map {
         (*cvar) -= (ptype) i; \
     }
 
+#define __ProxyIncDecAtomic(name, ptype, rtype, cvar) \
+    inline void inc_##name() { \
+        cvar->fetch_add(1); \
+    } \
+    inline void inc_##name(rtype i) { \
+        cvar->fetch_add(i); \
+    } \
+    inline void dec_##name() { \
+        cvar->fetch_sub(1); \
+    } \
+    inline void dec_##name(rtype i) { \
+        cvar->fetch_sub(i); \
+    }
+
 // Proxy update if less
 #define __ProxySetIfLess(name, ptype, rtype, cvar) \
     inline void set_if_lt_##name(rtype i) { \
@@ -522,6 +536,15 @@ class tracker_component : public tracker_element_map {
     inline void sub_##name(itype i) { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         (*cvar) -= (ptype) i; \
+    }
+
+// Proxy add/subtract for atomics
+#define __ProxyAddSubAtomic(name, ptype, itype, cvar) \
+    inline void add_##name(itype i) { \
+        cvar->fetch_add(i); \
+    } \
+    inline void sub_##name(itype i) { \
+        cvar->fetch_sub(i); \
     }
 
 // Proxy sub-trackable (name, trackable type, class variable)
