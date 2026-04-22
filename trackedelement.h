@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -237,6 +238,8 @@ enum class tracker_type {
     // Raw pointer to a string
     tracker_string_pointer = 33,
 
+    // Atomic counter
+    tracker_atomic_uint64 = 34,
 };
 
 class tracker_element {
@@ -1341,7 +1344,116 @@ public:
 using tracker_element_float = tracker_element_core_numeric<float, tracker_type::tracker_float, float_numerical_string<float>>;
 using tracker_element_double = tracker_element_core_numeric<double, tracker_type::tracker_double, float_numerical_string<double>>;
 
+template<class N, tracker_type T = tracker_type::tracker_double, class S = numerical_string<N>>
+class tracker_element_atomic_numeric : public tracker_element {
+public:
+    tracker_element_atomic_numeric() :
+        tracker_element(),
+        value{0} { }
 
+    tracker_element_atomic_numeric(int id) :
+        tracker_element(id),
+        value{0} { }
+
+    tracker_element_atomic_numeric(int id, const N& v) :
+        tracker_element(id),
+        value(v) { }
+
+    tracker_element_atomic_numeric(const tracker_element_atomic_numeric<N, T, S> *p) :
+        tracker_element{p},
+        value{0} { }
+
+    virtual tracker_type get_type() const override {
+        return T;
+    }
+
+    static tracker_type static_type() {
+        return T;
+    }
+
+    void reset() {
+        value = 0;
+    }
+
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() override {
+        S s;
+        return s.as_string(value);
+    }
+
+    virtual bool needs_quotes() const override {
+        return false;
+    }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw std::runtime_error("can not use coercive set on atomic");
+    }
+
+    virtual void coercive_set(double in_num) override {
+        throw std::runtime_error("can not use coercive set on atomic");
+    }
+
+    virtual void coercive_set(const shared_tracker_element& e) override {
+        throw std::runtime_error("can not use coercive set on atomic");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    const N get(std::memory_order order = std::memory_order_seq_cst) const {
+        return value.load(order);
+    }
+
+    void set(const N in, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+        value.store(in, order);
+    }
+
+    const N fetch_add(N val, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+        return value.fetch_add(val, order);
+    }
+
+    const N fetch_sub(N val, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+        return value.fetch_sub(val, order);
+    }
+
+    inline bool less_than(const tracker_element_atomic_numeric<N, T, S>& rhs) const {
+        auto v1 = get();
+        auto v2 = rhs.get();
+
+        return v1 < v2;
+    }
+
+    inline bool less_than(const std::shared_ptr<tracker_element>& rhs) const {
+        if (get_type() != rhs->get_type())
+            throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
+                        "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
+
+        auto v1 = get();
+        auto v2 = static_cast<tracker_element_atomic_numeric<N, T, S> *>(rhs.get)->get();
+        return v1 < v2;
+    }
+
+    virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
+        const auto v = get();
+
+        if (std::isnan(v) || std::isinf(v))
+            fmt::print(os, "0");
+        else
+            fmt::print(os, "{}", v);
+    }
+
+protected:
+    std::atomic<N> value;
+};
+
+using tracker_element_atomic_uint64 = tracker_element_atomic_numeric<uint64_t, tracker_type::tracker_atomic_uint64>;
 
 // Superclass for generic access to maps via multiple key structures; use a std::map tree
 // map;  alternate implementation available as core_unordered_map for structures which don't

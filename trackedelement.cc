@@ -268,6 +268,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "vector-as-map";
         case tracker_type::tracker_string_pointer:
             return "string-pointer";
+        case tracker_type::tracker_atomic_uint64:
+            return "atomic uint64_t";
     }
 
     return "unknown";
@@ -345,6 +347,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_summary_mapvec";
         case tracker_type::tracker_string_pointer:
             return "tracker_string_pointer";
+        case tracker_type::tracker_atomic_uint64:
+            return "tracker_atomic_uint64";
     }
 
     return "TrackerUnknown";
@@ -1640,6 +1644,8 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
             return static_cast<const tracker_element_byte_array *>(lhs.get())->less_than(*static_cast<const tracker_element_byte_array *>(rhs.get()));
         case tracker_type::tracker_ipv4_addr:
             return static_cast<const tracker_element_ipv4_addr *>(lhs.get())->less_than(*static_cast<const tracker_element_ipv4_addr *>(rhs.get()));
+        case tracker_type::tracker_atomic_uint64:
+            return static_cast<const tracker_element_atomic_uint64 *>(lhs.get())->less_than(*static_cast<const tracker_element_atomic_uint64 *>(rhs.get()));
         case tracker_type::tracker_unassigned:
         case tracker_type::tracker_key:
         case tracker_type::tracker_vector:
@@ -1703,6 +1709,8 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
             return static_cast<const tracker_element_byte_array *>(lhs.get())->less_than(*static_cast<const tracker_element_byte_array *>(rhs.get()));
         case tracker_type::tracker_ipv4_addr:
             return static_cast<const tracker_element_ipv4_addr *>(lhs.get())->less_than(*static_cast<const tracker_element_ipv4_addr *>(rhs.get()));
+        case tracker_type::tracker_atomic_uint64:
+            return static_cast<const tracker_element_atomic_uint64 *>(lhs.get())->less_than(*static_cast<const tracker_element_atomic_uint64 *>(rhs.get()));
         case tracker_type::tracker_unassigned:
         case tracker_type::tracker_key:
         case tracker_type::tracker_vector:
