@@ -48,7 +48,7 @@
 //
 // Sub-classes must initialize sub-fields by calling register_fields() in their
 // constructors.  The register_fields() function is responsible for defining the
-// types and builders, and recording the field_ids for all sub-fields and nested 
+// types and builders, and recording the field_ids for all sub-fields and nested
 // components.
 //
 // Fields are allocated via the reserve_fields function, which must be called before
@@ -68,10 +68,10 @@ class tracker_component : public tracker_element_map {
     f = b->f
 
 // Ugly trackercomponent macro for proxying trackerelement values
-// Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
+// Defines get_<name> function, for a tracker_element of type <ptype>, returning type
 // <rtype>, referencing class variable <cvar>
-// Defines set_<name> function, for a tracker_element of type <ptype>, taking type 
-// <itype>, which must be castable to the tracker_element type (itype), referencing 
+// Defines set_<name> function, for a tracker_element of type <ptype>, taking type
+// <itype>, which must be castable to the tracker_element type (itype), referencing
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
     inline shared_tracker_element get_tracker_##name() const { \
@@ -85,7 +85,7 @@ class tracker_component : public tracker_element_map {
     }
 
 // Ugly macro for standard proxy access but with an additional mutex; this should
-// be a kis_mutex 
+// be a kis_mutex
 #define __ProxyM(name, ptype, itype, rtype, cvar, mvar) \
     inline shared_tracker_element get_tracker_##name() { \
         kis_lock_guard<kis_mutex> lk(mvar, __func__); \
@@ -102,10 +102,10 @@ class tracker_component : public tracker_element_map {
     }
 
 // Ugly trackercomponent macro for proxying trackerelement values
-// Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
+// Defines get_<name> function, for a tracker_element of type <ptype>, returning type
 // <rtype>, referencing class variable <cvar>
-// Defines set_<name> function, for a tracker_element of type <ptype>, taking type 
-// <itype>, which must be castable to the tracker_element type (itype), referencing 
+// Defines set_<name> function, for a tracker_element of type <ptype>, taking type
+// <itype>, which must be castable to the tracker_element type (itype), referencing
 // class variable <cvar>, which executes function <lambda> after the set command has
 // been executed.  <lambda> should be of the form [](itype) -> bool
 // Defines set_only_<name> which sets the trackerelement variable without
@@ -200,7 +200,7 @@ class tracker_component : public tracker_element_map {
 
 
 // Proxy, connected to a dynamic element.  Getting or setting the dynamic element
-// creates it. 
+// creates it.
 #define __ProxyDynamic(name, ptype, itype, rtype, cvar, id) \
     inline shared_tracker_element get_tracker_##name() { \
         if (cvar == nullptr) { \
@@ -338,13 +338,13 @@ class tracker_component : public tracker_element_map {
 #define __ProxyGet(name, ptype, rtype, cvar) \
     inline rtype get_##name() { \
         return (rtype) get_tracker_value<ptype>(cvar); \
-    } 
+    }
 
 // Only proxy a Set function for overload
 #define __ProxySet(name, ptype, stype, cvar) \
     inline void set_##name(const stype& in) { \
         set_tracker_value<ptype>(cvar, in); \
-    } 
+    }
 
 
 // Get and set only, protected with mutex
@@ -352,26 +352,26 @@ class tracker_component : public tracker_element_map {
     inline rtype get_##name() { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         return (rtype) get_tracker_value<ptype>(cvar); \
-    } 
+    }
 #define __ProxySetM(name, ptype, stype, cvar, mutex) \
     inline void set_##name(const stype& in) { \
         kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         set_tracker_value<ptype>(cvar, in); \
-    } 
+    }
 
 // Get and set only, protected with a std::shared_ptr<mutex>
 #define __ProxyGetMS(name, ptype, rtype, cvar, mutex) \
     inline rtype get_##name() { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         return (rtype) get_tracker_value<ptype>(cvar); \
-    } 
+    }
 #define __ProxySetMS(name, ptype, stype, cvar, mutex) \
     inline void set_##name(const stype& in) { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         set_tracker_value<ptype>(cvar, in); \
-    } 
+    }
 
-// Proxy a split public/private get/set function; This is even funkier than the 
+// Proxy a split public/private get/set function; This is even funkier than the
 // normal proxy macro and should only be used in a 'public' segment of the class.
 #define __ProxyPrivSplit(name, ptype, itype, rtype, cvar) \
     public: \
@@ -384,7 +384,7 @@ class tracker_component : public tracker_element_map {
     } \
     public:
 
-// Proxy a split public/private get/set function; This is even funkier than the 
+// Proxy a split public/private get/set function; This is even funkier than the
 // normal proxy macro and should only be used in a 'public' segment of the class.
 // with mutex
 #define __ProxyPrivSplitM(name, ptype, itype, rtype, cvar, mutex) \
@@ -400,7 +400,7 @@ class tracker_component : public tracker_element_map {
     } \
     public:
 
-// Proxy a split public/private get/set function, as virtuals; This is even funkier than the 
+// Proxy a split public/private get/set function, as virtuals; This is even funkier than the
 // normal proxy macro and should only be used in a 'public' segment of the class.
 // with mutex
 #define __ProxyPrivSplitVM(name, ptype, itype, rtype, cvar, mutex) \
@@ -416,7 +416,7 @@ class tracker_component : public tracker_element_map {
     } \
     public:
 
-// Proxy a split public/private get/set function; This is even funkier than the 
+// Proxy a split public/private get/set function; This is even funkier than the
 // normal proxy macro and should only be used in a 'public' segment of the class.
 // with shared_ptr mutex
 #define __ProxyPrivSplitMS(name, ptype, itype, rtype, cvar, mutex) \
@@ -538,7 +538,7 @@ class tracker_component : public tracker_element_map {
     }  \
     inline shared_tracker_element get_tracker_##name() { \
         return std::static_pointer_cast<tracker_element>(cvar); \
-    } 
+    }
 
 // Proxy sub-trackable (name, trackable type, class variable), with mutex
 #define __ProxyTrackableM(name, ttype, cvar, mutex) \
@@ -557,7 +557,7 @@ class tracker_component : public tracker_element_map {
     inline shared_tracker_element get_tracker_##name() { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         return std::static_pointer_cast<tracker_element>(cvar); \
-    } 
+    }
 
 // Proxy sub-trackable (name, trackable type, class variable), with mutex
 #define __ProxyTrackableMS(name, ttype, cvar, mutex) \
@@ -576,13 +576,13 @@ class tracker_component : public tracker_element_map {
     inline shared_tracker_element get_tracker_##name() { \
         kis_lock_guard<kis_mutex> lk(mutex); \
         return std::static_pointer_cast<tracker_element>(cvar); \
-    } 
+    }
 
 // Proxy ONLY the get_tracker_* functions
 #define __ProxyOnlyTrackable(name, ttype, cvar) \
     inline std::shared_ptr<ttype> get_tracker_##name() { \
         return cvar; \
-    } 
+    }
 
 // Proxy sub-trackable (name, trackable type, class variable, set function)
 // Returns a shared_ptr instance of a trackable object, or defines a basic
@@ -605,7 +605,7 @@ class tracker_component : public tracker_element_map {
     }  \
     inline shared_tracker_element get_tracker_##name() { \
         return std::static_pointer_cast<tracker_element>(cvar); \
-    } 
+    }
 
 
 // Newer dynamic proxy model which doesn't use an instance pointer, only the
@@ -840,11 +840,11 @@ class tracker_component : public tracker_element_map {
         // We use negative IDs to indicate dynamic assignment, since this exists for every field
         // in every tracked element we actually do benefit from squeezing the boolean out
         public:
-            registered_field(int id, shared_tracker_element *assign) { 
+            registered_field(int id, shared_tracker_element *assign) {
                 this->assign = assign;
 
                 if (assign == nullptr) {
-                    this->id = id * -1; 
+                    this->id = id * -1;
                 } else {
                     this->id = id;
                 }
@@ -931,7 +931,7 @@ public:
 
 protected:
     // Register a field via the entrytracker, using standard entrytracker build methods.
-    // This field will be automatically assigned or created during the reservefields 
+    // This field will be automatically assigned or created during the reservefields
     // stage.
     //
     // If in_dest is a nullptr, it will not be instantiated; this is useful for registering
@@ -942,11 +942,11 @@ protected:
     // Register a field, automatically deriving its type from the provided destination
     // field.  The destination field must be specified.
     template<typename T>
-    int register_field(const std::string& in_name, const std::string& in_desc, 
+    int register_field(const std::string& in_name, const std::string& in_desc,
             std::shared_ptr<T> *in_dest) {
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 
-        return register_field(in_name, tracker_element_factory<build_type>(), in_desc, 
+        return register_field(in_name, tracker_element_factory<build_type>(), in_desc,
                 reinterpret_cast<shared_tracker_element *>(in_dest));
     }
 
@@ -954,23 +954,23 @@ protected:
     // field.  The destination field must be specified.
     //
     // The field will not be initialized during normal initialization, it will only be
-    // created when the field is accessed.  
+    // created when the field is accessed.
     //
     // This field should be mapped via the __ProxyDynamicTrackable call
     template<typename T>
-    int register_dynamic_field(const std::string& in_name, const std::string& in_desc, 
+    int register_dynamic_field(const std::string& in_name, const std::string& in_desc,
             std::shared_ptr<T> *in_dest) {
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 
-        int id = 
-            Globalreg::globalreg->entrytracker->register_field(in_name, 
+        int id =
+            Globalreg::globalreg->entrytracker->register_field(in_name,
                     tracker_element_factory<build_type>(), in_desc);
 
         if (registered_fields == nullptr)
             registered_fields = new std::vector<std::unique_ptr<registered_field>>();
 
-        auto rf = std::unique_ptr<registered_field>(new registered_field(id, 
-                    reinterpret_cast<shared_tracker_element *>(in_dest), 
+        auto rf = std::unique_ptr<registered_field>(new registered_field(id,
+                    reinterpret_cast<shared_tracker_element *>(in_dest),
                     true));
 
         registered_fields->push_back(std::move(rf));
@@ -982,8 +982,8 @@ protected:
     int register_dynamic_field(const std::string& in_name, const std::string& in_desc) {
         using build_type = T;
 
-        int id = 
-            Globalreg::globalreg->entrytracker->register_field(in_name, 
+        int id =
+            Globalreg::globalreg->entrytracker->register_field(in_name,
                     tracker_element_factory<build_type>(), in_desc);
 
         if (registered_fields == nullptr)
@@ -996,7 +996,7 @@ protected:
         return id;
     }
 
-    // Register field types and get a field ID.  Called during record creation, prior to 
+    // Register field types and get a field ID.  Called during record creation, prior to
     // assigning an existing trackerelement tree or creating a new one
     virtual void register_fields() { }
 
@@ -1004,7 +1004,7 @@ protected:
     //  may contain a generic version of our data.
     // When populating from an existing structure, bind each field to this instance so
     //  that we can track usage and delete() appropriately.
-    // Populate automatically based on the fields we have reserved, subclasses can 
+    // Populate automatically based on the fields we have reserved, subclasses can
     // override if they really need to do something special
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e);
 
