@@ -374,16 +374,16 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
            */
 
         // Lock the individual packet to make sure no competing processing threads
-        // manipulate it while we're processing
+        // manipulate it (such as via dupe packet collision) while we're processing
         packet->mutex.lock();
-
-        // Lock the hash list, gating all hash comparisons
-        auto no_lk = kis_unique_lock<kis_shared_mutex>(pack_no_mutex, "hash handler");
 
         const auto& chunk = packet->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
         if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
             packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
+
+            // Lock the hash list, gating all hash comparisons
+            auto no_lk = kis_unique_lock<kis_shared_mutex>(pack_no_mutex, "hash handler");
 
             for (const auto& p : dedupe_list) {
                 if (p.hash == packet->hash) {
@@ -426,6 +426,8 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
                 dedupe_list[listpos].original_pkt = packet;
             }
         }
+
+        // run the rest of the packet chain
 
         for (const auto& pcl : llcdissect_chain) {
             if (pcl->callback != nullptr)
