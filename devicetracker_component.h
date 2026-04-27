@@ -117,7 +117,7 @@ public:
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
-    __ProxyFullyDynamicTrackable(signal_min_rrd, kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>, 
+    __ProxyFullyDynamicTrackable(signal_min_rrd, kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>,
                                  signal_min_rrd_id);
 
     __ProxyFullyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc_id);
@@ -178,7 +178,7 @@ public:
 protected:
     virtual void register_fields() override;
 
-	// Leave an alias to the datasource uuid for compatibility with older parsers, even though we're going to 
+	// Leave an alias to the datasource uuid for compatibility with older parsers, even though we're going to
 	// embed the entire datasource now
     std::shared_ptr<tracker_element_alias> src_uuid;
 
@@ -262,9 +262,9 @@ protected:
 
         packet_rrd_bin_250_id =
             register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.250", "RRD of packets up to 250 bytes");
-        packet_rrd_bin_500_id = 
+        packet_rrd_bin_500_id =
             register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.500", "RRD of packets up to 500 bytes");
-        packet_rrd_bin_1000_id = 
+        packet_rrd_bin_1000_id =
             register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.1000", "RRD of packets up to 1000 bytes");
         packet_rrd_bin_1500_id =
             register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.1500", "RRD of packets up to 1500 bytes");
@@ -328,7 +328,7 @@ public:
         reserve_fields(NULL);
     }
 
-    kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) : 
+    kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -424,7 +424,7 @@ public:
                 set_commonname(m.mac_to_string());
 
             return true;
-            
+
             });
 
     // __Proxy(phyname, std::string, std::string, std::string, phyname);
@@ -433,13 +433,13 @@ public:
 
     int get_phyid() const {
         return phy_id;
-    } 
+    }
 
     void set_phyid(int id) {
         phy_id = id;
     }
 
-    __ProxyL(devicename, std::string, std::string, std::string, devicename, 
+    __ProxyL(devicename, std::string, std::string, std::string, devicename,
             [this](std::string i) -> bool {
 
             if (i == "")
@@ -478,7 +478,7 @@ public:
 
     // Set the type string if any of the matching set are found
     void set_type_string_if(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if (get_basic_type_set() & if_set) 
+        if (get_basic_type_set() & if_set)
             set_tracker_type_string(in_type());
     }
 
@@ -684,7 +684,7 @@ protected:
     // Global frequency distribution
     std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
 
-    // Manufacturer, if we're able to derive, either from OUI or 
+    // Manufacturer, if we're able to derive, either from OUI or
     // from other data (phy-dependent)
     std::shared_ptr<tracker_element_string> manuf;
 
