@@ -54,8 +54,8 @@ public:
 };
 
 packet_chain::packet_chain() {
-    // packetcomp_mutex.set_name("packetchain packet_comp");
-    // packetchain_mutex.set_name("packetchain packetchain");
+    packetcomp_mutex.set_name("packetchain packet_comp");
+    packetchain_mutex.set_name("packetchain packetchain");
     pack_no_mutex.set_name("packetchain packetno");
 
     unique_packet_no = 1;
@@ -263,7 +263,7 @@ void packet_chain::start_processing() {
 }
 
 int packet_chain::register_packet_component(std::string in_component) {
-    auto lk = std::shared_lock(packetcomp_mutex);
+    kis_shared_lock<kis_shared_mutex> lk(packetcomp_mutex, "register_packet_component");
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {
         _MSG_FATAL("Attempted to register more than the maximum defined number of "
@@ -279,7 +279,7 @@ int packet_chain::register_packet_component(std::string in_component) {
 
     lk.unlock();
 
-    auto ulk = std::unique_lock(packetcomp_mutex);
+    kis_unique_lock<kis_shared_mutex> ulk(packetcomp_mutex, "register_packet_component");
 
     int num = next_componentid++;
 
@@ -290,7 +290,7 @@ int packet_chain::register_packet_component(std::string in_component) {
 }
 
 std::string packet_chain::fetch_packet_component_name(int in_id) {
-    auto lk = std::shared_lock(packetcomp_mutex);
+    kis_shared_lock<kis_shared_mutex> lk(packetcomp_mutex, "fetch_packet_component_name");
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
 		return "<UNKNOWN>";
@@ -317,13 +317,10 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         if (packet == nullptr)
             break;
 
-
         // Lock the packet chain and update any processing queues by replacing
         // the old queue with the new one.
 
-        // kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
-
-        auto lk = std::shared_lock(packetchain_mutex);
+        kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
 
         if (llcdissect_chain_update) {
             llcdissect_chain = llcdissect_chain_new;
@@ -487,8 +484,7 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     packet_peak_rrd->add_sample(1, now);
 
     // Import the new postcap chain, if it has been modified
-    // kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "process_packet");
-    auto lk = std::unique_lock(packetchain_mutex);
+    kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "process_packet");
     if (postcap_chain_update) {
         postcap_chain = postcap_chain_new;
         postcap_chain_new.clear();
@@ -569,8 +565,7 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
 int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
 
-    // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
-    auto lk = std::unique_lock(packetchain_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
 
     auto link = new pc_link;
 
@@ -671,8 +666,7 @@ int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
-    auto lk = std::unique_lock(packetchain_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
 
     unsigned int x;
 
@@ -785,8 +779,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
-    auto lk = std::unique_lock(packetchain_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
 
     unsigned int x;
 

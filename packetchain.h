@@ -213,11 +213,10 @@ protected:
     bool logging_chain_update;
 
     // Packet component mutex
-    std::shared_mutex packetcomp_mutex;
+    mutable kis_shared_mutex packetcomp_mutex;
 
     // Packet chain mutex
-    std::shared_mutex packetchain_mutex;
-    // kis_shared_mutex packetchain_mutex;
+    mutable kis_shared_mutex packetchain_mutex;
 
     struct packet_thread {
         std::thread packet_thread;
