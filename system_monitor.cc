@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <memory>
 
 #include <fstream>
@@ -444,9 +445,9 @@ void tracked_system_status::pre_serialize() {
     set_timestamp_sec(now.tv_sec);
     set_timestamp_usec(now.tv_usec);
 
-    set_num_fields(Globalreg::n_tracked_fields);
-    set_num_components(Globalreg::n_tracked_components);
-    set_num_http_connections(Globalreg::n_tracked_http_connections);
+    set_num_fields(Globalreg::n_tracked_fields.load(std::memory_order_acquire));
+    set_num_components(Globalreg::n_tracked_components.load(std::memory_order_acquire));
+    set_num_http_connections(Globalreg::n_tracked_http_connections.load(std::memory_order_acquire));
 
     unsigned int csize = 0;
     unsigned long cbytes = 0;

@@ -1155,11 +1155,11 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
     stream_{socket},
     login_valid_{false},
     first_response_write{false} {
-        Globalreg::n_tracked_http_connections++;
+        Globalreg::n_tracked_http_connections.fetch_add(1, std::memory_order_relaxed);
     }
 
 kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() {
-    Globalreg::n_tracked_http_connections--;
+    Globalreg::n_tracked_components.fetch_sub(1, std::memory_order_relaxed);
     if (closure_cb)
         closure_cb();
 }

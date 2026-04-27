@@ -896,29 +896,29 @@ public:
     tracker_component() :
         tracker_element_map(0),
         registered_fields{nullptr} {
-            Globalreg::n_tracked_components++;
+            Globalreg::n_tracked_components.fetch_add(1, std::memory_order_relaxed);
         }
 
     tracker_component(int in_id) :
         tracker_element_map(in_id),
         registered_fields{nullptr} {
-            Globalreg::n_tracked_components++;
+            Globalreg::n_tracked_components.fetch_add(1, std::memory_order_relaxed);
         }
 
     tracker_component(int in_id, std::shared_ptr<tracker_element_map> e __attribute__((unused))) :
         tracker_element_map(in_id),
         registered_fields{nullptr} {
-            Globalreg::n_tracked_components++;
+            Globalreg::n_tracked_components.fetch_add(1, std::memory_order_relaxed);
         }
 
     tracker_component(const tracker_component *p) :
         tracker_element_map(p),
         registered_fields{nullptr} {
-            Globalreg::n_tracked_components++;
+            Globalreg::n_tracked_components.fetch_add(1, std::memory_order_relaxed);
         }
 
 	virtual ~tracker_component() {
-        Globalreg::n_tracked_components--;
+        Globalreg::n_tracked_components.fetch_sub(1, std::memory_order_relaxed);
 
         if (registered_fields != nullptr)
             delete registered_fields;

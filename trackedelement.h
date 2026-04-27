@@ -246,7 +246,7 @@ class tracker_element {
 public:
     tracker_element() :
         tracked_id(-1) {
-            Globalreg::n_tracked_fields++;
+            Globalreg::n_tracked_fields.fetch_add(1, std::memory_order_relaxed);
         }
 
     tracker_element(tracker_element&& o) noexcept :
@@ -254,17 +254,17 @@ public:
 
     tracker_element( int id) :
         tracked_id(id) {
-            Globalreg::n_tracked_fields++;
+            Globalreg::n_tracked_fields.fetch_add(1, std::memory_order_relaxed);
         }
 
     // Inherit from builder
     tracker_element(const tracker_element *p) :
         tracked_id{p->tracked_id} {
-            Globalreg::n_tracked_fields++;
+            Globalreg::n_tracked_fields.fetch_add(1, std::memory_order_relaxed);
         }
 
     virtual ~tracker_element() {
-        Globalreg::n_tracked_fields--;
+        Globalreg::n_tracked_fields.fetch_sub(1, std::memory_order_relaxed);
     };
 
     // Factory-style for easily making more of the same if we're subclassed
