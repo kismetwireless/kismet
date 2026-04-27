@@ -1159,7 +1159,7 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
     }
 
 kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() {
-    Globalreg::n_tracked_components.fetch_sub(1, std::memory_order_relaxed);
+    Globalreg::n_tracked_http_connections.fetch_sub(1, std::memory_order_relaxed);
     if (closure_cb)
         closure_cb();
 }
