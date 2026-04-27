@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <atomic>
 #include <mutex>
 #include <shared_mutex>
 
@@ -320,45 +321,49 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
         // Lock the packet chain and update any processing queues by replacing
         // the old queue with the new one.
 
-        kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
+        if (chain_update_required.load(std::memory_order_relaxed)) {
+            kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
 
-        if (llcdissect_chain_update) {
-            llcdissect_chain = llcdissect_chain_new;
-            llcdissect_chain_new.clear();
-            llcdissect_chain_update = false;
+            if (llcdissect_chain_update) {
+                llcdissect_chain = llcdissect_chain_new;
+                llcdissect_chain_new.clear();
+                llcdissect_chain_update = false;
+            }
+
+            if (decrypt_chain_update) {
+                decrypt_chain = decrypt_chain_new;
+                decrypt_chain_new.clear();
+                decrypt_chain_update = false;
+            }
+
+            if (datadissect_chain_update) {
+                datadissect_chain = datadissect_chain_new;
+                datadissect_chain_new.clear();
+                datadissect_chain_update = false;
+            }
+
+            if (classifier_chain_update) {
+                classifier_chain = classifier_chain_new;
+                classifier_chain_new.clear();
+                classifier_chain_update = false;
+            }
+
+            if (tracker_chain_update) {
+                tracker_chain = tracker_chain_new;
+                tracker_chain_new.clear();
+                tracker_chain_update = false;
+            }
+
+            if (logging_chain_update) {
+                logging_chain = logging_chain_new;
+                logging_chain_new.clear();
+                logging_chain_update = false;
+            }
+
+            chain_update_required = false;
+
+            lk.unlock();
         }
-
-        if (decrypt_chain_update) {
-            decrypt_chain = decrypt_chain_new;
-            decrypt_chain_new.clear();
-            decrypt_chain_update = false;
-        }
-
-        if (datadissect_chain_update) {
-            datadissect_chain = datadissect_chain_new;
-            datadissect_chain_new.clear();
-            datadissect_chain_update = false;
-        }
-
-        if (classifier_chain_update) {
-            classifier_chain = classifier_chain_new;
-            classifier_chain_new.clear();
-            classifier_chain_update = false;
-        }
-
-        if (tracker_chain_update) {
-            tracker_chain = tracker_chain_new;
-            tracker_chain_new.clear();
-            tracker_chain_update = false;
-        }
-
-        if (logging_chain_update) {
-            logging_chain = logging_chain_new;
-            logging_chain_new.clear();
-            logging_chain_update = false;
-        }
-
-        lk.unlock();
 
         // These can only be perturbed inside a sync, which can only occur when
         // the worker thread is in the sync block above, so we shouldn't
@@ -580,7 +585,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
             if (!postcap_chain_update) {
-                postcap_chain_update = true;
+                postcap_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 postcap_chain_new = postcap_chain;
             }
 
@@ -591,7 +597,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
 
         case CHAINPOS_LLCDISSECT:
             if (!llcdissect_chain_update) {
-                llcdissect_chain_update = true;
+                llcdissect_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 llcdissect_chain_new = llcdissect_chain;
             }
 
@@ -602,7 +609,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
 
         case CHAINPOS_DECRYPT:
             if (!decrypt_chain_update) {
-                decrypt_chain_update = true;
+                decrypt_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 decrypt_chain_new = decrypt_chain;
             }
 
@@ -613,7 +621,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
 
         case CHAINPOS_DATADISSECT:
             if (!datadissect_chain_update) {
-                datadissect_chain_update = true;
+                datadissect_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 datadissect_chain_new = datadissect_chain;
             }
 
@@ -624,7 +633,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
 
         case CHAINPOS_CLASSIFIER:
             if (!classifier_chain_update) {
-                classifier_chain_update = true;
+                classifier_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 classifier_chain_new = classifier_chain;
             }
 
@@ -635,7 +645,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
 
         case CHAINPOS_TRACKER:
             if (!tracker_chain_update) {
-                tracker_chain_update = true;
+                tracker_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 tracker_chain_new = tracker_chain;
             }
 
@@ -646,7 +657,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_c
 
         case CHAINPOS_LOGGING:
             if (!logging_chain_update) {
-                logging_chain_update = true;
+                logging_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 logging_chain_new = logging_chain;
             }
 
@@ -675,7 +687,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
             if (!postcap_chain_update) {
-                postcap_chain_update = true;
+                postcap_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 postcap_chain_new = postcap_chain;
             }
 
@@ -689,7 +702,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
         case CHAINPOS_LLCDISSECT:
             if (!llcdissect_chain_update) {
-                llcdissect_chain_update = true;
+                llcdissect_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 llcdissect_chain_new = llcdissect_chain;
             }
 
@@ -703,7 +717,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
         case CHAINPOS_DECRYPT:
             if (!decrypt_chain_update) {
-                decrypt_chain_update = true;
+                decrypt_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 decrypt_chain_new = decrypt_chain;
             }
 
@@ -717,7 +732,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
         case CHAINPOS_DATADISSECT:
             if (!datadissect_chain_update) {
-                datadissect_chain_update = true;
+                datadissect_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 datadissect_chain_new = datadissect_chain;
             }
 
@@ -731,7 +747,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
         case CHAINPOS_CLASSIFIER:
             if (!classifier_chain_update) {
-                classifier_chain_update = true;
+                classifier_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 classifier_chain_new = classifier_chain;
             }
 
@@ -759,7 +776,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 
         case CHAINPOS_LOGGING:
             if (!logging_chain_update) {
-                logging_chain_update = true;
+                logging_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 logging_chain_new = logging_chain;
             }
 
@@ -788,7 +806,8 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
             if (!postcap_chain_update) {
-                postcap_chain_update = true;
+                postcap_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 postcap_chain_new = postcap_chain;
             }
 
@@ -816,7 +835,8 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
         case CHAINPOS_DECRYPT:
             if (!decrypt_chain_update) {
-                decrypt_chain_update = true;
+                decrypt_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 decrypt_chain_new = decrypt_chain;
             }
 
@@ -830,7 +850,8 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
         case CHAINPOS_DATADISSECT:
             if (!datadissect_chain_update) {
-                datadissect_chain_update = true;
+                datadissect_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 datadissect_chain_new = datadissect_chain;
             }
 
@@ -844,7 +865,8 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
         case CHAINPOS_CLASSIFIER:
             if (!classifier_chain_update) {
-                classifier_chain_update = true;
+                classifier_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 classifier_chain_new = classifier_chain;
             }
 
@@ -858,7 +880,8 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
         case CHAINPOS_TRACKER:
             if (!tracker_chain_update) {
-                tracker_chain_update = true;
+                tracker_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 tracker_chain_new = tracker_chain;
             }
 
@@ -872,7 +895,8 @@ int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
 
         case CHAINPOS_LOGGING:
             if (!logging_chain_update) {
-                logging_chain_update = true;
+                logging_chain_update.store(true, std::memory_order_acquire);
+                chain_update_required.store(true, std::memory_order_acquire);
                 logging_chain_new = logging_chain;
             }
 
