@@ -204,15 +204,13 @@ protected:
 	std::vector<packet_chain::pc_link*> tracker_chain_new;
     std::vector<packet_chain::pc_link*> logging_chain_new;
 
-    std::atomic<bool> chain_update_required;
-    std::atomic<bool> postcap_chain_update;
-    std::atomic<bool> llcdissect_chain_update;
-    std::atomic<bool> decrypt_chain_update;
-    std::atomic<bool> datadissect_chain_update;
-    std::atomic<bool> classifier_chain_update;
-    std::atomic<bool> tracker_chain_update;
-    std::atomic<bool> logging_chain_update;
-
+    bool postcap_chain_update;
+    bool llcdissect_chain_update;
+    bool decrypt_chain_update;
+    bool datadissect_chain_update;
+    bool classifier_chain_update;
+    bool tracker_chain_update;
+    bool logging_chain_update;
 
     // Packet component mutex
     mutable kis_shared_mutex packetcomp_mutex;
