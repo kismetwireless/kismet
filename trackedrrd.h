@@ -330,8 +330,7 @@ public:
     }
 
 protected:
-    inline int minutes_different(int m1, int m2) const {
-        // Sanity check
+    constexpr int minutes_different(int m1, int m2) const {
         m1 = m1 % 60;
         m2 = m2 % 60;
 
@@ -344,8 +343,7 @@ protected:
         }
     }
 
-    inline int hours_different(int h1, int h2) const {
-        // Sanity check
+    constexpr int hours_different(int h1, int h2) const {
         h1 = h1 % 24;
         h2 = h2 % 24;
 
@@ -358,8 +356,7 @@ protected:
         }
     }
 
-    inline int days_different(int d1, int d2) const {
-        // Sanity check
+    constexpr int days_different(int d1, int d2) const {
         d1 = d1 % 7;
         d2 = d2 % 7;
 
