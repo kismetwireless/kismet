@@ -320,18 +320,21 @@ public:
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
+        device_mutex.set_name("device");
     }
 
     kis_tracked_device_base(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
+        device_mutex.set_name("device");
     }
 
     kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
+        device_mutex.set_name("device");
     }
 
     kis_tracked_device_base(const kis_tracked_device_base *p) :
@@ -602,6 +605,8 @@ public:
 
     // Optional location cloud
     __ProxyFullyDynamicTrackable(location_cloud, kis_location_rrd, location_cloud_id);
+
+    kis_shared_mutex device_mutex;
 
 protected:
     virtual void register_fields() override;

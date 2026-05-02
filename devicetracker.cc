@@ -1177,9 +1177,7 @@ std::shared_ptr<kis_tracked_device_base>
     auto pack_tags = in_pack->fetch<kis_devicetag_packetinfo>(pack_comp_devicetag);
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
-    device_key key;
-
-    key = device_key(in_phy->fetch_phyname_hash(), in_mac);
+    device_key key(in_phy->fetch_phyname_hash(), in_mac);
 
 	if ((device = fetch_device_nr(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
@@ -1213,6 +1211,9 @@ std::shared_ptr<kis_tracked_device_base>
         new_device = true;
     }
 
+    // lock the device itself before we alter it
+    kis_lock_guard dlg(device->device_mutex, __func__);
+
     // Tag the packet with the base device
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
 
@@ -1226,8 +1227,7 @@ std::shared_ptr<kis_tracked_device_base>
     // Update the mod data
     device->update_modtime();
 
-    // Raise alerts for new devices or devices which have been
-    // idle and re-appeared
+    // Raise alerts for new devices or devices which have been idle and re-appeared
     // Also keep them in macdevice_flagged_vec to send devicelost alerts
     auto k = macdevice_alert_conf_map.find(device->get_macaddr());
     if (k != macdevice_alert_conf_map.end()) {
@@ -1250,6 +1250,7 @@ std::shared_ptr<kis_tracked_device_base>
                            in_pack, netmac, device->get_macaddr(), dstmac, transmac,
                            device->get_channel(), alrt);
             }
+
             if (k->second & 0x2) {
                 macdevice_flagged_vec.push_back(device);
             }
@@ -1416,7 +1417,6 @@ std::shared_ptr<kis_tracked_device_base>
     if (new_device) {
         // Add the new device to the list
         tracked_map[key] = device;
-
         immutable_tracked_vec->push_back(device);
 
         auto mm_pair = std::make_pair(in_mac, device);
@@ -1435,11 +1435,6 @@ std::shared_ptr<kis_tracked_device_base>
             evt->get_event_content()->insert(event_new_device(), device);
             in_pack->process_complete_events.push_back(evt);
         }
-
-#if 0
-        // Release the devicelist lock before we add it to the views
-        ul_list.unlock();
-#endif
     }
 
     return device;
