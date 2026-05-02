@@ -101,13 +101,6 @@ void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_compone
     }
 }
 
-std::shared_ptr<packet_component> kis_packet::fetch(const unsigned int index) const {
-	if (index >= MAX_PACKET_COMPONENTS)
-	    return nullptr;
-
-	return content_vec[index];
-}
-
 void kis_packet::erase(const unsigned int index) {
 	if (index >= MAX_PACKET_COMPONENTS)
 		return;

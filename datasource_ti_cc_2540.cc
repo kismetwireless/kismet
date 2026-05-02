@@ -108,6 +108,7 @@ int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_data
     if (fcs2 & (1 << 7)) {
         bits += btle_rf_crc_valid;
         packet->crc_ok = true;
+        packet->checksum_valid = true;
     }
 
     if (cc_payload_len >= 4) {

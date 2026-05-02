@@ -86,9 +86,13 @@ public:
     // Do we know this is in error from the capture source itself?
     int error;
 
-    // Do we know this packet is OK and don't have to run a CRC check on 
-    // it inside a data layer?
+    // Is the crc on this packet meaningful?  If so, checksum_valid can be used
+    // instead of computing a checksum again
     int crc_ok;
+
+    // Does packet have a valid checksum, as defined by whatever the packet
+    // handling layer is?  (previously packet_comp_checksum)
+    bool checksum_valid;
 
     // Have we been filtered for some reason?
     int filtered;
@@ -158,10 +162,15 @@ public:
         data = view;
     }
 
-    // Preferred smart pointers
     void insert(const unsigned int index, std::shared_ptr<packet_component> data);
 
-    std::shared_ptr<packet_component> fetch(const unsigned int index) const;
+    std::shared_ptr<packet_component> fetch(const unsigned int index) const {
+        if (index >= MAX_PACKET_COMPONENTS)
+            return nullptr;
+
+        return content_vec[index];
+    }
+
 
     template<class T>
     std::shared_ptr<T> fetch() const {

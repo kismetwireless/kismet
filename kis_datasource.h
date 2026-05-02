@@ -443,7 +443,10 @@ public:
     //
     // Checksum functions should flag the packet as invalid directly via some
     // method recognized by the device categorization stage
-    virtual void checksum_packet(std::shared_ptr<kis_packet> in_pack __attribute__((unused))) { return; }
+    virtual void checksum_packet(std::shared_ptr<kis_packet> in_pack __attribute__((unused)),
+            std::shared_ptr<kis_datachunk> in_data __attribute__((unused)),
+            uint8_t *fcs_data __attribute__((unused)),
+            size_t fcs_len __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
         kis_lock_guard<kis_mutex> lk(data_mutex, kismet::retain_lock, "datasource preserialize");

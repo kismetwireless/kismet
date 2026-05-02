@@ -193,9 +193,13 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
             ble_crc24(0x555555, packdata->data() + 4, packdata->length() - 7);
 
         if (packet_crc != line_crc) {
-            in_pack->error = 1;
+            in_pack->crc_ok = true;
+            in_pack->checksum_valid = false;
             return 0;
         }
+
+        in_pack->crc_ok = true;
+        in_pack->checksum_valid = true;
     }
 
     membuf btle_membuf((char *) packdata->data(), (char *) &packdata->data()[packdata->length()]);

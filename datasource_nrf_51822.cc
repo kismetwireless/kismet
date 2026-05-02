@@ -108,6 +108,10 @@ int kis_datasource_nrf51822::handle_rx_data_content(kis_packet *packet,
         if (valid_pkt) {
             bits += btle_rf_crc_valid;
             packet->crc_ok = true;
+            packet->checksum_valid = true;
+        } else {
+            packet->crc_ok = true;
+            packet->checksum_valid = false;
         }
 
         // MIC

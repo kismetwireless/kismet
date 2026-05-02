@@ -163,7 +163,11 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
         // Right now we have no way to validate the packets from this firmware; either we
         // allow all or allow none, which is pointless
         bits += btle_rf_crc_valid;
-        packet->crc_ok = true;
+
+        if (btle_rf_crc_checked) {
+            packet->crc_ok = true;
+            packet->checksum_valid = btle_rf_crc_valid;
+        }
 
         if (nxp_payload_len >= 4) {
             memcpy(conv_header->reference_access_address, conv_header->payload, 4);

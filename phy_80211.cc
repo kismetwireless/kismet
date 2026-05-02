@@ -1175,8 +1175,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     // Do nothing if it's not a beacon in survey mode
     if (d11phy->filter_survey_only &&
-            (dot11info->type != packet_management ||
-            dot11info->subtype != packet_sub_beacon)) {
+            (dot11info->type != packet_management || dot11info->subtype != packet_sub_beacon)) {
         in_pack->filtered = true;
         return 0;
     }
@@ -1189,7 +1188,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
 
-    if (pack_l1info != nullptr && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold &&
+    if (pack_l1info != nullptr &&
+            pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold &&
             pack_l1info->signal_dbm < 0 &&
             d11phy->alertracker->potential_alert(d11phy->alert_tooloud_ref)) {
 
@@ -1215,28 +1215,28 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         return 0;
     }
 
-    // Get the checksum info;
-    //
-    // We don't do anything if the packet is invalid;  in the future we might want
-    // to try to attach it to an existing network if we can understand that much
-    // of the frame and then treat it as an error, but that artificially inflates
-    // the error condition on a network when FCS errors are pretty normal.
-    //
-    // By never creating a common info record we should prevent any handling of this
-    // nonsense;  So far investigation doesn't show much useful in FCS corrupted data.
-    auto fcs = in_pack->fetch<kis_packet_checksum>(d11phy->pack_comp_checksum);
-
-    if (fcs != NULL && fcs->checksum_valid == 0) {
+    // Ignore packets with invalid checksums
+    if (in_pack->crc_ok && !in_pack->checksum_valid) {
         return 0;
     }
+
+#if 0
+    // Packets with invalid checksums aren't meaningfully useful; FCS errors
+    // happen constantly under normal circumstances, and a corrupt packet can't
+    // be usefully mapped to any device.
+    //
+    // Throw them out - they're not errors, they're just meaningless noise
+    auto fcs = in_pack->fetch<kis_packet_checksum>(d11phy->pack_comp_checksum);
+    if (fcs != nullptr && fcs->checksum_valid == 0) {
+        return 0;
+    }
+#endif
 
     auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(d11phy->pack_comp_gps);
     auto pack_datainfo = in_pack->fetch<kis_data_packinfo>(d11phy->pack_comp_basicdata);
 
-    kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
-            "phy80211 common_classifier");
-
-    // Handle duplicates; we update seenby, location, and signals, but that's it
+    // Handle duplicates; we update seenby, location, and signals, but that's it; we don't
+    // need to lock the entire device list
     if (in_pack->duplicate) {
         if (dot11info->type == packet_management) {
             if (dot11info->bssid_dev != nullptr) {
@@ -1288,6 +1288,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         return 1;
     }
+
+    kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
+            "phy80211 common_classifier");
 
     if (dot11info->type == packet_management) {
         // Resolve the common structures of management frames; this is a lot of code
@@ -1351,6 +1354,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         std::function<void ()> handle_probed_ssid_f;
 
         if (dot11info->bssid_dev != nullptr) {
+            kis_lock_guard<kis_shared_mutex> bssid_lg(dot11info->bssid_dev->device_mutex, fmt::format("{} mgmt bssiddev", __func__));
+
             dot11info->bssid_dot11 =
                 dot11info->bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1461,6 +1466,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dot11info->source_dev != nullptr) {
+            kis_lock_guard<kis_shared_mutex> source_lg(dot11info->source_dev->device_mutex, fmt::format("{} mgmt sourcedev", __func__));
+
             dot11info->source_dot11 =
                 dot11info->source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1479,7 +1486,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
 
             if (dot11info->bssid_dev != nullptr) {
-                dot11info->source_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
+                dot11info->source_dot11->set_last_bssid(dot11info->bssid_mac);
             } else {
                 dot11info->source_dot11->set_last_bssid(mac_addr());
             }
@@ -1521,6 +1528,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dot11info->dest_dev != nullptr) {
+            kis_lock_guard<kis_shared_mutex> dest_lg(dot11info->dest_dev->device_mutex, fmt::format("{} mgmt destdev", __func__));
             dot11info->dest_dot11 =
                 dot11info->dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1537,7 +1545,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
 
             if (dot11info->bssid_dev != nullptr)
-                dot11info->dest_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
+                dot11info->dest_dot11->set_last_bssid(dot11info->bssid_mac);
 
             // If it's receiving a management packet, it must be a wifi device
             dot11info->dest_dev->set_type_string_ifnotany([d11phy]() {
