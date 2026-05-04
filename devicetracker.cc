@@ -142,9 +142,6 @@ device_tracker::device_tracker() :
 	pack_comp_device =
 		packetchain->register_packet_component("DEVICE");
 
-	pack_comp_common =
-		packetchain->register_packet_component("COMMON");
-
 	pack_comp_basicdata =
 		packetchain->register_packet_component("BASICDATA");
 
@@ -1097,24 +1094,22 @@ int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
 		return 0;
 	}
 
-    auto pack_common = in_pack->fetch<kis_common_info>(pack_comp_common);
-
     if (!ram_no_rrd)
         packets_rrd->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
     num_packets++;
 
 	// If we can't figure it out at all (no common layer) just bail
-	if (pack_common == NULL)
+	if (!in_pack->common_info_ok)
 		return 0;
 
-	if (pack_common->error) {
+	if (in_pack->common_info.error) {
 		// If we couldn't get any common data consider it an error
 		// and bail
 		num_errorpackets++;
 
-		if (phy_handler_map.find(pack_common->phyid) != phy_handler_map.end()) {
-			phy_errorpackets[pack_common->phyid]++;
+		if (phy_handler_map.find(in_pack->common_info.phyid) != phy_handler_map.end()) {
+			phy_errorpackets[in_pack->common_info.phyid]++;
 		}
 
 		return 0;
@@ -1125,24 +1120,24 @@ int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
 	}
 
 	// Make sure our PHY is sane
-	if (phy_handler_map.find(pack_common->phyid) == phy_handler_map.end()) {
-        _MSG_ERROR("Invalid phy id {} in packet: something is wrong", pack_common->phyid);
+	if (phy_handler_map.find(in_pack->common_info.phyid) == phy_handler_map.end()) {
+        _MSG_ERROR("Invalid phy id {} in packet: something is wrong", in_pack->common_info.phyid);
 		return 0;
 	}
 
-	phy_packets[pack_common->phyid]++;
+	phy_packets[in_pack->common_info.phyid]++;
 
-	if (in_pack->error || pack_common->error) {
-		phy_errorpackets[pack_common->phyid]++;
+	if (in_pack->error || in_pack->common_info.error) {
+		phy_errorpackets[in_pack->common_info.phyid]++;
 	}
 
 	if (in_pack->filtered) {
-		phy_filterpackets[pack_common->phyid]++;
+		phy_filterpackets[in_pack->common_info.phyid]++;
 		num_filterpackets++;
 	} else {
-		if (pack_common->type == packet_basic_data) {
+		if (in_pack->common_info.type == packet_basic_data) {
 			num_datapackets++;
-			phy_datapackets[pack_common->phyid]++;
+			phy_datapackets[in_pack->common_info.phyid]++;
 		}
 	}
 
@@ -1157,8 +1152,8 @@ int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
 // the access point, source, and destination devices), only the specific common device
 // being passed will be updated.
 std::shared_ptr<kis_tracked_device_base>
-    device_tracker::update_common_device(const std::shared_ptr<kis_common_info>& pack_common,
-            const mac_addr& in_mac, kis_phy_handler *in_phy, const std::shared_ptr<kis_packet>& in_pack,
+    device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
+            const std::shared_ptr<kis_packet>& in_pack,
             unsigned int in_flags, const std::string& in_basic_type) {
 
     // Updating devices can only happen in serial because we don't know that a device is being
@@ -1173,7 +1168,6 @@ std::shared_ptr<kis_tracked_device_base>
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_radiodata);
     auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
     auto pack_datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
-    auto common_info = in_pack->fetch<kis_common_info>(pack_comp_common);
     auto pack_tags = in_pack->fetch<kis_devicetag_packetinfo>(pack_comp_devicetag);
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
@@ -1237,10 +1231,10 @@ std::shared_ptr<kis_tracked_device_base>
             if (k->second & 0x1) {
                 mac_addr dstmac, netmac, transmac;
 
-                if (common_info != nullptr) {
-                    dstmac = common_info->dest;
-                    netmac = common_info->network;
-                    transmac = common_info->transmitter;
+                if (in_pack->common_info_ok) {
+                    dstmac = in_pack->common_info.dest;
+                    netmac = in_pack->common_info.network;
+                    transmac = in_pack->common_info.transmitter;
                 }
 
                 auto alrt =
@@ -1263,13 +1257,13 @@ std::shared_ptr<kis_tracked_device_base>
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();
 
-        if (pack_common != nullptr) {
-            if (pack_common->source == in_mac || pack_common->transmitter == in_mac) {
+        if (in_pack->common_info_ok) {
+            if (in_pack->common_info.source == in_mac || in_pack->common_info.transmitter == in_mac) {
                 device->inc_tx_packets();
 
                 if (!ram_no_rrd)
                     device->get_tx_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
-            } else if (pack_common->dest == in_mac) {
+            } else if (in_pack->common_info.dest == in_mac) {
                 device->inc_rx_packets();
 
                 if (!ram_no_rrd)
@@ -1281,21 +1275,21 @@ std::shared_ptr<kis_tracked_device_base>
             device->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
         }
 
-        if (pack_common != nullptr) {
-            if (pack_common->error)
+        if (in_pack->common_info_ok) {
+            if (in_pack->common_info.error)
                 device->inc_error_packets();
 
-            if (pack_common->type == packet_basic_data) {
+            if (in_pack->common_info.type == packet_basic_data) {
                 // TODO fix directional data
                 device->inc_data_packets();
-                device->inc_datasize(pack_common->datasize);
+                device->inc_datasize(in_pack->common_info.datasize);
 
                 if (!ram_no_rrd) {
-                    device->get_data_rrd()->add_sample(pack_common->datasize, Globalreg::globalreg->last_tv_sec);
+                    device->get_data_rrd()->add_sample(in_pack->common_info.datasize, Globalreg::globalreg->last_tv_sec);
                 }
 
-            } else if (pack_common->type == packet_basic_mgmt ||
-                    pack_common->type == packet_basic_phy) {
+            } else if (in_pack->common_info.type == packet_basic_mgmt ||
+                    in_pack->common_info.type == packet_basic_phy) {
                 device->inc_llc_packets();
             }
 
@@ -1306,16 +1300,16 @@ std::shared_ptr<kis_tracked_device_base>
         bool set_channel = false;
         bool set_freq = false;
 
-        if (pack_common != nullptr) {
-            if (!pack_common->channel.empty() && pack_common->channel != "0") {
+        if (in_pack->common_info_ok) {
+            if (!in_pack->common_info.channel.empty() && in_pack->common_info.channel != "0") {
                 set_channel = true;
-                device->set_channel(pack_common->channel);
+                device->set_channel(in_pack->common_info.channel);
             }
 
-            if (pack_common->freq_khz != 0) {
+            if (in_pack->common_info.freq_khz != 0) {
                 set_freq = true;
-                device->set_frequency(pack_common->freq_khz);
-                device->inc_frequency_count((int) pack_common->freq_khz);
+                device->set_frequency(in_pack->common_info.freq_khz);
+                device->inc_frequency_count((int) in_pack->common_info.freq_khz);
             }
         }
 
@@ -1405,8 +1399,8 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 	}
 
-    if (pack_common != nullptr)
-        device->add_basic_crypt(pack_common->basic_crypt_set);
+    if (in_pack->common_info_ok)
+        device->add_basic_crypt(in_pack->common_info.basic_crypt_set);
 
     if (pack_tags != nullptr) {
         for (const auto& i : pack_tags->tagmap) {

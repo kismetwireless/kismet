@@ -44,7 +44,7 @@ protected:
 
     FILE *csvfile;
 
-    int pack_comp_80211, pack_comp_common, pack_comp_gps, pack_comp_l1info,
+    int pack_comp_80211, pack_comp_gps, pack_comp_l1info,
         pack_comp_device;
 
     unsigned int throttle_seconds;

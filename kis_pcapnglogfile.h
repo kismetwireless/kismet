@@ -30,7 +30,6 @@ struct pcapng_logfile_accept_ftor {
         log_duplicate_packets{in_duplicate},
         log_data_packets{in_data} {
             auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
-            pack_comp_common = packetchain->register_packet_component("COMMON");
         }
 
     bool operator()(std::shared_ptr<kis_packet> in_pack) {
@@ -43,9 +42,8 @@ struct pcapng_logfile_accept_ftor {
         }
 
         if (!log_data_packets) {
-            const auto ci = in_pack->fetch<kis_common_info>(pack_comp_common);
-            if (ci != nullptr) {
-                if (ci->type == packet_basic_data) {
+            if (in_pack->common_info_ok) {
+                if (in_pack->common_info.type == packet_basic_data) {
                     return false;
                 }
             }
@@ -53,8 +51,6 @@ struct pcapng_logfile_accept_ftor {
 
         return true;
     }
-
-    int pack_comp_common;
 
     bool log_duplicate_packets;
     bool log_data_packets;
@@ -104,7 +100,7 @@ protected:
     bool truncate_duplicate_packets;
     bool log_data_packets;
 
-    int pack_comp_common, pack_comp_l1data, pack_comp_linkframe;
+    int pack_comp_l1data, pack_comp_linkframe;
 };
 
 class pcapng_logfile_builder : public kis_logfile_builder {

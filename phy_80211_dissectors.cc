@@ -589,7 +589,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     }
 
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
-    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     // If we're a duplicate packet and haven't processed the dot11 content yet,
     // we have to process.  This prevents a desync between the postcap thread and
@@ -599,15 +598,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     }
 
 
-    if (common == NULL) {
-        common = packetchain->new_packet_component<kis_common_info>();
-        in_pack->insert(pack_comp_common, common);
-    }
+    in_pack->common_info_ok = true;
 
-    common->phyid = phyid;
+    in_pack->common_info.phyid = phyid;
 
     if (pack_l1info != NULL)
-        common->freq_khz = pack_l1info->freq_khz;
+        in_pack->common_info.freq_khz = pack_l1info->freq_khz;
 
     packinfo = packetchain->new_packet_component<dot11_packinfo>();
 
@@ -670,7 +666,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     // Shortcut PHYs here because they're shorter than normal packets
     if (fc->type == packet_phy) {
         packinfo->type = packet_phy;
-        common->type = packet_basic_phy;
+        in_pack->common_info.type = packet_basic_phy;
 
         if (fc->subtype == 5) {
             packinfo->subtype = packet_sub_vht_ndp;
@@ -767,10 +763,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         }
 
         // Fill in the common addressing before we bail on a phy
-        common->source = packinfo->source_mac;
-        common->dest = packinfo->dest_mac;
-        common->network = packinfo->bssid_mac;
-        common->transmitter = packinfo->transmit_mac;
+        in_pack->common_info.source = packinfo->source_mac;
+        in_pack->common_info.dest = packinfo->dest_mac;
+        in_pack->common_info.network = packinfo->bssid_mac;
+        in_pack->common_info.transmitter = packinfo->transmit_mac;
 
         // Nothing more to do if we get a phy
         in_pack->insert(pack_comp_80211, packinfo);
@@ -799,7 +795,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     // Rip apart management frames
     if (fc->type == packet_management) {
         packinfo->type = packet_management;
-        common->type = packet_basic_mgmt;
+        in_pack->common_info.type = packet_basic_mgmt;
 
         packinfo->distrib = distrib_unknown;
 
@@ -1207,7 +1203,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
     } else if (fc->type == packet_data) {
         packinfo->type = packet_data;
-        common->type = packet_basic_data;
+        in_pack->common_info.type = packet_basic_data;
 
         switch (fc->subtype) {
             case 0:
@@ -1346,11 +1342,11 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             if (packinfo->header_offset + 2 < chunk->length()) {
                 if (chunk->data()[packinfo->header_offset + 2] == 0) {
                     packinfo->cryptset |= dot11_crypt_general_wpa;
-                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                    in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
                 }  else if (chunk->data()[packinfo->header_offset + 1] & 0x20) {
                     packinfo->cryptset |= dot11_crypt_general_wpa;
-                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                    in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
                 }
             }
@@ -1358,7 +1354,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             // Try setting wep if we can't determine what it is otherwise
             if (!alt_crypt) {
                 packinfo->cryptset |= dot11_crypt_general_wep;
-                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             }
         }
 
@@ -1367,7 +1363,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         ssize_t datasize = chunk->length() - packinfo->header_offset;
         if (datasize > 0) {
             packinfo->datasize = datasize;
-            common->datasize = datasize;
+            in_pack->common_info.datasize = datasize;
         }
 
         if (packinfo->cryptset == 0 && dissect_data && datasize > 0) {
@@ -1425,7 +1421,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 }
 
                 packinfo->cryptset |= crypt_eap;
-                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 switch (eap_type) {
                     case EAP_TYPE_LEAP:
                         datainfo->field1 = eap_code;
@@ -1506,20 +1502,20 @@ eap_end:
     }
 
     // Populate the common addressing
-    common->source = packinfo->source_mac;
-    common->dest = packinfo->dest_mac;
-    common->network = packinfo->bssid_mac;
-    common->transmitter = packinfo->transmit_mac;
+    in_pack->common_info.source = packinfo->source_mac;
+    in_pack->common_info.dest = packinfo->dest_mac;
+    in_pack->common_info.network = packinfo->bssid_mac;
+    in_pack->common_info.transmitter = packinfo->transmit_mac;
 
-    common->type = packet_basic_data;
+    in_pack->common_info.type = packet_basic_data;
 
     in_pack->insert(pack_comp_80211, packinfo);
 
     uint32_t aid = 0;
-    aid = adler32_checksum(&common->source.longmac, sizeof(common->source.longmac));
-    aid = adler32_append_checksum(&common->dest.longmac, sizeof(common->dest.longmac), aid);
-    aid = adler32_append_checksum(&common->network.longmac, sizeof(common->network.longmac), aid);
-    aid = adler32_append_checksum(&common->transmitter.longmac, sizeof(common->transmitter.longmac), aid);
+    aid = adler32_checksum(&in_pack->common_info.source.longmac, sizeof(in_pack->common_info.source.longmac));
+    aid = adler32_append_checksum(&in_pack->common_info.dest.longmac, sizeof(in_pack->common_info.dest.longmac), aid);
+    aid = adler32_append_checksum(&in_pack->common_info.network.longmac, sizeof(in_pack->common_info.network.longmac), aid);
+    aid = adler32_append_checksum(&in_pack->common_info.transmitter.longmac, sizeof(in_pack->common_info.transmitter.longmac), aid);
 
     in_pack->assignment_id = aid;
 
@@ -1622,8 +1618,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             return -1;
         }
     }
-
-    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     // Track if we've seen some of these tags already
     unsigned int wmmtspec_responses = 0;
@@ -2001,7 +1995,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     packinfo->cryptset |= wpa_rsn_auth_conv(i.management_type());
                 }
 
-                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             } catch (const std::exception& e) {
                 rsn_invalid = true;
                 packinfo->corrupt = 1;
@@ -2284,7 +2278,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     if (wpa.wpa_version() == 3)
                         packinfo->cryptset |= dot11_crypt_general_wpa3;
 
-                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                    in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 } else if (vendor.vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
                         vendor.vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
                     dot11_ie_221_cisco_client_mfp mfp;

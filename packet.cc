@@ -34,13 +34,13 @@
 #include "macaddr.h"
 #include "packet.h"
 #include "packetchain.h"
-#include "packet_ieee80211.h"
 
 
 kis_packet::kis_packet() {
     packet_no = 0;
 	error = 0;
     crc_ok = 0;
+    checksum_valid = false;
 	filtered = 0;
     duplicate = 0;
     hash = 0;
@@ -49,23 +49,27 @@ kis_packet::kis_packet() {
 
     raw_streambuf = nullptr;
     data = std::string_view(nullptr, 0);
+
+    common_info_ok = false;
 }
 
 kis_packet::~kis_packet() {
     try {
         mutex.unlock();
-    } catch (...) {
-        ;
-    }
+    } catch (...) { }
 }
 
 void kis_packet::reset() {
     assignment_id = 0;
     packet_no = 0;
     error = 0;
-    crc_ok = 0;
+    crc_ok = false;
+    checksum_valid = false;
     filtered = 0;
     duplicate = 0;
+
+    common_info_ok = false;
+    common_info.reset();
 
     original.reset();
 

@@ -101,7 +101,6 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
     alertracker =
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
-    pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_btle = packetchain->register_packet_component("BTLE");
@@ -162,9 +161,9 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     }
 
     // Don't reclassify something that's already been seen
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-    if (common != NULL)
+    if (in_pack->common_info_ok) {
         return 0;
+    }
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_decap, mphy->pack_comp_linkframe);
 
@@ -206,10 +205,10 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    common = mphy->packetchain->new_packet_component<kis_common_info>();
-    common->phyid = mphy->fetch_phy_id();
-    common->basic_crypt_set = crypt_none;
-    common->type = packet_basic_mgmt;
+    in_pack->common_info_ok = true;
+    in_pack->common_info.phyid = mphy->fetch_phy_id();
+    in_pack->common_info.basic_crypt_set = crypt_none;
+    in_pack->common_info.type = packet_basic_mgmt;
 
     auto btle_info = mphy->packetchain->new_packet_component<btle_packinfo>();
 
@@ -217,14 +216,13 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
         auto btle = std::make_shared<bluetooth_btle>();
         btle->parse(btle_stream);
 
-        common->source = btle->advertising_address();
-        common->transmitter = btle->advertising_address();
+        in_pack->common_info.source = btle->advertising_address();
+        in_pack->common_info.transmitter = btle->advertising_address();
         // We don't set the channel or freq because it's already in l1info and gets picked
         // up from there automatically
 
         btle_info->btle_decode = btle;
 
-        in_pack->insert(mphy->pack_comp_common, common);
         in_pack->insert(mphy->pack_comp_btle, btle_info);
     } catch (...) {
         return 0;
@@ -243,9 +241,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info == nullptr)
         return 0;
 
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-    if (common == nullptr)
+    if (!in_pack->common_info_ok) {
         return 0;
+    }
 
     if (btle_info->btle_decode == nullptr)
         return 0;
@@ -269,8 +267,8 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto device =
-        mphy->devicetracker->update_common_device(common,
-                common->source, mphy, in_pack,
+        mphy->devicetracker->update_common_device(in_pack->common_info.source, mphy,
+                in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
@@ -325,12 +323,14 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     if (new_dev) {
         if (device->get_devicename().length() > 0)
-            _MSG_INFO("Detected new BTLE device {} {}", common->source, device->get_devicename());
+            _MSG_INFO("Detected new BTLE device {} {}",
+                    in_pack->common_info.source, device->get_devicename());
         else
-            _MSG_INFO("Detected new BTLE device {}", common->source);
+            _MSG_INFO("Detected new BTLE device {}",
+                    in_pack->common_info.source);
 
-        if (common->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x26") ||
-                common->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x27")) {
+        if (in_pack->common_info.source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x26") ||
+                in_pack->common_info.source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x27")) {
             auto al = fmt::format("A BTLE advertisement packet with a source address "
                     "matching a Flipper Zero device was seen; The Flipper device is "
                     "capable of generating BTLE packets which may cause a denial of "

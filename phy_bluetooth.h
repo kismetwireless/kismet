@@ -211,7 +211,7 @@ protected:
 	int dev_comp_bluetooth, dev_comp_common;
 
 	// Packet components
-	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta, pack_comp_json,
+	int pack_comp_btdevice, pack_comp_l1info, pack_comp_meta, pack_comp_json,
         pack_comp_linkframe;
 
     std::shared_ptr<tracker_element_string> btdev_bredr;

@@ -105,8 +105,6 @@ protected:
 
     int zwave_device_id;
 
-    int pack_comp_common;
-
     mac_addr id_to_mac(uint32_t in_homeid, uint8_t in_deviceid);
 
     // convert to a device record & push into device tracker, return false

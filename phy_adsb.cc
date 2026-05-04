@@ -65,9 +65,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
     datasourcetracker = 
         Globalreg::fetch_mandatory_global_as<datasource_tracker>();
 
-	pack_comp_common = 
-        packetchain->register_packet_component("COMMON");
-    pack_comp_json = 
+    pack_comp_json =
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
@@ -616,15 +614,15 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
 
     auto mac = icao_to_mac(icao);
 
-    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
 
-    common->type = packet_basic_data;
-    common->phyid = fetch_phy_id();
-    common->datasize = 0;
+    packet->common_info_ok = true;
+    packet->common_info.type = packet_basic_data;
+    packet->common_info.phyid = fetch_phy_id();
+    packet->common_info.datasize = 0;
 
-    common->freq_khz = 1090000;
-    common->source = mac;
-    common->transmitter = mac;
+    packet->common_info.freq_khz = 1090000;
+    packet->common_info.source = mac;
+    packet->common_info.transmitter = mac;
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_raw");
 
@@ -632,7 +630,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     // override that location ourselves later once we've gotten our
     // adsb device and possibly merged packets
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(common, common->source, this, packet,
+        devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
@@ -792,7 +790,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
         gpsinfo->tv = packet->ts;
 
         packet->insert(pack_comp_gps, gpsinfo);
-        devicetracker->update_common_device(common, common->source, this, packet,
+        devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_LOCATION), "ADSB Transmitter");
     }
 
@@ -816,27 +814,27 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
         return false;
     }
 
-    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
 
-    common->type = packet_basic_data;
-    common->phyid = fetch_phy_id();
-    common->datasize = 0;
+    packet->common_info_ok = true;
+    packet->common_info.type = packet_basic_data;
+    packet->common_info.phyid = fetch_phy_id();
+    packet->common_info.datasize = 0;
 
     auto channel_j = json["channel"];
     if (channel_j.is_string())
-        common->channel = channel_j;
+        packet->common_info.channel = channel_j;
     else if (channel_j.is_number())
-        common->channel = fmt::format("{}", channel_j.get<int>());
+        packet->common_info.channel = fmt::format("{}", channel_j.get<int>());
 
-    common->freq_khz = 1090000;
-    common->source = rtlmac;
-    common->transmitter = rtlmac;
+    packet->common_info.freq_khz = 1090000;
+    packet->common_info.source = rtlmac;
+    packet->common_info.transmitter = rtlmac;
 
     // Update the base dev without setting location, because we want to
     // override that location ourselves later once we've gotten our
     // adsb device and possibly merged packets
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(common, common->source, this, packet,
+        devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
@@ -929,7 +927,7 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
 
         packet->insert(pack_comp_gps, gpsinfo);
 
-        devicetracker->update_common_device(common, common->source, this, packet,
+        devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_LOCATION), "ADSB Transmitter");
     }
 

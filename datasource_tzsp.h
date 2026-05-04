@@ -89,7 +89,7 @@ protected:
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<pollable_tracker> pollabletracker;
 
-    int pack_comp_common, pack_comp_linkframe, pack_comp_l1info, pack_comp_datasrc;
+    int pack_comp_linkframe, pack_comp_l1info, pack_comp_datasrc;
 
     // datagram callback for new data; auto-allocates a source for a new remote sensor
     void udp_datagram(const struct sockaddr_storage *sockaddr, size_t addrsize,

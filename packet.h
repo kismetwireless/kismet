@@ -69,6 +69,71 @@ public:
     virtual bool unique() { return false; }
 };
 
+enum kis_packet_basictype {
+    packet_basic_unknown = 0,
+    packet_basic_mgmt = 1,
+    packet_basic_data = 2,
+    packet_basic_phy = 3
+};
+
+enum kis_packet_direction {
+    packet_direction_unknown = 0,
+    packet_direction_from = 1,
+    packet_direction_to = 2,
+    packet_direction_carrier = 3
+};
+
+
+// Common info item which is aggregated into a packet under
+// the packet_info_map type
+class kis_common_info : public packet_component {
+public:
+    kis_common_info() {
+        reset();
+    }
+
+    void reset() {
+        type = packet_basic_unknown;
+        direction = packet_direction_unknown;
+
+        phyid = -1;
+        error = 0;
+        datasize = 0;
+        channel = "0";
+        freq_khz = 0;
+        basic_crypt_set = 0;
+
+        source = mac_addr(0);
+        dest = mac_addr(0);
+        network = mac_addr(0);
+        transmitter = mac_addr(0);
+    }
+
+    // Source - origin of packet
+    // Destination - dest of packet
+    // Network - Associated network device (such as ap bssid)
+    // Transmitter - Independent transmitter, if not source or network
+    // (wifi wds for instance)
+    mac_addr source, dest, network, transmitter;
+
+    kis_packet_basictype type;
+    kis_packet_direction direction;
+
+    int phyid;
+    // Some sort of phy-level error
+    int error;
+    // Data size if applicable
+    int datasize;
+    // Encryption if applicable
+    uint32_t basic_crypt_set;
+    // Phy-specific numeric channel, freq is held in l1info.  Channel is
+    // represented as a string to carry whatever special attributes, ie
+    // 6HT20 or 6HT40+ for wifi
+    std::string channel;
+    // Frequency in khz
+    double freq_khz;
+};
+
 // Overall packet container that holds packet information
 class kis_packet {
 public:
@@ -116,6 +181,10 @@ public:
 
     // Original length of capture, if truncated
     uint64_t original_len;
+
+    // Commonly needed info
+    bool common_info_ok;
+    kis_common_info common_info;
 
     // Did this packet trigger creation of a new device?  Since a 
     // single packet can create multiple devices in some phys, maintain
@@ -388,80 +457,10 @@ public:
     }
 };
 
-enum kis_packet_basictype {
-    packet_basic_unknown = 0,
-    packet_basic_mgmt = 1,
-    packet_basic_data = 2,
-    packet_basic_phy = 3
-};
-
 // Common info
 // Extracted by phy-specific dissectors, used by the common classifier
 // to build phy-neutral devices and tracking records.
 class kis_tracked_device_base;
-
-enum kis_packet_direction {
-    packet_direction_unknown = 0,
-
-    // From device
-    packet_direction_from = 1,
-
-    // To device
-    packet_direction_to = 2,
-
-    // Intra-carrier (WDS for instance)
-    packet_direction_carrier = 3
-};
-
-// Common info item which is aggregated into a packet under 
-// the packet_info_map type
-class kis_common_info : public packet_component {
-public:
-    kis_common_info() {
-        reset();
-    }
-
-    void reset() {
-        type = packet_basic_unknown;
-        direction = packet_direction_unknown;
-
-        phyid = -1;
-        error = 0;
-        datasize = 0;
-        channel = "0";
-        freq_khz = 0;
-        basic_crypt_set = 0;
-
-        source = mac_addr(0);
-        dest = mac_addr(0);
-        network = mac_addr(0);
-        transmitter = mac_addr(0);
-    }
-
-    // Source - origin of packet
-    // Destination - dest of packet
-    // Network - Associated network device (such as ap bssid)
-    // Transmitter - Independent transmitter, if not source or network
-    // (wifi wds for instance)
-    mac_addr source, dest, network, transmitter;
-
-    kis_packet_basictype type;
-    kis_packet_direction direction;
-
-    int phyid;
-    // Some sort of phy-level error 
-    int error;
-    // Data size if applicable
-    int datasize;
-    // Encryption if applicable
-    uint32_t basic_crypt_set;
-    // Phy-specific numeric channel, freq is held in l1info.  Channel is
-    // represented as a string to carry whatever special attributes, ie
-    // 6HT20 or 6HT40+ for wifi
-    std::string channel;
-    // Frequency in khz
-    double freq_khz;
-};
 
 // String reference
 class kis_string_info : public packet_component {

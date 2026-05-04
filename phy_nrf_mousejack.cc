@@ -54,7 +54,6 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(int in_phyid) :
                 tracker_element_factory<mousejack_tracked_device>(),
                 "NRF Mousejack device");
 
-    pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 
     // Extract the dynamic DLT
@@ -97,20 +96,15 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
     if (packdata->length() < 6)
         return 0;
 
-    // Did something already classify this?
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-
-    if (common != NULL)
+    if (in_pack->common_info_ok) {
         return 0;
+    }
 
-    common = std::make_shared<kis_common_info>();
-
-    common->phyid = mphy->fetch_phy_id();
-    common->basic_crypt_set = crypt_none;
-    common->type = packet_basic_data;
-    common->source = mac_addr(packdata->data(), 6);
-
-    in_pack->insert(mphy->pack_comp_common, common);
+    in_pack->common_info_ok = true;
+    in_pack->common_info.phyid = mphy->fetch_phy_id();
+    in_pack->common_info.basic_crypt_set = crypt_none;
+    in_pack->common_info.type = packet_basic_data;
+    in_pack->common_info.source = mac_addr(packdata->data(), 6);
 
     return 1;
 }
@@ -127,17 +121,15 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     if (packdata->dlt != mphy->dlt)
         return 0;
 
-    // Did we classify this?
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-
-    if (common == NULL)
+    if (!in_pack->common_info_ok) {
         return 0;
+    }
 
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto device = 
-        mphy->devicetracker->update_common_device(common,
-                common->source, mphy, in_pack,
+        mphy->devicetracker->update_common_device(in_pack->common_info.source,
+                mphy, in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
@@ -176,7 +168,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
 
     if (nrf == NULL) {
         _MSG_INFO("Detected new nRF cordless input device (mouse, keyboard, etc) {}",
-                common->source.mac_to_string());
+                in_pack->common_info.source.mac_to_string());
         nrf = Globalreg::globalreg->entrytracker->get_shared_instance_as<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
         device->insert(nrf);
     }

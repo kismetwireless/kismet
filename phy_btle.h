@@ -187,7 +187,7 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<alert_tracker> alertracker;
 
-    int pack_comp_common, pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
+    int pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
 
     int btle_device_id, btle_uuid_id;
 

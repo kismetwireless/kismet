@@ -191,7 +191,7 @@ protected:
 
     int tracked_meter_id;
 
-    int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_radiodata, pack_comp_device;
+    int pack_comp_json, pack_comp_meta, pack_comp_radiodata, pack_comp_device;
 
     std::shared_ptr<tracker_element_string> meter_manuf;
 

@@ -185,7 +185,6 @@ public:
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
-            const std::shared_ptr<kis_common_info>& pack_common,
             const mac_addr& in_mac, kis_phy_handler *phy,
             const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
             const std::string& in_basic_type);
@@ -310,7 +309,7 @@ protected:
 	int devcomp_ref_common;
 
     // Packet components we add or interact with
-    int pack_comp_device, pack_comp_common, pack_comp_basicdata,
+    int pack_comp_device, pack_comp_basicdata,
         pack_comp_radiodata, pack_comp_gps, pack_comp_datasrc,
         pack_comp_mangleframe, pack_comp_devicetag;
 

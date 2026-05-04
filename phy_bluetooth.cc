@@ -83,7 +83,6 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     packetchain->register_handler(&packet_bluetooth_hci_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
 
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
-	pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
     pack_comp_json = packetchain->register_packet_component("JSON");
@@ -126,15 +125,14 @@ int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
         return 0;
     }
 
-    auto ci = in_pack->fetch_or_add<kis_common_info>(btphy->pack_comp_common);
-
-    ci->phyid = btphy->fetch_phy_id();
-    ci->type = packet_basic_mgmt;
-    ci->direction = packet_direction_from;
-    ci->source = btpi->address;
-    ci->transmitter = btpi->address;
-    ci->channel = "FHSS";
-    ci->freq_khz = 2400000;
+    in_pack->common_info_ok = true;
+    in_pack->common_info.phyid = btphy->fetch_phy_id();
+    in_pack->common_info.type = packet_basic_mgmt;
+    in_pack->common_info.direction = packet_direction_from;
+    in_pack->common_info.source = btpi->address;
+    in_pack->common_info.transmitter = btpi->address;
+    in_pack->common_info.channel = "FHSS";
+    in_pack->common_info.freq_khz = 2400000;
 
     return 0;
 }
@@ -155,10 +153,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         return 0;
     }
 
-    auto commoninfo =
-        in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
-
-    if (commoninfo != nullptr) {
+    if (!in_pack->common_info_ok) {
         return 0;
     }
 
@@ -179,22 +174,18 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
-        commoninfo = std::make_shared<kis_common_info>();
-        commoninfo->phyid = btphy->fetch_phy_id();
-        commoninfo->type = packet_basic_mgmt;
-        commoninfo->source = btaddr_mac;
-        commoninfo->transmitter = btaddr_mac;
-        commoninfo->channel = "FHSS";
-        commoninfo->freq_khz = 2400000;
-
-        in_pack->insert(btphy->pack_comp_common, commoninfo);
+        in_pack->common_info.phyid = btphy->fetch_phy_id();
+        in_pack->common_info.type = packet_basic_mgmt;
+        in_pack->common_info.source = btaddr_mac;
+        in_pack->common_info.transmitter = btaddr_mac;
+        in_pack->common_info.channel = "FHSS";
+        in_pack->common_info.freq_khz = 2400000;
 
         kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(),
                 "packet_bluetooth_hci_json_classifier");
 
         auto basedev =
-            btphy->devicetracker->update_common_device(commoninfo,
-                    btaddr_mac, btphy, in_pack,
+            btphy->devicetracker->update_common_device(btaddr_mac, btphy, in_pack,
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                      UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
@@ -276,10 +267,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         return 0;
     }
 
-    auto commoninfo =
-        in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
-
-    if (commoninfo != nullptr) { 
+    if (!in_pack->common_info_ok) {
         return 0;
     }
 
@@ -300,22 +288,19 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
-        commoninfo = std::make_shared<kis_common_info>();
-        commoninfo->phyid = btphy->fetch_phy_id();
-        commoninfo->type = packet_basic_mgmt;
-        commoninfo->source = btaddr_mac;
-        commoninfo->transmitter = btaddr_mac;
-        commoninfo->channel = "FHSS";
-        commoninfo->freq_khz = 2400000;
-
-        in_pack->insert(btphy->pack_comp_common, commoninfo);
+        in_pack->common_info_ok = true;
+        in_pack->common_info.phyid = btphy->fetch_phy_id();
+        in_pack->common_info.type = packet_basic_mgmt;
+        in_pack->common_info.source = btaddr_mac;
+        in_pack->common_info.transmitter = btaddr_mac;
+        in_pack->common_info.channel = "FHSS";
+        in_pack->common_info.freq_khz = 2400000;
 
         kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(),
                 "packet_bluetooth_scan_json_classifier");
 
         auto btdev =
-            btphy->devicetracker->update_common_device(commoninfo,
-                    btaddr_mac, btphy, in_pack,
+            btphy->devicetracker->update_common_device(btaddr_mac, btphy, in_pack,
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                      UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
@@ -392,8 +377,8 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         }
 
         if (new_device) {
-            if (commoninfo->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x26") ||
-                    commoninfo->source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x27")) {
+            if (in_pack->common_info.source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x26") ||
+                    in_pack->common_info.source.OUI() == mac_addr::OUI((uint8_t *) "\x80\xe1\x27")) {
                 auto al = fmt::format("A BTLE advertisement packet with a source address "
                         "matching a Flipper Zero device was seen; The Flipper device is "
                         "capable of generating BTLE packets which may cause a denial of "
@@ -489,13 +474,13 @@ int kis_bluetooth_phy::packet_tracker_h4_linux(CHAINCALL_PARMS) {
         uint16_t major_group = kis_letoh16(inquiry->service_major_class);
         uint8_t major_class = major_group & 0x1F;
 
-        auto commoninfo = in_pack->fetch_or_add<kis_common_info>(mphy->pack_comp_common);
-        commoninfo->phyid = mphy->fetch_phy_id();
-        commoninfo->type = packet_basic_mgmt;
-        commoninfo->source = mac_addr(inquiry->bdaddr, 6);
-        commoninfo->transmitter = commoninfo->source;
-        commoninfo->channel = "FHSS";
-        commoninfo->freq_khz = 2400000;
+        in_pack->common_info_ok = true;
+        in_pack->common_info.phyid = mphy->fetch_phy_id();
+        in_pack->common_info.type = packet_basic_mgmt;
+        in_pack->common_info.source = mac_addr(inquiry->bdaddr, 6);
+        in_pack->common_info.transmitter = in_pack->common_info.source;
+        in_pack->common_info.channel = "FHSS";
+        in_pack->common_info.freq_khz = 2400000;
 
         auto l1info = in_pack->fetch_or_add<kis_layer1_packinfo>(mphy->pack_comp_l1info);
         l1info->signal_type = kis_l1_signal_type_dbm;
@@ -516,16 +501,15 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (btpi == nullptr)
         return 0;
 
-    auto ci = in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
-
-    if (ci == nullptr)
+    if (!in_pack->common_info_ok) {
         return 0;
+    }
 
-    kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
+    kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(),
             "packet_tracker_bluetooth");
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        btphy->devicetracker->update_common_device(ci, ci->source, btphy, in_pack, 
+        btphy->devicetracker->update_common_device(in_pack->common_info.source, btphy, in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),

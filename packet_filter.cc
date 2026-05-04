@@ -148,7 +148,6 @@ packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const s
                 }));
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
-    pack_comp_common = packetchain->register_packet_component("COMMON");
 }
 
 packet_filter_mac_addr::~packet_filter_mac_addr() {
@@ -433,50 +432,48 @@ bool packet_filter_mac_addr::filter_packet(std::shared_ptr<kis_packet> packet) {
 }
 
 bool packet_filter_mac_addr::filter_packet(const kis_packet* packet) {
-    auto common = packet->fetch<kis_common_info>(pack_comp_common);
-
-    if (common == nullptr)
+    if (!packet->common_info_ok)
         return get_filter_default();
 
     auto phy_filter_group =
-        phy_mac_filter_map.find(common->phyid);
+        phy_mac_filter_map.find(packet->common_info.phyid);
 
     if (phy_filter_group == phy_mac_filter_map.end())
         return get_filter_default();
 
-    auto si = phy_filter_group->second.filter_source.find(common->source);
+    auto si = phy_filter_group->second.filter_source.find(packet->common_info.source);
     if (si != phy_filter_group->second.filter_source.end()) {
         return si->second;
     }
 
-    auto di = phy_filter_group->second.filter_dest.find(common->dest);
+    auto di = phy_filter_group->second.filter_dest.find(packet->common_info.dest);
     if (di != phy_filter_group->second.filter_dest.end()) {
         return di->second;
     }
 
-    auto ni = phy_filter_group->second.filter_network.find(common->network);
+    auto ni = phy_filter_group->second.filter_network.find(packet->common_info.network);
     if (ni != phy_filter_group->second.filter_network.end()) {
         return ni->second;
     }
 
-    auto oi = phy_filter_group->second.filter_other.find(common->transmitter);
+    auto oi = phy_filter_group->second.filter_other.find(packet->common_info.transmitter);
     if (oi != phy_filter_group->second.filter_other.end()) {
         return oi->second;
     }
 
-    auto ai = phy_filter_group->second.filter_any.find(common->source);
+    auto ai = phy_filter_group->second.filter_any.find(packet->common_info.source);
 
     if (ai == phy_filter_group->second.filter_any.end())
-        ai = phy_filter_group->second.filter_any.find(common->dest);
+        ai = phy_filter_group->second.filter_any.find(packet->common_info.dest);
 
     if (ai == phy_filter_group->second.filter_any.end())
-        ai = phy_filter_group->second.filter_any.find(common->network);
+        ai = phy_filter_group->second.filter_any.find(packet->common_info.network);
 
     if (ai == phy_filter_group->second.filter_any.end())
-        ai = phy_filter_group->second.filter_any.find(common->transmitter);
+        ai = phy_filter_group->second.filter_any.find(packet->common_info.transmitter);
 
     if (ai == phy_filter_group->second.filter_any.end())
-        ai = phy_filter_group->second.filter_any.find(common->dest);
+        ai = phy_filter_group->second.filter_any.find(packet->common_info.dest);
 
     if (ai != phy_filter_group->second.filter_any.end())
         return ai->second;

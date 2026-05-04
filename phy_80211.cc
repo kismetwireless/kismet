@@ -198,9 +198,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     pack_comp_decap =
         packetchain->register_packet_component("DECAP");
 
-    pack_comp_common =
-        packetchain->register_packet_component("COMMON");
-
     pack_comp_datapayload =
         packetchain->register_packet_component("DATAPAYLOAD");
 
@@ -1180,9 +1177,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         return 0;
     }
 
-    auto commoninfo = in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
-
-    if (commoninfo == nullptr) {
+    if (!in_pack->common_info_ok) {
         return 0;
     }
 
@@ -1251,9 +1246,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 }
 
                 dot11info->bssid_dev =
-                    d11phy->devicetracker->update_common_device(commoninfo,
-                            dot11info->bssid_mac, d11phy, in_pack,
-                            bflags, "Wi-Fi Device");
+                    d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
+                            in_pack, bflags, "Wi-Fi Device");
             }
 
             if (dot11info->source_mac != dot11info->bssid_mac &&
@@ -1268,9 +1262,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     bflags |= (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION);
 
                 dot11info->source_dev =
-                    d11phy->devicetracker->update_common_device(commoninfo,
-                            dot11info->source_mac, d11phy, in_pack,
-                            bflags, "Wi-Fi Device");
+                    d11phy->devicetracker->update_common_device(dot11info->source_mac, d11phy,
+                            in_pack, bflags, "Wi-Fi Device");
             }
 
             if (dot11info->dest_mac != dot11info->source_mac &&
@@ -1279,9 +1272,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     !(dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
                 dot11info->dest_dev =
-                    d11phy->devicetracker->update_common_device(commoninfo,
-                            dot11info->dest_mac, d11phy, in_pack,
-                            (UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
+                    d11phy->devicetracker->update_common_device(dot11info->dest_mac, d11phy,
+                            in_pack, (UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
                             "Wi-Fi Device (Inferred)");
             }
         }
@@ -1296,7 +1288,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         // Resolve the common structures of management frames; this is a lot of code
         // copy and paste, but because this happens *every single packet* we probably
         // don't want to do much more complex object creation
-        commoninfo->type = packet_basic_mgmt;
+        in_pack->common_info.type = packet_basic_mgmt;
 
         if (dot11info->bssid_mac != Globalreg::globalreg->empty_mac &&
                 !(dot11info->bssid_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
@@ -1313,10 +1305,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
 
             dot11info->bssid_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->bssid_mac, d11phy, in_pack,
-                        bflags,
-                        "Wi-Fi Device");
+                d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
+                        in_pack, bflags, "Wi-Fi Device");
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
@@ -1330,9 +1320,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     UCD_UPDATE_LOCATION);
 
             dot11info->source_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->source_mac, d11phy, in_pack,
-                        bflags, "Wi-Fi Device");
+                d11phy->devicetracker->update_common_device(dot11info->source_mac, d11phy,
+                        in_pack, bflags, "Wi-Fi Device");
         }
 
         if (dot11info->dest_mac != dot11info->source_mac &&
@@ -1341,9 +1330,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 !(dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             dot11info->dest_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->dest_mac, d11phy, in_pack,
-                        (UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
+                d11phy->devicetracker->update_common_device(dot11info->dest_mac, d11phy,
+                        in_pack, (UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device (Inferred)");
         }
 
@@ -1698,9 +1686,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         //
         // If we WERE going to process them, it would go here, and we'd start looking for
         // source and dest where we could find them
-        commoninfo->type = packet_basic_phy;
+        in_pack->common_info.type = packet_basic_phy;
     } else if (dot11info->type == packet_data) {
-        commoninfo->type = packet_basic_data;
+        in_pack->common_info.type = packet_basic_data;
 
         unsigned int update_flags = 0;
 
@@ -1725,10 +1713,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
 
             dot11info->bssid_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->bssid_mac, d11phy, in_pack,
-                        (update_flags | bflags),
-                        "Wi-Fi Device");
+                d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
+                        in_pack, (update_flags | bflags), "Wi-Fi Device");
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
@@ -1745,9 +1731,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         UCD_UPDATE_LOCATION);
 
             dot11info->source_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->source_mac, d11phy, in_pack,
-                        (update_flags | bflags), "Wi-Fi Device");
+                d11phy->devicetracker->update_common_device(dot11info->source_mac, d11phy,
+                        in_pack, (update_flags | bflags), "Wi-Fi Device");
         }
 
         if (dot11info->dest_mac != dot11info->source_mac &&
@@ -1756,9 +1741,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 !(dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             dot11info->dest_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->dest_mac, d11phy, in_pack,
-                        (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
+                d11phy->devicetracker->update_common_device(dot11info->dest_mac, d11phy,
+                        in_pack, (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device (Inferred)");
         }
 
@@ -1770,8 +1754,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 !(dot11info->transmit_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             dot11info->transmit_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->transmit_mac, d11phy, in_pack,
+                d11phy->devicetracker->update_common_device(dot11info->transmit_mac, d11phy,
+                        in_pack,
                         (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_ENCRYPTION | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device");
@@ -1784,9 +1768,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 !(dot11info->receive_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             dot11info->receive_dev =
-                d11phy->devicetracker->update_common_device(commoninfo,
-                        dot11info->receive_mac, d11phy, in_pack,
-                        (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
+                d11phy->devicetracker->update_common_device(dot11info->receive_mac, d11phy,
+                        in_pack, (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device");
         }
 
@@ -2140,7 +2123,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
         }
     } else if (dot11info->type == packet_extension) {
-        commoninfo->type = packet_basic_mgmt;
+        in_pack->common_info.type = packet_basic_mgmt;
 
         if (dot11info->bssid_mac == Globalreg::globalreg->empty_mac ||
                 (dot11info->bssid_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
@@ -2159,10 +2142,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         dot11info->bssid_dev =
-            d11phy->devicetracker->update_common_device(commoninfo,
-                    dot11info->bssid_mac, d11phy, in_pack,
-                    bflags,
-                    "Wi-Fi S1G AP");
+            d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
+                    in_pack, bflags, "Wi-Fi S1G AP");
 
         if (dot11info->bssid_dev != nullptr) {
             dot11info->bssid_dot11 =
@@ -2209,13 +2190,14 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json->type != "DOT11SCAN")
         return 0;
 
+    if (!in_pack->common_info_ok) {
+        return 0;
+    }
+
     auto pack_l1info =
         in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
 
-    auto commoninfo =
-        in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
-
-    if (commoninfo != nullptr || pack_l1info == nullptr)
+    if (pack_l1info == nullptr)
         return 0;
 
     // dot11 json fields - in addition to generic report fields translated into l1/gps/etc
@@ -2260,25 +2242,22 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
-        commoninfo = d11phy->packetchain->new_packet_component<kis_common_info>();
+        in_pack->common_info_ok = true;
+        in_pack->common_info.type = packet_basic_mgmt;
+        in_pack->common_info.direction = packet_direction_from;
+        in_pack->common_info.phyid = d11phy->fetch_phy_id();
 
-        commoninfo->type = packet_basic_mgmt;
-        commoninfo->direction = packet_direction_from;
-        commoninfo->phyid = d11phy->fetch_phy_id();
+        in_pack->common_info.channel = pack_l1info->channel;
+        in_pack->common_info.freq_khz = pack_l1info->freq_khz;
 
-        commoninfo->channel = pack_l1info->channel;
-        commoninfo->freq_khz = pack_l1info->freq_khz;
-
-        commoninfo->source = bssid_mac;
-        commoninfo->network = bssid_mac;
-        commoninfo->transmitter = bssid_mac;
-        commoninfo->dest = Globalreg::globalreg->broadcast_mac;
-
-        in_pack->insert(d11phy->pack_comp_common, commoninfo);
+        in_pack->common_info.source = bssid_mac;
+        in_pack->common_info.network = bssid_mac;
+        in_pack->common_info.transmitter = bssid_mac;
+        in_pack->common_info.dest = Globalreg::globalreg->broadcast_mac;
 
         auto bssid_dev =
-            d11phy->devicetracker->update_common_device(commoninfo,
-                    bssid_mac, d11phy, in_pack,
+            d11phy->devicetracker->update_common_device(bssid_mac, d11phy,
+                    in_pack,
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                      UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
@@ -2463,11 +2442,11 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
                     if (regex_string_compare(si, ssid->get_ssid())) {
                         const auto al = fmt::format("IEEE80211 Access Point {} advertising canary "
-                                "SSID {} ({})", commoninfo->source, i.first, si);
+                                "SSID {} ({})", in_pack->common_info.source, i.first, si);
                         d11phy->alertracker->raise_alert(d11phy->alert_ssidcanary_ref, in_pack,
-                                commoninfo->network, commoninfo->source,
-                                commoninfo->dest, commoninfo->transmitter,
-                                commoninfo->channel, al);
+                                in_pack->common_info.network, in_pack->common_info.source,
+                                in_pack->common_info.dest, in_pack->common_info.transmitter,
+                                in_pack->common_info.channel, al);
                     }
                 }
             }
@@ -2479,18 +2458,18 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                 for (const auto& s : *d11phy->ssid_regex_vec) {
                     auto sa = static_cast<dot11_tracked_ssid_alert *>(s.get());
 
-                    if (sa->compare_ssid(ssid_str, commoninfo->source)) {
+                    if (sa->compare_ssid(ssid_str, in_pack->common_info.source)) {
                         auto al = fmt::format("IEEE80211 Unauthorized device ({}) advertising  "
                                 "for SSID '{}', matching APSPOOF rule {} which may indicate "
-                                "spoofing or impersonation.", commoninfo->source,
+                                "spoofing or impersonation.", in_pack->common_info.source,
                                 ssid_str, sa->get_group_name());
 
                         d11phy->alertracker->raise_alert(d11phy->alert_ssidmatch_ref, in_pack,
-                                commoninfo->network,
-                                commoninfo->source,
-                                commoninfo->dest,
-                                commoninfo->transmitter,
-                                commoninfo->channel, al);
+                                in_pack->common_info.network,
+                                in_pack->common_info.source,
+                                in_pack->common_info.dest,
+                                in_pack->common_info.transmitter,
+                                in_pack->common_info.channel, al);
                         break;
                     }
                 }
@@ -2523,9 +2502,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     "indicate AP spoofing/impersonation";
 
                 d11phy->alertracker->raise_alert(d11phy->alert_wepflap_ref, in_pack,
-                        commoninfo->network, commoninfo->source,
-                        commoninfo->dest, commoninfo->transmitter,
-                        commoninfo->channel, al);
+                        in_pack->common_info.network, in_pack->common_info.source,
+                        in_pack->common_info.dest, in_pack->common_info.transmitter,
+                        in_pack->common_info.channel, al);
             } else if (ssid->get_crypt_set() != cryptset &&
                     d11phy->alertracker->potential_alert(d11phy->alert_cryptchange_ref)) {
 
@@ -2536,9 +2515,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                         crypt_to_string(cryptset));
 
                 d11phy->alertracker->raise_alert(d11phy->alert_cryptchange_ref, in_pack,
-                        commoninfo->network, commoninfo->source,
-                        commoninfo->dest, commoninfo->transmitter,
-                        commoninfo->channel, al);
+                        in_pack->common_info.network, in_pack->common_info.source,
+                        in_pack->common_info.dest, in_pack->common_info.transmitter,
+                        in_pack->common_info.channel, al);
             }
 
             ssid->set_crypt_set(cryptset);
@@ -2548,21 +2527,21 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         }
 
         if (ssid->get_channel().length() > 0 &&
-                ssid->get_channel() != commoninfo->channel && commoninfo->channel != "0") {
+                ssid->get_channel() != in_pack->common_info.channel && in_pack->common_info.channel != "0") {
 
             auto al =
                 fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                         "channel from {} to {}, which may indicate spoofing or impersonation.  "
                         "This may also be a normal event where the AP seeks a less congested channel.",
                         bssid_dev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(),
-                        commoninfo->channel);
+                        in_pack->common_info.channel);
 
             d11phy->alertracker->raise_alert(d11phy->alert_chan_ref, in_pack,
-                        commoninfo->network, commoninfo->source,
-                        commoninfo->dest, commoninfo->transmitter,
-                        commoninfo->channel, al);
+                        in_pack->common_info.network, in_pack->common_info.source,
+                        in_pack->common_info.dest, in_pack->common_info.transmitter,
+                        in_pack->common_info.channel, al);
 
-            ssid->set_channel(commoninfo->channel);
+            ssid->set_channel(in_pack->common_info.channel);
         }
 
         d11phy->devicetracker->update_view_device(bssid_dev);

@@ -45,7 +45,7 @@ public:
 	~kis_dissector_ip_data();
 
 protected:
-	int pack_comp_datapayload, pack_comp_basicdata, pack_comp_common;
+	int pack_comp_datapayload, pack_comp_basicdata;
 	int alert_dhcpclient_ref;
 };
 

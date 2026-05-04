@@ -145,8 +145,6 @@ protected:
 
 	void update_phy_map(std::shared_ptr<eventbus_event> evt);
 
-    unsigned int pack_comp_common;
-
     int filter_sub_value_id, filter_source_id, filter_dest_id,
         filter_network_id, filter_other_id, filter_any_id;
 
