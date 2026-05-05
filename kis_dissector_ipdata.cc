@@ -92,9 +92,6 @@ kis_dissector_ip_data::kis_dissector_ip_data() {
 	pack_comp_datapayload =
 		packetchain->register_packet_component("DATAPAYLOAD");
 
-	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
-
     auto alertracker =
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
@@ -233,10 +230,9 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 	if (chunk->length() == 0)
 		return 0;
 
-	auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
-
-	if (common == nullptr)
-		return 0;
+    if (!in_pack->common_info_ok) {
+        return 0;
+    }
 
 	datainfo = std::make_shared<kis_data_packinfo>();
 
@@ -330,7 +326,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
 		/* DHCP Offer */
-		if (common->dest == Globalreg::globalreg->broadcast_mac &&
+		if (in_pack->common_info.dest == Globalreg::globalreg->broadcast_mac &&
 			datainfo->ip_source_port == 67 &&
 			datainfo->ip_dest_port == 68) {
 
@@ -339,7 +335,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 			std::map<int, std::vector<int> > dhcp_tag_map;
 
 			// This is convenient since it won't return anything that is outside
-			// the context of the packet, we can feed it the length w/out checking 
+			// the context of the packet, we can feed it the length w/out checking
 			// and we can trust the tags
 			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
 
@@ -375,7 +371,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 		}
 
 		/* DHCP Discover */
-		if (common->dest == Globalreg::globalreg->broadcast_mac &&
+		if (in_pack->common_info.dest == Globalreg::globalreg->broadcast_mac &&
 			datainfo->ip_source_port == 68 &&
 			datainfo->ip_dest_port == 67) {
 
@@ -384,7 +380,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 			std::map<int, std::vector<int> > dhcp_tag_map;
 
 			// This is convenient since it won't return anything that is outside
-			// the context of the packet, we can feed it the length w/out checking 
+			// the context of the packet, we can feed it the length w/out checking
 			// and we can trust the tags
 			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
 
@@ -419,11 +415,11 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 					dhcp_tag_map[61].size() == 7) {
 					mac_addr clmac = mac_addr(&(chunk->data()[dhcp_tag_map[61][0] + 2]), 6);
 
-					if (clmac != common->source) {
-                        _COMMONALERT(alert_dhcpclient_ref, in_pack, common, 
-                                common->network,
+					if (clmac != in_pack->common_info.source) {
+                        _COMMONALERT(alert_dhcpclient_ref, in_pack,
+                                in_pack->common_info.network,
                                 std::string("DHCP request from ") +
-                                common->source.mac_to_string() + 
+                                in_pack->common_info.source.mac_to_string() +
                                 std::string(" doesn't match DHCP DISCOVER client id ") +
                                 clmac.mac_to_string() + std::string(" which can indicate "
                                     "a DHCP spoofing attack"));

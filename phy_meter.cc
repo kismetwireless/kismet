@@ -41,8 +41,6 @@ kis_meter_phy::kis_meter_phy(int in_phyid) :
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-	pack_comp_common =
-		packetchain->register_packet_component("COMMON");
     pack_comp_json =
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
@@ -154,18 +152,18 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         return false;
     }
 
-    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
 
-    common->type = packet_basic_data;
-    common->phyid = fetch_phy_id();
-    common->datasize = 0;
+    packet->common_info_ok = true;
+    packet->common_info.type = packet_basic_data;
+    packet->common_info.phyid = fetch_phy_id();
+    packet->common_info.datasize = 0;
 
-    common->freq_khz = 912600;
-    common->source = mac;
-    common->transmitter = mac;
+    packet->common_info.freq_khz = 912600;
+    packet->common_info.source = mac;
+    packet->common_info.transmitter = mac;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(common, common->source, this, packet,
+        devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "AMR Meter");
 
@@ -400,26 +398,24 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
             basedev = devinfo->devrefs.begin()->second;
     }
 
-    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
-
     if (basedev == nullptr) {
-        common->type = packet_basic_data;
-        common->phyid = fetch_phy_id();
-        common->datasize = 0;
+        packet->common_info.type = packet_basic_data;
+        packet->common_info.phyid = fetch_phy_id();
+        packet->common_info.datasize = 0;
 
         if (!freq_j.is_null())
             freq_khz = freq_j.get<double>() * 1000;
 
         if (freq_khz != 0) {
-            common->freq_khz = freq_khz;
+            packet->common_info.freq_khz = freq_khz;
         }
 
-        if (common->source == mac_addr(0))
-            common->source = mac;
-        if (common->transmitter == mac_addr(0))
-            common->transmitter = mac;
+        if (packet->common_info.source == mac_addr(0))
+            packet->common_info.source = mac;
+        if (packet->common_info.transmitter == mac_addr(0))
+            packet->common_info.transmitter = mac;
 
-        basedev = devicetracker->update_common_device(common, common->source, this, packet,
+        basedev = devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "AMR Meter");
     }

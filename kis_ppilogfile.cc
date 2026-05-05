@@ -51,7 +51,6 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
     pack_comp_checksum = packetchain->register_packet_component("CHECKSUM");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
-    pack_comp_common = packetchain->register_packet_component("COMMON");
 
     log_duplicate_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("ppi_log_duplicate_packets", true);
@@ -192,10 +191,8 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     auto fcsdata = in_pack->fetch<kis_packet_checksum>(ppilog->pack_comp_checksum);
 
     if (ppilog->log_data_packets == false) {
-        auto ci = in_pack->fetch<kis_common_info>(ppilog->pack_comp_common);
-
-        if (ci != nullptr) {
-            if (ci->type == packet_basic_data) {
+        if (in_pack->common_info_ok) {
+            if (in_pack->common_info.type == packet_basic_data) {
                 return 1;
             }
         }

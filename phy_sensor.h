@@ -717,7 +717,7 @@ protected:
         sensor_insteon_id, sensor_lightning_id, sensor_moisture_id,
         sensor_aqi_id;
 
-    int pack_comp_common, pack_comp_json, pack_comp_meta;
+    int pack_comp_json, pack_comp_meta;
 
     std::shared_ptr<tracker_element_string> sensor_manuf;
 

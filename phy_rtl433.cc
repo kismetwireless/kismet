@@ -39,9 +39,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(int in_phyid) :
     devicetracker = 
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
-    pack_comp_json = 
+    pack_comp_json =
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
@@ -177,33 +175,36 @@ bool Kis_RTL433_Phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         return false;
     }
 
+    /*
     auto common = packet->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
         common = std::make_shared<kis_common_info>();
         packet->insert(pack_comp_common, common);
     }
+    */
 
-    common->type = packet_basic_data;
-    common->phyid = fetch_phy_id();
-    common->datasize = 0;
+    packet->common_info_ok = true;
+    packet->common_info.type = packet_basic_data;
+    packet->common_info.phyid = fetch_phy_id();
+    packet->common_info.datasize = 0;
 
     // If this json record has a channel
     auto channel_j = json["channel"];
 
     if (channel_j.is_string())
-        common->channel = munge_to_printable(channel_j);
+        packet->common_info.channel = munge_to_printable(channel_j);
     else if (channel_j.is_number()) 
-        common->channel = fmt::format("{}", channel_j.get<int>());
+        packet->common_info.channel = fmt::format("{}", channel_j.get<int>());
 
     // Carried in l1info now
     // common->freq_khz = 433920;
     
-    common->source = rtlmac;
-    common->transmitter = rtlmac;
+    packet->common_info.source = rtlmac;
+    packet->common_info.transmitter = rtlmac;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(common, common->source, this, packet,
+        devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTL433 Sensor");
 

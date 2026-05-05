@@ -39,9 +39,6 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(int in_phyid) :
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
-
     zwave_device_id =
         Globalreg::globalreg->entrytracker->register_field("zwave.device",
                 tracker_element_factory<zwave_tracked_device>(),
@@ -139,21 +136,18 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     pack->ts.tv_sec = ts.tv_sec;
     pack->ts.tv_usec = ts.tv_usec;
 
-    auto common = std::make_shared<kis_common_info>();
+    pack->common_info_ok = true;
+    pack->common_info.type = packet_basic_data;
+    pack->common_info.phyid = fetch_phy_id();
+    pack->common_info.datasize = datasize;
 
-    common->type = packet_basic_data;
-    common->phyid = fetch_phy_id();
-    common->datasize = datasize;
-
-    common->freq_khz = frequency;
-    common->source = smac;
-    common->transmitter = smac;
-    common->dest = dmac;
-
-    pack->insert(pack_comp_common, common);
+    pack->common_info.freq_khz = frequency;
+    pack->common_info.source = smac;
+    pack->common_info.transmitter = smac;
+    pack->common_info.dest = dmac;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(common, common->source, this, pack,
+        devicetracker->update_common_device(smac, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "Z-Wave Node");
 

@@ -593,7 +593,7 @@ protected:
         rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id,
         rtl433_insteon_id, rtl433_lightning_id;
 
-    int pack_comp_common, pack_comp_json, pack_comp_meta;
+    int pack_comp_json, pack_comp_meta;
 
     std::shared_ptr<tracker_element_string> rtl_manuf;
 

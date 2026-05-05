@@ -193,8 +193,9 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     const u_char *iter;
     const u_char *iter_start;
     unsigned int iter_align;
-    int fcs_cut = 0; // Is the FCS bit set?
-    bool fcs_flag_invalid = false; // Do we have a flag that tells us the fcs is known bad?
+
+    int fcs_cut = 0; // fcs at end of frame
+    bool fcs_flag_invalid = false; // fcs known invalid
 
     std::shared_ptr<kis_layer1_packinfo> radioheader;
 
@@ -440,61 +441,45 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     in_pack->insert(pack_comp_radiodata, radioheader);
     in_pack->insert(pack_comp_decap, decapchunk);
 
-    std::shared_ptr<kis_packet_checksum> fcschunk;
+    uint32_t fcs_data = -1;
 
-    // If we're slicing the FCS into its own record and we have the space
-    if (fcs_cut && linkchunk->length() > 4) {
-        fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
+    if (fcs_cut) {
+        if (linkchunk->length() < 4) {
+            in_pack->error = true;
+            return 1;
+        }
 
-        fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
+        if (fcs_flag_invalid) {
+            in_pack->crc_ok = true;
+            in_pack->checksum_valid = false;
+        }
 
-        // If we know it's invalid already from the flags, flag it, otherwise
-        // it's assumed good until proven otherwise
-        fcschunk->checksum_valid = !fcs_flag_invalid;
-
-        in_pack->insert(pack_comp_checksum, fcschunk);
-    }
-
-    // If we're not slicing the fcs into its own record, but we know
-    // it's bad, we make a junk FCS and set it bad
-    if (!fcs_cut && fcs_flag_invalid) {
-        fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
-
-        char junkfcs[] = "\xFF\xFF\xFF\xFF";
-        fcschunk->copy_raw_data(junkfcs, 4);
-
-        fcschunk->checksum_valid = 0;
-
-        in_pack->insert(pack_comp_checksum, fcschunk);
+        memcpy(&fcs_data, linkchunk->substr(linkchunk->length() - 4, 4).data(), 4);
+    } else if (fcs_flag_invalid) {
+        if (fcs_flag_invalid) {
+            in_pack->crc_ok = true;
+            in_pack->checksum_valid = false;
+        }
     }
 
     // Radiotap only encapsulates wireless so we can do our own fcs algo locally;
     // if we have an unknown FCS, and FCS bytes available, we should do a full
     // checksum
-    if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
-        fcschunk->checksum_valid) {
-
+    if (datasrc != nullptr &&
+            datasrc->ref_source != nullptr &&
+            !in_pack->crc_ok &&
+            fcs_data != -1) {
         // Compare it and flag the packet
         uint32_t calc_crc =
             crc32_le_80211(crc32_table, decapchunk->data(), decapchunk->length());
         uint32_t flipped_crc = kis_swap32(calc_crc);
 
-        auto checksum_ptr = reinterpret_cast<const uint32_t *>(fcschunk->data());
-
-        // compare both representations
-        if (memcmp(checksum_ptr, &calc_crc, 4) && memcmp(checksum_ptr, &flipped_crc, 4)) {
-            fcschunk->checksum_valid = 0;
+        in_pack->crc_ok = true;
+        if (fcs_data == calc_crc || fcs_data == flipped_crc) {
+            in_pack->checksum_valid = true;
         } else {
-            fcschunk->checksum_valid = 1;
+            in_pack->checksum_valid = false;
         }
-
-    }
-
-    // If we've validated the FCS and know this packet is junk, flag it at the
-    // packet level
-    if (fcschunk != NULL && fcschunk->checksum_valid == 0) {
-        // fprintf(stderr, "debug - setting packet in error %d\n", packnum);
-        in_pack->error = 1;
     }
 
     return 1;

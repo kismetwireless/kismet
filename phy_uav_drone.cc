@@ -115,8 +115,6 @@ kis_uav_phy::kis_uav_phy(int in_phyid) :
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
     pack_comp_80211 =
         packetchain->register_packet_component("PHY80211");
     pack_comp_device =
@@ -187,7 +185,6 @@ void kis_uav_phy::load_phy_storage(shared_tracker_element in_storage, shared_tra
 int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
     kis_uav_phy *uavphy = (kis_uav_phy *) auxdata;
 
-	auto commoninfo = in_pack->fetch<kis_common_info>(uavphy->pack_comp_common);
     auto dot11info = in_pack->fetch<dot11_packinfo>(uavphy->pack_comp_80211);
 	auto devinfo = in_pack->fetch<kis_tracked_device_info>(uavphy->pack_comp_device);
     auto json = in_pack->fetch<kis_json_packinfo>(uavphy->pack_comp_json);
@@ -233,26 +230,22 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
 
             auto dronemac = mac_addr(bytes, 6);
 
-            if (commoninfo == nullptr) {
-                commoninfo = 
-                    in_pack->fetch_or_add<kis_common_info>(uavphy->pack_comp_common);
-            }
+            in_pack->common_info_ok = true;
+            in_pack->common_info.type = packet_basic_data;
+            in_pack->common_info.phyid = uavphy->fetch_phy_id();
+            in_pack->common_info.datasize = 0;
 
-            commoninfo->type = packet_basic_data;
-            commoninfo->phyid = uavphy->fetch_phy_id();
-            commoninfo->datasize = 0;
+            in_pack->common_info.freq_khz = freq * 1000;
 
-            commoninfo->freq_khz = freq * 1000;
+            in_pack->common_info.source = dronemac;
+            in_pack->common_info.transmitter = dronemac;
 
-            commoninfo->source = dronemac;
-            commoninfo->transmitter = dronemac;
-
-            auto flags = 
+            auto flags =
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY);
 
             if (drone_lat != 0 && drone_lon != 0) {
-                // We have to make a new component here, not fetch the existing one; otherwise we 
+                // We have to make a new component here, not fetch the existing one; otherwise we
                 // clobber the global gps record!
                 auto gpsinfo = uavphy->packetchain->new_packet_component<kis_gps_packinfo>();
                 gpsinfo->lat = drone_lat;
@@ -286,8 +279,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             }
 
             auto basedev = 
-                uavphy->devicetracker->update_common_device(commoninfo, 
-                        commoninfo->source, uavphy, in_pack,
+                uavphy->devicetracker->update_common_device(in_pack->common_info.source, uavphy, in_pack,
                         flags, "DRONEID");
 
             if (basedev == nullptr) {
@@ -303,7 +295,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             auto uavdev = basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
             if (uavdev == nullptr) {
-                uavdev = 
+                uavdev =
                     Globalreg::globalreg->entrytracker->get_shared_instance_as<uav_tracked_device>(uavphy->uav_device_id);
 
                 basedev->insert(uavdev);
@@ -344,7 +336,11 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
     // that match the ssid/mac filters; drop a record along the dot11 device 
     // record
 
-    if (devinfo == nullptr || commoninfo == nullptr || dot11info == nullptr) {
+    if (!in_pack->common_info_ok) {
+        return 1;
+    }
+
+    if (devinfo == nullptr || dot11info == nullptr) {
         return 1;
     }
 

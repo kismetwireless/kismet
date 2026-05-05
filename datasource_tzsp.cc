@@ -31,7 +31,6 @@ tzsp_source::tzsp_source() :
     pollabletracker =
         Globalreg::fetch_mandatory_global_as<pollable_tracker>();
 
-	pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
 	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");

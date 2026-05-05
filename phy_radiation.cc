@@ -45,9 +45,7 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
     eventbus = 
         Globalreg::fetch_mandatory_global_as<event_bus>();
 
-	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
-    pack_comp_json = 
+    pack_comp_json =
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");

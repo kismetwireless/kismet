@@ -133,7 +133,6 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
 	pack_comp_device = packetchain->register_packet_component("DEVICE");
-	pack_comp_common = packetchain->register_packet_component("COMMON");
 
     throttle_seconds =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("wigle_log_throttle", 1);
@@ -232,12 +231,15 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (wigle->stream_paused)
         return 1;
 
+    if (!in_pack->common_info_ok) {
+        return 1;
+    }
+
     auto l1info = in_pack->fetch<kis_layer1_packinfo>(wigle->pack_comp_l1info);
-    auto commoninfo = in_pack->fetch<kis_common_info>(wigle->pack_comp_common);
     auto gps = in_pack->fetch<kis_gps_packinfo>(wigle->pack_comp_gps);
     auto devs = in_pack->fetch<kis_tracked_device_info>(wigle->pack_comp_device);
 
-    if (commoninfo == nullptr || gps == nullptr || devs == nullptr)
+    if (gps == nullptr || devs == nullptr)
         return 1;
 
     if (gps->lat == 0 || gps->lon == 0)
@@ -253,11 +255,11 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     }
 
     // Ignore all but management packets; we don't wigle-log data frames
-    if (commoninfo->type != packet_basic_mgmt)
+    if (in_pack->common_info.type != packet_basic_mgmt)
         return 1;
 
     // Find the record for the origin device, the only one we care about
-    const auto& d_k = devs->devrefs.find(commoninfo->source);
+    const auto& d_k = devs->devrefs.find(in_pack->common_info.source);
     if (d_k == devs->devrefs.end())
         return 1;
 

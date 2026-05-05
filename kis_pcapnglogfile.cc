@@ -41,7 +41,6 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     max_size = max_size * 1024 * 1024;
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-    pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_l1data = packetchain->register_packet_component("L1RAW");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 }

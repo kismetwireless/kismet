@@ -344,7 +344,6 @@ public:
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
     __ProxyM(source_name, std::string, std::string, std::string, source_name, data_mutex);
-    //__ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex);
     __ProxyLM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex,
             [this](uuid u) -> bool {
                 set_source_key(adler32_checksum(u.uuid_to_string()));
@@ -355,7 +354,7 @@ public:
     __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, data_mutex);
 
     // Prototype/driver definition
-    __ProxyTrackable(source_builder, kis_datasource_builder, source_builder);
+    __ProxyTrackableM(source_builder, kis_datasource_builder, source_builder, data_mutex);
 
     // Read-only access to the source state; this mirrors the state in the capture
     // binary. Set commands queue a command to the binary and then update as
@@ -391,10 +390,10 @@ public:
     __ProxyGetM(source_passive, uint8_t, bool, source_passive, data_mutex);
 
     __ProxyM(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets, data_mutex);
-    __ProxyIncDecM(source_num_packets, uint64_t, uint64_t, source_num_packets, data_mutex);
+    __ProxyIncDecAtomic(source_num_packets, uint64_t, uint64_t, source_num_packets);
 
     __ProxyM(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets, data_mutex);
-    __ProxyIncDecM(Msource_num_error_packets, uint64_t, uint64_t, source_num_error_packets, data_mutex);
+    __ProxyIncDecAtomic(source_num_error_packets, uint64_t, uint64_t, source_num_error_packets);
 
     __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_rrd<>,
             packet_rate_rrd, packet_rate_rrd_id, data_mutex);
@@ -444,7 +443,10 @@ public:
     //
     // Checksum functions should flag the packet as invalid directly via some
     // method recognized by the device categorization stage
-    virtual void checksum_packet(std::shared_ptr<kis_packet> in_pack __attribute__((unused))) { return; }
+    virtual void checksum_packet(std::shared_ptr<kis_packet> in_pack __attribute__((unused)),
+            std::shared_ptr<kis_datachunk> in_data __attribute__((unused)),
+            uint8_t *fcs_data __attribute__((unused)),
+            size_t fcs_len __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
         kis_lock_guard<kis_mutex> lk(data_mutex, kismet::retain_lock, "datasource preserialize");
@@ -788,8 +790,8 @@ protected:
     std::shared_ptr<tracker_element_uint8> source_hop_shuffle;
     std::shared_ptr<tracker_element_uint32> source_hop_shuffle_skip;
 
-    std::shared_ptr<tracker_element_uint64> source_num_packets;
-    std::shared_ptr<tracker_element_uint64> source_num_error_packets;
+    std::shared_ptr<tracker_element_atomic_uint64> source_num_packets;
+    std::shared_ptr<tracker_element_atomic_uint64> source_num_error_packets;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;

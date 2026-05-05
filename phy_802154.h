@@ -120,7 +120,7 @@ protected:
 
     int kis_802154_device_entry_id;
     int dev_comp_common;
-    int pack_comp_common, pack_comp_l1info, pack_comp_linkframe;
+    int pack_comp_l1info, pack_comp_linkframe;
 
     int dlt;
 

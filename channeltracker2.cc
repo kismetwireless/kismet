@@ -46,7 +46,6 @@ channel_tracker_v2::channel_tracker_v2() :
     packetchain->register_handler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
 	pack_comp_device = packetchain->register_packet_component("DEVICE");
-	pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_l1data = packetchain->register_packet_component("RADIODATA");
 
     devicetracker =
@@ -187,7 +186,6 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
     kis_lock_guard<kis_mutex> lk(cv2->lock, "channel_tracker_v2 packet_chain_handler");
 
     auto l1info = in_pack->fetch<kis_layer1_packinfo>(cv2->pack_comp_l1data);
-	auto common = in_pack->fetch<kis_common_info>(cv2->pack_comp_common);
 
     // Nothing to do with no l1info
     if (l1info == nullptr)
@@ -206,8 +204,9 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
             freq_channel->get_signal_data()->append_signal(*l1info, false, 0);
             freq_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
-            if (common != NULL) {
-                freq_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+            if (in_pack->common_info_ok) {
+                freq_channel->get_data_rrd()->add_sample(in_pack->common_info.datasize,
+                        Globalreg::globalreg->last_tv_sec);
             }
 
         } else {
@@ -216,28 +215,29 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
             freq_channel->get_signal_data()->append_signal(*l1info, false, 0);
             freq_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
-            if (common != NULL) {
-                freq_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+            if (in_pack->common_info_ok) {
+                freq_channel->get_data_rrd()->add_sample(in_pack->common_info.datasize,
+                        Globalreg::globalreg->last_tv_sec);
             }
         }
     }
 
-    if (common != nullptr) {
-        if (!(common->channel == "0") && !(common->channel == "")) {
-            auto smi = cv2->channel_map->find(common->channel);
+    if (in_pack->common_info_ok) {
+        if (!(in_pack->common_info.channel == "0") && !(in_pack->common_info.channel == "")) {
+            auto smi = cv2->channel_map->find(in_pack->common_info.channel);
 
             if (smi == cv2->channel_map->end()) {
                 auto chan_channel =
                     cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
 
-                chan_channel->set_channel(common->channel);
-                cv2->channel_map->insert(common->channel, chan_channel);
+                chan_channel->set_channel(in_pack->common_info.channel);
+                cv2->channel_map->insert(in_pack->common_info.channel, chan_channel);
 
                 chan_channel->get_signal_data()->append_signal(*l1info, false, 0);
                 chan_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
-                if (common != NULL) {
-                    chan_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
+                if (in_pack->common_info_ok) {
+                    chan_channel->get_data_rrd()->add_sample(in_pack->common_info.datasize, Globalreg::globalreg->last_tv_sec);
                 }
 
             } else {
@@ -246,9 +246,7 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
                 chan_channel->get_signal_data()->append_signal(*l1info, false, 0);
                 chan_channel->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
-                if (common != NULL) {
-                    chan_channel->get_data_rrd()->add_sample(common->datasize, Globalreg::globalreg->last_tv_sec);
-                }
+                chan_channel->get_data_rrd()->add_sample(in_pack->common_info.datasize, Globalreg::globalreg->last_tv_sec);
             }
         }
     }

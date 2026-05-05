@@ -47,7 +47,6 @@ kis_database_logfile::kis_database_logfile():
     pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
-    pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_metablob = packetchain->register_packet_component("METABLOB");
     pack_comp_json = packetchain->register_packet_component("JSON");
 
@@ -932,7 +931,6 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
     auto radioinfo = in_pack->fetch<kis_layer1_packinfo>(pack_comp_radiodata);
     auto gpsdata = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
-    auto commoninfo = in_pack->fetch<kis_common_info>(pack_comp_common);
     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
     auto metablob = in_pack->fetch<packet_metablob>(pack_comp_metablob);
     auto jsonblob = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
@@ -942,15 +940,15 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     // Packets are no longer a 1:1 with a device
     keystring = "0";
 
-    if (commoninfo != NULL) {
-        if (commoninfo->type == packet_basic_data && !log_data_packets)
+    if (in_pack->common_info_ok) {
+        if (in_pack->common_info.type == packet_basic_data && !log_data_packets)
             return 0;
 
-        phyh = devicetracker->fetch_phy_handler(commoninfo->phyid);
-        macstring = commoninfo->source.mac_to_string();
-        deststring = commoninfo->dest.mac_to_string();
-        transstring = commoninfo->transmitter.mac_to_string();
-        frequency = commoninfo->freq_khz;
+        phyh = devicetracker->fetch_phy_handler(in_pack->common_info.phyid);
+        macstring = in_pack->common_info.source.mac_to_string();
+        deststring = in_pack->common_info.dest.mac_to_string();
+        transstring = in_pack->common_info.transmitter.mac_to_string();
+        frequency = in_pack->common_info.freq_khz;
     } else {
         macstring = "00:00:00:00:00:00";
         deststring = "00:00:00:00:00:00";
@@ -1082,8 +1080,8 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         mac_addr smac("00:00:00:00:00:00");
         uuid puuid;
 
-        if (commoninfo != nullptr)
-            smac = commoninfo->source;
+        if (in_pack->common_info_ok)
+            smac = in_pack->common_info.source;
 
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
@@ -1094,8 +1092,8 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         mac_addr smac("00:00:00:00:00:00");
         uuid puuid;
 
-        if (commoninfo != nullptr)
-            smac = commoninfo->source;
+        if (in_pack->common_info_ok)
+            smac = in_pack->common_info.source;
 
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();

@@ -20,6 +20,7 @@
 #define __PACKETCHAIN_H__
 
 #include "config.h"
+#include <mutex>
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -31,6 +32,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <map>
 #include <functional>
 #include <queue>
@@ -122,7 +124,6 @@ public:
     void start_processing();
 
     int register_packet_component(std::string in_component);
-    int remove_packet_component(int in_id);
     std::string fetch_packet_component_name(int in_id);
 
     // Generate a packet and hand it back
@@ -151,17 +152,25 @@ public:
 
     template<typename T>
     std::shared_ptr<T> new_packet_component() {
-        kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
+        // pools protect their internal state; we only have to protect creating the pool
+        // or changing how packet IDs are mapped
+
+        auto lk = std::shared_lock(packetcomp_mutex);
 
         auto p = component_pool_map.find(typeid(T).hash_code());
 
         if (p != component_pool_map.end()) {
             return std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire();
         } else {
+            lk.unlock();
+
+            auto ulk = std::unique_lock(packetcomp_mutex);
+
             auto pool = std::make_shared<shared_object_pool<T>>();
             pool->set_max(1024);
             pool->set_reset([](T *c) { c->reset(); });
             component_pool_map.insert({typeid(T).hash_code(), pool});
+
             return pool->acquire();
         }
     }
@@ -174,26 +183,26 @@ protected:
 
     int next_componentid, next_handlerid;
 
-    std::map<std::string, int> component_str_map;
+    std::unordered_map<std::string, int> component_str_map;
     std::map<int, std::string> component_id_map;
 
     // Core chain components
-    std::vector<std::shared_ptr<packet_chain::pc_link>> postcap_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> llcdissect_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> decrypt_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> datadissect_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> classifier_chain;
-	std::vector<std::shared_ptr<packet_chain::pc_link>> tracker_chain;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> logging_chain;
+    std::vector<packet_chain::pc_link*> postcap_chain;
+    std::vector<packet_chain::pc_link*> llcdissect_chain;
+    std::vector<packet_chain::pc_link*> decrypt_chain;
+    std::vector<packet_chain::pc_link*> datadissect_chain;
+    std::vector<packet_chain::pc_link*> classifier_chain;
+	std::vector<packet_chain::pc_link*> tracker_chain;
+    std::vector<packet_chain::pc_link*> logging_chain;
 
     // Updated chain components
-    std::vector<std::shared_ptr<packet_chain::pc_link>> postcap_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> llcdissect_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> decrypt_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> datadissect_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> classifier_chain_new;
-	std::vector<std::shared_ptr<packet_chain::pc_link>> tracker_chain_new;
-    std::vector<std::shared_ptr<packet_chain::pc_link>> logging_chain_new;
+    std::vector<packet_chain::pc_link*> postcap_chain_new;
+    std::vector<packet_chain::pc_link*> llcdissect_chain_new;
+    std::vector<packet_chain::pc_link*> decrypt_chain_new;
+    std::vector<packet_chain::pc_link*> datadissect_chain_new;
+    std::vector<packet_chain::pc_link*> classifier_chain_new;
+	std::vector<packet_chain::pc_link*> tracker_chain_new;
+    std::vector<packet_chain::pc_link*> logging_chain_new;
 
     bool postcap_chain_update;
     bool llcdissect_chain_update;
@@ -204,10 +213,10 @@ protected:
     bool logging_chain_update;
 
     // Packet component mutex
-    kis_mutex packetcomp_mutex;
+    mutable kis_shared_mutex packetcomp_mutex;
 
     // Packet chain mutex
-    kis_shared_mutex packetchain_mutex;
+    mutable kis_shared_mutex packetchain_mutex;
 
     struct packet_thread {
         std::thread packet_thread;

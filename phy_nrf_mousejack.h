@@ -116,7 +116,7 @@ protected:
 
     int mousejack_device_entry_id;
     int dev_comp_common;
-    int pack_comp_common, pack_comp_linkframe;
+    int pack_comp_linkframe;
 
     int dlt;
 

@@ -296,7 +296,7 @@ public:
     kis_shared_lock(M& m, const std::string& op) :
         mutex{m},
         op{op} {
-            mutex.shared_lock();
+            mutex.lock_shared();
             locked = true;
         }
 
@@ -315,7 +315,7 @@ public:
 
     ~kis_shared_lock() {
         if (locked)
-            mutex.shared_unlock();
+            mutex.unlock_shared();
     }
 
     void lock(const std::string& op = "UNKNOWN") {
@@ -325,7 +325,7 @@ public:
                     std::this_thread::get_id(), mutex.get_name(), op);
             throw std::runtime_error(e);
         }
-        mutex.shared_lock();
+        mutex.lock_shared();
         locked = true;
 
     }
@@ -338,7 +338,7 @@ public:
             throw std::runtime_error(e);
         }
 
-        mutex.shared_unlock();
+        mutex.unlock_shared();
         locked = false;
     }
 

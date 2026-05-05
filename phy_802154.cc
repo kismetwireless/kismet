@@ -88,7 +88,6 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
                 tracker_element_factory<kis_802154_tracked_device>(),
                 "802.15.4 device");
 
-    pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
 
@@ -134,10 +133,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     if (packdata->length() < 6 || packdata->length() > 128)
         return 0;
 
-    // Did something already classify this?
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-
-    if (common != nullptr) {
+    if (in_pack->common_info_ok) {
         return 0;
     }
 
@@ -359,33 +355,26 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
 
-        if (common == nullptr) {
-            common = mphy->packetchain->new_packet_component<kis_common_info>();
-        }
-
-        common->phyid = mphy->fetch_phy_id();
-        common->type = packet_basic_data;
+        in_pack->common_info_ok = true;
 
         if (hdr_802_15_4_fcf->security) {
-            common->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
+            in_pack->common_info.basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
         }
 
         if (hdr_802_15_4_fcf->src_addr_mode == 0x03) {
-            common->source = mac_addr(ext_source, 8);
+            in_pack->common_info.source = mac_addr(ext_source, 8);
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02 &&
             hdr_802_15_4_fcf->pan_id_comp) {
-            common->source = mac_addr(src, 2);
+            in_pack->common_info.source = mac_addr(src, 2);
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02) {
-            common->source = mac_addr(src, 2);
+            in_pack->common_info.source = mac_addr(src, 2);
         }
 
         if (hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
-            common->dest = mac_addr(ext_dest, 8);
+            in_pack->common_info.dest = mac_addr(ext_dest, 8);
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
-            common->dest = mac_addr(dest, 2);
+            in_pack->common_info.dest = mac_addr(dest, 2);
         }
-
-        in_pack->insert(mphy->pack_comp_common, common);
     }
 
     return 1;
@@ -407,35 +396,35 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP))
         return 0;
 
-    // Did we classify this?
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-
-    if (common == NULL)
+    if (!in_pack->common_info_ok) {
         return 0;
+    }
 
     if (in_pack->duplicate) {
-        auto source_dev = mphy->devicetracker->update_common_device(common,
-                common->source, mphy, in_pack,
-                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                 UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
-                "802.15.4");
+        auto source_dev =
+            mphy->devicetracker->update_common_device(in_pack->common_info.source,
+                    mphy, in_pack,
+                    (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                     UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
+                    "802.15.4");
     }
 
     // as source
     // Update with all the options in case we can add signal and frequency
     // in the future
-    auto source_dev = mphy->devicetracker->update_common_device(common,
-        common->source, mphy, in_pack,
-        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-            UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-        "802.15.4");
+    auto source_dev =
+        mphy->devicetracker->update_common_device(in_pack->common_info.source,
+                mphy, in_pack,
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                 UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                "802.15.4");
 
     auto source_kis_802154 = source_dev->get_sub_as<kis_802154_tracked_device>(
         mphy->kis_802154_device_entry_id);
 
     if (source_kis_802154 == NULL) {
         _MSG_INFO(
-            "Detected new 802.15.4 device {}", common->source.mac_to_string());
+            "Detected new 802.15.4 device {}", in_pack->common_info.source.mac_to_string());
         source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
         source_dev->insert(source_kis_802154);
     }
@@ -443,18 +432,18 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     // as destination
     // Update with all the options in case we can add signal and frequency
     // in the future
-    auto dest_dev = mphy->devicetracker->update_common_device(common,
-        common->dest, mphy, in_pack,
-        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-            UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-        "802.15.4");
+    auto dest_dev = mphy->devicetracker->update_common_device(in_pack->common_info.dest,
+            mphy, in_pack,
+            (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+             UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+            "802.15.4");
 
     auto dest_kis_802154 = dest_dev->get_sub_as<kis_802154_tracked_device>(
         mphy->kis_802154_device_entry_id);
 
     if (dest_kis_802154 == NULL) {
         _MSG_INFO(
-            "Detected new 802.15.4 device {}", common->dest.mac_to_string());
+            "Detected new 802.15.4 device {}", in_pack->common_info.dest.mac_to_string());
         dest_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
         dest_dev->insert(dest_kis_802154);
     }

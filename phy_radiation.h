@@ -198,7 +198,7 @@ protected:
 
     std::shared_ptr<tracker_element_uuid_map> geiger_counters;
 
-    int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_radiodata, 
+    int pack_comp_json, pack_comp_meta, pack_comp_radiodata,
         pack_comp_datasrc;
 
     uint16_t geiger_device_id;

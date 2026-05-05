@@ -451,7 +451,7 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
-    int pack_comp_common, pack_comp_80211, pack_comp_device, pack_comp_json,
+    int pack_comp_80211, pack_comp_device, pack_comp_json,
         pack_comp_meta, pack_comp_gps;
 
     int uav_device_id;

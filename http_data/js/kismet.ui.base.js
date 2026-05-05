@@ -1425,7 +1425,7 @@ var f_mem_stats = function(div) {
 	content.append(
 		$('<div>', { 'class': 'fakerow'})
 		.append(
-			$('<div>', { 'class': 'cellleft' }).html("Total Components")
+			$('<div>', { 'class': 'cellleft' }).html("Total components")
 		)
 		.append(
 			$('<div>', { 'class': 'cellleft', 'id': 'memcomponentcount' })

@@ -119,9 +119,10 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
 
             // Common flags
             tuint = kis_letoh16(ppic->flags);
-            if ((tuint & PPI_80211_FLAG_INVALFCS) || (tuint & PPI_80211_FLAG_PHYERROR)) {
+            if (tuint & PPI_80211_FLAG_PHYERROR) {
                 // Junk packets that are FCS or phy compromised
-                return 0;
+                in_pack->error = true;
+                return 1;
             }
 
             if (tuint & PPI_80211_FLAG_FCS) {
@@ -271,26 +272,27 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
 
     in_pack->insert(pack_comp_decap, decapchunk);
 
-    std::shared_ptr<kis_packet_checksum> fcschunk;
-    if (applyfcs && linkchunk->length() > 4) {
-        fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
+    uint32_t fcs_data = -1;
 
-        fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
-
-        // Listen to the PPI file for known bad, regardless if we have validate
-        // turned on or not
-        if (fcsknownbad)
-            fcschunk->checksum_valid = 0;
-        else
-            fcschunk->checksum_valid = 1;
-
-        in_pack->insert(pack_comp_checksum, fcschunk);
+    if (fcsknownbad) {
+        in_pack->crc_ok = true;
+        in_pack->checksum_valid = false;
+        return 1;
     }
 
-    // We've put the FCS in the fcschunk, so we just call the datasource FCS function
-    if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
-            fcschunk->checksum_valid) {
-        datasrc->ref_source->checksum_packet(in_pack);
+    if (applyfcs) {
+        if (linkchunk->length() <= 4) {
+            in_pack->crc_ok = true;
+            in_pack->checksum_valid = false;
+            return 1;
+        }
+
+        memcpy(&fcs_data, linkchunk->substr(linkchunk->length() - 4, 4).data(), 4);
+
+        if (datasrc != nullptr && datasrc->ref_source != nullptr) {
+            datasrc->ref_source->checksum_packet(in_pack, linkchunk, (uint8_t *) &fcs_data, 4);
+        }
+
     }
 
     return 1;

@@ -174,7 +174,7 @@ protected:
     // Channel/freq content
     int channel_entry_id;
 
-    int pack_comp_l1data, pack_comp_devinfo, pack_comp_common, pack_comp_device;
+    int pack_comp_l1data, pack_comp_devinfo, pack_comp_device;
 
     int timer_id;
     int gather_devices_event(int event_id);

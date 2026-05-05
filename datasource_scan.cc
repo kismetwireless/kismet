@@ -35,8 +35,6 @@ datasource_scan_source::datasource_scan_source(const std::string& uri, const std
 
     pack_comp_json = 
         packetchain->register_packet_component("JSON");
-	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
     pack_comp_datasrc =
         packetchain->register_packet_component("KISDATASRC");
     pack_comp_gps = 
