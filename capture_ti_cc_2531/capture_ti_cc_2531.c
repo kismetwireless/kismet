@@ -150,6 +150,8 @@ int ticc2531_exit_promisc_mode(kis_capture_handler_t *caph) {
 int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
     int actual_len, r;
+
+    pthread_mutex_lock(&(localticc2531->usb_mutex));
    
     r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, 
             rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
@@ -169,6 +171,7 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     localticc2531->soft_reset = 0; /*we got something valid so reset*/    
     localticc2531->error_ctr = 0; /*we got something valid so reset*/
 
+    pthread_mutex_unlock(&(localticc2531->usb_mutex));
     return actual_len;
 }
 
@@ -345,7 +348,6 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
     }
 
     libusb_free_device_list(libusb_devs, 1);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
     if (num_devs == 0) {
         *interfaces = NULL;
@@ -424,7 +426,8 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
     if (libusb_kernel_driver_active(localticc2531->ticc2531_handle, 0)) {
         r = libusb_detach_kernel_driver(localticc2531->ticc2531_handle, 0); 
 
-        if (r < 0) {
+        // If it's not supported (like on OpenBSD), just keep going!
+        if (r < 0 && r != LIBUSB_ERROR_NOT_SUPPORTED) {
             snprintf(errstr, STATUS_MAX, "Unable to open ticc2531 USB interface, "
                     "could not disconnect kernel drivers: %s",
                     libusb_strerror((enum libusb_error) r));
@@ -478,7 +481,7 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
-        cf_params_spectrum_t **ret_spectrum) {
+        cf_params_spectrum_t **ret_spectrum) { 
 
     char *placeholder = NULL;
     int placeholder_len;
@@ -565,7 +568,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 if (busno == libusb_get_bus_number(libusb_devs[i]) &&
                         devno == libusb_get_device_address(libusb_devs[i])) {
                     matched_device = 1;
-                    localticc2531->matched_dev = libusb_devs[i];
+                    localticc2531->matched_dev = libusb_ref_device(libusb_devs[i]);
                     break;
                 }
             } else {
@@ -573,7 +576,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     matched_device = 1;
                     busno = libusb_get_bus_number(libusb_devs[i]);
                     devno = libusb_get_device_address(libusb_devs[i]);
-                    localticc2531->matched_dev = libusb_devs[i];
+                    localticc2531->matched_dev = libusb_ref_device(libusb_devs[i]);
                     break;
                 }
 
@@ -666,7 +669,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     }
    
     if (localticc2531->ticc2531_handle == NULL) {
-        pthread_mutex_unlock(&(localticc2531->usb_mutex));
+        // pthread_mutex_unlock(&(localticc2531->usb_mutex));
         return 0;
     }
 
@@ -871,6 +874,11 @@ int main(int argc, char *argv[]) {
     cf_handler_loop(caph);
 
     cf_handler_shutdown(caph);
+
+    if (localticc2531.matched_dev) {
+        libusb_unref_device(localticc2531.matched_dev);
+        localticc2531.matched_dev = NULL;
+    }
 
     libusb_exit(localticc2531.libusb_ctx);
     
