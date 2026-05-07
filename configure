@@ -649,6 +649,7 @@ ac_includes_default="\
 ac_header_cxx_list=
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO
 BUILD_CAPTURE_ANTSDR_DRONEID
 BUILD_CAPTURE_USB_RADIACODE
 BUILD_CAPTURE_SERIAL_RADVIEW
@@ -15692,6 +15693,7 @@ sharedatadir=`(
     eval echo "$sharedatadir"
 )`
 sharedatadir=${sharedatadir}
+
 
 
 
