@@ -153,10 +153,6 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (!in_pack->common_info_ok) {
-        return 0;
-    }
-
     try {
         std::stringstream newdevstr;
         std::stringstream ss(pack_json->json_string);
@@ -174,6 +170,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
+        in_pack->common_info_ok = true;
         in_pack->common_info.phyid = btphy->fetch_phy_id();
         in_pack->common_info.type = packet_basic_mgmt;
         in_pack->common_info.source = btaddr_mac;
@@ -264,10 +261,6 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         return 0;
 
     if (pack_json->type != "BLUETOOTHSCAN") { 
-        return 0;
-    }
-
-    if (!in_pack->common_info_ok) {
         return 0;
     }
 
