@@ -356,6 +356,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
 
         in_pack->common_info_ok = true;
+        in_pack->common_info.phyid = mphy->fetch_phy_id();
+        in_pack->common_info.type = packet_basic_data;
 
         if (hdr_802_15_4_fcf->security) {
             in_pack->common_info.basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
