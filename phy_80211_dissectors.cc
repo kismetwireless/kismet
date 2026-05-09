@@ -2079,7 +2079,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             }
 
             continue;
-        } else if (ie_tag.tag_num() == 113) {
+        } else if (ie_tag.tag_num() == 114) {
             // If we have no SSID tag, use the mesh ID as the SSID checksum to differentiate
             // between multiple mesh advertisements; otherwise use the SSID
             if (packinfo->ssid_len == 0) {
