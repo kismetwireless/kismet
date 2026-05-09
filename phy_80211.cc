@@ -3321,17 +3321,25 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         if (ssid->get_ssid_cloaked()) {
             // Use the OWE SSID if we can
             if (dot11info->owe_transition.parsed()) {
-                if (dot11info->owe_transition.ssid().length() != 0)
-                    ssidstr = fmt::format("an OWE SSID '{}' for BSSID {}",
+                if (dot11info->owe_transition.ssid().length() != 0) {
+
+                    basedev->set_devicename(munge_to_printable(dot11info->owe_transition.ssid()));
+                    ssidstr = fmt::format("a new OWE SSID '{}' for BSSID {}",
                             munge_to_printable(dot11info->owe_transition.ssid()),
                             dot11info->owe_transition.bssid());
-                else
-                    ssidstr = "a cloaked SSID";
+                } else {
+                    ssidstr = fmt::format("a new cloaked OWE transition SSID for BSSID {}",
+                            dot11info->owe_transition.bssid());
+                }
+            } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
+                basedev->set_devicename(ssid->get_meshid());
+                ssidstr = fmt::format("a new mesh ID '{}'", ssid->get_meshid());
             } else {
-                ssidstr = "a cloaked SSID";
+                ssidstr = "a new cloaked SSID";
             }
         } else {
-            ssidstr = fmt::format("SSID '{}'", ssid->get_ssid());
+            basedev->set_devicename(ssid->get_ssid());
+            ssidstr = fmt::format("new SSID '{}'", ssid->get_ssid());
         }
 
         _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
@@ -3384,14 +3392,6 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
                     dot11info->channel, al);
-        }
-
-        if (ssid->get_ssid() != "") {
-            basedev->set_devicename(ssid->get_ssid());
-        } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
-            basedev->set_devicename(ssid->get_meshid());
-        } else {
-            // basedev->set_devicename(basedev->get_macaddr().mac_to_string());
         }
 
         // If we have a new ssid and we can consider raising an alert, do the
