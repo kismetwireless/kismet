@@ -139,10 +139,6 @@ public:
     void add_sample(double in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_rrd add_sample");
 
-        M_Aggregator m_agg;
-        H_Aggregator h_agg;
-        D_Aggregator d_agg;
-
         int sec_bucket = in_time % 60;
         int min_bucket = (in_time / 60) % 60;
         int hour_bucket = (in_time / 3600) % 24;
@@ -314,7 +310,6 @@ public:
         kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "kis_tracked_rrd serialize");
 
         tracker_component::pre_serialize();
-        M_Aggregator m_agg;
 
         uint64_t now = Globalreg::globalreg->last_tv_sec;
         set_serial_time(now);
@@ -405,24 +400,26 @@ protected:
         // Build slots for all the times
         int x;
         if ((x = minute_vec->size()) != 60) {
+            minute_vec->reserve(60);
             for ( ; x < 60; x++) {
                 minute_vec->push_back(0);
             }
         }
 
         if ((x = hour_vec->size()) != 60) {
+            hour_vec->reserve(60);
             for ( ; x < 60; x++) {
                 hour_vec->push_back(0);
             }
         }
 
         if ((x = day_vec->size()) != 24) {
+            day_vec->reserve(24);
             for ( ; x < 24; x++) {
                 day_vec->push_back(0);
             }
         }
 
-        M_Aggregator m_agg;
         (*blank_val).set(m_agg.default_val());
     }
 
@@ -439,6 +436,10 @@ protected:
     std::shared_ptr<tracker_element_vector_double> day_vec;
 
     std::shared_ptr<tracker_element_double> blank_val;
+
+    M_Aggregator m_agg;
+    H_Aggregator h_agg;
+    D_Aggregator d_agg;
 
     int second_entry_id;
     int minute_entry_id;
@@ -510,8 +511,6 @@ public:
     void add_sample(double in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_minute_rrd add_sample");
 
-        Aggregator agg;
-
         int sec_bucket = in_time % 60;
 
         time_t ltime = get_last_time();
@@ -565,7 +564,6 @@ public:
         kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "kis_tracked_rrd serialize");
 
         tracker_component::pre_serialize();
-        Aggregator agg;
 
         uint64_t now = Globalreg::globalreg->last_tv_sec;
 
@@ -627,11 +625,12 @@ protected:
             }
         }
 
-        Aggregator agg;
         (*blank_val).set(agg.default_val());
     }
 
     kis_mutex mutex;
+
+    Aggregator agg;
 
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> serial_time;
