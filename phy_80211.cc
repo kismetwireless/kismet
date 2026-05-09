@@ -3140,10 +3140,9 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         // Grab the 80211 frame, if that doesn't exist, grab the link frame
         auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
-        if (chunk == nullptr)
+        if (chunk == nullptr) {
             chunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
-
-        if (chunk != nullptr) {
+        } else {
             auto beacon_packet = dot11dev->get_ssid_beacon_packet();
 
             beacon_packet->set_ts_sec(in_pack->ts.tv_sec);
