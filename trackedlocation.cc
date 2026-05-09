@@ -23,6 +23,7 @@
 
 #include "trackedlocation.h"
 #include "gpstracker.h"
+#include "packet.h"
 
 kis_tracked_location_triplet::kis_tracked_location_triplet() :
     tracker_component() {
@@ -174,6 +175,32 @@ kis_tracked_location_full::kis_tracked_location_full(const kis_tracked_location_
         __ImportId(magheading_id, p);
 
         reserve_fields(nullptr);
+}
+
+kis_tracked_location_full::kis_tracked_location_full(const kis_gps_packinfo *src) :
+    kis_tracked_location_triplet() {
+
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_location(src->lat, src->lon);
+    set_alt(src->alt);
+
+    if (src->speed != 0) {
+        set_speed(src->speed);
+    }
+
+    if (src->heading != 0) {
+        set_heading(src->heading);
+    }
+
+    if (src->magheading != 0) {
+        set_magheading(src->magheading);
+    }
+
+    set_fix(src->fix);
+    set_time_sec(src->tv.tv_sec);
+    set_time_usec(src->tv.tv_usec);
 }
 
 void kis_tracked_location_full::set(kis_gps_packinfo *in_packinfo) {

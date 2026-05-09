@@ -34,8 +34,8 @@
 
 class kis_gps_nmea_v2 : public kis_gps, public std::enable_shared_from_this<kis_gps_nmea_v2> {
 public:
-    kis_gps_nmea_v2(shared_gps_builder in_builder) :
-        kis_gps(in_builder),
+    kis_gps_nmea_v2(shared_gps_builder in_builder, uint64_t in_id) :
+        kis_gps(in_builder, in_id),
         strand_{Globalreg::globalreg->io.get_executor()},
         last_heading_time(time(0)),
 		last_data_time(time(0)) { }

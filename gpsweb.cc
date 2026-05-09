@@ -23,8 +23,8 @@
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
-kis_gps_web::kis_gps_web(shared_gps_builder in_builder) : 
-    kis_gps(in_builder) {
+kis_gps_web::kis_gps_web(shared_gps_builder in_builder, uint64_t in_id) :
+    kis_gps(in_builder, in_id) {
 
     last_heading_time = 0;
 
@@ -54,8 +54,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
                     }
 
                     gettimeofday(&(new_location->tv), NULL);
-                    new_location->gpsuuid = get_gps_uuid();
-                    new_location->gpsname = get_gps_name();
+                    new_location->gps_id = gps_id;
 
                     if (time(0) - last_heading_time > 5 &&
                         gps_location != nullptr && gps_location->fix >= 2) {
@@ -117,8 +116,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
                                         }
 
                                         gettimeofday(&(new_location->tv), NULL);
-                                        new_location->gpsuuid = get_gps_uuid();
-                                        new_location->gpsname = get_gps_name();
+                                        new_location->gps_id = gps_id;
 
                                         if (time(0) - last_heading_time > 5 &&
                                                 gps_location != nullptr && gps_location->fix >= 2) {

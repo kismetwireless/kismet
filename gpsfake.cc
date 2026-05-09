@@ -21,8 +21,8 @@
 #include "gpstracker.h"
 #include "messagebus.h"
 
-kis_gps_fake::kis_gps_fake(shared_gps_builder in_builder) : 
-    kis_gps(in_builder) { }
+kis_gps_fake::kis_gps_fake(shared_gps_builder in_builder, uint64_t in_id) :
+    kis_gps(in_builder, in_id) { }
 
 kis_gps_fake::~kis_gps_fake() { }
 
@@ -77,8 +77,7 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
         gps_location->lon << " @ " << gps_location->alt << "m";
     set_int_gps_description(msg.str());
 
-    gps_location->gpsuuid = get_gps_uuid();
-    gps_location->gpsname = get_gps_name();
+    gps_location->gps_id = gps_id;
 
     gps_last_location = gps_location;
 

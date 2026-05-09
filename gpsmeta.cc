@@ -25,8 +25,8 @@ gps_meta_builder::gps_meta_builder() : kis_gps_builder() {
     initialize();
 }
 
-kis_gps_meta::kis_gps_meta(shared_gps_builder in_builder) : 
-    kis_gps(in_builder) {
+kis_gps_meta::kis_gps_meta(shared_gps_builder in_builder, uint64_t in_id) :
+    kis_gps(in_builder, in_id) {
 
     last_heading_time = 0;
     set_int_gps_data_only(true);
@@ -72,8 +72,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                     }
 
                     gettimeofday(&(new_location->tv), NULL);
-                    new_location->gpsuuid = get_gps_uuid();
-                    new_location->gpsname = get_gps_name();
+                    new_location->gps_id = gps_id;
 
                     if (time(0) - last_heading_time > 5 &&
                         gps_location != nullptr && gps_location->fix >= 2) {
@@ -133,8 +132,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                                         }
 
                                         gettimeofday(&(new_location->tv), NULL);
-                                        new_location->gpsuuid = get_gps_uuid();
-                                        new_location->gpsname = get_gps_name();
+                                        new_location->gps_id = gps_id;
 
                                         if (time(0) - last_heading_time > 5 &&
                                                 gps_location != nullptr && gps_location->fix >= 2) {

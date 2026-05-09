@@ -31,7 +31,7 @@
 
 class kis_gps_fake : public kis_gps {
 public:
-    kis_gps_fake(shared_gps_builder in_builder);
+    kis_gps_fake(shared_gps_builder in_builder, uint64_t in_id);
     virtual ~kis_gps_fake();
 
     virtual bool open_gps(std::string in_opts) override;
@@ -57,8 +57,8 @@ public:
         set_int_singleton(true);
     }
 
-    virtual shared_gps build_gps(shared_gps_builder in_builder) {
-        return shared_gps(new kis_gps_fake(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder, uint64_t in_id) {
+        return shared_gps(new kis_gps_fake(in_builder, in_id));
     }
 };
 

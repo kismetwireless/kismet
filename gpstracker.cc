@@ -46,6 +46,7 @@ gps_tracker::gps_tracker() :
     gps_prototypes_vec = std::make_shared<tracker_element_vector>();
     gps_instances_vec = std::make_shared<tracker_element_vector>();
 
+    next_gps_id = 1;
 }
 
 gps_tracker::~gps_tracker() {
@@ -116,13 +117,18 @@ void gps_tracker::trigger_deferred_startup() {
     httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto pi = get_best_location();
+
                     auto loctrip = Globalreg::globalreg->entrytracker->new_from_pool<kis_tracked_location_full>();
                     auto ue = Globalreg::globalreg->entrytracker->new_from_pool<tracker_element_uuid>();
                     ue->set_id(tracked_uuid_addition_id);
 
-                    auto pi = get_best_location();
                     if (pi != nullptr) {
-                        ue->set(pi->gpsuuid);
+                        auto gps = find_gps_by_id(pi->gps_id);
+                        if (gps != nullptr) {
+                            ue->set(gps->get_gps_uuid());
+                        }
+
                         loctrip->set_location(pi->lat, pi->lon);
                         loctrip->set_alt(pi->alt);
                         loctrip->set_speed(pi->speed);
@@ -153,7 +159,7 @@ void gps_tracker::trigger_deferred_startup() {
 
                     auto pi = gps->get_location();
                     if (pi != nullptr) {
-                        ue->set(pi->gpsuuid);
+                        ue->set(gps->get_gps_uuid());
                         loctrip->set_location(pi->lat, pi->lon);
                         loctrip->set_alt(pi->alt);
                         loctrip->set_speed(pi->speed);
@@ -243,7 +249,10 @@ void gps_tracker::trigger_deferred_startup() {
 
                     auto pi = get_best_location();
                     if (pi != nullptr) {
-                        ue->set(pi->gpsuuid);
+                        auto gps = find_gps_by_id(pi->gps_id);
+                        if (gps != nullptr) {
+                            ue->set(gps->get_gps_uuid());
+                        }
                         loctrip->set_location(pi->lat, pi->lon);
                         loctrip->set_alt(pi->alt);
                         loctrip->set_speed(pi->speed);
@@ -352,7 +361,8 @@ std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
     }
 
     // Fetch an instance
-    gps = builder->build_gps(builder);
+    gps = builder->build_gps(builder, next_gps_id);
+    next_gps_id++;
 
     // Open it
     if (!gps->open_gps(in_definition)) {
@@ -422,6 +432,23 @@ bool gps_tracker::remove_gps(uuid in_uuid) {
     }
 
     return false;
+}
+
+std::shared_ptr<kis_gps> gps_tracker::find_gps_by_id(uint64_t in_id) {
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, __func__);
+
+    if (gps_instances_vec == nullptr)
+        return nullptr;
+
+    for (const auto& g : *gps_instances_vec) {
+        auto gps = std::static_pointer_cast<kis_gps>(g);
+
+        if (gps->get_id() == in_id) {
+            return gps;
+        }
+    }
+
+    return nullptr;
 }
 
 std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {

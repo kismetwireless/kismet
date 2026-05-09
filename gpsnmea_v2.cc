@@ -371,8 +371,7 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
 
         gettimeofday(&(new_location->tv), NULL);
 
-        new_location->gpsuuid = get_gps_uuid();
-        new_location->gpsname = get_gps_name();
+        new_location->gps_id = gps_id;
 
         if (time(0) - last_heading_time > 5 &&
                 gps_location != nullptr && gps_location->fix >= 2

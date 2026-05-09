@@ -1986,6 +1986,7 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
     n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
     gpsinfo->tv.tv_usec = mpack_node_u64(n);
 
+    /* GPS name deprecated
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
     if (!mpack_node_is_missing(n)) {
         auto name_s = mpack_node_str(n);
@@ -1993,6 +1994,7 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
 
         gpsinfo->gpsname = std::string(name_s, name_sz);
     }
+    */
 
     /* type not currently used in packinfo
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
@@ -2007,7 +2009,12 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
         auto uuid_s = mpack_node_str(n);
         auto uuid_sz = mpack_node_data_len(n);
 
-        gpsinfo->gpsuuid = std::string(uuid_s, uuid_sz);
+        uuid uuid_v;
+        uuid_v.from_string(std::string(uuid_s, uuid_sz));
+        auto gps = gpstracker->find_gps(uuid_v);
+        if (gps != nullptr) {
+            gpsinfo->gps_id = gps->get_id();
+        }
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {

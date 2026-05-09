@@ -31,7 +31,7 @@ using boost::asio::ip::tcp;
 
 class kis_gps_gpsd_v3 : public kis_gps, public std::enable_shared_from_this<kis_gps_gpsd_v3> {
 public:
-    kis_gps_gpsd_v3(shared_gps_builder in_builder);
+    kis_gps_gpsd_v3(shared_gps_builder in_builder, uint64_t in_id);
     virtual ~kis_gps_gpsd_v3();
 
     virtual bool open_gps(std::string in_definition);
@@ -120,8 +120,8 @@ public:
         set_int_default_name("gpsd");
     }
 
-    virtual shared_gps build_gps(shared_gps_builder in_builder) {
-        return shared_gps(new kis_gps_gpsd_v3(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder, uint64_t in_id) {
+        return shared_gps(new kis_gps_gpsd_v3(in_builder, in_id));
     }
 };
 

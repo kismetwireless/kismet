@@ -222,7 +222,7 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                     gpsinfo->fix = 2;
                     gpsinfo->alt = 0;
 
-                    gpsinfo->gpsname = "PPI";
+                    // gpsinfo->gpsname = "PPI";
                 }
 
                 //Speed is stored as a velocity in VECTOR tags..
@@ -240,7 +240,7 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                     if (gpsinfo == nullptr) {
                         gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
                         gpsinfo->fix = 0;
-                        gpsinfo->gpsname = "PPI";
+                        // gpsinfo->gpsname = "PPI";
                     } else {
                         gpsinfo->fix = 3;
                     }

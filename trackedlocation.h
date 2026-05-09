@@ -122,6 +122,7 @@ public:
     kis_tracked_location_full(int in_id);
     kis_tracked_location_full(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_location_full(const kis_tracked_location_full *);
+    kis_tracked_location_full(const kis_gps_packinfo *);
 
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
@@ -162,6 +163,7 @@ protected:
     uint16_t magheading_id;
 };
 
+class kis_tracked_location;
 class kis_tracked_location : public tracker_component {
 public:
     kis_tracked_location();

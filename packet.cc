@@ -34,6 +34,7 @@
 #include "macaddr.h"
 #include "packet.h"
 #include "packetchain.h"
+#include "trackedlocation.h"
 
 
 kis_packet::kis_packet() {

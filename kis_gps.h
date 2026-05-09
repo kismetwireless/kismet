@@ -73,7 +73,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual shared_gps build_gps(shared_gps_builder) {
+    virtual shared_gps build_gps(shared_gps_builder, uint64_t) {
         return NULL;
     }
 
@@ -106,11 +106,15 @@ protected:
 // interaction (such as serial port, network, etc)
 class kis_gps : public tracker_component {
 public:
-    kis_gps(shared_gps_builder in_builder);
+    kis_gps(shared_gps_builder in_builder, uint64_t in_id);
 
     virtual ~kis_gps();
 
     virtual void initialize() { };
+
+    constexpr const uint64_t& get_id() const {
+        return gps_id;
+    }
 
     __ProxyPrivSplitM(gps_name, std::string, std::string, std::string, 
             gps_name, data_mutex);
@@ -156,6 +160,9 @@ public:
 protected:
     // We share mutexes down to the driver engines so we use a shared
     kis_mutex gps_mutex, data_mutex;
+
+    // Unique ID
+    uint64_t gps_id;
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;

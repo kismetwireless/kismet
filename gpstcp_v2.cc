@@ -27,8 +27,8 @@
 
 #include <fmt_asio.h>
 
-kis_gps_tcp_v2::kis_gps_tcp_v2(shared_gps_builder in_builder) : 
-    kis_gps_nmea_v2{in_builder},
+kis_gps_tcp_v2::kis_gps_tcp_v2(shared_gps_builder in_builder, uint64_t in_id) :
+    kis_gps_nmea_v2{in_builder, in_id},
 	resolver{Globalreg::globalreg->io},
 	socket{Globalreg::globalreg->io} {
 

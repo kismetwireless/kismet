@@ -29,8 +29,8 @@
 
 #include "fmt_asio.h"
 
-kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) : 
-    kis_gps(in_builder),
+kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder, uint64_t in_id) :
+    kis_gps(in_builder, in_id),
     resolver{Globalreg::globalreg->io},
     socket{Globalreg::globalreg->io},
     strand_{Globalreg::globalreg->io.get_executor()} {
@@ -651,8 +651,8 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
         set_int_gps_signal_time(last_data_time);
 
         gettimeofday(&(new_location->tv), NULL);
-        new_location->gpsuuid = get_gps_uuid();
-        new_location->gpsname = get_gps_name();
+
+        new_location->gps_id = gps_id;
 
         if (!set_heading) {
             if (now_t - last_att_heading_time < 2 && new_location != nullptr) {

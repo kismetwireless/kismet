@@ -45,99 +45,6 @@ typedef std::shared_ptr<kis_gps> shared_gps;
 #define GPS_PACKINFO_MERGE_HEADING  (1 << 4)
 #define GPS_PACKINFO_MERGE_REST     (1 << 128)
 
-class kis_gps_packinfo : public packet_component {
-public:
-    kis_gps_packinfo() {
-        reset();
-    }
-
-    virtual bool unique() override { return true; }
-
-    void set(std::shared_ptr<kis_gps_packinfo> src) {
-        merge_partial = src->merge_partial;
-        merge_flags = src->merge_flags;
-
-        lat = src->lat;
-        lon = src->lon;
-        alt = src->alt;
-        speed = src->speed;
-        heading = src->heading;
-        magheading = src->magheading;
-        precision = src->precision;
-        fix = src->fix;
-        tv.tv_sec = src->tv.tv_sec;
-        tv.tv_usec = src->tv.tv_usec;
-        gpsuuid = src->gpsuuid;
-        gpsname = src->gpsname;
-    }
-
-    void reset() {
-        merge_partial = false;
-        merge_flags = 0;
-
-        lat = lon = alt = speed = heading = magheading = 0;
-        precision = 0;
-        fix = 0;
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        error_x = 0;
-        error_y = 0;
-        error_v = 0;
-    }
-
-    std::shared_ptr<kis_tracked_location_full> as_tracked_full() {
-        auto r = std::make_shared<kis_tracked_location_full>();
-
-        r->set_location(lat, lon);
-        r->set_alt(alt);
-
-        if (speed != 0)
-            r->set_speed(speed);
-
-        if (heading != 0)
-            r->set_heading(heading);
-
-        if (magheading != 0)
-            r->set_magheading(magheading);
-
-        r->set_fix(fix);
-        r->set_time_sec(tv.tv_sec);
-        r->set_time_usec(tv.tv_usec);
-
-        return r;
-    }
-
-    double lat;
-    double lon;
-    double alt;
-    double speed;
-    double heading;
-    double magheading;
-
-    // If we know it, how accurate our location is, in meters
-    double precision;
-
-    // Should handlers merge partial info (speed and alt) without 
-    // location info?  Used for sources like adsb which receive location
-    // in multiple records
-    bool merge_partial;
-    uint8_t merge_flags;
-
-    // If we know it, 2d vs 3d fix
-    int fix;
-
-    // If we know error values...
-    double error_x, error_y, error_v;
-
-    struct timeval tv;
-
-    // GPS that created us
-    uuid gpsuuid;
-
-    // Name of GPS that created us
-    std::string gpsname;
-};
-
 // Packet component used to tell other components NOT to include gps info
 // from the live GPS
 class kis_no_gps_packinfo : public packet_component {
@@ -184,6 +91,7 @@ public:
 
     std::shared_ptr<kis_gps> find_gps(uuid in_uuid);
     std::shared_ptr<kis_gps> find_gps_by_name(const std::string& in_name);
+    std::shared_ptr<kis_gps> find_gps_by_id(uint64_t in_id);
 
     // Set a primary GPS
     bool set_primary_gps(uuid in_uuid);
@@ -204,6 +112,8 @@ protected:
     // GPS instances, as a vector, sorted by priority; we don't mind doing a 
     // linear search because we'll typically have very few GPS devices
     std::shared_ptr<tracker_element_vector> gps_instances_vec;
+
+    uint64_t next_gps_id;
 
     // Extra field we insert into a location record
     int tracked_uuid_addition_id;

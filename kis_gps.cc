@@ -23,7 +23,7 @@
 #include "timetracker.h"
 #include "gpstracker.h"
 
-kis_gps::kis_gps(shared_gps_builder in_builder) : 
+kis_gps::kis_gps(shared_gps_builder in_builder, uint64_t in_id) :
     tracker_component() {
 
     register_fields();
@@ -31,6 +31,8 @@ kis_gps::kis_gps(shared_gps_builder in_builder) :
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+
+    gps_id = in_id;
 
     // Force the ID
     set_id(Globalreg::globalreg->entrytracker->register_field("kismet.gps.instance", 

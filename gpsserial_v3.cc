@@ -35,8 +35,8 @@
 #include <sys/ioctl.h>
 #endif
 
-kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) : 
-    kis_gps_nmea_v2{in_builder},
+kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder, uint64_t in_id) :
+    kis_gps_nmea_v2{in_builder, in_id},
     serialport{Globalreg::globalreg->io} {
 
     // Defer making buffers until open, because we might be used to make a 

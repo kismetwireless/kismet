@@ -22,9 +22,6 @@
 #include "config.h"
 
 #include "kis_gps.h"
-#include "timetracker.h"
-#include "globalregistry.h"
-#include "kis_net_beast_httpd.h"
 
 // GPS WEB
 //
@@ -33,7 +30,7 @@
 
 class kis_gps_web : public kis_gps {
 public:
-    kis_gps_web(shared_gps_builder in_builder);
+    kis_gps_web(shared_gps_builder in_builder, uint64_t in_id);
     virtual ~kis_gps_web();
 
     virtual bool open_gps(std::string in_opts);
@@ -62,8 +59,8 @@ public:
         set_int_singleton(true);
     }
 
-    virtual shared_gps build_gps(shared_gps_builder in_builder) override {
-        return shared_gps(new kis_gps_web(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder, uint64_t in_id) override {
+        return shared_gps(new kis_gps_web(in_builder, in_id));
     }
 };
 
