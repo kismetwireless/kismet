@@ -3295,8 +3295,9 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(KismetDatasourc
     gpsinfo->fix = in_gps.fix();
     gpsinfo->tv.tv_sec = in_gps.time_sec();
     gpsinfo->tv.tv_usec = in_gps.time_usec();
+
     //gpsinfo->type = in_gps.type();
-    gpsinfo->gpsname = in_gps.name();
+    //gpsinfo->gpsname = in_gps.name();
 
     return gpsinfo;
 }
