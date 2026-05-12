@@ -441,7 +441,7 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     in_pack->insert(pack_comp_radiodata, radioheader);
     in_pack->insert(pack_comp_decap, decapchunk);
 
-    uint32_t fcs_data = -1;
+    uint32_t fcs_data = 0;
 
     if (fcs_cut) {
         if (linkchunk->length() < 4) {
@@ -468,7 +468,7 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     if (datasrc != nullptr &&
             datasrc->ref_source != nullptr &&
             !in_pack->crc_ok &&
-            fcs_data != -1) {
+            fcs_data != 0) {
         // Compare it and flag the packet
         uint32_t calc_crc =
             crc32_le_80211(crc32_table, decapchunk->data(), decapchunk->length());
