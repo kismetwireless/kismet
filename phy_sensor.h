@@ -71,7 +71,7 @@ public:
         int64_t avg = 0;
         int64_t avg_c = 0;
 
-        for (auto i : *e) {
+        for (const auto& i : *e) {
             if (i != default_val()) {
                 avg += i;
                 avg_c++;
@@ -83,6 +83,24 @@ public:
 
         return avg / avg_c;
     }
+
+    static int64_t combine_vector(const tracker_element_vector_double::vector_t& e) {
+        int64_t avg = 0;
+        int64_t avg_c = 0;
+
+        for (const auto& i : e) {
+            if (i != default_val()) {
+                avg += i;
+                avg_c++;
+            }
+        }
+
+        if (avg_c == 0)
+            return default_val();
+
+        return avg / avg_c;
+    }
+
 
     // Default 'empty' value, no legit signal would be 0
     static int64_t default_val() {

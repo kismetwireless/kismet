@@ -65,6 +65,14 @@ public:
         return avg / e->size();
     }
 
+    static double combine_vector(const std::vector<double>& v) {
+        double avg = 0;
+        for (const auto& i : v)
+            avg += i;
+
+        return avg / v.size();
+    }
+
     // Default 'empty' value
     static double default_val() {
         return (double) 0;
@@ -185,7 +193,7 @@ public:
 
                 // Reset the last hour, setting it to a single sample
                 // Get the combined value for the minute
-                double min_val = h_agg.combine_vector(minute_vec);
+                double min_val = h_agg.combine_vector(minute_vec_back);
                 auto& hour_vec_back = hour_vec->get();
                 for (size_t i = 0; i < hour_vec_back.size(); i++) {
                     if (i == min_bucket) {
@@ -196,7 +204,7 @@ public:
                 }
 
                 // Reset the last day, setting it to a single sample
-                double hr_val = d_agg.combine_vector(hour_vec);
+                double hr_val = d_agg.combine_vector(hour_vec_back);
                 auto& day_vec_back = day_vec->get();
                 for (size_t i = 0; i < day_vec_back.size(); i++) {
                     if (i == hour_bucket) {
@@ -230,7 +238,7 @@ public:
                         minute_vec_back[i] = m_agg.default_val();
                     }
                 }
-                sec_avg = h_agg.combine_vector(minute_vec);
+                sec_avg = h_agg.combine_vector(minute_vec_back);
 
                 // We haven't seen anything in this hour, so clear it, set the minute
                 // and get the aggregate
@@ -243,7 +251,7 @@ public:
                     }
 
                 }
-                min_avg = d_agg.combine_vector(hour_vec);
+                min_avg = d_agg.combine_vector(hour_vec_back);
 
                 // Fill the hours between the last time we saw data and now with
                 // zeroes; fastforward time
@@ -271,7 +279,7 @@ public:
                         minute_vec_back[i] = m_agg.default_val();
                     }
                 }
-                sec_avg = h_agg.combine_vector(minute_vec);
+                sec_avg = h_agg.combine_vector(minute_vec_back);
 
                 // Zero between last and current
                 auto& hour_vec_back = hour_vec->get();
@@ -282,7 +290,7 @@ public:
                 // Set the updated value
                 hour_vec_back[min_bucket] = sec_avg;
 
-                min_avg = d_agg.combine_vector(hour_vec);
+                min_avg = d_agg.combine_vector(hour_vec_back);
 
                 // Reset the hour
                 day_vec->get()[hour_bucket] = min_avg;
@@ -310,10 +318,10 @@ public:
                 // Update all the averages
                 double sec_avg = 0, min_avg = 0;
 
-                sec_avg = h_agg.combine_vector(minute_vec);
+                sec_avg = h_agg.combine_vector(minute_vec_back);
                 hour_vec->get()[min_bucket] = sec_avg;
 
-                min_avg = d_agg.combine_vector(hour_vec);
+                min_avg = d_agg.combine_vector(hour_vec->get());
                 day_vec->get()[hour_bucket] = min_avg;
             }
         }
@@ -698,6 +706,25 @@ public:
         return avg / avgc;
     }
 
+    static uint64_t combine_vector(const std::vector<double>& e) {
+        double avg = 0, avgc = 0;
+
+        for (const auto& i : e) {
+            double v = i;
+
+            if (v == 0)
+                continue;
+
+            avg += v;
+            avgc++;
+        }
+
+        if (avgc == 0)
+            return default_val();
+
+        return avg / avgc;
+    }
+
     // Default 'empty' value, no legit signal would be 0
     static double default_val() {
         return (double) 0;
@@ -740,9 +767,19 @@ public:
     static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         double extreme = 0;
 
-        std::for_each(e->begin(), e->end(), [&extreme](double i) {
-                extreme = combine_element(extreme, i);
-            });
+        for (const auto& i : e->get()) {
+            extreme = combine_element(extreme, i);
+        }
+
+        return extreme;
+    }
+
+    static double combine_vector(const std::vector<double> e) {
+        double extreme = 0;
+
+        for (const auto& i : e) {
+            extreme = combine_element(extreme, i);
+        }
 
         return extreme;
     }
@@ -790,6 +827,18 @@ public:
         for (const auto& i : e->get()) {
             if (i > most)
                 most = i;
+        }
+
+        return most;
+    }
+
+    static double combine_vector(const std::vector<double>& e) {
+        double most = 0;
+
+        for (const auto& i : e) {
+            if (i > most) {
+                most = i;
+            }
         }
 
         return most;

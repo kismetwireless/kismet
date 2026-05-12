@@ -61,6 +61,23 @@ public:
         return max;
     }
 
+    static int64_t combine_vector(const tracker_element_vector_double::vector_t& e) {
+        int64_t max = default_val();
+
+        for (auto i : e) {
+            if (i == default_val())
+                continue;
+
+            if (i < max)
+                continue;
+
+            max = i;
+
+        }
+
+        return max;
+    }
+
     static int64_t default_val() {
         return (int64_t) -999999;
     }
