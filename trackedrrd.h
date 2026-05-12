@@ -59,7 +59,7 @@ public:
     // hours, and so on).
     static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         double avg = 0;
-        for (const auto i : *e)
+        for (const auto& i : e->get())
             avg += i;
 
         return avg / e->size();
@@ -139,18 +139,18 @@ public:
     void add_sample(double in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_rrd add_sample");
 
-        int sec_bucket = in_time % 60;
-        int min_bucket = (in_time / 60) % 60;
-        int hour_bucket = (in_time / 3600) % 24;
+        size_t sec_bucket = in_time % 60;
+        size_t min_bucket = (in_time / 60) % 60;
+        size_t hour_bucket = (in_time / 3600) % 24;
 
         time_t ltime = get_last_time();
 
         // The second slot for the last time
-        int last_sec_bucket = ltime % 60;
+        size_t last_sec_bucket = ltime % 60;
         // The minute of the hour the last known data would go in
-        int last_min_bucket = (ltime / 60) % 60;
+        size_t last_min_bucket = (ltime / 60) % 60;
         // The hour of the day the last known data would go in
-        int last_hour_bucket = (ltime / 3600) % 24;
+        size_t last_hour_bucket = (ltime / 3600) % 24;
 
         if (in_time == ltime) {
             set_last_value_n1(get_last_value());
@@ -160,42 +160,50 @@ public:
             set_last_value(in_s);
         }
 
+        auto& minute_vec_back = minute_vec->get();
+
         // Allow backfilling w/in the past minute because packets might come out-of-order
         if (in_time < ltime) {
             if (ltime - in_time > 60)
                 return;
 
-            double v = *(minute_vec->begin() + sec_bucket);
-            *(minute_vec->begin() + sec_bucket) = m_agg.combine_element(v, in_s);
+            double v = minute_vec_back[sec_bucket];
+            minute_vec_back[sec_bucket] = m_agg.combine_element(v, in_s);
         } else {
             // If we haven't seen data in a day, we reset everything because
             // none of it is valid.  This is the simplest case.
             if (in_time - ltime > (60 * 60 * 24)) {
                 // Directly fill in this second, clear rest of the minute
-                for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
-                    if (i - minute_vec->begin() == sec_bucket)
-                        *i = in_s;
-                    else
-                        *i = m_agg.default_val();
+                for (size_t i = 0; i < minute_vec_back.size(); i++) {
+                    if (i == sec_bucket) {
+                        minute_vec_back[i] = in_s;
+                    } else {
+                        minute_vec_back[i] = m_agg.default_val();
+                    }
+
                 }
 
                 // Reset the last hour, setting it to a single sample
                 // Get the combined value for the minute
                 double min_val = h_agg.combine_vector(minute_vec);
-                for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
-                    if (i - hour_vec->begin() == min_bucket)
-                        *i = min_val;
-                    else
-                        *i = h_agg.default_val();
+                auto& hour_vec_back = hour_vec->get();
+                for (size_t i = 0; i < hour_vec_back.size(); i++) {
+                    if (i == min_bucket) {
+                        hour_vec_back[i] = min_val;
+                    } else {
+                        hour_vec_back[i] = h_agg.default_val();
+                    }
                 }
 
                 // Reset the last day, setting it to a single sample
                 double hr_val = d_agg.combine_vector(hour_vec);
-                for (auto i = day_vec->begin(); i != day_vec->end(); ++i) {
-                    if (i - day_vec->begin() == hour_bucket)
-                        *i = hr_val;
-                    else
-                        *i = d_agg.default_val();
+                auto& day_vec_back = day_vec->get();
+                for (size_t i = 0; i < day_vec_back.size(); i++) {
+                    if (i == hour_bucket) {
+                        day_vec_back[i] = hr_val;
+                    } else {
+                        day_vec_back[i] = d_agg.default_val();
+                    }
                 }
 
                 set_last_time(in_time);
@@ -214,21 +222,26 @@ public:
                 // We only have this entry in the minute, so set it and get the
                 // combined value
 
-                for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
-                    if (i - minute_vec->begin() == sec_bucket)
-                        *i = in_s;
-                    else
-                        *i = m_agg.default_val();
+                auto& minute_vec_back = minute_vec->get();
+                for (size_t i = 0; i < minute_vec_back.size(); i++) {
+                    if (i == sec_bucket) {
+                        minute_vec_back[i] = in_s;
+                    } else {
+                        minute_vec_back[i] = m_agg.default_val();
+                    }
                 }
                 sec_avg = h_agg.combine_vector(minute_vec);
 
                 // We haven't seen anything in this hour, so clear it, set the minute
                 // and get the aggregate
-                for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
-                    if (i - hour_vec->begin() == min_bucket)
-                        *i = sec_avg;
-                    else
-                        *i = h_agg.default_val();
+                auto& hour_vec_back = hour_vec->get();
+                for (size_t i = 0; i < hour_vec_back.size(); i++) {
+                    if (i == min_bucket) {
+                        hour_vec_back[i] = sec_avg;
+                    } else {
+                        hour_vec_back[i] = h_agg.default_val();
+                    }
+
                 }
                 min_avg = d_agg.combine_vector(hour_vec);
 
@@ -250,26 +263,29 @@ public:
 
                 int64_t sec_avg = 0, min_avg = 0;
 
-                for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
-                    if (i - minute_vec->begin() == sec_bucket)
-                        *i = in_s;
-                    else
-                        *i = m_agg.default_val();
+                auto& minute_vec_back = minute_vec->get();
+                for (size_t i = 0; i < minute_vec->size(); i++) {
+                    if (i == sec_bucket) {
+                        minute_vec_back[i] = in_s;
+                    } else {
+                        minute_vec_back[i] = m_agg.default_val();
+                    }
                 }
                 sec_avg = h_agg.combine_vector(minute_vec);
 
                 // Zero between last and current
+                auto& hour_vec_back = hour_vec->get();
                 for (int m = 0; m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
-                    *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60)) = h_agg.default_val();
+                    hour_vec_back[((last_min_bucket + 1 + m) % 60)] = h_agg.default_val();
                 }
 
                 // Set the updated value
-                *(hour_vec->begin() + min_bucket) = sec_avg;;
+                hour_vec_back[min_bucket] = sec_avg;
 
                 min_avg = d_agg.combine_vector(hour_vec);
 
                 // Reset the hour
-                *(day_vec->begin() + hour_bucket) = min_avg;
+                day_vec->get()[hour_bucket] = min_avg;
             } else {
                 // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
                 // If in_time == last_time then we're updating an existing record,
@@ -277,29 +293,28 @@ public:
 
                 // Otherwise, fast-forward seconds with zero data, then propagate the
                 // changes up
+
+                auto& minute_vec_back = minute_vec->get();
+
                 if (in_time == ltime) {
-                    double v = *(minute_vec->begin() + sec_bucket);
-                    *(minute_vec->begin() + sec_bucket) = m_agg.combine_element(v, in_s);
+                    double v = minute_vec_back[sec_bucket];
+                    minute_vec_back[sec_bucket] = m_agg.combine_element(v, in_s);
                 } else {
                     for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                        *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = m_agg.default_val();
+                        minute_vec_back[(last_sec_bucket + 1 + s) % 60] = m_agg.default_val();
                     }
 
-                    *(minute_vec->begin() + sec_bucket) = in_s;
+                    minute_vec_back[sec_bucket] = in_s;
                 }
 
                 // Update all the averages
                 double sec_avg = 0, min_avg = 0;
 
                 sec_avg = h_agg.combine_vector(minute_vec);
-
-                // Set the minute
-                *(hour_vec->begin() + min_bucket) = sec_avg;
+                hour_vec->get()[min_bucket] = sec_avg;
 
                 min_avg = d_agg.combine_vector(hour_vec);
-
-                // Set the hour
-                *(day_vec->begin() + hour_bucket) = min_avg;
+                day_vec->get()[hour_bucket] = min_avg;
             }
         }
 
@@ -511,12 +526,12 @@ public:
     void add_sample(double in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_minute_rrd add_sample");
 
-        int sec_bucket = in_time % 60;
+        size_t sec_bucket = in_time % 60;
 
         time_t ltime = get_last_time();
 
         // The second slot for the last time
-        int last_sec_bucket = ltime % 60;
+        size_t last_sec_bucket = ltime % 60;
 
         if (in_time == ltime) {
             set_last_value_n1(get_last_value());
@@ -526,18 +541,20 @@ public:
             set_last_value(in_s);
         }
 
+        auto& minute_vec_back = minute_vec->get();
+
         // Allow backfilling w/in the past minute because packets might come out-of-order
         if (in_time < ltime) {
             if (ltime - in_time > 60)
                 return;
 
-            double v = *(minute_vec->begin() + sec_bucket);
-            *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
+            double v = minute_vec_back[sec_bucket];
+            minute_vec_back[sec_bucket] = agg.combine_element(v, in_s);
         } else {
             // If we haven't seen data in a minute, wipe
             if (in_time - ltime > 60) {
                 for (int x = 0; x < 60; x++) {
-                    *(minute_vec->begin() + x) = agg.default_val();
+                    minute_vec_back[x] = agg.default_val();
                 }
             } else {
                 // If in_time == last_time then we're updating an existing record, so
@@ -545,14 +562,14 @@ public:
                 // Otherwise, fast-forward seconds with zero data, average the seconds,
                 // and propagate the averages up
                 if (in_time == ltime) {
-                    double v = *(minute_vec->begin() + sec_bucket);
-                    *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
+                    double v = minute_vec_back[sec_bucket];
+                    minute_vec_back[sec_bucket] = agg.combine_element(v, in_s);
                 } else {
                     for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                        *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
+                        minute_vec_back[(last_sec_bucket + 1 + s) % 60] = agg.default_val();
                     }
 
-                    *(minute_vec->begin() + sec_bucket) = in_s;
+                    minute_vec_back[sec_bucket] = in_s;
                 }
             }
         }
@@ -665,7 +682,7 @@ public:
     static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         double avg = 0, avgc = 0;
 
-        for (auto i : *e) {
+        for (const auto& i : e->get()) {
             double v = i;
 
             if (v == 0)
@@ -770,7 +787,7 @@ public:
     static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         double most = 0;
 
-        for (auto i : *e) {
+        for (const auto& i : e->get()) {
             if (i > most)
                 most = i;
         }
