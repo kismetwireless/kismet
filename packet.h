@@ -134,6 +134,93 @@ public:
     double freq_khz;
 };
 
+class kis_gps_packinfo : public packet_component {
+public:
+    kis_gps_packinfo() {
+        reset();
+    }
+
+    virtual bool unique() override { return true; }
+
+    void set(std::shared_ptr<kis_gps_packinfo> src) {
+        merge_partial = src->merge_partial;
+        merge_flags = src->merge_flags;
+
+        lat = src->lat;
+        lon = src->lon;
+        alt = src->alt;
+        speed = src->speed;
+        heading = src->heading;
+        magheading = src->magheading;
+        precision = src->precision;
+        fix = src->fix;
+        tv.tv_sec = src->tv.tv_sec;
+        tv.tv_usec = src->tv.tv_usec;
+
+        gps_id = src->gps_id;
+    }
+
+    void set(const kis_gps_packinfo& src) {
+        merge_partial = src.merge_partial;
+        merge_flags = src.merge_flags;
+
+        lat = src.lat;
+        lon = src.lon;
+        alt = src.alt;
+        speed = src.speed;
+        heading = src.heading;
+        magheading = src.magheading;
+        precision = src.precision;
+        fix = src.fix;
+        tv.tv_sec = src.tv.tv_sec;
+        tv.tv_usec = src.tv.tv_usec;
+        gps_id = src.gps_id;
+    }
+
+    void reset() {
+        merge_partial = false;
+        merge_flags = 0;
+
+        lat = lon = alt = speed = heading = magheading = 0;
+        precision = 0;
+        fix = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+        error_x = 0;
+        error_y = 0;
+        error_v = 0;
+
+        gps_id = 0;
+    }
+
+    double lat;
+    double lon;
+    double alt;
+    double speed;
+    double heading;
+    double magheading;
+
+    // If we know it, how accurate our location is, in meters
+    double precision;
+
+    // Should handlers merge partial info (speed and alt) without
+    // location info?  Used for sources like adsb which receive location
+    // in multiple records
+    bool merge_partial;
+    uint8_t merge_flags;
+
+    // If we know it, 2d vs 3d fix
+    int fix;
+
+    // If we know error values...
+    double error_x, error_y, error_v;
+
+    // GPS ID #
+    uint64_t gps_id;
+
+    struct timeval tv;
+};
+
 // Overall packet container that holds packet information
 class kis_packet {
 public:
@@ -185,6 +272,10 @@ public:
     // Commonly needed info
     bool common_info_ok;
     kis_common_info common_info;
+
+    // gps info
+    bool gps_info_ok;
+    kis_gps_packinfo gps_info;
 
     // Did this packet trigger creation of a new device?  Since a 
     // single packet can create multiple devices in some phys, maintain
@@ -661,93 +752,6 @@ public:
     }
 
     std::map<std::string, std::string> tagmap;
-};
-
-class kis_gps_packinfo : public packet_component {
-public:
-    kis_gps_packinfo() {
-        reset();
-    }
-
-    virtual bool unique() override { return true; }
-
-    void set(std::shared_ptr<kis_gps_packinfo> src) {
-        merge_partial = src->merge_partial;
-        merge_flags = src->merge_flags;
-
-        lat = src->lat;
-        lon = src->lon;
-        alt = src->alt;
-        speed = src->speed;
-        heading = src->heading;
-        magheading = src->magheading;
-        precision = src->precision;
-        fix = src->fix;
-        tv.tv_sec = src->tv.tv_sec;
-        tv.tv_usec = src->tv.tv_usec;
-
-        gps_id = src->gps_id;
-    }
-
-    void set(const kis_gps_packinfo& src) {
-        merge_partial = src.merge_partial;
-        merge_flags = src.merge_flags;
-
-        lat = src.lat;
-        lon = src.lon;
-        alt = src.alt;
-        speed = src.speed;
-        heading = src.heading;
-        magheading = src.magheading;
-        precision = src.precision;
-        fix = src.fix;
-        tv.tv_sec = src.tv.tv_sec;
-        tv.tv_usec = src.tv.tv_usec;
-        gps_id = src.gps_id;
-    }
-
-    void reset() {
-        merge_partial = false;
-        merge_flags = 0;
-
-        lat = lon = alt = speed = heading = magheading = 0;
-        precision = 0;
-        fix = 0;
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        error_x = 0;
-        error_y = 0;
-        error_v = 0;
-
-        gps_id = 0;
-    }
-
-    double lat;
-    double lon;
-    double alt;
-    double speed;
-    double heading;
-    double magheading;
-
-    // If we know it, how accurate our location is, in meters
-    double precision;
-
-    // Should handlers merge partial info (speed and alt) without
-    // location info?  Used for sources like adsb which receive location
-    // in multiple records
-    bool merge_partial;
-    uint8_t merge_flags;
-
-    // If we know it, 2d vs 3d fix
-    int fix;
-
-    // If we know error values...
-    double error_x, error_y, error_v;
-
-    // GPS ID #
-    uint64_t gps_id;
-
-    struct timeval tv;
 };
 
 #endif
