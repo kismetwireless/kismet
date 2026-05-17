@@ -1442,6 +1442,11 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                         break;
                     case EAP_TYPE_IDENTITY:
                         if (eap_code == EAP_CODE_RESPONSE) {
+                            if (eap_length < 5) {
+                                packinfo->corrupt = 1;
+                                return -1;
+                            }
+
                             rawlen = eap_length - 5;
                             rawid = new char[rawlen + 1];
                             memcpy(rawid, &(chunk->data()[offset + 5]), rawlen);
