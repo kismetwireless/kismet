@@ -255,8 +255,8 @@ public:
 
                 // Fill the hours between the last time we saw data and now with
                 // zeroes; fastforward time
-                for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
-                    *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = d_agg.default_val();
+                for (size_t h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
+                    *(day_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = d_agg.default_val();
                 }
 
                 *(day_vec->begin() + hour_bucket) = min_avg;
@@ -269,7 +269,7 @@ public:
                 // - Update hours
                 // printf("debug - rrd - been over a minute since last value\n");
 
-                int64_t sec_avg = 0, min_avg = 0;
+                double sec_avg = 0, min_avg = 0;
 
                 auto& minute_vec_back = minute_vec->get();
                 for (size_t i = 0; i < minute_vec->size(); i++) {
@@ -308,7 +308,7 @@ public:
                     double v = minute_vec_back[sec_bucket];
                     minute_vec_back[sec_bucket] = m_agg.combine_element(v, in_s);
                 } else {
-                    for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                    for (size_t s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                         minute_vec_back[(last_sec_bucket + 1 + s) % 60] = m_agg.default_val();
                     }
 
@@ -348,7 +348,7 @@ public:
     }
 
 protected:
-    constexpr int minutes_different(int m1, int m2) const {
+    constexpr size_t minutes_different(size_t m1, size_t m2) const {
         m1 = m1 % 60;
         m2 = m2 % 60;
 
@@ -361,7 +361,7 @@ protected:
         }
     }
 
-    constexpr int hours_different(int h1, int h2) const {
+    constexpr size_t hours_different(size_t h1, size_t h2) const {
         h1 = h1 % 24;
         h2 = h2 % 24;
 
@@ -374,7 +374,7 @@ protected:
         }
     }
 
-    constexpr int days_different(int d1, int d2) const {
+    constexpr size_t days_different(size_t d1, size_t d2) const {
         d1 = d1 % 7;
         d2 = d2 % 7;
 
