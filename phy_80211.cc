@@ -3162,9 +3162,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             (l1info->freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
         try {
             basedev->set_channel(khz_to_channel(l1info->freq_khz));
-        } catch (const std::runtime_error& e) {
-            ;
-        }
+        } catch (...) { }
     }
 
     bool new_ssid = false;

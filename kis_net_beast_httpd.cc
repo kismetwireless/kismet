@@ -1917,6 +1917,55 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 
 }
 
+void kis_net_web_jsonable_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    kis_unique_lock<kis_mutex> lk(mutex, std::defer_lock, __func__);
+
+    if (use_mutex)
+        lk.lock();
+
+    std::ostream os(&con->response_stream());
+
+    try {
+		/*
+        auto output_content = std::shared_ptr<tracker_element>();
+        auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
+		*/
+
+        if (content == nullptr) {
+            con->set_status(500);
+            os << "Invalid request:  No backing content or generator\n";
+            return;
+        }
+
+        if (pre_func)
+            pre_func(content);
+
+		/*
+        auto summary = con->summarize_with_json(output_content, rename_map);
+
+        Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os,
+                summary, rename_map);
+		*/
+
+		json_adapter_v2::serialize(os, content);
+
+        os.flush();
+
+        if (post_func)
+            post_func(content);
+
+    } catch (const std::exception& e) {
+        try {
+            con->set_status(500);
+        } catch (const std::exception& e) {
+            ;
+        }
+
+        os << "ERROR: " << e.what() << "\n";
+    }
+}
+
+
 
 void kis_net_web_websocket_endpoint::close() {
     close_impl();

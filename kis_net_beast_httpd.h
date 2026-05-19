@@ -41,7 +41,7 @@
 #include "future_chainbuf.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "messagebus.h"
+#include "json_adapter_v2.h"
 #include "trackedelement.h"
 
 #include "fmt_asio.h"
@@ -593,6 +593,37 @@ protected:
     std::atomic<bool> running;
     std::promise<void> running_promise;
 
+};
+
+class kis_net_web_jsonable_endpoint : public kis_net_web_endpoint {
+public:
+    using wrapper_func_t = std::function<void (json_adapter_v2::jsonable *)>;
+
+    kis_net_web_jsonable_endpoint(json_adapter_v2::jsonable *content,
+            kis_mutex& mutex,
+            wrapper_func_t pre_func = nullptr,
+            wrapper_func_t post_func = nullptr) :
+        content{content},
+        mutex{mutex},
+        use_mutex{true},
+        pre_func{pre_func},
+        post_func{post_func} { }
+
+    kis_net_web_jsonable_endpoint(json_adapter_v2::jsonable *content) :
+        content{content},
+        mutex{dfl_mutex} { }
+
+    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
+
+protected:
+	json_adapter_v2::jsonable *content;
+
+    kis_mutex& mutex;
+    kis_mutex dfl_mutex;
+    bool use_mutex;
+
+    wrapper_func_t pre_func;
+    wrapper_func_t post_func;
 };
 
 // Routes map a templated URL path to a callback generator which creates the content.

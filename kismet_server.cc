@@ -107,6 +107,7 @@
 
 #include "system_monitor.h"
 #include "channeltracker2.h"
+#include "channeltracker_v3.h"
 #include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"
 #include "streamtracker.h"
@@ -881,7 +882,8 @@ int main(int argc, char *argv[], char *envp[]) {
     auto devicetracker = device_tracker::create_device_tracker();
 
     // Add channel tracking
-    channel_tracker_v2::create_channeltracker();
+    // channel_tracker_v2::create_channeltracker();
+	channel_tracker_v3::create_channeltracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
