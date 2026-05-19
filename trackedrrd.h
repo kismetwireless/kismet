@@ -283,7 +283,7 @@ public:
 
                 // Zero between last and current
                 auto& hour_vec_back = hour_vec->get();
-                for (int m = 0; m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
+                for (size_t m = 0; m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
                     hour_vec_back[((last_min_bucket + 1 + m) % 60)] = h_agg.default_val();
                 }
 
@@ -561,7 +561,7 @@ public:
         } else {
             // If we haven't seen data in a minute, wipe
             if (in_time - ltime > 60) {
-                for (int x = 0; x < 60; x++) {
+                for (size_t x = 0; x < 60; x++) {
                     minute_vec_back[x] = agg.default_val();
                 }
             } else {
@@ -573,7 +573,7 @@ public:
                     double v = minute_vec_back[sec_bucket];
                     minute_vec_back[sec_bucket] = agg.combine_element(v, in_s);
                 } else {
-                    for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                    for (size_t s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                         minute_vec_back[(last_sec_bucket + 1 + s) % 60] = agg.default_val();
                     }
 
@@ -604,7 +604,7 @@ public:
     }
 
 protected:
-    inline int minutes_different(int m1, int m2) const {
+    inline size_t minutes_different(int m1, int m2) const {
         // Sanity check
         m1 = m1 % 60;
         m2 = m2 % 60;
