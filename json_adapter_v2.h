@@ -19,6 +19,7 @@
 #ifndef __JSON_ADAPTER_V2__
 #define __JSON_ADAPTER_V2__
 
+#include <functional>
 #include <string>
 #include <ostream>
 
