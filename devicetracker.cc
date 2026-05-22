@@ -636,15 +636,19 @@ device_tracker::device_tracker() :
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
-                // consumer-supplied key# per monitor request, timer id of monitor event
-                std::unordered_map<unsigned int, int> key_timer_map;
-
                 auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
-                        [this, &key_timer_map, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            std::shared_ptr<boost::asio::streambuf> buf, bool text) {
+                        [this, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            std::shared_ptr<boost::asio::streambuf> buf, bool text) mutable {
+						// consumer-supplied key# per monitor request, timer id of monitor event
+                		std::unordered_map<unsigned int, int> key_timer_map;
+
 
                         if (!text) {
+							for (const auto& ti : key_timer_map) {
+								timetracker->remove_timer(ti.second);
+							}
+
                             ws->close();
                             return;
                         }
@@ -744,6 +748,10 @@ device_tracker::device_tracker() :
                             }
 
                         } catch (const std::exception& e) {
+							for (const auto& ti : key_timer_map) {
+								timetracker->remove_timer(ti.second);
+							}
+
                             _MSG_ERROR("Invalid device monitor request: {}", e.what());
                             return;
                         }
@@ -754,12 +762,7 @@ device_tracker::device_tracker() :
 
                 try {
                     ws->handle_request(con);
-                } catch (const std::exception& e) {
-                    ;
-                }
-
-                for (const auto t : key_timer_map)
-                    timetracker->remove_timer(t.second);
+                } catch (...) { }
             }));
 
     phy_phyentry_id =
