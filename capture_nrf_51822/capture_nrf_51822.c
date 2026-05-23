@@ -8,6 +8,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 #include "../capture_framework.h"
 #include "../config.h"
@@ -299,6 +300,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+	pthread_mutex_lock(&localnrf->serial_mutex);
+
     /* open for r/w but no tty */
     localnrf->fd = open(device, O_RDWR | O_NOCTTY);
 
@@ -308,42 +311,39 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    tcgetattr(localnrf->fd,
-        &localnrf->oldtio); /* save current serial port settings */
-    bzero(&localnrf->newtio,
-        sizeof(localnrf->newtio)); /* clear struct for new port settings */
+    tcgetattr(localnrf->fd, &localnrf->oldtio); /* save current serial port settings */
+	localnrf->newtio = localnrf->oldtio;
 
-    /* set the baud rate and flags */
-#if defined(SYS_OPENBSD)
-    localnrf->newtio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-    cfsetspeed(&localnrf->newtio, localnrf->baudrate);
-#else
-    localnrf->newtio.c_cflag =
-        localnrf->baudrate | CRTSCTS | CS8 | CLOCAL | CREAD;
-#endif
+	cfmakeraw(&localnrf->newtio);
 
-    /* ignore parity errors */
-    localnrf->newtio.c_iflag = IGNPAR;
+	cfsetispeed(&localnrf->newtio, B115200);
+	cfsetospeed(&localnrf->newtio, B115200);
 
-    /* raw output */
-    localnrf->newtio.c_oflag = 0;
+	localnrf->newtio.c_cflag |= (CLOCAL | CREAD | CS8);
+	localnrf->newtio.c_cflag &= ~(PARENB | PARODD | CSTOPB | CRTSCTS);
 
-    /* newtio.c_lflag = ICANON; */
-    localnrf->newtio.c_cc[VTIME] = 5; // 0.5 seconds
-    localnrf->newtio.c_cc[VMIN] = 0;
+	localnrf->newtio.c_iflag |= IGNPAR;
 
-    /* flush and set up */
-    if (tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio)) {
-        snprintf(msg, STATUS_MAX, "%s failed to set serial device options - %s",
-                 localnrf->name, strerror(errno));
-        return -1;
-    }
+	/* short read timeout, no minimum */
+	localnrf->newtio.c_cc[VMIN] = 0;
+	localnrf->newtio.c_cc[VTIME] = 1;
 
-    if (tcflush(localnrf->fd, TCIFLUSH)) {
-        snprintf(msg, STATUS_MAX, "%s failed to flush serial device - %s",
-                 localnrf->name, strerror(errno));
-        return -1;
-    }
+	if (tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio) < 0) {
+		snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
+				localnrf->name, strerror(errno));
+		pthread_mutex_unlock(&(localnrf->serial_mutex));
+		return -1;
+	}
+
+	int mctrl = 0;
+	if (ioctl(localnrf->fd, TIOCMGET, &mctrl) == 0) {
+		mctrl |= TIOCM_RTS | TIOCM_DTR;
+		ioctl(localnrf->fd, TIOCMSET, &mctrl);
+	}
+
+	tcflush(localnrf->fd, TCIFLUSH);
+
+	pthread_mutex_unlock(&(localnrf->serial_mutex));
 
     return 1;
 }
@@ -368,14 +368,14 @@ void capture_thread(kis_capture_handler_t *caph) {
     int r = 0;
 
     while (1) {
-        if (caph->spindown) {
+        if (*(volatile int *) &caph->spindown) {
             /* set the port back to normal */
             tcsetattr(localnrf->fd, TCSANOW, &localnrf->oldtio);
             break;
         }
 
         valid_pkt = false;
-	memset(buf, 0, sizeof(buf));
+		memset(buf, 0, sizeof(buf));
         buf_rx_len = nrf_receive_payload(caph, buf, BUFFER_SIZE);
 
         if (buf_rx_len < 0) {

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <termios.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include "../config.h"
 
@@ -37,9 +38,9 @@ typedef struct {
     char *interface;
 
     /* flag to let use know when we are ready to capture */
-    bool ready;
+    volatile bool ready;
 
-    uint16_t error_ctr;
+    volatile uint16_t error_ctr;
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
@@ -55,12 +56,10 @@ int nrf_write_cmd(kis_capture_handler_t *caph, char *tx_buf, size_t tx_len)
      * sleep
      * channel x
      */
-    uint8_t buf[255];
-    uint8_t res = 0;
+	ssize_t res;
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     pthread_mutex_lock(&(localnrf->serial_mutex));
-    write(localnrf->fd,tx_buf,tx_len);
-    res = read(localnrf->fd,buf,255);
+    res = write(localnrf->fd, tx_buf, tx_len);
     pthread_mutex_unlock(&(localnrf->serial_mutex));
 
     if (res < 0)
@@ -85,11 +84,11 @@ int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     localnrf->ready = false;
-    nrf_exit_promisc_mode(caph);
+    // nrf_exit_promisc_mode(caph);
     char ch[16];
     sprintf(ch, "channel %u\r\n\r\n", channel);
-    nrf_write_cmd(caph,ch,strlen(ch));
-    nrf_enter_promisc_mode(caph);
+	nrf_write_cmd(caph, ch, strlen(ch));
+    // nrf_enter_promisc_mode(caph);
     localnrf->ready = true;
     return 1;
 }
@@ -310,33 +309,48 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (localnrf->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
                 localnrf->name, strerror(errno));
+		pthread_mutex_unlock(&localnrf->serial_mutex);
         return -1;
     }
 
     tcgetattr(localnrf->fd,&localnrf->oldtio); /* save current serial port settings */
-    bzero(&localnrf->newtio, sizeof(localnrf->newtio)); /* clear struct for new port settings */
+    // bzero(&localnrf->newtio, sizeof(localnrf->newtio)); /* clear struct for new port settings */
+	localnrf->newtio = localnrf->oldtio;
 
-    /* set the baud rate and flags */
-    localnrf->newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;
+	cfmakeraw(&localnrf->newtio);
 
-    /* ignore parity errors */
-    localnrf->newtio.c_iflag = IGNPAR;
+	cfsetispeed(&localnrf->newtio, B115200);
+	cfsetospeed(&localnrf->newtio, B115200);
 
-    /* raw output */
-    localnrf->newtio.c_oflag = 0;
+	localnrf->newtio.c_cflag |= (CLOCAL | CREAD | CS8);
+	localnrf->newtio.c_cflag &= ~(PARENB | PARODD | CSTOPB | CRTSCTS);
 
-    /* newtio.c_lflag = ICANON; */
+	localnrf->newtio.c_iflag |= IGNPAR;
 
-    localnrf->newtio.c_lflag &= ~ICANON; /* Set non-canonical mode */
-    localnrf->newtio.c_cc[VTIME] = 1; /* Set timeout in deciseconds */
+	/* short read timeout, no minimum */
+	localnrf->newtio.c_cc[VMIN] = 0;
+	localnrf->newtio.c_cc[VTIME] = 1;
 
-    /* flush and set up */
-    tcflush(localnrf->fd, TCIFLUSH);
-    tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio);
+	if (tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio) < 0) {
+		snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
+				localnrf->name, strerror(errno));
+		pthread_mutex_unlock(&(localnrf->serial_mutex));
+		return -1;
+	}
+
+	int mctrl = 0;
+	if (ioctl(localnrf->fd, TIOCMGET, &mctrl) == 0) {
+		mctrl |= TIOCM_RTS | TIOCM_DTR;
+		ioctl(localnrf->fd, TIOCMSET, &mctrl);
+	}
+
+	tcflush(localnrf->fd, TCIFLUSH);
 
     pthread_mutex_unlock(&(localnrf->serial_mutex));
 
     nrf_set_channel(caph, 11);
+
+	nrf_enter_promisc_mode(caph);
 
     return 1;
 }
@@ -393,7 +407,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     int r = 0;
 
     while(1) {
-	    if(caph->spindown) {
+	    if(*(volatile int *) &caph->spindown) {
             nrf_exit_promisc_mode(caph);
             /* set the port back to normal */
             pthread_mutex_lock(&(localnrf->serial_mutex));
