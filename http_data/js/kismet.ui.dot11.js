@@ -2398,7 +2398,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 else if (lastssid.replace(/\s/g, '').length == 0) 
                     lastssid = `<i>Cloaked / Empty (${lastssid.length} characters)</i>`;
 
-                $(`a#dot11_bssid_client_${v}`).html(`Client of ${kismet.censorMAC(dev['kismet.device.base.macaddr'])} (${lastssid})`);
+                $(`a#dot11_bssid_client_${v}`).html(`Client of ${kismet.censorMAC(dev['kismet.device.base.macaddr'])} (${kismet.censorString(lastssid)})`);
             });
 
             client_devs = [];
@@ -3545,12 +3545,11 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                     ;
                 }
 
-                var titlehtml = `${kismet.ExtractDeviceName(dev)} - ${dev['kismet.device.base.macaddr']}`;
+                var titlehtml = `${kismet.censorString(kismet.ExtractDeviceName(dev))} - ${kismet.censorMAC(dev['kismet.device.base.macaddr'])}`;
+				console.log(titlehtml);
 
                 if (crypttxt != null)
                     titlehtml = `${titlehtml} - ${crypttxt}`;
-
-                titlehtml = kismet.censorMAC(titlehtml);
 
                 $(`#ssid_expander_advertising_${v}`).html(titlehtml);
 
@@ -3666,12 +3665,10 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                     ;
                 }
 
-                var titlehtml = `${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`;
+                var titlehtml = `${kismet.censorString(dev['kismet.device.base.commonname'])} - ${kismet.censorMAC(dev['kismet.device.base.macaddr'])}`;
 
                 if (crypttxt != null)
                     titlehtml = `${titlehtml} - ${crypttxt}`;
-
-                titlehtml = kismet.censorMAC(titlehtml);
 
                 $(`#ssid_expander_responding_${v}`).html(titlehtml);
 
@@ -3698,7 +3695,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             title: "Name",
                             empty: "<i>None</i>",
                             draw: function(opts) {
-                                return kismet.censorMAC(opts['value']);
+                                return kismet.censorString(opts['value']);
                             },
                         },
                         {
@@ -3754,7 +3751,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                                 if (opts['value'].replace(/\s/g, '').length == 0) 
                                     return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
 
-                                return opts['value'];
+                                return kismet.censorString(opts['value']);
                             },
                         },
                     ]
@@ -3792,7 +3789,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             title: "Name",
                             empty: "<i>None</i>",
                             draw: function(opts) {
-                                return kismet.censorMAC(opts['value']);
+                                return kismet.censorString(opts['value']);
                             },
                         },
                         {

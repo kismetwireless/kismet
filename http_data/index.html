@@ -113,11 +113,20 @@ const urlParams = new URLSearchParams(queryString);
 
 window['censor_macs'] = urlParams.get('censor_macs')
 window['censor_location'] = urlParams.get('censor_location')
+window['censor_more'] = urlParams.get('censor_more')
 
 if (urlParams.get('censor')) {
     window['censor_macs'] = 1
     window['censor_location'] = 1
 }
+
+if (urlParams.get('censor_heavy')) {
+    window['censor_macs'] = 1
+    window['censor_location'] = 1
+	window['censor_more'] = 1
+}
+
+
 
 var orig_title = "";
 

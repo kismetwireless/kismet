@@ -433,7 +433,9 @@ exports.sanitizeHTML = function(s) {
  * display component */
 exports.censorMAC = function(t) {
     try {
-        if (window['censor_macs'])
+		if (window['censor_more']) {
+			return "XX:XX:XX:XX:XX:XX";
+		} else if (window['censor_macs'])
             return t.replace(/([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}):[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}/g, "$1:XX:XX:XX");
         else
             return t;
@@ -458,7 +460,7 @@ exports.censorLocation = function(t) {
 exports.censorString = function(t) {
     try {
         if (window['censor_macs']) {
-            if (t.length < 6) {
+            if (t.length < 6 || window['censor_more']) {
                 return new Array(t.length + 1).join('X');
             } else {
                 return t.substring(0, 2) + (new Array(t.length - 3).join('X')) + t.substring(t.length - 2, t.length);
