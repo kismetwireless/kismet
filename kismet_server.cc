@@ -97,6 +97,7 @@
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
 #include "kis_databaselogfile.h"
+#include "kis_pcapng_ring_logfile.h"
 #include "kis_pcapnglogfile.h"
 #include "kis_wiglecsvlogfile.h"
 
@@ -953,6 +954,7 @@ int main(int argc, char *argv[], char *envp[]) {
     logtracker->register_log(shared_log_builder(new ppi_logfile_builder()));
     logtracker->register_log(shared_log_builder(new kis_database_logfile_builder()));
     logtracker->register_log(shared_log_builder(new pcapng_logfile_builder()));
+    logtracker->register_log(shared_log_builder(new pcapng_ring_logfile_builder()));
 	logtracker->register_log(shared_log_builder(new wiglecsv_logfile_builder()));
 
 	// Create the scan-only handlers
