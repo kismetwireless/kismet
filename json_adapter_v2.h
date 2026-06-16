@@ -89,6 +89,7 @@ namespace json_adapter_v2 {
     };
 
     void serialize(std::ostream& os, jsonable *object,
+            const std::string& extension, raw_field_list& fields,
             name_permute_fn permute_fn =
             [](const std::string& n) { return fmt::format("\"{}\"", sanitize_string(n)); });
 

@@ -45,13 +45,29 @@ void json_adapter_v2::group_fields(const json_adapter_v2::raw_field_list& fields
         std::string_view fn{of.first};
         const auto fp = json_adapter_v2::pop_path(fn);
 
+        std::string_view rename_empty;
+        if (of.second == "") {
+            const auto lp = fp.find_last_of("/");
+            if (lp == std::string_view::npos) {
+                rename_empty = fp;
+            } else {
+                rename_empty = fp.substr(lp + 1, fp.length());
+            }
+        }
+
         // aggregate multiple child fields into one object
         const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()), json_adapter_v2::field_group{
                 .field = fn,
-                .rename = of.second,
                 });
 
-        if (!ins.second) {
+        if (ins.second) {
+            // if we have more path components, append this field as a subfield immediately
+            if (fp != fn) {
+                ins.first->second.subfields.push_back(std::make_pair(fn, of.second));
+            } else {
+                ins.first->second.rename = of.second != "" ? of.second : std::string(rename_empty.data(), rename_empty.length());
+            }
+        } else {
             // promote a single-field entry to a nested entry
             if (ins.first->second.subfields.size() == 0) {
                 ins.first->second.subfields.push_back(std::make_pair(ins.first->second.field, ins.first->second.rename));
@@ -69,13 +85,29 @@ void json_adapter_v2::group_fields(const json_adapter_v2::mod_field_list& fields
         std::string_view fn{of.first};
         const auto fp = json_adapter_v2::pop_path(fn);
 
+        std::string_view rename_empty;
+        if (of.second == "") {
+            const auto lp = fp.find_last_of("/");
+            if (lp == std::string_view::npos) {
+                rename_empty = fp;
+            } else {
+                rename_empty = fp.substr(lp + 1, fp.length());
+            }
+        }
+
         // aggregate multiple child fields into one object
         const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()), json_adapter_v2::field_group{
                 .field = fn,
-                .rename = of.second,
                 });
 
-        if (!ins.second) {
+        if (ins.second) {
+            // if we have more path components, append this field as a subfield immediately
+            if (fp != fn) {
+                ins.first->second.subfields.push_back(std::make_pair(fn, of.second));
+            } else {
+                ins.first->second.rename = of.second != "" ? of.second : std::string(rename_empty.data(), rename_empty.length());
+            }
+        } else {
             // promote a single-field entry to a nested entry
             if (ins.first->second.subfields.size() == 0) {
                 ins.first->second.subfields.push_back(std::make_pair(ins.first->second.field, ins.first->second.rename));
@@ -88,6 +120,7 @@ void json_adapter_v2::group_fields(const json_adapter_v2::mod_field_list& fields
 }
 
 void json_adapter_v2::serialize(std::ostream& os, jsonable *object,
+        const std::string& extension, json_adapter_v2::raw_field_list& fields,
         json_adapter_v2::name_permute_fn permute_fn) {
     json_adapter_v2::opts json_opts;
 
@@ -95,7 +128,10 @@ void json_adapter_v2::serialize(std::ostream& os, jsonable *object,
     json_opts.name_permute = permute_fn;
     json_opts.next_key_comma = false;
 
-    object->as_json(os, &json_opts);
+    json_adapter_v2::field_group_map grouped;
+    json_adapter_v2::group_fields(fields, grouped);
+
+    object->filtered_as_json(os, &json_opts, grouped);
 }
 
 template<> void json_adapter_v2::encode<std::string>(std::ostream& os,

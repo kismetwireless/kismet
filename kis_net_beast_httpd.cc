@@ -1926,11 +1926,6 @@ void kis_net_web_jsonable_endpoint::handle_request(std::shared_ptr<kis_net_beast
     std::ostream os(&con->response_stream());
 
     try {
-		/*
-        auto output_content = std::shared_ptr<tracker_element>();
-        auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
-		*/
-
         if (content == nullptr) {
             con->set_status(500);
             os << "Invalid request:  No backing content or generator\n";
@@ -1947,7 +1942,10 @@ void kis_net_web_jsonable_endpoint::handle_request(std::shared_ptr<kis_net_beast
                 summary, rename_map);
 		*/
 
-		json_adapter_v2::serialize(os, content);
+        json_adapter_v2::raw_field_list fields;
+        con->extract_field_summary_v2(fields);
+
+		json_adapter_v2::serialize(os, content, "json", fields);
 
         os.flush();
 

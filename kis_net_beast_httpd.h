@@ -421,6 +421,24 @@ public:
 
         return summarize_tracker_element(in_data, summary_vec, rename_map);
     }
+
+    // Convert JSON summarization to the new basic string/string pairing used in the v2 json model.
+    // May throw exceptions if malformed.
+    void extract_field_summary_v2(json_adapter_v2::raw_field_list& summary) {
+        const auto fields = json_["fields"];
+
+        if (!fields.is_null() && fields.is_array()) {
+            for (const auto& i : fields) {
+                if (i.is_string()) {
+                    summary.push_back(std::make_pair(i.get<std::string>(), ""));
+                } else if (i.is_array() && i.size() == 2) {
+                    summary.push_back(std::make_pair(i[0].get<std::string>(), i[1].get<std::string>()));
+                } else {
+                    throw std::runtime_error("invalid vield mapping, expected field or [field, name]");
+                }
+            }
+        }
+    }
 };
 
 

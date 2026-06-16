@@ -48,6 +48,10 @@ void channel_tracker_v3_channel::as_json(std::ostream& os, json_adapter_v2::opts
 }
 
 void channel_tracker_v3_channel::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) {
+    if (fields.size() == 0) {
+        return as_json(os, opts);
+    }
+
 	auto sv_comma = opts->next_key_comma;
 	opts->next_key_comma = false;
 
@@ -273,24 +277,37 @@ void channel_tracker_v3::as_json(std::ostream& os, json_adapter_v2::opts *opts) 
 	opts->next_key_comma = sv_comma;
 }
 
- void channel_tracker_v3::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts,
-         const json_adapter_v2::field_group_map& fields) {
-     json_adapter_v2::field_group_map subgroup;
+void channel_tracker_v3::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts,
+        const json_adapter_v2::field_group_map& fields) {
 
-     for (const auto& f : fields) {
-         switch (json_adapter_v2::consthash(f.first)) {
-             case json_adapter_v2::consthash("kismet.channeltracker.channel_map"):
-                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                 json_adapter_v2::encode_filtered_keyed_map<json_adapter_v2::jsonable>(os, f.second.rename, opts, subgroup,
-                         channel_map.begin(), channel_map.end());
-                 break;
-             case json_adapter_v2::consthash("kismet.channeltracker.frequency_map"):
-                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                 json_adapter_v2::encode_filtered_keyed_map<json_adapter_v2::jsonable>(os, f.second.rename, opts, subgroup,
-                         frequency_map.begin(), frequency_map.end());
+    if (fields.size() == 0) {
+        return as_json(os, opts);
+    }
 
-                 break;
-         }
-     }
- }
+	auto sv_comma = opts->next_key_comma;
+	opts->next_key_comma = false;
+
+	fmt::print(os, "{{");
+
+    json_adapter_v2::field_group_map subgroup;
+
+    for (const auto& f : fields) {
+        switch (json_adapter_v2::consthash(f.first)) {
+            case json_adapter_v2::consthash("kismet.channeltracker.channel_map"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::encode_filtered_keyed_map<json_adapter_v2::jsonable>(os, f.second.rename, opts, subgroup,
+                        channel_map.begin(), channel_map.end());
+                break;
+            case json_adapter_v2::consthash("kismet.channeltracker.frequency_map"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::encode_filtered_keyed_map<json_adapter_v2::jsonable>(os, f.second.rename, opts, subgroup,
+                        frequency_map.begin(), frequency_map.end());
+                break;
+        }
+    }
+
+	fmt::print(os, "}}");
+
+    opts->next_key_comma = sv_comma;
+}
 
