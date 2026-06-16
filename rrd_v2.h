@@ -210,9 +210,58 @@ public:
         last_time = in_time;
     }
 
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override {
+        if (fields.size() == 0) {
+            return as_json(os, opts);
+        }
+
+        auto lg = kis_lock_guard(mutex, __func__);
+
+        auto sv_comma = opts->next_key_comma;
+        opts->next_key_comma = false;
+
+        fmt::print(os, "{{");
+
+        for (const auto& f : fields) {
+            switch (json_adapter_v2::consthash(f.first)) {
+                case json_adapter_v2::consthash("kismet.common.rrd.last_time"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_time);
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.serial_time"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, serial_time);
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.last_value"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_value);
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.last_value_n1"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_value_n1);
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.minute_vec"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, m_array.begin(), m_array.end());
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.hour_vec"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, h_array.begin(), h_array.end());
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.day_vec"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, d_array.begin(), d_array.end());
+                    break;
+                case json_adapter_v2::consthash("kismet.common.rrd.blank_val"):
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, M_Aggregator::default_value());
+                    break;
+                default:
+                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, 0);
+                    break;
+
+            }
+        }
+
+        fmt::print(os, "}}");
+
+        opts->next_key_comma = sv_comma;
+    }
+
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
         // TODO handle field simplification, pretty printing
-
         auto lg = kis_lock_guard(mutex, __func__);
 
         auto sv_comma = opts->next_key_comma;

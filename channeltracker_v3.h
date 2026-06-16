@@ -42,6 +42,7 @@ public:
         device_rrd{std::move(c.device_rrd)} { }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
 protected:
     std::string channel;
@@ -79,6 +80,7 @@ public:
     void update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t in_ts);
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
 protected:
     kis_mutex lock;

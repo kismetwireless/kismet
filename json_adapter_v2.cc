@@ -18,6 +18,74 @@
 
 #include "json_adapter_v2.h"
 
+std::string_view json_adapter_v2::pop_path(std::string_view& v) {
+    const auto pos = v.find_first_of("/");
+    if (pos == std::string_view::npos) {
+        return v;
+    }
+
+    const auto fn = v.substr(0, pos);
+    v.remove_prefix(pos + 1);
+
+    return fn;
+}
+
+std::string_view json_adapter_v2::peek_path(const std::string_view& v) {
+    const auto pos = v.find_first_of("/");
+    if (pos == std::string_view::npos) {
+        return v;
+    }
+
+    return v.substr(0, pos);
+}
+
+void json_adapter_v2::group_fields(const json_adapter_v2::raw_field_list& fields, field_group_map& grouped) {
+    for (const auto& of : fields) {
+        // get the parent object field
+        std::string_view fn{of.first};
+        const auto fp = json_adapter_v2::pop_path(fn);
+
+        // aggregate multiple child fields into one object
+        const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()), json_adapter_v2::field_group{
+                .field = fn,
+                .rename = of.second,
+                });
+
+        if (!ins.second) {
+            // promote a single-field entry to a nested entry
+            if (ins.first->second.subfields.size() == 0) {
+                ins.first->second.subfields.push_back(std::make_pair(ins.first->second.field, ins.first->second.rename));
+                ins.first->second.rename = "";
+            }
+
+            ins.first->second.subfields.push_back(std::make_pair(fn, of.second));
+        }
+    }
+}
+
+void json_adapter_v2::group_fields(const json_adapter_v2::mod_field_list& fields, field_group_map& grouped) {
+    for (const auto& of : fields) {
+        // get the parent object field
+        std::string_view fn{of.first};
+        const auto fp = json_adapter_v2::pop_path(fn);
+
+        // aggregate multiple child fields into one object
+        const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()), json_adapter_v2::field_group{
+                .field = fn,
+                .rename = of.second,
+                });
+
+        if (!ins.second) {
+            // promote a single-field entry to a nested entry
+            if (ins.first->second.subfields.size() == 0) {
+                ins.first->second.subfields.push_back(std::make_pair(ins.first->second.field, ins.first->second.rename));
+                ins.first->second.rename = "";
+            }
+
+            ins.first->second.subfields.push_back(std::make_pair(fn, of.second));
+        }
+    }
+}
 
 void json_adapter_v2::serialize(std::ostream& os, jsonable *object,
         json_adapter_v2::name_permute_fn permute_fn) {
@@ -51,6 +119,18 @@ template<> void json_adapter_v2::encode<json_adapter_v2::jsonable&>(std::ostream
 }
 
 template<>
+void json_adapter_v2::encode_filtered(std::ostream& os, json_adapter_v2::opts *opts,
+        json_adapter_v2::jsonable *e, json_adapter_v2::field_group_map& fields) {
+    e->filtered_as_json(os, opts, fields);
+}
+
+template<>
+void json_adapter_v2::encode_filtered(std::ostream& os, json_adapter_v2::opts *opts,
+        json_adapter_v2::jsonable& e, json_adapter_v2::field_group_map& fields) {
+    e.filtered_as_json(os, opts, fields);
+}
+
+template<>
 void json_adapter_v2::encode_keyed<json_adapter_v2::jsonable>(std::ostream& os, const std::string& field,
         json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e) {
     if (opts->next_key_comma) {
@@ -61,6 +141,44 @@ void json_adapter_v2::encode_keyed<json_adapter_v2::jsonable>(std::ostream& os, 
     encode<json_adapter_v2::jsonable>(os, opts, e);
 
     opts->next_key_comma = true;
+}
+
+void json_adapter_v2::encode_filtered_keyed(std::ostream& os, const std::string& field,
+        json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e,
+        json_adapter_v2::field_group_map& fields) {
+    if (opts->next_key_comma) {
+        fmt::print(os, ",");
+    }
+
+    fmt::print(os, "{}:", opts->name_permute(field));
+    json_adapter_v2::encode_filtered<json_adapter_v2::jsonable>(os, opts, e, fields);
+
+    opts->next_key_comma = true;
+}
+
+void json_adapter_v2::encode_filtered_keyed(std::ostream& os, const std::string& field,
+        json_adapter_v2::opts *opts, json_adapter_v2::jsonable* e,
+        json_adapter_v2::field_group_map& fields) {
+    if (opts->next_key_comma) {
+        fmt::print(os, ",");
+    }
+
+    fmt::print(os, "{}:", opts->name_permute(field));
+    json_adapter_v2::encode_filtered<json_adapter_v2::jsonable>(os, opts, e, fields);
+
+    opts->next_key_comma = true;
+}
+
+void json_adapter_v2::encode_filtered_keyed(std::ostream& os, const std::string_view& field,
+        json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e,
+        json_adapter_v2::field_group_map& fields) {
+    return encode_filtered_keyed(os, std::string(field.data(), field.length()), opts, e, fields);
+}
+
+void json_adapter_v2::encode_filtered_keyed(std::ostream& os, const std::string_view& field,
+        json_adapter_v2::opts *opts, json_adapter_v2::jsonable* e,
+        json_adapter_v2::field_group_map& fields) {
+    return encode_filtered_keyed(os, std::string(field.data(), field.length()), opts, e, fields);
 }
 
 /* sanitize_extra_space and sanitize_string taken from nlohmann's jsonhpp library,

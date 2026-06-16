@@ -45,6 +45,7 @@ public:
     void append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts);
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
 protected:
     std::string signal_type;
