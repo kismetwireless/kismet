@@ -56,9 +56,8 @@ void json_adapter_v2::group_fields(const json_adapter_v2::raw_field_list& fields
         }
 
         // aggregate multiple child fields into one object
-        const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()), json_adapter_v2::field_group{
-                .field = fn,
-                });
+        const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()),
+                json_adapter_v2::field_group{.field = fn});
 
         if (ins.second) {
             // if we have more path components, append this field as a subfield immediately
@@ -96,9 +95,8 @@ void json_adapter_v2::group_fields(const json_adapter_v2::mod_field_list& fields
         }
 
         // aggregate multiple child fields into one object
-        const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()), json_adapter_v2::field_group{
-                .field = fn,
-                });
+        const auto& ins = grouped.try_emplace(std::string(fp.data(), fp.length()),
+                json_adapter_v2::field_group{.field = fn});
 
         if (ins.second) {
             // if we have more path components, append this field as a subfield immediately
