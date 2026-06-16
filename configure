@@ -13336,7 +13336,7 @@ if test "x$ac_cv_lib_websockets_lws_client_connect_via_info" = xyes
 then :
 
                      LIBWSLIBS=`pkg-config --libs libwebsockets`
-                     LIBWSFLAGS=`pkg-config --cflags libwebsockets`
+                     LIBWSCFLAGS=`pkg-config --cflags libwebsockets`
 
                      have_libwebsockets="yes"
 

@@ -1177,7 +1177,7 @@ AS_IF([test "x$want_libwebsockets" != "xno"], [
         AC_CHECK_LIB([websockets], [lws_client_connect_via_info],
                      [
                      LIBWSLIBS=`pkg-config --libs libwebsockets`
-                     LIBWSFLAGS=`pkg-config --cflags libwebsockets`
+                     LIBWSCFLAGS=`pkg-config --cflags libwebsockets`
 
                      have_libwebsockets="yes"
                      AC_DEFINE(HAVE_LIBWEBSOCKETS, 1, libwebsockets)
