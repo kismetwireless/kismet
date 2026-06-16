@@ -79,7 +79,7 @@ void channel_tracker_v3_channel::filtered_as_json(std::ostream& os, json_adapter
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
                 json_adapter_v2::encode_filtered_keyed(os, f.first, opts, device_rrd, subgroup);
                 break;
-            case json_adapter_v2::consthash("kismet.channelrec.device_signal"):
+            case json_adapter_v2::consthash("kismet.channelrec.signal"):
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
                 json_adapter_v2::encode_filtered_keyed(os, f.first, opts, signal_data, subgroup);
                 break;
