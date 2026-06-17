@@ -283,6 +283,60 @@ namespace json_adapter_v2 {
                 opts, fields, first, last);
     }
 
+    template <typename TupleT, std::size_t... Is>
+    void encode_tuple_imp(std::ostream& os, json_adapter_v2::opts *opts,
+            const TupleT& tp, std::index_sequence<Is...>) {
+        size_t index = 0;
+        auto emitElem = [&index, &opts, &os](const auto& x) {
+            fmt::print(os, "{}{}", index++ > 0 ? "," : "", encode(os, opts, x));
+        };
+
+        (emitElem(std::get<Is>(tp)), ...);
+    }
+
+    template <typename TupleT, std::size_t TupSize = std::tuple_size_v<TupleT>>
+    void encode_tuple(std::ostream& os, json_adapter_v2::opts *opts, const TupleT& tp) {
+        fmt::print(os, "[");
+        encode_tuple_imp(os, opts, tp, std::make_index_sequence<TupSize>{});
+        fmt::print(os, "]");
+    }
+
+    template <typename TupleT, std::size_t TupSize = std::tuple_size_v<TupleT>>
+    void encode_keyed_tuple(std::ostream& os, const std::string& field, json_adapter_v2::opts *opts,
+            const TupleT& tp) {
+        if (opts->next_key_comma) {
+            fmt::print(os, ",");
+        }
+
+        fmt::print(os, "{}:", opts->name_permute(field));
+
+        encode_tuple_imp(os, opts, tp, std::make_index_sequence<TupSize>{});
+
+        opts->next_key_comma = true;
+    }
+
+    template <typename T1, typename T2>
+    void encode_pair(std::ostream& os, json_adapter_v2::opts *opts, const std::pair<T1, T2>& pair) {
+        fmt::print(os, "[");
+        encode<T1>(os, opts, std::get<0>(pair));
+        fmt::print(os, ",");
+        encode<T2>(os, opts, std::get<0>(pair));
+        fmt::print(os, "]");
+    }
+
+    template <typename T1, typename T2>
+    void encode_keyed_pair(std::ostream&os, const std::string& field, json_adapter_v2::opts *opts,
+            const std::pair<T1, T2>& pair) {
+        if (opts->next_key_comma) {
+            fmt::print(os, ",");
+        }
+
+        fmt::print(os, "{}:{{", opts->name_permute(field));
+        encode_pair(os, opts, pair);
+        fmt::print(os, "}}");
+
+        opts->next_key_comma = true;
+    }
 }
 
 #endif /* __JSON_ADAPTER_V2__ */
