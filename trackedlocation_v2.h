@@ -177,6 +177,7 @@ public:
     kis_historic_location_v2() :
         json_adapter_v2::jsonable{},
         geopoint_{0, 0},
+        fix_{0},
         altitude_{0},
         speed_{0},
         heading_{0},
@@ -185,9 +186,43 @@ public:
         frequency_{0},
         time_sec_{0} { }
 
+    constexpr17 auto lat() const { return std::get<1>(geopoint_); }
+    void set_lat(double lat) { geopoint_.second = lat; }
+    constexpr17 auto lon() const { return std::get<0>(geopoint_); }
+    void set_lon(double lon) { geopoint_.first = lon; }
+    constexpr17 auto& location() const { return geopoint_; }
+    void set_location(double lat, double lon) { geopoint_ = std::make_pair(lon, lat); }
+    void set_location(const geopoint_t& p) { geopoint_ = p; }
+    void set_location(double lat, double lon, double altitude, uint8_t fix) {
+        geopoint_ = std::make_pair(lon, lat);
+        fix_ = fix;
+        altitude_ = altitude;
+    }
+    void set_location(const geopoint_t& geopoint, double altitude, uint8_t fix) {
+        geopoint_ = geopoint;
+        fix_ = fix;
+        altitude_ = altitude;
+    }
+
+    constexpr17 auto altitude() const { return altitude_; }
+    void set_altitude(double alt) { altitude_ = alt; }
+
+    void set_time(uint64_t time_s) { time_sec_ = time_s; }
+    constexpr17 auto time() const { return time_sec_; }
+
+    constexpr17 bool get_valid() const { return fix_ >= 2; }
+    constexpr17 uint8_t fix() const { return fix_; }
+    void set_fix(uint8_t fix) { fix_ = fix; }
+
+    virtual void set(const kis_tracked_location_triplet_v2& t);
+    virtual void set(const kis_gps_packinfo *pi);
+
+    virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
 protected:
     geopoint_t geopoint_;
+    uint8_t fix_;
     double altitude_;
     double speed_;
 
