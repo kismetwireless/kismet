@@ -24,11 +24,13 @@
 #include <stdint.h>
 
 #include "json_adapter_v2.h"
+#include "kis_mutex.h"
 #include "packet.h"
 #include "packinfo_signal.h"
 
 class kis_gps_packinfo;
 class kis_tracked_location_full_v2;
+class kis_historic_location_v2;
 
 using geopoint_t = std::pair<double, double>;
 
@@ -91,6 +93,7 @@ protected:
     uint64_t time_sec_, time_usec_;
 
     friend class kis_tracked_location_full_v2;
+    friend class kis_historic_location_v2;
 };
 
 class kis_tracked_location_full_v2 : public kis_tracked_location_triplet_v2 {
@@ -138,6 +141,8 @@ protected:
     double speed_;
     float heading_;
     float magheading_;
+
+    friend class kis_historic_location_v2;
 };
 
 // V2 instance of a full location record, which includes min/max/average location with
@@ -186,6 +191,22 @@ public:
         frequency_{0},
         time_sec_{0} { }
 
+    kis_historic_location_v2(const kis_tracked_location_triplet_v2& t) { set(t); }
+    kis_historic_location_v2(const kis_tracked_location_full_v2& t) { set(t); }
+    kis_historic_location_v2(const kis_gps_packinfo *pi) { set(pi); }
+
+    void reset() {
+        geopoint_ = {0, 0};
+        fix_ = 0;
+        altitude_ = 0;
+        speed_ = 0;
+        heading_ = 0;
+        magheading_ = 0;
+        signal_ = 0;
+        frequency_ = 0;
+        time_sec_ = 0;
+    }
+
     constexpr17 auto lat() const { return std::get<1>(geopoint_); }
     void set_lat(double lat) { geopoint_.second = lat; }
     constexpr17 auto lon() const { return std::get<0>(geopoint_); }
@@ -207,15 +228,90 @@ public:
     constexpr17 auto altitude() const { return altitude_; }
     void set_altitude(double alt) { altitude_ = alt; }
 
-    void set_time(uint64_t time_s) { time_sec_ = time_s; }
     constexpr17 auto time() const { return time_sec_; }
+    void set_time(uint64_t time_s) { time_sec_ = time_s; }
 
     constexpr17 bool get_valid() const { return fix_ >= 2; }
     constexpr17 uint8_t fix() const { return fix_; }
     void set_fix(uint8_t fix) { fix_ = fix; }
 
-    virtual void set(const kis_tracked_location_triplet_v2& t);
-    virtual void set(const kis_gps_packinfo *pi);
+    constexpr17 auto speed() const { return speed_; }
+    void set_speed(double s) { speed_ = s; }
+
+    constexpr17 auto heading() const { return heading_; }
+    void set_heading(float h) { heading_ = h; }
+    constexpr17 auto magheading() const { return magheading_; }
+    void set_magheading(float h) { magheading_ = h; }
+
+    constexpr17 int32_t signal() const { return signal_; }
+    void set_signal(uint32_t s) { signal_ = s; }
+
+    constexpr17 int32_t frequency() const { return frequency_; }
+    void set_frequency(uint64_t f) { frequency_ = f; }
+
+    void set(const kis_tracked_location_triplet_v2& t);
+    void set(const kis_tracked_location_full_v2& t);
+    void set(const kis_gps_packinfo *pi);
+
+    template <typename It1, typename It2>
+    void aggregate(size_t sz, It1 first, It2 last) {
+        double avg_x = 0, avg_y = 0, avg_z = 0, avg_alt = 0;
+        double heading = 0, magheading = 0, speed = 0, signal = 0, timesec = 0, frequency = 0;
+        double num_signal = 0, num_alt = 0;
+
+        for (; first != last; ++first) {
+            double mod_lat = first->lat() * M_PI / 180;
+            double mod_lon = first->lon() * M_PI / 180;
+
+            avg_x += cos(mod_lat) * cos(mod_lon);
+            avg_y += cos(mod_lat) * cos(mod_lon);
+            avg_z = sin(mod_lat);
+
+            if (first->fix() > 2) {
+                avg_alt += first->altitude();
+                num_alt++;
+            }
+
+            heading += first->heading();
+            magheading += first->magheading();
+            speed += first->speed();
+
+            if (first->signal() != 0) {
+                signal += first->signal();
+                num_signal++;
+            }
+
+            timesec += first->time();
+            frequency += first->frequency();
+        }
+
+        reset();
+
+        double r_x = avg_x / sz;
+        double r_y = avg_y / sz;
+        double r_z = avg_z / sz;
+
+        double central_lon = atan2(r_y, r_x);
+        double central_sqr = sqrt(r_x * r_x + r_y * r_y);
+        double central_lat = atan2(r_z, central_sqr);
+
+        double r_alt = 0;
+        if (num_alt > 0) {
+            r_alt = avg_alt / num_alt;
+        }
+
+        set_location(central_lat * 180 / M_PI, central_lon * 180 / M_PI);
+        set_fix(num_alt > 0);
+        set_altitude(r_alt);
+        set_heading(heading / sz);
+        set_magheading(magheading / sz);
+        set_speed(speed / sz);
+
+        set_frequency(frequency / sz);
+        set_signal(signal / num_signal);
+
+        set_time(timesec / sz);
+    }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -233,6 +329,49 @@ protected:
     uint64_t frequency_;
 
     uint64_t time_sec_;
+};
+
+// V2 of a time-series RRD-like history track of decreasing precision over the number of
+// samples collected
+class kis_location_rrd_v2 : public json_adapter_v2::jsonable {
+public:
+    kis_location_rrd_v2() :
+        json_adapter_v2::jsonable(),
+        last_sample_ts_{0},
+        samples_100_pos_{0},
+        samples_10k_pos_{0},
+        samples_1m_pos_{0} { }
+
+    void reset() {
+        samples_100_ = {};
+        samples_10k_ = {};
+        samples_1m_ = {};
+        last_sample_ts_ = 0;
+        samples_1m_pos_ = 0;
+        samples_10k_pos_ = 0;
+        samples_1m_pos_ = 0;
+    }
+
+    void add_sample(const kis_tracked_location_triplet_v2& t) { return add_sample(kis_historic_location_v2{t}); };
+    void add_sample(const kis_tracked_location_full_v2& t) { return add_sample(kis_historic_location_v2{t}); };
+    void add_sample(const kis_gps_packinfo *pi) { return add_sample(kis_historic_location_v2{pi}); }
+    void add_sample(const kis_historic_location_v2& h);
+
+    virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
+
+protected:
+    kis_shared_mutex mutex_;
+
+    std::array<kis_historic_location_v2, 100> samples_100_;
+    std::array<kis_historic_location_v2, 100> samples_10k_;
+    std::array<kis_historic_location_v2, 100> samples_1m_;
+
+    uint64_t last_sample_ts_;
+
+    unsigned int samples_100_pos_;
+    unsigned int samples_10k_pos_;
+    unsigned int samples_1m_pos_;
 };
 
 #endif /* __TRACKED_LOCATION_V2_H__ */

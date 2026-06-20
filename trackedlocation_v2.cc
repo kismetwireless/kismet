@@ -286,3 +286,129 @@ void kis_tracked_location_v2::add_loc_with_avg(const kis_gps_packinfo *p) {
     }
 }
 
+void kis_historic_location_v2::set(const kis_tracked_location_triplet_v2& t) {
+    geopoint_ = t.geopoint_;
+    altitude_ = t.altitude_;
+    fix_ = t.fix_;
+    time_sec_ = t.time_sec_;
+
+    speed_ = 0;
+    heading_ = 0;
+    magheading_ = 0;
+}
+
+void kis_historic_location_v2::set(const kis_tracked_location_full_v2& t) {
+    geopoint_ = t.geopoint_;
+    altitude_ = t.altitude_;
+    fix_ = t.fix_;
+    time_sec_ = t.time_sec_;
+
+    speed_ = t.speed_;
+    heading_ = t.heading_;
+    magheading_ = t.magheading_;
+}
+
+void kis_historic_location_v2::set(const kis_gps_packinfo *pi) {
+    if (pi == nullptr) {
+        return;
+    }
+
+    geopoint_ = {pi->lon, pi->lat};
+    time_sec_ = pi->tv.tv_sec;
+    altitude_ = pi->alt;
+    fix_ = pi->fix;
+    speed_ = pi->speed;
+    heading_ = pi->heading;
+    magheading_ = pi->magheading;
+}
+
+void kis_historic_location_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
+    fmt::print(os, "{{");
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
+
+    json_adapter_v2::encode_keyed_pair<double, double>(os, "kismet.historic.location.geopoint", opts, geopoint_);
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.alt", opts, altitude_);
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.fix", opts, fix_);
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.time_sec", opts, time_sec_);
+
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.speed", opts, speed_);
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.heading", opts, heading_);
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.magheading", opts, magheading_);
+
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.signal", opts, signal_);
+    json_adapter_v2::encode_keyed(os, "kismet.historic.location.frequency", opts, frequency_);
+
+    opts->next_key_comma = sv_comma;
+    fmt::print(os, "}}");
+}
+
+void kis_historic_location_v2::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts,
+        const json_adapter_v2::field_group_map& fields) {
+    if (fields.size() == 0) {
+        return as_json(os, opts);
+    }
+
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
+    fmt::print(os, "{{");
+
+    for (const auto& f : fields) {
+        switch (json_adapter_v2::consthash(f.first)) {
+            case json_adapter_v2::consthash("kismet.historic.location.geopoint"):
+                json_adapter_v2::encode_keyed_pair<double, double>(os, f.second.rename, opts, geopoint_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.alt"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, altitude_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.fix"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, fix_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.time_sec"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, time_sec_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.speed"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, speed_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.heading"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, heading_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.magheading"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, magheading_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.signal"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, signal_);
+                break;
+            case json_adapter_v2::consthash("kismet.historic.location.frequency"):
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, frequency_);
+                break;
+            default:
+                json_adapter_v2::encode_keyed(os, f.second.rename, opts, 0);
+        }
+    }
+
+    fmt::print(os, "}}");
+    opts->next_key_comma = sv_comma;
+}
+
+void kis_location_rrd_v2::add_sample(const kis_historic_location_v2& l) {
+    auto lg = kis_shared_lock{mutex_, __func__};
+
+    last_sample_ts_ = l.time();
+
+    samples_100_[samples_100_pos_++ % samples_100_.size()] = l;
+
+    if (samples_100_pos_ % samples_100_.size()  == 0) {
+        kis_historic_location_v2 aggloc;
+        aggloc.aggregate(samples_100_.size(), samples_100_.begin(), samples_100_.end());
+
+        samples_10k_[samples_10k_pos_++ % samples_10k_.size()] = aggloc;
+
+        if (samples_10k_pos_ % samples_10k_.size() == 0) {
+            kis_historic_location_v2 aggloc_10k;
+            aggloc_10k.aggregate(samples_10k_.size(), samples_10k_.begin(), samples_10k_.end());
+
+            samples_1m_[samples_1m_pos_++ % samples_1m_.size()] = aggloc_10k;
+        }
+    }
+}
