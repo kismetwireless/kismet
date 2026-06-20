@@ -27,6 +27,11 @@
 #include "packet.h"
 #include "packinfo_signal.h"
 
+class kis_gps_packinfo;
+class kis_tracked_location_full_v2;
+
+using geopoint_t = std::pair<double, double>;
+
 class kis_tracked_location_triplet_v2 : public json_adapter_v2::jsonable {
 public:
     kis_tracked_location_triplet_v2() :
@@ -36,12 +41,28 @@ public:
         time_sec_{0},
         time_usec_{0} { }
 
+    void reset() {
+        geopoint_ = {0, 0};
+        altitude_ = 0;
+        fix_ = 0;
+        time_sec_ = 0;
+        time_usec_ = 0;
+    }
+
     constexpr17 auto lat() const { return std::get<1>(geopoint_); }
+    void set_lat(double lat) { geopoint_.second = lat; }
     constexpr17 auto lon() const { return std::get<0>(geopoint_); }
+    void set_lon(double lon) { geopoint_.first = lon; }
     constexpr17 auto& location() const { return geopoint_; }
     void set_location(double lat, double lon) { geopoint_ = std::make_pair(lon, lat); }
+    void set_location(const geopoint_t& p) { geopoint_ = p; }
     void set_location(double lat, double lon, double altitude, uint8_t fix) {
         geopoint_ = std::make_pair(lon, lat);
+        fix_ = fix;
+        altitude_ = altitude;
+    }
+    void set_location(const geopoint_t& geopoint, double altitude, uint8_t fix) {
+        geopoint_ = geopoint;
         fix_ = fix;
         altitude_ = altitude;
     }
@@ -57,14 +78,19 @@ public:
     constexpr17 uint8_t fix() const { return fix_; }
     void set_fix(uint8_t fix) { fix_ = fix; }
 
+    virtual void set(const kis_tracked_location_triplet_v2& t);
+    virtual void set(const kis_gps_packinfo *pi);
+
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
 protected:
-    std::pair<double, double> geopoint_;
+    geopoint_t geopoint_;
     double altitude_;
     uint8_t fix_;
     uint64_t time_sec_, time_usec_;
+
+    friend class kis_tracked_location_full_v2;
 };
 
 class kis_tracked_location_full_v2 : public kis_tracked_location_triplet_v2 {
@@ -75,6 +101,13 @@ public:
         heading_{0},
         magheading_{0} { }
 
+    void reset() {
+        kis_tracked_location_triplet_v2::reset();
+        speed_ = 0;
+        heading_ = 0;
+        magheading_ = 0;
+    }
+
     void set_speed(double s) { speed_ = s; }
     constexpr17 double speed() const { return speed_; }
 
@@ -84,6 +117,20 @@ public:
     void set_magheading(float m) { magheading_ = m; }
     constexpr17 float magheading() { return magheading_; }
 
+    void set_location(const geopoint_t& geopoint, double altitude,
+            uint8_t fix, double speed, float heading) {
+        geopoint_ = geopoint;
+        altitude_ = altitude;
+        fix_ = fix;
+        speed_ = speed;
+        heading_ = heading;
+        magheading_ = 0;
+    }
+
+    virtual void set(const kis_tracked_location_triplet_v2& t) override;
+    virtual void set(const kis_tracked_location_full_v2& t);
+    virtual void set(const kis_gps_packinfo *pi) override;
+
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
@@ -91,6 +138,66 @@ protected:
     double speed_;
     float heading_;
     float magheading_;
+};
+
+// V2 instance of a full location record, which includes min/max/average location with
+// running averages and previous location.
+class kis_tracked_location_v2 : public json_adapter_v2::jsonable {
+public:
+    kis_tracked_location_v2() :
+        json_adapter_v2::jsonable(),
+        agg_x_{0},
+        agg_y_{0},
+        agg_z_{0},
+        agg_a_{0},
+        last_location_time_{0} { }
+
+    void reset() {
+        min_loc_.reset();
+        max_loc_.reset();
+        avg_loc_.reset();
+        last_loc_.reset();
+    }
+
+    void add_loc(const kis_gps_packinfo* p);
+    void add_loc_with_avg(const kis_gps_packinfo *p);
+
+protected:
+    kis_tracked_location_triplet_v2 min_loc_, max_loc_, avg_loc_, last_loc_;
+
+    double agg_x_, agg_y_, agg_z_, agg_a_;
+    uint64_t num_avg_, num_alt_avg_;
+
+    time_t last_location_time_;
+};
+
+// V2 historic tracking used in runtime/history location display
+class kis_historic_location_v2 : public json_adapter_v2::jsonable {
+public:
+    kis_historic_location_v2() :
+        json_adapter_v2::jsonable{},
+        geopoint_{0, 0},
+        altitude_{0},
+        speed_{0},
+        heading_{0},
+        magheading_{0},
+        signal_{0},
+        frequency_{0},
+        time_sec_{0} { }
+
+
+protected:
+    geopoint_t geopoint_;
+    double altitude_;
+    double speed_;
+
+    float heading_;
+    float magheading_;
+
+    int32_t signal_;
+    uint64_t frequency_;
+
+    uint64_t time_sec_;
 };
 
 #endif /* __TRACKED_LOCATION_V2_H__ */

@@ -18,6 +18,26 @@
 
 #include "trackedlocation_v2.h"
 
+#include "gpstracker.h"
+#include "packet.h"
+
+void kis_tracked_location_triplet_v2::set(const kis_tracked_location_triplet_v2& t) {
+    geopoint_ = t.geopoint_;
+    altitude_ = t.altitude_;
+    fix_ = t.fix_;
+    time_sec_ = t.time_sec_;
+    time_usec_ = t.time_usec_;
+}
+
+void kis_tracked_location_triplet_v2::set(const kis_gps_packinfo *pi) {
+    if (pi == nullptr) {
+        return;
+    }
+
+    set_location(pi->lat, pi->lon, pi->alt, pi->fix);
+    set_time(pi->tv.tv_sec, pi->tv.tv_usec);
+}
+
 void kis_tracked_location_triplet_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
     fmt::print(os, "{{");
     auto sv_comma = opts->next_key_comma;
@@ -67,6 +87,45 @@ void kis_tracked_location_triplet_v2::filtered_as_json(std::ostream& os, json_ad
 
     fmt::print(os, "}}");
     opts->next_key_comma = sv_comma;
+}
+
+void kis_tracked_location_full_v2::set(const kis_tracked_location_triplet_v2& t) {
+    geopoint_ = t.geopoint_;
+    altitude_ = t.altitude_;
+    fix_ = t.fix_;
+    time_sec_ = t.time_sec_;
+    time_usec_ = t.time_usec_;
+
+    speed_ = 0;
+    heading_ = 0;
+    magheading_ = 0;
+}
+
+void kis_tracked_location_full_v2::set(const kis_tracked_location_full_v2& t) {
+    geopoint_ = t.geopoint_;
+    altitude_ = t.altitude_;
+    fix_ = t.fix_;
+    time_sec_ = t.time_sec_;
+    time_usec_ = t.time_usec_;
+
+    speed_ = t.speed_;
+    heading_ = t.heading_;
+    magheading_ = t.magheading_;
+}
+
+void kis_tracked_location_full_v2::set(const kis_gps_packinfo *pi) {
+    if (pi == nullptr) {
+        return;
+    }
+
+    geopoint_ = {pi->lon, pi->lat};
+    time_sec_ = pi->tv.tv_sec;
+    time_usec_ = pi->tv.tv_usec;
+    altitude_ = pi->alt;
+    fix_ = pi->fix;
+    speed_ = pi->speed;
+    heading_ = pi->heading;
+    magheading_ = pi->magheading;
 }
 
 void kis_tracked_location_full_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
@@ -132,3 +191,98 @@ void kis_tracked_location_full_v2::filtered_as_json(std::ostream& os, json_adapt
     fmt::print(os, "}}");
     opts->next_key_comma = sv_comma;
 }
+
+void kis_tracked_location_v2::add_loc(const kis_gps_packinfo *p) {
+    if (p->fix < 2) {
+        return;
+    }
+
+    last_loc_.set(p);
+
+    auto min_pair = min_loc_.location();
+    auto max_pair = max_loc_.location();
+
+    if (min_loc_.fix() < 2) {
+        min_loc_.set(p);
+    } else {
+        if (min_pair.second > p->lat) {
+            min_pair.second = p->lat;
+        }
+
+        if (min_pair.first > p->lon) {
+            min_pair.first = p->lon;
+        }
+
+        if (p->fix >= 3) {
+            if (min_loc_.altitude() > p->alt) {
+                min_loc_.set_altitude(p->alt);
+                min_loc_.set_fix(p->fix);
+            }
+        }
+
+        min_loc_.set_location(min_pair);
+    }
+
+    if (max_loc_.fix() < 2) {
+        max_loc_.set(p);
+    } else {
+        if (max_pair.second < p->lat) {
+            max_pair.second = p->lat;
+        }
+
+        if (max_pair.first < p->lon) {
+            max_pair.first = p->lon;
+        }
+
+        if (p->fix >= 3) {
+            if (max_loc_.altitude() < p->alt) {
+                max_loc_.set_altitude(p->alt);
+                max_loc_.set_fix(p->fix);
+            }
+        }
+    }
+}
+
+void kis_tracked_location_v2::add_loc_with_avg(const kis_gps_packinfo *p) {
+    if (p->fix < 2) {
+        return;
+    }
+
+    add_loc(p);
+
+    double mod_lat = p->lat * M_PI / 180;
+    double mod_lon = p->lon * M_PI / 180;
+
+    agg_x_ += cos(mod_lat) * cos(mod_lon);
+    agg_y_ += cos(mod_lat) * sin(mod_lon);
+    agg_z_ += sin(mod_lat);
+
+    num_avg_ += 1;
+
+    if (p->fix > 2) {
+        agg_a_ += p->alt;
+        num_alt_avg_ += 1;
+    }
+
+    double r_x = agg_x_ / num_avg_;
+    double r_y = agg_y_ / num_avg_;
+    double r_z = agg_z_ / num_avg_;
+
+    double central_lon = atan2(r_y, r_x);
+    double central_sqr = sqrt(r_x * r_x + r_y * r_y);
+    double central_lat = atan2(r_z, central_sqr);
+
+    double r_alt = 0;
+
+    if (num_alt_avg_ > 0)
+       r_alt =  agg_a_ / num_alt_avg_;
+
+    // Use the incoming if we're the first packet
+    if (num_avg_ > 1) {
+        avg_loc_.set_location(central_lat * 180 / M_PI, central_lon * 180 / M_PI,
+                r_alt, num_alt_avg_ > 0 ? 3 : 2);
+    } else {
+        avg_loc_.set(p);
+    }
+}
+
