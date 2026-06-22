@@ -96,71 +96,71 @@ namespace json_adapter_v2 {
     template<typename E> struct json_encode;
 
     template<typename E> struct json_encode {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, E& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, E& e) {
             fmt::print(os, "{}", e);
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, const E& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, const E& e) {
             fmt::print(os, "{}", e);
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, E *e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, E *e) {
             fmt::print(os, "{}", *e);
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, const E *e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, const E *e) {
             fmt::print(os, "{}", *e);
         }
 
         // filtered catch-all for generic jsonable objects
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e,
                 json_adapter_v2::field_group_map& fields) {
             e.filtered_as_json(os, opts, fields);
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e,
                 json_adapter_v2::field_group_map& fields) {
             e->filtered_as_json(os, opts, fields);
         }
     };
 
     template<> struct json_encode<char *> {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, char *e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, char *e) {
             fmt::print(os, "{}", sanitize_string(e));
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, const char *e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, const char *e) {
             fmt::print(os, "{}", sanitize_string(e));
         }
     };
 
     template<> struct json_encode<std::string> {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, std::string& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, std::string& e) {
             fmt::print(os, "{}", sanitize_string(e));
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, const std::string& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, const std::string& e) {
             fmt::print(os, "{}", sanitize_string(e));
         }
     };
 
     template<> struct json_encode<std::string_view> {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, std::string_view& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, std::string_view& e) {
             fmt::print(os, "{}", sanitize_string(std::string(e.data(), e.length())));
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, const std::string& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, const std::string& e) {
             fmt::print(os, "{}", sanitize_string(std::string(e.data(), e.length())));
         }
     };
 
     template<> struct json_encode<json_adapter_v2::jsonable> {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e) {
             e.as_json(os, opts);
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e) {
             e->as_json(os, opts);
         }
 
         // filtered
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable& e,
                 json_adapter_v2::field_group_map& fields) {
             e.filtered_as_json(os, opts, fields);
         }
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *e,
                 json_adapter_v2::field_group_map& fields) {
             e->filtered_as_json(os, opts, fields);
         }
@@ -169,35 +169,35 @@ namespace json_adapter_v2 {
     template<typename E> struct json_encode_keyed;
 
     template<typename E> struct json_encode_keyed {
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, E& e) {
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, E& e) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode<E>{}(os, opts, e);
             opts->next_key_comma = true;
         }
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, const E& e) {
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, const E& e) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode<E>{}(os, opts, e);
             opts->next_key_comma = true;
         }
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, E *e) {
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, E *e) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode<E>{}(os, opts, e);
             opts->next_key_comma = true;
         }
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, const E *e) {
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts, const E *e) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode<E>{}(os, opts, e);
             opts->next_key_comma = true;
         }
 
         // filtered catch-all for generic jsonable objects
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 json_adapter_v2::jsonable& e, json_adapter_v2::field_group_map& fields) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             e.filtered_as_json(os, opts, fields);
             opts->next_key_comma = true;
         }
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 json_adapter_v2::jsonable *e, json_adapter_v2::field_group_map& fields) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             e->filtered_as_json(os, opts, fields);
@@ -206,7 +206,7 @@ namespace json_adapter_v2 {
     };
 
     template<typename It> struct json_encode_array {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last) {
             fmt::print(os, "[");
 
             bool comma = false;
@@ -222,7 +222,7 @@ namespace json_adapter_v2 {
             fmt::print(os, "]");
         }
 
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last,
                 json_adapter_v2::field_group_map& fields) {
             fmt::print(os, "[");
 
@@ -241,14 +241,14 @@ namespace json_adapter_v2 {
     };
 
     template<typename It> struct json_encode_keyed_array {
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 It first, It last) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode_array<It>{}(os, opts, first, last);
             opts->next_key_comma = true;
         }
 
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 It first, It last, json_adapter_v2::field_group_map& fields) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode_array<It>{}(os, opts, first, last, fields);
@@ -257,7 +257,7 @@ namespace json_adapter_v2 {
     };
 
     template<typename It> struct json_encode_map {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last) {
             fmt::print(os, "{{");
 
             bool comma = false;
@@ -270,7 +270,7 @@ namespace json_adapter_v2 {
             fmt::print(os, "}}");
         }
 
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, It first, It last,
                 json_adapter_v2::field_group_map& fields) {
             fmt::print(os, "{{");
 
@@ -286,14 +286,14 @@ namespace json_adapter_v2 {
     };
 
     template<typename It> struct json_encode_keyed_map {
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 It first, It last) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode_map<It>{}(os, opts, first, last);
             opts->next_key_comma = true;
         }
 
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 It first, It last, json_adapter_v2::field_group_map& fields) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode_map<It>{}(os, opts, first, last, fields);
@@ -315,7 +315,7 @@ namespace json_adapter_v2 {
 
     template <typename TupleT, std::size_t TupSize = std::tuple_size_v<TupleT>>
     struct json_encode_tuple {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, const TupleT& tp) {
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts, const TupleT& tp) {
             fmt::print(os, "[");
             encode_tuple_imp(os, opts, tp, std::make_index_sequence<TupSize>{});
             fmt::print(os, "]");
@@ -324,7 +324,7 @@ namespace json_adapter_v2 {
 
     template <typename TupleT, std::size_t TupSize = std::tuple_size_v<TupleT>>
     struct json_encode_keyed_tuple {
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 const TupleT& tp) {
             fmt::print(os, "{}{}:[", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             encode_tuple_imp(os, opts, tp, std::make_index_sequence<TupSize>{});
@@ -335,7 +335,7 @@ namespace json_adapter_v2 {
 
     template <typename T1, typename T2>
     struct json_encode_pair {
-        constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, json_adapter_v2::opts *opts,
                 const std::pair<T1, T2>& pair) {
             fmt::print(os, "[");
             json_encode<T1>{}(os, opts, std::get<0>(pair));
@@ -347,7 +347,7 @@ namespace json_adapter_v2 {
 
     template <typename T1, typename T2>
     struct json_encode_keyed_pair {
-        constexpr void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
+        void operator()(std::ostream& os, const std::string& fn, json_adapter_v2::opts *opts,
                 const std::pair<T1, T2>& pair) {
             fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(fn));
             json_encode_pair<T1, T2>{}(os, opts, pair);

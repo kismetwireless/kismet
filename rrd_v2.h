@@ -347,20 +347,20 @@ protected:
 };
 
 template<typename Agg> struct json_adapter_v2::json_encode<kis_rrd_v2<Agg>> {
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg>& e) {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg>& e) {
         e.as_json(os, opts);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg> *e) {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg> *e) {
         e->as_json(os, opts);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg>& e,
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg>& e,
             json_adapter_v2::field_group_map& fields) {
         e.filtered_as_json(os, opts, fields);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg> *e,
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg> *e,
             json_adapter_v2::field_group_map& fields) {
         e->filtered_as_json(os, opts, fields);
     }

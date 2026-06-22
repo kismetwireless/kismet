@@ -36,5 +36,12 @@
 #define constexpr17
 #endif
 
+#ifdef HAVE_CXX20
+#define constexpr20 constexpr
+#else
+#define constexpr20
+#endif
+
+
 #endif
 

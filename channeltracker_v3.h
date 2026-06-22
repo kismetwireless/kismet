@@ -55,20 +55,20 @@ protected:
 };
 
 template<> struct json_adapter_v2::json_encode<channel_tracker_v3_channel> {
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel& e) {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel& e) {
         e.as_json(os, opts);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel *e) {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel *e) {
         e->as_json(os, opts);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel& e,
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel& e,
             json_adapter_v2::field_group_map& fields) {
         e.filtered_as_json(os, opts, fields);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel *e,
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3_channel *e,
             json_adapter_v2::field_group_map& fields) {
         e->filtered_as_json(os, opts, fields);
     }
@@ -126,20 +126,20 @@ protected:
 };
 
 template<> struct json_adapter_v2::json_encode<channel_tracker_v3> {
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3& e) {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3& e) {
         e.as_json(os, opts);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3 *e) {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3 *e) {
         e->as_json(os, opts);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3& e,
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3& e,
             json_adapter_v2::field_group_map& fields) {
         e.filtered_as_json(os, opts, fields);
     }
 
-    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3 *e,
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, channel_tracker_v3 *e,
             json_adapter_v2::field_group_map& fields) {
         e->filtered_as_json(os, opts, fields);
     }
