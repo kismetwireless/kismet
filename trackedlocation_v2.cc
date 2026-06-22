@@ -392,7 +392,7 @@ void kis_historic_location_v2::filtered_as_json(std::ostream& os, json_adapter_v
 }
 
 void kis_location_rrd_v2::add_sample(const kis_historic_location_v2& l) {
-    auto lg = kis_shared_lock{mutex_, __func__};
+    auto lg = kis_unique_lock{mutex_, __func__};
 
     last_sample_ts_ = l.time();
 
@@ -414,6 +414,8 @@ void kis_location_rrd_v2::add_sample(const kis_historic_location_v2& l) {
 }
 
 void kis_location_rrd_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
+    auto lg = kis_shared_lock{mutex_, __func__};
+
     fmt::print(os, "{{");
     auto sv_comma = opts->next_key_comma;
     opts->next_key_comma = false;
@@ -436,6 +438,8 @@ void kis_location_rrd_v2::filtered_as_json(std::ostream& os, json_adapter_v2::op
     if (fields.size() == 0) {
         return as_json(os, opts);
     }
+
+    auto lg = kis_shared_lock{mutex_, __func__};
 
     auto sv_comma = opts->next_key_comma;
     opts->next_key_comma = false;
