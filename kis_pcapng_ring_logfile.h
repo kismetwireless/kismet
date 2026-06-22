@@ -27,6 +27,8 @@
 #include <mutex>
 #include <thread>
 
+#include "fmt.h"
+
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_pcapnglogfile.h"

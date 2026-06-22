@@ -28,11 +28,12 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fmt/format.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "fmt.h"
 
 #include "configfile.h"
 #include "kis_net_beast_httpd.h"
