@@ -122,28 +122,28 @@ namespace json_adapter_v2 {
 
     template<> struct json_encode<char *> {
         void operator()(std::ostream& os, json_adapter_v2::opts *opts, char *e) {
-            fmt::print(os, "{}", sanitize_string(e));
+            fmt::print(os, "\"{}\"", sanitize_string(e));
         }
         void operator()(std::ostream& os, json_adapter_v2::opts *opts, const char *e) {
-            fmt::print(os, "{}", sanitize_string(e));
+            fmt::print(os, "\"{}\"", sanitize_string(e));
         }
     };
 
     template<> struct json_encode<std::string> {
         void operator()(std::ostream& os, json_adapter_v2::opts *opts, std::string& e) {
-            fmt::print(os, "{}", sanitize_string(e));
+            fmt::print(os, "\"{}\"", sanitize_string(e));
         }
         void operator()(std::ostream& os, json_adapter_v2::opts *opts, const std::string& e) {
-            fmt::print(os, "{}", sanitize_string(e));
+            fmt::print(os, "\"{}\"", sanitize_string(e));
         }
     };
 
     template<> struct json_encode<std::string_view> {
         void operator()(std::ostream& os, json_adapter_v2::opts *opts, std::string_view& e) {
-            fmt::print(os, "{}", sanitize_string(std::string(e.data(), e.length())));
+            fmt::print(os, "\"{}\"", sanitize_string(std::string(e.data(), e.length())));
         }
         void operator()(std::ostream& os, json_adapter_v2::opts *opts, const std::string& e) {
-            fmt::print(os, "{}", sanitize_string(std::string(e.data(), e.length())));
+            fmt::print(os, "\"{}\"", sanitize_string(std::string(e.data(), e.length())));
         }
     };
 
