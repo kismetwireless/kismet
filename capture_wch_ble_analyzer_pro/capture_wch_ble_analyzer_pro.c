@@ -200,6 +200,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
+    if (local->usb_ctx == NULL) {
+        x = libusb_init(&local->usb_ctx);
+        if (x < 0) {
+            snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            return 0;
+        }
+    }
+
     wch_devs_cnt = wch_find_devices(local->usb_ctx, wch_devs);
 
     if (wch_devs_cnt <= 0) {
@@ -376,6 +384,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (strstr(local->interface, "wch-btle") != local->interface) {
         free(local->interface);
         return 0;
+    }
+
+    if (local->usb_ctx == NULL) {
+        x = libusb_init(&local->usb_ctx);
+        if (x < 0) {
+            snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            return -1;
+        }
     }
 
     wch_devs_cnt = wch_find_devices(local->usb_ctx, wch_devs);
@@ -640,6 +656,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
 int main(int argc, char *argv[]) {
     local_wch_btle_t localrad = {
+        .usb_ctx = NULL,
         .caph = NULL,
         .name = NULL,
         .interface = NULL,
@@ -663,12 +680,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,
             "FATAL: Could not allocate basic handler data, your system "
             "is very low on RAM or something is wrong.\n");
-        return -1;
-    }
-
-    r = libusb_init(&localrad.usb_ctx);
-    if (r < 0) {
-        fprintf(stderr, "FATAL:  Could not initialize libusb\n");
         return -1;
     }
 
@@ -701,7 +712,8 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
-    libusb_exit(localrad.usb_ctx);
+    if (localrad.usb_ctx != NULL)
+        libusb_exit(localrad.usb_ctx);
 
     return 0;
 }

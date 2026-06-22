@@ -224,6 +224,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     pthread_mutex_lock(&(localticc2540->usb_mutex));
+
+    if (localticc2540->libusb_ctx == NULL) {
+        x = libusb_init(&localticc2540->libusb_ctx);
+        if (x < 0) {
+            snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            return 0;
+        }
+    }
+
     libusb_devices_cnt = libusb_get_device_list(localticc2540->libusb_ctx, &libusb_devs);
 
     if (libusb_devices_cnt < 0) {
@@ -532,6 +541,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     pthread_mutex_lock(&(localticc2540->usb_mutex));
+    if (localticc2540->libusb_ctx == NULL) {
+        x = libusb_init(&localticc2540->libusb_ctx);
+        if (x < 0) {
+            snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            return -1;
+        }
+    }
+
     libusb_devices_cnt = libusb_get_device_list(localticc2540->libusb_ctx, &libusb_devs);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
@@ -796,11 +813,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    r = libusb_init(&localticc2540.libusb_ctx);
-    if (r < 0) {
-        return -1;
-    }
-
     localticc2540.caph = caph;
 
     /* Set the local data ptr */
@@ -843,8 +855,9 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
-    libusb_exit(localticc2540.libusb_ctx);
-    
+    if (localticc2540.libusb_ctx != NULL)
+        libusb_exit(localticc2540.libusb_ctx);
+
     return 0;
 }
 
