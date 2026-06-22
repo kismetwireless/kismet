@@ -198,24 +198,26 @@ void kis_tracked_signal_data_v2::as_json(std::ostream& os,
 
     fmt::print(os, "{{");
 
-	auto sv_comma = opts->next_key_comma;
-	opts->next_key_comma = false;
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
 
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.type", opts, signal_type);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.common.signal.type", opts, signal_type);
 
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.last_signal", opts, last_signal);
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.last_noise", opts, last_noise);
+    json_adapter_v2::json_encode_keyed<int32_t>{}(os, "kismet.common.signal.last_signal", opts, last_signal);
+    json_adapter_v2::json_encode_keyed<int32_t>{}(os, "kismet.common.signal.last_noise", opts, last_noise);
 
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.min_signal", opts, min_signal);
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.min_noise", opts, min_noise);
+    json_adapter_v2::json_encode_keyed<int32_t>{}(os, "kismet.common.signal.min_signal", opts, min_signal);
+    json_adapter_v2::json_encode_keyed<int32_t>{}(os, "kismet.common.signal.min_noise", opts, min_noise);
 
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.max_signal", opts, max_signal);
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.max_noise", opts, max_noise);
+    json_adapter_v2::json_encode_keyed<int32_t>{}(os, "kismet.common.signal.max_signal", opts, max_signal);
+    json_adapter_v2::json_encode_keyed<int32_t>{}(os, "kismet.common.signal.max_noise", opts, max_noise);
 
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.maxseenrate", opts, maxseenrate);
-    json_adapter_v2::encode_keyed(os, "kismet.common.signal.encodingset", opts, encodingset);
+    json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.common.signal.maxseenrate", opts, maxseenrate);
 
-	opts->next_key_comma = sv_comma;
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.signal.encodingset", opts, encodingset);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.signal.carrierset", opts, carrierset);
+
+    opts->next_key_comma = sv_comma;
 
     fmt::print(os, "}}");
 }
@@ -225,44 +227,47 @@ void kis_tracked_signal_data_v2::filtered_as_json(std::ostream& os, json_adapter
         return as_json(os, opts);
     }
 
-	auto sv_comma = opts->next_key_comma;
-	opts->next_key_comma = false;
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
 
-	fmt::print(os, "{{");
+    fmt::print(os, "{{");
     for (const auto& f : fields) {
         switch (json_adapter_v2::consthash(f.first)) {
             case json_adapter_v2::consthash("kismet.common.signal.type"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, signal_type);
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, signal_type);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.last_signal"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_signal);
+                json_adapter_v2::json_encode_keyed<int32_t>{}(os, f.second.rename, opts, last_signal);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.last_noise"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_noise);
+                json_adapter_v2::json_encode_keyed<int32_t>{}(os, f.second.rename, opts, last_noise);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.min_signal"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, min_signal);
+                json_adapter_v2::json_encode_keyed<int32_t>{}(os, f.second.rename, opts, min_signal);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.min_noise"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, min_noise);
+                json_adapter_v2::json_encode_keyed<int32_t>{}(os, f.second.rename, opts, min_noise);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.max_signal"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, max_signal);
+                json_adapter_v2::json_encode_keyed<int32_t>{}(os, f.second.rename, opts, max_signal);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.max_noise"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, max_noise);
+                json_adapter_v2::json_encode_keyed<int32_t>{}(os, f.second.rename, opts, max_noise);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.maxseenrate"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, maxseenrate);
+                json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, maxseenrate);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.encodingset"):
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, encodingset);
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, encodingset);
+                break;
+            case json_adapter_v2::consthash("kismet.common.signal.carrierset"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, carrierset);
                 break;
             default:
-                json_adapter_v2::encode_keyed(os, f.second.rename, opts, 0);
+                json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
         }
     }
 
-	fmt::print(os, "}}");
-	opts->next_key_comma = sv_comma;
+    fmt::print(os, "}}");
+    opts->next_key_comma = sv_comma;
 }

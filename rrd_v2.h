@@ -225,31 +225,31 @@ public:
         for (const auto& f : fields) {
             switch (json_adapter_v2::consthash(f.first)) {
                 case json_adapter_v2::consthash("kismet.common.rrd.last_time"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_time);
+                    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, last_time);
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.serial_time"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, serial_time);
+                    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, serial_time);
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.last_value"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_value);
+                    json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, last_value);
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.last_value_n1"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, last_value_n1);
+                    json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, last_value_n1);
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.minute_vec"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, m_array.begin(), m_array.end());
+                    json_adapter_v2::json_encode_keyed_array<hm_iter_t>{}(os, f.second.rename, opts, m_array.begin(), m_array.end());
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.hour_vec"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, h_array.begin(), h_array.end());
+                    json_adapter_v2::json_encode_keyed_array<hm_iter_t>{}(os, f.second.rename, opts, h_array.begin(), h_array.end());
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.day_vec"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, d_array.begin(), d_array.end());
+                    json_adapter_v2::json_encode_keyed_array<d_iter_t>{}(os, f.second.rename, opts, d_array.begin(), d_array.end());
                     break;
                 case json_adapter_v2::consthash("kismet.common.rrd.blank_val"):
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, M_Aggregator::default_value());
+                    json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, M_Aggregator::default_value());
                     break;
                 default:
-                    json_adapter_v2::encode_keyed(os, f.second.rename, opts, 0);
+                    json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
                     break;
 
             }
@@ -269,16 +269,16 @@ public:
 
         fmt::print(os, "{{");
 
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.last_time", opts, last_time);
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.serial_time", opts, serial_time);
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.last_value", opts, last_value);
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.last_value_n1", opts, last_value_n1);
+        json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.rrd.last_time", opts, last_time);
+        json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.rrd.serial_time", opts, serial_time);
+        json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.common.rrd.last_value", opts, last_value);
+        json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.common.rrd.last_value_n1", opts, last_value_n1);
 
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.minute_vec", opts, m_array.begin(), m_array.end());
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.hour_vec", opts, h_array.begin(), h_array.end());
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.day_vec", opts, d_array.begin(), d_array.end());
+        json_adapter_v2::json_encode_keyed_array<hm_iter_t>{}(os, "kismet.common.rrd.minute_vec", opts, m_array.begin(), m_array.end());
+        json_adapter_v2::json_encode_keyed_array<hm_iter_t>{}(os, "kismet.common.rrd.hour_vec", opts, h_array.begin(), h_array.end());
+        json_adapter_v2::json_encode_keyed_array<d_iter_t>{}(os, "kismet.common.rrd.day_vec", opts, d_array.begin(), d_array.end());
 
-        json_adapter_v2::encode_keyed(os, "kismet.common.rrd.blank_val", opts, M_Aggregator::default_value());
+        json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.common.rrd.blank_val", opts, M_Aggregator::default_value());
 
         fmt::print(os, "}}");
 
@@ -338,9 +338,33 @@ protected:
     double last_value;
     double last_value_n1;
 
+    using hm_iter_t = std::array<double, 60>::iterator;
+    using d_iter_t = std::array<double, 24>::iterator;
+
     std::array<double, 60> m_array;
     std::array<double, 60> h_array;
     std::array<double, 24> d_array;
 };
+
+template<typename Agg> struct json_adapter_v2::json_encode<kis_rrd_v2<Agg>> {
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg>& e) {
+        e.as_json(os, opts);
+    }
+
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg> *e) {
+        e->as_json(os, opts);
+    }
+
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg>& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_rrd_v2<Agg> *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
+
 
 #endif /* __RRD_V2_H__ */

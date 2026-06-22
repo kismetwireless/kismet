@@ -56,4 +56,24 @@ protected:
     uint64_t encodingset, carrierset;
 };
 
+template<> struct json_adapter_v2::json_encode<kis_tracked_signal_data_v2> {
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_signal_data_v2& e) {
+        e.as_json(os, opts);
+    }
+
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_signal_data_v2 *e) {
+        e->as_json(os, opts);
+    }
+
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_signal_data_v2& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    constexpr void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_signal_data_v2 *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
+
 #endif /* __DEVICETRACKER_COMPONENT_V2__ */

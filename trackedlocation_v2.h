@@ -96,6 +96,26 @@ protected:
     friend class kis_historic_location_v2;
 };
 
+template<> struct json_adapter_v2::json_encode<kis_tracked_location_triplet_v2> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_triplet_v2& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_triplet_v2 *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_triplet_v2& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_triplet_v2 *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
+
 class kis_tracked_location_full_v2 : public kis_tracked_location_triplet_v2 {
 public:
     kis_tracked_location_full_v2() :
@@ -145,6 +165,26 @@ protected:
     friend class kis_historic_location_v2;
 };
 
+template<> struct json_adapter_v2::json_encode<kis_tracked_location_full_v2> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_full_v2& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_full_v2 *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_full_v2& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_full_v2 *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
+
 // V2 instance of a full location record, which includes min/max/average location with
 // running averages and previous location.
 class kis_tracked_location_v2 : public json_adapter_v2::jsonable {
@@ -174,6 +214,26 @@ protected:
     uint64_t num_avg_, num_alt_avg_;
 
     time_t last_location_time_;
+};
+
+template<> struct json_adapter_v2::json_encode<kis_tracked_location_v2> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_v2& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_v2 *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_v2& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_tracked_location_v2 *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
 };
 
 // V2 historic tracking used in runtime/history location display
@@ -331,6 +391,26 @@ protected:
     uint64_t time_sec_;
 };
 
+template<> struct json_adapter_v2::json_encode<kis_historic_location_v2> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_historic_location_v2& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_historic_location_v2 *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_historic_location_v2& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_historic_location_v2 *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
+
 // V2 of a time-series RRD-like history track of decreasing precision over the number of
 // samples collected
 class kis_location_rrd_v2 : public json_adapter_v2::jsonable {
@@ -338,18 +418,18 @@ public:
     kis_location_rrd_v2() :
         json_adapter_v2::jsonable(),
         last_sample_ts_{0},
-        samples_100_pos_{0},
-        samples_10k_pos_{0},
-        samples_1m_pos_{0} { }
+        samples_t1_pos_{0},
+        samples_t2_pos_{0},
+        samples_t3_pos_{0} { }
 
     void reset() {
-        samples_100_ = {};
-        samples_10k_ = {};
-        samples_1m_ = {};
+        samples_tier1_ = {};
+        samples_tier2_ = {};
+        samples_tier3_ = {};
         last_sample_ts_ = 0;
-        samples_1m_pos_ = 0;
-        samples_10k_pos_ = 0;
-        samples_1m_pos_ = 0;
+        samples_t1_pos_ = 0;
+        samples_t2_pos_ = 0;
+        samples_t3_pos_ = 0;
     }
 
     void add_sample(const kis_tracked_location_triplet_v2& t) { return add_sample(kis_historic_location_v2{t}); };
@@ -363,15 +443,38 @@ public:
 protected:
     kis_shared_mutex mutex_;
 
-    std::array<kis_historic_location_v2, 100> samples_100_;
-    std::array<kis_historic_location_v2, 100> samples_10k_;
-    std::array<kis_historic_location_v2, 100> samples_1m_;
+    static const size_t samples_per_tier_ = 100;
+
+    using sample_iter_ = std::array<kis_historic_location_v2, samples_per_tier_>::iterator;
+    std::array<kis_historic_location_v2, samples_per_tier_> samples_tier1_;
+    std::array<kis_historic_location_v2, samples_per_tier_> samples_tier2_;
+    std::array<kis_historic_location_v2, samples_per_tier_> samples_tier3_;
 
     uint64_t last_sample_ts_;
 
-    unsigned int samples_100_pos_;
-    unsigned int samples_10k_pos_;
-    unsigned int samples_1m_pos_;
+    unsigned int samples_t1_pos_;
+    unsigned int samples_t2_pos_;
+    unsigned int samples_t3_pos_;
+};
+
+template<> struct json_adapter_v2::json_encode<kis_location_rrd_v2> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_location_rrd_v2& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_location_rrd_v2 *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_location_rrd_v2& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, kis_location_rrd_v2 *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
 };
 
 #endif /* __TRACKED_LOCATION_V2_H__ */
