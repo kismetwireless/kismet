@@ -83,7 +83,6 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     packetchain->register_handler(&packet_bluetooth_hci_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
 
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
-    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
     pack_comp_json = packetchain->register_packet_component("JSON");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
@@ -475,11 +474,10 @@ int kis_bluetooth_phy::packet_tracker_h4_linux(CHAINCALL_PARMS) {
         in_pack->common_info.channel = "FHSS";
         in_pack->common_info.freq_khz = 2400000;
 
-        auto l1info = in_pack->fetch_or_add<kis_layer1_packinfo>(mphy->pack_comp_l1info);
-        l1info->signal_type = kis_l1_signal_type_dbm;
-        l1info->freq_khz = 2400000;
-        l1info->channel = "FHSS";
-
+        in_pack->signal_info.data_ok = true;
+        in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+        in_pack->signal_info.freq_khz = 2400000;
+        in_pack->signal_info.channel = "FHSS";
     }
 
     return 1;

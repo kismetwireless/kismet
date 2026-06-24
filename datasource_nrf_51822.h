@@ -52,8 +52,6 @@ public:
 
         pack_comp_decap =
             packetchain->register_packet_component("DECAP");
-        pack_comp_radiodata = 
-            packetchain->register_packet_component("RADIODATA");
     }
 
     virtual ~kis_datasource_nrf51822() { };
@@ -62,7 +60,7 @@ protected:
     virtual int handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
             const uint8_t *content, size_t content_sz) override;
 
-    int pack_comp_decap, pack_comp_radiodata;
+    int pack_comp_decap;
 };
 
 

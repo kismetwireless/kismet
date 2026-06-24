@@ -148,9 +148,6 @@ device_tracker::device_tracker() :
     pack_comp_mangleframe =
 		packetchain->register_packet_component("MANGLEDATA");
 
-	pack_comp_radiodata =
-		packetchain->register_packet_component("RADIODATA");
-
 	pack_comp_gps =
 		packetchain->register_packet_component("GPS");
 
@@ -1168,7 +1165,6 @@ std::shared_ptr<kis_tracked_device_base>
 
     bool new_device = false;
 
-    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_radiodata);
     auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
     auto pack_datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
     auto pack_tags = in_pack->fetch<kis_devicetag_packetinfo>(pack_comp_devicetag);
@@ -1316,26 +1312,28 @@ std::shared_ptr<kis_tracked_device_base>
             }
         }
 
-        if (pack_l1info != nullptr) {
-            if (set_channel == false && !pack_l1info->channel.empty() && pack_l1info->channel != "0") {
-                device->set_channel(pack_l1info->channel);
+        if (in_pack->signal_info.data_ok) {
+            if (set_channel == false && !in_pack->signal_info.channel.empty() && in_pack->signal_info.channel != "0") {
+                device->set_channel(in_pack->signal_info.channel);
             }
 
-            if (set_freq == false && pack_l1info->freq_khz != 0) {
-                device->set_frequency(pack_l1info->freq_khz);
-                device->inc_frequency_count((int) pack_l1info->freq_khz);
+            if (set_freq == false && in_pack->signal_info.freq_khz != 0) {
+                device->set_frequency(in_pack->signal_info.freq_khz);
+                device->inc_frequency_count((int) in_pack->signal_info.freq_khz);
             }
 
-            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
-            device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
+            // auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
+            // device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
+            device->get_signal_data()->append_signal(&in_pack->signal_info, pack_gpsinfo.get(),
+                    !ram_no_rrd, in_pack->ts.tv_sec);
         }
 	}
 
     if (((in_flags & UCD_UPDATE_LOCATION) ||
          ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
             pack_gpsinfo != NULL && (device_location_signal_threshold == 0 ||
-                ( device_location_signal_threshold != 0 && pack_l1info != nullptr &&
-                  pack_l1info->signal_dbm >= device_location_signal_threshold))) {
+                ( device_location_signal_threshold != 0 && in_pack->signal_info.data_ok &&
+                  in_pack->signal_info.signal_dbm >= device_location_signal_threshold))) {
 
         auto devloc = device->get_location();
 
@@ -1359,12 +1357,12 @@ std::shared_ptr<kis_tracked_device_base>
 
                 histloc->set_time_sec(in_pack->ts.tv_sec);
 
-                if (pack_l1info != NULL) {
-                    histloc->set_frequency(pack_l1info->freq_khz);
-                    if (pack_l1info->signal_dbm != 0)
-                        histloc->set_signal(pack_l1info->signal_dbm);
+                if (in_pack->signal_info.data_ok) {
+                    histloc->set_frequency(in_pack->signal_info.freq_khz);
+                    if (in_pack->signal_info.signal_dbm != 0)
+                        histloc->set_signal(in_pack->signal_info.signal_dbm);
                     else
-                        histloc->set_signal(pack_l1info->signal_rssi);
+                        histloc->set_signal(in_pack->signal_info.signal_rssi);
                 }
 
                 device->get_location_cloud()->add_sample(histloc);
@@ -1383,16 +1381,16 @@ std::shared_ptr<kis_tracked_device_base>
 
         packinfo_sig_combo *sc = nullptr;
 
-        if (pack_l1info != nullptr)
-            f = pack_l1info->freq_khz;
+        if (in_pack->signal_info.data_ok)
+            f = in_pack->signal_info.freq_khz;
 
         if (track_persource_history) {
             // Only populate signal, frequency map, etc per-source if we're tracking that
-            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
+            // auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
             device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f,
-                    sc.get(), !ram_no_rrd);
+                    &in_pack->signal_info, pack_gpsinfo.get(), !ram_no_rrd);
         } else {
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, nullptr, false);
         }
 
         if (map_seenby_views)

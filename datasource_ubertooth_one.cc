@@ -121,12 +121,11 @@ int kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis
     datachunk->set_data(packet->data);
 
     // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-    radioheader->signal_type = kis_l1_signal_type_dbm;
-    radioheader->signal_dbm = conv_header->signal;
-    radioheader->freq_khz = (usb_rx->channel + 2402) * 1000;
-    radioheader->channel = fmt::format("{}", conv_header->monitor_channel);
-    packet->insert(pack_comp_radiodata, radioheader);
+	packet->signal_info.data_ok = true;
+    packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+    packet->signal_info.signal_dbm = conv_header->signal;
+    packet->signal_info.freq_khz = (usb_rx->channel + 2402) * 1000;
+    packet->signal_info.channel = fmt::format("{}", conv_header->monitor_channel);
 
 
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();

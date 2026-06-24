@@ -89,7 +89,6 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
                 "802.15.4 device");
 
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
-    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
 
     // Extract the dynamic DLT
     auto dltt =

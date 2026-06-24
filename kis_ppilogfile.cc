@@ -46,7 +46,6 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
 
     pack_comp_80211 = packetchain->register_packet_component("PHY80211");
     pack_comp_mangleframe = packetchain->register_packet_component("MANGLEDATA");
-    pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
     pack_comp_checksum = packetchain->register_packet_component("CHECKSUM");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
@@ -186,7 +185,6 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     auto packinfo = in_pack->fetch<dot11_packinfo>(ppilog->pack_comp_80211);
     auto chunk = in_pack->fetch<kis_datachunk>(ppilog->pack_comp_mangleframe, 
             ppilog->pack_comp_decap, ppilog->pack_comp_linkframe);
-    auto radioinfo = in_pack->fetch<kis_layer1_packinfo>(ppilog->pack_comp_radiodata);
     auto gpsdata = in_pack->fetch<kis_gps_packinfo>(ppilog->pack_comp_gps);
     auto fcsdata = in_pack->fetch<kis_packet_checksum>(ppilog->pack_comp_checksum);
 
@@ -245,7 +243,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         //Could eventually include hdop, vdop using simillar scheme here
     }
     /* although dot11common tags are constant size, we follow the same pattern here*/
-    if (radioinfo != NULL) {
+    if (in_pack->signal_info.data_ok) {
         dot11common_tagsize = sizeof(ppi_80211_common);
 
         if (fcsdata != NULL)
@@ -346,7 +344,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
     dump_offset = ppi_pos;
 
-    if (radioinfo != NULL) {
+    if (in_pack->signal_info.data_ok) {
         ppi_80211_common *ppi_common;
         ppi_common = (ppi_80211_common *) &(dump_data[ppi_pos]);
         ppi_pos += sizeof(ppi_80211_common);
@@ -355,7 +353,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         ppi_common->pfh_datalen = kis_htole16(sizeof(ppi_80211_common) -
                 sizeof(ppi_field_header));
 
-        if (packinfo != NULL) 
+        if (packinfo != nullptr)
             ppi_common->tsf_timer = kis_htole64(packinfo->timestamp);
         else
             ppi_common->tsf_timer = 0;
@@ -363,9 +361,9 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         // Assemble the flags in host mode then convert them all at once
         ppi_common->flags = 0;
 
-        if (packinfo != NULL && packinfo->corrupt)
+        if (packinfo != nullptr && packinfo->corrupt)
             ppi_common->flags |= PPI_80211_FLAG_PHYERROR;
-        if (fcsdata != NULL) {
+        if (fcsdata != nullptr) {
             ppi_common->flags |= PPI_80211_FLAG_FCS;
 
             if (fcsdata->checksum_valid == 0)
@@ -374,12 +372,12 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
         ppi_common->flags = kis_htole16(ppi_common->flags);
 
-        ppi_common->rate = kis_htole16(radioinfo->datarate / 5);
-        ppi_common->freq_mhz = kis_htole16((uint16_t) (radioinfo->freq_khz / 1000));
+        ppi_common->rate = kis_htole16(in_pack->signal_info.datarate / 5);
+        ppi_common->freq_mhz = kis_htole16((uint16_t) (in_pack->signal_info.freq_khz / 1000));
 
         // Assemble the channel flags then endian swap them
         ppi_common->chan_flags = 0;
-        switch (radioinfo->encoding) {
+        switch (in_pack->signal_info.encoding) {
             case encoding_cck:
                 ppi_common->chan_flags |= PPI_80211_CHFLAG_CCK;
                 break;
@@ -396,7 +394,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
             case encoding_unknown:
                 break;
         }
-        switch (radioinfo->carrier) {
+        switch (in_pack->signal_info.carrier) {
             case carrier_80211b:
                 ppi_common->chan_flags |= (PPI_80211_CHFLAG_2GHZ | PPI_80211_CHFLAG_CCK);
                 break;
@@ -429,8 +427,8 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         ppi_common->fhss_hopset = 0;
         ppi_common->fhss_pattern = 0;
 
-        ppi_common->signal_dbm = radioinfo->signal_dbm;
-        ppi_common->noise_dbm = radioinfo->noise_dbm;
+        ppi_common->signal_dbm = in_pack->signal_info.signal_dbm;
+        ppi_common->noise_dbm = in_pack->signal_info.noise_dbm;
     }
 
     // Collate the allocation sizes of any callbacks
@@ -447,17 +445,17 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (dump_data == NULL)
+    if (dump_data == nullptr)
         dump_data = new u_char[dump_len];
 
     // copy the packet content in, offset if necessary
-    if (chunk != NULL) {
+    if (chunk != nullptr) {
         memcpy(&(dump_data[dump_offset]), chunk->data(), chunk->length());
         dump_offset += chunk->length();
     }
 
     // Lousy little hack to append the FCS after the data in PPI
-    if (fcsdata != NULL && chunk != NULL && radioinfo != NULL) {
+    if (fcsdata != nullptr && chunk != nullptr && in_pack->signal_info.data_ok) {
         memcpy(&(dump_data[dump_offset]), fcsdata->data(), 4);
         dump_offset += 4;
     }

@@ -82,14 +82,14 @@ int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
     packet->insert(pack_comp_linkframe, linkframe);
 
     // --- Build radiodata (RSSI / Channel) for UI ---
-    auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-    radioheader->signal_type = kis_l1_signal_type_none;
+	packet->signal_info.data_ok = true;
+    packet->signal_info.signal_type = kis_l1_signal_type_none;
 
     // RSSI (TLV 10)
     if (t1_type == 10 && t1_len >= 1) {
         const int8_t rssi = static_cast<int8_t>(t1_val & 0xFF);
-        radioheader->signal_type = kis_l1_signal_type_dbm;
-        radioheader->signal_dbm  = rssi;
+        packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+        packet->signal_info.signal_dbm  = rssi;
         //_MSG(fmt::format("Catsniffer DS: RSSI (dbm) parsed={}", (int)rssi), MSGFLAG_INFO); //Debug
     } else {
         //_MSG("Catsniffer DS: RSSI TLV missing or len<1; leaving signal_type=none", MSGFLAG_INFO); //Debug
@@ -107,17 +107,15 @@ int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
             chan = static_cast<uint8_t>(t2_val & 0xFF);
         }
 
-        radioheader->channel = fmt::format("{}", chan);
+        packet->signal_info.channel = fmt::format("{}", chan);
         if (page == 0 && chan >= 11 && chan <= 26)
-            radioheader->freq_khz = (2405 + ((chan - 11) * 5)) * 1000;
+            packet->signal_info.freq_khz = (2405 + ((chan - 11) * 5)) * 1000;
 
         /*_MSG(fmt::format("Catsniffer DS: channel parsed={} page={} freq_khz={}",
                          (int)chan, (int)page, (uint64_t)radioheader->freq_khz), MSGFLAG_INFO); */ //Debug
     } else {
         //_MSG(fmt::format("Catsniffer DS: Channel TLV not present (type={})", (int)t2_type), MSGFLAG_INFO); //Debug
     }
-
-    packet->insert(pack_comp_radiodata, radioheader);
 
     return 0;
 }

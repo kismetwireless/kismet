@@ -58,7 +58,6 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
 
     pack_comp_report = packetchain->register_packet_component("PACKETREPORT");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
-    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_l1_agg = packetchain->register_packet_component("RADIODATA_AGG");
     pack_comp_gps = packetchain->register_packet_component("GPS");
     pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
@@ -2027,51 +2026,51 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
     return gpsinfo;
 }
 
-std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_node_t& root,
-        mpack_tree_t *tree) {
+bool kis_datasource::handle_sub_signal(mpack_node_t& root, mpack_tree_t *tree,
+        kis_layer1_packinfo& siginfo) {
     if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK)) {
-        return nullptr;
+        return false;
     }
     auto sigmap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_SIGNALBLOCK);
 
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (signal block)", get_source_name());
         trigger_error("invalid v3 DATAREPORT");
-        return nullptr;
+        return false;
     }
 
-    auto siginfo = packetchain->new_packet_component<kis_layer1_packinfo>();
+    // auto siginfo = packetchain->new_packet_component<kis_layer1_packinfo>();
 
     auto s_dbm_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_DBM);
     if (!mpack_node_is_missing(s_dbm_n)) {
-        siginfo->signal_dbm = mpack_node_u32(s_dbm_n);
-        siginfo->signal_type = kis_l1_signal_type_dbm;
+        siginfo.signal_dbm = mpack_node_u32(s_dbm_n);
+        siginfo.signal_type = kis_l1_signal_type_dbm;
     }
 
     auto n_dbm_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_DBM);
     if (!mpack_node_is_missing(n_dbm_n)) {
-        siginfo->noise_dbm = mpack_node_u32(n_dbm_n);
+        siginfo.noise_dbm = mpack_node_u32(n_dbm_n);
     }
 
     auto s_rssi_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_SIGNAL_RSSI);
     if (!mpack_node_is_missing(s_rssi_n)) {
-        siginfo->signal_rssi = mpack_node_u32(s_rssi_n);
-        siginfo->signal_type = kis_l1_signal_type_rssi;
+        siginfo.signal_rssi = mpack_node_u32(s_rssi_n);
+        siginfo.signal_type = kis_l1_signal_type_rssi;
     }
 
     auto n_rssi_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_NOISE_RSSI);
     if (!mpack_node_is_missing(n_rssi_n)) {
-        siginfo->noise_rssi = mpack_node_u32(n_rssi_n);
+        siginfo.noise_rssi = mpack_node_u32(n_rssi_n);
     }
 
     auto freq_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ);
     if (!mpack_node_is_missing(freq_n)) {
-        siginfo->freq_khz = mpack_node_u64(freq_n);
+        siginfo.freq_khz = mpack_node_u64(freq_n);
     }
 
     auto rate_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE);
     if (!mpack_node_is_missing(rate_n)) {
-        siginfo->datarate = mpack_node_u64(rate_n);
+        siginfo.datarate = mpack_node_u64(rate_n);
     }
 
     auto channel_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_CHANNEL);
@@ -2079,16 +2078,17 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(mpack_nod
         auto channel_s = mpack_node_str(channel_n);
         auto channel_sz = mpack_node_data_len(channel_n);
 
-        siginfo->channel = std::string(channel_s, channel_sz);
+        siginfo.channel = std::string(channel_s, channel_sz);
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (signal block)", get_source_name());
         trigger_error("invalid v3 DATAREPORT");
-        return nullptr;
+        return false;
     }
 
-    return siginfo;
+    siginfo.data_ok = true;
+    return true;
 }
 
 void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
@@ -2295,13 +2295,10 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
             packet->insert(pack_comp_gps, gpsinfo);
     }
 
-    auto siginfo = handle_sub_signal(root, &tree);
+    handle_sub_signal(root, &tree, packet->signal_info);
+
     if (cancelled) {
         return;
-    }
-
-    if (siginfo != nullptr) {
-        packet->insert(pack_comp_l1info, siginfo);
     }
 
     handle_rx_jsonlayer_v3(packet, root, &tree);
@@ -3146,8 +3143,7 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
 
     // Signal
     if (report->has_signal()) {
-        auto siginfo = handle_sub_signal(report->signal());
-        packet->insert(pack_comp_l1info, siginfo);
+        handle_sub_signal(report->signal(), packet->signal_info);
     }
 
     // GPS
@@ -3246,40 +3242,55 @@ void kis_datasource::handle_packet_warning_report_v2(uint32_t in_seqno,
     set_int_source_warning(report.warning());
 }
 
-std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
+bool kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig,
+        kis_layer1_packinfo &siginfo) {
     // Extract l1 info from a KV pair so we can add it to a packet
-    auto siginfo = packetchain->new_packet_component<kis_layer1_packinfo>();
+    // auto siginfo = packetchain->new_packet_component<kis_layer1_packinfo>();
+
+    bool has_siginfo = false;
 
     if (in_sig.has_signal_dbm()) {
-        siginfo->signal_type = kis_l1_signal_type_dbm;
-        siginfo->signal_dbm = in_sig.signal_dbm();
+        has_siginfo = true;
+        siginfo.signal_type = kis_l1_signal_type_dbm;
+        siginfo.signal_dbm = in_sig.signal_dbm();
     }
 
     if (in_sig.has_noise_dbm()) {
-        siginfo->signal_type = kis_l1_signal_type_dbm;
-        siginfo->noise_dbm = in_sig.noise_dbm();
+        has_siginfo = true;
+        siginfo.signal_type = kis_l1_signal_type_dbm;
+        siginfo.noise_dbm = in_sig.noise_dbm();
     }
 
     if (in_sig.has_signal_rssi()) {
-        siginfo->signal_type = kis_l1_signal_type_rssi;
-        siginfo->signal_rssi = in_sig.signal_rssi();
+        has_siginfo = true;
+        siginfo.signal_type = kis_l1_signal_type_rssi;
+        siginfo.signal_rssi = in_sig.signal_rssi();
     }
 
     if (in_sig.has_noise_rssi()) {
-        siginfo->signal_type = kis_l1_signal_type_rssi;
-        siginfo->noise_rssi = in_sig.noise_rssi();
+        has_siginfo = true;
+        siginfo.signal_type = kis_l1_signal_type_rssi;
+        siginfo.noise_rssi = in_sig.noise_rssi();
     }
 
-    if (in_sig.has_freq_khz())
-        siginfo->freq_khz = in_sig.freq_khz();
+    if (in_sig.has_freq_khz()) {
+        has_siginfo = true;
+        siginfo.freq_khz = in_sig.freq_khz();
+    }
 
-    if (in_sig.has_channel())
-        siginfo->channel = in_sig.channel();
+    if (in_sig.has_channel()) {
+        has_siginfo = true;
+        siginfo.channel = in_sig.channel();
+    }
 
-    if (in_sig.has_datarate())
-        siginfo->datarate = in_sig.datarate();
+    if (in_sig.has_datarate()) {
+        has_siginfo = true;
+        siginfo.datarate = in_sig.datarate();
+    }
 
-    return siginfo;
+    siginfo.data_ok = true;
+
+    return has_siginfo;
 }
 
 std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {

@@ -82,8 +82,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     auto packet = packetchain->generate_packet();
 
     if (report.has_signal()) {
-        auto siginfo = handle_sub_signal(report.signal());
-        packet->insert(pack_comp_l1info, siginfo);
+        handle_sub_signal(report.signal(), packet->signal_info);
     }
 
     if (report.has_gps()) {

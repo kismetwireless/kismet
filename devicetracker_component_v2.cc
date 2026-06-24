@@ -21,10 +21,7 @@
 
 void kis_tracked_signal_data_v2::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts) {
     if (lay1.signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
-        if (sig_type == 0) {
-            signal_type = "dbm";
-            sig_type = 1;
-        }
+        sig_type = 1;
 
         if (lay1.signal_dbm != 0) {
             last_signal = lay1.signal_dbm;
@@ -55,10 +52,7 @@ void kis_tracked_signal_data_v2::append_signal(const kis_layer1_packinfo& lay1, 
             }
         }
     } else if (lay1.signal_type == kis_l1_signal_type_rssi && (sig_type == 0 || sig_type == 2)) {
-        if (sig_type == 0) {
-            signal_type = "rssi";
-            sig_type = 2;
-        }
+        sig_type = 2;
 
         if (lay1.signal_rssi != 0) {
             last_signal = lay1.signal_rssi;
@@ -101,10 +95,7 @@ void kis_tracked_signal_data_v2::append_signal(const kis_layer1_packinfo& lay1, 
 void kis_tracked_signal_data_v2::append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts) {
     if (in.lay1 != NULL) {
         if (in.lay1->signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
-            if (sig_type == 0) {
-                signal_type = "dbm";
-                sig_type = 1;
-            }
+            sig_type = 1;
 
             if (in.lay1->signal_dbm != 0) {
                 last_signal = in.lay1->signal_dbm;
@@ -141,10 +132,7 @@ void kis_tracked_signal_data_v2::append_signal(const packinfo_sig_combo& in, boo
                 }
             }
         } else if (in.lay1->signal_type == kis_l1_signal_type_rssi && (sig_type == 0 || sig_type == 2)) {
-            if (sig_type == 0) {
-                signal_type = "rssi";
-                sig_type = 2;
-            }
+            sig_type = 2;
 
             if (in.lay1->signal_rssi != 0) {
                 last_signal = in.lay1->signal_rssi;
@@ -193,13 +181,24 @@ void kis_tracked_signal_data_v2::append_signal(const packinfo_sig_combo& in, boo
     }
 }
 
-void kis_tracked_signal_data_v2::as_json(std::ostream& os,
-        json_adapter_v2::opts *opts) {
-
+void kis_tracked_signal_data_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
     fmt::print(os, "{{");
 
     auto sv_comma = opts->next_key_comma;
     opts->next_key_comma = false;
+
+    std::string signal_type;
+    switch (sig_type) {
+    case 1:
+        signal_type = "dBm";
+        break;
+    case 2:
+        signal_type = "RSSI";
+        break;
+    default:
+        signal_type = "raw";
+        break;
+    }
 
     json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.common.signal.type", opts, signal_type);
 
@@ -230,10 +229,23 @@ void kis_tracked_signal_data_v2::filtered_as_json(std::ostream& os, json_adapter
     auto sv_comma = opts->next_key_comma;
     opts->next_key_comma = false;
 
+    std::string signal_type;
+
     fmt::print(os, "{{");
     for (const auto& f : fields) {
         switch (json_adapter_v2::consthash(f.first)) {
             case json_adapter_v2::consthash("kismet.common.signal.type"):
+                switch (sig_type) {
+                    case 1:
+                        signal_type = "dBm";
+                        break;
+                    case 2:
+                        signal_type = "RSSI";
+                        break;
+                    default:
+                        signal_type = "raw";
+                        break;
+                }
                 json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, signal_type);
                 break;
             case json_adapter_v2::consthash("kismet.common.signal.last_signal"):
@@ -270,4 +282,87 @@ void kis_tracked_signal_data_v2::filtered_as_json(std::ostream& os, json_adapter
 
     fmt::print(os, "}}");
     opts->next_key_comma = sv_comma;
+}
+
+void kis_tracked_seenby_data_v2::inc_seenby(uint64_t frequency, uint64_t time,
+        const kis_tracked_signal_data_v2& signal) {
+    last_time_ = time;
+    num_packets_++;
+    freq_khz_map_[frequency]++;
+    signal_data_ = signal;
+}
+
+void kis_tracked_seenby_data_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
+    fmt::print(os, "{{");
+
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
+
+    if (datasource_ != nullptr) {
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.common.seenby.uuid", opts, datasource_->get_source_uuid().uuid_to_string());
+    } else {
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.common.seenby.uuid", opts, uuid{}.uuid_to_string());
+    }
+
+    // TODO needs v2 datasource json to complete embedding the DS
+
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.seenby.first_time", opts, first_time_);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.seenby.last_time", opts, last_time_);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.seenby.num_packets", opts, num_packets_);
+    json_adapter_v2::json_encode_keyed_map<freq_khz_map_iter_t>{}(os, "kismet.common.seenby.freq_khz_map", opts,
+            freq_khz_map_.begin(), freq_khz_map_.end());
+    json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, "kismet.common.seenby.signal", opts, signal_data_);
+
+    opts->next_key_comma = sv_comma;
+
+    fmt::print(os, "}}");
+}
+
+void kis_tracked_seenby_data_v2::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) {
+    if (fields.size() == 0) {
+        return as_json(os, opts);
+    }
+
+    // TODO needs v2 datasource json to cmoplete embedding the DS
+
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
+
+    std::string signal_type;
+    json_adapter_v2::field_group_map subgroup;
+
+    fmt::print(os, "{{");
+    for (const auto& f : fields) {
+        switch (json_adapter_v2::consthash(f.first)) {
+            case json_adapter_v2::consthash("kismet.common.seenby.uuid"):
+                if (datasource_ != nullptr) {
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, datasource_->get_source_uuid().uuid_to_string());
+                } else {
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, uuid{}.uuid_to_string());
+                }
+                break;
+            case json_adapter_v2::consthash("kismet.common.seenby.first_time"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.seenby.first_time", opts, first_time_);
+                break;
+            case json_adapter_v2::consthash("kismet.common.seenby.last_time"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.seenby.last_time", opts, last_time_);
+                break;
+            case json_adapter_v2::consthash("kismet.common.seenby.num_packets"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.common.seenby.num_packets", opts, num_packets_);
+                break;
+            case json_adapter_v2::consthash("kismet.common.seenby.freq_khz_map"):
+                json_adapter_v2::json_encode_keyed_map<freq_khz_map_iter_t>{}(os, "kismet.common.seenby.freq_khz_map", opts,
+                        freq_khz_map_.begin(), freq_khz_map_.end());
+                break;
+            case json_adapter_v2::consthash("kismet.common.seenby.signal"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, f.first, opts, signal_data_, subgroup);
+                break;
+            default:
+                json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
+        }
+    }
+
+    opts->next_key_comma = sv_comma;
+    fmt::print(os, "}}");
 }

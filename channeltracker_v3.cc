@@ -113,7 +113,6 @@ channel_tracker_v3::channel_tracker_v3() :
     packetchain->register_handler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
     pack_comp_device = packetchain->register_packet_component("DEVICE");
-    pack_comp_l1data = packetchain->register_packet_component("RADIODATA");
 
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>("DEVICETRACKER");
@@ -219,22 +218,22 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
 
     kis_lock_guard<kis_mutex> lk(cv3->lock, __func__);
 
-    auto l1info = in_pack->fetch<kis_layer1_packinfo>(cv3->pack_comp_l1data);
+    // auto l1info = in_pack->fetch<kis_layer1_packinfo>(cv3->pack_comp_l1data);
 
     // Nothing to do with no l1info
-    if (l1info == nullptr)
+    if (!in_pack->signal_info.data_ok)
         return 1;
 
     // Find or make a frequency record if we know our frequency
-    if (l1info->freq_khz != 0) {
-        auto const& imi_idx = cv3->frequency_map.try_emplace(l1info->freq_khz, channel_tracker_v3_channel{});
+    if (in_pack->signal_info.freq_khz != 0) {
+        auto const& imi_idx = cv3->frequency_map.try_emplace(in_pack->signal_info.freq_khz, channel_tracker_v3_channel{});
         auto& freq = imi_idx.first->second;
 
         if (imi_idx.second) {
-            freq.frequency = l1info->freq_khz;
+            freq.frequency = in_pack->signal_info.freq_khz;
         }
 
-        freq.signal_data.append_signal(*l1info, false, 0);
+        freq.signal_data.append_signal(in_pack->signal_info, false, 0);
         freq.packets_rrd.add_sample(1, Globalreg::globalreg->last_tv_sec);
 
         if (in_pack->common_info_ok) {
@@ -251,10 +250,10 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
 
             if (smi_idx.second) {
                 chan.channel = in_pack->common_info.channel;
-                chan.frequency = l1info->freq_khz;
+                chan.frequency = in_pack->signal_info.freq_khz;
             }
 
-            chan.signal_data.append_signal(*l1info, false, 0);
+            chan.signal_data.append_signal(in_pack->signal_info, false, 0);
             chan.packets_rrd.add_sample(1, Globalreg::globalreg->last_tv_sec);
             chan.data_rrd.add_sample(in_pack->common_info.datasize, Globalreg::globalreg->last_tv_sec);
         }

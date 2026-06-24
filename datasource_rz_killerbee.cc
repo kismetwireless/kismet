@@ -81,12 +81,11 @@ int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
 
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-        radioheader->signal_type = kis_l1_signal_type_dbm;
-        radioheader->signal_dbm = rssi;
-        radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
-        radioheader->channel = fmt::format("{}", (channel));
-        packet->insert(pack_comp_radiodata, radioheader);
+		packet->signal_info.data_ok = true;
+        packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+        packet->signal_info.signal_dbm = rssi;
+        packet->signal_info.freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
+        packet->signal_info.channel = fmt::format("{}", (channel));
 
         return 1;
     } else {

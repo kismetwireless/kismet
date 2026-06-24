@@ -137,12 +137,11 @@ int kis_datasource_nrf52840::handle_rx_data_content(kis_packet *packet, kis_data
         packet->set_data(conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-        auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-        radioheader->signal_type = kis_l1_signal_type_dbm;
-        radioheader->signal_dbm = rssi;
-        radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
-        radioheader->channel = fmt::format("{}", (channel));
-        packet->insert(pack_comp_radiodata, radioheader);
+		packet->signal_info.data_ok = true;
+        packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+        packet->signal_info.signal_dbm = rssi;
+        packet->signal_info.freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
+        packet->signal_info.channel = fmt::format("{}", (channel));
     }
 
     return 1;

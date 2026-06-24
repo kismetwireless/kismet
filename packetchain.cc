@@ -183,7 +183,6 @@ packet_chain::packet_chain() {
 
 	pack_comp_linkframe = register_packet_component("LINKFRAME");
 	pack_comp_decap = register_packet_component("DECAP");
-    pack_comp_l1 = register_packet_component("RADIODATA");
     pack_comp_l1_agg = register_packet_component("RADIODATA_AGG");
 	pack_comp_datasource = register_packet_component("KISDATASRC");
 
@@ -406,12 +405,15 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
                     }
 
                     // Merge the signal levels
+					// TODO fix for new embedded l1 data
+#if 0
                     if (packet->has(pack_comp_l1) && packet->has(pack_comp_datasource)) {
                         auto l1 = packet->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
                         auto radio_agg = packet->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
                         auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
                         radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
                     }
+#endif
 
                     break;
                 }

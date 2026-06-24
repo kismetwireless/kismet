@@ -119,7 +119,7 @@ protected:
     using frequency_map_iter_t = std::unordered_map<double, channel_tracker_v3_channel>::iterator;
     std::unordered_map<double, channel_tracker_v3_channel> frequency_map;
 
-    int pack_comp_l1data, pack_comp_devinfo, pack_comp_device;
+    int pack_comp_devinfo, pack_comp_device;
 
     int timer_id;
     int gather_devices_event(int event_id);

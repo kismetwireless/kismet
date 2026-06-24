@@ -39,9 +39,7 @@ datasource_scan_source::datasource_scan_source(const std::string& uri, const std
         packetchain->register_packet_component("KISDATASRC");
     pack_comp_gps = 
         packetchain->register_packet_component("GPS");
-    pack_comp_l1info = 
-        packetchain->register_packet_component("RADIODATA");
-    pack_comp_devicetag = 
+    pack_comp_devicetag =
         packetchain->register_packet_component("DEVICETAG");
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
@@ -160,7 +158,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
                 gpsinfo->lat = lat;
                 gpsinfo->lon = lon;
-                
+
                 if (alt != 0)
                     gpsinfo->fix = 3;
                 else
@@ -172,32 +170,23 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
                 packet->insert(pack_comp_gps, gpsinfo);
             }
 
-            std::shared_ptr<kis_layer1_packinfo> l1info;
+            // std::shared_ptr<kis_layer1_packinfo> l1info;
 
             if (!r["signal"].is_null()) {
-                if (l1info == nullptr)
-                    l1info = std::make_shared<kis_layer1_packinfo>();
-
-                l1info->signal_dbm = r["signal"];
-                l1info->signal_type = kis_l1_signal_type_dbm;
+                packet->signal_info.data_ok = true;
+                packet->signal_info.signal_dbm = r["signal"];
+                packet->signal_info.signal_type = kis_l1_signal_type_dbm;
             }
 
             if (!r["freqkhz"].is_null()) {
-                if (l1info == nullptr)
-                    l1info = std::make_shared<kis_layer1_packinfo>();
-
-                l1info->freq_khz = r["freqkhz"];
+                packet->signal_info.data_ok = true;
+                packet->signal_info.freq_khz = r["freqkhz"];
             }
 
             if (!r["channel"].is_null()) {
-                if (l1info == nullptr)
-                    l1info = std::make_shared<kis_layer1_packinfo>();
-
-                l1info->channel = r["channel"];
+                packet->signal_info.data_ok = true;
+                packet->signal_info.channel = r["channel"];
             }
-
-            if (l1info != nullptr)
-                packet->insert(pack_comp_l1info, l1info);
 
             auto srcinfo = std::make_shared<packetchain_comp_datasource>();
             srcinfo->ref_source = virtual_source.get();

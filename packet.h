@@ -221,6 +221,88 @@ public:
     struct timeval tv;
 };
 
+// Layer 1 radio info record for kismet
+enum kis_layer1_packinfo_signal_type {
+    kis_l1_signal_type_none,
+    kis_l1_signal_type_dbm,
+    kis_l1_signal_type_rssi
+};
+
+class kis_layer1_packinfo : public packet_component {
+public:
+    kis_layer1_packinfo() {
+        reset();
+    }
+
+    virtual bool unique() override { return true; }
+
+    void reset() {
+        data_ok = false;
+        signal_type = kis_l1_signal_type_none;
+        signal_dbm = noise_dbm = 0;
+        signal_rssi = noise_rssi = 0;
+        carrier = carrier_unknown;
+        encoding = encoding_unknown;
+        datarate = 0;
+        freq_khz = 0;
+        accuracy = 0;
+        channel = "0";
+    }
+
+    bool data_ok;
+
+    // How "accurate" are we?  Higher == better.  Nothing uses this yet
+    // but we might as well track it here.
+    int accuracy;
+
+    // Frequency seen on
+    double freq_khz;
+
+    // Logical channel
+    std::string channel;
+
+    // Connection info
+    kis_layer1_packinfo_signal_type signal_type;
+    int signal_dbm, signal_rssi;
+    int noise_dbm, noise_rssi;
+
+    // Per-antenna info, mapped to the antenna number
+    std::map<uint8_t, int> antenna_signal_map;
+
+    // What carrier brought us this packet?
+    phy_carrier_type carrier;
+
+    // What encoding?
+    phy_encoding_type encoding;
+
+    // What data rate?
+    double datarate;
+
+    // Checksum, if checksumming is enabled; Only of the non-header
+    // data
+    uint32_t content_checkum;
+};
+
+// Combined list of signal levels collected over time for tracking signal levels of the
+// same transmission over multiple datasources, collected by the content deduper phase
+class kis_layer1_aggregate_packinfo : public packet_component {
+public:
+    kis_layer1_aggregate_packinfo() {
+        reset();
+    }
+
+    // We're not unique - multiple packets can insert l1 signals into the same
+    // aggregated list
+    virtual bool unique() override { return false; }
+
+    void reset() {
+        source_l1_map.clear();
+    }
+
+    std::unordered_map<uuid, std::shared_ptr<kis_layer1_packinfo>> source_l1_map;
+};
+
+
 // Overall packet container that holds packet information
 class kis_packet {
 public:
@@ -269,12 +351,20 @@ public:
     // Original length of capture, if truncated
     uint64_t original_len;
 
-    // Commonly needed info
+    // Some former dynamic packet components are now embedded in the packet itself;
+    // they're highly transient so making them ALL dynamically allocated isn't
+    // a great idea
+
+    // Common multiphy info
     bool common_info_ok;
     kis_common_info common_info;
 
+    // Signal info
+    kis_layer1_packinfo signal_info;
+
     // gps info
     bool gps_info_ok;
+    bool suppress_gps;
     kis_gps_packinfo gps_info;
 
     // Did this packet trigger creation of a new device?  Since a 
@@ -632,84 +722,6 @@ public:
     // A string field that can be filled in
     std::string auxstring;
 
-};
-
-// Layer 1 radio info record for kismet
-enum kis_layer1_packinfo_signal_type {
-    kis_l1_signal_type_none,
-    kis_l1_signal_type_dbm,
-    kis_l1_signal_type_rssi
-};
-
-class kis_layer1_packinfo : public packet_component {
-public:
-    kis_layer1_packinfo() {
-        reset();
-    }
-
-    virtual bool unique() override { return true; }
-
-    void reset() {
-        signal_type = kis_l1_signal_type_none;
-        signal_dbm = noise_dbm = 0;
-        signal_rssi = noise_rssi = 0;
-        carrier = carrier_unknown;
-        encoding = encoding_unknown;
-        datarate = 0;
-        freq_khz = 0;
-        accuracy = 0;
-        channel = "0";
-    }
-
-    // How "accurate" are we?  Higher == better.  Nothing uses this yet
-    // but we might as well track it here.
-    int accuracy;
-
-    // Frequency seen on
-    double freq_khz;
-
-    // Logical channel
-    std::string channel;
-
-    // Connection info
-    kis_layer1_packinfo_signal_type signal_type;
-    int signal_dbm, signal_rssi;
-    int noise_dbm, noise_rssi;
-
-    // Per-antenna info, mapped to the antenna number
-    std::map<uint8_t, int> antenna_signal_map;
-
-    // What carrier brought us this packet?
-    phy_carrier_type carrier;
-
-    // What encoding?
-    phy_encoding_type encoding;
-
-    // What data rate?
-    double datarate;
-
-    // Checksum, if checksumming is enabled; Only of the non-header 
-    // data
-    uint32_t content_checkum;
-};
-
-// Combined list of signal levels collected over time for tracking signal levels of the
-// same transmission over multiple datasources, collected by the content deduper phase
-class kis_layer1_aggregate_packinfo : public packet_component {
-public:
-    kis_layer1_aggregate_packinfo() {
-        reset();
-    }
-
-    // We're not unique - multiple packets can insert l1 signals into the same
-    // aggregated list
-    virtual bool unique() override { return false; }
-
-    void reset() {
-        source_l1_map.clear();
-    }
-
-    std::unordered_map<uuid, std::shared_ptr<kis_layer1_packinfo>> source_l1_map;
 };
 
 // JSON as a raw string; parsing happens in the DS code; currently supports one JSON report

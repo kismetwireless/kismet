@@ -76,7 +76,6 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     int applyfcs = 0, fcsknownbad = 0;
 
     // Make a datachunk for the reformatted frame
-    std::shared_ptr<kis_layer1_packinfo> radioheader;
     std::shared_ptr<kis_gps_packinfo> gpsinfo;
 
     if (linkchunk->length() < sizeof(ppi_packet_header)) {
@@ -134,59 +133,56 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                 fcsknownbad = 1;
             }
 
-            if (radioheader == nullptr)
-                radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
+			in_pack->signal_info.data_ok = true;
 
             // Channel flags
             tuint = kis_letoh16(ppic->chan_flags);
             if (tuint & PPI_80211_CHFLAG_CCK) 
-                radioheader->encoding = encoding_cck;
+                in_pack->signal_info.encoding = encoding_cck;
             if (tuint & PPI_80211_CHFLAG_OFDM) 
-                radioheader->encoding = encoding_ofdm;
+                in_pack->signal_info.encoding = encoding_ofdm;
             if (tuint & PPI_80211_CHFLAG_DYNAMICCCK) 
-                radioheader->encoding = encoding_dynamiccck;
+                in_pack->signal_info.encoding = encoding_dynamiccck;
             if (tuint & PPI_80211_CHFLAG_GFSK) 
-                radioheader->encoding = encoding_gfsk;
+                in_pack->signal_info.encoding = encoding_gfsk;
             if (tuint & PPI_80211_CHFLAG_TURBO)
-                radioheader->carrier = carrier_80211bplus;
+                in_pack->signal_info.carrier = carrier_80211bplus;
             if ((tuint & PPI_80211_CHFLAG_OFDM) &&
                     (tuint & PPI_80211_CHFLAG_2GHZ))
-                radioheader->carrier = carrier_80211g;
+                in_pack->signal_info.carrier = carrier_80211g;
             if (tuint & PPI_80211_CHFLAG_5GHZ)
-                radioheader->carrier = carrier_80211a;
+                in_pack->signal_info.carrier = carrier_80211a;
 
-            radioheader->signal_type = kis_l1_signal_type_dbm;
-            radioheader->signal_dbm = ppic->signal_dbm;
-            radioheader->noise_dbm = ppic->noise_dbm;
+            in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+            in_pack->signal_info.signal_dbm = ppic->signal_dbm;
+            in_pack->signal_info.noise_dbm = ppic->noise_dbm;
 
-            radioheader->datarate = kis_letoh16(ppic->rate) * 5;
+            in_pack->signal_info.datarate = kis_letoh16(ppic->rate) * 5;
 
-            radioheader->freq_khz = kis_letoh16(ppic->freq_mhz) * 1000;
+            in_pack->signal_info.freq_khz = kis_letoh16(ppic->freq_mhz) * 1000;
         } else if (fh_type == PPI_FIELD_11NMAC) {
             ppi_11n_mac *ppin = (ppi_11n_mac *) ppi_fh;
 
-            if (radioheader == nullptr)
-                radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
+			in_pack->signal_info.data_ok = true;
 
             // Decode greenfield notation
             tuint = kis_letoh16(ppin->flags);
             if (tuint & PPI_11NMAC_HT2040)
-                radioheader->carrier = carrier_80211n20;
+				in_pack->signal_info.carrier = carrier_80211n20;
             else
-                radioheader->carrier = carrier_80211n40;
+				in_pack->signal_info.carrier = carrier_80211n40;
 
         } else if (fh_type == PPI_FIELD_11NMACPHY) {
             ppi_11n_macphy *ppinp = (ppi_11n_macphy *) ppi_fh;
 
-            if (radioheader == nullptr)
-                radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
+			in_pack->signal_info.data_ok = true;
 
             // Decode greenfield notation
             tuint = kis_letoh16(ppinp->flags);
             if (tuint & PPI_11NMAC_HT2040)
-                radioheader->carrier = carrier_80211n20;
+                in_pack->signal_info.carrier = carrier_80211n20;
             else
-                radioheader->carrier = carrier_80211n40;
+                in_pack->signal_info.carrier = carrier_80211n40;
         } else if (fh_type == PPI_FIELD_GPS) {
             ppi_gps_hdr *ppigps = (ppi_gps_hdr *) ppi_fh;
 
@@ -265,10 +261,6 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     // Alias the decapsulated data
     auto len = kismin((linkchunk->length() - ph_len - applyfcs), (uint32_t) MAX_PACKET_LEN);
     decapchunk->set_data(linkchunk->substr(ph_len, len));
-
-    if (radioheader != NULL) {
-        in_pack->insert(pack_comp_radiodata, radioheader);
-    }
 
     in_pack->insert(pack_comp_decap, decapchunk);
 

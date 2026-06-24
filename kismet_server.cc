@@ -107,7 +107,6 @@
 #include "kis_net_beast_httpd.h"
 
 #include "system_monitor.h"
-#include "channeltracker2.h"
 #include "channeltracker_v3.h"
 #include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"

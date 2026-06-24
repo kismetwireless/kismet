@@ -197,8 +197,6 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     int fcs_cut = 0; // fcs at end of frame
     bool fcs_flag_invalid = false; // fcs known invalid
 
-    std::shared_ptr<kis_layer1_packinfo> radioheader;
-
     if (linkchunk->length() < sizeof(*hdr)) {
         return 0;
     }
@@ -223,7 +221,6 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     }
 
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
-    radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
 
     decapchunk->dlt = KDLT_IEEE802_11;
 
@@ -336,43 +333,45 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             // static int pnum = 0;
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
-                    radioheader->freq_khz = (double) u.u16 * 1000;
+                    in_pack->signal_info.data_ok = true;
+                    in_pack->signal_info.freq_khz = (double) u.u16 * 1000;
 
                     // handle broken drivers reporting s1g wrong
-                    if (IEEE80211_IS_CHAN_S1G(u2.u16) && radioheader->freq_khz > 1e6) {
-                        radioheader->freq_khz /= 10;
+                    if (IEEE80211_IS_CHAN_S1G(u2.u16) && in_pack->signal_info.freq_khz > 1e6) {
+                        in_pack->signal_info.freq_khz /= 10;
                     }
 
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
-                        radioheader->carrier = carrier_80211fhss;
+                        in_pack->signal_info.carrier = carrier_80211fhss;
                     else if (IEEE80211_IS_CHAN_A(u2.u16))
-                        radioheader->carrier = carrier_80211a;
+                        in_pack->signal_info.carrier = carrier_80211a;
                     else if (IEEE80211_IS_CHAN_BPLUS(u2.u16))
-                        radioheader->carrier = carrier_80211bplus;
+                        in_pack->signal_info.carrier = carrier_80211bplus;
                     else if (IEEE80211_IS_CHAN_B(u2.u16))
-                        radioheader->carrier = carrier_80211b;
+                        in_pack->signal_info.carrier = carrier_80211b;
                     else if (IEEE80211_IS_CHAN_PUREG(u2.u16))
-                        radioheader->carrier = carrier_80211g;
+                        in_pack->signal_info.carrier = carrier_80211g;
                     else if (IEEE80211_IS_CHAN_G(u2.u16))
-                        radioheader->carrier = carrier_80211g;
+                        in_pack->signal_info.carrier = carrier_80211g;
                     else if (IEEE80211_IS_CHAN_T(u2.u16))
-                        radioheader->carrier = carrier_80211a;/*XXX*/
+                        in_pack->signal_info.carrier = carrier_80211a;/*XXX*/
                     else
-                        radioheader->carrier = carrier_unknown;
+                        in_pack->signal_info.carrier = carrier_unknown;
                     if ((u2.u16 & IEEE80211_CHAN_CCK) == IEEE80211_CHAN_CCK)
-                        radioheader->encoding = encoding_cck;
+                        in_pack->signal_info.encoding = encoding_cck;
                     else if ((u2.u16 & IEEE80211_CHAN_OFDM) == IEEE80211_CHAN_OFDM)
-                        radioheader->encoding = encoding_ofdm;
+                        in_pack->signal_info.encoding = encoding_ofdm;
                     else if ((u2.u16 & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
-                        radioheader->encoding = encoding_dynamiccck;
+                        in_pack->signal_info.encoding = encoding_dynamiccck;
                     else if ((u2.u16 & IEEE80211_CHAN_GFSK) == IEEE80211_CHAN_GFSK)
-                        radioheader->encoding = encoding_gfsk;
+                        in_pack->signal_info.encoding = encoding_gfsk;
                     else
-                        radioheader->encoding = encoding_unknown;
+                        in_pack->signal_info.encoding = encoding_unknown;
                     break;
                 case IEEE80211_RADIOTAP_RATE:
                     /* strip basic rate bit & convert to kismet units */
-                    radioheader->datarate = ((float) (u.u8 &~ 0x80) / 2) * 10;
+                    in_pack->signal_info.data_ok = true;
+                    in_pack->signal_info.datarate = ((float) (u.u8 &~ 0x80) / 2) * 10;
                     break;
                 case IEEE80211_RADIOTAP_ANTENNA:
                     record_antenna = u.u8;
@@ -382,8 +381,9 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     signal_present = true;
                     break;
                 case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-                    radioheader->signal_type = kis_l1_signal_type_dbm;
-                    radioheader->noise_dbm = u.i8;
+                    in_pack->signal_info.data_ok = true;
+                    in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+                    in_pack->signal_info.noise_dbm = u.i8;
                     break;
                 case IEEE80211_RADIOTAP_FLAGS:
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS) {
@@ -413,13 +413,15 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             // overall signal level
             if (!assigned_signal) {
                 assigned_signal = true;
-                radioheader->signal_type = kis_l1_signal_type_dbm;
-                radioheader->signal_dbm = record_signal;
+                in_pack->signal_info.data_ok = true;
+                in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+                in_pack->signal_info.signal_dbm = record_signal;
             }
 
             if (record_antenna >= 0) {
-                radioheader->signal_type = kis_l1_signal_type_dbm;
-                radioheader->antenna_signal_map[record_antenna] = record_signal;
+                in_pack->signal_info.data_ok = true;
+                in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+                in_pack->signal_info.antenna_signal_map[record_antenna] = record_signal;
             }
         }
 
@@ -438,7 +440,6 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
     decapchunk->set_data(linkchunk->substr(offset, linkchunk->length() - offset - fcs_cut));
 
-    in_pack->insert(pack_comp_radiodata, radioheader);
     in_pack->insert(pack_comp_decap, decapchunk);
 
     uint32_t fcs_data = 0;

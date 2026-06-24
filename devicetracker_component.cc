@@ -203,92 +203,97 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
     }
 }
 
-void kis_tracked_signal_data::append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts) {
-    if (in.lay1 != NULL) {
-        if (in.lay1->signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
+void kis_tracked_signal_data::append_signal(const kis_layer1_packinfo *lay1, const kis_gps_packinfo *gps,
+        bool update_rrd, time_t rrd_ts) {
+    if (lay1 != nullptr && lay1->data_ok == true) {
+        if (lay1->signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
             if (sig_type == 0) {
                 signal_type->set("dbm");
                 sig_type = 1;
             }
 
-            if (in.lay1->signal_dbm != 0) {
+            if (lay1->signal_dbm != 0) {
 
-                last_signal->set(in.lay1->signal_dbm);
+                last_signal->set(lay1->signal_dbm);
 
-                if (min_signal->get() == 0 || min_signal->get() > in.lay1->signal_dbm) {
-                    min_signal->set(in.lay1->signal_dbm);
+                if (min_signal->get() == 0 || min_signal->get() > lay1->signal_dbm) {
+                    min_signal->set(lay1->signal_dbm);
                 }
 
-                if (max_signal->get() == 0 || max_signal->get() < in.lay1->signal_dbm) {
-                    max_signal->set(in.lay1->signal_dbm);
+                if (max_signal->get() == 0 || max_signal->get() < lay1->signal_dbm) {
+                    max_signal->set(lay1->signal_dbm);
 
-                    if (in.gps != NULL) {
-                        get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->fix);
+                    if (gps != nullptr) {
+                        get_peak_loc()->set(gps->lat, gps->lon, gps->alt, gps->fix);
                     }
                 }
 
                 if (update_rrd)
-                    get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, rrd_ts);
+                    get_signal_min_rrd()->add_sample(lay1->signal_dbm, rrd_ts);
             }
 
-            if (in.lay1->noise_dbm != 0) {
-                last_noise->set(in.lay1->noise_dbm);
+            if (lay1->noise_dbm != 0) {
+                last_noise->set(lay1->noise_dbm);
 
-                if (min_noise->get() == 0 || min_noise->get() > in.lay1->noise_dbm) {
-                    min_noise->set(in.lay1->noise_dbm);
+                if (min_noise->get() == 0 || min_noise->get() > lay1->noise_dbm) {
+                    min_noise->set(lay1->noise_dbm);
                 }
 
-                if (max_noise->get() == 0 || max_noise->get() < in.lay1->noise_dbm) {
-                    max_noise->set(in.lay1->noise_dbm);
+                if (max_noise->get() == 0 || max_noise->get() < lay1->noise_dbm) {
+                    max_noise->set(lay1->noise_dbm);
                 }
-            } 
-        } else if (in.lay1->signal_type == kis_l1_signal_type_rssi && (sig_type == 0 || sig_type == 2)) {
+            }
+        } else if (lay1->signal_type == kis_l1_signal_type_rssi && (sig_type == 0 || sig_type == 2)) {
             if (sig_type == 0) {
                 signal_type->set("rssi");
                 sig_type = 2;
             }
 
-            if (in.lay1->signal_rssi != 0) {
-                last_signal->set(in.lay1->signal_rssi);
+            if (lay1->signal_rssi != 0) {
+                last_signal->set(lay1->signal_rssi);
 
-                if (min_signal->get() == 0 || min_signal->get() > in.lay1->signal_rssi) {
-                    min_signal->set(in.lay1->signal_rssi);
+                if (min_signal->get() == 0 || min_signal->get() > lay1->signal_rssi) {
+                    min_signal->set(lay1->signal_rssi);
                 }
 
-                if (max_signal->get() == 0 || max_signal->get() < in.lay1->signal_rssi) {
-                    max_signal->set(in.lay1->signal_rssi);
+                if (max_signal->get() == 0 || max_signal->get() < lay1->signal_rssi) {
+                    max_signal->set(lay1->signal_rssi);
 
-                    if (in.gps != NULL) {
-                        get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, 
-                                in.gps->fix);
+                    if (gps != nullptr) {
+                        get_peak_loc()->set(gps->lat, gps->lon, gps->alt, gps->fix);
                     }
                 }
 
                 if (update_rrd)
-                    get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, rrd_ts);
+                    get_signal_min_rrd()->add_sample(lay1->signal_rssi, rrd_ts);
             }
 
-            if (in.lay1->noise_rssi != 0) {
-                last_noise->set(in.lay1->noise_rssi);
+            if (lay1->noise_rssi != 0) {
+                last_noise->set(lay1->noise_rssi);
 
-                if (min_noise->get() == 0 || min_noise->get() > in.lay1->noise_rssi) {
-                    min_noise->set(in.lay1->noise_rssi);
+                if (min_noise->get() == 0 || min_noise->get() > lay1->noise_rssi) {
+                    min_noise->set(lay1->noise_rssi);
                 }
 
-                if (max_noise->get() == 0 || max_noise->get() < in.lay1->noise_rssi) {
-                    max_noise->set(in.lay1->noise_rssi);
+                if (max_noise->get() == 0 || max_noise->get() < lay1->noise_rssi) {
+                    max_noise->set(lay1->noise_rssi);
                 }
             }
 
         }
 
-        (*carrierset) |= (uint64_t) in.lay1->carrier;
-        (*encodingset) |= (uint64_t) in.lay1->encoding;
+        (*carrierset) |= (uint64_t) lay1->carrier;
+        (*encodingset) |= (uint64_t) lay1->encoding;
 
-        if ((*maxseenrate) < (double) in.lay1->datarate) {
-            maxseenrate->set((double) in.lay1->datarate);
+        if ((*maxseenrate) < (double) lay1->datarate) {
+            maxseenrate->set((double) lay1->datarate);
         }
     }
+
+}
+
+void kis_tracked_signal_data::append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts) {
+    append_signal(in.lay1.get(), in.gps.get(), update_rrd, rrd_ts);
 }
 
 void kis_tracked_signal_data::register_fields() {
@@ -408,9 +413,20 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
     }
 }
 
-void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, 
+void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
         time_t tv_sec, int frequency, packinfo_sig_combo *siginfo,
         bool update_rrd) {
+    if (siginfo != nullptr) {
+        return inc_seenby_count(source, tv_sec, frequency, siginfo->lay1.get(),
+                siginfo->gps.get(), update_rrd);
+    } else {
+        return inc_seenby_count(source, tv_sec, frequency, nullptr, nullptr, update_rrd);
+    }
+}
+
+void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, time_t tv_sec, int frequency,
+            const kis_layer1_packinfo *lay1, const kis_gps_packinfo *gps,
+            bool update_rrd) {
     std::shared_ptr<kis_tracked_seenby_data> seenby;
 
     auto seenby_iter = seenby_map->find(source->get_source_key());
@@ -430,8 +446,8 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
 			if (frequency > 0)
 				seenby->inc_frequency_count(frequency);
 
-			if (siginfo != NULL)
-				(seenby->get_signal_data())->append_signal(*siginfo, update_rrd, tv_sec);
+
+            (seenby->get_signal_data())->append_signal(lay1, gps, update_rrd, tv_sec);
 
 			seenby_map->insert(source->get_source_key(), seenby);
 		}
@@ -444,8 +460,7 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
         if (frequency > 0)
             seenby_r->inc_frequency_count(frequency);
 
-        if (siginfo != NULL)
-            seenby_r->get_signal_data()->append_signal(*siginfo, update_rrd, tv_sec);
+        seenby_r->get_signal_data()->append_signal(lay1, nullptr, update_rrd, tv_sec);
     }
 }
 

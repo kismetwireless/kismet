@@ -105,12 +105,11 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
         packet->set_data((const char *) conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-        auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-        radioheader->signal_type = kis_l1_signal_type_rssi;
-        radioheader->signal_rssi = rssi * -1;
+		packet->signal_info.data_ok = true;
+        packet->signal_info.signal_type = kis_l1_signal_type_rssi;
+        packet->signal_info.signal_rssi = rssi * -1;
         //radioheader->freq_khz = (2400 + (channel)) * 1000;
-        radioheader->channel = fmt::format("{}", (channel));
-        packet->insert(pack_comp_radiodata, radioheader);
+        packet->signal_info.channel = fmt::format("{}", (channel));
 
         return 1;
     } else if (content[0] == 0x02 && content[1] == 0x4E && content[2] == 0x7F) {
@@ -186,12 +185,11 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
 
         // Generate a l1 radio header and a decap header since we have it
         // computed already
-        auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
-        radioheader->signal_type = kis_l1_signal_type_dbm;
-        radioheader->signal_dbm = conv_header->signal;
-        radioheader->freq_khz = (2400 + (channel)) * 1000;
-        radioheader->channel = fmt::format("{}", (channel));
-        packet->insert(pack_comp_radiodata, radioheader);
+		packet->signal_info.data_ok = true;
+        packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+        packet->signal_info.signal_dbm = conv_header->signal;
+        packet->signal_info.freq_khz = (2400 + (channel)) * 1000;
+        packet->signal_info.channel = fmt::format("{}", (channel));
 
 
         auto decapchunk = packetchain->new_packet_component<kis_datachunk>();

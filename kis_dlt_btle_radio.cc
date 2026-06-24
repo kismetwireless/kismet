@@ -88,33 +88,30 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
         in_pack->crc_ok = 1;
     }
 
-    // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = std::make_shared<kis_layer1_packinfo>();
-    radioheader->signal_type = kis_l1_signal_type_dbm;
+	in_pack->signal_info.data_ok = true;
+    in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
 
     if (flags & btle_rf_flag_signalvalid)
-        radioheader->signal_dbm = rf_ll->signal;
+        in_pack->signal_info.signal_dbm = rf_ll->signal;
     if (flags & btle_rf_flag_noisevalid)
-        radioheader->noise_dbm = rf_ll->noise;
+        in_pack->signal_info.noise_dbm = rf_ll->noise;
 
     if (rf_ll->monitor_channel == 0) {
-        radioheader->channel = "37";
-        radioheader->freq_khz = (2402 * 1000);
+        in_pack->signal_info.channel = "37";
+        in_pack->signal_info.freq_khz = (2402 * 1000);
     } else if (rf_ll->monitor_channel == 12) {
-        radioheader->channel = "38";
-        radioheader->freq_khz = (2426 * 1000);
+        in_pack->signal_info.channel = "38";
+        in_pack->signal_info.freq_khz = (2426 * 1000);
     } else if (rf_ll->monitor_channel == 39) {
-        radioheader->channel = "39";
-        radioheader->freq_khz = (2480 * 1000);
+        in_pack->signal_info.channel = "39";
+        in_pack->signal_info.freq_khz = (2480 * 1000);
     }  else if (rf_ll->monitor_channel <= 10) {
-        radioheader->channel = fmt::format("{}", rf_ll->monitor_channel - 1);
-        radioheader->freq_khz = (2404 + (rf_ll->monitor_channel * 2)) * 1000;
+        in_pack->signal_info.channel = fmt::format("{}", rf_ll->monitor_channel - 1);
+        in_pack->signal_info.freq_khz = (2404 + (rf_ll->monitor_channel * 2)) * 1000;
     } else {
-        radioheader->channel = fmt::format("{}", rf_ll->monitor_channel);
-        radioheader->freq_khz = (2428 + ((rf_ll->monitor_channel - 11) * 2)) * 1000;
+        in_pack->signal_info.channel = fmt::format("{}", rf_ll->monitor_channel);
+        in_pack->signal_info.freq_khz = (2428 + ((rf_ll->monitor_channel - 11) * 2)) * 1000;
     }
-
-    in_pack->insert(pack_comp_radiodata, radioheader);
 
     // TODO handle dewhitening
 

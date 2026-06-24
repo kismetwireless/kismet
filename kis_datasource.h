@@ -664,8 +664,8 @@ protected:
     // implies handling the whole raw packet.
     virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(mpack_node_t& root,
             mpack_tree_t *tree);
-    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(mpack_node_t& root,
-            mpack_tree_t *tree);
+    virtual bool handle_sub_signal(mpack_node_t& root,
+            mpack_tree_t *tree, kis_layer1_packinfo& siginfo);
 
 #ifdef HAVE_PROTOBUF_CPP
     // legacy v2 protocol handlers, to be phased out.  these are all optional, and require Kismet to be
@@ -697,7 +697,7 @@ protected:
 
     // specific decoders broken out for derivitive classes to access signal and gps easily
     virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(KismetDatasource::SubGps in_gps);
-    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(KismetDatasource::SubSignal in_signal);
+    bool handle_sub_signal(KismetDatasource::SubSignal in_signal, kis_layer1_packinfo& siginfo);
 #endif
 
 
@@ -899,7 +899,7 @@ protected:
     std::shared_ptr<kis_gps> device_gps;
 
     // Packet components we inject
-    int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_l1_agg,
+    int pack_comp_report, pack_comp_linkframe, pack_comp_l1_agg,
         pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 

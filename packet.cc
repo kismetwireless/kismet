@@ -52,6 +52,12 @@ kis_packet::kis_packet() {
     data = std::string_view(nullptr, 0);
 
     common_info_ok = false;
+
+    gps_info_ok = false;
+    suppress_gps = false;
+    gps_info.reset();
+
+    signal_info.reset();
 }
 
 kis_packet::~kis_packet() {
@@ -73,6 +79,12 @@ void kis_packet::reset() {
     common_info.reset();
 
     original.reset();
+
+    gps_info_ok = false;
+    suppress_gps = false;
+    gps_info.reset();
+
+    signal_info.reset();
 
     hash = 0;
 

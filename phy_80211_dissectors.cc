@@ -588,8 +588,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         return 0;
     }
 
-    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
-
     // If we're a duplicate packet and haven't processed the dot11 content yet,
     // we have to process.  This prevents a desync between the postcap thread and
     // the bulk packet processing threads.
@@ -602,8 +600,8 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
     in_pack->common_info.phyid = phyid;
 
-    if (pack_l1info != NULL)
-        in_pack->common_info.freq_khz = pack_l1info->freq_khz;
+    if (in_pack->signal_info.data_ok)
+        in_pack->common_info.freq_khz = in_pack->signal_info.freq_khz;
 
     packinfo = packetchain->new_packet_component<dot11_packinfo>();
 

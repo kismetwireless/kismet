@@ -130,7 +130,6 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
 
-    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
 	pack_comp_device = packetchain->register_packet_component("DEVICE");
 
@@ -235,7 +234,6 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         return 1;
     }
 
-    auto l1info = in_pack->fetch<kis_layer1_packinfo>(wigle->pack_comp_l1info);
     auto gps = in_pack->fetch<kis_gps_packinfo>(wigle->pack_comp_gps);
     auto devs = in_pack->fetch<kis_tracked_device_info>(wigle->pack_comp_device);
 
@@ -247,11 +245,12 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
     int signal = 0;
 
-    if (l1info != nullptr) {
-        if (l1info->signal_type == kis_l1_signal_type_dbm)
-            signal = l1info->signal_dbm;
-        else
-            signal = l1info->signal_rssi;
+    if (in_pack->signal_info.data_ok) {
+        if (in_pack->signal_info.signal_type == kis_l1_signal_type_dbm) {
+            signal = in_pack->signal_info.signal_dbm;
+        } else {
+            signal = in_pack->signal_info.signal_rssi;
+        }
     }
 
     // Ignore all but management packets; we don't wigle-log data frames
