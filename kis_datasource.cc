@@ -2251,7 +2251,7 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
         packet->set_data(std::string(in_packet));
     }
 
-    auto gpsinfo = handle_sub_gps(root, &tree, packet->gps_info);
+    handle_sub_gps(root, &tree, packet->gps_info);
 
     if (cancelled) {
         return;
@@ -3127,7 +3127,7 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
         auto gpsinfo = device_gps->get_location();
 
         if (gpsinfo != nullptr)
-            packet->gps_fino.set(gpsinfo);
+            packet->gps_info.set(gpsinfo);
     }
 
     // TODO handle spectrum
