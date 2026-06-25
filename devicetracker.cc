@@ -1100,7 +1100,7 @@ int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
     num_packets++;
 
 	// If we can't figure it out at all (no common layer) just bail
-	if (!in_pack->common_info_ok)
+	if (!in_pack->common_info.common_info_ok)
 		return 0;
 
 	if (in_pack->common_info.error) {
@@ -1230,7 +1230,7 @@ std::shared_ptr<kis_tracked_device_base>
             if (k->second & 0x1) {
                 mac_addr dstmac, netmac, transmac;
 
-                if (in_pack->common_info_ok) {
+                if (in_pack->common_info.common_info_ok) {
                     dstmac = in_pack->common_info.dest;
                     netmac = in_pack->common_info.network;
                     transmac = in_pack->common_info.transmitter;
@@ -1256,7 +1256,7 @@ std::shared_ptr<kis_tracked_device_base>
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();
 
-        if (in_pack->common_info_ok) {
+        if (in_pack->common_info.common_info_ok) {
             if (in_pack->common_info.source == in_mac || in_pack->common_info.transmitter == in_mac) {
                 device->inc_tx_packets();
 
@@ -1274,7 +1274,7 @@ std::shared_ptr<kis_tracked_device_base>
             device->get_packets_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
         }
 
-        if (in_pack->common_info_ok) {
+        if (in_pack->common_info.common_info_ok) {
             if (in_pack->common_info.error)
                 device->inc_error_packets();
 
@@ -1299,7 +1299,7 @@ std::shared_ptr<kis_tracked_device_base>
         bool set_channel = false;
         bool set_freq = false;
 
-        if (in_pack->common_info_ok) {
+        if (in_pack->common_info.common_info_ok) {
             if (!in_pack->common_info.channel.empty() && in_pack->common_info.channel != "0") {
                 set_channel = true;
                 device->set_channel(in_pack->common_info.channel);
@@ -1400,7 +1400,7 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 	}
 
-    if (in_pack->common_info_ok)
+    if (in_pack->common_info.common_info_ok)
         device->add_basic_crypt(in_pack->common_info.basic_crypt_set);
 
     if (pack_tags != nullptr) {

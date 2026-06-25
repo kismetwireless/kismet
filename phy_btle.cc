@@ -161,7 +161,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     }
 
     // Don't reclassify something that's already been seen
-    if (in_pack->common_info_ok) {
+    if (in_pack->common_info.common_info_ok) {
         return 0;
     }
 
@@ -205,7 +205,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    in_pack->common_info_ok = true;
+    in_pack->common_info.common_info_ok = true;
     in_pack->common_info.phyid = mphy->fetch_phy_id();
     in_pack->common_info.basic_crypt_set = crypt_none;
     in_pack->common_info.type = packet_basic_mgmt;
@@ -241,7 +241,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info == nullptr)
         return 0;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 

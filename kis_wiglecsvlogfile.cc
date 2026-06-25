@@ -230,7 +230,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (wigle->stream_paused)
         return 1;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 1;
     }
 

@@ -93,6 +93,8 @@ public:
     }
 
     void reset() {
+        common_info_ok = false;
+
         type = packet_basic_unknown;
         direction = packet_direction_unknown;
 
@@ -108,6 +110,9 @@ public:
         network = mac_addr(0);
         transmitter = mac_addr(0);
     }
+
+    // initialization indicator
+    bool common_info_ok;
 
     // Source - origin of packet
     // Destination - dest of packet
@@ -356,7 +361,6 @@ public:
     // a great idea
 
     // Common multiphy info
-    bool common_info_ok;
     kis_common_info common_info;
 
     // Signal info

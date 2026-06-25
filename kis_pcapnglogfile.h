@@ -42,7 +42,7 @@ struct pcapng_logfile_accept_ftor {
         }
 
         if (!log_data_packets) {
-            if (in_pack->common_info_ok) {
+            if (in_pack->common_info.common_info_ok) {
                 if (in_pack->common_info.type == packet_basic_data) {
                     return false;
                 }

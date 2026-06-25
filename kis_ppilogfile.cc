@@ -189,7 +189,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     auto fcsdata = in_pack->fetch<kis_packet_checksum>(ppilog->pack_comp_checksum);
 
     if (ppilog->log_data_packets == false) {
-        if (in_pack->common_info_ok) {
+        if (in_pack->common_info.common_info_ok) {
             if (in_pack->common_info.type == packet_basic_data) {
                 return 1;
             }

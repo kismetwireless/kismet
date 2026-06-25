@@ -51,7 +51,7 @@ kis_packet::kis_packet() {
     raw_streambuf = nullptr;
     data = std::string_view(nullptr, 0);
 
-    common_info_ok = false;
+    common_info.reset();
 
     gps_info_ok = false;
     suppress_gps = false;
@@ -75,7 +75,6 @@ void kis_packet::reset() {
     filtered = 0;
     duplicate = 0;
 
-    common_info_ok = false;
     common_info.reset();
 
     original.reset();

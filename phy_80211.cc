@@ -1174,7 +1174,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 
@@ -2185,7 +2185,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json->type != "DOT11SCAN")
         return 0;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 
@@ -2234,7 +2234,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
-        in_pack->common_info_ok = true;
+        in_pack->common_info.common_info_ok = true;
         in_pack->common_info.type = packet_basic_mgmt;
         in_pack->common_info.direction = packet_direction_from;
         in_pack->common_info.phyid = d11phy->fetch_phy_id();

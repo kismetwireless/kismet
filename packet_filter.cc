@@ -432,7 +432,7 @@ bool packet_filter_mac_addr::filter_packet(std::shared_ptr<kis_packet> packet) {
 }
 
 bool packet_filter_mac_addr::filter_packet(const kis_packet* packet) {
-    if (!packet->common_info_ok)
+    if (!packet->common_info.common_info_ok)
         return get_filter_default();
 
     auto phy_filter_group =

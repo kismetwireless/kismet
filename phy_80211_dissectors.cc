@@ -596,7 +596,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     }
 
 
-    in_pack->common_info_ok = true;
+    in_pack->common_info.common_info_ok = true;
 
     in_pack->common_info.phyid = phyid;
 

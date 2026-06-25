@@ -153,7 +153,7 @@ bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     }
 
 
-    packet->common_info_ok = true;
+    packet->common_info.common_info_ok = true;
     packet->common_info.type = packet_basic_data;
     packet->common_info.phyid = fetch_phy_id();
     packet->common_info.datasize = 0;

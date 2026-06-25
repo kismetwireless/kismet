@@ -230,7 +230,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 	if (chunk->length() == 0)
 		return 0;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 

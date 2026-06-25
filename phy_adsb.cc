@@ -615,7 +615,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     auto mac = icao_to_mac(icao);
 
 
-    packet->common_info_ok = true;
+    packet->common_info.common_info_ok = true;
     packet->common_info.type = packet_basic_data;
     packet->common_info.phyid = fetch_phy_id();
     packet->common_info.datasize = 0;
@@ -815,7 +815,7 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     }
 
 
-    packet->common_info_ok = true;
+    packet->common_info.common_info_ok = true;
     packet->common_info.type = packet_basic_data;
     packet->common_info.phyid = fetch_phy_id();
     packet->common_info.datasize = 0;

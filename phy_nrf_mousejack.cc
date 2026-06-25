@@ -96,11 +96,11 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
     if (packdata->length() < 6)
         return 0;
 
-    if (in_pack->common_info_ok) {
+    if (in_pack->common_info.common_info_ok) {
         return 0;
     }
 
-    in_pack->common_info_ok = true;
+    in_pack->common_info.common_info_ok = true;
     in_pack->common_info.phyid = mphy->fetch_phy_id();
     in_pack->common_info.basic_crypt_set = crypt_none;
     in_pack->common_info.type = packet_basic_data;
@@ -121,7 +121,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     if (packdata->dlt != mphy->dlt)
         return 0;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 

@@ -136,7 +136,7 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     pack->ts.tv_sec = ts.tv_sec;
     pack->ts.tv_usec = ts.tv_usec;
 
-    pack->common_info_ok = true;
+    pack->common_info.common_info_ok = true;
     pack->common_info.type = packet_basic_data;
     pack->common_info.phyid = fetch_phy_id();
     pack->common_info.datasize = datasize;

@@ -132,7 +132,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     if (packdata->length() < 6 || packdata->length() > 128)
         return 0;
 
-    if (in_pack->common_info_ok) {
+    if (in_pack->common_info.common_info_ok) {
         return 0;
     }
 
@@ -354,7 +354,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
 
-        in_pack->common_info_ok = true;
+        in_pack->common_info.common_info_ok = true;
         in_pack->common_info.phyid = mphy->fetch_phy_id();
         in_pack->common_info.type = packet_basic_data;
 
@@ -397,7 +397,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP))
         return 0;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 

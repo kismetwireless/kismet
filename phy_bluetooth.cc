@@ -124,7 +124,7 @@ int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
         return 0;
     }
 
-    in_pack->common_info_ok = true;
+    in_pack->common_info.common_info_ok = true;
     in_pack->common_info.phyid = btphy->fetch_phy_id();
     in_pack->common_info.type = packet_basic_mgmt;
     in_pack->common_info.direction = packet_direction_from;
@@ -169,7 +169,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
-        in_pack->common_info_ok = true;
+        in_pack->common_info.common_info_ok = true;
         in_pack->common_info.phyid = btphy->fetch_phy_id();
         in_pack->common_info.type = packet_basic_mgmt;
         in_pack->common_info.source = btaddr_mac;
@@ -280,7 +280,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
-        in_pack->common_info_ok = true;
+        in_pack->common_info.common_info_ok = true;
         in_pack->common_info.phyid = btphy->fetch_phy_id();
         in_pack->common_info.type = packet_basic_mgmt;
         in_pack->common_info.source = btaddr_mac;
@@ -466,7 +466,7 @@ int kis_bluetooth_phy::packet_tracker_h4_linux(CHAINCALL_PARMS) {
         uint16_t major_group = kis_letoh16(inquiry->service_major_class);
         uint8_t major_class = major_group & 0x1F;
 
-        in_pack->common_info_ok = true;
+        in_pack->common_info.common_info_ok = true;
         in_pack->common_info.phyid = mphy->fetch_phy_id();
         in_pack->common_info.type = packet_basic_mgmt;
         in_pack->common_info.source = mac_addr(inquiry->bdaddr, 6);
@@ -492,7 +492,7 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (btpi == nullptr)
         return 0;
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
 

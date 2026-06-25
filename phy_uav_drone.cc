@@ -230,7 +230,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
 
             auto dronemac = mac_addr(bytes, 6);
 
-            in_pack->common_info_ok = true;
+            in_pack->common_info.common_info_ok = true;
             in_pack->common_info.type = packet_basic_data;
             in_pack->common_info.phyid = uavphy->fetch_phy_id();
             in_pack->common_info.datasize = 0;
@@ -336,7 +336,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
     // that match the ssid/mac filters; drop a record along the dot11 device 
     // record
 
-    if (!in_pack->common_info_ok) {
+    if (!in_pack->common_info.common_info_ok) {
         return 1;
     }
 

@@ -938,7 +938,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     // Packets are no longer a 1:1 with a device
     keystring = "0";
 
-    if (in_pack->common_info_ok) {
+    if (in_pack->common_info.common_info_ok) {
         if (in_pack->common_info.type == packet_basic_data && !log_data_packets)
             return 0;
 
@@ -1078,7 +1078,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         mac_addr smac("00:00:00:00:00:00");
         uuid puuid;
 
-        if (in_pack->common_info_ok)
+        if (in_pack->common_info.common_info_ok)
             smac = in_pack->common_info.source;
 
         if (datasrc != nullptr)
@@ -1090,7 +1090,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         mac_addr smac("00:00:00:00:00:00");
         uuid puuid;
 
-        if (in_pack->common_info_ok)
+        if (in_pack->common_info.common_info_ok)
             smac = in_pack->common_info.source;
 
         if (datasrc != nullptr)

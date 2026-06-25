@@ -184,7 +184,7 @@ bool Kis_RTL433_Phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     }
     */
 
-    packet->common_info_ok = true;
+    packet->common_info.common_info_ok = true;
     packet->common_info.type = packet_basic_data;
     packet->common_info.phyid = fetch_phy_id();
     packet->common_info.datasize = 0;

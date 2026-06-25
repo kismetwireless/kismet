@@ -236,13 +236,13 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
         freq.signal_data.append_signal(in_pack->signal_info, false, 0);
         freq.packets_rrd.add_sample(1, Globalreg::globalreg->last_tv_sec);
 
-        if (in_pack->common_info_ok) {
+        if (in_pack->common_info.common_info_ok) {
             freq.data_rrd.add_sample(in_pack->common_info.datasize,
                     Globalreg::globalreg->last_tv_sec);
         }
     }
 
-    if (in_pack->common_info_ok) {
+    if (in_pack->common_info.common_info_ok) {
         if (!(in_pack->common_info.channel == "0" || in_pack->common_info.channel == "")) {
             auto const& smi_idx =
                 cv3->channel_map.try_emplace(in_pack->common_info.channel, channel_tracker_v3_channel{});
