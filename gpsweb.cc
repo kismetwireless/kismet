@@ -43,6 +43,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder, uint64_t in_id) :
                     spd = con->json().value("spd", (double) 0);
 
                     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
+					new_location->gps_info_ok = true;
                     new_location->lat = lat;
                     new_location->lon = lon;
                     new_location->speed = spd;
@@ -105,6 +106,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder, uint64_t in_id) :
 
                                         auto new_location = 
                                             packetchain->new_packet_component<kis_gps_packinfo>();
+										new_location->gps_info_ok = true;
                                         new_location->lat = lat;
                                         new_location->lon = lon;
                                         new_location->fix = 2;

@@ -42,8 +42,6 @@ kis_database_logfile::kis_database_logfile():
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
     pack_comp_device = packetchain->register_packet_component("DEVICE");
-    pack_comp_gps = packetchain->register_packet_component("GPS");
-    pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
     pack_comp_metablob = packetchain->register_packet_component("METABLOB");
@@ -928,7 +926,6 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     }
 
     auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
-    auto gpsdata = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
     auto metablob = in_pack->fetch<packet_metablob>(pack_comp_metablob);
     auto jsonblob = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
@@ -1005,12 +1002,12 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         sqlite3_bind_text(packet_stmt, sql_pos++, keystring.c_str(), keystring.length(), SQLITE_TRANSIENT);
         sqlite3_bind_double(packet_stmt, sql_pos++, frequency);
 
-        if (gpsdata != NULL) {
-            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->lat);
-            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->lon);
-            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->alt);
-            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->speed);
-            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->heading);
+        if (in_pack->gps_info.gps_info_ok) {
+            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.lat);
+            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.lon);
+            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.alt);
+            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.speed);
+            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.heading);
         } else {
             sqlite3_bind_double(packet_stmt, sql_pos++, 0);
             sqlite3_bind_double(packet_stmt, sql_pos++, 0);
@@ -1084,7 +1081,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
-        log_data(gpsdata.get(), &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
+        log_data(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
                 metablob->meta_type, metablob->meta_data);
     } else if (jsonblob != nullptr) {
         mac_addr smac("00:00:00:00:00:00");
@@ -1096,7 +1093,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
-        log_data(gpsdata.get(), &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
+        log_data(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
                 jsonblob->type, jsonblob->json_string);
     }
 

@@ -98,6 +98,7 @@ public:
 
     // get the best location (as in the 'best' gps devices first)
     std::shared_ptr<kis_gps_packinfo> get_best_location();
+	void get_best_location(kis_gps_packinfo& location);
 
     // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);
@@ -125,8 +126,6 @@ protected:
     bool database_logging;
     // Timer for logging GPS path as a snapshot
     int log_snapshot_timer;
-
-    int pack_comp_gps, pack_comp_no_gps;
 
     std::shared_ptr<time_tracker> timetracker;
     int event_timer_id;

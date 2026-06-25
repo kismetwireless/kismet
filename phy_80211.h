@@ -528,23 +528,18 @@ protected:
     void handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
             const std::shared_ptr<kis_packet>& in_pack,
-            const kis_layer1_packinfo& l1info,
-            const std::shared_ptr<dot11_packinfo>& dot11info,
-            const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo);
+            const std::shared_ptr<dot11_packinfo>& dot11info);
 
     void handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
             const std::shared_ptr<kis_packet>& in_pack,
-            const kis_layer1_packinfo& l1info,
-            const std::shared_ptr<dot11_packinfo>& dot11info,
-            const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo);
+            const std::shared_ptr<dot11_packinfo>& dot11info);
 
     // Handle probed SSIDs
     void handle_probed_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
             const std::shared_ptr<kis_packet>& in_pack,
-            const std::shared_ptr<dot11_packinfo>& dot11info,
-            const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo);
+            const std::shared_ptr<dot11_packinfo>& dot11info);
 
     // Map a device as a client of an acceess point, fill in any data in the
     // per-client records
@@ -554,7 +549,6 @@ protected:
             const std::shared_ptr<dot11_tracked_device>& clientdot11,
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info,
-            const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo,
             const std::shared_ptr<kis_data_packinfo>& pack_datainfo);
 
     void process_wpa_handshake(const std::shared_ptr<kis_tracked_device_base>& bssid_dev,
@@ -584,8 +578,7 @@ protected:
     // Packet components
     int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
         pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
-        pack_comp_decap, pack_comp_datapayload,
-        pack_comp_gps, pack_comp_json;
+        pack_comp_decap, pack_comp_datapayload, pack_comp_json;
 
     // Do we do any data dissection or do we hide it all (legal safety
     // cutout)

@@ -123,8 +123,6 @@ kis_uav_phy::kis_uav_phy(int in_phyid) :
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
-	pack_comp_gps =
-        packetchain->register_packet_component("GPS");
 
     uav_device_id =
         Globalreg::globalreg->entrytracker->register_field("uav.device",
@@ -245,35 +243,31 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY);
 
             if (drone_lat != 0 && drone_lon != 0) {
-                // We have to make a new component here, not fetch the existing one; otherwise we
-                // clobber the global gps record!
-                auto gpsinfo = uavphy->packetchain->new_packet_component<kis_gps_packinfo>();
-                gpsinfo->lat = drone_lat;
-                gpsinfo->lon = drone_lon;
+				in_pack->gps_info.gps_info_ok = true;
+                in_pack->gps_info.lat = drone_lat;
+                in_pack->gps_info.lon = drone_lon;
 
                 // Absolute altitude of drone, not height from takeoff
-                gpsinfo->alt = drone_alt;
+                in_pack->gps_info.alt = drone_alt;
               
                 // velocity vector to radians to degrees
                 auto heading_r = std::atan2(speed_e, speed_n);
-                gpsinfo->heading = heading_r * (180.0f / M_PI);
-                if (gpsinfo->heading < 0) {
-                    gpsinfo->heading += 360;
+                in_pack->gps_info.heading = heading_r * (180.0f / M_PI);
+                if (in_pack->gps_info.heading < 0) {
+                    in_pack->gps_info.heading += 360;
                 }
 
                 // speed is the magnitude of the ENU velocity vector,
                 // because we generally don't track the vertical speed
                 // in other situations (adsb, wifi) we only take the EN
                 // vector for 2d speed over ground here
-                gpsinfo->speed =
+                in_pack->gps_info.speed =
                     std::sqrt((speed_e * speed_e) + (speed_n * speed_n));
 
                 if (drone_alt != 0)
-                    gpsinfo->fix = 3;
+                    in_pack->gps_info.fix = 3;
 
-                gpsinfo->tv = in_pack->ts;
-
-                in_pack->insert(uavphy->pack_comp_gps, gpsinfo);
+                in_pack->gps_info.tv = in_pack->ts;
 
                 flags |= UCD_UPDATE_LOCATION;
             }

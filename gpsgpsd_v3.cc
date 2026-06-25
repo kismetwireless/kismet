@@ -648,6 +648,8 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     // Only use set_lat_lon, we don't want to clobber locations with fragmented 
     // reports with 0x0 as the location!
     if (set_lat_lon) {
+		new_location->gps_info_ok = true;
+
         set_int_gps_signal_time(last_data_time);
 
         gettimeofday(&(new_location->tv), NULL);

@@ -37,8 +37,6 @@ datasource_scan_source::datasource_scan_source(const std::string& uri, const std
         packetchain->register_packet_component("JSON");
     pack_comp_datasrc =
         packetchain->register_packet_component("KISDATASRC");
-    pack_comp_gps = 
-        packetchain->register_packet_component("GPS");
     pack_comp_devicetag =
         packetchain->register_packet_component("DEVICETAG");
 
@@ -154,20 +152,18 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             double speed = r.value("speed", (double) 0);
 
             if (lat != 0 && lon != 0) {
-                auto gpsinfo = std::make_shared<kis_gps_packinfo>();
+                packet->gps_info.gps_info_ok = true;
 
-                gpsinfo->lat = lat;
-                gpsinfo->lon = lon;
+                packet->gps_info.lat = lat;
+                packet->gps_info.lon = lon;
 
                 if (alt != 0)
-                    gpsinfo->fix = 3;
+                    packet->gps_info.fix = 3;
                 else
-                    gpsinfo->fix = 2;
+                    packet->gps_info.fix = 2;
 
-                gpsinfo->alt = alt;
-                gpsinfo->speed = speed;
-
-                packet->insert(pack_comp_gps, gpsinfo);
+                packet->gps_info.alt = alt;
+                packet->gps_info.speed = speed;
             }
 
             // std::shared_ptr<kis_layer1_packinfo> l1info;

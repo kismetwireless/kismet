@@ -662,8 +662,8 @@ protected:
     // specific decoders to break out signal and gps extraction for derivitive classes; to be passed the
     // decoded packet mpack tree.  most child classes shouldn't ever need to touch this since it also
     // implies handling the whole raw packet.
-    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(mpack_node_t& root,
-            mpack_tree_t *tree);
+    virtual bool handle_sub_gps(mpack_node_t& root,
+            mpack_tree_t *tree, kis_gps_packinfo& gpsinfo);
     virtual bool handle_sub_signal(mpack_node_t& root,
             mpack_tree_t *tree, kis_layer1_packinfo& siginfo);
 
@@ -696,7 +696,7 @@ protected:
             probe_callback_t in_cb);
 
     // specific decoders broken out for derivitive classes to access signal and gps easily
-    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(KismetDatasource::SubGps in_gps);
+    virtual bool handle_sub_gps(KismetDatasource::SubGps in_gps, kis_gps_packinfo& gpsinfo);
     bool handle_sub_signal(KismetDatasource::SubSignal in_signal, kis_layer1_packinfo& siginfo);
 #endif
 
@@ -900,7 +900,6 @@ protected:
 
     // Packet components we inject
     int pack_comp_report, pack_comp_linkframe, pack_comp_l1_agg,
-        pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
     virtual void handle_v2_pong_event() override;

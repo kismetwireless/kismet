@@ -42,6 +42,7 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
     proto_alt = fetch_opt("alt", source_definition_opts);
 
     gps_location = packetchain->new_packet_component<kis_gps_packinfo>();
+	gps_location->gps_info_ok = true;
 
     if (proto_lat == "" || proto_lon == "") {
         _MSG("GPSVirtual expected lat= and lon= options.", MSGFLAG_ERROR);

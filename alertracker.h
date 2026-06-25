@@ -92,7 +92,7 @@ public:
         tm.tv_usec = 0;
         channel = "0";
 
-        gps = NULL;
+		gps.reset();
     }
 
     virtual ~kis_alert_info() { }
@@ -111,7 +111,7 @@ public:
     std::string channel;
     std::string text;
 
-    std::shared_ptr<kis_gps_packinfo> gps;
+	kis_gps_packinfo gps;
 };
 
 class kis_alert_component : public packet_component {
@@ -234,8 +234,8 @@ public:
                         get_transmitter_mac(), get_source_mac(), get_dest_mac(), 
                         get_other_mac(), get_channel())));
 
-        if (info->gps != NULL)
-            location->set(info->gps);
+        if (info->gps.gps_info_ok)
+            location->set(&info->gps);
     }
 
 protected:
@@ -545,7 +545,7 @@ protected:
     // Parse a foo/bar rate/unit option
     int parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
-    int pack_comp_alert, pack_comp_gps;
+    int pack_comp_alert;
     int alert_ref_kismet;
 
     int next_alert_id;

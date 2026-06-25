@@ -148,9 +148,6 @@ device_tracker::device_tracker() :
     pack_comp_mangleframe =
 		packetchain->register_packet_component("MANGLEDATA");
 
-	pack_comp_gps =
-		packetchain->register_packet_component("GPS");
-
 	pack_comp_datasrc =
 		packetchain->register_packet_component("KISDATASRC");
 
@@ -1165,7 +1162,6 @@ std::shared_ptr<kis_tracked_device_base>
 
     bool new_device = false;
 
-    auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
     auto pack_datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
     auto pack_tags = in_pack->fetch<kis_devicetag_packetinfo>(pack_comp_devicetag);
 
@@ -1324,14 +1320,14 @@ std::shared_ptr<kis_tracked_device_base>
 
             // auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
             // device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
-            device->get_signal_data()->append_signal(&in_pack->signal_info, pack_gpsinfo.get(),
+            device->get_signal_data()->append_signal(&in_pack->signal_info, &in_pack->gps_info,
                     !ram_no_rrd, in_pack->ts.tv_sec);
         }
 	}
 
     if (((in_flags & UCD_UPDATE_LOCATION) ||
          ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
-            pack_gpsinfo != NULL && (device_location_signal_threshold == 0 ||
+            in_pack->gps_info.gps_info_ok && (device_location_signal_threshold == 0 ||
                 ( device_location_signal_threshold != 0 && in_pack->signal_info.data_ok &&
                   in_pack->signal_info.signal_dbm >= device_location_signal_threshold))) {
 
@@ -1340,20 +1336,20 @@ std::shared_ptr<kis_tracked_device_base>
         if ((devloc->get_last_location_time() != Globalreg::globalreg->last_tv_sec)) {
             devloc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
 
-            devloc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            devloc->add_loc_with_avg(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                    in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                    in_pack->gps_info.heading);
 
             // Throttle history cloud to one update per second to prevent floods of
             // data from swamping the cloud
-            if (track_history_cloud && pack_gpsinfo->fix >= 2) {
+            if (track_history_cloud && in_pack->gps_info.fix >= 2) {
                 auto histloc = Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>();
 
-                histloc->set_lat(pack_gpsinfo->lat);
-                histloc->set_lon(pack_gpsinfo->lon);
-                histloc->set_alt(pack_gpsinfo->alt);
-                histloc->set_speed(pack_gpsinfo->speed);
-                histloc->set_heading(pack_gpsinfo->heading);
+                histloc->set_lat(in_pack->gps_info.lat);
+                histloc->set_lon(in_pack->gps_info.lon);
+                histloc->set_alt(in_pack->gps_info.alt);
+                histloc->set_speed(in_pack->gps_info.speed);
+                histloc->set_heading(in_pack->gps_info.heading);
 
                 histloc->set_time_sec(in_pack->ts.tv_sec);
 
@@ -1368,9 +1364,9 @@ std::shared_ptr<kis_tracked_device_base>
                 device->get_location_cloud()->add_sample(histloc);
             }
         } else {
-            devloc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                            pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                            pack_gpsinfo->heading);
+            devloc->add_loc(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                            in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                            in_pack->gps_info.heading);
         }
 
     }
@@ -1388,7 +1384,7 @@ std::shared_ptr<kis_tracked_device_base>
             // Only populate signal, frequency map, etc per-source if we're tracking that
             // auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
             device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f,
-                    &in_pack->signal_info, pack_gpsinfo.get(), !ram_no_rrd);
+                    &in_pack->signal_info, &in_pack->gps_info, !ram_no_rrd);
         } else {
             device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, nullptr, false);
         }

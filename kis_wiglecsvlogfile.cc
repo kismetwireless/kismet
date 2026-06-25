@@ -130,7 +130,6 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
 
-    pack_comp_gps = packetchain->register_packet_component("GPS");
 	pack_comp_device = packetchain->register_packet_component("DEVICE");
 
     throttle_seconds =
@@ -234,13 +233,12 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         return 1;
     }
 
-    auto gps = in_pack->fetch<kis_gps_packinfo>(wigle->pack_comp_gps);
     auto devs = in_pack->fetch<kis_tracked_device_info>(wigle->pack_comp_device);
 
-    if (gps == nullptr || devs == nullptr)
+    if (!in_pack->gps_info.gps_info_ok || devs == nullptr)
         return 1;
 
-    if (gps->lat == 0 || gps->lon == 0)
+    if (in_pack->gps_info.lat == 0 || in_pack->gps_info.lon == 0)
         return 1;
 
     int signal = 0;
@@ -322,7 +320,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 (int) channel,
                 dev->get_frequency(),
                 signal,
-                gps->lat, gps->lon, gps->alt,
+                in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
                 0, // TODO - dereive a gps accuracy
                 "WIFI");
 
@@ -371,7 +369,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 0, // no channel for bluetooth
                 "", // todo - fill in device type code
                 signal,
-                gps->lat, gps->lon, gps->alt,
+                in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
                 0, // todo - derive accuracy from gps
                 "", // rcoi blank
                 "", // todo - fill bt mfgr id
@@ -411,7 +409,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 0,
                 "", // todo - fill in device type code
                 signal,
-                gps->lat, gps->lon, gps->alt,
+                in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
                 0, // todo - derive accuracy from gps
                 "", // rcoi blank
                 "", // todo - fill bt mfgr id

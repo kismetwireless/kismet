@@ -201,9 +201,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     pack_comp_datapayload =
         packetchain->register_packet_component("DATAPAYLOAD");
 
-    pack_comp_gps =
-        packetchain->register_packet_component("GPS");
-
     pack_comp_json =
         packetchain->register_packet_component("JSON");
 
@@ -1222,7 +1219,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     }
 #endif
 
-    auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(d11phy->pack_comp_gps);
     auto pack_datainfo = in_pack->fetch<kis_data_packinfo>(d11phy->pack_comp_basicdata);
 
     // Handle duplicates; we update seenby, location, and signals, but that's it; we don't
@@ -1435,13 +1431,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // packet...
 
             if (dot11info->subtype == packet_sub_beacon) {
-                d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11, in_pack,
-                        in_pack->signal_info, dot11info, pack_gpsinfo);
+                d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11,
+						in_pack, dot11info);
                 dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
             } else if (dot11info->subtype == packet_sub_probe_resp) {
-                d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11, in_pack,
-                        in_pack->signal_info, dot11info, pack_gpsinfo);
+                d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11,
+						in_pack, dot11info);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_PROBE_AP);
             }
 
@@ -1550,7 +1546,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->source_dev != nullptr)
                 d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11,
                         dot11info->source_dev, dot11info->source_dot11,
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                        in_pack, dot11info, pack_datainfo);
 
             if (dot11info->dest_dev != nullptr) {
                 if (dot11info->type == packet_management &&
@@ -1559,7 +1555,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 } else {
                     d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11,
                             dot11info->dest_dev, dot11info->dest_dot11,
-                            in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                            in_pack, dot11info, pack_datainfo);
                 }
             }
 
@@ -1672,7 +1668,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         // Reap the async ssid probe outside of lock
         if (handle_probed_ssid)
             d11phy->handle_probed_ssid(dot11info->source_dev, dot11info->source_dot11,
-                    in_pack, dot11info, pack_gpsinfo);
+                    in_pack, dot11info);
 
     } else if (dot11info->type == packet_phy) {
         // Phy packets are so often bogus that we just ignore them for now; if we enable
@@ -2090,7 +2086,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->source_dev != nullptr) {
                 d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11,
                         dot11info->source_dev, dot11info->source_dot11,
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                        in_pack, dot11info, pack_datainfo);
                 d11phy->process_wpa_handshake(dot11info->bssid_dev, dot11info->bssid_dot11,
                         dot11info->source_dev, dot11info->source_dot11,
                         in_pack, dot11info);
@@ -2099,7 +2095,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->dest_dev != nullptr) {
                 d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11,
                         dot11info->dest_dev, dot11info->dest_dot11,
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                        in_pack, dot11info, pack_datainfo);
                 d11phy->process_wpa_handshake(dot11info->bssid_dev, dot11info->bssid_dot11,
                         dot11info->dest_dev, dot11info->dest_dot11,
                         in_pack, dot11info);
@@ -2111,11 +2107,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->source_dev != nullptr)
                 d11phy->process_client(dot11info->transmit_dev, dot11info->transmit_dot11,
                         dot11info->source_dev, dot11info->source_dot11,
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                        in_pack, dot11info, pack_datainfo);
             if (dot11info->dest_dev != nullptr)
                 d11phy->process_client(dot11info->transmit_dev, dot11info->transmit_dot11,
                         dot11info->dest_dev, dot11info->dest_dot11,
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                        in_pack, dot11info, pack_datainfo);
         }
     } else if (dot11info->type == packet_extension) {
         in_pack->common_info.type = packet_basic_mgmt;
@@ -2159,8 +2155,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->bssid_dot11->set_last_bssid(dot11info->bssid_dev->get_macaddr());
 
-            d11phy->handle_ssid_s1g(dot11info->bssid_dev, dot11info->bssid_dot11, in_pack,
-                    in_pack->signal_info, dot11info, pack_gpsinfo);
+            d11phy->handle_ssid_s1g(dot11info->bssid_dev, dot11info->bssid_dot11,
+					in_pack, dot11info);
             dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
             dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
         }
@@ -2588,9 +2584,7 @@ void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
 void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
-        const kis_layer1_packinfo& l1info,
-        const std::shared_ptr<dot11_packinfo>& dot11info,
-        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo) {
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
     std::shared_ptr<dot11_advertised_ssid> ssid;
 
     if (dot11info->subtype != packet_sub_s1g_beacon) {
@@ -2645,10 +2639,10 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
-    } else if (l1info.data_ok &&
-            (l1info.freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
+    } else if (in_pack->signal_info.data_ok &&
+            (in_pack->signal_info.freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
         try {
-            basedev->set_channel(khz_to_channel(l1info.freq_khz));
+            basedev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
         } catch (...) { }
     }
 
@@ -3043,18 +3037,18 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
     }
 
     // Add the location data, if any
-    if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+    if (in_pack->gps_info.gps_info_ok && in_pack->gps_info.fix > 1) {
         auto loc = ssid->get_location();
 
         if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
             loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
-            loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            loc->add_loc_with_avg(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                    in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                    in_pack->gps_info.heading);
         } else {
-            loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            loc->add_loc(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                    in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                    in_pack->gps_info.heading);
         }
 
     }
@@ -3091,10 +3085,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
-        const kis_layer1_packinfo& l1info,
-        const std::shared_ptr<dot11_packinfo>& dot11info,
-        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo) {
-
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
     std::shared_ptr<dot11_advertised_ssid> ssid;
 
     bool channel_from_ht = false;
@@ -3151,10 +3142,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
-    } else if (l1info.data_ok &&
-            (l1info.freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
+    } else if (in_pack->signal_info.data_ok &&
+            (in_pack->signal_info.freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
         try {
-            basedev->set_channel(khz_to_channel(l1info.freq_khz));
+            basedev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
         } catch (...) { }
     }
 
@@ -3768,18 +3759,18 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     ssid->set_maxrate(dot11info->maxrate);
 
     // Add the location data, if any
-    if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+    if (in_pack->gps_info.gps_info_ok && in_pack->gps_info.fix > 1) {
         auto loc = ssid->get_location();
 
         if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
             loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
-            loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            loc->add_loc_with_avg(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                    in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                    in_pack->gps_info.heading);
         } else {
-            loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            loc->add_loc(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                    in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                    in_pack->gps_info.heading);
         }
 
     }
@@ -3815,8 +3806,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
-        const std::shared_ptr<dot11_packinfo>& dot11info,
-        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo) {
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
 
     // We're called under device list lock so we only lock the device we're interacting with
 
@@ -3866,18 +3856,18 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
         probessid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
         // Add the location data, if any
-        if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
+        if (in_pack->gps_info.gps_info_ok && in_pack->gps_info.fix > 1) {
             auto loc = probessid->get_location();
 
             if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
                 loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
-                loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                        pack_gpsinfo->heading);
+                loc->add_loc_with_avg(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                        in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                        in_pack->gps_info.heading);
             } else {
-                loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                        pack_gpsinfo->heading);
+                loc->add_loc(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                        in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                        in_pack->gps_info.heading);
             }
         }
 
@@ -4030,7 +4020,6 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
         const std::shared_ptr<dot11_tracked_device>& clientdot11,
         const std::shared_ptr<kis_packet>& in_pack,
         const std::shared_ptr<dot11_packinfo>& dot11info,
-        const std::shared_ptr<kis_gps_packinfo>& pack_gpsinfo,
         const std::shared_ptr<kis_data_packinfo>& pack_datainfo) {
 
     // Sanity check
@@ -4193,17 +4182,17 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
         }
 
         // Update the GPS info
-        if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+        if (in_pack->gps_info.gps_info_ok && in_pack->gps_info.fix > 1) {
             auto loc = client_record->get_location();
             if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
                 loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
-                loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                        pack_gpsinfo->heading);
+                loc->add_loc_with_avg(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                        in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                        in_pack->gps_info.heading);
             } else {
-                loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                        pack_gpsinfo->heading);
+                loc->add_loc(in_pack->gps_info.lat, in_pack->gps_info.lon,
+                        in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
+                        in_pack->gps_info.heading);
             }
         }
 

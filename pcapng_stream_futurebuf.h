@@ -82,7 +82,6 @@ public:
             packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
             pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
             pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
-            pack_comp_gpsinfo = packetchain->register_packet_component("GPS");
             pack_comp_meta = packetchain->register_packet_component("JSON");
 
         }
@@ -147,7 +146,7 @@ protected:
     fn_selector selector_cb;
 
     std::shared_ptr<packet_chain> packetchain;
-    int pack_comp_linkframe, pack_comp_datasrc, pack_comp_gpsinfo, pack_comp_meta;
+    int pack_comp_linkframe, pack_comp_datasrc, pack_comp_meta;
 
     // Map kismet internal interface ID + DLT hash to log interface ID
     std::unordered_map<unsigned int, unsigned int> datasource_id_map;
@@ -374,7 +373,6 @@ protected:
         kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
         auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
-        auto gpsinfo = in_packet->fetch<kis_gps_packinfo>(pack_comp_gpsinfo);
         auto metablob = in_packet->fetch<packet_metablob>(pack_comp_meta);
 
         if (datasrcinfo == nullptr) {
@@ -408,14 +406,14 @@ protected:
         // Optionally we add the GPS option into the total length
         size_t gps_len = 0;
 
-        if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
+        if (in_packet->gps_info.gps_info_ok && in_packet->gps_info.fix >= 2) {
             // GPS header
             gps_len = sizeof(kismet_pcapng_gps_chunk_t);
 
             // Always lat/lon, optionally alt
             gps_len += 8;
 
-            if (gpsinfo->fix > 2 && gpsinfo->alt != 0)
+            if (in_packet->gps_info.fix > 2 && in_packet->gps_info.alt != 0)
                 gps_len += 4;
 
             // Total additional size is custom option block including PEN, and padded custom data
@@ -520,7 +518,7 @@ protected:
             opt_offt += sizeof(pcapng_option_t) + PAD_TO_32BIT(gopt->option_length);
         }
 
-        if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
+        if (in_packet->gps_info.gps_info_ok && in_packet->gps_info.fix >= 2) {
             auto gopt = reinterpret_cast<pcapng_custom_option_t *>(buf.get() + opt_offt);
 
             // Always lon and lat
@@ -529,7 +527,7 @@ protected:
             // lon/lat
             gps_len = 8;
 
-            if (gpsinfo->fix > 2 && gpsinfo->alt != 0) {
+            if (in_packet->gps_info.fix > 2 && in_packet->gps_info.alt != 0) {
                 gps_len += 4;
                 gps_fields |= PCAPNG_GPS_FLAG_ALT;
             }
@@ -550,16 +548,16 @@ protected:
             size_t field_data_offt = 0;
 
             auto f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
-            *f = double_to_fixed3_7(gpsinfo->lon);
+            *f = double_to_fixed3_7(in_packet->gps_info.lon);
             field_data_offt += 4;
 
             f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
-            *f = double_to_fixed3_7(gpsinfo->lat);
+            *f = double_to_fixed3_7(in_packet->gps_info.lat);
             field_data_offt += 4;
 
-            if (gpsinfo->fix > 2 && gpsinfo->alt != 0) {
+            if (in_packet->gps_info.fix > 2 && in_packet->gps_info.alt != 0) {
                 f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
-                *f = double_to_fixed6_4(gpsinfo->alt);
+                *f = double_to_fixed6_4(in_packet->gps_info.alt);
                 field_data_offt += 4;
             }
 

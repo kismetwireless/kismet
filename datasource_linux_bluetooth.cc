@@ -86,22 +86,16 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     }
 
     if (report.has_gps()) {
-        auto gpsinfo = handle_sub_gps(report.gps());
-        packet->insert(pack_comp_gps, gpsinfo);
+		handle_sub_gps(report.gps(), packet->gps_info);
     } else if (suppress_gps) {
-        auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
-        packet->insert(pack_comp_no_gps, nogpsinfo);
+		packet->suppress_gps = true;
     } else if (device_gps != nullptr) {
         auto gpsinfo = device_gps->get_location();
 
         if (gpsinfo != nullptr)
-            packet->insert(pack_comp_gps, gpsinfo);
+			packet->gps_info.set(gpsinfo);
     } else {
-        auto gpsloc = gpstracker->get_best_location();
-
-        if (gpsloc != nullptr) {
-            packet->insert(pack_comp_gps, std::move(gpsloc));
-        }
+		gpstracker->get_best_location(packet->gps_info);
     }
 
     if (clobber_timestamp && get_source_remote()) {

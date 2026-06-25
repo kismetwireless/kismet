@@ -148,6 +148,8 @@ public:
     virtual bool unique() override { return true; }
 
     void set(std::shared_ptr<kis_gps_packinfo> src) {
+        gps_info_ok = src->gps_info_ok;
+
         merge_partial = src->merge_partial;
         merge_flags = src->merge_flags;
 
@@ -166,6 +168,8 @@ public:
     }
 
     void set(const kis_gps_packinfo& src) {
+        gps_info_ok = src.gps_info_ok;
+
         merge_partial = src.merge_partial;
         merge_flags = src.merge_flags;
 
@@ -197,6 +201,8 @@ public:
 
         gps_id = 0;
     }
+
+    bool gps_info_ok;
 
     double lat;
     double lon;
@@ -367,7 +373,6 @@ public:
     kis_layer1_packinfo signal_info;
 
     // gps info
-    bool gps_info_ok;
     bool suppress_gps;
     kis_gps_packinfo gps_info;
 

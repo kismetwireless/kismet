@@ -69,8 +69,6 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
-	pack_comp_gps =
-        packetchain->register_packet_component("GPS");
     pack_comp_datasource =
         packetchain->register_packet_component("KISDATASRC");
 
@@ -713,7 +711,6 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
 
             if (adsbdev->get_even_ts() - adsbdev->get_odd_ts() < 10)
                 calc_coords = true;
-
         } else {
             adsbdev->set_odd_raw_lat(location.lat);
             adsbdev->set_odd_raw_lon(location.lon);
@@ -773,25 +770,21 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
 
-        // Update the common device with location if we've got a location record now
-        // We have to make a new component here, not fetch the existing one; otherwise we 
-        // clobber the global gps record!
-        auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
+		packet->gps_info.gps_info_ok = true;
+        packet->gps_info.lat = adsbdev->lat;
+        packet->gps_info.lon = adsbdev->lon;
+        packet->gps_info.speed = adsbdev->speed;
+        packet->gps_info.alt = adsbdev->alt;
+        packet->gps_info.heading = adsbdev->heading;
 
-        gpsinfo->lat = adsbdev->lat;
-        gpsinfo->lon = adsbdev->lon;
-        gpsinfo->speed = adsbdev->speed;
-        gpsinfo->alt = adsbdev->alt;
-        gpsinfo->heading = adsbdev->heading;
+		if (adsbdev->alt != 0)
+			packet->gps_info.fix = 3;
+		else
+			packet->gps_info.fix = 2;
 
-        if (adsbdev->alt != 0)
-            gpsinfo->fix = 3;
+        packet->gps_info.tv = packet->ts;
 
-        gpsinfo->tv = packet->ts;
-
-        packet->insert(pack_comp_gps, gpsinfo);
-        devicetracker->update_common_device(mac, this, packet,
-                (UCD_UPDATE_LOCATION), "ADSB Transmitter");
+        devicetracker->update_common_device(mac, this, packet, (UCD_UPDATE_LOCATION), "ADSB Transmitter");
     }
 
     return true;
@@ -911,21 +904,19 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
 
-        // Update the common device with location if we've got a location record now
-        auto gpsinfo = packet->fetch_or_add<kis_gps_packinfo>(pack_comp_gps);
+		packet->gps_info.gps_info_ok = true;
 
-        gpsinfo->lat = adsbdev->lat;
-        gpsinfo->lon = adsbdev->lon;
-        gpsinfo->speed = adsbdev->speed;
-        gpsinfo->alt = adsbdev->alt;
-        gpsinfo->heading = adsbdev->heading;
+        packet->gps_info.lat = adsbdev->lat;
+        packet->gps_info.lon = adsbdev->lon;
+        packet->gps_info.speed = adsbdev->speed;
+        packet->gps_info.alt = adsbdev->alt;
+        packet->gps_info.heading = adsbdev->heading;
 
         if (adsbdev->alt != 0)
-            gpsinfo->fix = 3;
+            packet->gps_info.fix = 3;
 
-        gettimeofday(&gpsinfo->tv, NULL);
+        gettimeofday(&packet->gps_info.tv, NULL);
 
-        packet->insert(pack_comp_gps, gpsinfo);
 
         devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_LOCATION), "ADSB Transmitter");

@@ -365,6 +365,8 @@ void kis_gps_nmea_v2::handle_read(const boost::system::error_code& ec, std::size
     set_int_gps_data_time(time(0));
 
     if (set_alt || set_speed || set_heading || set_lat_lon || set_fix) {
+		new_location->gps_info_ok = true;
+
         set_int_gps_signal_time(time(0));
 
         ever_seen_gps = true;

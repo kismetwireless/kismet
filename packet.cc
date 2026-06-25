@@ -53,7 +53,6 @@ kis_packet::kis_packet() {
 
     common_info.reset();
 
-    gps_info_ok = false;
     suppress_gps = false;
     gps_info.reset();
 
@@ -79,7 +78,6 @@ void kis_packet::reset() {
 
     original.reset();
 
-    gps_info_ok = false;
     suppress_gps = false;
     gps_info.reset();
 

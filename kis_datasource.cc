@@ -59,8 +59,6 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     pack_comp_report = packetchain->register_packet_component("PACKETREPORT");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1_agg = packetchain->register_packet_component("RADIODATA_AGG");
-    pack_comp_gps = packetchain->register_packet_component("GPS");
-    pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
 	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
     pack_comp_json = packetchain->register_packet_component("JSON");
     pack_comp_protobuf = packetchain->register_packet_component("PROTOBUF");
@@ -969,14 +967,8 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
     // Insert GPS data as soon as possible in the chain if there's no data
     // from the rest of the processing
-    if (packet->fetch(pack_comp_gps) == nullptr &&
-            packet->fetch(pack_comp_no_gps) == nullptr) {
-        auto gpsloc = gpstracker->get_best_location();
-
-        if (gpsloc != nullptr) {
-            packet->insert(pack_comp_gps, std::move(gpsloc));
-        }
-
+    if (!packet->gps_info.gps_info_ok && !packet->suppress_gps) {
+        gpstracker->get_best_location(packet->gps_info);
     }
 
     // Inject the packet into the packetchain if we have one
@@ -1928,80 +1920,60 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
 }
 
-std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& root,
-        mpack_tree_t *tree) {
+bool kis_datasource::handle_sub_gps(mpack_node_t& root, mpack_tree_t *tree,
+        kis_gps_packinfo& gpsinfo) {
     auto gpsmap = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_GPSBLOCK);
 
     if (mpack_node_is_missing(gpsmap)) {
-        return nullptr;
+        return false;
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (gps block)", get_source_name());
         trigger_error("invalid v3 DATAREPORT");
-        return nullptr;
+        return false;
     }
-
-    auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
     auto n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LAT);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->lat = mpack_node_double(n);
+        gpsinfo.lat = mpack_node_double(n);
     }
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_LON);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->lon = mpack_node_double(n);
+        gpsinfo.lon = mpack_node_double(n);
     }
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_ALT);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->alt = mpack_node_float(n);
+        gpsinfo.alt = mpack_node_float(n);
     }
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_FIX);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->fix = mpack_node_u8(n);
+        gpsinfo.fix = mpack_node_u8(n);
     }
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_SPEED);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->speed = mpack_node_float(n);
+        gpsinfo.speed = mpack_node_float(n);
     }
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_HEADING);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->heading = mpack_node_float(n);
+        gpsinfo.heading = mpack_node_float(n);
     }
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_PRECISION);
     if (!mpack_node_is_missing(n)) {
-        gpsinfo->precision = mpack_node_float(n);
+        gpsinfo.precision = mpack_node_float(n);
     }
 
     n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_S);
-    gpsinfo->tv.tv_sec = mpack_node_u64(n);
+    gpsinfo.tv.tv_sec = mpack_node_u64(n);
 
     n = mpack_node_map_uint(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TS_US);
-    gpsinfo->tv.tv_usec = mpack_node_u64(n);
-
-    /* GPS name deprecated
-    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_NAME);
-    if (!mpack_node_is_missing(n)) {
-        auto name_s = mpack_node_str(n);
-        auto name_sz = mpack_node_data_len(n);
-
-        gpsinfo->gpsname = std::string(name_s, name_sz);
-    }
-    */
-
-    /* type not currently used in packinfo
-    n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_TYPE);
-    if (!mpack_node_is_missing(n)) {
-        auto type_s = mpack_node_str(n);
-        auto type_sz = mpack_node_data_len(n);
-    }
-    */
+    gpsinfo.tv.tv_usec = mpack_node_u64(n);
 
     n = mpack_node_map_uint_optional(gpsmap, KIS_EXTERNAL_V3_KDS_SUB_GPS_FIELD_UUID);
     if (!mpack_node_is_missing(n)) {
@@ -2012,7 +1984,7 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
         uuid_v.from_string(std::string(uuid_s, uuid_sz));
         auto gps = gpstracker->find_gps(uuid_v);
         if (gps != nullptr) {
-            gpsinfo->gps_id = gps->get_id();
+            gpsinfo.gps_id = gps->get_id();
         }
     }
 
@@ -2020,10 +1992,12 @@ std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(mpack_node_t& r
         _MSG_ERROR("Kismet datasource {} got malformed v3 DATAREPORT (gps block)",
                 get_source_name());
         trigger_error("invalid v3 DATAREPORT");
-        return nullptr;
+        return false;
     }
 
-    return gpsinfo;
+    gpsinfo.gps_info_ok = true;
+
+    return true;
 }
 
 bool kis_datasource::handle_sub_signal(mpack_node_t& root, mpack_tree_t *tree,
@@ -2277,22 +2251,20 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
         packet->set_data(std::string(in_packet));
     }
 
-    auto gpsinfo = handle_sub_gps(root, &tree);
+    auto gpsinfo = handle_sub_gps(root, &tree, packet->gps_info);
 
     if (cancelled) {
         return;
     }
 
-    if (gpsinfo != nullptr) {
-        packet->insert(pack_comp_gps, gpsinfo);
-    } else if (suppress_gps) {
-        auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
-        packet->insert(pack_comp_no_gps, nogpsinfo);
+    if (suppress_gps && !packet->gps_info.gps_info_ok) {
+        packet->suppress_gps = true;
     } else if (device_gps != nullptr) {
         auto gpsinfo = device_gps->get_location();
 
-        if (gpsinfo != nullptr)
-            packet->insert(pack_comp_gps, gpsinfo);
+        if (gpsinfo != nullptr) {
+            packet->gps_info.set(gpsinfo);
+        }
     }
 
     handle_sub_signal(root, &tree, packet->signal_info);
@@ -3148,16 +3120,14 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
 
     // GPS
     if (report->has_gps()) {
-        auto gpsinfo = handle_sub_gps(report->gps());
-        packet->insert(pack_comp_gps, gpsinfo);
+        handle_sub_gps(report->gps(), packet->gps_info);
     } else if (suppress_gps) {
-        auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
-        packet->insert(pack_comp_no_gps, nogpsinfo);
+        packet->suppress_gps = true;
     } else if (device_gps != nullptr) {
         auto gpsinfo = device_gps->get_location();
 
         if (gpsinfo != nullptr)
-            packet->insert(pack_comp_gps, gpsinfo);
+            packet->gps_fino.set(gpsinfo);
     }
 
     // TODO handle spectrum
@@ -3293,24 +3263,21 @@ bool kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig,
     return has_siginfo;
 }
 
-std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {
+bool kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps, kis_gps_packinfo& gpsinfo) {
     // Extract a GPS record from a packet and turn it into a packinfo gps log
-    auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
-    gpsinfo->lat = in_gps.lat();
-    gpsinfo->lon = in_gps.lon();
-    gpsinfo->alt = in_gps.alt();
-    gpsinfo->speed = in_gps.speed();
-    gpsinfo->heading = in_gps.heading();
-    gpsinfo->precision = in_gps.precision();
-    gpsinfo->fix = in_gps.fix();
-    gpsinfo->tv.tv_sec = in_gps.time_sec();
-    gpsinfo->tv.tv_usec = in_gps.time_usec();
+    gpsinfo.gps_info_ok = true;
+    gpsinfo.lat = in_gps.lat();
+    gpsinfo.lon = in_gps.lon();
+    gpsinfo.alt = in_gps.alt();
+    gpsinfo.speed = in_gps.speed();
+    gpsinfo.heading = in_gps.heading();
+    gpsinfo.precision = in_gps.precision();
+    gpsinfo.fix = in_gps.fix();
+    gpsinfo.tv.tv_sec = in_gps.time_sec();
+    gpsinfo.tv.tv_usec = in_gps.time_usec();
 
-    //gpsinfo->type = in_gps.type();
-    //gpsinfo->gpsname = in_gps.name();
-
-    return gpsinfo;
+    return true;
 }
 
 unsigned int kis_datasource::send_probe_source_v2(std::string in_definition,

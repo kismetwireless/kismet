@@ -67,15 +67,6 @@ void gps_tracker::trigger_deferred_startup() {
                 tracker_element_factory<tracker_element_uuid>(),
                 "UUID of GPS reporting location");
 
-    // Register the gps component
-    pack_comp_gps =
-        Globalreg::globalreg->packetchain->register_packet_component("GPS");
-    pack_comp_no_gps =
-        Globalreg::globalreg->packetchain->register_packet_component("NOGPS");
-
-    // Register the packet chain hook - deprecated, now handled in datasources
-    // Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this, CHAINPOS_POSTCAP, -100);
-
     // Manage logging
     log_snapshot_timer = -1;
 
@@ -505,6 +496,27 @@ std::shared_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
     return nullptr;
 }
 
+void gps_tracker::get_best_location(kis_gps_packinfo& location) {
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "get_best_location");
+
+    if (gps_instances_vec == nullptr)
+		location.reset();
+
+    for (const auto& d : *gps_instances_vec) {
+        auto gps = static_cast<kis_gps *>(d.get());
+
+        if (gps->get_gps_data_only())
+            continue;
+
+        if (gps->get_location_valid()) {
+			location.set(gps->get_location());
+			return;
+        }
+    }
+
+	location.reset();
+}
+
 int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     // We're an 'external user' of gps_tracker despite being inside it,
     // so don't do thread locking - that's up to gps_tracker internals
@@ -513,19 +525,15 @@ int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
 
     // Don't override if this packet already has a location, which could
     // come from a drone or from a PPI file
-    if (in_pack->fetch(gpstracker->pack_comp_gps) != NULL)
-        return 1;
+	if (in_pack->gps_info.gps_info_ok) {
+		return 1;
+	}
 
-    if (in_pack->fetch(gpstracker->pack_comp_no_gps) != NULL)
-        return 1;
+	if (in_pack->suppress_gps) {
+		return 1;
+	}
 
-    auto gpsloc = gpstracker->get_best_location();
-
-    if (gpsloc == nullptr)
-        return 0;
-
-    // Insert into chain; we were given a new location
-    in_pack->insert(gpstracker->pack_comp_gps, std::move(gpsloc));
+	gpstracker->get_best_location(in_pack->gps_info);
 
     return 1;
 }

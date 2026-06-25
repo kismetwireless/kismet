@@ -154,8 +154,6 @@ protected:
 
     std::shared_ptr<kis_adsb_icao> icaodb;
 
-    int pack_comp_gps;
-
     // Convert a JSON record to a RTL-based device key
     mac_addr icao_to_mac(uint32_t icao);
 

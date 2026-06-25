@@ -75,9 +75,6 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     unsigned int ppi_dlt = -1;
     int applyfcs = 0, fcsknownbad = 0;
 
-    // Make a datachunk for the reformatted frame
-    std::shared_ptr<kis_gps_packinfo> gpsinfo;
-
     if (linkchunk->length() < sizeof(ppi_packet_header)) {
         _MSG("pcap PPI converter got runt PPI frame", MSGFLAG_ERROR);
         return 0;
@@ -204,19 +201,18 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                         (fields_present & PPI_GPS_FLAG_LON) &&
                         gps_len - data_offt >= 8) {
 
-                    if (gpsinfo == nullptr)
-                        gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
+					in_pack->gps_info.gps_info_ok = true;
 
                     u = (block *) &(ppigps->field_data[data_offt]);
-                    gpsinfo->lat = fixed3_7_to_double(kis_letoh32(u->u32));
+                    in_pack->gps_info.lat = fixed3_7_to_double(kis_letoh32(u->u32));
                     data_offt += 4;
 
                     u = (block *) &(ppigps->field_data[data_offt]);
-                    gpsinfo->lon = fixed3_7_to_double(kis_letoh32(u->u32));
+                    in_pack->gps_info.lon = fixed3_7_to_double(kis_letoh32(u->u32));
                     data_offt += 4;
 
-                    gpsinfo->fix = 2;
-                    gpsinfo->alt = 0;
+                    in_pack->gps_info.fix = 2;
+                    in_pack->gps_info.alt = 0;
 
                     // gpsinfo->gpsname = "PPI";
                 }
@@ -233,20 +229,13 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                    */
 
                 if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
-                    if (gpsinfo == nullptr) {
-                        gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
-                        gpsinfo->fix = 0;
-                        // gpsinfo->gpsname = "PPI";
-                    } else {
-                        gpsinfo->fix = 3;
-                    }
+					in_pack->gps_info.gps_info_ok = true;
+					in_pack->gps_info.fix = 3;
 
                     u = (block *) &(ppigps->field_data[data_offt]);
-                    gpsinfo->alt = fixed6_4_to_double(kis_letoh32(u->u32));
+                    in_pack->gps_info.alt = fixed6_4_to_double(kis_letoh32(u->u32));
                     data_offt += 4;
                 }
-
-                in_pack->insert(pack_comp_gps, gpsinfo);
             }
         }
     }

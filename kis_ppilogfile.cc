@@ -46,7 +46,6 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
 
     pack_comp_80211 = packetchain->register_packet_component("PHY80211");
     pack_comp_mangleframe = packetchain->register_packet_component("MANGLEDATA");
-    pack_comp_gps = packetchain->register_packet_component("GPS");
     pack_comp_checksum = packetchain->register_packet_component("CHECKSUM");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
@@ -185,7 +184,6 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     auto packinfo = in_pack->fetch<dot11_packinfo>(ppilog->pack_comp_80211);
     auto chunk = in_pack->fetch<kis_datachunk>(ppilog->pack_comp_mangleframe, 
             ppilog->pack_comp_decap, ppilog->pack_comp_linkframe);
-    auto gpsdata = in_pack->fetch<kis_gps_packinfo>(ppilog->pack_comp_gps);
     auto fcsdata = in_pack->fetch<kis_packet_checksum>(ppilog->pack_comp_checksum);
 
     if (ppilog->log_data_packets == false) {
@@ -232,13 +230,13 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
      * function make our decision based on the length, not the gpsdata.
      * this helps keep logic error minimized.
      */
-    if (gpsdata != NULL) {
+    if (in_pack->gps_info.gps_info_ok) {
         gps_tagsize = sizeof(ppi_gps_hdr); //12
-        if (gpsdata->fix <= 1) //no fix
+        if (in_pack->gps_info.fix <= 1) //no fix
             gps_tagsize = 0; //don't bother storing anything
-        if (gpsdata->fix >= 2) 
-            gps_tagsize += 12; // lon, lat, appid, 
-        if (gpsdata->fix >= 3)
+        if (in_pack->gps_info.fix >= 2)
+            gps_tagsize += 12; // lon, lat, appid,
+        if (in_pack->gps_info.fix >= 3)
             gps_tagsize +=4; // altitude
         //Could eventually include hdop, vdop using simillar scheme here
     }
@@ -282,7 +280,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     ppi_ph->pph_dlt = kis_htole32(ppilog->dlt);
 
     //First lay out the GPS tag, if applicable
-    if (gpsdata != NULL) {
+    if (in_pack->gps_info.gps_info_ok) {
         unsigned int gps_data_offt = 0; //offsets to fields, from begging of field data.
         if (gps_tagsize > 0) {
             ppi_gps_hdr *ppigps = NULL;
@@ -302,22 +300,21 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
             ppigps->fields_present = PPI_GPS_FLAG_LAT | PPI_GPS_FLAG_LON | PPI_GPS_FLAG_APPID;
 
             //GPSLAT
-            //printf("lat: %3.7f %f \n", gpsdata->lat, gpsdata->lat);
+            //printf("lat: %3.7f %f \n", in_pack->gps_info.lat, in_pack->gps_info.lat);
             u = (block *) &(ppigps->field_data[gps_data_offt]);
-            u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lat));
+            u->u32 = kis_htole32(double_to_fixed3_7(in_pack->gps_info.lat));
             gps_data_offt += 4;
 
             //GPSLON
-            //printf("lon: %3.7f %f\n", gpsdata->lon, gpsdata->lon);
+            //printf("lon: %3.7f %f\n", in_pack->gps_info.lon, in_pack->gps_info.lon);
             u = (block *) &(ppigps->field_data[gps_data_offt]);
-            u->u32 = kis_htole32(double_to_fixed3_7(gpsdata->lon));
+            u->u32 = kis_htole32(double_to_fixed3_7(in_pack->gps_info.lon));
             gps_data_offt += 4;
 
             //GPSALT
-            if (gps_tagsize >= 28) //include alt
-            {
+            if (gps_tagsize >= 28) {
                 u = (block *) &(ppigps->field_data[gps_data_offt]);
-                u->u32 = kis_htole32(double_to_fixed6_4(gpsdata->alt));
+                u->u32 = kis_htole32(double_to_fixed6_4(in_pack->gps_info.alt));
                 //u->u32 = kis_htole32(0x6b484390);
                 gps_data_offt += 4;
 

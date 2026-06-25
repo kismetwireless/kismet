@@ -73,10 +73,6 @@ alert_tracker::alert_tracker() : lifetime_global() {
     pack_comp_alert =
         packetchain->register_packet_component("alert");
 
-    // Register the GPS component
-    pack_comp_gps =
-        packetchain->register_packet_component("GPS");
-
     // Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
         register_alert("KISMET",
@@ -377,8 +373,9 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
 
     info->text = in_text;
 
-    if (gpstracker != nullptr)
-        info->gps = gpstracker->get_best_location();
+    if (gpstracker != nullptr) {
+		gpstracker->get_best_location(info->gps);
+	}
 
     // Increment and set the timers
     arec->inc_burst_sent(1);
@@ -414,8 +411,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
         acomp->alert_vec.push_back(info);
 
         // Also get GPS
-        auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
-        info->gps = pack_gpsinfo;
+		info->gps.set(in_pack->gps_info);
     }
 
 #ifdef PRELUDE
