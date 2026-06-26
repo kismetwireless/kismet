@@ -318,6 +318,9 @@ kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_el
 
 kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     tracker_component(p) {
+		agg_x = agg_y = agg_z = agg_a = 0;
+		num_avg = num_alt_avg = 0;
+		last_location_time = 0;
 
         __ImportId(min_loc_id, p);
         __ImportId(max_loc_id, p);
@@ -371,15 +374,16 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
 
     double r_alt = 0;
 
-    if (num_alt_avg > 0)
-       r_alt =  agg_a / num_alt_avg;
+    if (num_alt_avg > 0) {
+       r_alt = agg_a / num_alt_avg;
+	}
 
     // Use the incoming if we're the first packet
     if (num_avg > 1)
         avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI,
                      r_alt, num_alt_avg > 0 ? 3 : 2);
     else
-        avg_loc->set(in_lat, in_lon, in_alt, fix);
+        avg_loc->set(in_lat, in_lon, r_alt, fix);
 }
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
@@ -443,7 +447,7 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
 		max_loc->set_location(max_lat, max_lon);
 	}
 
-    if (fix > 2) {
+    if (fix > 2 && in_alt != 0) {
         if (in_alt < min_loc->get_alt() || min_loc->get_alt() == 0) {
             min_loc->set_alt(in_alt);
         }
