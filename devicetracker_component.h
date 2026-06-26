@@ -342,6 +342,7 @@ public:
 
     kis_tracked_device_base(const kis_tracked_device_base *p) :
         tracker_component{p} {
+            device_mutex.set_name("device");
             __ImportField(key, p);
             __ImportField(macaddr, p);
             __ImportField(phyname, p);

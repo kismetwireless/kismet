@@ -61,6 +61,7 @@ public:
 
     dot11_tracked_ssid_group(const dot11_tracked_ssid_group* p) :
         tracker_component(p) {
+        mutex.set_name("dot11_tracked_ssid_group internal");
 
         __ImportField(ssid_hash, p);
         __ImportField(ssid, p);

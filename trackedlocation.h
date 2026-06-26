@@ -368,6 +368,8 @@ public:
 
     kis_location_rrd(const kis_location_rrd* p) :
         tracker_component{p} {
+			samples_10k_cascade = 0;
+			samples_100_cascade = 0;
 
             __ImportField(samples_100, p);
             __ImportField(samples_10k, p);
