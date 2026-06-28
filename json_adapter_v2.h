@@ -83,6 +83,9 @@ namespace json_adapter_v2 {
 
     class jsonable {
     public:
+		virtual void pre_serialize() { }
+		virtual void post_serialize() { }
+
         virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) = 0;
         virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts,
                 const json_adapter_v2::field_group_map& fields) = 0;
