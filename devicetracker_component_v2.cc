@@ -19,6 +19,92 @@
 
 #include "devicetracker_component_v2.h"
 
+#include "fmt/format.h"
+
+device_key_v2::device_key_v2() :
+    spkey_{0},
+    dkey_{0},
+    error_{true} { }
+
+device_key_v2::device_key_v2(const device_key_v2& k) {
+    spkey_ = k.spkey_;
+    dkey_ = k.dkey_;
+    error_ = k.error_;
+}
+
+device_key_v2::device_key_v2(const device_key_v2&& k) {
+    spkey_ = k.spkey_;
+    dkey_ = k.dkey_;
+    error_ = k.error_;
+}
+
+device_key_v2::device_key_v2(uint32_t in_pkey, uint64_t in_dkey) {
+    spkey_ = in_pkey & 0xFFFFFFFF;
+    dkey_ = in_dkey;
+    error_ = false;
+}
+
+device_key_v2::device_key_v2(uint32_t in_pkey, mac_addr in_device) {
+    spkey_ = in_pkey & 0xFFFFFFFF;
+    dkey_ = in_device.longmac;
+    error_ = false;
+}
+
+device_key_v2::device_key_v2(const std::string& in_keystr) {
+    unsigned long long int k1, k2;
+
+    if (sscanf(in_keystr.c_str(), "%llx_%llx", &k1, &k2) != 2) {
+        error_ = true;
+        spkey_ = 0;
+        dkey_ = 0;
+        return;
+    }
+
+    // Convert from big endian exported format
+    spkey_ = (uint64_t) kis_ntoh64(k1);
+    dkey_ = (uint64_t) kis_ntoh64(k2);
+    error_ = false;
+}
+
+void device_key_v2::reset() {
+    spkey_ = 0;
+    dkey_ = 0;
+    error_ = true;
+}
+
+std::string device_key_v2::as_string() const {
+    return fmt::format("{:X}_{:X}", spkey_, dkey_);
+}
+
+uint32_t device_key_v2::gen_pkey(const std::string& phy) {
+    return adler32_checksum(phy.c_str(), phy.length());
+}
+
+uint32_t device_key_v2::gen_pkey(const std::string_view& phy) {
+    return adler32_checksum(phy.data(), phy.length());
+}
+
+uint64_t device_key_v2::gen_spkey(uuid s_uuid, const std::string& phy) {
+    uint64_t uuid32 = adler32_checksum((const char *) s_uuid.hash, sizeof(std::size_t));
+    uint64_t phy32 = gen_pkey(phy);
+    return (uuid32 << 32) | phy32;
+}
+
+bool operator <(const device_key_v2& x, const device_key_v2& y) {
+    if (x.spkey_ == y.spkey_)
+        return x.dkey_ < y.dkey_;
+
+    return x.spkey_ < y.spkey_;
+}
+
+bool operator ==(const device_key_v2& x, const device_key_v2& y) {
+    return (x.spkey_ == y.spkey_ && x.dkey_ == y.dkey_);
+}
+
+auto fmt::formatter<device_key_v2>::format(const device_key_v2& k, format_context& ctx) const -> format_context::iterator {
+    return formatter<string_view>::format(k.as_string(), ctx);
+}
+
 void kis_tracked_signal_data_v2::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts) {
     if (lay1.signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
         sig_type = 1;
@@ -366,3 +452,133 @@ void kis_tracked_seenby_data_v2::filtered_as_json(std::ostream& os, json_adapter
     opts->next_key_comma = sv_comma;
     fmt::print(os, "}}");
 }
+
+kis_tracked_device_base_v2::kis_tracked_device_base_v2() :
+    json_adapter_v2::jsonable() {
+    mutex_.set_name("kis_tracked_device_base_v2");
+    reset();
+}
+
+void kis_tracked_device_base_v2::reset() {
+    internal_id_ = 0;
+    key_ = {};
+    mac_addr_ = {};
+    phyname_ = {};
+    phyid_ = 0;
+
+    devicename_ = {};
+    username_ = {};
+    commonname_ = {};
+
+    type_string_ = {};
+    basic_type_set_ = 0;
+
+    crypt_string_ = {};
+    basic_crypt_set_ = 0;
+
+    first_time_ = 0;
+    last_time_ = 0;
+    mod_time_ = 0;
+
+    packets_ = 0;
+    rx_packets_ = 0;
+    tx_packets_ = 0;
+    llc_packets_ = 0;
+    data_packets_ = 0;
+    error_packets_ = 0;
+    crypt_packets_ = 0;
+    filter_packets_ = 0;
+    duplicate_packets_ = 0;
+
+    datasize_ = 0;
+
+    packets_rrd_.reset();
+    data_rrd_.reset();
+
+    channel_ = {};
+    frequency_khz_ = 0;
+
+    signal_ = {};
+
+    freq_khz_distribution_ = {};
+
+    manuf_ = {};
+
+    tag_map_ = {};
+
+    location_ = {};
+    location_history_ = {};
+
+    seenby_map_ = {};
+
+    related_devices_ = {};
+}
+
+void kis_tracked_device_base_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
+    fmt::print(os, "{{");
+
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
+
+    json_adapter_v2::json_encode_keyed<device_key_v2>{}(os, "kismet.device.base.key", opts, key());
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.device.base.macaddr", opts, mac_addr().as_string());
+
+    json_adapter_v2::json_encode_keyed<std::string_view>{}(os, "kismet.device.base.phyname", opts, phyname());
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.device.base.name", opts, devicename());
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.device.base.username", opts, username());
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.device.base.commonname", opts, commonname());
+
+    json_adapter_v2::json_encode_keyed<std::string_view>{}(os, "kismet.device.base.type", opts, type_string());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.basic_type_set", opts, basic_type_set());
+
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.device.base.crypt", opts, crypt_string());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.basic_crypt_set", opts, basic_crypt_set());
+
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.first_time", opts, first_time());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.last_time", opts, last_time());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.mod_time", opts, mod_time());
+
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.total", opts, packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.rx_total", opts, rx_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.tx_total", opts, tx_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.llc", opts, llc_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.error", opts, error_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.data", opts, data_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.crypt", opts, crypt_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.filter", opts, filter_packets());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.packets.duplicate", opts, duplicate_packets());
+
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.datasize", opts, datasize());
+
+    json_adapter_v2::json_encode_keyed<kis_rrd_v2<>>{}(os, "kismet.device.base.packets.rrd", opts, packets_rrd());
+    json_adapter_v2::json_encode_keyed<kis_rrd_v2<>>{}(os, "kismet.device.base.datasize.rrd", opts, data_rrd());
+
+    json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, "kismet.device.base.signal", opts, signal());
+
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "kismet.device.base.channel", opts, channel());
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.frequency", opts, frequency_khz());
+    json_adapter_v2::json_encode_keyed_map<freq_khz_distribution_iter_t_>{}(os, "kismet.device.base.freq_khz_map", opts,
+            freq_khz_distribution().begin(), freq_khz_distribution().end());
+
+    json_adapter_v2::json_encode_keyed<std::string_view>{}(os, "kismet.device.base.manuf", opts, manuf());
+
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.device.base.num_alerts", opts, num_alerts());
+
+    json_adapter_v2::json_encode_keyed_map<tag_map_iter_t_>{}(os, "kismet.device.base.tags", opts,
+            tag_map().begin(), tag_map().end());
+
+    json_adapter_v2::json_encode_keyed<kis_tracked_location_full_v2>{}(os, "kismet.device.base.location", opts, location());
+    json_adapter_v2::json_encode_keyed<kis_historic_location_v2>{}(os, "kismet.device.base.location_cloud", opts, location_history());
+
+    json_adapter_v2::json_encode_keyed_map<seenby_map_iter_t_>{}(os, "kismet.device.base.seenby", opts,
+            seenby_map().begin(), seenby_map().end());
+
+    json_adapter_v2::json_encode_keyed_map_custom<related_devices_iter_t_,
+        json_adapter_v2::json_encode_map_keys<related_devices_sub_t_::iterator, related_devices_sub_t_>>{}(os, "kismet.device.base.related_devices", opts,
+                related_devices().begin(), related_devices().end());
+
+    opts->next_key_comma = sv_comma;
+
+    fmt::print(os, "}}");
+}
+

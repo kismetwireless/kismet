@@ -86,6 +86,28 @@ public:
         h_array{std::move(r.h_array)},
         d_array{std::move(r.d_array)} { }
 
+	kis_rrd_v2& operator =(const kis_rrd_v2& op) {
+		update_first = op.update_first;
+		last_time = op.last_time;
+		serial_time = op.serial_time;
+		last_value = op.last_value;
+		last_value_n1 = op.last_value_n1;
+		m_array = op.m_array;
+		h_array = op.h_array;
+		d_array = op.d_array;
+	}
+
+	void reset() {
+		update_first = 0;
+		last_time = 0;
+		serial_time = 0;
+		last_value = M_Aggregator::default_value();
+		last_value_n1 = M_Aggregator::default_value();
+		m_array.fill(M_Aggregator::default_value());
+		h_array.fill(M_Aggregator::default_value());
+		d_array.fill(M_Aggregator::default_value());
+	}
+
     // Add a sample.  Use combinator function 'c' to derive the new sample value
     void add_sample(double in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_rrd add_sample");

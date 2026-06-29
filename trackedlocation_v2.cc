@@ -475,4 +475,3 @@ void kis_location_rrd_v2::filtered_as_json(std::ostream& os, json_adapter_v2::op
     fmt::print(os, "}}");
     opts->next_key_comma = sv_comma;
 }
-
