@@ -582,3 +582,6 @@ void kis_tracked_device_base_v2::as_json(std::ostream& os, json_adapter_v2::opts
     fmt::print(os, "}}");
 }
 
+void kis_tracked_device_base_v2::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) {
+
+}
