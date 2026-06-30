@@ -459,6 +459,13 @@ kis_tracked_device_base_v2::kis_tracked_device_base_v2() :
     reset();
 }
 
+kis_tracked_device_base_v2::~kis_tracked_device_base_v2() {
+    auto lg = kis_unique_lock(mutex_, __func__);
+    for (const auto& s : sub_component_map_) {
+        delete s.second.sub_component_;
+    }
+}
+
 void kis_tracked_device_base_v2::reset() {
     internal_id_ = 0;
     key_ = {};
@@ -515,6 +522,8 @@ void kis_tracked_device_base_v2::reset() {
 }
 
 void kis_tracked_device_base_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts) {
+    auto lg = kis_shared_lock(mutex_, __func__);
+
     fmt::print(os, "{{");
 
     auto sv_comma = opts->next_key_comma;
@@ -577,11 +586,185 @@ void kis_tracked_device_base_v2::as_json(std::ostream& os, json_adapter_v2::opts
         json_adapter_v2::json_encode_map_keys<related_devices_sub_t_::iterator, related_devices_sub_t_>>{}(os, "kismet.device.base.related_devices", opts,
                 related_devices().begin(), related_devices().end());
 
+    for (const auto& s : sub_component_map_) {
+        fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(s.second.field_));
+        opts->next_key_comma = false;
+        s.second.encode_fn_(os, opts, s.second.sub_component_, {});
+        opts->next_key_comma = true;
+    }
+
     opts->next_key_comma = sv_comma;
 
     fmt::print(os, "}}");
 }
 
 void kis_tracked_device_base_v2::filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) {
+    if (fields.size() == 0) {
+        return as_json(os, opts);
+    }
 
+    ssize_t hash;
+
+    auto lg = kis_shared_lock(mutex_, __func__);
+
+    auto sv_comma = opts->next_key_comma;
+    opts->next_key_comma = false;
+
+    json_adapter_v2::field_group_map subgroup;
+
+    fmt::print(os, "{{");
+    for (const auto& f : fields) {
+        switch ((hash = json_adapter_v2::consthash(f.first))) {
+            case json_adapter_v2::consthash("kismet.device.base.key"):
+                json_adapter_v2::json_encode_keyed<device_key_v2>{}(os, f.second.rename, opts, key());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.macaddr"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, mac_addr().as_string());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.phyname"):
+                json_adapter_v2::json_encode_keyed<std::string_view>{}(os, f.second.rename, opts, phyname());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.name"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, devicename());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.username"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, username());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.commonname"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, commonname());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.type"):
+                json_adapter_v2::json_encode_keyed<std::string_view>{}(os, f.second.rename, opts, type_string());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.type_set"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, basic_type_set());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.crypt"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, crypt_string());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.crypt_set"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, basic_crypt_set());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.first_time"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, first_time());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.last_time"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, last_time());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.mod_time"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, mod_time());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.total"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.rx_total"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, rx_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.tx_total"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, tx_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.llc"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, llc_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.error"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, error_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.data"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, data_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.crypt"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, crypt_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.filter"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, filter_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.duplicate"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, duplicate_packets());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.datasize"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, datasize());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.packets.rrd"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_rrd_v2<>>{}(os, f.second.rename, opts, packets_rrd(), subgroup);
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.datasize.rrd"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_rrd_v2<>>{}(os, f.second.rename, opts, data_rrd(), subgroup);
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.signal"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, f.second.rename, opts, signal(), subgroup);
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.channel"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, channel());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.frequency"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, frequency_khz());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.freq_khz_map"):
+                json_adapter_v2::json_encode_keyed_map<freq_khz_distribution_iter_t_>{}(os, f.second.rename, opts,
+                        freq_khz_distribution().begin(), freq_khz_distribution().end());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.manuf"):
+                json_adapter_v2::json_encode_keyed<std::string_view>{}(os, f.second.rename, opts, manuf());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.num_alerts"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, num_alerts());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.tags"):
+                json_adapter_v2::json_encode_keyed_map<tag_map_iter_t_>{}(os, f.second.rename, opts,
+                        tag_map().begin(), tag_map().end());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.location"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_tracked_location_full_v2>{}(os, f.second.rename, opts, location(), subgroup);
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.location_cloud"):
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_historic_location_v2>{}(os, f.second.rename, opts, location_history());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.seenby"):
+                json_adapter_v2::json_encode_keyed_map<seenby_map_iter_t_>{}(os, f.second.rename, opts,
+                        seenby_map().begin(), seenby_map().end());
+                break;
+            case json_adapter_v2::consthash("kismet.device.base.related_devices"):
+                json_adapter_v2::json_encode_keyed_map_custom<related_devices_iter_t_,
+                    json_adapter_v2::json_encode_map_keys<related_devices_sub_t_::iterator, related_devices_sub_t_>>{}(os, f.second.rename, opts,
+                            related_devices().begin(), related_devices().end());
+                break;
+            default:
+                const auto& sf = sub_component_map_.find(hash);
+                if (sf != sub_component_map_.end()) {
+                    json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                    fmt::print(os, "{}{}:", opts->next_key_comma ? "," : "", opts->name_permute(sf->second.field_));
+                    opts->next_key_comma = false;
+                    sf->second.encode_fn_(os, opts, sf->second.sub_component_, subgroup);
+                    opts->next_key_comma = true;
+                } else {
+                    json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
+                }
+        }
+    }
+
+    fmt::print(os, "}}");
+    opts->next_key_comma = sv_comma;
+
+}
+
+void kis_tracked_device_base_v2::add_subcomponent(const std::string& field,
+        subcomponent_encoder_fn_t encoder, json_adapter_v2::jsonable *object) {
+    const auto hash = json_adapter_v2::consthash(field);
+
+    auto lg = kis_unique_lock(mutex_, __func__);
+
+    const auto& emp = sub_component_map_.try_emplace(hash, sub_component{
+            .field_ = field,
+            .sub_component_ = object,
+            .encode_fn_ = encoder,
+            });
+
+    if (!emp.second) {
+        throw std::runtime_error(fmt::format("device already has subcomponent {}", field));
+    }
 }

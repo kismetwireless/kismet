@@ -83,6 +83,8 @@ namespace json_adapter_v2 {
 
     class jsonable {
     public:
+        virtual ~jsonable() { }
+
 		virtual void pre_serialize() { }
 		virtual void post_serialize() { }
 

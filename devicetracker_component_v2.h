@@ -120,6 +120,8 @@ public:
         encodingset{0},
         carrierset{0} { }
 
+    virtual ~kis_tracked_signal_data_v2() { }
+
     void reset() {
         sig_type = 0;
         last_signal = 0;
@@ -264,6 +266,16 @@ template<> struct json_adapter_v2::json_encode<kis_tracked_seenby_data_v2> {
 #define KIS_DEVICE_BASICCRYPT_DECRYPTED	(1 << 5)
 #endif
 
+// contains internal mutex, but with caveats:
+// 1.  callers are expected to lock the mutex before calling any
+//     access/set functions directly, since most callers are
+//     expected to need multiple function calls
+// 2.  the mutex must be locked by the caller before adding a
+//     subcomponent
+// 3.  the mutex is locked automatically as a shared read during
+//     serialization ops
+// 4.  the mutex is exclusively locked during destruction and reset
+//     automatically
 class kis_tracked_device_base_v2 : public json_adapter_v2::jsonable {
 public:
     kis_tracked_device_base_v2();
@@ -456,6 +468,26 @@ public:
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
+    using subcomponent_encoder_fn_t =
+        std::function<void (std::ostream& os, json_adapter_v2::opts *opts, json_adapter_v2::jsonable *sub,
+                const json_adapter_v2::field_group_map& fields)>;
+
+    // throws a std::runtime error if there is a component already using that name
+    void add_subcomponent(const std::string& field, subcomponent_encoder_fn_t encoder,
+            json_adapter_v2::jsonable *obj);
+
+    template<typename T>
+    T *get_subcomponent(const std::string& field) {
+        auto lg = kis_shared_lock(mutex_, __func__);
+        const auto& i = sub_component_map_.find(json_adapter_v2::consthash(field));
+
+        if (i == sub_component_map_.end()) {
+            return nullptr;
+        }
+
+        return dynamic_cast<T *>(i->second);
+    }
+
 protected:
     kis_shared_mutex mutex_;
 
@@ -526,6 +558,15 @@ protected:
 
     // number of alerts over time
     uint64_t num_alerts_;
+
+    // expandable device subcomponents
+    struct sub_component {
+        std::string field_;
+        json_adapter_v2::jsonable *sub_component_;
+        subcomponent_encoder_fn_t encode_fn_;
+    };
+
+    std::unordered_map<ssize_t, sub_component> sub_component_map_;
 };
 
 template<> struct json_adapter_v2::json_encode<kis_tracked_device_base_v2> {
