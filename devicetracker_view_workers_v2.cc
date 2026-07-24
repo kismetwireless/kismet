@@ -47,13 +47,15 @@ bool device_tracker_view_regex_worker_v2::match_device(kis_tracked_device_base_v
         // field tree mutably
         auto m = d->match_regex(*std::get<0>(re), std::get<1>(re));
         if (m && match_any_) {
+            matched_.push_back(d);
             return true;
         } else if (!m) {
             return false;
         }
     }
 
-    return false;
+    matched_.push_back(d);
+    return true;
 }
 
 device_tracker_view_string_worker_v2::device_tracker_view_string_worker_v2(const std::string& str,
@@ -89,11 +91,13 @@ bool device_tracker_view_string_worker_v2::match_device(kis_tracked_device_base_
         // field tree mutably
         auto m = d->match_string(std::get<0>(re), match_icase_, match_full_, std::get<1>(re));
         if (m && match_any_) {
+            matched_.push_back(d);
             return true;
         } else if (!m) {
             return false;
         }
     }
 
-    return false;
+    matched_.push_back(d);
+    return true;
 }
