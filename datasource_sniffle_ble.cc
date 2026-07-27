@@ -156,6 +156,7 @@ int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
     } else {
         packet->crc_ok = true;
         packet->checksum_valid = false;
+        packet->filtered = true;
     }
 
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
