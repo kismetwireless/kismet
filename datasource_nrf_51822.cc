@@ -146,6 +146,14 @@ int kis_datasource_nrf51822::handle_rx_data_content(kis_packet *packet,
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
         decapchunk->set_data(packet->data.substr(sizeof(btle_rf), pkt_ctr));
         packet->insert(pack_comp_decap, decapchunk);
+    } else {
+        packet->crc_ok = true;
+        packet->checksum_valid = false;
+        packet->filtered = true;
+
+        // error, but preserve the packet for logging
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
     }
 
     return 1;
