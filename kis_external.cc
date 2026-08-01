@@ -1131,9 +1131,9 @@ void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
         _MSG_INFO("Kismet external interface shutting down: no reason");
         trigger_error("remote connection triggered shutdown: no reason");
     } else {
-        auto reason = std::string(reason_s, reason_sz);
-        _MSG_INFO("Kismet external interface shutting down: {}", reason_s);
-        trigger_error(fmt::format("remote connection triggered shutdown: {}", reason_s));
+		std::string_view reason(reason_s, reason_sz);
+        _MSG_INFO("Kismet external interface shutting down: {}", reason);
+        trigger_error(fmt::format("remote connection triggered shutdown: {}", reason));
     }
 }
 
@@ -1262,7 +1262,7 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
     auto evt_type_s = mpack_node_str(evt_type_n);
     auto evt_type_sz = mpack_node_data_len(evt_type_n);
 
-    auto evt_event_n =mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT);
+    auto evt_event_n = mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT);
     auto evt_event_s = mpack_node_str(evt_event_n);
     auto evt_event_sz = mpack_node_data_len(evt_event_n);
 
