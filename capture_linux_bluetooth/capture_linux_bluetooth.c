@@ -742,7 +742,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (localbt->bt_interface != NULL)
         free(localbt->bt_interface);
-    localbt->bt_interface = strdup(interface);
+
+    char ifrename[64];
+    snprintf(ifrename, 64, "hci%u", localbt->devid);
+    localbt->bt_interface = strdup(ifrename);
 
     free(interface);
     close(hci_sock);
