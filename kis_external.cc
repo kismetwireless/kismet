@@ -873,7 +873,7 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
     const kismet_external_frame_t *frame = nullptr;
     const kismet_external_frame_v2_t *frame_v2 = nullptr;
     const kismet_external_frame_v3_t *frame_v3 = nullptr;
-    uint32_t frame_sz, data_sz;
+    size_t frame_sz, data_sz;
 
     // See if we have enough to get a frame header
     size_t buffamt = buffer->size();
