@@ -559,6 +559,8 @@ protected:
     bool v2_probe_ack;
     virtual void handle_v2_pong_event() { }
 
+    bool allow_remote_web_auth_;
+
 public:
     static const int result_handle_packet_cancelled = -2;
     static const int result_handle_packet_error = -1;

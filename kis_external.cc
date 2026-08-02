@@ -31,6 +31,8 @@
 
 #include "endian_magic.h"
 
+#include "globalregistry.h"
+
 #include "kis_mutex.h"
 #include "timetracker.h"
 #include "messagebus.h"
@@ -582,6 +584,13 @@ kis_external_interface::kis_external_interface() :
     http_session_id{0} {
 
     ext_mutex.set_name("kis_external_interface");
+
+    allow_remote_web_auth_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("remote_capture_allow_http_auth", false);
+
+    if (allow_remote_web_auth_) {
+        _MSG_INFO("Remote datasources can generate HTTP auth tokens");
+    }
 }
 
 kis_external_interface::~kis_external_interface() {
@@ -1481,10 +1490,17 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_http_auth_request_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
-    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
-    auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
+    if (io_->is_remote() && !allow_remote_web_auth_) {
+        _MSG_ERROR("Remotely connected handler from {} requested a web auth token, which "
+                "is blocked by the current Kismet config", io_->remote_addresss());
+        trigger_error("Remote handlers can not request web auth tokens, check your Kismet "
+                "configuration");
+    } else {
+        auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+        auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
 
-    send_http_auth_v3(token);
+        send_http_auth_v3(token);
+    }
 }
 
 unsigned int kis_external_interface::send_http_request_v3(uint32_t in_http_sequence,
