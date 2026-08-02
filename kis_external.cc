@@ -291,6 +291,10 @@ std::string kis_external_tcp::remote_addresss() {
     return tcpsocket_.remote_endpoint().address().to_string();
 }
 
+bool kis_external_tcp::is_remote() {
+    return !(remote_addresss().starts_with("127."));
+}
+
 void kis_external_tcp::start_read() {
     if (stopped_) {
         return;
@@ -510,6 +514,14 @@ std::string kis_external_ws::remote_addresss() {
     }
 
     return "WS: n/a";
+}
+
+bool kis_external_ws::is_remote() {
+    if (ws_ != nullptr) {
+        return !(ws_->remote_address().starts_with("127."));
+    }
+
+    return true;
 }
 
 void kis_external_ws::write_impl() {
