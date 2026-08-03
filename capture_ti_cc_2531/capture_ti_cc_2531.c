@@ -238,6 +238,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         x = libusb_init(&localticc2531->libusb_ctx);
         if (x < 0) {
             snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            pthread_mutex_unlock(&(localticc2531->usb_mutex));
             return 0;
         }
     }
@@ -330,6 +331,16 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
     pthread_mutex_lock(&(localticc2531->usb_mutex));
+
+    if (localticc2531->libusb_ctx == NULL) {
+        r = libusb_init(&localticc2531->libusb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            pthread_mutex_unlock(&(localticc2531->usb_mutex));
+            return 0;
+        }
+    }
+
     libusb_devices_cnt = libusb_get_device_list(localticc2531->libusb_ctx, &libusb_devs);
 
     if (libusb_devices_cnt < 0) {
@@ -562,6 +573,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         x = libusb_init(&localticc2531->libusb_ctx);
         if (x < 0) {
             snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            pthread_mutex_unlock(&(localticc2531->usb_mutex));
             return -1;
         }
     }

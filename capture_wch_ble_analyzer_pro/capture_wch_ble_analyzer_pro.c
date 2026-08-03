@@ -283,6 +283,8 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
         struct wch_list *next;
     } wch_list_t;
 
+    int r;
+
     wch_list_t *devs = NULL;
     size_t num_devs = 0;
 
@@ -296,6 +298,14 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 
     wch_aggregate_t wch_aggregates[MAX_AGGREGATE_DEVICES];
     int wch_agg_cnt = 0;
+
+    if (local->usb_ctx == NULL) {
+        r = libusb_init(&local->usb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "Could not initialize libusb");
+            return -1;
+        }
+    }
 
     wch_devs_cnt = wch_find_devices(local->usb_ctx, wch_devs);
 

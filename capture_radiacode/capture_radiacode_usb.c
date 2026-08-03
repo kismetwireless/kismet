@@ -271,6 +271,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 		return 0;
 	}
 
+    if (localrad->usb_ctx == NULL) {
+        r = libusb_init(&localrad->usb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
+            return 0;
+        }
+    }
+
     libusb_devices_cnt = libusb_get_device_list(localrad->usb_ctx, &libusb_devs);
 
     if (libusb_devices_cnt < 0) {
@@ -346,6 +354,15 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
     unsigned int i;
 
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
+
+    if (localrad->usb_ctx == NULL) {
+        r = libusb_init(&localrad->usb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
+            return 0;
+        }
+    }
+
     libusb_devices_cnt = libusb_get_device_list(localrad->usb_ctx, &libusb_devs);
 
     if (libusb_devices_cnt < 0) {
@@ -590,6 +607,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localrad->name = strdup(localrad->interface);
     }
 
+    if (localrad->usb_ctx == NULL) {
+        r = libusb_init(&localrad->usb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
+            return -1;
+        }
+    }
+
     libusb_devices_cnt = libusb_get_device_list(localrad->usb_ctx, &libusb_devs);
     if (libusb_devices_cnt < 0) {
         snprintf(msg, STATUS_MAX, "Unable to iterate USB devices"); 
@@ -755,12 +780,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-	r = libusb_init(&localrad.usb_ctx);
-	if (r < 0) {
-		fprintf(stderr, "FATAL:  Could not initialize libusb\n");
-		return -1;
-	}
-
     localrad.caph = caph;
 
     cf_handler_set_userdata(caph, &localrad);
@@ -790,7 +809,9 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
-    libusb_exit(localrad.usb_ctx);
+    if (localrad.usb_ctx != NULL) {
+        libusb_exit(localrad.usb_ctx);
+    }
 
     return 0;
 }
