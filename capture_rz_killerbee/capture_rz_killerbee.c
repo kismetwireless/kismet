@@ -232,6 +232,16 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 	}
 
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+
+    if (localrz_killerbee->libusb_ctx != NULL) {
+        r = libusb_init(&localrz_killerbee->libusb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "killerbee - could not initialize libusb");
+            pthread_mutex_unlock(&localrz_killerbee->usb_mutex);
+            return 0;
+        }
+    }
+
 	libusb_devices_cnt =
 		libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
 
@@ -306,8 +316,19 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 	local_rz_killerbee_t *localrz_killerbee =
 		(local_rz_killerbee_t *) caph->userdata;
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+
+    if (localrz_killerbee->libusb_ctx != NULL) {
+        r = libusb_init(&localrz_killerbee->libusb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "killerbee - could not initialize libusb");
+            pthread_mutex_unlock(&localrz_killerbee->usb_mutex);
+            return 0;
+        }
+    }
+
 	libusb_devices_cnt =
 		libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
+
 	pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 	if (libusb_devices_cnt < 0) {
 		return 0;
@@ -421,6 +442,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
 	libusb_devices_cnt =
 		libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
+
+    if (localrz_killerbee->libusb_ctx != NULL) {
+        r = libusb_init(&localrz_killerbee->libusb_ctx);
+        if (r < 0) {
+            snprintf(msg, STATUS_MAX, "killerbee - could not initialize libusb");
+            pthread_mutex_unlock(&localrz_killerbee->usb_mutex);
+            return -1;
+        }
+    }
+
 	pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 	if (libusb_devices_cnt < 0) {
 		snprintf(msg, STATUS_MAX, "Unable to iterate USB devices");
@@ -655,11 +686,6 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	r = libusb_init(&localrz_killerbee.libusb_ctx);
-	if (r < 0) {
-		return -1;
-	}
-
 	/* libusb_set_debug(localrz_killerbee.libusb_ctx, 3); */
 
 	localrz_killerbee.caph = caph;
@@ -702,7 +728,9 @@ int main(int argc, char *argv[]) {
 
 	cf_handler_loop(caph);
 
-	libusb_exit(localrz_killerbee.libusb_ctx);
+    if (localrz_killerbee.libusb_ctx != NULL) {
+        libusb_exit(localrz_killerbee.libusb_ctx);
+    }
 
     cf_handler_shutdown(caph);
 
