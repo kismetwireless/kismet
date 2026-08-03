@@ -223,7 +223,7 @@ void kis_tracked_signal_data::append_signal(const kis_layer1_packinfo *lay1, con
                 if (max_signal->get() == 0 || max_signal->get() < lay1->signal_dbm) {
                     max_signal->set(lay1->signal_dbm);
 
-                    if (gps != nullptr) {
+                    if (gps != nullptr && gps->gps_info_ok) {
                         get_peak_loc()->set(gps->lat, gps->lon, gps->alt, gps->fix);
                     }
                 }
@@ -259,7 +259,7 @@ void kis_tracked_signal_data::append_signal(const kis_layer1_packinfo *lay1, con
                 if (max_signal->get() == 0 || max_signal->get() < lay1->signal_rssi) {
                     max_signal->set(lay1->signal_rssi);
 
-                    if (gps != nullptr) {
+                    if (gps != nullptr && gps->gps_info_ok) {
                         get_peak_loc()->set(gps->lat, gps->lon, gps->alt, gps->fix);
                     }
                 }
