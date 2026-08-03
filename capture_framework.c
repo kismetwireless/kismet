@@ -2226,8 +2226,24 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     /* Detect v2 and unknown (presumably v0 using the old checksum) frames */
     if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG) {
         /* explicitly handle a v2 ping no matter what; this is used as a legacy
-         * discovery packet to map older local binaries */
+         * discovery packet to map older local binaries
+         *
+         * re-peek a v2 sized header
+         */
+
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+
+        if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf,
+                    sizeof(kismet_external_frame_v2_t)) != sizeof(kismet_external_frame_v2_t)) {
+            return 0;
+        }
+
+        external_frame = (kismet_external_frame_t *) frame_buf;
+        external_frame_v2 = (kismet_external_frame_v2_t *) frame_buf;
+
         if (strncasecmp(external_frame_v2->command, "PING", 32) == 0) {
+            uint32_t seqno = ntohl(external_frame_v2->seqno);
+
             packet_sz = ntohl(external_frame->data_sz);
             total_sz = packet_sz + sizeof(kismet_external_frame_v2_t);
             pthread_mutex_lock(&(caph->handler_lock));
@@ -2235,7 +2251,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
             kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
             kis_simple_ringbuf_read(caph->in_ringbuf, NULL, total_sz);
 
-            cf_send_pong(caph, ntohl(external_frame_v2->seqno));
+            cf_send_pong(caph, seqno);
             pthread_mutex_unlock(&(caph->handler_lock));
             return 1;
         }
