@@ -2295,7 +2295,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf, total_sz) != total_sz) {
         fprintf(stderr, "FATAL: Capture source (%s) failed to read packet from ringbuf\n",
 				caph->capsource_type);
-        free(frame_buf);
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         return -1;
     }
 
