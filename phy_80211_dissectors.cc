@@ -1021,6 +1021,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 break;
 
             case 10:
+                if (chunk->length() < 26) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
                 packinfo->subtype = packet_sub_disassociation;
 
                 packinfo->header_offset = 24;
@@ -1044,6 +1050,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 break;
 
             case 11:
+                if (chunk->length() < 26) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
                 packinfo->subtype = packet_sub_authentication;
 
                 packinfo->header_offset = 24;
@@ -1057,6 +1069,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 break;
 
             case 12:
+                if (chunk->length() < 26) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(pack_comp_80211, packinfo);
+                    return 0;
+                }
+
                 packinfo->subtype = packet_sub_deauthentication;
 
                 packinfo->header_offset = 24;
