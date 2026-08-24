@@ -128,9 +128,23 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         return 0;
     }
 
-    // Do we have enough data for an OUI? and are within the Zigbee spec
-    if (packdata->length() < 6 || packdata->length() > 128)
-        return 0;
+    if (packdata->dlt == KDLT_IEEE802_15_4_TAP) {
+        if (packdata->length() < sizeof(_802_15_4_tap)) {
+            in_pack->error = 1;
+            return 0;
+        }
+
+        if (packdata->length() < sizeof(_802_15_4_tap) + 6 || packdata->length() > sizeof(_802_15_4_tap) + 128) {
+            in_pack->error = 1;
+            return 0;
+        }
+    } else {
+        // Do we have enough data for an OUI? and are within the Zigbee spec
+        if (packdata->length() < 6 || packdata->length() > 128) {
+            in_pack->error = 1;
+            return 0;
+        }
+    }
 
     if (in_pack->common_info.common_info_ok) {
         return 0;
