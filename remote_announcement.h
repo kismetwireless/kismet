@@ -22,7 +22,7 @@
 #include <stdint.h>
 
 /* A simple remote announcement packet */
-#define REMOTE_ANNOUNCE_TAG         0x4b49534d4554 
+#define REMOTE_ANNOUNCE_TAG         0x4b49534d4554ull
 #define REMOTE_ANNOUNCE_VERSION     1
 
 typedef struct _kismet_remote_announce {
