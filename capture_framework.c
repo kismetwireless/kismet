@@ -5132,13 +5132,20 @@ int cf_wait_announcement(kis_capture_handler_t *caph) {
     struct sockaddr_in lsin;
     int sock;
 
-	int r;
+	ssize_t r;
 	struct msghdr rcv_msg;
 	struct iovec iov;
 	kismet_remote_announce announcement;
 	struct sockaddr_in recv_addr;
 
     char *name;
+
+    if (caph->remote_host != NULL) {
+        free(caph->remote_host);
+        caph->remote_host = NULL;
+    }
+
+    caph->remote_port = 0;
 
     memset(&lsin, 0, sizeof(struct sockaddr_in));
     lsin.sin_family = AF_INET;
@@ -5177,8 +5184,15 @@ int cf_wait_announcement(kis_capture_handler_t *caph) {
 			return -1;
         }
 
-        if (be64toh(announcement.tag) != REMOTE_ANNOUNCE_TAG)
+        if (r < sizeof(kismet_remote_announce)) {
+            fprintf(stderr, "ERROR:  Received short announcement, ignoring.\n");
+            continue;
+        }
+
+        if (be64toh(announcement.tag) != REMOTE_ANNOUNCE_TAG) {
             fprintf(stderr, "WARNING:  Corrupt/invalid announcement seen, ignoring.\n");
+            continue;
+        }
 
         if (caph->announced_uuid != NULL)
             if (strncmp(caph->announced_uuid, announcement.uuid, 36) != 0)
