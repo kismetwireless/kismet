@@ -2088,6 +2088,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
             cbret = 1;
 
+            mpack_tree_destroy(&tree);
+
             goto finish;
         }
     } else {
