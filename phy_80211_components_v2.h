@@ -1232,6 +1232,17 @@ public:
         }
     }
 
+	constexpr auto csa_count() const { return csa_count_; }
+	void set_csa_count(auto v) { csa_count_ = v; }
+	void inc_csa_count(unsigned int d, time_t time, unsigned int time_window) {
+		if (time - csa_last_time_ <= time_window) {
+			csa_count_ += d;
+		} else {
+			csa_last_time_ = time;
+			csa_count_ = d;
+		}
+	}
+
     auto& wpa_key_map() const { return wpa_key_map_; }
     void set_wpa_key_map(auto& v) { wpa_key_map_ = v; }
 
@@ -1367,6 +1378,9 @@ protected:
     uint32_t beacon_fingerprint_;
     uint32_t probe_fingerprint_;
     uint32_t response_fingerprint_;
+
+	uint64_t csa_count_;
+	time_t csa_last_time_;
 };
 
 template<> struct json_adapter_v2::json_encode<dot11_tracked_device_v2> {

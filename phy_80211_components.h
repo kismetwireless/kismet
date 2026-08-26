@@ -1443,18 +1443,17 @@ public:
     __ProxyDynamicTrackable(last_probed_ssid_record, tracker_element_alias,
             last_probed_ssid_record, last_probed_ssid_record_id);
 
-	bool inc_csa_event(time_t t) {
-		if (t - last_csa_time < 10) {
-			if (++csa_count > 32) {
-				csa_count = 1;
-				return true;
-			}
+	constexpr auto csa_event_count() const {
+		return csa_count;
+	}
+
+	void inc_csa_event(uint64_t v, time_t t, unsigned int window) {
+		if (t - last_csa_time < window) {
+			csa_count += v;
 		} else {
-			csa_count = 1;
+			csa_count = v;
 			last_csa_time = t;
 		}
-
-		return false;
 	}
 
 protected:
