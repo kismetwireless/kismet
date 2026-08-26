@@ -1430,7 +1430,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
 				// check for CSA spam
 				if (dot11info->csa.parsed()) {
-					if (dot11info->bssid_dot11->inc_csa_event(in_pack->ts.tv_sec)) {
+					dot11info->bssid_dot11->inc_csa_event(1, in_pack->ts.tv_sec, 5);
+					if (dot11info->bssid_dot11->csa_event_count() >= 32) {
                         d11phy->alertracker->raise_alert(d11phy->alert_dot11_csa_flood_ref,
                                 in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
