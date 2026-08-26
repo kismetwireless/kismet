@@ -66,6 +66,7 @@
 #include "dot11_parsers/dot11_ie_11_qbss.h"
 #include "dot11_parsers/dot11_ie_33_power.h"
 #include "dot11_parsers/dot11_ie_36_supported_channels.h"
+#include "dot11_parsers/dot11_ie_37_csa.h"
 #include "dot11_parsers/dot11_ie_48_rsn.h"
 #include "dot11_parsers/dot11_ie_54_mobility.h"
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
@@ -318,6 +319,7 @@ class dot11_packinfo : public packet_component {
         // Direct kaitai structs pulled from the beacon
         dot11_ie_11_qbss qbss;
         dot11_ie_33_power tx_power;
+        dot11_ie_37_csa csa;
         dot11_ie_36_supported_channels supported_channels;
         dot11_ie_54_mobility dot11r_mobility;
         dot11_ie_61_ht_op dot11ht;
@@ -603,7 +605,8 @@ protected:
         alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
         alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref,
         alert_rtlwifi_p2p_ref, alert_deauthflood_ref, alert_noclientmfp_ref,
-        alert_rtl8195_vdoo_ref, alert_vdoo_2020_27301_ref, alert_vdoo_2020_27302_ref;
+        alert_rtl8195_vdoo_ref, alert_vdoo_2020_27301_ref, alert_vdoo_2020_27302_ref,
+        alert_dot11_csa_ch14_ref;
 
     // Are we allowed to send wepkeys to the client (server config)
     int client_wepkey_allowed;
@@ -620,7 +623,7 @@ protected:
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
-        alert_bad_fixlen_ie, alert_formatstring_ref;
+        alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref;
 
     int signal_too_loud_threshold;
 

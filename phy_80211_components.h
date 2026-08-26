@@ -1158,6 +1158,9 @@ public:
         bss_invalid_count = 0;
         snapshot_next_beacon = false;
 
+		csa_count = 0;
+		last_csa_time = 0;
+
         register_fields();
         reserve_fields(NULL);
     }
@@ -1169,6 +1172,9 @@ public:
         last_bss_invalid = 0;
         bss_invalid_count = 0;
         snapshot_next_beacon = false;
+
+		csa_count = 0;
+		last_csa_time = 0;
 
         register_fields();
         reserve_fields(NULL);
@@ -1182,6 +1188,9 @@ public:
         bss_invalid_count = 0;
         snapshot_next_beacon = false;
 
+		csa_count = 0;
+		last_csa_time = 0;
+
         register_fields();
         reserve_fields(e);
     }
@@ -1193,6 +1202,9 @@ public:
             last_bss_invalid = 0;
             bss_invalid_count = 0;
             snapshot_next_beacon = false;
+
+			csa_count = 0;
+			last_csa_time = 0;
 
             __ImportField(type_set, p);
 
@@ -1430,6 +1442,20 @@ public:
 
     __ProxyDynamicTrackable(last_probed_ssid_record, tracker_element_alias,
             last_probed_ssid_record, last_probed_ssid_record_id);
+
+	bool inc_csa_event(time_t t) {
+		if (t - last_csa_time < 10) {
+			if (++csa_count > 32) {
+				csa_count = 1;
+				return true;
+			}
+		} else {
+			csa_count = 1;
+			last_csa_time = t;
+		}
+
+		return false;
+	}
 
 protected:
 
@@ -1676,6 +1702,9 @@ protected:
     std::shared_ptr<tracker_element_uint64> num_associated_clients;
     std::shared_ptr<tracker_element_uint64> client_disconnects;
     std::shared_ptr<tracker_element_uint64> client_disconnects_last;
+
+	uint16_t csa_count;
+	time_t last_csa_time;
 
     // std::shared_ptr<tracker_element_uint64> last_sequence;
     std::shared_ptr<tracker_element_uint64> bss_timestamp;
