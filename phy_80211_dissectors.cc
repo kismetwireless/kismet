@@ -47,6 +47,7 @@
 #include "dot11_parsers/dot11_ie_11_qbss.h"
 #include "dot11_parsers/dot11_ie_33_power.h"
 #include "dot11_parsers/dot11_ie_36_supported_channels.h"
+#include "dot11_parsers/dot11_ie_37_csa.h"
 #include "dot11_parsers/dot11_ie_45_ht_cap.h"
 #include "dot11_parsers/dot11_ie_48_rsn.h"
 #include "dot11_parsers/dot11_ie_52_rmm_neighbor.h"
@@ -1905,6 +1906,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     // Corrupt dot11 isn't a fatal condition
                     // fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
                 }
+
                 break;
             case 11:
                 try {
@@ -1914,6 +1916,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     packinfo->corrupt = 1;
                     return -1;
                 }
+
                 break;
 
             case 33:
@@ -1922,6 +1925,27 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 } catch (const std::exception& e) {
                     // fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
                 }
+
+                break;
+
+            case 37:
+                try {
+                    packinfo->csa.parse(ie_tag.tag_data());
+
+                    if (packinfo->csa.new_channel() == 14) {
+                            alertracker->raise_alert(alert_dot11_csa_ch14_ref,
+                                    in_pack,
+                                    packinfo->bssid_mac, packinfo->source_mac,
+                                    packinfo->dest_mac, packinfo->other_mac,
+                                    packinfo->channel,
+                                    "802.11 channel switch announcement seen for channel 14; "
+                                    "This channel is not typically available to clients and "
+                                    "likely indicates an attempted denial-of-service attack.");
+
+                    }
+
+                } catch (...) { }
+
                 break;
 
             case 45:

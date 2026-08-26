@@ -576,6 +576,20 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "iPhone and related deices) have issues processing them, leading to crashes "
                 "or potential exploits.",
                 phyid);
+	alert_dot11_csa_ch14_ref =
+		alertracker->activate_configured_alert("DOT11CSACH14",
+				"DENIAL", kis_alert_severity::high,
+				"Spoofed Channel Switch Announcements redirect clients to channel 14, "
+				"which is not available in most configurations.  This can cause a denial "
+				"of service for some devices, especially Linux based clients.",
+				phyid);
+	alert_dot11_csa_flood_ref =
+		alertracker->activate_configured_alert("DOT11CSAFLOOD",
+				"DENIAL", kis_alert_severity::high,
+				"Spoofed Channel Switch Announcements can cause clients to disconnect "
+				"from the current AP.  A CSA packet can be normal, but an excessive number "
+				"of them can indicate a denial of service for some devices, "
+				"especially Linux based clients", phyid);
 
     // Threshold
     signal_too_loud_threshold =
@@ -1368,7 +1382,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 }
             }
 
-            // Look at the BSS TS
+            // Look at the BSS TS & other trends
             if (dot11info->subtype == packet_sub_beacon && dot11info->distrib != distrib_adhoc) {
                 auto bsts = dot11info->bssid_dot11->get_bss_timestamp();
                 dot11info->bssid_dot11->set_bss_timestamp(dot11info->timestamp);
@@ -1413,6 +1427,22 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                                     "is being spoofed.", dot11info->bssid_dev->get_macaddr()));
                     }
                 }
+
+				// check for CSA spam
+				if (dot11info->csa.parsed()) {
+					if (dot11info->bssid_dot11->inc_csa_event(in_pack->ts.tv_sec)) {
+                        d11phy->alertracker->raise_alert(d11phy->alert_dot11_csa_flood_ref,
+                                in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel,
+                                fmt::format("BSSID {} is sending an usual number of Channel Switch "
+									"Announcement packets.  CSA packets can be a normal part of network "
+									"operation, but an excessive number in a short period of time "
+									"may indicate a denial of service attack.",
+                                    dot11info->bssid_dev->get_macaddr()));
+					}
+				}
             }
 
             // Detect if we're an adhoc bssid
