@@ -1164,10 +1164,10 @@ public:
         response_fingerprint_ = 0;
     }
 
-    auto type_set() const { return type_set_; }
+    constexpr auto type_set() const { return type_set_; }
     void set_type_set(auto v) { type_set_ = v; }
 
-    auto snapshot_next_beacon() const { return snapshot_next_beacon_; }
+    constexpr auto snapshot_next_beacon() const { return snapshot_next_beacon_; }
     void set_snapshot_next_beacon(auto v) { snapshot_next_beacon_ = v; }
 
     auto& client_map() const { return client_map_; }
@@ -1185,7 +1185,7 @@ public:
     auto& associated_client_map() const { return associated_client_map_; }
     void set_associated_client_map(auto& v) { associated_client_map_ = v; }
 
-    auto client_disconnects() const { return client_disconnects_; }
+    constexpr auto client_disconnects() const { return client_disconnects_; }
     void set_client_disconnects(auto v) { client_disconnects_ = v; }
     void inc_client_disconnects(unsigned int d, time_t time) {
         if (client_disconnect_last_time_ != time) {
@@ -1196,32 +1196,32 @@ public:
         }
     }
 
-    auto bss_timestamp() const { return bss_timestamp_; }
+    constexpr auto bss_timestamp() const { return bss_timestamp_; }
     void set_bss_timestamp(auto v) { bss_timestamp_ = v; }
 
-    auto num_fragments() const { return num_fragments_; }
+    constexpr auto num_fragments() const { return num_fragments_; }
     void set_num_fragments(auto v) { num_fragments_ = v; }
     void inc_num_fragments(auto v) { num_fragments_ += v; }
 
-    auto num_retries() const { return num_retries_; }
+    constexpr auto num_retries() const { return num_retries_; }
     void set_num_retries(auto v) { num_retries_ = v; }
     void inc_num_retries(auto r) { num_retries_ += r; }
 
-    auto datasize() const { return datasize_; }
+    constexpr auto datasize() const { return datasize_; }
     void set_datasize(auto v) { datasize_ = v; }
     void inc_datasize(auto v) { datasize_ += v; }
 
-    auto datasize_retry() const { return datasize_retry_; }
+    constexpr auto datasize_retry() const { return datasize_retry_; }
     void set_datasize_retry(auto v) { datasize_retry_ = v; }
     void inc_datasize_retry(auto v) { datasize_retry_ += v; }
 
-    auto last_bssid() const { return last_bssid_; }
+    constexpr auto last_bssid() const { return last_bssid_; }
     void set_last_bssid(auto v) { last_bssid_ = v; }
 
-    auto last_beacon_time() const { return last_beacon_time_; }
+    constexpr auto last_beacon_time() const { return last_beacon_time_; }
     void set_last_beacon_time(auto v) { last_beacon_time_ = v; }
 
-    auto wpa_m3_count() const { return wpa_m3_count_; }
+    constexpr auto wpa_m3_count() const { return wpa_m3_count_; }
     void set_wpa_m3_count(auto v) { wpa_m3_count_ = v; }
     void inc_wpa_m3_count(unsigned int d, time_t time) {
         if (wpa_m3_last_time_ != time) {
@@ -1258,7 +1258,7 @@ public:
     auto& pmkid_packet() const { return pmkid_packet_; }
     void set_pmkid_packet(auto& v) { pmkid_packet_ = v; }
 
-    auto last_adv_ie_checksum() const { return last_adv_ie_checksum_; }
+    constexpr auto last_adv_ie_checksum() const { return last_adv_ie_checksum_; }
     void set_last_adv_ie_checksum(auto v) { last_adv_ie_checksum_ = v; }
 
     auto last_advertised_ssid() const { return last_advertised_ssid_; }
@@ -1267,31 +1267,31 @@ public:
     auto last_probed_ssid() const { return last_probed_ssid_; }
     void set_last_probed_ssid(auto v) { last_probed_ssid_ = v; }
 
-    auto min_tx_power() const { return min_tx_power_; }
+    constexpr auto min_tx_power() const { return min_tx_power_; }
     void set_min_tx_power(auto v) { min_tx_power_ = v; }
 
-    auto max_tx_power() const { return max_tx_power_; }
+    constexpr auto max_tx_power() const { return max_tx_power_; }
     void set_max_tx_power(auto v) { max_tx_power_ = v; }
 
     auto& supported_channels_vec() const { return supported_channels_vec_; }
     void set_supported_channels_vec(auto& v) { supported_channels_vec_ = v; }
 
-    auto link_measurement_capable() const { return link_measurement_capable_; }
+    constexpr auto link_measurement_capable() const { return link_measurement_capable_; }
     void set_link_measurement_capable(auto v) { link_measurement_capable_ = v; }
 
-    auto neighbor_report_capable() const { return neighbor_report_capable_; }
+    constexpr auto neighbor_report_capable() const { return neighbor_report_capable_; }
     void set_neighbor_report_capable(auto v) { neighbor_report_capable_ = v; }
 
     auto& extended_capabilities_vec() const { return extended_capabilities_vec_; }
     void set_extended_capabilities_vec(auto& v) { extended_capabilities_vec_ = v; }
 
-    auto beacon_fingerprint() const { return beacon_fingerprint_; }
+    constexpr auto beacon_fingerprint() const { return beacon_fingerprint_; }
     void set_beacon_fingerprint(auto v) { beacon_fingerprint_ = v; }
 
-    auto probe_fingerprint() const { return probe_fingerprint_; }
+    constexpr auto probe_fingerprint() const { return probe_fingerprint_; }
     void set_probe_fingerprint(auto v) { probe_fingerprint_ = v; }
 
-    auto response_fingerprint() const { return response_fingerprint_; }
+    constexpr auto response_fingerprint() const { return response_fingerprint_; }
     void set_response_fingerprint(auto v) { response_fingerprint_ = v; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
