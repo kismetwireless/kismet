@@ -1535,8 +1535,10 @@ void device_tracker::timetracker_event(int eventid) {
         for (auto i = sorted_vec.begin() + max_num_devices; i != sorted_vec.end(); ++i) {
             auto d = std::static_pointer_cast<kis_tracked_device_base>(*i);
 
+			// if we've hit nullptrs then everything after this device is also null thanks
+			// to how sorting works, bail out
 			if (d == nullptr) {
-				continue;
+				break;
 			}
 
             device_itr mi = tracked_map.find(d->get_key());
