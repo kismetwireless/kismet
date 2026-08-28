@@ -1026,22 +1026,22 @@ public:
     auto& ip_v4() const { return ip_v4_; }
     void set_ip_v4(const auto& v) { ip_v4_ = v; }
 
-    auto decrypted() const { return decrypted_; }
+    constexpr auto decrypted() const { return decrypted_; }
     void set_decrypted(auto v) { decrypted_ = v; }
 
-    auto datasize() const { return datasize_; }
+    constexpr auto datasize() const { return datasize_; }
     void set_datasize(auto v) { datasize_ = v; }
     void inc_datasize(auto v) { datasize_ += v; }
 
-    auto datasize_retry() const { return datasize_retry_; }
+    constexpr auto datasize_retry() const { return datasize_retry_; }
     void set_datasize_retry(auto v) { datasize_retry_ = v; }
     void inc_datasize_retry(auto v) { datasize_retry_ += v; }
 
-    auto num_fragments() const { return num_fragments_; }
+    constexpr auto num_fragments() const { return num_fragments_; }
     void set_num_fragments(auto v) { num_fragments_ = v; }
     void inc_num_fragments(auto v) { num_fragments_ += v; }
 
-    auto num_retries() const { return num_retries_; }
+    constexpr auto num_retries() const { return num_retries_; }
     void set_num_retries(auto v) { num_retries_ = v; }
     void inc_num_retries(auto v) { num_retries_ += v; }
 
