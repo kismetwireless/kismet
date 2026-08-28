@@ -54,6 +54,10 @@ exports.AddDeviceView = function(name, view, priority, group = 'none') {
 }
 
 exports.BuildDeviceViewSelector = function(element) {
+    // Avoid creating orphaned selectmenu elements when the target is missing
+    if (element.length === 0)
+        return;
+  
     var grouped_views = [];
 
     // Pre-sort the array so that as we build our nested stuff we do it in order
