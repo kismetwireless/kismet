@@ -101,7 +101,7 @@ public:
 #endif
     };
 
-    // Filter baed on a prepared vector
+    // Filter based on a prepared vector
     device_tracker_view_regex_worker(const std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>>& filter_vec);
 
     // Build a PCRE from a standard regex description on a POST.
@@ -131,7 +131,7 @@ protected:
 // Searches multiple fields for a given string
 class device_tracker_view_stringmatch_worker : public device_tracker_view_worker {
 public:
-    // Match a given string against a list of resovled field paths
+    // Match a given string against a list of resolved field paths
     device_tracker_view_stringmatch_worker(const std::string& in_query,
             const std::vector<std::vector<int>>& in_paths);
     device_tracker_view_stringmatch_worker(const device_tracker_view_stringmatch_worker& w) {
@@ -158,7 +158,7 @@ protected:
 // Searches multiple fields for a given string
 class device_tracker_view_icasestringmatch_worker : public device_tracker_view_worker {
 public:
-    // Match a given string against a list of resovled field paths
+    // Match a given string against a list of resolved field paths
     device_tracker_view_icasestringmatch_worker(const std::string& in_query,
             const std::vector<std::vector<int>>& in_paths);
     device_tracker_view_icasestringmatch_worker(const device_tracker_view_icasestringmatch_worker& w) {

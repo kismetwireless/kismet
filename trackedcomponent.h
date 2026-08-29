@@ -290,7 +290,7 @@ class tracker_component : public tracker_element_map {
     }
 
 // Proxy, connected to a dynamic element.  Getting or setting the dynamic element
-// creates it.  The lamda function is called after setting.
+// creates it.  The lambda function is called after setting.
 #define __ProxyDynamicL(name, ptype, itype, rtype, cvar, id, lambda) \
     inline shared_tracker_element get_tracker_##name() { \
         if (cvar == nullptr) { \

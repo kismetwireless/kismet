@@ -148,7 +148,7 @@ typedef struct kismet_external_frame_v3 {
  *
  * v3 sub-blocks
  *
- *    Some fields are defined as sub-blocks; a sub block is serialzied as
+ *    Some fields are defined as sub-blocks; a sub block is serialized as
  *    a msgpack map of integer field IDs to msgpack values.
  *
  *    Sub-block field IDs are determined by the sub-block type.
@@ -461,7 +461,7 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_SEQNO             1
 /* interface sub-block */
 #define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_INTERFACE         2
-/* stirng */
+/* string */
 #define KIS_EXTERNAL_V3_KDS_PROBEREPORT_FIELD_MSG               3
 
 

@@ -76,7 +76,7 @@ public:
 
     virtual void trigger_deferred_startup() override;
 
-    // Register a gps builer prototype
+    // Register a gps builder prototype
     void register_gps_builder(shared_gps_builder in_builder);
 
     // Create a GPS from a definition string
