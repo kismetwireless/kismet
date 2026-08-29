@@ -31,7 +31,7 @@ exports.putStorage = function(key, data) {
     exports.storage.set(key, data);
 }
 
-// From http://stackoverflow.com/a/6491621
+// From https://stackoverflow.com/a/6491621
 exports.ObjectByString = function(o, s) {
     if (typeof(o) === 'undefined')
         return;

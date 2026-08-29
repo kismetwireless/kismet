@@ -12,7 +12,7 @@ baud=baudrate
 band=800|900|2400
 
 Based in part on the Sensniff code from:
-https://github.com/freaklabs/sensniff-freaklabs.git
+https://github.com/freaklabs/sensniff-freaklabs
 
 Under the following license:
 
