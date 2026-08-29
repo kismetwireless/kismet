@@ -543,7 +543,7 @@ protected:
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
-    // Map a device as a client of an acceess point, fill in any data in the
+    // Map a device as a client of an access point, fill in any data in the
     // per-client records
     void process_client(const std::shared_ptr<kis_tracked_device_base>& bssiddev,
             const std::shared_ptr<dot11_tracked_device>& bssiddot11,

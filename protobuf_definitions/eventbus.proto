@@ -22,7 +22,7 @@ message EventbusRegisterListener {
     repeated string event = 1;
 }
 
-// Publish an event; remotely pubished events must not overlap internal events and must be
+// Publish an event; remotely published events must not overlap internal events and must be
 // limited to pure-json data; the content of a remote published event will not be translated
 // to a complex C++ object.
 // event_content_json will be published in the kismet event as event_content["kismet.eventbus.event_json"]

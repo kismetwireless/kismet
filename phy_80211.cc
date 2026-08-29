@@ -2976,7 +2976,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
         }
 
-        // xxhash32 says hashes are canoically represented as little-endian
+        // xxhash32 says hashes are canonically represented as little-endian
         dot11dev->set_beacon_fingerprint(htole32(tag_hash.hash()));
 
         ssid->inc_beacons_sec();
@@ -3485,7 +3485,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
         }
 
-        // xxhash32 says hashes are canoically represented as little-endian
+        // xxhash32 says hashes are canonically represented as little-endian
         dot11dev->set_beacon_fingerprint(htole32(tag_hash.hash()));
 
         ssid->inc_beacons_sec();

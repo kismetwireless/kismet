@@ -238,7 +238,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
             gps_tagsize += 12; // lon, lat, appid,
         if (in_pack->gps_info.fix >= 3)
             gps_tagsize +=4; // altitude
-        //Could eventually include hdop, vdop using simillar scheme here
+        //Could eventually include hdop, vdop using similar scheme here
     }
     /* although dot11common tags are constant size, we follow the same pattern here*/
     if (in_pack->signal_info.data_ok) {

@@ -617,7 +617,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             transmit = wrapper_elem;
         }
 
-        // Handle legacy datatable otpions, if datatable=true
+        // Handle legacy datatable options, if datatable=true
         if (con->json().value("datatable", false)) {
             // Extract from the raw postvars
             auto start_k = con->http_variables().find("start");

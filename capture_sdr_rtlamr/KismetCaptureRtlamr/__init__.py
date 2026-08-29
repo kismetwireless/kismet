@@ -500,7 +500,7 @@ class KismetRtlamr(object):
         # Quantize
         bits = np.where(r > 0, 1, 0)
 
-        # Fake decimation of the bits themselves after the quanitization
+        # Fake decimation of the bits themselves after the quantization
         bits = bits[::self.decimation]
 
         return bits

@@ -659,7 +659,7 @@ protected:
 
     virtual void handle_msg_proxy(const std::string& msg, const int type) override;
 
-    // specific decoders to break out signal and gps extraction for derivitive classes; to be passed the
+    // specific decoders to break out signal and gps extraction for derivative classes; to be passed the
     // decoded packet mpack tree.  most child classes shouldn't ever need to touch this since it also
     // implies handling the whole raw packet.
     virtual bool handle_sub_gps(mpack_node_t& root,
@@ -695,7 +695,7 @@ protected:
     virtual unsigned int send_probe_source_v2(std::string in_defintion, unsigned int in_transaction,
             probe_callback_t in_cb);
 
-    // specific decoders broken out for derivitive classes to access signal and gps easily
+    // specific decoders broken out for derivative classes to access signal and gps easily
     virtual bool handle_sub_gps(KismetDatasource::SubGps in_gps, kis_gps_packinfo& gpsinfo);
     bool handle_sub_signal(KismetDatasource::SubSignal in_signal, kis_layer1_packinfo& siginfo);
 #endif

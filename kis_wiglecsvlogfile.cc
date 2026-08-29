@@ -321,7 +321,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 dev->get_frequency(),
                 signal,
                 in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
-                0, // TODO - dereive a gps accuracy
+                0, // TODO - derive a gps accuracy
                 "WIFI");
 
     } else if (wigle->bt_phy->device_is_a(dev)) {

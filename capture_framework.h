@@ -800,10 +800,10 @@ void cf_cancel_packet(kis_capture_handler_t *caph,
 /* Commit a frame, this queues the frame for transmission and
  * unlocks the capture framework.
  *
- * The final length of the content is updated in the protoco frame
+ * The final length of the content is updated in the protocol frame
  * before transmission.
  *
- * At the end of queing, the meta data is freed and is no longer
+ * At the end of queueing, the meta data is freed and is no longer
  * valid for use.
  *
  * Returns:
