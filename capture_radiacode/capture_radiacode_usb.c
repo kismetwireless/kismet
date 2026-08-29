@@ -18,7 +18,7 @@
 
 /*
  * This datasource interfaces with the Radiacode geiger counter
- * https://www.radiacode.
+ * https://www.radiacode.com/
  *
  * This datasource uses libusb to interface & requires a usb 
  * connection.

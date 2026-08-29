@@ -48,7 +48,7 @@ struct pcap_packet_hdr {
 typedef struct pcap_packet_hdr pcap_packet_hdr_t;
 
 /* PCAP-NG basic structs, as defined in:
- * http://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=https://raw.githubusercontent.com/pcapng/pcapng/master/draft-tuexen-opsawg-pcapng.xml&modeAsFormat=html/ascii&type=ascii#section_shb
+ * https://www.ietf.org/archive/id/draft-tuexen-opsawg-pcapng-04.html#section_shb
  */
 
 /* Generic option block */

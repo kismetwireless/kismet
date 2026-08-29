@@ -26,7 +26,7 @@ Kismet Freaklabs Zigbee Support
 
     The Kismet sensniff driver is based on the Sensniff python implementation available
     at:
-        https://github.com/freaklabs/sensniff-freaklabs.git
+        https://github.com/freaklabs/sensniff-freaklabs
 
     Support for other devices will come in other drivers.
 

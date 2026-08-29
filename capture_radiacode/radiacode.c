@@ -18,7 +18,7 @@
 
 /*
  * Radiacode protocol derived from the published Radiacode Python
- * interface, https://github.com/cdump/radiacode.git
+ * interface, https://github.com/cdump/radiacode
  */
 
 #include "radiacode.h"

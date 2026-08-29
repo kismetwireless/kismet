@@ -12,6 +12,6 @@ $ git clone https://www.kismetwireless.net/git/kismet-docs.git
 and mirrored on Github at:
 
 ```bash
-$ git clone https://www.github.com/kismetwireless/kismet-docs
+$ git clone https://github.com/kismetwireless/kismet-docs
 ```
 

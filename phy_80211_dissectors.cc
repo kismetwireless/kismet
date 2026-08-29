@@ -2045,7 +2045,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
                 // Re-parse using the limited RSN object to see if we're
                 // getting hit with something that looks like
-                // https://pleasestopnamingvulnerabilities.com/
+                // https://web.archive.org/web/20171107101629/https://pleasestopnamingvulnerabilities.com/
                 // CVE-2017-9714
                 if (rsn_invalid) {
                     try {
@@ -2062,7 +2062,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                                     "large number of pairwise ciphers; this could "
                                     "be an attack against Atheros drivers per "
                                     "CVE-2017-9714 and "
-                                    "https://pleasestopnamingvulnerabilities.com/ but "
+                                    "https://web.archive.org/web/20171107101629/https://pleasestopnamingvulnerabilities.com/ but "
                                     "may also simply be a device performing unusually.");
                         }
 
@@ -2250,7 +2250,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
                     // Count wmmtspec frames; per
                     // CVE-2017-11013
-                    // https://pleasestopnamingvulnerabilities.com/
+                    // https://web.archive.org/web/20171107101629/https://pleasestopnamingvulnerabilities.com/
                     if (packinfo->subtype == packet_sub_association_resp &&
                             vendor.vendor_oui_int() == 0x0050f2 &&
                             vendor.vendor_oui_type() == 2) {

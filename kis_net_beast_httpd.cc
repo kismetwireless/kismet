@@ -185,7 +185,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         _MSG("This is the first time Kismet has been run as this user.  You will need to set an "
                 "administrator username and password before you can use any features of Kismet.  Visit "
                 "http://localhost:2501/ to configure the initial login, or consult the Kismet "
-                "documentation at https://www.kismetwireless.net/docs/readme/webserver/ about how to "
+                "documentation at https://www.kismetwireless.net/docs/readme/configuring/webserver/ about how to "
                 "set a password manually.", MSGFLAG_INFO | MSGFLAG_LOCAL);
     }
 
