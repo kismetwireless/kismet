@@ -199,7 +199,7 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 
         trials = 0
         max_trials = 3
-        while trials < max_trials:  # repeat until non-zero lenght data received
+        while trials < max_trials:  # repeat until non-zero length data received
             data = self._device.read(0x81, 256, timeout=self._timeout_ms).tobytes()
             if len(data) != 0:
                 break
@@ -487,7 +487,7 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
     }
 
 	/* It appears the radiacode needs to sink all pending io on open before
-	 * issueing commands, spin burning data until we time out */
+	 * issuing commands, spin burning data until we time out */
 	while (1) {
 		r = libusb_bulk_transfer(localrad->usb_handle, 0x81,
 				(unsigned char *) sinkbuf, 256, &sink_len, 500);

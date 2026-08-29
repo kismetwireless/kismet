@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-/* We need thes defs regardless if we have wext */
+/* We need these defs regardless if we have wext */
 
 /* Wireless extensions monitor mode number */
 #define LINUX_WLEXT_MONITOR 6

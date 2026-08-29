@@ -795,7 +795,7 @@ int main(int argc, char *argv[]) {
                 frequency / 1000,
                 signal,
                 lat, lon, alt,
-                0, // TODO - dereive a gps accuracy
+                0, // TODO - derive a gps accuracy
                 "WIFI");
 
         n_saved++;

@@ -27,7 +27,7 @@
 // as the key and returns a pointer to the cached string.  We never
 // expire cache.
 //
-// fnv_ht uses raw pointers to try to opimize string cache for things 
+// fnv_ht uses raw pointers to try to optimize string cache for things 
 // in Kismet like the SSID and encryption strings; using smart pointers
 // means another 8 bytes lost per emtry.
 //

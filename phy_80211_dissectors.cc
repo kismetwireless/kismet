@@ -2431,7 +2431,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                                             // Affected code in rtlwifi:
                                             // noa_num = (noa_len - 2) / 13;
                                             // if (noa_num > P2P_MAX_NOA_NUM)
-                                            // and P2P_MAX_NOA_NUM is 2, therefor:
+                                            // and P2P_MAX_NOA_NUM is 2, therefore:
                                             if (wfa_ie_tag->tag_len() > 28) {
                                                 alertracker->raise_alert(alert_rtlwifi_p2p_ref, in_pack,
                                                         packinfo->bssid_mac, packinfo->source_mac,

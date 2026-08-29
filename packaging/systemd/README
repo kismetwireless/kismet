@@ -17,7 +17,7 @@ Kismet Service (and Debug Service)
     By default, the Kismet systemd service runs Kismet as root; this is NOT best practices
     but it is the only user consistently available.
 
-    It is STONGLY recommended that you install Kismet as suid-root via `make suidinstall`,
+    It is STRONGLY recommended that you install Kismet as suid-root via `make suidinstall`,
     and that you run Kismet as a non-privileged user.  Kismet will then limit root 
     access to the capture binaries which control individual interfaces.
 
