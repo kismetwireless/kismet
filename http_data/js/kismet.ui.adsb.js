@@ -164,7 +164,7 @@ kismet_ui.AddDeviceDetail("adsb", "ADSB (SDR)", 0, {
                 filterOnZero: true,
                 filterOnEmpty: true,
                 draw: function(opts) {
-                    return '<a href="https://flightaware.com/live/flight/' + opts['value'] + '" target="_new">Track ' + opts['value'] + ' on FlightAware</a>';
+                    return '<a href="https://www.flightaware.com/live/flight/' + opts['value'] + '" target="_new">Track ' + opts['value'] + ' on FlightAware</a>';
                 },
             },
             {
@@ -238,7 +238,7 @@ kismet_ui.AddDeviceDetail("adsb", "ADSB (SDR)", 0, {
                 filterOnEmpty: true,
                 draw: function(opts) {
                     try {
-                        return opts['data']['adsb.device']['adsb.device.latitude'] + ', ' + opts['data']['adsb.device']['adsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['adsb.device']['adsb.device.latitude'] + '&mlon=' + opts['data']['adsb.device']['adsb.device.longitude'] + '">View on OpenStreetMap</a>';
+                        return opts['data']['adsb.device']['adsb.device.latitude'] + ', ' + opts['data']['adsb.device']['adsb.device.longitude'] + ' <a target="_new" href="https://www.openstreetmap.org/?&mlat=' + opts['data']['adsb.device']['adsb.device.latitude'] + '&mlon=' + opts['data']['adsb.device']['adsb.device.longitude'] + '">View on OpenStreetMap</a>';
                     } catch (error) {
                         return 'n/a'
                     }
@@ -493,9 +493,9 @@ function map_cb(d) {
             loadingControl: true
         });
         map.fitBounds([[lat1, lon1], [lat2, lon2]])
-        L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             className: 'map-tiles',
         }).addTo(map);
 
