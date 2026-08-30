@@ -893,7 +893,7 @@ if test "$wantwext" = "yes"; then
 	fi # wexth
 
 	AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extentions present)
+	AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extensions present)
 	linux_wireless="yes";
 
 	if test "$linux_wireless" = "yes"; then
@@ -1054,7 +1054,7 @@ if test "$caponly"x = "no"x; then
     # AC_CHECK_LIB([tbb], [main], CXXLIBS="$CXXLIBS -ltbb")
 fi
 
-# Dont' check pcre if we're only building datasources
+# Don't check pcre if we're only building datasources
 if test "$caponly"x = "no"x; then
     if test "$wantpcre" = "yes"; then
         # Check for pcre2 first

@@ -391,7 +391,7 @@ constexpr17 C tracker_element_clone_adaptor(C p) {
     // return std::static_pointer_cast<c_t>(std::shared_ptr<tracker_element>(std::move(p->clone_type())));
 }
 
-// Aliased element used to link one element to anothers name, for instance to
+// Aliased element used to link one element to another's name, for instance to
 // allow the dot11 tracker a way to link the most recently used ssid from the
 // map to a custom field
 class tracker_element_alias : public tracker_element {

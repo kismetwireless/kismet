@@ -278,7 +278,7 @@ public:
     std::atomic<unsigned int> streambuf_circulation;
 
     kis_mutex ext_mutex;
-    // Exernal global references, string to intid
+    // External global references, string to intid
     std::map<std::string, int> ext_name_map;
     // External globals
     std::map<int, std::shared_ptr<void> > ext_data_map;

@@ -179,7 +179,7 @@ protected:
     int packet_handler_id;
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
-    // commit state we run a 10 second tranasction commit loop
+    // commit state we run a 10 second transaction commit loop
     kis_mutex transaction_mutex;
     int transaction_timer;
 

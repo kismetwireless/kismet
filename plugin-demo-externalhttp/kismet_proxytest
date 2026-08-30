@@ -79,7 +79,7 @@ class KismetProxyTest(object):
         # Print a static response
         externalhandler.send_http_response(request.req_id, bytes("<html><body><b>This is from python!</b></body></html>", "UTF-8"))
 
-    # Callback function for handling a req of our variabls.html endpoint
+    # Callback function for handling a req of our variables.html endpoint
     def handle_web_python_get(self, externalhandler, request):
         print("PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri))
         print("PYTHON - GET variables ")
@@ -88,7 +88,7 @@ class KismetProxyTest(object):
 
         externalhandler.send_http_response(request.req_id, bytes("<html><body><b>This is from python!</b></body></html>", "UTF-8"))
 
-    # Callback function for handling a req of our variabls.html endpoint
+    # Callback function for handling a req of our variables.html endpoint
     def handle_web_python_post(self, externalhandler, request):
         print("PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri))
         for i in request.variable_data:

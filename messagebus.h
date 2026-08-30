@@ -191,7 +191,7 @@ public:
             fflush(stderr);
         }
 
-        // Don't propogate debug messages into the eventbus or silly things can happen
+        // Don't propagate debug messages into the eventbus or silly things can happen
         if (flags & MSGFLAG_DEBUG) {
             fprintf(stdout, "DEBUG: %s\n", msg.c_str());
             fflush(stdout);
