@@ -2063,29 +2063,30 @@ AC_CONFIG_FILES([
     packaging/kismet.pc
     packaging/systemd/kismet.service
     packaging/systemd/debug/kismet-debug.service
+    capture_antsdr_droneid/Makefile
+    capture_bladerf_wiphy/Makefile
+    capture_catsniffer_zigbee/Makefile
+    capture_freaklabs_zigbee_v2/Makefile
+    capture_hak5_wifi_coconut/Makefile
     capture_linux_bluetooth/Makefile
     capture_linux_wifi/Makefile
+    capture_nrf_51822/Makefile
+    capture_nrf_52840/Makefile
+    capture_nrf_mousejack/Makefile
+    capture_nxp_kw41z/Makefile
     capture_openbsd_wifi/Makefile
     capture_osx_corewlan_wifi/Makefile
-    capture_nrf_mousejack/Makefile
+    capture_proxy_adsb/Makefile
+    capture_radiacode/Makefile
+    capture_rz_killerbee/Makefile
     capture_sdr_rtl433_v2/Makefile
     capture_sdr_rtladsb_v2/Makefile
-    capture_freaklabs_zigbee_v2/Makefile
+    capture_sdr_zigbee900/Makefile
+    capture_serial_radview/Makefile
+    capture_sniffle_ble/Makefile
     capture_ti_cc_2540/Makefile
     capture_ti_cc_2531/Makefile
     capture_ubertooth_one/Makefile
-    capture_nrf_51822/Makefile
-    capture_nxp_kw41z/Makefile
-    capture_rz_killerbee/Makefile
-    capture_bladerf_wiphy/Makefile
-    capture_proxy_adsb/Makefile
-    capture_nrf_52840/Makefile
-    capture_catsniffer_zigbee/Makefile
-    capture_sniffle_ble/Makefile
-    capture_hak5_wifi_coconut/Makefile
-    capture_serial_radview/Makefile
-    capture_radiacode/Makefile
-    capture_antsdr_droneid/Makefile
     capture_wch_ble_analyzer_pro/Makefile
     ])
 AC_OUTPUT
