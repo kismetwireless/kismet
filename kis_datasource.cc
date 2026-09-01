@@ -2259,7 +2259,7 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
 
     if (suppress_gps && !packet->gps_info.gps_info_ok) {
         packet->suppress_gps = true;
-    } else if (device_gps != nullptr) {
+    } else if (!packet->gps_info.gps_info_ok && device_gps != nullptr) {
         auto gpsinfo = device_gps->get_location();
 
         if (gpsinfo != nullptr) {
