@@ -2216,6 +2216,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
                 break;
 
+            case 192:
+                try {
+                    packinfo->dot11vht.parse(ie_tag.tag_data());
+                } catch (...) { }
+
+                break;
+
             case 214:
                 try {
                     dot11_ie_214_short_beacon_interval sbi_tag;
