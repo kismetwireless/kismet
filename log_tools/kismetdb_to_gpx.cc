@@ -502,6 +502,28 @@ int main(int argc, char *argv[]) {
             try {
                 ss >> json;
                 pl.name = json["kismet.device.base.commonname"].get<std::string>();
+
+                // Cell-specific name enrichment
+                if (phyname == "Cellular" && !json["cellular.device"].is_null()) {
+                    auto cell = json["cellular.device"];
+                    auto rat = cell.value("cellular.cell.rat", std::string(""));
+                    auto cell_key = cell.value("cellular.cell.key", std::string(""));
+                    auto oper = cell.value("cellular.cell.operator", std::string(""));
+                    auto rsrp = cell.value("cellular.cell.rsrp", (int64_t) 0);
+                    auto band = cell.value("cellular.cell.band", (uint64_t) 0);
+                    auto obs = cell.value("cellular.cell.observation_count", (uint64_t) 0);
+
+                    if (!cell_key.empty())
+                        pl.name = rat + " " + cell_key;
+                    if (!oper.empty())
+                        pl.name += " " + oper;
+                    if (rsrp != 0)
+                        pl.name += fmt::format(" RSRP:{}", rsrp);
+                    if (band > 0)
+                        pl.name += fmt::format(" B{}", band);
+                    if (obs > 0)
+                        pl.name += fmt::format(" obs:{}", obs);
+                }
             } catch (const std::exception& e) {
                 fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json.dump());
                 continue;
@@ -511,7 +533,29 @@ int main(int argc, char *argv[]) {
             pl.avg_lat = 0;
             pl.avg_lon = 0;
             pl.avg_2d_num = 0;
-            pl.avg_alt = 0;
+            pl.avg_alt_num = 0;
+
+            // Cell devices: use device's stored location — cell data table uses
+            // modem MAC, not tower MAC, so packet/data correlation by MAC fails.
+            if (phyname == "Cellular") {
+                try {
+                    auto loc = json["kismet.device.base.location"];
+                    auto avg_loc = loc["kismet.common.location.avg_loc"];
+                    auto geopoint = avg_loc["kismet.common.location.geopoint"];
+                    if (geopoint.is_array() && geopoint.size() >= 2) {
+                        pl.avg_lon = geopoint[0].get<double>();
+                        pl.avg_lat = geopoint[1].get<double>();
+                        pl.avg_alt = avg_loc.value("kismet.common.location.alt", 0.0);
+                        if (pl.avg_lat != 0 || pl.avg_lon != 0) {
+                            pl.avg_2d_num = 1;
+                            if (pl.avg_alt != 0)
+                                pl.avg_alt_num = 1;
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    // No location
+                }
+            } else {
 
             auto packet_q = _SELECT(db, "packets", packet_fields,
                     _WHERE("sourcemac", EQ, devmac, AND, "phyname", EQ, phyname, AND, "lat", NEQ, 0, AND, "lon", NEQ, 0));
@@ -598,6 +642,8 @@ int main(int argc, char *argv[]) {
                     pl.avg_alt_num++;
                 }
             }
+
+            } // end non-Cell packet/data query block
 
             if (pl.avg_2d_num == 0) {
                 fmt::print(stderr, "WARNING:  No packets with GPS info for '{}', skipping\n", pl.name);

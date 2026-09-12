@@ -1,3 +1,7 @@
+tmp/
+
+*.kismet-journal
+
 compile_commands.json
 
 *.o
@@ -69,6 +73,9 @@ capture_freaklabs_zigbee_v2/kismet_cap_freaklabs_zigbee
 capture_catsniffer_zigbee/kismet_cap_catsniffer_zigbee
 capture_wch_ble_analyzer_pro/kismet_cap_wch_ble_analyzer_pro
 capture_sniffle_ble/kismet_cap_sniffle_ble
+capture_cell_at/kismet_cap_cell_at
+capture_cell_diag/kismet_cap_cell_diag
+capture_cell_diag/celldiag_probe
 kismet_cap_pcapfile
 kismet_cap_kismetdb
 

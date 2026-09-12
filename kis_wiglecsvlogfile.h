@@ -28,6 +28,7 @@
 #include "phy_80211.h"
 #include "phy_btle.h"
 #include "phy_bluetooth.h"
+#include "phy_cell.h"
 
 class kis_phy_handler;
 
@@ -54,6 +55,7 @@ protected:
     kis_80211_phy *dot11_phy;
     kis_bluetooth_phy *bt_phy;
     kis_btle_phy *btle_phy;
+    kis_cellular_phy *cell_phy;
 };
 
 class wiglecsv_logfile_builder : public kis_logfile_builder {
@@ -90,7 +92,7 @@ public:
         set_log_name("Wigle CSV");
         set_stream(true);
         set_singleton(false);
-        set_log_description("CSV log of Access Points and Bluetooth for uploading to Wigle");
+        set_log_description("CSV log of Access Points, Bluetooth, and Cellular cells for uploading to Wigle");
     }
 };
 

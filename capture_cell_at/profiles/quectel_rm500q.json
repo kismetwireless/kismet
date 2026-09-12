@@ -1,0 +1,93 @@
+{
+    "vendor": "quectel",
+    "model": "rm500q",
+    "firmware_match": "RM500Q*",
+    "applicable_models": ["RM500Q-AE", "RM500Q-GL", "RM502Q-AE", "RM505Q-AE", "RM510Q-GL",
+                          "RG500Q-EA", "RG502Q-EA"],
+    "command_reference": {
+        "document": "RG50xQ&RM5xxQ Series AT Commands Manual",
+        "filename": "Quectel_RG50xQ_RM5xxQ_Series_AT_Commands_Manual_V1.2.pdf",
+        "version": "V1.2",
+        "date": "2021-08-09"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE", "NR"],
+        "has_qeng": true,
+        "has_qscan": true,
+        "has_neighbourcell": true,
+        "has_cops_scan": true
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "verify engineering mode available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT+QENG=\"servingcell\"",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "qeng_serving",
+            "notes": "Returns LTE or NR5G-SA/NSA serving cell. Field order differs by RAT."
+        },
+        "neighbor": {
+            "cmd": "AT+QENG=\"neighbourcell\"",
+            "interval_ms": 5000,
+            "timeout_ms": 10000,
+            "parser": "qeng_neighbor",
+            "notes": "Returns intra-frequency and inter-frequency LTE neighbors."
+        },
+        "full_scan": {
+            "cmd": "AT+QSCAN=3,1",
+            "interval_ms": 60000,
+            "timeout_ms": 120000,
+            "parser": "qscan",
+            "notes": "Full band scan. Can take up to 2 minutes. Returns all visible cells with MCC/MNC."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan. 30-120 seconds. Returns operator names and RATs."
+        }
+    },
+    "strategies": {
+        "wardrive": {
+            "description": "Fast mobile survey — serving + neighbors only",
+            "scans": ["serving", "neighbor"],
+            "default": true
+        },
+        "stationary": {
+            "description": "Thorough fixed-location survey — all scan types",
+            "scans": ["serving", "neighbor", "full_scan", "plmn_scan"]
+        },
+        "serving_only": {
+            "description": "Minimal — serving cell tracking only",
+            "scans": ["serving"]
+        }
+    }
+}

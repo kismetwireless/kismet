@@ -1,0 +1,86 @@
+{
+    "vendor": "quectel",
+    "model": "eg25g",
+    "firmware_match": "EG25*",
+    "applicable_models": ["EG25-G", "EG25-GL", "EC25-AF", "EC25-AU", "EC25-E",
+                          "EG91", "EG95", "EM05-G", "EM05-CE"],
+    "command_reference": {
+        "document": "EC2x&EG2x&EG9x&EM05 Series AT Commands Manual",
+        "filename": "Quectel_EC2xEG2xEG9xEM05_Series_AT_Commands_Manual_V2.1.pdf",
+        "version": "V2.1",
+        "date": "2025-03-21"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE"],
+        "has_qeng": true,
+        "has_qscan": false,
+        "has_neighbourcell": true,
+        "has_cops_scan": true
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "verify engineering mode available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT+QENG=\"servingcell\"",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "qeng_serving",
+            "notes": "LTE only. Field order: MCC,MNC,cellID,PCID,EARFCN,band,UL_BW,DL_BW,TAC,RSRP,RSRQ,RSSI,SINR,CQI"
+        },
+        "neighbor": {
+            "cmd": "AT+QENG=\"neighbourcell\"",
+            "interval_ms": 5000,
+            "timeout_ms": 10000,
+            "parser": "qeng_neighbor",
+            "notes": "Returns intra-frequency and inter-frequency LTE neighbors with EARFCN, PCI, RSRP, RSRQ."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "WARNING: Has hung the EG25-G requiring power cycle. Use with caution."
+        }
+    },
+    "strategies": {
+        "wardrive": {
+            "description": "Fast mobile survey — serving + neighbors only",
+            "scans": ["serving", "neighbor"],
+            "default": true
+        },
+        "stationary": {
+            "description": "Thorough fixed-location survey — all scan types including PLMN",
+            "scans": ["serving", "neighbor", "plmn_scan"]
+        },
+        "serving_only": {
+            "description": "Minimal — serving cell tracking only",
+            "scans": ["serving"]
+        }
+    }
+}

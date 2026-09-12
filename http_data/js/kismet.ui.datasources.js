@@ -707,7 +707,7 @@ function update_datasource2(data) {
                     $('<span>', {
                         class: 'k-ds-source',
                     })
-                    .html("Available Interface: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')')
+                    .html((intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] === 'cellat' ? '<i class="fa fa-tower-cell" style="color: #33bb33; margin-right: 5px;"></i>' : '') + "Available Interface: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')')
                 )
             ).append(
                 $('<div>', {
@@ -828,7 +828,7 @@ function update_datasource2(data) {
                     $('<span>', {
                         class: 'k-ds-source',
                     })
-                    .html(source['kismet.datasource.name'])
+                    .html((source['kismet.datasource.type_driver']['kismet.datasource.driver.type'] === 'cellat' ? '<i class="fa fa-tower-cell" style="color: #33bb33; margin-right: 5px;"></i>' : '') + source['kismet.datasource.name'])
                 )
                 .append(
                     $('<span>', {

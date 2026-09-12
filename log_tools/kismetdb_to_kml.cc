@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:e:vfs", 
+                            "-hi:o:r:c:e:vfsg",
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -477,6 +477,7 @@ int main(int argc, char *argv[]) {
     std::vector<kml_placemark> other_placemark_vec;
     std::vector<kml_placemark> zigbee_placemark_vec;
     std::vector<kml_placemark> bluetooth_placemark_vec;
+    std::vector<kml_placemark> cell_placemark_vec;
 
     if (basiclocation) {
         auto basic_q = 
@@ -525,12 +526,41 @@ int main(int argc, char *argv[]) {
                 pl.phy_layer = json["kismet.device.base.phyname"].get<std::string>();
                 pl.channel = json["kismet.device.base.channel"].get<std::string>();
                 pl.crypt = json["kismet.device.base.crypt"].get<std::string>();
+
+                // Cell-specific description enrichment
+                if (pl.phy_layer == "Cellular" && !json["cellular.device"].is_null()) {
+                    auto cell = json["cellular.device"];
+                    auto rat = cell.value("cellular.cell.rat", std::string(""));
+                    auto cell_key = cell.value("cellular.cell.key", std::string(""));
+                    auto oper = cell.value("cellular.cell.operator", std::string(""));
+                    auto rsrp = cell.value("cellular.cell.rsrp", (int64_t) 0);
+                    auto band = cell.value("cellular.cell.band", (uint64_t) 0);
+                    auto obs = cell.value("cellular.cell.observation_count", (uint64_t) 0);
+                    auto identity = cell.value("cellular.cell.identity_level", std::string(""));
+
+                    if (!cell_key.empty())
+                        pl.name = rat + " " + cell_key;
+                    pl.crypt = rat;
+                    if (band > 0)
+                        pl.channel = fmt::format("{} B{}", rat, band);
+                    if (!oper.empty())
+                        pl.crypt += " " + oper;
+                    if (rsrp != 0)
+                        pl.crypt += fmt::format(" RSRP:{}", rsrp);
+                    if (obs > 0)
+                        pl.crypt += fmt::format(" obs:{}", obs);
+                    if (identity == "pci")
+                        pl.crypt += " (PCI-only)";
+                }
+
                 pl.point_vec.push_back(p);
 
                 if (group_in_folder) {
                     // style based on phy layer
                     if (pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
                         bluetooth_placemark_vec.push_back(pl);
+                    } else if (pl.phy_layer == "Cellular") {
+                        cell_placemark_vec.push_back(pl);
                     } else if (pl.phy_layer == "802.15.4") {
                         zigbee_placemark_vec.push_back(pl);
                     } else {
@@ -587,6 +617,33 @@ int main(int argc, char *argv[]) {
                 pl.phy_layer = json["kismet.device.base.phyname"].get<std::string>();
                 pl.channel = json["kismet.device.base.channel"].get<std::string>();
                 pl.crypt = json["kismet.device.base.crypt"].get<std::string>();
+
+                // Cell-specific description enrichment
+                if (pl.phy_layer == "Cellular" && !json["cellular.device"].is_null()) {
+                    auto cell = json["cellular.device"];
+                    auto rat = cell.value("cellular.cell.rat", std::string(""));
+                    auto cell_key = cell.value("cellular.cell.key", std::string(""));
+                    auto oper = cell.value("cellular.cell.operator", std::string(""));
+                    auto rsrp = cell.value("cellular.cell.rsrp", (int64_t) 0);
+                    auto band = cell.value("cellular.cell.band", (uint64_t) 0);
+                    auto obs = cell.value("cellular.cell.observation_count", (uint64_t) 0);
+                    auto identity = cell.value("cellular.cell.identity_level", std::string(""));
+
+                    if (!cell_key.empty())
+                        pl.name = rat + " " + cell_key;
+
+                    pl.crypt = rat;
+                    if (band > 0)
+                        pl.channel = fmt::format("{} B{}", rat, band);
+                    if (!oper.empty())
+                        pl.crypt += " " + oper;
+                    if (rsrp != 0)
+                        pl.crypt += fmt::format(" RSRP:{}", rsrp);
+                    if (obs > 0)
+                        pl.crypt += fmt::format(" obs:{}", obs);
+                    if (identity == "pci")
+                        pl.crypt += " (PCI-only)";
+                }
             } catch (const std::exception& e) {
                 fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json.dump());
                 continue;
@@ -596,7 +653,30 @@ int main(int argc, char *argv[]) {
             pl.avg_lat = 0;
             pl.avg_lon = 0;
             pl.avg_2d_num = 0;
-            pl.avg_alt = 0;
+            pl.avg_alt_num = 0;
+
+            // Cell devices: use the device's stored location directly.
+            // Cell observations in the data table use the modem's MAC as devmac,
+            // not the tower's device MAC, so packet/data correlation by MAC fails.
+            if (pl.phy_layer == "Cellular") {
+                try {
+                    auto loc = json["kismet.device.base.location"];
+                    auto avg_loc = loc["kismet.common.location.avg_loc"];
+                    auto geopoint = avg_loc["kismet.common.location.geopoint"];
+                    if (geopoint.is_array() && geopoint.size() >= 2) {
+                        pl.avg_lon = geopoint[0].get<double>();
+                        pl.avg_lat = geopoint[1].get<double>();
+                        pl.avg_alt = avg_loc.value("kismet.common.location.alt", 0.0);
+                        if (pl.avg_lat != 0 || pl.avg_lon != 0) {
+                            pl.avg_2d_num = 1;
+                            if (pl.avg_alt != 0)
+                                pl.avg_alt_num = 1;
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    // No location — will be skipped below
+                }
+            } else {
 
             auto packet_q = _SELECT(db, "packets", packet_fields,
                     _WHERE("sourcemac", EQ, devmac, AND, "phyname", EQ, phyname, AND, "lat", NEQ, 0, AND, "lon", NEQ, 0));
@@ -678,6 +758,8 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+            } // end non-Cell packet/data query block
+
             if (pl.avg_2d_num == 0) {
                 fmt::print(stderr, "WARNING:  No packets with GPS info for '{}', skipping\n", pl.name);
                 continue;
@@ -696,6 +778,9 @@ int main(int argc, char *argv[]) {
                 // style based on phy layer
                 if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
                     bluetooth_placemark_vec.push_back(pl);
+                }
+                else if(pl.phy_layer == "Cellular") {
+                    cell_placemark_vec.push_back(pl);
                 }
                 else if(pl.phy_layer == "802.15.4") {
                     zigbee_placemark_vec.push_back(pl);
@@ -736,6 +821,7 @@ int main(int argc, char *argv[]) {
             "<Style id=\"wifi-ap-wep\"><LabelStyle><color>#ff0080FF</color></LabelStyle><IconStyle><color>#ff0080FF</color></IconStyle></Style>\n"
             "<Style id=\"wifi-ap-wpa\"><LabelStyle><color>#ff0000FF</color></LabelStyle><IconStyle><color>#ff0000FF</color></IconStyle></Style>\n"
             "<Style id=\"wifi-client\"><LabelStyle><color>#ff00FFFF</color></LabelStyle><IconStyle><color>#ff00FFFF</color></IconStyle></Style>\n"
+            "<Style id=\"cell\"><LabelStyle><color>#ff00FF80</color></LabelStyle><IconStyle><color>#ff00FF80</color></IconStyle></Style>\n"
             "<Style id=\"other\"><LabelStyle><color>#ff00AAFF</color></LabelStyle><IconStyle><color>#ff00AAFF</color></IconStyle></Style>\n"
             "<name>Kismet</name>\n"
             "<open>1</open>");
@@ -747,6 +833,10 @@ int main(int argc, char *argv[]) {
 
         if (!zigbee_placemark_vec.empty()) {
             add_placemarks_from_vec(ofile, zigbee_placemark_vec, "802.15.4(Zigbee)", "zigbee", point_num, place_num);
+        }
+
+        if (!cell_placemark_vec.empty()) {
+            add_placemarks_from_vec(ofile, cell_placemark_vec, "Cellular Cells", "cellular", point_num, place_num);
         }
 
         if (!client_placemark_vec.empty() || !ap_wpa_placemark_vec.empty() || !ap_wep_placemark_vec.empty() || 
@@ -794,6 +884,8 @@ int main(int argc, char *argv[]) {
             // style based on phy layer
             if (pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
                 fmt::print(ofile, "<styleUrl>btle</styleUrl>");
+            } else if (pl.phy_layer == "Cellular") {
+                fmt::print(ofile, "<styleUrl>cell</styleUrl>");
             } else if (pl.phy_layer == "802.15.4") {
                 fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
             }

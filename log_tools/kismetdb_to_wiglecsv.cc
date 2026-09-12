@@ -436,6 +436,7 @@ int main(int argc, char *argv[]) {
     long int n_devices_db = 0L;
     long int n_total_data_db = 0L;
     long int n_data_db = 0L;
+    long int n_cell_devices_db = 0L;
 
     try {
         // Get the version
@@ -491,9 +492,23 @@ int main(int argc, char *argv[]) {
             fmt::print(stderr, "* Found {} devices, {} packets with GPS, {} total packets\n",
                     n_devices_db, n_packets_db + n_total_data_db, n_total_packets_db + n_total_data_db);
 
-        if (n_packets_db == 0 && n_devices_db == 0 && n_data_db == 0) {
+        // Count cell devices
+        try {
+            auto ncell_q = _SELECT(db, "devices", {"count(*)"},
+                    _WHERE("phyname", EQ, "Cellular"));
+            auto ncell_ret = ncell_q.begin();
+            if (ncell_ret != ncell_q.end())
+                n_cell_devices_db = sqlite3_column_as<unsigned long>(*ncell_ret, 0);
+        } catch (const std::exception& e) {
+            // Cell table may not exist in older databases — ignore
+        }
+
+        if (verbose && n_cell_devices_db > 0)
+            fmt::print(stderr, "* Found {} cell devices\n", n_cell_devices_db);
+
+        if (n_packets_db == 0 && n_devices_db == 0 && n_data_db == 0 && n_cell_devices_db == 0) {
             fmt::print(stderr, "ERROR:  No usable data in the provided log; Wigle export currently works\n"
-                            "        with WiFi and Bluetooth devices which were captured with GPS data.\n"
+                            "        with WiFi, Bluetooth, and Cell devices which were captured with GPS data.\n"
                             "        Make sure you have a GPS connected with a signal lock.\n");
             sqlite3_close(db);
             exit(1);
@@ -952,6 +967,222 @@ int main(int argc, char *argv[]) {
                     cached->type);
 
             n_saved++;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Cell tower export — per-observation from the data table
+    //
+    // Two passes:
+    //   1. Build a PCI+EARFCN → cell identity lookup from full-identity
+    //      observations (serving cells that include PCI).
+    //   2. Export all observations: full-identity directly, PCI-only via
+    //      the lookup table when a match exists.
+    // -----------------------------------------------------------------------
+
+    if (n_cell_devices_db > 0) {
+        // Count cell data observations
+        long int n_cell_data = 0;
+        try {
+            auto ncell_data_q = _SELECT(db, "data", {"count(*)"},
+                    _WHERE("phyname", EQ, "Cellular",
+                        AND, "lat", NEQ, 0,
+                        AND, "lon", NEQ, 0));
+            auto ncell_data_ret = ncell_data_q.begin();
+            if (ncell_data_ret != ncell_data_q.end())
+                n_cell_data = sqlite3_column_as<unsigned long>(*ncell_data_ret, 0);
+        } catch (const std::exception& e) {
+            // ignore
+        }
+
+        if (verbose)
+            fmt::print(stderr, "* Processing {} cell observations...\n", n_cell_data);
+
+        // Resolved identity for PCI-only neighbors
+        struct cell_identity {
+            uint64_t mcc, mnc, tac, cell_id;
+            std::string rat;
+            std::string cell_key;
+            std::string cell_operator;
+        };
+
+        // Pass 1: build PCI+EARFCN → identity map from full-identity observations
+        std::map<std::string, cell_identity> pci_identity_map;
+
+        auto cell_data_fields = std::list<std::string>{
+            "ts_sec", "devmac", "phyname", "lat", "lon", "alt", "signal", "json"};
+
+        auto cell_pass1 = _SELECT(db, "data", cell_data_fields,
+                _WHERE("phyname", EQ, "Cellular",
+                    AND, "lat", NEQ, 0,
+                    AND, "lon", NEQ, 0));
+
+        for (auto row : cell_pass1) {
+            auto json_str = sqlite3_column_as<std::string>(row, 7);
+            if (json_str.empty())
+                continue;
+
+            try {
+                auto j = nlohmann::json::parse(json_str);
+                auto mcc = j.value("mcc", (uint64_t) 0);
+                auto cell_id = j.value("cell_id", (uint64_t) 0);
+                auto pci = j.value("pci", (uint64_t) 0);
+                auto earfcn = j.value("earfcn", (uint64_t) 0);
+
+                if (mcc > 0 && cell_id > 0 && pci > 0 && earfcn > 0) {
+                    auto key = fmt::format("{}_{}", pci, earfcn);
+                    if (pci_identity_map.find(key) == pci_identity_map.end()) {
+                        auto mnc = j.value("mnc", (uint64_t) 0);
+                        auto tac = j.value("tac", (uint64_t) 0);
+                        auto rat = j.value("rat", std::string("LTE"));
+
+                        // Build cell key: MCCMNC_TAC_CellID
+                        auto cell_key = fmt::format("{:03d}{:03d}_{}_{}", mcc, mnc, tac, cell_id);
+                        auto oper = j.value("operator_name", std::string(""));
+
+                        pci_identity_map[key] = {mcc, mnc, tac, cell_id, rat, cell_key, oper};
+                    }
+                }
+            } catch (const std::exception& e) {
+                // Skip unparseable JSON
+            }
+        }
+
+        if (verbose)
+            fmt::print(stderr, "* Built PCI+EARFCN identity map: {} unique entries\n",
+                    pci_identity_map.size());
+
+        // Pass 2: export observations
+        unsigned long n_cell_saved = 0;
+        unsigned long n_cell_resolved = 0;
+        unsigned long n_cell_skipped_identity = 0;
+        unsigned long n_cell_skipped_fields = 0;
+        unsigned long n_cell_skipped_zones = 0;
+
+        auto cell_pass2 = _SELECT(db, "data", cell_data_fields,
+                _WHERE("phyname", EQ, "Cellular",
+                    AND, "lat", NEQ, 0,
+                    AND, "lon", NEQ, 0));
+
+        for (auto row : cell_pass2) {
+            auto ts = sqlite3_column_as<std::uint64_t>(row, 0);
+            double lat = sqlite3_column_as<double>(row, 3);
+            double lon = sqlite3_column_as<double>(row, 4);
+            double alt = sqlite3_column_as<double>(row, 5);
+            int signal = sqlite3_column_as<int>(row, 6);
+            auto json_str = sqlite3_column_as<std::string>(row, 7);
+
+            if (json_str.empty())
+                continue;
+
+            // Check exclusion zones
+            bool violates_exclusion = false;
+            for (auto ez : exclusion_zones) {
+                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                    violates_exclusion = true;
+                    break;
+                }
+            }
+            if (violates_exclusion) {
+                n_cell_skipped_zones++;
+                continue;
+            }
+
+            try {
+                auto j = nlohmann::json::parse(json_str);
+
+                auto mcc = j.value("mcc", (uint64_t) 0);
+                auto mnc = j.value("mnc", (uint64_t) 0);
+                auto cell_id = j.value("cell_id", (uint64_t) 0);
+                auto tac = j.value("tac", (uint64_t) 0);
+                auto pci = j.value("pci", (uint64_t) 0);
+                auto earfcn = j.value("earfcn", (uint64_t) 0);
+                auto rat = j.value("rat", std::string(""));
+                auto rsrp = j.value("rsrp", (int64_t) 0);
+                auto oper = j.value("operator_name", std::string(""));
+
+                std::string cell_key;
+                bool resolved = false;
+
+                if (mcc > 0 && cell_id > 0 && !rat.empty()) {
+                    // Full-identity observation
+                    cell_key = fmt::format("{:03d}{:03d}_{}_{}", mcc, mnc, tac, cell_id);
+                } else if (pci > 0 && earfcn > 0) {
+                    // PCI-only — try to resolve via identity map
+                    auto lookup_key = fmt::format("{}_{}", pci, earfcn);
+                    auto it = pci_identity_map.find(lookup_key);
+                    if (it != pci_identity_map.end()) {
+                        mcc = it->second.mcc;
+                        mnc = it->second.mnc;
+                        tac = it->second.tac;
+                        cell_id = it->second.cell_id;
+                        cell_key = it->second.cell_key;
+                        if (rat.empty())
+                            rat = it->second.rat;
+                        if (oper.empty())
+                            oper = it->second.cell_operator;
+                        resolved = true;
+                    } else {
+                        n_cell_skipped_identity++;
+                        continue;
+                    }
+                } else {
+                    n_cell_skipped_fields++;
+                    continue;
+                }
+
+                // Validate required fields
+                if (mcc == 0 || cell_id == 0 || cell_key.empty() || rat.empty()) {
+                    n_cell_skipped_fields++;
+                    continue;
+                }
+
+                // Use RSRP from JSON if signal column is 0
+                if (signal == 0 && rsrp != 0)
+                    signal = (int) rsrp;
+
+                // Timestamp
+                std::time_t timet(ts);
+                std::tm tm;
+                gmtime_r(&timet, &tm);
+                char tmstr[256];
+                strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+
+                // AuthMode: [RAT;MCCMNC]
+                std::string authmode = fmt::format("[{};{:03d}{:03d}]",
+                        rat, (uint16_t) mcc, (uint16_t) mnc);
+
+                // WiGLE v1.6 CSV row
+                fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
+                        cell_key,
+                        MungeForCSV(oper),
+                        authmode,
+                        tmstr,
+                        0,  // channel — not in per-observation data
+                        (uint32_t) earfcn,
+                        signal,
+                        lat, lon, alt,
+                        0,  // accuracy
+                        "", // rcoi
+                        "", // mfgr id
+                        rat);
+
+                n_cell_saved++;
+                if (resolved)
+                    n_cell_resolved++;
+                n_saved++;
+
+            } catch (const std::exception& e) {
+                // Skip unparseable records
+            }
+        }
+
+        if (verbose) {
+            fmt::print(stderr, "* Cell: {} exported ({} from PCI resolution), "
+                    "{} skipped (unresolvable PCI-only), {} skipped (missing fields), "
+                    "{} excluded by zone\n",
+                    n_cell_saved, n_cell_resolved, n_cell_skipped_identity,
+                    n_cell_skipped_fields, n_cell_skipped_zones);
         }
     }
 

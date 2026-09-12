@@ -174,6 +174,12 @@ BUILD_CAPTURE_SNIFFLE_BLE = @BUILD_CAPTURE_SNIFFLE_BLE@
 CAPTURE_WCH_BLE_ANALYZER_PRO = capture_wch_ble_analyzer_pro/kismet_cap_wch_ble_analyzer_pro
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO = @BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO@
 
+CAPTURE_CELL_AT = capture_cell_at/kismet_cap_cell_at
+BUILD_CAPTURE_CELL_AT = @BUILD_CAPTURE_CELL_AT@
+
+CAPTURE_CELL_DIAG = capture_cell_diag/kismet_cap_cell_diag
+BUILD_CAPTURE_CELL_DIAG = @BUILD_CAPTURE_CELL_DIAG@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -246,7 +252,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
-	datasource_catsniffer_zigbee.cc.o \
+	datasource_catsniffer_zigbee.cc.o datasource_cell_at.cc.o datasource_cell_diag.cc.o \
 	datasource_sniffle_ble.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
@@ -270,7 +276,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_components_v2.cc.o phy_80211_dissectors.cc.o \
 	phy_sensor.cc.o phy_meter.cc.o phy_adsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_802154.cc.o \
-	phy_80211_ssidtracker.cc.o phy_radiation.cc.o \
+	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_cell.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -451,6 +457,12 @@ $(CAPTURE_ANTSDR_DRONEID): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_WCH_BLE_ANALYZER_PRO): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_wch_ble_analyzer_pro && $(MAKE))
 
+$(CAPTURE_CELL_AT): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_cell_at && $(MAKE))
+
+$(CAPTURE_CELL_DIAG): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_cell_diag && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -547,6 +559,14 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)` ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CELL_AT) $(BIN)/`basename $(CAPTURE_CELL_AT)` ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_CELL_DIAG)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CELL_DIAG) $(BIN)/`basename $(CAPTURE_CELL_DIAG)` ; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -678,6 +698,14 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_AT) $(BIN)/`basename $(CAPTURE_CELL_AT)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_CELL_DIAG)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_DIAG) $(BIN)/`basename $(CAPTURE_CELL_DIAG)`; \
 	fi;
 
 	mkdir -p $(LIB)/pkgconfig

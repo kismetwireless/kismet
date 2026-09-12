@@ -144,6 +144,8 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
         static_cast<kis_bluetooth_phy *>(devicetracker->fetch_phy_handler_by_name("Bluetooth"));
     btle_phy =
         static_cast<kis_btle_phy *>(devicetracker->fetch_phy_handler_by_name("BTLE"));
+    cell_phy =
+        dynamic_cast<kis_cellular_phy *>(devicetracker->fetch_phy_handler_by_name("Cellular"));
 
     if (dot11_phy == nullptr || bt_phy == nullptr || btle_phy == nullptr) {
         _MSG_FATAL("Could not initialize wigle log, phys not available");
@@ -255,8 +257,12 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (in_pack->common_info.type != packet_basic_mgmt)
         return 1;
 
-    // Find the record for the origin device, the only one we care about
-    const auto& d_k = devs->devrefs.find(in_pack->common_info.source);
+    // Find the record for the origin device.
+    // Cell PHY uses common->dest (not source) as the device MAC to get
+    // RX packet classification, so also check dest if source lookup fails.
+    auto d_k = devs->devrefs.find(commoninfo->source);
+    if (d_k == devs->devrefs.end())
+        d_k = devs->devrefs.find(commoninfo->dest);
     if (d_k == devs->devrefs.end())
         return 1;
 
@@ -414,6 +420,53 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 "", // rcoi blank
                 "", // todo - fill bt mfgr id
                 type);
+
+    } else if (wigle->cell_phy != nullptr && wigle->cell_phy->device_is_a(dev)) {
+        auto cell = wigle->cell_phy->fetch_cell_record(dev);
+        if (cell == nullptr)
+            return 1;
+
+        // Only export full-identity cells, not partial-identity observations
+        if (cell->get_cell_identity_level() != "full")
+            return 1;
+
+        auto timestamp = dev->get_last_time();
+
+        std::time_t timet(timestamp);
+        std::tm tm;
+        std::stringstream ts;
+
+        gmtime_r(&timet, &tm);
+
+        char tmstr[256];
+        strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+        ts << tmstr;
+
+        // AuthMode: RAT;MCCMNC
+        std::string authmode = fmt::format("{};{:03d}{:03d}",
+                cell->get_cell_rat(),
+                (uint16_t) cell->get_cell_mcc(),
+                (uint16_t) cell->get_cell_mnc());
+
+        int signal = cell->get_cell_rsrp();
+
+        // WiGLE v1.6:
+        // [MAC],[SSID],[AuthMode],[FirstSeen],[Channel],[Frequency],[RSSI],
+        //   [CurrentLatitude],[CurrentLongitude],[AltitudeMeters],[AccuracyMeters],
+        //   [RCOIs],[MfgrId],[Type]
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
+                cell->get_cell_key(),
+                munge_for_csv(cell->get_cell_operator()),
+                authmode,
+                ts.str(),
+                dev->get_channel(),
+                (uint32_t) cell->get_cell_arfcn(),
+                signal,
+                gps->lat, gps->lon, gps->alt,
+                0,
+                "",
+                "",
+                cell->get_cell_rat());
     }
 
     wigle->timer_map[dev->get_key()] = time(0) + wigle->throttle_seconds;

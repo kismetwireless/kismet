@@ -1,0 +1,45 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	capture_cell_diag.c.o \
+	diag_hdlc.c.o \
+	diag_config.c.o \
+	diag_capture.c.o
+MONITOR_BIN = kismet_cap_cell_diag
+
+# Standalone hardware-probe helper (no Kismet dependency); shares the DIAG
+# capture core. Built explicitly via `make probe`, not part of `all`/install.
+PROBE_OBJS = \
+	celldiag_probe.c.o \
+	diag_hdlc.c.o \
+	diag_config.c.o \
+	diag_capture.c.o
+PROBE_BIN = celldiag_probe
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
+		    $(DATASOURCE_LIBS)
+
+probe: $(PROBE_BIN)
+
+$(PROBE_BIN):	$(PROBE_OBJS) $(patsubst %c.o,%c.d,$(PROBE_OBJS))
+		$(CCLD) $(LDFLAGS) -o $(PROBE_BIN) $(PROBE_OBJS)
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f $(PROBE_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))

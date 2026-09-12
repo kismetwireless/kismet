@@ -1,0 +1,92 @@
+{
+    "vendor": "telit",
+    "model": "lm960",
+    "firmware_match": "32.01.*",
+    "applicable_models": ["LM960", "LM960A18"],
+    "command_reference": {
+        "document": "LM960/LM960A18 AT Commands Reference Guide",
+        "filename": "Telit_LM960_AT_Commands_Reference_Guide_r3.pdf",
+        "version": "Rev.3",
+        "date": "2020-01-07"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE"],
+        "has_rfsts": true,
+        "has_servinfo": true,
+        "has_moni": true,
+        "has_cops_scan": true,
+        "has_csurv": false
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT#RFSTS",
+                "expect": "#RFSTS:",
+                "purpose": "verify RF status available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT#RFSTS",
+                "expect": "#RFSTS:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT#RFSTS",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "rfsts",
+            "notes": "Format: #RFSTS: \"MCC MNC\",EARFCN,RSRP,TXPWR,RSRQ,TAC,BAND,,DRX,MIMO,SFN,CellID,\"IMEI\",\"Operator\",MODE,DUPLEX"
+        },
+        "serving_compact": {
+            "cmd": "AT#SERVINFO",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "servinfo",
+            "notes": "Format: #SERVINFO: EARFCN,RSSI,\"operator\",\"MCCMNC\",cell_id,TAC,PCI,?,RSRP. Less detail than RFSTS but includes PCI."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan. 30-120 seconds. Works without SIM."
+        }
+    },
+    "strategies": {
+        "wardrive": {
+            "description": "Fast mobile survey — RFSTS serving cell only",
+            "scans": ["serving"],
+            "default": true
+        },
+        "stationary": {
+            "description": "Thorough fixed-location survey — RFSTS + PLMN scan",
+            "scans": ["serving", "plmn_scan"]
+        },
+        "serving_only": {
+            "description": "Minimal — serving cell tracking only",
+            "scans": ["serving"]
+        }
+    },
+    "quirks": {
+        "ati_returns_build_number": "ATI returns '332' (build number), not model name. Use AT+CGMM for model.",
+        "band_255_means_unavailable": "AT#RFSTS band field reports 255 when not available. Filter to 0.",
+        "bnd_query_slow": "AT#BND? takes ~30 seconds to respond. Use 45s+ timeout.",
+        "csurv_broken_on_some_profiles": "AT#CSURV returns empty on Generic (32.01.110) and TMUS (32.01.150) firmware profiles."
+    }
+}

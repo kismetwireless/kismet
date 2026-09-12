@@ -90,7 +90,7 @@
 /* libbladerf */
 #undef HAVE_LIBBLADERF
 
-/* Define to 1 if you have the `cap' library (-lcap). */
+/* Define to 1 if you have the 'cap' library (-lcap). */
 #undef HAVE_LIBCAP
 
 /* libmosquitto */
@@ -171,7 +171,7 @@
 /* google protobufs */
 #undef HAVE_PROTOBUF_CPP
 
-/* Define to 1 if you have the `pstat' function. */
+/* Define to 1 if you have the 'pstat' function. */
 #undef HAVE_PSTAT
 
 /* have pthread timelock */
@@ -180,7 +180,7 @@
 /* Define to 1 if you have the <sensors/sensors.h> header file. */
 #undef HAVE_SENSORS_SENSORS_H
 
-/* Define to 1 if you have the `setproctitle' function. */
+/* Define to 1 if you have the 'setproctitle' function. */
 #undef HAVE_SETPROCTITLE
 
 /* accept() takes type socklen_t for addrlen */
@@ -258,7 +258,7 @@
 /* writeable argv type */
 #undef PF_ARGV_TYPE
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
@@ -302,8 +302,14 @@
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
-/* Define for large files, on AIX-style hosts. */
+/* Define to 1 on platforms where this makes off_t a 64-bit type. */
 #undef _LARGE_FILES
+
+/* Number of bits in time_t, on hosts where this is settable. */
+#undef _TIME_BITS
+
+/* Define to 1 on platforms where this makes time_t a 64-bit type. */
+#undef __MINGW_USE_VC2005_COMPAT
 /* proftpd argv stuff */
 #define PF_ARGV_NONE        0
 #define PF_ARGV_NEW     	1
