@@ -503,7 +503,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
 
     // Update common device
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(common, cell_mac, this, packet,
+        devicetracker->update_common_device(cell_mac, this, packet,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY), "Cellular");
 

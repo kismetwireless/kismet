@@ -260,9 +260,9 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     // Find the record for the origin device.
     // Cell PHY uses common->dest (not source) as the device MAC to get
     // RX packet classification, so also check dest if source lookup fails.
-    auto d_k = devs->devrefs.find(commoninfo->source);
+    auto d_k = devs->devrefs.find(in_pack->common_info.source);
     if (d_k == devs->devrefs.end())
-        d_k = devs->devrefs.find(commoninfo->dest);
+        d_k = devs->devrefs.find(in_pack->common_info.dest);
     if (d_k == devs->devrefs.end())
         return 1;
 
@@ -462,7 +462,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 dev->get_channel(),
                 (uint32_t) cell->get_cell_arfcn(),
                 signal,
-                gps->lat, gps->lon, gps->alt,
+                in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
                 0,
                 "",
                 "",
