@@ -451,14 +451,11 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     // Cell observations are broadcast management info received from the tower.
     // Use packet_basic_mgmt → LLC/management packet counter (not data).
     // The tower MAC goes in dest so the device tracker counts RX packets.
-    // Source must be a non-zero, non-matching MAC (mac_addr(0) compares equal
-    // to everything due to maskbits=0 in Kismet's mac_addr operator==).
     common->type = packet_basic_mgmt;
     common->phyid = fetch_phy_id();
     common->datasize = 0;
 
     // Source and transmitter must be non-zero MACs that don't match cell_mac.
-    // mac_addr(0) has maskbits=0, making operator== match anything.
     // "02:CE:11:00:00:00" — locally-administered placeholder, won't collide.
     mac_addr modem_placeholder("02:CE:11:00:00:00");
     common->source = modem_placeholder;
