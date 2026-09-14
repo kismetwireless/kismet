@@ -39,6 +39,15 @@
  * standard text, against a real over-the-air capture from a Freaklabs
  * 328P/900MHz transmitter (55 frames, 0% loss, CRC-valid), and via offline
  * unit tests of the dedup/false-positive logic (2026-07-30).
+ *
+ * Device selection: "zigbee900sdr" (bare) or "zigbee900sdr-<idx or serial>"
+ * resolves to a specific RTL-SDR via find_rtl_by_subinterface(), exactly
+ * the convention capture_sdr_rtl433_v2.c already uses - added because the
+ * underlying decoder previously always hardcoded gr-osmosdr's "rtl=0", so
+ * it could only ever use whichever device happened to enumerate first,
+ * with no way to run it alongside other RTL-SDR sources on a multi-device
+ * system. The resolved device index is passed to zigbee900_live_rx.py as
+ * an extra argv so its osmosdr.source() targets that specific unit.
  */
 
 #define _GNU_SOURCE
@@ -50,6 +59,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+
+#include <rtl-sdr.h>
 
 #include "../capture_framework.h"
 #include "../config.h"
@@ -65,7 +76,7 @@
 #define DEFAULT_SCRIPT_PATH "/usr/share/kismet/zigbee900/zigbee900_live_rx.py"
 
 #define MAX_PSDU_BYTES 127
-#define MAX_LINE_LEN (16 + MAX_PSDU_BYTES * 2 + 8)   /* "PSDU NN <hex>\n" plus slack */
+#define MAX_LINE_LEN (16 + MAX_PSDU_BYTES * 2 + 8)   /* "PSDU NN -NNN <hex>\n" plus slack */
 
 typedef struct {
     char *name;
@@ -188,6 +199,56 @@ void build_channel_list(cf_params_interface_t **ret_interface) {
     (*ret_interface)->channels_len = ZIGBEE900_MAX_CHANNEL - ZIGBEE900_MIN_CHANNEL + 1;
 }
 
+/* Resolve a "zigbee900sdr-<subinterface>" suffix to an rtlsdr device index,
+ * exactly like capture_sdr_rtl433_v2.c's find_rtl_by_subinterface(): the
+ * subinterface may be a bare index ("0", "1", ...) or a device's own USB
+ * serial number (optionally prefixed "sn-" to force serial-only matching
+ * and sidestep any ambiguity with a numeric serial). Added so multiple
+ * RTL-SDRs on one system can each be pinned to a specific zigbee900sdr
+ * source, the same way multiple rtl433 sources already can - previously
+ * this datasource always hardcoded rtl=0 in zigbee900_live_rx.py, so two
+ * instances (or one instance on anything but the first-enumerated device)
+ * would silently collide on/ignore the intended hardware. */
+int find_rtl_by_subinterface(char *subinterface) {
+    char manuf[256];
+    char product[256];
+    char serial[256];
+
+    int subif_as_sn_only = 0;
+    int subif_as_int = -1;
+
+    int n = rtlsdr_get_device_count();
+    int i, r;
+
+    if (subinterface == NULL) {
+        return -1;
+    }
+
+    if (strlen(subinterface) > 3 && strncmp(subinterface, "sn-", 3) == 0) {
+        subinterface += 3;
+        subif_as_sn_only = 1;
+    }
+
+    for (i = 0; i < n; i++) {
+        r = rtlsdr_get_device_usb_strings(i, manuf, product, serial);
+
+        if (r != 0)
+            continue;
+
+        if (strcmp(serial, subinterface) == 0) {
+            return i;
+        }
+    }
+
+    if (!subif_as_sn_only && sscanf(subinterface, "%d", &subif_as_int) == 1) {
+        if (subif_as_int >= 0 && subif_as_int < n) {
+            return subif_as_int;
+        }
+    }
+
+    return -1;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *definition, char *msg, char **uuid,
         cf_params_interface_t **ret_interface, cf_params_spectrum_t **ret_spectrum) {
@@ -195,8 +256,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
+    char *subinterface;
     char *script_path = NULL;
     char errstr[STATUS_MAX];
+    int matched_device = 0;
+    int num_device = 0;
+    char manuf_buf[256];
+    char product_buf[256];
+    char serial_buf[256];
+    char buf[STATUS_MAX];
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
@@ -219,7 +287,39 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
+    /* Alias bare "zigbee900sdr" to device 0, same convention rtl433 uses */
+    if (strlen(interface) == strlen("zigbee900sdr")) {
+        matched_device = 1;
+        num_device = 0;
+    } else {
+        subinterface = strstr(interface, "-");
+        if (subinterface == NULL) {
+            free(interface);
+            snprintf(msg, STATUS_MAX, "Unable to parse zigbee900sdr interface in definition");
+            return 0;
+        }
+
+        num_device = find_rtl_by_subinterface(subinterface + 1);
+        if (num_device >= 0)
+            matched_device = 1;
+    }
+
     free(interface);
+    interface = NULL;
+
+    if (matched_device == 0 || num_device < 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find zigbee900sdr device");
+        return 0;
+    }
+
+    snprintf(buf, STATUS_MAX, "zigbee900sdr-%d", num_device);
+    (*ret_interface)->capif = strdup(buf);
+    (*ret_interface)->hardware = strdup("rtlsdr");
+
+    if (rtlsdr_get_device_usb_strings(num_device, manuf_buf, product_buf, serial_buf) != 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find zigbee900sdr device");
+        return 0;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "script", definition)) > 0) {
         script_path = strndup(placeholder, placeholder_len);
@@ -239,9 +339,19 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-000000000000",
+        /* Derived from this specific device's own manuf/product/serial, not
+         * a value fixed across every zigbee900sdr instance - matches
+         * rtl433's approach, and fixes this datasource's own documented
+         * limitation that its default UUID couldn't distinguish devices. */
+        uint32_t hash;
+
+        snprintf(buf, STATUS_MAX, "%s%s%s", manuf_buf, product_buf, serial_buf);
+        hash = adler32_csum((unsigned char *) buf, strlen(buf));
+
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
                 adler32_csum((unsigned char *) "kismet_cap_sdr_zigbee900",
-                    strlen("kismet_cap_sdr_zigbee900")) & 0xFFFFFFFF);
+                    strlen("kismet_cap_sdr_zigbee900")) & 0xFFFFFFFF,
+                hash & 0xFFFFFFFF);
         *uuid = strdup(errstr);
     }
 
@@ -258,11 +368,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     char *placeholder;
     int placeholder_len;
+    char *subinterface;
     char errstr[STATUS_MAX];
     unsigned int initial_channel = ZIGBEE900_MIN_CHANNEL;
+    int num_device = 0;
+    char manuf_buf[256];
+    char product_buf[256];
+    char serial_buf[256];
+    int have_device_strings = 0;
 
     char *argv[4];
     char chan_str[8];
+    char dev_str[16];
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
@@ -278,6 +395,31 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     local900->interface = strndup(placeholder, placeholder_len);
+
+    /* Resolve which physical RTL-SDR this instance is pinned to, same
+     * "zigbee900sdr" (-> device 0) / "zigbee900sdr-<idx or serial>"
+     * convention as probe_callback, so a multi-SDR system can run one
+     * zigbee900sdr source per device instead of every instance racing for
+     * whichever device gr-osmosdr happens to enumerate first. */
+    if (strlen(local900->interface) == strlen("zigbee900sdr")) {
+        num_device = 0;
+    } else {
+        subinterface = strstr(local900->interface, "-");
+        if (subinterface == NULL) {
+            snprintf(msg, STATUS_MAX, "Unable to parse zigbee900sdr interface in definition");
+            return -1;
+        }
+
+        num_device = find_rtl_by_subinterface(subinterface + 1);
+        if (num_device < 0) {
+            snprintf(msg, STATUS_MAX, "Unable to find zigbee900sdr device for interface %s",
+                     local900->interface);
+            return -1;
+        }
+    }
+
+    have_device_strings =
+        (rtlsdr_get_device_usb_strings(num_device, manuf_buf, product_buf, serial_buf) == 0);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         local900->name = strndup(placeholder, placeholder_len);
@@ -308,6 +450,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
+    } else if (have_device_strings) {
+        uint32_t hash;
+        char buf[STATUS_MAX];
+
+        snprintf(buf, STATUS_MAX, "%s%s%s", manuf_buf, product_buf, serial_buf);
+        hash = adler32_csum((unsigned char *) buf, strlen(buf));
+
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
+                adler32_csum((unsigned char *) "kismet_cap_sdr_zigbee900",
+                    strlen("kismet_cap_sdr_zigbee900")) & 0xFFFFFFFF,
+                hash & 0xFFFFFFFF);
+        *uuid = strdup(errstr);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-000000000000",
                 adler32_csum((unsigned char *) "kismet_cap_sdr_zigbee900",
@@ -316,12 +470,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     snprintf(chan_str, sizeof(chan_str), "%u", initial_channel);
+    snprintf(dev_str, sizeof(dev_str), "%d", num_device);
 
     argv[0] = local900->script_path;
     argv[1] = chan_str;
-    argv[2] = NULL;
+    argv[2] = dev_str;
+    argv[3] = NULL;
 
-    if ((local900->ipc = cf_ipc_exec(caph, 2, argv)) == NULL) {
+    if ((local900->ipc = cf_ipc_exec(caph, 3, argv)) == NULL) {
         snprintf(msg, STATUS_MAX, "%s failed to launch %s", local900->name, local900->script_path);
         return -1;
     }
@@ -358,6 +514,7 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
     char *buf;
     char errstr[STATUS_MAX];
     unsigned int line_channel;
+    int line_rssi;
     char hexbuf[MAX_PSDU_BYTES * 2 + 1];
     uint8_t pkt[MAX_PSDU_BYTES];
     int pkt_len;
@@ -379,11 +536,32 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
 
         matched = 0;
         if (strncmp(buf, "PSDU ", 5) == 0) {
-            if (sscanf(buf + 5, "%u %127s", &line_channel, hexbuf) == 2) {
+            if (sscanf(buf + 5, "%u %d %127s", &line_channel, &line_rssi, hexbuf) == 3) {
                 pkt_len = hex_decode(hexbuf, strlen(hexbuf), pkt, sizeof(pkt));
                 if (pkt_len > 0) {
+                    struct cf_params_signal sig;
+                    char chan_buf[8];
+
+                    /* freq_khz/channel per IEEE 802.15.4-2006 6.1.2.1, from
+                     * the channel this specific frame was decoded on.
+                     *
+                     * line_rssi is a relative dBFS-style channel-power
+                     * reading from zigbee900_live_rx.py's pre-squelch/AGC
+                     * probe, not a calibrated absolute dBm value - same
+                     * caveat most RTL-SDR-based Kismet datasources' signal
+                     * readings carry. Cast through int8_t before assigning
+                     * into the uint32_t field, the same idiom
+                     * capture_linux_bluetooth.c's "(int8_t) dev->rssi"
+                     * already uses, so the server reinterprets the bit
+                     * pattern as signed correctly. */
+                    memset(&sig, 0, sizeof(sig));
+                    sig.freq_khz = (906000 + 2000 * (line_channel - 1));
+                    snprintf(chan_buf, sizeof(chan_buf), "%u", line_channel);
+                    sig.channel = chan_buf;
+                    sig.signal_dbm = (int8_t) line_rssi;
+
                     gettimeofday(&tv, NULL);
-                    if (cf_send_data(caph, NULL, 0, NULL, NULL, tv,
+                    if (cf_send_data(caph, NULL, 0, &sig, NULL, tv,
                                 LINKTYPE_IEEE802_15_4_NOFCS, pkt_len, pkt_len, pkt) < 0) {
                         snprintf(errstr, STATUS_MAX,
                                 "%s unable to send packet to Kismet server", local900->name);
