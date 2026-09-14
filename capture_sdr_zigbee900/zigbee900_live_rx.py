@@ -12,7 +12,22 @@ that; retuning an already-running osmosdr source is fast).
 stdin protocol:   "CHANNEL <n>\n"   -> retune to IEEE 802.15.4-2006 channel n
                                        (906 + 2*(n-1) MHz, n=1..10, 6.1.2.1)
 stdout protocol:  one hex-encoded PSDU per decoded, CRC-valid frame, e.g.
-                  "PSDU <channel> <hex bytes>\n"
+                  "PSDU <channel> <rssi_dbfs> <hex bytes>\n"
+                  rssi_dbfs is a relative dBFS-style reading of channel power
+                  at decode time (see rssi_probe below), not a calibrated
+                  absolute dBm value - an integer, always <= 0, clamped to
+                  >= -100.
+
+argv:  zigbee900_live_rx.py <channel> [rtlsdr_device_index]
+       rtlsdr_device_index selects which RTL-SDR gr-osmosdr opens
+       (osmosdr.source(args=f"rtl={index}")) - defaults to 0 (the first
+       enumerated device) when omitted, so ad hoc manual runs still work
+       with a single SDR attached. The Kismet capture helper
+       (capture_sdr_zigbee900.c) always passes this explicitly, resolved
+       from the source's own "zigbee900sdr-<idx or serial>" interface, so
+       multiple instances on a multi-SDR system each get pinned to a
+       distinct physical device instead of racing for whichever one
+       gr-osmosdr happens to enumerate first.
 
 RF chain and chip-mapping tables are the same ones validated earlier against
 the actual IEEE Std 802.15.4-2006 PDF (clause 6.6) and against a real
@@ -34,7 +49,6 @@ import sys
 _ORIG_STDOUT_FD = os.dup(1)
 _ORIG_STDERR_FD = os.dup(2)
 
-import time
 import numpy as np
 from gnuradio import gr, blocks, filter, analog, digital, fft
 from gnuradio.filter import firdes
@@ -443,11 +457,14 @@ class OqpskLiveDecoder(gr.sync_block):
 
 
 class Rx900Live(gr.top_block):
-    def __init__(self, initial_channel, on_frame):
+    def __init__(self, initial_channel, device_index, on_frame):
         gr.top_block.__init__(self, "zigbee900_live_rx")
 
-        # explicitly request only the rtl backend.
-        self.src = osmosdr.source(args="rtl=0,numchan=1")
+        # explicitly request only the rtl backend, pinned to the specific
+        # device the Kismet capture helper resolved (see module docstring);
+        # this used to be hardcoded to "rtl=0", so a second RTL-SDR on the
+        # system could never be targeted.
+        self.src = osmosdr.source(args=f"rtl={device_index},numchan=1")
         self.src.set_sample_rate(SAMP_RATE)
         self.src.set_center_freq(freq_for_channel(initial_channel))
         self.src.set_freq_corr(0)
@@ -459,6 +476,17 @@ class Rx900Live(gr.top_block):
 
         taps = firdes.low_pass(1.0, SAMP_RATE, 700e3, 300e3, fft.window.WIN_HAMMING)
         self.lpf = filter.fir_filter_ccf(1, taps)
+
+        # Signal-power tap for RSSI reporting: read *before* squelch/AGC, since
+        # AGC (see below) normalizes amplitude toward a fixed reference and
+        # would erase the actual received power level if sampled downstream
+        # of it. probe_signal_f() lets on_frame() read the current channel
+        # power at decode time via .level() - a relative dBFS-style figure
+        # (not a calibrated absolute dBm), same caveat as most RTL-SDR-based
+        # Kismet datasources' signal readings.
+        self.rssi_probe_mag = blocks.complex_to_mag_squared(1)
+        self.rssi_probe = blocks.probe_signal_f()
+        self.connect(self.lpf, self.rssi_probe_mag, self.rssi_probe)
 
         self.squelch = analog.pwr_squelch_cc(-20.0, alpha=0.01, ramp=100, gate=False)
         self.agc = analog.agc_cc(rate=0.0, reference=1.0, gain=1.0, max_gain=4.0)
@@ -548,11 +576,7 @@ def stdin_control_loop(tb):
 
 def main():
     initial_channel = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    # optional: self-bounded test runs, e.g. `zigbee900_live_rx.py 1 15` exits
-    # after 15s on its own; this avoids needing external timing coordination
-    # (stdin EOF from a non-interactive launch would otherwise exit
-    # immediately with no data processed at all)
-    test_duration = float(sys.argv[2]) if len(sys.argv) > 2 else None
+    device_index = int(sys.argv[2]) if len(sys.argv) > 2 else 0
 
     def on_frame(psdu):
         restore_stdio_fds()
@@ -560,10 +584,17 @@ def main():
         # (MHR+payload only, no trailing FCS); the FCS was already validated
         # against the CRC-16 in Candidate.process(), so it's safe to drop here.
         mpdu = psdu[:-2]
-        msg = f"PSDU {main.tb.current_channel} {mpdu.hex()}\n".encode()
+        # .level() reads the probe's last-computed mag-squared value - not
+        # tightly time-correlated to this exact frame's chips (decode latency
+        # plus the probe's own polling), but stable enough since a frame's
+        # duration (tens of ms) is short relative to how fast real channel
+        # conditions change.
+        mag_sq = main.tb.rssi_probe.level()
+        rssi_dbfs = max(-100, min(0, int(10 * np.log10(mag_sq)))) if mag_sq > 1e-12 else -100
+        msg = f"PSDU {main.tb.current_channel} {rssi_dbfs} {mpdu.hex()}\n".encode()
         os.write(1, msg)
 
-    tb = Rx900Live(initial_channel, on_frame)
+    tb = Rx900Live(initial_channel, device_index, on_frame)
     main.tb = tb
 
     # osmosdr.source()'s device probing repoints fd 1/2 away from Kismet's
@@ -575,14 +606,7 @@ def main():
     tb.start()
 
     try:
-        if test_duration is not None:
-            # self-bounded test mode: no stdin dependency at all, so it can't
-            # exit early on stdin EOF from a non-interactive launch and no
-            # external timing coordination is needed to stop it
-            print(f"TEST MODE: running for {test_duration}s then stopping", file=sys.stderr, flush=True)
-            time.sleep(test_duration)
-        else:
-            stdin_control_loop(tb)
+        stdin_control_loop(tb)
     except KeyboardInterrupt:
         pass
     finally:
