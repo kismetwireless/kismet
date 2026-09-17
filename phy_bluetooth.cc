@@ -239,6 +239,38 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
             btdev->set_connectable(connectable_j.get<unsigned int>());
         }
 
+        // Service UUIDs and Manufacturer Specific Data, parsed by
+        // capture_linux_bluetooth.c's eir_get_uuids_json()/eir_get_manuf().
+        // UUIDs accumulate across reports, like phy_btle.cc's
+        // service_uuid_vec, since one report's EIR budget may not carry
+        // everything advertised.
+        auto uuids_j = json["service_uuids"];
+        if (uuids_j.is_array()) {
+            auto uuid_vec = btdev->get_service_uuid_strs();
+            for (const auto& u : uuids_j) {
+                if (!u.is_string())
+                    continue;
+                auto uuid_str = u.get<std::string>();
+                bool exists = false;
+                for (const auto& existing : *uuid_vec) {
+                    if (existing == uuid_str) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                    uuid_vec->push_back(uuid_str);
+            }
+        }
+
+        auto manuf_company_id_j = json["manuf_company_id"];
+        if (manuf_company_id_j.is_string() && manuf_company_id_j.get<std::string>().length() > 0) {
+            btdev->set_manuf_company_id(manuf_company_id_j.get<std::string>());
+            auto manuf_data_j = json["manuf_data"];
+            if (manuf_data_j.is_string())
+                btdev->set_manuf_data(manuf_data_j.get<std::string>());
+        }
+
     } catch (const std::exception& e) {
         in_pack->error = true;
         return 0;

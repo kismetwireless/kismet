@@ -121,6 +121,15 @@ public:
 
     __Proxy(connectable, uint8_t, uint8_t, uint8_t, connectable);
 
+    // Advertised service UUIDs as hex strings; separate from
+    // service_uuid_vec above, which holds real uuid objects and isn't
+    // populated by the linuxbthci JSON path this one feeds.
+    // manuf_company_id is the 4-hex-char BT SIG company ID; manuf_data is
+    // the payload after it, as a hex string.
+    __ProxyTrackable(service_uuid_strs, tracker_element_vector_string, service_uuid_strs);
+    __Proxy(manuf_company_id, std::string, std::string, std::string, manuf_company_id);
+    __Proxy(manuf_data, std::string, std::string, std::string, manuf_data);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -129,7 +138,7 @@ protected:
         register_field("bluetooth.device.minor_class", "bt device minor class", &device_minor_class);
 
         register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
-        register_field("bluetooth.device.solicitation_uuid_vec", 
+        register_field("bluetooth.device.solicitation_uuid_vec",
 				"advertised solicitation UUIDs", &solicitation_uuid_vec);
 
 		register_field("bluetooth.device.scan_data_bytes", "scan result bytes", &scan_data_bytes);
@@ -137,6 +146,11 @@ protected:
         register_field("bluetooth.device.txpower", "advertised transmit power", &txpower);
         register_field("bluetooth.device.pathloss", "signal pathloss", &pathloss);
         register_field("bluetooth.device.connectable", "device is connectable", &connectable);
+
+        register_field("bluetooth.device.service_uuid_strs", "advertised service UUIDs, as hex strings",
+                &service_uuid_strs);
+        register_field("bluetooth.device.manuf_company_id", "manufacturer company ID", &manuf_company_id);
+        register_field("bluetooth.device.manuf_data", "manufacturer data payload", &manuf_data);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -159,6 +173,10 @@ protected:
 	std::shared_ptr<tracker_element_int16> pathloss;
 
     std::shared_ptr<tracker_element_uint8> connectable;
+
+    std::shared_ptr<tracker_element_vector_string> service_uuid_strs;
+    std::shared_ptr<tracker_element_string> manuf_company_id;
+    std::shared_ptr<tracker_element_string> manuf_data;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {

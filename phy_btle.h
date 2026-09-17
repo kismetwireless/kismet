@@ -127,6 +127,15 @@ public:
    __Proxy(simultaneous_br_edr_host, uint8_t, bool, bool, simultaneous_br_edr_host);
    __Proxy(pdu_type, uint8_t, uint8_t, uint8_t, pdu_type);
 
+   // Advertised 16/32/128-bit service UUIDs, accumulated across every
+   // advertisement seen (as hex strings, not this codebase's uuid type).
+   __ProxyTrackable(service_uuid_vec, tracker_element_vector_string, service_uuid_vec);
+
+   // Manufacturer Specific Data from the most recent match; not
+   // accumulated, unlike service_uuid_vec, since it commonly rotates.
+   __Proxy(manuf_company_id, std::string, std::string, std::string, manuf_company_id);
+   __Proxy(manuf_data, std::string, std::string, std::string, manuf_data);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -144,6 +153,9 @@ protected:
                 &simultaneous_br_edr_host);
         register_field("btle.device.pdu_type", "BTLE advertising PDU type",
                 &pdu_type);
+        register_field("btle.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
+        register_field("btle.device.manuf_company_id", "manufacturer company ID", &manuf_company_id);
+        register_field("btle.device.manuf_data", "manufacturer data payload", &manuf_data);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -152,6 +164,9 @@ protected:
     std::shared_ptr<tracker_element_uint8> simultaneous_br_edr_controller;
     std::shared_ptr<tracker_element_uint8> simultaneous_br_edr_host;
     std::shared_ptr<tracker_element_uint8> pdu_type;
+    std::shared_ptr<tracker_element_vector_string> service_uuid_vec;
+    std::shared_ptr<tracker_element_string> manuf_company_id;
+    std::shared_ptr<tracker_element_string> manuf_data;
 };
 
 class kis_btle_phy : public kis_phy_handler {

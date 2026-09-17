@@ -97,13 +97,20 @@ typedef struct {
 
 static char *eir_get_name(const uint8_t *eir, uint16_t eir_len);
 static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len);
+static char *eir_get_uuids_json(const uint8_t *eir, uint16_t eir_len);
+static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
+        char **out_company_id_hex, char **out_data_hex);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
-    char json[2048];
+    /* Bumped from 2048; EIR (240 bytes) can hold more UUIDs than the old
+     * payload needed room for. */
+    char json[8192];
 
     char address[BDADDR_STR_LEN];
     char *name, *safe_name;
+    char *uuids_json;
+    char *manuf_company_id_hex, *manuf_data_hex;
     uint16_t eirlen;
 
     int r;
@@ -125,13 +132,24 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
         safe_name = strdup("");
     }
 
-    snprintf(json, 2048, "{"
+    /* Same EIR buffer works for both classic and LE scans; no need to
+     * branch on dev->addr.type here. */
+    uuids_json = eir_get_uuids_json(dev->eir, eirlen);
+    eir_get_manuf(dev->eir, eirlen, &manuf_company_id_hex, &manuf_data_hex);
+
+    snprintf(json, sizeof(json), "{"
             "\"addr\": \"%s\","
             "\"name\": \"%s\","
             "\"type\": %u,"
-            "\"connectable\": %u"
+            "\"connectable\": %u,"
+            "\"service_uuids\": %s,"
+            "\"manuf_company_id\": \"%s\","
+            "\"manuf_data\": \"%s\""
             "}",
-            address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1);
+            address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1,
+            uuids_json,
+            manuf_company_id_hex != NULL ? manuf_company_id_hex : "",
+            manuf_data_hex != NULL ? manuf_data_hex : "");
 
     if (safe_name != name) {
         free(safe_name);
@@ -140,6 +158,12 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     if (name != NULL) {
         free(name);
     }
+
+    free(uuids_json);
+    if (manuf_company_id_hex != NULL)
+        free(manuf_company_id_hex);
+    if (manuf_data_hex != NULL)
+        free(manuf_data_hex);
 
     /* Pass RSSI from management event to Kismet via signal params */
     struct cf_params_signal sig;
@@ -403,6 +427,136 @@ static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len) {
     }
 
     return 0;
+}
+
+/* Builds a JSON array of every 16/32/128-bit service UUID (AD types
+ * 0x02-0x07) found in an EIR/AD buffer. Returns a malloc'd string the
+ * caller must free ("[]" if none found or eir_len too short). */
+static char *eir_get_uuids_json(const uint8_t *eir, uint16_t eir_len) {
+    uint16_t parsed = 0;
+    char *out = malloc(4096);
+    size_t out_pos = 0;
+    int first = 1;
+    /* Longest entry (comma + quoted dashed 128-bit uuid) is 39 bytes;
+     * checked before every write so out_pos can never pass what snprintf
+     * actually wrote, even with LE Extended Advertising's larger AD data. */
+    const size_t max_entry = 40;
+
+    out[out_pos++] = '[';
+
+    if (eir_len >= 2) {
+        while (parsed < eir_len - 1) {
+            uint8_t field_len = eir[0];
+            uint8_t ad_type;
+            const uint8_t *payload;
+            uint8_t payload_len;
+            int i;
+
+            if (field_len == 0)
+                break;
+
+            parsed += field_len + 1;
+            if (parsed > eir_len)
+                break;
+
+            ad_type = eir[1];
+            payload = eir + 2;
+            payload_len = field_len - 1;
+
+            if (ad_type == 0x02 || ad_type == 0x03) {
+                for (i = 0; i + 2 <= payload_len; i += 2) {
+                    uint16_t val;
+                    if (out_pos + max_entry >= 4096)
+                        goto done;
+                    val = payload[i] | ((uint16_t) payload[i + 1] << 8);
+                    out_pos += snprintf(out + out_pos, 4096 - out_pos,
+                            "%s\"%04x\"", first ? "" : ",", val);
+                    first = 0;
+                }
+            } else if (ad_type == 0x04 || ad_type == 0x05) {
+                for (i = 0; i + 4 <= payload_len; i += 4) {
+                    uint32_t val;
+                    if (out_pos + max_entry >= 4096)
+                        goto done;
+                    val = payload[i] | ((uint32_t) payload[i + 1] << 8) |
+                        ((uint32_t) payload[i + 2] << 16) | ((uint32_t) payload[i + 3] << 24);
+                    out_pos += snprintf(out + out_pos, 4096 - out_pos,
+                            "%s\"%08x\"", first ? "" : ",", val);
+                    first = 0;
+                }
+            } else if (ad_type == 0x06 || ad_type == 0x07) {
+                /* 128-bit UUIDs are on-air little-endian; reverse then
+                 * dash into RFC 4122 canonical form. */
+                for (i = 0; i + 16 <= payload_len; i += 16) {
+                    char hex[33];
+                    int b;
+                    if (out_pos + max_entry >= 4096)
+                        goto done;
+                    for (b = 0; b < 16; b++)
+                        snprintf(hex + b * 2, 3, "%02x", payload[i + 15 - b]);
+                    out_pos += snprintf(out + out_pos, 4096 - out_pos,
+                            "%s\"%.8s-%.4s-%.4s-%.4s-%.12s\"",
+                            first ? "" : ",", hex, hex + 8, hex + 12, hex + 16, hex + 20);
+                    first = 0;
+                }
+            }
+
+            eir += field_len + 1;
+        }
+    }
+
+done:
+    if (out_pos < 4095)
+        out[out_pos++] = ']';
+    out[out_pos] = '\0';
+
+    return out;
+}
+
+/* Extracts Manufacturer Specific Data (AD type 0xFF) from an EIR/AD
+ * buffer: first 2 bytes are the little-endian company ID, the rest is
+ * the payload. *out_company_id_hex and *out_data_hex are malloc'd strings
+ * the caller must free, both NULL if none found. Only the first match is
+ * used; a device practically never sends more than one. */
+static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
+        char **out_company_id_hex, char **out_data_hex) {
+    uint16_t parsed = 0;
+
+    *out_company_id_hex = NULL;
+    *out_data_hex = NULL;
+
+    if (eir_len < 2)
+        return;
+
+    while (parsed < eir_len - 1) {
+        uint8_t field_len = eir[0];
+
+        if (field_len == 0)
+            break;
+
+        parsed += field_len + 1;
+        if (parsed > eir_len)
+            break;
+
+        if (eir[1] == 0xFF && field_len >= 3) {
+            uint16_t company_id = eir[2] | ((uint16_t) eir[3] << 8);
+            size_t payload_len = field_len - 3;
+            char *company_hex = malloc(5);
+            char *data_hex = malloc(payload_len * 2 + 1);
+            size_t i;
+
+            snprintf(company_hex, 5, "%04x", company_id);
+            for (i = 0; i < payload_len; i++)
+                snprintf(data_hex + i * 2, 3, "%02x", eir[4 + i]);
+            data_hex[payload_len * 2] = '\0';
+
+            *out_company_id_hex = company_hex;
+            *out_data_hex = data_hex;
+            return;
+        }
+
+        eir += field_len + 1;
+    }
 }
 
 /* Actual device found in scan trigger */
