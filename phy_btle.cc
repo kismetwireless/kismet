@@ -63,14 +63,50 @@ public:
 };
 
 #define BTLE_ADVDATA_FLAGS                      0x01
-#define BTLE_ADVDATA_SERVICE_UUID_INCOMPLETE    0x02
+#define BTLE_ADVDATA_SERVICE_UUID16_INCOMPLETE  0x02
+#define BTLE_ADVDATA_SERVICE_UUID16_COMPLETE    0x03
+#define BTLE_ADVDATA_SERVICE_UUID32_INCOMPLETE  0x04
+#define BTLE_ADVDATA_SERVICE_UUID32_COMPLETE    0x05
+#define BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE 0x06
+#define BTLE_ADVDATA_SERVICE_UUID128_COMPLETE   0x07
 #define BTLE_ADVDATA_DEVICE_NAME                0x09
+#define BTLE_ADVDATA_MANUFACTURER_DATA          0xFF
 
 #define BTLE_ADVDATA_FLAG_LIMITED_DISCOVERABLE      (1 << 0)
 #define BTLE_ADVDATA_FLAG_GENERAL_DISCOVERABLE      (1 << 1)
 #define BTLE_ADVDATA_FLAG_BREDR_NONSUPP             (1 << 2)
 #define BTLE_ADVDATA_FLAG_SIMUL_BREDR_CONTROLLER    (1 << 3)
 #define BTLE_ADVDATA_FLAG_SIMUL_BREDR_HOST          (1 << 4)
+
+// Lowercase hex encoding of a byte string.
+static std::string btle_bytes_to_hex(const std::string& data) {
+    std::string out;
+    out.reserve(data.size() * 2);
+    for (unsigned char c : data)
+        out += fmt::format("{:02x}", c);
+    return out;
+}
+
+// On-air 128-bit UUIDs are little-endian; reverse and dash into RFC 4122 form.
+static std::string btle_format_uuid128(const std::string& data) {
+    if (data.size() != 16)
+        return btle_bytes_to_hex(data);
+
+    std::string reversed(data.rbegin(), data.rend());
+    std::string hex = btle_bytes_to_hex(reversed);
+    return hex.substr(0, 8) + "-" + hex.substr(8, 4) + "-" + hex.substr(12, 4) + "-" +
+        hex.substr(16, 4) + "-" + hex.substr(20, 12);
+}
+
+// Appends uuid to vec unless it's already present.
+static void btle_add_unique_uuid(std::shared_ptr<tracker_element_vector_string> vec,
+        const std::string& uuid) {
+    for (const auto& existing : *vec) {
+        if (existing == uuid)
+            return;
+    }
+    vec->push_back(uuid);
+}
 
 uint32_t kis_btle_phy::ble_crc24(uint32_t init, const char *buf, size_t len) {
     uint32_t lfsr = init & 0xFFFFFF;
@@ -318,6 +354,42 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
         } else if (ad->type() == BTLE_ADVDATA_DEVICE_NAME && ad->length() >= 2) {
             device->set_devicename(munge_to_printable(ad->data()));
+
+        } else if ((ad->type() == BTLE_ADVDATA_SERVICE_UUID16_INCOMPLETE ||
+                    ad->type() == BTLE_ADVDATA_SERVICE_UUID16_COMPLETE) && ad->length() >= 3) {
+            // Concatenated 16-bit UUIDs, little-endian.
+            const std::string& payload = ad->data();
+            auto uuid_vec = btle_dev->get_service_uuid_vec();
+            for (size_t off = 0; off + 2 <= payload.size(); off += 2) {
+                uint16_t val = (uint8_t) payload[off] | ((uint16_t)(uint8_t) payload[off + 1] << 8);
+                btle_add_unique_uuid(uuid_vec, fmt::format("{:04x}", val));
+            }
+
+        } else if ((ad->type() == BTLE_ADVDATA_SERVICE_UUID32_INCOMPLETE ||
+                    ad->type() == BTLE_ADVDATA_SERVICE_UUID32_COMPLETE) && ad->length() >= 5) {
+            const std::string& payload = ad->data();
+            auto uuid_vec = btle_dev->get_service_uuid_vec();
+            for (size_t off = 0; off + 4 <= payload.size(); off += 4) {
+                uint32_t val = (uint8_t) payload[off] | ((uint32_t)(uint8_t) payload[off + 1] << 8) |
+                    ((uint32_t)(uint8_t) payload[off + 2] << 16) |
+                    ((uint32_t)(uint8_t) payload[off + 3] << 24);
+                btle_add_unique_uuid(uuid_vec, fmt::format("{:08x}", val));
+            }
+
+        } else if ((ad->type() == BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE ||
+                    ad->type() == BTLE_ADVDATA_SERVICE_UUID128_COMPLETE) && ad->length() >= 17) {
+            const std::string& payload = ad->data();
+            auto uuid_vec = btle_dev->get_service_uuid_vec();
+            for (size_t off = 0; off + 16 <= payload.size(); off += 16) {
+                btle_add_unique_uuid(uuid_vec, btle_format_uuid128(payload.substr(off, 16)));
+            }
+
+        } else if (ad->type() == BTLE_ADVDATA_MANUFACTURER_DATA && ad->length() >= 3) {
+            // First 2 bytes are the company identifier, little-endian.
+            const std::string& payload = ad->data();
+            uint16_t company_id = (uint8_t) payload[0] | ((uint16_t)(uint8_t) payload[1] << 8);
+            btle_dev->set_manuf_company_id(fmt::format("{:04x}", company_id));
+            btle_dev->set_manuf_data(btle_bytes_to_hex(payload.substr(2)));
         }
     }
 
