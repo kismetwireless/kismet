@@ -85,7 +85,7 @@ uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, uint32_t cs)
     uint32_t ls1 = cs & 0xFFFF;
     uint32_t ls2 = (cs >> 16) & 0xffff;
     const uint32_t *buf = (const uint32_t *) in_buf;
-	const uint8_t *sub_buf = nullptr;
+    const uint8_t *sub_buf = nullptr;
 
     if (in_len < 4)
         return 0;
@@ -114,35 +114,35 @@ uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, uint32_t cs)
             ls2 += ls1;
             break;
         case 3:
-			sub_buf = (uint8_t *) buf;
+            sub_buf = (uint8_t *) buf;
             // ls1 += ((*buf) & 0xFF);
-			ls1 += sub_buf[0];
+            ls1 += sub_buf[0];
             ls2 += ls1;
             // ls1 += ((*buf >> 8) & 0xFF);
-			ls1 += sub_buf[1];
+            ls1 += sub_buf[1];
             ls2 += ls1;
             // ls1 += ((*buf >> 16) & 0xFF);
-			ls1 += sub_buf[2];
+            ls1 += sub_buf[2];
             ls2 += ls1;
             break;
         case 2:
-			sub_buf = (uint8_t *) buf;
+            sub_buf = (uint8_t *) buf;
             // ls1 += ((*buf) & 0xFF);
-			ls1 += sub_buf[0];
+            ls1 += sub_buf[0];
             ls2 += ls1;
             // ls1 += ((*buf >> 8) & 0xFF);
-			ls1 += sub_buf[1];
+            ls1 += sub_buf[1];
             ls2 += ls1;
             break;
         case 1:
-			sub_buf = (uint8_t *) buf;
+            sub_buf = (uint8_t *) buf;
             // ls1 += ((*buf) & 0xFF);
-			ls1 += sub_buf[0];
+            ls1 += sub_buf[0];
             ls2 += ls1;
             break;
     }
 
-	return (ls1 & 0xffff) + (ls2 << 16);
+    return (ls1 & 0xffff) + (ls2 << 16);
 }
 
 uint32_t adler32_checksum(const void *in_buf, size_t in_len) {
@@ -161,10 +161,9 @@ uint32_t adler32_checksum(const std::string& in_buf) {
 std::string d2oa(uint8_t n) {
     std::string oa = "\\000";
 
-	// make sure n is in the correct range
-	// (currently redundant, since n is declared a uint8, but
-	// protects against future changes)
-	n &= 0377;
+    // make sure n is in the correct range (currently redundant, since n is declared a uint8, but
+    // protects against future changes)
+    n &= 0377;
 
     int i = 3;
     while (n > 0) {
@@ -179,27 +178,27 @@ std::string d2oa(uint8_t n) {
 // before (and more blatant when munging)
 std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm) {
     std::stringstream ret;
-	unsigned int i;
+    unsigned int i;
 
-	for (i = 0; i < max; i++) {
-		if ((unsigned char) in_data[i] == 0 && nullterm == 1)
-			return ret.str();
+    for (i = 0; i < max; i++) {
+        if ((unsigned char) in_data[i] == 0 && nullterm == 1)
+            return ret.str();
 
-		if (in_data[i] == '\\') {
-			// replace any input backslash by two backslashes,
-			// to distinguish it from a backslash created by
-			// the "octalize" process.
-			ret << "\\\\";
-		} else if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
+        if (in_data[i] == '\\') {
+            // replace any input backslash by two backslashes,
+            // to distinguish it from a backslash created by
+            // the "octalize" process.
+            ret << "\\\\";
+        } else if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
             ret << in_data[i];
-		} else {
-			// "octalize" (convert to a printed octal representation)
-			// any characters outside the printable range
+        } else {
+            // "octalize" (convert to a printed octal representation)
+            // any characters outside the printable range
             ret << d2oa(in_data[i]);
-		}
-	}
+        }
+    }
 
-	return ret.str();
+    return ret.str();
 }
 
 #endif
@@ -236,7 +235,7 @@ bool is_valid_utf8(const char *subject, size_t length) {
 }
 
 bool is_valid_utf8(const std::string& subject) {
-	return is_valid_utf8(subject.data(), subject.size());
+    return is_valid_utf8(subject.data(), subject.size());
 }
 
 
@@ -285,13 +284,13 @@ std::size_t munge_extra_space(const char *s, size_t len, bool utf8) noexcept {
 }
 
 std::size_t munge_extra_space(const std::string& s, bool utf8) noexcept {
-	return munge_extra_space(s.data(), s.size(), utf8);
+    return munge_extra_space(s.data(), s.size(), utf8);
 }
 
 std::string munge_to_printable(const char *s, size_t len) noexcept {
-	if (len == 0) {
-		return "";
-	}
+    if (len == 0) {
+        return "";
+    }
 
     const auto utf8 = is_valid_utf8(s, len);
     const auto space = munge_extra_space(s, utf8);
@@ -394,7 +393,7 @@ std::string munge_to_printable(const char *s, size_t len) noexcept {
 }
 
 std::string munge_to_printable(const std::string& s) noexcept {
-	return munge_to_printable(s.data(), s.length());
+    return munge_to_printable(s.data(), s.length());
 }
 
 
@@ -427,7 +426,7 @@ std::string str_strip(const std::string& in_str) {
         }
     }
     for (unsigned int x = in_str.length(); x > 1; ) {
-		x--;
+        x--;
         if (in_str[x] != ' ' && in_str[x] != '\t' && in_str[x] != '\n') {
             end = x;
             break;
@@ -525,64 +524,64 @@ int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr) {
     return(chrpos);
 }
 
-// Complex string tokenizer which understands nested delimiters, such as 
+// Complex string tokenizer which understands nested delimiters, such as
 // "foo","bar","baz,foo",something
 // and network protocols like
 // foo bar \001baz foo\001
-std::vector<smart_word_token> base_str_tokenize(const std::string& in_str, 
+std::vector<smart_word_token> base_str_tokenize(const std::string& in_str,
         const std::string& in_split, const std::string& in_quote) {
-	size_t begin = 0;
-	size_t end = 0;
+    size_t begin = 0;
+    size_t end = 0;
     std::vector<smart_word_token> ret;
     smart_word_token stok;
-	int special = 0;
+    int special = 0;
     std::string val;
-	
-	if (in_str.length() == 0)
-		return ret;
 
-	for (unsigned int x = 0; x < in_str.length(); x++) {
-		if (in_str.find(in_quote, x) == x) {
-			if (special == 0) {
-				// reset beginning on string if we're in a special block
-				begin = x;
-				special = 1;
-			} else {
-				special = 0;
-			}
+    if (in_str.length() == 0)
+        return ret;
 
-			continue;
-		}
+    for (unsigned int x = 0; x < in_str.length(); x++) {
+        if (in_str.find(in_quote, x) == x) {
+            if (special == 0) {
+                // reset beginning on string if we're in a special block
+                begin = x;
+                special = 1;
+            } else {
+                special = 0;
+            }
 
-		if (special == 0 && in_str.find(in_split, x) == x) {
-			stok.begin = begin;
-			stok.end = end;
-			stok.word = val;
+            continue;
+        }
 
-			ret.push_back(stok);
+        if (special == 0 && in_str.find(in_split, x) == x) {
+            stok.begin = begin;
+            stok.end = end;
+            stok.word = val;
 
-			val = "";
-			x += in_split.length() - 1;
+            ret.push_back(stok);
 
-			begin = x;
+            val = "";
+            x += in_split.length() - 1;
 
-			continue;
-		}
+            begin = x;
 
-		val += in_str[x];
-		end = x;
-	}
+            continue;
+        }
 
-	stok.begin = begin;
-	stok.end = end;
-	stok.word = val;
-	ret.push_back(stok);
+        val += in_str[x];
+        end = x;
+    }
 
-	return ret;
+    stok.begin = begin;
+    stok.end = end;
+    stok.word = val;
+    ret.push_back(stok);
+
+    return ret;
 }
 
 // No-frills tokenize with no intelligence about nested delimiters
-std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split, 
+std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split,
         int return_partial) {
     size_t begin = 0;
     size_t end = in_str.find(in_split);
@@ -590,7 +589,7 @@ std::vector<std::string> str_tokenize(const std::string& in_str, const std::stri
 
     if (in_str.length() == 0)
         return ret;
-    
+
     while (end != std::string::npos) {
         std::string sub = in_str.substr(begin, end-begin);
         begin = end+1;
@@ -627,17 +626,17 @@ std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std
     std::vector<std::string> ret;
     std::vector<smart_word_token> bret;
 
-	bret = base_str_tokenize(in_str, in_split, "\"");
+    bret = base_str_tokenize(in_str, in_split, "\"");
 
-	for (unsigned int b = 0; b < bret.size(); b++) {
-		ret.push_back(bret[b].word);
-	}
+    for (unsigned int b = 0; b < bret.size(); b++) {
+        ret.push_back(bret[b].word);
+    }
 
-	return ret;
+    return ret;
 }
 
 int TokenNullJoin(std::string *ret_str, const char **in_list) {
-	int ret = 0;
+    int ret = 0;
     std::stringstream ss;
 
     while (in_list[ret] != NULL) {
@@ -673,7 +672,7 @@ std::string fetch_opt(const std::string& in_key, const std::map<std::string, std
         std::string dvalue) {
 
     auto i = in_map.find(in_key);
-    
+
     if (i == in_map.end())
         return dvalue;
 
@@ -683,7 +682,7 @@ std::string fetch_opt(const std::string& in_key, const std::map<std::string, std
 int fetch_opt_bool(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
     std::string s = fetch_opt(in_key, in_vec);
 
-	return string_to_bool(s, dvalue);
+    return string_to_bool(s, dvalue);
 }
 
 
@@ -760,85 +759,85 @@ int string_to_opts(const std::string& in_line, const std::string& in_sep, std::v
 }
 
 void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
-	opt_pair optp;
+    opt_pair optp;
 
-	optp.opt = str_lower(opt);
-	optp.val = val;
+    optp.opt = str_lower(opt);
+    optp.val = val;
 
-	in_vec->push_back(optp);
+    in_vec->push_back(optp);
 }
 
 void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
-	opt_pair optp;
+    opt_pair optp;
 
-	optp.opt = str_lower(opt);
-	optp.val = val;
+    optp.opt = str_lower(opt);
+    optp.val = val;
 
-	for (unsigned int x = 0; x < in_vec->size(); x++) {
-		if ((*in_vec)[x].val == optp.val) {
-			in_vec->erase(in_vec->begin() + x);
-			x--;
-			continue;
-		}
-	}
+    for (unsigned int x = 0; x < in_vec->size(); x++) {
+        if ((*in_vec)[x].val == optp.val) {
+            in_vec->erase(in_vec->begin() + x);
+            x--;
+            continue;
+        }
+    }
 
-	in_vec->push_back(optp);
+    in_vec->push_back(optp);
 }
 
 std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len,
         unsigned int in_maxlen) {
     std::vector<std::string> ret;
 
-	size_t pos, prev_pos, start, hdroffset;
-	start = hdroffset = 0;
+    size_t pos, prev_pos, start, hdroffset;
+    start = hdroffset = 0;
 
-	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != std::string::npos; 
-		 pos = in_txt.find(' ', pos + 1)) {
-		if ((hdroffset + pos) - start >= in_maxlen) {
-			if (pos - prev_pos > (in_maxlen / 4)) {
-				pos = prev_pos = start + (in_maxlen - hdroffset);
-			}
+    for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != std::string::npos;
+            pos = in_txt.find(' ', pos + 1)) {
+        if ((hdroffset + pos) - start >= in_maxlen) {
+            if (pos - prev_pos > (in_maxlen / 4)) {
+                pos = prev_pos = start + (in_maxlen - hdroffset);
+            }
 
             std::string str(hdroffset, ' ');
-			hdroffset = in_hdr_len;
-			str += in_txt.substr(start, prev_pos - start);
-			ret.push_back(str);
-			
-			start = prev_pos;
-		}
+            hdroffset = in_hdr_len;
+            str += in_txt.substr(start, prev_pos - start);
+            ret.push_back(str);
 
-		prev_pos = pos + 1;
-	}
+            start = prev_pos;
+        }
 
-	while (in_txt.length() - start > (in_maxlen - hdroffset)) {
+        prev_pos = pos + 1;
+    }
+
+    while (in_txt.length() - start > (in_maxlen - hdroffset)) {
         std::string str(hdroffset, ' ');
-		hdroffset = in_hdr_len;
+        hdroffset = in_hdr_len;
 
-		str += in_txt.substr(start, (prev_pos - start));
-		ret.push_back(str);
+        str += in_txt.substr(start, (prev_pos - start));
+        ret.push_back(str);
 
-		start = prev_pos;
+        start = prev_pos;
 
-		prev_pos+= (in_maxlen - hdroffset);
-	}
+        prev_pos+= (in_maxlen - hdroffset);
+    }
 
     std::string str(hdroffset, ' ');
-	str += in_txt.substr(start, in_txt.length() - start);
-	ret.push_back(str);
+    str += in_txt.substr(start, in_txt.length() - start);
+    ret.push_back(str);
 
-	return ret;
+    return ret;
 }
 
-std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, 
-				  unsigned int in_maxlen) {
+std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len,
+        unsigned int in_maxlen) {
     std::vector<std::string> raw = line_wrap(in_txt, in_hdr_len, in_maxlen);
     std::stringstream ss;
 
-	for (unsigned int x = 0; x < raw.size(); x++) {
+    for (unsigned int x = 0; x < raw.size(); x++) {
         ss << raw[x] << "\n";
-	}
+    }
 
-	return ss.str();
+    return ss.str();
 }
 
 void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa) {
@@ -892,153 +891,153 @@ int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 
 std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr) {
     std::list<_kis_lex_rec> ret;
-	int curstate = _kis_lex_none;
-	_kis_lex_rec cpr;
+    int curstate = _kis_lex_none;
+    _kis_lex_rec cpr;
     std::string tempstr;
-	char lastc = 0;
-	char c = 0;
+    char lastc = 0;
+    char c = 0;
 
-	cpr.type = _kis_lex_none;
-	cpr.data = "";
-	ret.push_back(cpr);
+    cpr.type = _kis_lex_none;
+    cpr.data = "";
+    ret.push_back(cpr);
 
-	for (size_t pos = 0; pos < in_line.length(); pos++) {
-		lastc = c;
-		c = in_line[pos];
+    for (size_t pos = 0; pos < in_line.length(); pos++) {
+        lastc = c;
+        c = in_line[pos];
 
-		cpr.data = "";
+        cpr.data = "";
 
-		if (curstate == _kis_lex_none) {
-			// Open paren
-			if (c == '(') {
-				cpr.type = _kis_lex_popen;
-				ret.push_back(cpr);
-				continue;
-			}
+        if (curstate == _kis_lex_none) {
+            // Open paren
+            if (c == '(') {
+                cpr.type = _kis_lex_popen;
+                ret.push_back(cpr);
+                continue;
+            }
 
-			// close paren
-			if (c == ')') {
-				cpr.type = _kis_lex_pclose;
-				ret.push_back(cpr);
-				continue;
-			}
+            // close paren
+            if (c == ')') {
+                cpr.type = _kis_lex_pclose;
+                ret.push_back(cpr);
+                continue;
+            }
 
-			// Negation
-			if (c == '!') {
-				cpr.type = _kis_lex_negate;
-				ret.push_back(cpr);
-				continue;
-			}
+            // Negation
+            if (c == '!') {
+                cpr.type = _kis_lex_negate;
+                ret.push_back(cpr);
+                continue;
+            }
 
-			// delimiter
-			if (c == ',') {
-				cpr.type = _kis_lex_delim;
-				ret.push_back(cpr);
-				continue;
-			}
+            // delimiter
+            if (c == ',') {
+                cpr.type = _kis_lex_delim;
+                ret.push_back(cpr);
+                continue;
+            }
 
-			// start a quoted string
-			if (c == '"') {
-				curstate = _kis_lex_quotestring;
-				tempstr = "";
-				continue;
-			}
-		
-			curstate = _kis_lex_string;
-			tempstr = c;
-			continue;
-		}
+            // start a quoted string
+            if (c == '"') {
+                curstate = _kis_lex_quotestring;
+                tempstr = "";
+                continue;
+            }
 
-		if (curstate == _kis_lex_quotestring) {
-			// We don't close on an escaped \"
-			if (c == '"' && lastc != '\\') {
-				// Drop out of the string and make the lex stack element
-				curstate = _kis_lex_none;
-				cpr.type = _kis_lex_quotestring;
-				cpr.data = tempstr;
-				ret.push_back(cpr);
+            curstate = _kis_lex_string;
+            tempstr = c;
+            continue;
+        }
 
-				tempstr = "";
+        if (curstate == _kis_lex_quotestring) {
+            // We don't close on an escaped \"
+            if (c == '"' && lastc != '\\') {
+                // Drop out of the string and make the lex stack element
+                curstate = _kis_lex_none;
+                cpr.type = _kis_lex_quotestring;
+                cpr.data = tempstr;
+                ret.push_back(cpr);
 
-				continue;
-			}
+                tempstr = "";
 
-			// Add it to the quoted temp strnig
-			tempstr += c;
-		}
+                continue;
+            }
 
-		if (curstate == _kis_lex_string) {
-			// If we're a special character break out and add the lex stack element
-			// otherwise increase our unquoted string
-			if (c == '(' || c == ')' || c == '!' || c == '"' || c == ',') {
-				cpr.type = _kis_lex_string;
-				cpr.data = tempstr;
-				ret.push_back(cpr);
-				tempstr = "";
-				curstate = _kis_lex_none;
-				pos--;
-				continue;
-			}
+            // Add it to the quoted temp strnig
+            tempstr += c;
+        }
 
-			tempstr += c;
-			continue;
-		}
-	}
+        if (curstate == _kis_lex_string) {
+            // If we're a special character break out and add the lex stack element
+            // otherwise increase our unquoted string
+            if (c == '(' || c == ')' || c == '!' || c == '"' || c == ',') {
+                cpr.type = _kis_lex_string;
+                cpr.data = tempstr;
+                ret.push_back(cpr);
+                tempstr = "";
+                curstate = _kis_lex_none;
+                pos--;
+                continue;
+            }
 
-	if (curstate == _kis_lex_quotestring) {
-		errstr = "Unfinished quoted string in line '" + in_line + "'";
-		ret.clear();
-	}
+            tempstr += c;
+            continue;
+        }
+    }
 
-	return ret;
+    if (curstate == _kis_lex_quotestring) {
+        errstr = "Unfinished quoted string in line '" + in_line + "'";
+        ret.clear();
+    }
+
+    return ret;
 }
 
 // Taken from the BBN USRP 802.11 encoding code
 unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
-								int len, unsigned int poly) {
-	int i, j;
-	unsigned short ch;
+        int len, unsigned int poly) {
+    int i, j;
+    unsigned short ch;
 
-	for ( i = 0; i < len; ++i) {
-		ch = data[i];
-		for (j = 0; j < 8; ++j) {
-			if ((crc ^ ch) & 0x0001) {
-				crc = (crc >> 1) ^ poly;
-			} else {
-				crc = (crc >> 1);
-			}
-			ch >>= 1;
-		}
-	}
-	return crc;
+    for ( i = 0; i < len; ++i) {
+        ch = data[i];
+        for (j = 0; j < 8; ++j) {
+            if ((crc ^ ch) & 0x0001) {
+                crc = (crc >> 1) ^ poly;
+            } else {
+                crc = (crc >> 1);
+            }
+            ch >>= 1;
+        }
+    }
+    return crc;
 }
 
 void crc32_init_table_80211(unsigned int *crc32_table) {
-	int i;
-	unsigned char c;
+    int i;
+    unsigned char c;
 
-	for (i = 0; i < 256; ++i) {
-		c = (unsigned char) i;
-		crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
-	}
+    for (i = 0; i < 256; ++i) {
+        c = (unsigned char) i;
+        crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
+    }
 }
 
-unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, 
-							int len) {
-	int i;
-	unsigned int crc = 0xFFFFFFFF;
+unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
+        int len) {
+    int i;
+    unsigned int crc = 0xFFFFFFFF;
 
-	for (i = 0; i < len; ++i) {
-		crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFF];
-	}
+    for (i = 0; i < len; ++i) {
+        crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFF];
+    }
 
-	crc ^= 0xFFFFFFFF;
+    crc ^= 0xFFFFFFFF;
 
-	return crc;
+    return crc;
 }
 
 int subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
-					 struct timeval *out_tv) {
+        struct timeval *out_tv) {
     if (in_tv1->tv_usec < in_tv2->tv_usec) {
         int nsec = (in_tv2->tv_usec - in_tv2->tv_usec) / 1000000 + 1;
         in_tv2->tv_usec -= 1000000 * nsec;
@@ -1175,10 +1174,10 @@ unsigned int string_to_uint(const std::string& s) {
 std::string string_append(const std::string& s, const std::string& a, const std::string& d) {
     std::stringstream ss;
 
-	if (s.length() == 0)
-		return a;
+    if (s.length() == 0)
+        return a;
 
-	if (s.length() > d.length() && s.substr(s.length() - d.length(), d.length()) == d) {
+    if (s.length() > d.length() && s.substr(s.length() - d.length(), d.length()) == d) {
         ss << s << a;
         return ss.str();
     }
@@ -1291,35 +1290,35 @@ void thread_set_process_name(const std::string& name) { }
 
 bool iequals(const std::string& a, const std::string& b) {
     return std::equal(a.begin(), a.end(),
-		b.begin(), b.end(),
-		[](char a, char b) { return ::tolower(a) == ::tolower(b); });
+            b.begin(), b.end(),
+            [](char a, char b) { return ::tolower(a) == ::tolower(b); });
 }
 
 uint64_t human_to_freq_khz(const std::string &s) {
-	auto ds = s;
-	int scale = 1;
+    auto ds = s;
+    int scale = 1;
 
-	try {
-		auto unit = s.substr(s.length() - 3, 3);
+    try {
+        auto unit = s.substr(s.length() - 3, 3);
 
-		if (iequals(unit, "khz")) {
-			ds = s.substr(0, s.length() - 3);
-			scale = 1000;
-		} else if (iequals(unit, "mhz")) {
-			ds = s.substr(0, s.length() - 3);
-			scale = 1000*1000;
-		} else if (iequals(unit, "ghz")) {
-			ds = s.substr(0, s.length() - 3);
-			scale = 1000*1000*1000;
-		} else if (iequals(unit.substr(1, 2), "hz")) {
-			ds = s.substr(0, s.length() - 2);
-			scale = 1;
-		}
-	} catch (...) { }
+        if (iequals(unit, "khz")) {
+            ds = s.substr(0, s.length() - 3);
+            scale = 1000;
+        } else if (iequals(unit, "mhz")) {
+            ds = s.substr(0, s.length() - 3);
+            scale = 1000*1000;
+        } else if (iequals(unit, "ghz")) {
+            ds = s.substr(0, s.length() - 3);
+            scale = 1000*1000*1000;
+        } else if (iequals(unit.substr(1, 2), "hz")) {
+            ds = s.substr(0, s.length() - 2);
+            scale = 1;
+        }
+    } catch (...) { }
 
-	auto v = string_to_n<uint64_t>(ds);
+    auto v = string_to_n<uint64_t>(ds);
 
-	return v * scale;
+    return v * scale;
 }
 
 bool regex_string_compare(const std::string& restr, const std::string& content) {
@@ -1378,7 +1377,7 @@ bool regex_string_compare(const std::string& restr, const std::string& content) 
         throw std::runtime_error(e);
     }
 
-	match_data = pcre2_match_data_create_from_pattern(re, NULL);
+    match_data = pcre2_match_data_create_from_pattern(re, NULL);
     rc = pcre2_match(re, (PCRE2_SPTR8) content.c_str(), content.length(),
             0, 0, match_data, NULL);
 
