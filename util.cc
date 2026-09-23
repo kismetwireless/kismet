@@ -437,27 +437,28 @@ std::string str_strip(const std::string& in_str) {
     return in_str.substr(start, end-start+1);
 }
 
-int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) {
-	int decode_pos = 0;
-	int str_pos = 0;
+size_t hex_str_to_uint8(const std::string_view& str, uint8_t *buf, size_t buflen) {
+    static const uint8_t chartable[256] = {
+        ['0'] = 0x0, ['1'] = 0x1, ['2'] = 0x2, ['3'] = 0x3,
+        ['4'] = 0x4, ['5'] = 0x5, ['6'] = 0x6, ['7'] = 0x7,
+        ['8'] = 0x8, ['9'] = 0x9, ['A'] = 0xA, ['B'] = 0xB,
+        ['C'] = 0xC, ['D'] = 0xD, ['E'] = 0xE, ['F'] = 0xF,
+    };
 
-	while ((unsigned int) str_pos < in_str.length() && decode_pos < in_buflen) {
-		short int tmp;
+    size_t b = 0;
+    size_t i = 0;
 
-		if (in_str[str_pos] == ' ') {
-			str_pos++;
-			continue;
-		}
+    if (str.length() % 2 != 0) {
+        buf[0] = chartable[(uint8_t) str[0]];
+        b = 1;
+        i = 1;
+    }
 
-		if (sscanf(in_str.substr(str_pos, 2).c_str(), "%2hx", &tmp) != 1) {
-			return -1;
-		}
+    for (; i < str.length() - 1 && b < buflen; b++, i += 2) {
+        buf[b] = chartable[(uint8_t) str[i]] << 4 | chartable[(uint8_t) str[i+1]];
+    }
 
-		in_buf[decode_pos++] = tmp;
-		str_pos += 2;
-	}
-
-	return decode_pos;
+    return b;
 }
 
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen) {
@@ -482,7 +483,6 @@ std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen) {
     }
 
     return rs;
-
 }
 
 int x_to_i(char x) {

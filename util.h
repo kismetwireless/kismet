@@ -85,7 +85,7 @@ std::string str_strip(const std::string& in_str);
 
 std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl);
 
-int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
+size_t hex_str_to_uint8(const std::string_view& in, uint8_t *buf, size_t len);
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
 template<class t> 
