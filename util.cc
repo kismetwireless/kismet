@@ -436,30 +436,6 @@ std::string str_strip(const std::string& in_str) {
     return in_str.substr(start, end-start+1);
 }
 
-size_t hex_str_to_uint8(const std::string_view& str, uint8_t *buf, size_t buflen) {
-    static const uint8_t chartable[256] = {
-        ['0'] = 0x0, ['1'] = 0x1, ['2'] = 0x2, ['3'] = 0x3,
-        ['4'] = 0x4, ['5'] = 0x5, ['6'] = 0x6, ['7'] = 0x7,
-        ['8'] = 0x8, ['9'] = 0x9, ['A'] = 0xA, ['B'] = 0xB,
-        ['C'] = 0xC, ['D'] = 0xD, ['E'] = 0xE, ['F'] = 0xF,
-    };
-
-    size_t b = 0;
-    size_t i = 0;
-
-    if (str.length() % 2 != 0) {
-        buf[0] = chartable[(uint8_t) str[0]];
-        b = 1;
-        i = 1;
-    }
-
-    for (; i < str.length() - 1 && b < buflen; b++, i += 2) {
-        buf[b] = chartable[(uint8_t) str[i]] << 4 | chartable[(uint8_t) str[i+1]];
-    }
-
-    return b;
-}
-
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen) {
     std::string rs;
 
@@ -631,25 +607,6 @@ std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std
     for (unsigned int b = 0; b < bret.size(); b++) {
         ret.push_back(bret[b].word);
     }
-
-    return ret;
-}
-
-int TokenNullJoin(std::string *ret_str, const char **in_list) {
-    int ret = 0;
-    std::stringstream ss;
-
-    while (in_list[ret] != NULL) {
-        ss << in_list[ret];
-
-        if (in_list[ret + 1] != NULL)
-            ss << ",";
-        (*ret_str) += ",";
-
-        ret++;
-    }
-
-    *ret_str = ss.str();
 
     return ret;
 }
@@ -838,32 +795,6 @@ std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len,
     }
 
     return ss.str();
-}
-
-void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa) {
-    *primary = (int) in_float;
-    *mantissa = (long) (1000000 * ((in_float) - *primary));
-}
-
-float pair_to_float(int16_t primary, int64_t mantissa) {
-    return (double) primary + ((double) mantissa / 1000000);
-}
-
-std::vector<int> str_to_int_vector(const std::string& in_text) {
-    std::vector<std::string> optlist = str_tokenize(in_text, ",");
-    std::vector<int> ret;
-    int ch;
-
-    for (unsigned int x = 0; x < optlist.size(); x++) {
-        if (sscanf(optlist[x].c_str(), "%d", &ch) != 1) {
-            ret.clear();
-            break;
-        }
-
-        ret.push_back(ch);
-    }
-
-    return ret;
 }
 
 #ifdef SYS_LINUX
@@ -1228,52 +1159,43 @@ double ts_now_to_double() {
 }
 
 std::string hex_to_bytes(const std::string& in) {
-    if (in.length() == 0)
-        return "";
-
     std::string ret;
     ret.reserve((in.length() / 2) + 1);
-    size_t p = 0;
 
-    // Prefix with a 0 if we're an odd length
-    if ((in.length() % 2) != 0) {
-        if (in[0] >= '0' && in[0] <= '9')
-            ret += in[0] - '0';
-        else if (in[0] >= 'a' && in[0] <= 'f')
-            ret += in[0] - 'a' + 0xA;
-        else if (in[0] >= 'A' && in[0] <= 'F')
-            ret += in[0] - 'A' + 0xA;
-        else
-            return "";
+    uint8_t chartable[256];
+    memset(chartable, 0, 256);
+    chartable[(uint8_t) '0'] = 0x0;
+    chartable[(uint8_t) '1'] = 0x1;
+    chartable[(uint8_t) '2'] = 0x2;
+    chartable[(uint8_t) '3'] = 0x3;
+    chartable[(uint8_t) '4'] = 0x4;
+    chartable[(uint8_t) '5'] = 0x5;
+    chartable[(uint8_t) '6'] = 0x6;
+    chartable[(uint8_t) '7'] = 0x7;
+    chartable[(uint8_t) '8'] = 0x8;
+    chartable[(uint8_t) '9'] = 0x9;
+    chartable[(uint8_t) 'A'] = 0xA;
+    chartable[(uint8_t) 'B'] = 0xB;
+    chartable[(uint8_t) 'C'] = 0xC;
+    chartable[(uint8_t) 'D'] = 0xD;
+    chartable[(uint8_t) 'E'] = 0xE;
+    chartable[(uint8_t) 'F'] = 0xF;
+    chartable[(uint8_t) 'a'] = 0xA;
+    chartable[(uint8_t) 'b'] = 0xB;
+    chartable[(uint8_t) 'c'] = 0xC;
+    chartable[(uint8_t) 'd'] = 0xD;
+    chartable[(uint8_t) 'e'] = 0xE;
+    chartable[(uint8_t) 'f'] = 0xF;
 
-        p = 1;
+    size_t i = 0;
+
+    if (in.length() % 2 != 0) {
+        ret += chartable[(uint8_t) in[0]];
+        i = 1;
     }
 
-    // Start either at the base element or one above if we're
-    // forcing a prefix of 0
-    for (size_t x = p; x + 1 < in.length(); x += 2) {
-        auto b1 = '0';
-        auto b2 = '0';
-
-        if (in[x] >= '0' && in[x] <= '9')
-            b1 = in[x] - '0';
-        else if (in[x] >= 'a' && in[x] <= 'f')
-            b1 = in[x] - 'a' + 0xA;
-        else if (in[x] >= 'A' && in[x] <= 'F')
-            b1 = in[x] - 'A' + 0xA;
-        else
-            return "";
-
-        if (in[x + 1] >= '0' && in[x + 1] <= '9')
-            b2 = in[x + 1] - '0';
-        else if (in[x + 1] >= 'a' && in[x + 1] <= 'f')
-            b2 = in[x + 1] - 'a' + 0xA;
-        else if (in[x + 1] >= 'A' && in[x + 1] <= 'F')
-            b2 = in[x + 1] - 'A' + 0xA;
-        else
-            return "";
-
-        ret += (((b1 & 0xF) << 4) + (b2 & 0xF));
+    for (; i < in.length() - 1; i += 2) {
+        ret += chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
     }
 
     return ret;

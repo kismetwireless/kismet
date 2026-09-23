@@ -85,7 +85,6 @@ std::string str_strip(const std::string& in_str);
 
 std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl);
 
-size_t hex_str_to_uint8(const std::string_view& in, uint8_t *buf, size_t len);
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
 template<class t> 
@@ -195,14 +194,8 @@ std::vector<smart_word_token> base_str_tokenize(const std::string& in_str,
 // of the token, no abc"def ghi"
 std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split);
 
-int TokenNullJoin(std::string *ret_str, const char **in_list);
-
 std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
 std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
-std::vector<int> str_to_int_vector(const std::string& in_text);
-
-void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa);
-float pair_to_float(int16_t primary, int64_t mantissa);
 
 #ifdef SYS_LINUX
 int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
