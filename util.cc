@@ -1160,7 +1160,7 @@ double ts_now_to_double() {
 
 std::string hex_to_bytes(const std::string& in) {
     std::string ret;
-    ret.reserve((in.length() / 2) + 1);
+    ret.resize((in.length() / 2) + 1);
 
     uint8_t chartable[256];
     memset(chartable, 0, 256);
@@ -1188,15 +1188,19 @@ std::string hex_to_bytes(const std::string& in) {
     chartable[(uint8_t) 'f'] = 0xF;
 
     size_t i = 0;
+    size_t bi = 0;
 
     if (in.length() % 2 != 0) {
-        ret += chartable[(uint8_t) in[0]];
+        ret[0] = chartable[(uint8_t) in[0]];
         i = 1;
+        bi = 1;
     }
 
     for (; i < in.length() - 1; i += 2) {
-        ret += chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
+        ret[bi++] = chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
     }
+
+    ret.resize(bi);
 
     return ret;
 }
