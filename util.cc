@@ -611,6 +611,64 @@ std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std
     return ret;
 }
 
+std::vector<std::string_view> base_sv_tokenize(const std::string_view& in_str,
+        const std::string& in_split, const std::string& in_quote) {
+
+    std::vector<std::string_view> ret;
+
+    size_t begin = 0;
+    size_t end = 0;
+    size_t next = 0;
+
+    if (in_str.length() == 0)
+        return ret;
+
+    while (begin < in_str.length() && begin != std::string_view::npos) {
+        if (in_str.find(in_quote, begin) == begin) {
+            begin += in_quote.length();
+
+            if ((end = in_str.find(in_quote, begin)) == std::string_view::npos) {
+                throw std::runtime_error("invalid string missing end delimiter");
+            }
+
+            end += in_quote.length();
+
+            printf("quoted block between %lu:%lu\n", begin, end);
+
+            if (end >= in_str.length()) {
+                ret.push_back(in_str.substr(begin, end - begin - 1));
+                return ret;
+            }
+
+            if ((next = in_str.find(in_split, end)) != end) {
+                throw std::runtime_error("invalid string, separated block not delimited");
+            }
+
+            ret.push_back(in_str.substr(begin, end - begin - 1));
+
+            begin = next + in_split.length();
+            continue;
+        }
+
+        if ((end = in_str.find(in_split, end)) == std::string_view::npos) {
+            ret.push_back(in_str.substr(begin, end));
+            return ret;
+        }
+
+        end += in_split.length();
+        ret.push_back(in_str.substr(begin, end - begin - 1));
+        begin = end;
+    }
+
+
+    return ret;
+}
+
+std::vector<std::string_view> quote_sv_tokenize(const std::string_view& in_str,
+        const std::string& in_split) {
+    return base_sv_tokenize(in_str, in_split, "\"");
+}
+
 // Quick fetch of strings from a map of options
 std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec,
         const std::string& dvalue) {

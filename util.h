@@ -194,6 +194,13 @@ std::vector<smart_word_token> base_str_tokenize(const std::string& in_str,
 // of the token, no abc"def ghi"
 std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split);
 
+// Smart tokenizer that uses zero-copy string views
+std::vector<std::string_view> base_sv_tokenize(const std::string_view& in_str,
+        const std::string& in_split, const std::string& in_quote);
+
+std::vector<std::string_view> quote_sv_tokenize(const std::string_view& in_str,
+        const std::string& in_split);
+
 std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
 std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
 
