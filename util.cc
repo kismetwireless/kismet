@@ -624,7 +624,7 @@ std::vector<std::string_view> base_sv_tokenize(const std::string_view& in_str,
         return ret;
 
     while (begin < in_str.length() && begin != std::string_view::npos) {
-        if (in_str.find(in_quote, begin) == begin) {
+        if (in_quote.length() != 0 && in_str.find(in_quote, begin) == begin) {
             begin += in_quote.length();
 
             if ((end = in_str.find(in_quote, begin)) == std::string_view::npos) {
