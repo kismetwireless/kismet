@@ -387,6 +387,7 @@ double ts_now_to_double();
 // both upper and lower case hex, and prepends '0' to the first byte if 
 // an odd number of bytes in the original string
 std::string hex_to_bytes(const std::string& in);
+size_t hex_to_bytes(const std::string_view& in, uint8_t *buf_begin, size_t buf_len);
 
 void thread_set_process_name(const std::string& name);
 

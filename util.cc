@@ -1263,6 +1263,57 @@ std::string hex_to_bytes(const std::string& in) {
     return ret;
 }
 
+size_t hex_to_bytes(const std::string_view& in, uint8_t *buf_begin, size_t buf_len) {
+    if (in.length() % 2 == 0) {
+        if (buf_len < in.length() / 2) {
+            throw std::runtime_error("destination buffer too small");
+        }
+    } else {
+        if (buf_len < (in.length() / 2) + 1) {
+            throw std::runtime_error("destination buffer too small");
+        }
+    }
+
+    uint8_t chartable[256];
+    memset(chartable, 0, 256);
+    chartable[(uint8_t) '0'] = 0x0;
+    chartable[(uint8_t) '1'] = 0x1;
+    chartable[(uint8_t) '2'] = 0x2;
+    chartable[(uint8_t) '3'] = 0x3;
+    chartable[(uint8_t) '4'] = 0x4;
+    chartable[(uint8_t) '5'] = 0x5;
+    chartable[(uint8_t) '6'] = 0x6;
+    chartable[(uint8_t) '7'] = 0x7;
+    chartable[(uint8_t) '8'] = 0x8;
+    chartable[(uint8_t) '9'] = 0x9;
+    chartable[(uint8_t) 'A'] = 0xA;
+    chartable[(uint8_t) 'B'] = 0xB;
+    chartable[(uint8_t) 'C'] = 0xC;
+    chartable[(uint8_t) 'D'] = 0xD;
+    chartable[(uint8_t) 'E'] = 0xE;
+    chartable[(uint8_t) 'F'] = 0xF;
+    chartable[(uint8_t) 'a'] = 0xA;
+    chartable[(uint8_t) 'b'] = 0xB;
+    chartable[(uint8_t) 'c'] = 0xC;
+    chartable[(uint8_t) 'd'] = 0xD;
+    chartable[(uint8_t) 'e'] = 0xE;
+    chartable[(uint8_t) 'f'] = 0xF;
+
+    size_t i = 0;
+    uint8_t *bi = buf_begin;
+
+    if (in.length() % 2 != 0) {
+        *bi++ = chartable[(uint8_t) in[0]];
+        i = 1;
+    }
+
+    for (; i < in.length() - 1; i += 2) {
+        *bi++ = chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
+    }
+
+    return bi - buf_begin;
+}
+
 
 #if defined(SYS_LINUX)
 void thread_set_process_name(const std::string& name) { 
