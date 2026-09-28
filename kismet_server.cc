@@ -62,6 +62,7 @@
 #include "antennatracker.h"
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
+
 #include "datasource_pcapfile.h"
 #include "datasource_kismetdb.h"
 #include "datasource_linux_wifi.h"
@@ -95,6 +96,7 @@
 #include "datasource_catsniffer_zigbee.h"
 #include "datasource_sniffle_ble.h"
 #include "datasource_wch_ble_analyzer_pro.h"
+#include "datasource_lorapipe.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -946,6 +948,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_catsniffer_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_sniffle_ble_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wch_ble_pro_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_lorapipe_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();
