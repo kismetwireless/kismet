@@ -105,7 +105,7 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
         packet->set_data((const char *) conv_buf, conv_buf_len);
         datachunk->set_data(packet->data);
 
-		packet->signal_info.data_ok = true;
+        packet->signal_info.data_ok = true;
         packet->signal_info.signal_type = kis_l1_signal_type_rssi;
         packet->signal_info.signal_rssi = rssi * -1;
         //radioheader->freq_khz = (2400 + (channel)) * 1000;
