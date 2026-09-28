@@ -119,10 +119,15 @@ public:
 
     kis_meshtastic_phy(int in_phyid);
 
-    static int packt_handler(CHAINCALL_PARMS);
+    static int packet_handler(CHAINCALL_PARMS);
 
 protected:
     std::shared_ptr<datasource_tracker> datasourcetracker;
+
+    mac_addr mesh_to_mac(uint32_t meshid);
+
+    // lorapipe formated rx
+    bool process_lorapipe(nlohmann::json& json, const std::shared_ptr<kis_packet>& packet);
 
     // obnoxious huge list of model names
     std::shared_ptr<tracker_element_string> model_tlora_v2;

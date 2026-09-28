@@ -246,8 +246,8 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
-	datasource_catsniffer_zigbee.cc.o \
-	datasource_sniffle_ble.cc.o \
+	datasource_catsniffer_zigbee.cc.o datasource_sniffle_ble.cc.o \
+	datasource_lorapipe.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
 	base64.cc.o \

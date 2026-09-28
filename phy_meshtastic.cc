@@ -81,3 +81,15 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     model_heltec_wireless_tracker_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Tracker v1.0");
 
 }
+
+mac_addr kis_meshtastic_phy::mesh_to_mac(uint32_t meshid) {
+    uint8_t bytes[6] = {0, 0};
+    memcpy(bytes + 2, &meshid, 4);
+    bytes[0] |= 0x2; // set as local address
+    return mac_addr(bytes, 6);
+}
+
+bool kis_meshtastic_phy::process_lorapipe(nlohmann::json& json,
+        const std::shared_ptr<kis_packet>& packet) {
+
+}
