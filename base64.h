@@ -19,6 +19,8 @@
 #include "config.h"
 
 #include <stdlib.h>
+#include <string>
+#include <string_view>
 #include <sstream>
 
 #ifndef __BASE64_H__
@@ -31,6 +33,7 @@
 class base64 {
 public:
     static std::string decode(const std::string& in_str);
+    static std::string decode(const std::string_view& in_str);
     static std::string encode(const std::string& in_str);
 protected:
     static inline bool is_base64(unsigned char c) {

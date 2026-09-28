@@ -24,7 +24,7 @@
 
 const std::string base64::b64_values{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"};
 
-std::string base64::decode(const std::string& in_str) {
+std::string base64::decode(const std::string_view& in_str) {
     auto len = in_str.size();
     int i = 0, j = 0, n = 0;
     unsigned char c4[4], c3[3];
@@ -62,11 +62,16 @@ std::string base64::decode(const std::string& in_str) {
         c3[1] = ((c4[1] & 0xf) << 4) + ((c4[2] & 0x3c) >> 2);
         c3[2] = ((c4[2] & 0x3) << 6) + c4[3];
 
-        for (j = 0; (j < i - 1); j++) 
+        for (j = 0; (j < i - 1); j++)
             ret += c3[j];
     }
 
     return ret;
+
+}
+
+std::string base64::decode(const std::string& in_str) {
+    return base64::decode(std::string_view{in_str});
 }
 
 std::string base64::encode(const std::string& in_str) {
