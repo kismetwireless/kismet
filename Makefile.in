@@ -265,6 +265,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o \
 	devicetracker.cc.o devicetracker_httpd.cc.o \
 	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o kis_dlt_btle_radio.cc.o \
+	kis_dlt_loratap.cc.o \
 	kaitaistream.cc.o \
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_components_v2.cc.o phy_80211_dissectors.cc.o \

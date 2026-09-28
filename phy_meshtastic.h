@@ -122,7 +122,14 @@ public:
     static int packet_handler(CHAINCALL_PARMS);
 
 protected:
+    std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<datasource_tracker> datasourcetracker;
+    std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<device_tracker> devicetracker;
+
+    int pack_comp_linkframe, pack_comp_decap;
+
+    int dlt_meshtastic;
 
     mac_addr mesh_to_mac(uint32_t meshid);
 

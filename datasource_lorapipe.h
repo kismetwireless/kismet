@@ -78,10 +78,6 @@ protected:
 
     int pack_comp_decap;
     int dlt_meshtastic, dlt_meshcore, dlt_lora_generic;
-
-public:
-    static const uint8_t sync_meshtastic = 0x2b;
-    static const uint8_t sync_meshcore = 0x12;
 };
 
 class datasource_lorapipe_builder : public kis_datasource_builder {

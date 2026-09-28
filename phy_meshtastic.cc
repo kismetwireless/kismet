@@ -17,6 +17,10 @@
 */
 
 #include "phy_meshtastic.h"
+
+#include "kis_dlt_loratap.h"
+
+#include "dlttracker.h"
 #include "manuf.h"
 
 kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
@@ -24,9 +28,24 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
 
     set_phy_name("Meshtastic");
 
+    packetchain =
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     datasourcetracker =
         Globalreg::fetch_mandatory_global_as<datasource_tracker>();
+    entrytracker =
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
+    devicetracker =
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_decap = packetchain->register_packet_component("DECAP");
+
+    auto dltt =
+        Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
+
+    dlt_meshtastic = dltt->register_linktype("MESHTASTIC");
+
+    // cached names
     model_tlora_v2 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v2");
     model_tlora_v1 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v1");
     model_tlora_v2_1_1p6 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v2.1-1.6");
@@ -87,6 +106,35 @@ mac_addr kis_meshtastic_phy::mesh_to_mac(uint32_t meshid) {
     memcpy(bytes + 2, &meshid, 4);
     bytes[0] |= 0x2; // set as local address
     return mac_addr(bytes, 6);
+}
+
+int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
+    auto mphy = static_cast<kis_meshtastic_phy *>(auxdata);
+
+    if (in_pack->duplicate || in_pack->filtered) {
+        return 1;
+    }
+
+    if (in_pack->common_info.common_info_ok) {
+        return 0;
+    }
+
+    auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_decap, mphy->pack_comp_linkframe);
+
+    if (packdata == nullptr) {
+        return 0;
+    }
+
+    if (packdata->dlt == KDLT_LORATAP) {
+        // we have an encapsulated tap frame (possibly from a pcap file?)
+
+    } else if (packdata->dlt == mphy->dlt_meshtastic) {
+
+    } else {
+        return 0;
+    }
+
+    return 1;
 }
 
 bool kis_meshtastic_phy::process_lorapipe(nlohmann::json& json,
