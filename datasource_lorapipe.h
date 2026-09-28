@@ -135,4 +135,4 @@ public:
 };
 
 
-#endif /* __DATASOURCE_LORAPIPE_H__ *
+#endif /* __DATASOURCE_LORAPIPE_H__ */
