@@ -144,6 +144,33 @@ public:
         return ret;
     }
 
+    void ctr_crypt(const std::string& buffer, std::string& wbuffer) {
+        std::string ret(buffer.length(), 0x00);
+        uint8_t state[16];
+        size_t i;
+        int bi;
+
+        for (i = 0, bi = aes256_blocklen; i < buffer.length(); ++i, ++bi) {
+            if (bi == aes256_blocklen) {
+                memcpy(state, iv_, aes256_blocklen);
+                cipher(reinterpret_cast<state_t *>(state));
+
+                for (bi = (aes256_blocklen - 1); bi >= 0; --bi) {
+                    if (iv_[bi] == 255) {
+                        iv_[bi] = 0;
+                        continue;
+                    }
+                    iv_[bi] += 1;
+                    break;
+                }
+
+                bi = 0;
+            }
+
+            ret[i] = (buffer[i] ^ state[bi]);
+        }
+    }
+
 protected:
     void expand_key(const std::string& key) {
         unsigned int i, j, k;
