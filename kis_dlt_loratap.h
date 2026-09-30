@@ -122,7 +122,6 @@ public:
 
     static const uint8_t sync_meshtastic = 0x2b;
     static const uint8_t sync_meshcore = 0x12;
-
 };
 
 #endif /* __KIS_DLT_LORATAP__ */

@@ -20,6 +20,8 @@
 
 #include "kis_dlt_loratap.h"
 
+#include "base64.h"
+#include "configfile.h"
 #include "dlttracker.h"
 #include "manuf.h"
 
@@ -99,6 +101,24 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     model_heltec_wireless_paper_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Paper v1.0");
     model_heltec_wireless_tracker_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Tracker v1.0");
 
+    keys["default"] = std::string((const char *) default_key, 16);
+    keys["default"] = std::string((const char *) default_key, 32);
+
+    for (const auto& k : Globalreg::globalreg->kismet_config->fetch_opt_vec("meshtastic_key")) {
+        auto toks = base_sv_tokenize(k, ",", "");
+        if (toks.size() != 2) {
+            _MSG_ERROR("Invalid meshtastic key '{}', expected name,base64key", k);
+            continue;
+        }
+
+        auto dk = base64::decode(toks[1]);
+        if (dk.length() != 16 && dk.length() != 32) {
+            _MSG_ERROR("Invalid meshtastic key '{}', expected base64 key", k);
+            continue;
+        }
+    }
+
+    max_live_messages = Globalreg::globalreg->kismet_config->fetch_opt_ulong("meshtastic_max_messages", 128);
 }
 
 mac_addr kis_meshtastic_phy::mesh_to_mac(uint32_t meshid) {
@@ -125,19 +145,108 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (packdata->dlt == KDLT_LORATAP) {
-        // we have an encapsulated tap frame (possibly from a pcap file?)
-
-    } else if (packdata->dlt == mphy->dlt_meshtastic) {
-
-    } else {
+    if (packdata->dlt != mphy->dlt_meshtastic) {
         return 0;
     }
+
+    if (packdata->length() < 16) {
+        return 0;
+    }
+
+    uint8_t iv[16];
+    kis_aes::aes128 aes128;
+    kis_aes::aes256 aes256;
+
+    std::string decoded;
+
+    for (const auto& k : mphy->keys) {
+        memset(iv, 0, 16);
+
+        memcpy(iv, packdata->data() + 8, 4);
+        memcpy(iv + 8, packdata->data() + 4, 4);
+
+        try {
+            if (k.second.length() == 16) {
+                aes128.set((const uint8_t *) k.second.data(), iv);
+                decoded = aes128.ctr_crypt(std::string((const char *) packdata->data() + 16,
+                                packdata->length() - 16));
+            } else if (k.second.length() == 32) {
+                aes256.set((const uint8_t *) k.second.data(), iv);
+                decoded = aes128.ctr_crypt(std::string((const char *) packdata->data() + 16,
+                                packdata->length() - 16));
+            }
+
+            protobuf_decoder::decoder decoder(decoded);
+            int64_t fn;
+            meshtastic_portnum port;
+            std::string_view subcontent;
+
+            while (1) {
+                fn = decoder.next_field();
+
+                if (fn < 0) {
+                    break;
+                }
+
+                switch (static_cast<meshtastic_data_pb>(fn)) {
+                    case meshtastic_data_pb::fn_portnum:
+                        port = static_cast<meshtastic_portnum>(decoder.get_int());
+                        break;
+                    case meshtastic_data_pb::fn_payload:
+                        subcontent = decoder.get_bytearray();
+                        break;
+                    default:
+                        decoder.ignore_field();
+                        break;
+                }
+            }
+
+            if (subcontent.length() == 0) {
+                break;
+            }
+
+            switch (port) {
+                case meshtastic_portnum::text_message:
+
+                default:
+                    break;
+            }
+        } catch (...) {
+            // silently skip decrypt or protobuf errors
+            continue;
+        }
+    }
+
+
 
     return 1;
 }
 
-bool kis_meshtastic_phy::process_lorapipe(nlohmann::json& json,
-        const std::shared_ptr<kis_packet>& packet) {
+void kis_meshtastic_phy::handle_meshtashtic_pb(const std::string_view& pbuf) {
 
 }
+
+void kis_meshtastic_phy::handle_telemetry_pb(const std::string& pbuf) {
+
+}
+
+void kis_meshtastic_phy::handle_powermetrics_pb(const std::string& pbuf) {
+
+}
+
+void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string& pbuf) {
+
+}
+
+void kis_meshtastic_phy::handle_position_pb(const std::string& pbuf) {
+
+}
+
+void kis_meshtastic_phy::handle_user_pb(const std::string& pbuf) {
+
+}
+
+void kis_meshtastic_phy::handle_nodeinfo_pb(const std::string& pbuf) {
+
+}
+

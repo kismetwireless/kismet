@@ -5,6 +5,7 @@ CONFIGFILES = \
 	kismet_httpd.conf \
 	kismet_alerts.conf \
 	kismet_memory.conf \
+	kismet_meshtastic.conf \
 	kismet_logging.conf \
 	kismet_filter.conf \
 	kismet_uav.conf \

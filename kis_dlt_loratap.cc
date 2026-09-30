@@ -122,6 +122,5 @@ int kis_dlt_loratap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
 
     in_pack->insert(pack_comp_decap, decapchunk);
 
-
     return 1;
 }

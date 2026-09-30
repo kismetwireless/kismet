@@ -21,9 +21,13 @@
 
 #include "config.h"
 
+#include <unordered_map>
+
 #include "datasourcetracker.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
+#include "json_adapter_v2.h"
+#include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 #include "phyhandler.h"
 #include "trackedelement.h"
@@ -31,10 +35,16 @@
 #include "aes_ctr.h"
 #include "protobuf_decode.h"
 
+
 // meshtastic messages are an aes-ctr-128 or aes-ctr-256 encrypted protobuf
 //
 // we decode the protobuf piecemeal from the wire, we don't want to touch
 // packaging protobufs back into kismet
+//
+// because this is being written at a difficult transition time in kismet
+// trying to push towards the new more efficient json formatter, the device
+// records will be in traditional tracked json but the new channel and message
+// endpoints will use the new json api
 
 
 class tracked_meshtastic_node : public tracker_component {
@@ -105,6 +115,219 @@ protected:
     friend class kis_meshtastic_phy;
 };
 
+class meshtastic_message : public json_adapter_v2::jsonable {
+    friend class kis_meshtastic_phy;
+public:
+    meshtastic_message() : json_adapter_v2::jsonable() { }
+
+    meshtastic_message(const std::string_view& nodeid, const std::string_view& channel,
+            const std::string_view& message) :
+        json_adapter_v2::jsonable(),
+        nodeid_{nodeid.data(), nodeid.length()},
+        channel_{channel.data(), channel.length()},
+        message_{message.data(), message.length()} { }
+
+    meshtastic_message& operator=(const meshtastic_message& t) {
+        nodeid_ = t.nodeid_;
+        channel_ = t.channel_;
+        message_ = t.message_;
+        return *this;
+    }
+
+    auto nodeid() const { return nodeid_; }
+    void set_nodeid(auto v) { nodeid_ = v; }
+
+    auto channel() const { return channel_; }
+    void set_channel(auto v) { channel_ = v; }
+
+    auto message() const { return message_; }
+    void set_message(auto v) { message_ = v; }
+
+    virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
+
+        fmt::print(os, "{{");
+
+        auto sv_comma = opts->next_key_comma;
+        opts->next_key_comma = false;
+
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.message.nodeid", opts, nodeid());
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.message.channel", opts, channel());
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.message.message", opts, message());
+
+        opts->next_key_comma = sv_comma;
+
+        fmt::print(os, "}}");
+    }
+
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override {
+        if (fields.size() == 0) {
+            return as_json(os, opts);
+        }
+
+        auto sv_comma = opts->next_key_comma;
+        opts->next_key_comma = false;
+
+        json_adapter_v2::field_group_map subgroup;
+
+        fmt::print(os, "{{");
+        for (const auto& f : fields) {
+            switch (json_adapter_v2::consthash(f.first)) {
+                case json_adapter_v2::consthash("meshtastic.message.nodeid"):
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, nodeid());
+                    break;
+                case json_adapter_v2::consthash("meshtastic.message.channel"):
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, channel());
+                    break;
+                case json_adapter_v2::consthash("meshtastic.message.message"):
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, message());
+                    break;
+                default:
+                    json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
+            }
+        }
+
+        fmt::print(os, "}}");
+        opts->next_key_comma = sv_comma;
+
+    }
+
+protected:
+    // TBD - cache nodeid and channel?  It would be more ram-efficient but
+    // meshtastic is so low load it probably doesn't matter
+    std::string nodeid_;
+    std::string channel_;
+    std::string message_;
+};
+
+template<> struct json_adapter_v2::json_encode<meshtastic_message> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_message& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_message *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_message& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_message *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
+
+class meshtastic_channel : public json_adapter_v2::jsonable {
+    friend class kis_meshtastic_phy;
+public:
+    meshtastic_channel(const std::string_view channel, const std::string_view binkey) :
+        json_adapter_v2::jsonable(),
+        channel_{channel.data(), channel.length()},
+        key_{base64::encode(binkey)} { }
+
+    auto channel() const { return channel_; }
+    auto key() const { return key_; }
+
+    auto max_messages() {
+        kis_unique_lock<kis_shared_mutex> lk(mutex_, __func__);
+        return max_messages_;
+    }
+
+    void set_max_messages(size_t sz) {
+        kis_unique_lock<kis_shared_mutex> lk(mutex_, __func__);
+        if (messages_.size() > sz) {
+            messages_.erase(messages_.begin() + sz, messages_.end());
+        }
+    }
+
+    void add_message(const std::string_view& nodeid, const std::string_view& message) {
+        kis_unique_lock<kis_shared_mutex> lk(mutex_, __func__);
+        messages_.emplace_back(nodeid, channel(), message);
+        if (messages_.size() > max_messages()) {
+            messages_.erase(messages_.begin() + max_messages(), messages_.end());
+        }
+    }
+
+    virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
+        kis_shared_lock<kis_shared_mutex> lk(mutex_, __func__);
+
+        fmt::print(os, "{{");
+
+        auto sv_comma = opts->next_key_comma;
+        opts->next_key_comma = false;
+
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.channel.channel", opts, channel());
+        json_adapter_v2::json_encode_keyed_array<messages_iter_t>{}(os, "meshtastic.channel.messages", opts, messages_.begin(), messages_.end());
+
+        opts->next_key_comma = sv_comma;
+
+        fmt::print(os, "}}");
+    }
+
+    virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override {
+        kis_shared_lock<kis_shared_mutex> lk(mutex_, __func__);
+
+        if (fields.size() == 0) {
+            return as_json(os, opts);
+        }
+
+        auto sv_comma = opts->next_key_comma;
+        opts->next_key_comma = false;
+
+        json_adapter_v2::field_group_map subgroup;
+
+        fmt::print(os, "{{");
+        for (const auto& f : fields) {
+            switch (json_adapter_v2::consthash(f.first)) {
+                case json_adapter_v2::consthash("meshtastic.channel.channel"):
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, channel());
+                    break;
+                case json_adapter_v2::consthash("meshtastic.channel.messages"):
+                    json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                    json_adapter_v2::json_encode_keyed_array<messages_iter_t>{}(os, f.second.rename, opts, messages_.begin(), messages_.end(), subgroup);
+                    break;
+                default:
+                    json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
+            }
+        }
+
+        fmt::print(os, "}}");
+        opts->next_key_comma = sv_comma;
+    }
+
+protected:
+    kis_shared_mutex mutex_;
+
+    size_t max_messages_;
+
+    std::string channel_;
+    std::string key_;
+
+    using messages_iter_t = std::vector<meshtastic_message>::iterator;
+    std::vector<meshtastic_message> messages_;
+};
+
+template<> struct json_adapter_v2::json_encode<meshtastic_channel> {
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_channel& e) {
+        e.as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_channel *e) {
+        e->as_json(os, opts);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_channel& e,
+            json_adapter_v2::field_group_map& fields) {
+        e.filtered_as_json(os, opts, fields);
+    }
+
+    void operator()(std::ostream& os, json_adapter_v2::opts *opts, meshtastic_channel *e,
+            json_adapter_v2::field_group_map& fields) {
+        e->filtered_as_json(os, opts, fields);
+    }
+};
 
 class kis_meshtastic_phy : public kis_phy_handler {
 public:
@@ -133,8 +356,20 @@ protected:
 
     mac_addr mesh_to_mac(uint32_t meshid);
 
-    // lorapipe formated rx
-    bool process_lorapipe(nlohmann::json& json, const std::shared_ptr<kis_packet>& packet);
+    void handle_meshtashtic_pb(const std::string_view& pbuf);
+    void handle_telemetry_pb(const std::string& pbuf);
+    void handle_powermetrics_pb(const std::string& pbuf);
+    void handle_devicemetrics_pb(const std::string& pbuf);
+    void handle_position_pb(const std::string& pbuf);
+    void handle_user_pb(const std::string& pbuf);
+    void handle_nodeinfo_pb(const std::string& pbuf);
+
+    // channel keys in binary
+    std::unordered_map<std::string, std::string> keys;
+
+    // tracked channels
+    std::unordered_map<std::string, meshtastic_channel> channels;
+    size_t max_live_messages;
 
     // obnoxious huge list of model names
     std::shared_ptr<tracker_element_string> model_tlora_v2;
@@ -196,6 +431,22 @@ public:
         0xd4, 0xf1, 0xbb, 0x3a, 0x20, 0x29, 0x07, 0x59,
         0xf0, 0xbc, 0xff, 0xab, 0xcf, 0x4e, 0x69, 0x01
     };
+
+    const uint8_t default_key2[32] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    };
+
+    typedef struct {
+        uint32_t dest_id;
+        uint32_t source_id;
+        uint32_t pkt_id;
+        uint8_t flag;
+        uint8_t channel;
+        uint8_t nh;
+    } __attribute__((packed)) meshtastic_frame_t;
 
     enum class meshtastic_portnum {
         unknown = 0,
