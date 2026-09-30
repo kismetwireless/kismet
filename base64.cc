@@ -74,7 +74,7 @@ std::string base64::decode(const std::string& in_str) {
     return base64::decode(std::string_view{in_str});
 }
 
-std::string base64::encode(const std::string& in_str) {
+std::string base64::encode(const std::string_view& in_str) {
     std::stringstream ss;
     size_t pos;
 
@@ -99,5 +99,9 @@ std::string base64::encode(const std::string& in_str) {
     }
 
     return ss.str();
+}
+
+std::string base64::encode(const std::string& in_str) {
+    return base64::encode(std::string_view{in_str});
 }
 

@@ -35,6 +35,7 @@ public:
     static std::string decode(const std::string& in_str);
     static std::string decode(const std::string_view& in_str);
     static std::string encode(const std::string& in_str);
+    static std::string encode(const std::string_view& in_str);
 protected:
     static inline bool is_base64(unsigned char c) {
         return (isalnum(c) || (c == '+') || (c == '/'));
