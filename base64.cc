@@ -79,7 +79,7 @@ std::string base64::encode(const std::string_view& in_str) {
     size_t pos;
 
     for (pos = 0; pos < in_str.length(); pos += 3) {
-        ss << b64_values[in_str[pos] >> 2];
+        ss << b64_values[(in_str[pos] & 0xfc) >> 2];
 
         if (pos + 1 < in_str.length()) {
             ss << b64_values[((in_str[pos] & 0x03) << 4) | ((in_str[pos + 1] & 0xf0) >> 4)];
