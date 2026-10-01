@@ -3686,7 +3686,7 @@ void kis_datasource::handle_source_error() {
 
                             std::shared_ptr<alert_tracker> alertracker =
                                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-                            alertracker->raise_one_shot("SOURCEOPEN", "SYSTEM", kis_alert_severity::critical, alrt, -1);
+                            alertracker->raise_one_shot("SOURCEOPEN", "SYSTEM", kis_alert_severity::info, alrt, -1);
 
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping
