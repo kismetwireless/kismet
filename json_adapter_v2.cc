@@ -18,6 +18,16 @@
 
 #include "json_adapter_v2.h"
 
+int hash(const std::string_view& sv) noexcept{
+    uint32_t hash = 5381;
+
+    for(const char *c = sv.data(); c < sv.data() + sv.length(); ++c) {
+        hash = ((hash << 5) + hash) + (unsigned char) *c;
+    }
+
+    return (int) hash;
+}
+
 std::string_view json_adapter_v2::pop_path(std::string_view& v) {
     const auto pos = v.find_first_of("/");
     if (pos == std::string_view::npos) {
