@@ -24,6 +24,7 @@
 #include <unordered_map>
 
 #include "datasourcetracker.h"
+#include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
 #include "json_adapter_v2.h"
@@ -222,28 +223,53 @@ template<> struct json_adapter_v2::json_encode<meshtastic_message> {
 class meshtastic_channel : public json_adapter_v2::jsonable {
     friend class kis_meshtastic_phy;
 public:
-    meshtastic_channel(const std::string_view channel, const std::string_view binkey) :
+    meshtastic_channel(const std::string_view channel, const std::string_view binkey,
+            size_t max_messages) :
         json_adapter_v2::jsonable(),
+        max_messages_{max_messages},
         channel_{channel.data(), channel.length()},
         key_{base64::encode(binkey)} { }
+
+    meshtastic_channel(const std::string& channel, const std::string& binkey,
+            size_t max_messages) :
+        json_adapter_v2::jsonable(),
+        max_messages_{max_messages},
+        channel_{channel},
+        key_{base64::encode(binkey)} { }
+
+    meshtastic_channel(meshtastic_channel&& m) :
+        json_adapter_v2::jsonable(),
+        max_messages_{m.max_messages_},
+        channel_{std::move(m.channel_)},
+        key_{std::move(m.key_)},
+        messages_{std::move(m.messages_)} { }
+
+    meshtastic_channel& operator=(const meshtastic_channel& t) {
+        max_messages_ = t.max_messages_;
+        channel_ = t.channel_;
+        key_ = t.key_;
+        messages_ = t.messages_;
+
+        return *this;
+    }
 
     auto channel() const { return channel_; }
     auto key() const { return key_; }
 
     auto max_messages() {
-        kis_unique_lock<kis_shared_mutex> lk(mutex_, __func__);
+        kis_unique_lock<kis_mutex> lk(mutex_, __func__);
         return max_messages_;
     }
 
     void set_max_messages(size_t sz) {
-        kis_unique_lock<kis_shared_mutex> lk(mutex_, __func__);
+        kis_unique_lock<kis_mutex> lk(mutex_, __func__);
         if (messages_.size() > sz) {
             messages_.erase(messages_.begin() + sz, messages_.end());
         }
     }
 
     void add_message(const std::string_view& nodeid, const std::string_view& message) {
-        kis_unique_lock<kis_shared_mutex> lk(mutex_, __func__);
+        kis_unique_lock<kis_mutex> lk(mutex_, __func__);
         messages_.emplace_back(nodeid, channel(), message);
         if (messages_.size() > max_messages()) {
             messages_.erase(messages_.begin() + max_messages(), messages_.end());
@@ -251,7 +277,7 @@ public:
     }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
-        kis_shared_lock<kis_shared_mutex> lk(mutex_, __func__);
+        kis_unique_lock<kis_mutex> lk(mutex_, __func__);
 
         fmt::print(os, "{{");
 
@@ -259,6 +285,7 @@ public:
         opts->next_key_comma = false;
 
         json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.channel.channel", opts, channel());
+        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.channel.key", opts, key());
         json_adapter_v2::json_encode_keyed_array<messages_iter_t>{}(os, "meshtastic.channel.messages", opts, messages_.begin(), messages_.end());
 
         opts->next_key_comma = sv_comma;
@@ -267,7 +294,7 @@ public:
     }
 
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override {
-        kis_shared_lock<kis_shared_mutex> lk(mutex_, __func__);
+        kis_unique_lock<kis_mutex> lk(mutex_, __func__);
 
         if (fields.size() == 0) {
             return as_json(os, opts);
@@ -284,6 +311,9 @@ public:
                 case json_adapter_v2::consthash("meshtastic.channel.channel"):
                     json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, channel());
                     break;
+                case json_adapter_v2::consthash("meshtastic.channel.key"):
+                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, key());
+                    break;
                 case json_adapter_v2::consthash("meshtastic.channel.messages"):
                     json_adapter_v2::group_fields(f.second.subfields, subgroup);
                     json_adapter_v2::json_encode_keyed_array<messages_iter_t>{}(os, f.second.rename, opts, messages_.begin(), messages_.end(), subgroup);
@@ -298,7 +328,7 @@ public:
     }
 
 protected:
-    kis_shared_mutex mutex_;
+    kis_mutex mutex_;
 
     size_t max_messages_;
 
@@ -333,8 +363,7 @@ class kis_meshtastic_phy : public kis_phy_handler {
 public:
     virtual ~kis_meshtastic_phy();
 
-    kis_meshtastic_phy() :
-        kis_phy_handler() { }
+    kis_meshtastic_phy() : kis_phy_handler() { }
 
     virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
         return new kis_meshtastic_phy(in_phyid);
@@ -345,6 +374,8 @@ public:
     static int packet_handler(CHAINCALL_PARMS);
 
 protected:
+    kis_mutex mutex_;
+
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<entry_tracker> entrytracker;
@@ -368,7 +399,8 @@ protected:
     std::unordered_map<std::string, std::string> keys;
 
     // tracked channels
-    std::unordered_map<std::string, meshtastic_channel> channels;
+    using channels_map_t = std::unordered_map<std::string, meshtastic_channel>;
+    channels_map_t channels;
     size_t max_live_messages;
 
     // obnoxious huge list of model names

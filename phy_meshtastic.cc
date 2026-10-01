@@ -23,10 +23,13 @@
 #include "base64.h"
 #include "configfile.h"
 #include "dlttracker.h"
+#include "kis_net_beast_httpd.h"
 #include "manuf.h"
 
 kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
+
+    mutex_.set_name("kis_meshtastic_phy");
 
     set_phy_name("Meshtastic");
 
@@ -102,7 +105,7 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     model_heltec_wireless_tracker_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Tracker v1.0");
 
     keys["default"] = std::string((const char *) default_key, 16);
-    keys["default"] = std::string((const char *) default_key, 32);
+    keys["default2"] = std::string((const char *) default_key2, 32);
 
     for (const auto& k : Globalreg::globalreg->kismet_config->fetch_opt_vec("meshtastic_key")) {
         auto toks = base_sv_tokenize(k, ",", "");
@@ -119,7 +122,21 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     }
 
     max_live_messages = Globalreg::globalreg->kismet_config->fetch_opt_ulong("meshtastic_max_messages", 128);
+
+    channels.emplace("default", meshtastic_channel{"default", keys["default"], max_live_messages});
+    channels.emplace("default2", meshtastic_channel{"default2", keys["default2"], max_live_messages});
+
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+
+    httpd->register_route("/meshtastic/channels", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_jsonable_endpoint>(std::make_unique<json_adapter_v2::jsonable_map<channels_map_t, channels_map_t::iterator>>(channels, "meshtastic.channels"), mutex_));
 }
+
+kis_meshtastic_phy::~kis_meshtastic_phy() {
+    // packetchain->remove_handler(&packet_handler, CHAINPOS_CLASSIFIER);
+}
+
 
 mac_addr kis_meshtastic_phy::mesh_to_mac(uint32_t meshid) {
     uint8_t bytes[6] = {0, 0};
