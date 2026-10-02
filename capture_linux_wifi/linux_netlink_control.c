@@ -1029,7 +1029,7 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     cblock.extended_flags = extended_flags;
 
     cblock.phyname = mac80211_find_parent(interface);
-    if (strlen(cblock.phyname) == 0) {
+    if (cblock.phyname == NULL || strlen(cblock.phyname) == 0) {
         if (if_nametoindex(interface) <= 0) {
             snprintf(errstr, STATUS_MAX, 
                     "failed to get channels from interface '%s': interface does "
@@ -1170,7 +1170,27 @@ char *mac80211_find_parent(const char *interface) {
     struct dirent *devfile;
     char dirpath[2048];
     char *dev;
+    FILE *namef;
+    char phyname[256];
 
+    /* The wiphy name, whatever it is called (it can be renamed and need not start
+     * with 'phy') */
+    snprintf(dirpath, 2048, "/sys/class/net/%s/phy80211/name", interface);
+
+    if ((namef = fopen(dirpath, "r")) != NULL) {
+        if (fgets(phyname, sizeof(phyname), namef) != NULL) {
+            phyname[strcspn(phyname, "\n")] = 0;
+
+            if (strlen(phyname) > 0) {
+                fclose(namef);
+                return strdup(phyname);
+            }
+        }
+
+        fclose(namef);
+    }
+
+    /* Fall back to scanning the device for older kernels */
     snprintf(dirpath, 2048, "/sys/class/net/%s/phy80211/device", interface);
 
     if ((devdir = opendir(dirpath)) == NULL)
