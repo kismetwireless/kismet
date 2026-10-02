@@ -197,6 +197,10 @@ public:
     void set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
             const std::string& in_tag, const std::string& in_content);
 
+    // Remove a tag (and from the database); returns false if the device had no such tag
+    bool remove_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
+            const std::string& in_tag);
+
     // CLI extension
     static void usage(const char *name);
 
