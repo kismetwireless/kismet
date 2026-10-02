@@ -462,6 +462,29 @@ device_tracker::device_tracker() :
                     os << "Device tag set\n";
                 }, get_devicelist_mutex()));
 
+    httpd->register_route("/devices/by-key/:key/delete_tag", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](shared_con con) {
+                    auto key_k = con->uri_params().find(":key");
+                    auto devkey = string_to_n<device_key>(key_k->second);
+
+                    if (devkey.get_error())
+                        throw std::runtime_error("invalid device key");
+
+                    auto dev = fetch_device(devkey);
+
+                    if (dev == nullptr)
+                        throw std::runtime_error("no such device");
+
+                    std::string tag = con->json()["tagname"];
+
+                    if (!remove_device_tag(dev, tag))
+                        throw std::runtime_error("no such tag");
+
+                    std::ostream os(&con->response_stream());
+                    os << "Device tag deleted\n";
+                }, get_devicelist_mutex()));
+
     httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -2010,6 +2033,64 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
     sqlite3_finalize(stmt);
 
     return;
+}
+
+bool device_tracker::remove_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
+        const std::string& in_tag) {
+
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "remove_device_tag");
+
+    auto sm = in_dev->get_tag_map();
+
+    auto t = sm->find(in_tag);
+    if (t == sm->end())
+        return false;
+
+    sm->erase(t);
+
+    // A tag change is new device state; let last-time clients see it
+    in_dev->update_modtime();
+
+    if (!database_valid()) {
+        _MSG("Unable to remove device tag from permanent storage, the database connection "
+                "is not available", MSGFLAG_ERROR);
+        return true;
+    }
+
+    std::string sql;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string keystring = in_dev->get_key().as_string();
+
+    sql =
+        "DELETE FROM device_tags "
+        "WHERE key = ? AND tag = ?";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("device_tracker unable to prepare database delete for device tags in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return true;
+    }
+
+    sqlite3_reset(stmt);
+
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, in_tag.c_str(), in_tag.length(), 0);
+
+    // Only lock the database while we're deleting
+    {
+        kis_lock_guard<kis_mutex> lk(ds_mutex);
+        sqlite3_step(stmt);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return true;
 }
 
 void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event> evt) {
