@@ -1935,6 +1935,9 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 
     in_dev->set_username(in_username);
 
+    // A name change is new device state; let last-time clients see it
+    in_dev->update_modtime();
+
     if (!database_valid()) {
         _MSG("Unable to store device name to permanent storage, the database connection "
                 "is not available", MSGFLAG_ERROR);
@@ -1994,6 +1997,9 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
     } else {
         sm->insert(in_tag, e);
     }
+
+    // A tag change is new device state; let last-time clients see it
+    in_dev->update_modtime();
 
     if (!database_valid()) {
         _MSG("Unable to store device name to permanent storage, the database connection "
