@@ -150,7 +150,9 @@ protected:
     std::unordered_map<device_key, bool> device_presence_map;
 
     void device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
-    std::shared_ptr<tracker_element> device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    // Devices seen (last_time) or, with modified, changed (mod_time) since a timestamp
+    std::shared_ptr<tracker_element> device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con,
+            bool modified);
 
     // Build the URLs
     void register_urls(const std::string& in_id);

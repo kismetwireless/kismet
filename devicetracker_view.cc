@@ -95,7 +95,14 @@ void device_tracker_view::register_urls(const std::string& in_id) {
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    return device_time_endpoint(con);
+                    return device_time_endpoint(con, false);
+                }, devicetracker->get_devicelist_mutex()));
+
+    uri = fmt::format("/devices/views/{}/modified-since/:timestamp/devices", in_id);
+    httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return device_time_endpoint(con, true);
                 }, devicetracker->get_devicelist_mutex()));
 
     uri = fmt::format("/devices/views/{}/monitor", in_id);
@@ -452,7 +459,8 @@ void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_devic
 }
 
 std::shared_ptr<tracker_element>
-device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con,
+        bool modified) {
     auto ret = Globalreg::new_from_pool<tracker_element_vector>();
     std::ostream os(&con->response_stream());
 
@@ -471,7 +479,8 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
 
     auto worker =
         device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                if (dev->get_last_time() < ts)
+                auto dev_ts = modified ? dev->get_mod_time() : dev->get_last_time();
+                if (dev_ts < ts)
                     return false;
 
                 return true;

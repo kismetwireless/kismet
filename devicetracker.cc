@@ -375,9 +375,11 @@ device_tracker::device_tracker() :
                     return devvec;
                 }, get_devicelist_mutex()));
 
-    httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](shared_con con) -> std::shared_ptr<tracker_element> {
+    // Devices seen (last_time, by packet) or modified (mod_time, any state change such as a
+    // new tag) after a timestamp; negative timestamps are relative to now
+    auto device_time_endpoint = [this](bool modified) {
+        return std::make_shared<kis_net_web_tracked_endpoint>(
+                [this, modified](shared_con con) -> std::shared_ptr<tracker_element> {
                     std::ostream os(&con->response_stream());
                     auto ts_k = con->uri_params().find(":timestamp");
                     auto tv = string_to_n<long>(ts_k->second);
@@ -393,8 +395,9 @@ device_tracker::device_tracker() :
                     }
 
                     auto ts_worker = device_tracker_view_function_worker(
-                        [ts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
-                            if (d->get_last_time() <= ts)
+                        [ts, modified](std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                            auto dev_ts = modified ? d->get_mod_time() : d->get_last_time();
+                            if (dev_ts <= ts)
                                 return false;
                             return true;
                         });
@@ -415,7 +418,14 @@ device_tracker::device_tracker() :
                     }
 
                     return next_work_vec;
-                }, get_devicelist_mutex()));
+                }, get_devicelist_mutex());
+    };
+
+    httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
+            device_time_endpoint(false));
+
+    httpd->register_route("/devices/modified-since/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
+            device_time_endpoint(true));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
