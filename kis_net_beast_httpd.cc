@@ -881,13 +881,18 @@ std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const 
     // Step one: is it a JWT token?
     auto authtoken = check_jwt_token(token);
 
-    if (authtoken != nullptr)
+    if (authtoken != nullptr) {
+        if (!authtoken->is_valid())
+            return nullptr;
         return authtoken;
+    }
 
     for (const auto& a : auth_vec) {
-        if (a->check_auth(token))
+        if (a->check_auth(token)) {
+            if (!a->is_valid())
+                return nullptr;
             return a;
-
+        }
     }
 
     return nullptr;
@@ -1809,7 +1814,7 @@ kis_net_beast_auth::kis_net_beast_auth(const std::string& token, const std::stri
     role_{role},
     time_created_{time(0)},
     time_accessed_{0},
-    time_expires_{0} { }
+    time_expires_{expires} { }
 
 kis_net_beast_auth::kis_net_beast_auth(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& jwt) {
     try {
