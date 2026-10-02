@@ -1256,24 +1256,18 @@ shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
 bool datasource_tracker::close_datasource(const uuid& in_uuid) {
     kis_lock_guard<kis_mutex> lk(dst_lock, "dst close_datasource");
 
-    shared_datasource kds;
-
     for (auto i : *datasource_vec) {
-        kds = std::static_pointer_cast<kis_datasource>(i);
+        auto kds = std::static_pointer_cast<kis_datasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) {
-            break;
+            _MSG_INFO("Closing source '{}'", kds->get_source_name());
+
+            // close it
+            kds->close_source();
+
+            // Done
+            return true;
         }
-    }
-
-    if (kds != nullptr) {
-        _MSG_INFO("Closing source '{}'", kds->get_source_name());
-
-        // close it
-        kds->close_source();
-
-        // Done
-        return true;
     }
 
     return false;
