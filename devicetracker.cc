@@ -687,16 +687,16 @@ device_tracker::device_tracker() :
 
                                 auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
-                                time_t last_tm = 0;
+                                auto last_tm = std::make_shared<time_t>(0);
 
                                 // Generate a timer event that goes and looks for the devices and
                                 // serializes them with the fields record
                                 auto tid =
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
-                                            [this, con, dev_r, dev_k, dev_m, json, ws, &last_tm, rename_map, format_t](int) -> int {
+                                            [this, con, dev_r, dev_k, dev_m, json, ws, last_tm, rename_map, format_t](int) -> int {
                                                 if (dev_r == "*") {
                                                     auto worker = device_tracker_view_function_worker([json, last_tm, format_t, this, ws](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                                                        if (dev->get_mod_time() > last_tm) {
+                                                        if (dev->get_mod_time() > *last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
                                                             auto data = ss.str();
@@ -712,7 +712,7 @@ device_tracker::device_tracker() :
 
                                                     auto dev = fetch_device(dev_k);
                                                     if (dev != nullptr) {
-                                                        if (dev->get_mod_time() > last_tm) {
+                                                        if (dev->get_mod_time() > *last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
                                                             auto data = ss.str();
@@ -724,7 +724,7 @@ device_tracker::device_tracker() :
 
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                                                        if (mmpi->second->get_mod_time() > last_tm) {
+                                                        if (mmpi->second->get_mod_time() > *last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, mmpi->second, json);
                                                             auto data = ss.str();
@@ -733,7 +733,7 @@ device_tracker::device_tracker() :
                                                     }
                                                 }
 
-                                                last_tm = (time_t) Globalreg::globalreg->last_tv_sec;
+                                                *last_tm = (time_t) Globalreg::globalreg->last_tv_sec;
 
                                                 return 1;
                                             });
