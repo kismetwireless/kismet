@@ -85,7 +85,6 @@ std::string str_strip(const std::string& in_str);
 
 std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl);
 
-int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
 template<class t> 
@@ -195,14 +194,8 @@ std::vector<smart_word_token> base_str_tokenize(const std::string& in_str,
 // of the token, no abc"def ghi"
 std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split);
 
-int TokenNullJoin(std::string *ret_str, const char **in_list);
-
 std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
 std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
-std::vector<int> str_to_int_vector(const std::string& in_text);
-
-void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa);
-float pair_to_float(int16_t primary, int64_t mantissa);
 
 #ifdef SYS_LINUX
 int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
@@ -219,10 +212,10 @@ uint32_t adler32_checksum(const std::string& in_buf);
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
 #define IEEE_802_3_CRC32_POLY	0xEDB88320
 unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
-								int len, unsigned int poly);
+        int len, unsigned int poly);
 void crc32_init_table_80211(unsigned int *crc32_table);
-unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, 
-							int len);
+unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
+        int len);
 
 
 // Simple lexer for "advanced" filter stuff and other tools
@@ -235,7 +228,7 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 #define _kis_lex_delim			6
 
 typedef struct {
-	int type;
+    int type;
     std::string data;
 } _kis_lex_rec;
 
@@ -354,27 +347,27 @@ protected:
 
 // Basic override of a stream buf to allow us to operate purely from memory
 struct membuf : public std::streambuf {
-	membuf(const char *begin, const char *end) : begin(begin), end(end) {
-		this->setg(const_cast<char *>(begin), const_cast<char *>(begin), const_cast<char *>(end));
-	}
+    membuf(const char *begin, const char *end) : begin(begin), end(end) {
+        this->setg(const_cast<char *>(begin), const_cast<char *>(begin), const_cast<char *>(end));
+    }
 
-	virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir, 
-			std::ios_base::openmode which = std::ios_base::in) override {
-		if (dir == std::ios_base::cur)
-			gbump(off);
-		else if (dir == std::ios_base::end)
-			setg(const_cast<char *>(begin), const_cast<char *>(end+off), const_cast<char *>(end));
-		else if (dir == std::ios_base::beg)
-			setg(const_cast<char *>(begin), const_cast<char *>(begin+off), const_cast<char *>(end));
+    virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+            std::ios_base::openmode which = std::ios_base::in) override {
+        if (dir == std::ios_base::cur)
+            gbump(off);
+        else if (dir == std::ios_base::end)
+            setg(const_cast<char *>(begin), const_cast<char *>(end+off), const_cast<char *>(end));
+        else if (dir == std::ios_base::beg)
+            setg(const_cast<char *>(begin), const_cast<char *>(begin+off), const_cast<char *>(end));
 
-		return gptr() - eback();
-	}
+        return gptr() - eback();
+    }
 
-	virtual pos_type seekpos(std::streampos pos, std::ios_base::openmode mode) override {
-		return seekoff(pos - pos_type(off_type(0)), std::ios_base::beg, mode);
-	}
+    virtual pos_type seekpos(std::streampos pos, std::ios_base::openmode mode) override {
+        return seekoff(pos - pos_type(off_type(0)), std::ios_base::beg, mode);
+    }
 
-	const char *begin, *end;
+    const char *begin, *end;
 };
 
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
@@ -470,7 +463,7 @@ public:
             return;
 
         blocking = true;
-        
+
         data_available_pm = std::promise<bool>();
 
         auto ft = data_available_pm.get_future();
@@ -489,7 +482,7 @@ public:
             return;
 
         blocking = true;
-        
+
         data_available_pm = std::promise<bool>();
 
         auto ft = data_available_pm.get_future();
