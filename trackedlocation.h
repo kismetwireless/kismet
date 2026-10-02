@@ -466,7 +466,8 @@ public:
 
             aggloc->set_heading(heading / samples_100->size());
             aggloc->set_speed(speed / samples_100->size());
-            aggloc->set_signal(signal / num_signal);
+            if (num_signal > 0)
+                aggloc->set_signal(signal / num_signal);
             aggloc->set_time_sec(timesec / samples_100->size());
             aggloc->set_frequency(frequency / samples_100->size());
 
@@ -515,9 +516,9 @@ public:
                 auto aggloc10 =
                     Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>(historic_location_builder.get());
 
-                r_x = avg_x / samples_100->size();
-                r_y = avg_y / samples_100->size();
-                r_z = avg_z / samples_100->size();
+                r_x = avg_x / samples_10k->size();
+                r_y = avg_y / samples_10k->size();
+                r_z = avg_z / samples_10k->size();
 
                 central_lon = atan2(r_y, r_x);
                 central_sqr = sqrt(r_x * r_x + r_y * r_y);
@@ -529,14 +530,15 @@ public:
                     r_alt =  avg_alt / num_alt;
 
                 aggloc10->set_lat(central_lat * 180 / M_PI);
-                aggloc10->set_lon(central_lat * 180 / M_PI);
+                aggloc10->set_lon(central_lon * 180 / M_PI);
                 aggloc10->set_alt(r_alt);
 
                 aggloc10->set_heading(heading / samples_10k->size());
                 aggloc10->set_speed(speed / samples_10k->size());
-                aggloc10->set_signal(signal / num_signal);
+                if (num_signal > 0)
+                    aggloc10->set_signal(signal / num_signal);
                 aggloc10->set_time_sec(timesec / samples_10k->size());
-                aggloc10->set_frequency(timesec / samples_10k->size());
+                aggloc10->set_frequency(frequency / samples_10k->size());
 
                 samples_10k_cascade = 0;
 
