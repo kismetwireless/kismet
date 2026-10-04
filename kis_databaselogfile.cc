@@ -53,10 +53,13 @@ kis_database_logfile::kis_database_logfile():
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     db_enabled = false;
+    close_pending = false;
 
     message_evt_id = 0;
     alert_evt_id = 0;
 }
+
+thread_local kis_database_logfile *kis_database_logfile::current_writer = nullptr;
 
 kis_database_logfile::~kis_database_logfile() {
     eventbus->remove_listener(message_evt_id);
@@ -105,7 +108,9 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
-            // local_locker dblock(&ds_mutex, "kismetdb transaction_timer");
+            db_writer_guard writer_lk(this);
+            if (!db_enabled)
+                return 1;
 
             in_transaction_sync = true;
 
@@ -137,6 +142,10 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
                     [this](int) -> int {
 
+                    db_writer_guard writer_lk(this);
+                    if (!db_enabled)
+                        return 1;
+
                     auto pkt_delete =
                         fmt::format("DELETE FROM packets WHERE ts_sec < {}",
                                 time(0) - packet_timeout);
@@ -161,6 +170,10 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
+                    db_writer_guard writer_lk(this);
+                    if (!db_enabled)
+                        return 1;
+
                     auto pkt_delete =
                         fmt::format("DELETE FROM devices WHERE last_time < {}",
                                 time(0) - device_timeout);
@@ -180,6 +193,10 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         message_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
+
+                    db_writer_guard writer_lk(this);
+                    if (!db_enabled)
+                        return 1;
 
                     auto pkt_delete =
                         fmt::format("DELETE FROM messages WHERE ts_sec < {}",
@@ -201,6 +218,10 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
+                    db_writer_guard writer_lk(this);
+                    if (!db_enabled)
+                        return 1;
+
                     auto pkt_delete =
                         fmt::format("DELETE FROM alerts WHERE ts_sec < {}",
                                 time(0) - alert_timeout);
@@ -220,6 +241,10 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         snapshot_timeout_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
+
+                    db_writer_guard writer_lk(this);
+                    if (!db_enabled)
+                        return 1;
 
                     auto pkt_delete =
                         fmt::format("DELETE FROM snapshots WHERE ts_sec < {}",
@@ -252,6 +277,31 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return make_poi_endp_handler(con);
                 }));
+
+    poi_entry_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.poi",
+                tracker_element_factory<tracker_element_map>(),
+                "point of interest");
+    poi_ts_sec_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.poi.ts_sec",
+                tracker_element_factory<tracker_element_uint64>(),
+                "point of interest timestamp, seconds");
+    poi_ts_usec_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.poi.ts_usec",
+                tracker_element_factory<tracker_element_uint64>(),
+                "point of interest timestamp, microseconds");
+    poi_lat_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.poi.lat",
+                tracker_element_factory<tracker_element_double>(),
+                "point of interest latitude (0 without a GPS fix)");
+    poi_lon_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.poi.lon",
+                tracker_element_factory<tracker_element_double>(),
+                "point of interest longitude (0 without a GPS fix)");
+    poi_note_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.poi.note",
+                tracker_element_factory<tracker_element_string>(),
+                "point of interest note");
 
     httpd->register_route("/poi/list_poi", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -418,10 +468,15 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
 }
 
 void kis_database_logfile::close_log() {
-#if 0
-    kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb close_log");
-    db_lock_with_sync_check(dblock, return);
-#endif
+    // Stop new writers first, so a busy packet stream can't starve the close below
+    db_enabled = false;
+
+    // Called from a writer (an error path) holding the lifetime lock; waiting for the
+    // writers in flight would wait on ourselves, the writer's guard finishes the close
+    if (current_writer == this) {
+        close_pending = true;
+        return;
+    }
 
     // Kill the timers
     auto timetracker =
@@ -447,8 +502,14 @@ void kis_database_logfile::close_log() {
     if (packetchain != NULL && packet_handler_id >= 0)
         packetchain->remove_handler(packet_handler_id, CHAINPOS_LOGGING);
 
+    // Wait for anything still using the database, then close it
+    std::unique_lock<std::shared_mutex> lifetime_lk(db_lifetime_mutex);
+
     set_int_log_open(false);
-    db_enabled = false;
+
+    // Already closed
+    if (db == nullptr)
+        return;
 
     // End the transaction
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
@@ -709,6 +770,10 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     if (!db_enabled)
         return;
 
+    db_writer_guard writer_lk(this);
+    if (!db_enabled)
+        return;
+
     int r;
     std::string sql;
     sqlite3_stmt *msg_stmt;
@@ -775,6 +840,10 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
 }
 
 int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_base>& d) {
+    if (!db_enabled)
+        return 0;
+
+    db_writer_guard writer_lk(this);
     if (!db_enabled)
         return 0;
 
@@ -906,6 +975,10 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     if (!db_enabled) {
         return 0;
     }
+
+    db_writer_guard writer_lk(this);
+    if (!db_enabled)
+        return 0;
 
     std::string phystring;
     std::string macstring;
@@ -1108,6 +1181,10 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
     if (!db_enabled)
         return 0;
 
+    db_writer_guard writer_lk(this);
+    if (!db_enabled)
+        return 0;
+
     std::string macstring = devmac.mac_to_string();
     std::string uuidstring = datasource_uuid.uuid_to_string();
 
@@ -1207,6 +1284,10 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
     if (!db_enabled)
         return 0;
 
+    db_writer_guard writer_lk(this);
+    if (!db_enabled)
+        return 0;
+
     std::shared_ptr<kis_datasource> ds =
         std::static_pointer_cast<kis_datasource>(in_datasource);
 
@@ -1270,6 +1351,10 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
 }
 
 int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_alert) {
+    if (!db_enabled)
+        return 0;
+
+    db_writer_guard writer_lk(this);
     if (!db_enabled)
         return 0;
 
@@ -1346,6 +1431,10 @@ int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_ale
 int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& gps, struct timeval tv,
         const std::string& snaptype, const std::string& json) {
 
+    if (!db_enabled)
+        return 0;
+
+    db_writer_guard writer_lk(this);
     if (!db_enabled)
         return 0;
 
@@ -1559,6 +1648,13 @@ void kis_database_logfile::packet_drop_endpoint_handler(std::shared_ptr<kis_net_
         return;
     }
 
+    db_writer_guard writer_lk(this);
+    if (!db_enabled) {
+        con->set_status(400);
+        ostream << "Illegal request: kismetdb log not enabled\n";
+        return;
+    }
+
         auto drop_query =
             _DELETE(db, "packets", _WHERE("ts_sec", LE, con->json()["drop_before"].get<uint64_t>()));
 
@@ -1592,7 +1688,57 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
 
 std::shared_ptr<tracker_element>
 kis_database_logfile::list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    return std::make_shared<tracker_element_vector>();
+    auto ret = std::make_shared<tracker_element_vector>();
+
+    if (!db_enabled)
+        return ret;
+
+    db_writer_guard writer_lk(this);
+    if (!db_enabled)
+        return ret;
+
+    // POIs are stored as snapshots by make_poi_endp_handler(); same connection as the writers,
+    // so this also sees POIs in the open transaction
+    const std::string sql =
+        "SELECT ts_sec, ts_usec, lat, lon, json FROM snapshots "
+        "WHERE snaptype = 'POI' ORDER BY ts_sec, ts_usec";
+
+    sqlite3_stmt *poi_stmt;
+    const char *poi_pz;
+
+    if (sqlite3_prepare(db, sql.c_str(), sql.length(), &poi_stmt, &poi_pz) != SQLITE_OK) {
+        _MSG_ERROR("kis_database_logfile unable to query POIs in {}: {}", ds_dbfile, sqlite3_errmsg(db));
+        return ret;
+    }
+
+    while (sqlite3_step(poi_stmt) == SQLITE_ROW) {
+        auto poi = std::make_shared<tracker_element_map>(poi_entry_id);
+
+        poi->insert(std::make_shared<tracker_element_uint64>(poi_ts_sec_id,
+                    sqlite3_column_int64(poi_stmt, 0)));
+        poi->insert(std::make_shared<tracker_element_uint64>(poi_ts_usec_id,
+                    sqlite3_column_int64(poi_stmt, 1)));
+        poi->insert(std::make_shared<tracker_element_double>(poi_lat_id,
+                    sqlite3_column_double(poi_stmt, 2)));
+        poi->insert(std::make_shared<tracker_element_double>(poi_lon_id,
+                    sqlite3_column_double(poi_stmt, 3)));
+
+        // The record is {"note": "..."}, or empty when the POI was created without a note
+        std::string note;
+        auto json_txt = reinterpret_cast<const char *>(sqlite3_column_text(poi_stmt, 4));
+        if (json_txt != nullptr) {
+            auto j = nlohmann::json::parse(json_txt, nullptr, false);
+            if (j.is_object() && j["note"].is_string())
+                note = j["note"].get<std::string>();
+        }
+        poi->insert(std::make_shared<tracker_element_string>(poi_note_id, note));
+
+        ret->push_back(poi);
+    }
+
+    sqlite3_finalize(poi_stmt);
+
+    return ret;
 }
 
 pcapng_stream_database::pcapng_stream_database(future_chainbuf* buffer) :

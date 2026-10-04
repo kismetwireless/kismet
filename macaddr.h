@@ -382,13 +382,16 @@ struct mac_addr {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
+    // Bytes are stored left-aligned in longmac; the first byte is the top byte
     constexpr17 bool is_broadcast() const {
-        const uint64_t fill = -1;
-        return (longmac << (8 - (state.len + 1) * 8) == (fill << (8 - (state.len + 1) * 8)));
+        const unsigned int bits = (state.len + 1) * 8;
+        const uint64_t mask = bits >= 64 ? ~(uint64_t) 0 : ~(uint64_t) 0 << (64 - bits);
+        return (longmac & mask) == mask;
     }
 
+    // I/G bit of the first byte
     constexpr17 bool is_multicast() const {
-        return (longmac >> (8 - (state.len + 1) * 8) & 0x01);
+        return (longmac >> ((MAC_LEN_MAX - 1) * 8)) & 0x01;
     }
 
     std::string as_string() const {

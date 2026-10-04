@@ -1497,11 +1497,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            if (dot11info->bssid_dev != nullptr) {
+            // Frames without a usable BSSID (probe requests carry the broadcast address) say
+            // nothing about the association, so they leave last_bssid alone
+            if (dot11info->bssid_dev != nullptr)
                 dot11info->source_dot11->set_last_bssid(dot11info->bssid_mac);
-            } else {
-                dot11info->source_dot11->set_last_bssid(mac_addr());
-            }
 
             if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->source_dev->set_channel(dot11info->channel);
@@ -1556,7 +1555,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            if (dot11info->bssid_dev != nullptr)
+            // Probe responses come from every AP in range while the client scans; like
+            // process_client() below, don't treat them as a link to that BSS
+            if (dot11info->bssid_dev != nullptr && dot11info->subtype != packet_sub_probe_resp)
                 dot11info->dest_dot11->set_last_bssid(dot11info->bssid_mac);
 
             // If it's receiving a management packet, it must be a wifi device

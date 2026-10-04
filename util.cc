@@ -660,7 +660,6 @@ std::vector<std::string_view> base_sv_tokenize(const std::string_view& in_str,
         begin = end;
     }
 
-
     return ret;
 }
 

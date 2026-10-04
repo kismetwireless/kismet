@@ -747,7 +747,8 @@ public:
     const time_t& accessed() { return time_accessed_; }
     const time_t& created() { return time_created_; }
 
-    bool is_valid() const { return time_expires_ == 0 || time_expires_ < time(0); }
+    // Valid if it never expires or has not expired yet
+    bool is_valid() const { return time_expires_ == 0 || time_expires_ > time(0); }
     void access() { time_accessed_ = time(0); }
     void set_expiration(time_t e) { time_expires_ = e; }
     void set_role(const std::string& r) { role_ = r; }

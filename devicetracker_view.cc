@@ -95,7 +95,14 @@ void device_tracker_view::register_urls(const std::string& in_id) {
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    return device_time_endpoint(con);
+                    return device_time_endpoint(con, false);
+                }, devicetracker->get_devicelist_mutex()));
+
+    uri = fmt::format("/devices/views/{}/modified-since/:timestamp/devices", in_id);
+    httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return device_time_endpoint(con, true);
                 }, devicetracker->get_devicelist_mutex()));
 
     uri = fmt::format("/devices/views/{}/monitor", in_id);
@@ -155,16 +162,16 @@ void device_tracker_view::register_urls(const std::string& in_id) {
 
                                 auto rename_map = Globalreg::new_from_pool<tracker_element_serializer::rename_map>();
 
-                                time_t last_tm = 0;
+                                auto last_tm = std::make_shared<time_t>(0);
 
                                 // Generate a timer event that goes and looks for the devices and
                                 // serializes them with the fields record
                                 auto tid =
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
-                                            [this, con, dev_r, dev_k, dev_m, json, ws, &last_tm, rename_map, format_t](int) -> int {
+                                            [this, con, dev_r, dev_k, dev_m, json, ws, last_tm, rename_map, format_t](int) -> int {
                                                 if (dev_r == "*") {
                                                     auto worker = device_tracker_view_function_worker([json, last_tm, format_t, ws](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                                                        if (dev->get_mod_time() > last_tm) {
+                                                        if (dev->get_mod_time() > *last_tm) {
                                                             std::stringstream ss;
                                                             Globalreg::globalreg->entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
                                                             ws->write(ss.str());
@@ -179,7 +186,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
 
                                                     auto dev = fetch_device(dev_k);
                                                     if (dev != nullptr) {
-                                                        if (dev->get_mod_time() > last_tm) {
+                                                        if (dev->get_mod_time() > *last_tm) {
                                                             std::stringstream ss;
                                                             Globalreg::globalreg->entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
                                                             ws->write(ss.str());
@@ -195,7 +202,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                                                         if (pk == device_presence_map.end() || pk->second == false)
                                                             continue;
 
-                                                        if (i->get_mod_time() > last_tm) {
+                                                        if (i->get_mod_time() > *last_tm) {
                                                             std::stringstream ss;
                                                             Globalreg::globalreg->entrytracker->serialize_with_json_summary(format_t, ss, i, json);
                                                             ws->write(ss.str());
@@ -203,7 +210,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                                                     }
                                                 }
 
-                                                last_tm = time(0);
+                                                *last_tm = time(0);
 
                                                 return 1;
                                             });
@@ -452,7 +459,8 @@ void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_devic
 }
 
 std::shared_ptr<tracker_element>
-device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con,
+        bool modified) {
     auto ret = Globalreg::new_from_pool<tracker_element_vector>();
     std::ostream os(&con->response_stream());
 
@@ -471,7 +479,8 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
 
     auto worker =
         device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                if (dev->get_last_time() < ts)
+                auto dev_ts = modified ? dev->get_mod_time() : dev->get_last_time();
+                if (dev_ts < ts)
                     return false;
 
                 return true;

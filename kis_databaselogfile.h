@@ -39,6 +39,7 @@
 
 #include <atomic>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 
 #include "globalregistry.h"
@@ -148,6 +149,41 @@ protected:
     // Is the database even enabled?
     std::atomic<bool> db_enabled;
 
+    // Held shared by everything that uses db while it uses it; close_log() takes it
+    // exclusively to wait for those still in flight before closing the database.  Writers
+    // still run in parallel with each other.
+    std::shared_mutex db_lifetime_mutex;
+
+    // close_log() called from inside a writer (an error path) can't wait for itself; the
+    // writer's guard finishes the close once it has released the lock
+    std::atomic<bool> close_pending;
+
+    // The log whose lifetime lock this thread holds, if any
+    static thread_local kis_database_logfile *current_writer;
+
+    class db_writer_guard {
+    public:
+        db_writer_guard(kis_database_logfile *in_log) :
+            log{in_log},
+            lk{in_log->db_lifetime_mutex},
+            prev_writer{current_writer} {
+            current_writer = log;
+        }
+
+        ~db_writer_guard() {
+            current_writer = prev_writer;
+            lk.unlock();
+
+            if (current_writer != log && log->close_pending.exchange(false))
+                log->close_log();
+        }
+
+    private:
+        kis_database_logfile *log;
+        std::shared_lock<std::shared_mutex> lk;
+        kis_database_logfile *prev_writer;
+    };
+
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<gps_tracker> gpstracker;
 
@@ -209,6 +245,7 @@ protected:
     // POI API
     void make_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    int poi_entry_id, poi_ts_sec_id, poi_ts_usec_id, poi_lat_id, poi_lon_id, poi_note_id;
 
     // Pcap streaming api
     void pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
