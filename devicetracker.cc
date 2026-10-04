@@ -1152,6 +1152,14 @@ std::shared_ptr<kis_tracked_device_base>
     device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
             const std::shared_ptr<kis_packet>& in_pack,
             unsigned int in_flags, const std::string& in_basic_type) {
+    bool n;
+    return update_common_device(in_mac, in_phy, in_pack, in_flags, in_basic_type, n);
+}
+
+std::shared_ptr<kis_tracked_device_base>
+    device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
+            const std::shared_ptr<kis_packet>& in_pack,
+            unsigned int in_flags, const std::string& in_basic_type, bool &new_device) {
 
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
@@ -1160,7 +1168,7 @@ std::shared_ptr<kis_tracked_device_base>
 
     std::stringstream sstr;
 
-    bool new_device = false;
+    new_device = false;
 
     auto pack_datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
     auto pack_tags = in_pack->fetch<kis_devicetag_packetinfo>(pack_comp_devicetag);
