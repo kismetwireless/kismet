@@ -129,15 +129,17 @@ channel_tracker_v3::channel_tracker_v3() :
 }
 
 channel_tracker_v3::~channel_tracker_v3() {
+    // Remove the handler before taking the lock; remove_handler() waits for packet threads
+    // still in packet_chain_handler(), which takes it
+    auto packetchain = Globalreg::fetch_global_as<packet_chain>("PACKETCHAIN");
+    if (packetchain != nullptr)
+        packetchain->remove_handler(&packet_chain_handler, CHAINPOS_LOGGING);
+
     kis_lock_guard<kis_mutex> lk(lock, __func__);
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr)
         timetracker->remove_timer(timer_id);
-
-    auto packetchain = Globalreg::fetch_global_as<packet_chain>("PACKETCHAIN");
-    if (packetchain != nullptr)
-        packetchain->remove_handler(&packet_chain_handler, CHAINPOS_LOGGING);
 
     Globalreg::globalreg->remove_global(global_name());
 }
