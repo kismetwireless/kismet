@@ -149,12 +149,17 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
                 "BleedingTooth attacks use over-sized advertisement packets.",
                 phyid);
 
-    alert_flipper_ref =
-        alertracker->activate_configured_alert("FLIPPERZERO",
-                "PROBE", kis_alert_severity::high,
-                "Flipper Zero devices can be used to generate spoofed "
-                "BTLE events which can act as denial of service attacks "
-                "or cause other problems with some Bluetooth devices.", phyid);
+    // The Bluetooth and BTLE phys both raise FLIPPERZERO; whichever loads second uses the
+    // alert the first one registered, registering it again would fail and leave this phy
+    // without a valid reference
+    alert_flipper_ref = alertracker->find_activated_alert("FLIPPERZERO");
+    if (alert_flipper_ref < 0)
+        alert_flipper_ref =
+            alertracker->activate_configured_alert("FLIPPERZERO",
+                    "PROBE", kis_alert_severity::high,
+                    "Flipper Zero devices can be used to generate spoofed "
+                    "BTLE events which can act as denial of service attacks "
+                    "or cause other problems with some Bluetooth devices.", phyid);
 
     packetchain->register_handler(&dissector, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&common_classifier, this, CHAINPOS_CLASSIFIER, -100);
