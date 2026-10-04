@@ -385,15 +385,40 @@ protected:
 
     int dlt_meshtastic;
 
-    mac_addr mesh_to_mac(uint32_t meshid);
+    const static mac_addr mesh_to_mac(uint32_t meshid) {
+        struct {
+            uint8_t prefix_[2];
+            uint32_t meshid_;
+        } __attribute__((packed)) macbytes;
 
-    void handle_meshtashtic_pb(const std::string_view& pbuf);
-    void handle_telemetry_pb(const std::string& pbuf);
-    void handle_powermetrics_pb(const std::string& pbuf);
-    void handle_devicemetrics_pb(const std::string& pbuf);
-    void handle_position_pb(const std::string& pbuf);
-    void handle_user_pb(const std::string& pbuf);
-    void handle_nodeinfo_pb(const std::string& pbuf);
+        macbytes.prefix_[0] = 0x2;
+        macbytes.prefix_[1] = 0;
+        macbytes.meshid_ = meshid;
+
+        return mac_addr((uint8_t *) &macbytes, 6);
+    }
+
+    void handle_meshtashtic_pb(const std::string_view& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
+    void handle_telemetry_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
+    void handle_powermetrics_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
+    void handle_devicemetrics_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
+    void handle_position_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
+    void handle_user_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
+    void handle_nodeinfo_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node);
 
     // channel keys in binary
     std::unordered_map<std::string, std::string> keys;
@@ -402,6 +427,8 @@ protected:
     using channels_map_t = std::unordered_map<std::string, meshtastic_channel>;
     channels_map_t channels;
     size_t max_live_messages;
+
+    std::shared_ptr<tracker_element_string> generic_manuf;
 
     // obnoxious huge list of model names
     std::shared_ptr<tracker_element_string> model_tlora_v2;
@@ -458,6 +485,8 @@ protected:
     std::shared_ptr<tracker_element_string> model_heltec_wireless_tracker_v1_0;
 
 public:
+    const mac_addr mesh_broadcast{mesh_to_mac(0xFFFFFFFF)};
+
     // default meshtastic key
     const uint8_t default_key[16] = {
         0xd4, 0xf1, 0xbb, 0x3a, 0x20, 0x29, 0x07, 0x59,

@@ -82,7 +82,6 @@ int kis_dlt_loratap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                 v0_hdr->bandwidth, v0_hdr->spread_factor,
                 v0_hdr->sync_word);
 
-
     } else if (prefix_hdr->version == 1) {
         if (len < sizeof(loratap_header_v1_t) || len > linkchunk->length()) {
             return 1;

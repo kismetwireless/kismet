@@ -50,6 +50,8 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
 
     dlt_meshtastic = dltt->register_linktype("MESHTASTIC");
 
+    generic_manuf = Globalreg::globalreg->manufdb->make_manuf("Lora / Meshtastic");
+
     // cached names
     model_tlora_v2 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v2");
     model_tlora_v1 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v1");
@@ -137,14 +139,6 @@ kis_meshtastic_phy::~kis_meshtastic_phy() {
     // packetchain->remove_handler(&packet_handler, CHAINPOS_CLASSIFIER);
 }
 
-
-mac_addr kis_meshtastic_phy::mesh_to_mac(uint32_t meshid) {
-    uint8_t bytes[6] = {0, 0};
-    memcpy(bytes + 2, &meshid, 4);
-    bytes[0] |= 0x2; // set as local address
-    return mac_addr(bytes, 6);
-}
-
 int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_meshtastic_phy *>(auxdata);
 
@@ -166,8 +160,46 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (packdata->length() < 16) {
+    if (packdata->length() < sizeof(meshtastic_frame_t)) {
         return 0;
+    }
+
+    auto mesh_frame = reinterpret_cast<const meshtastic_frame_t *>(packdata->data());
+
+    auto src_mac = mesh_to_mac(mesh_frame->source_id);
+    auto dst_mac = mesh_to_mac(mesh_frame->dest_id);
+    if (in_pack->signal_info.data_ok) {
+        in_pack->common_info.common_info_ok = true;
+        in_pack->common_info.type = packet_basic_data;
+        in_pack->common_info.phyid = mphy->fetch_phy_id();
+
+        in_pack->common_info.freq_khz = in_pack->signal_info.freq_khz;
+        in_pack->common_info.channel = in_pack->signal_info.channel;
+
+        in_pack->common_info.source = src_mac;
+        in_pack->common_info.transmitter = src_mac;
+        in_pack->common_info.dest = dst_mac;
+    }
+
+    // Update the base dev without setting location, because we want to
+    // override that location ourselves later once we've gotten our
+    // adsb device and possibly merged packets
+
+    bool new_device;
+
+    std::shared_ptr<kis_tracked_device_base> basedev =
+        mphy->devicetracker->update_common_device(src_mac, mphy, in_pack,
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                 UCD_UPDATE_SEENBY), "Meshtastic", new_device);
+
+    if (basedev == nullptr) {
+        return 0;
+    }
+
+    kis_lock_guard<kis_mutex> lk(mphy->devicetracker->get_devicelist_mutex(), __func__);
+
+    if (new_device) {
+
     }
 
     uint8_t iv[16];
@@ -239,31 +271,45 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     return 1;
 }
 
-void kis_meshtastic_phy::handle_meshtashtic_pb(const std::string_view& pbuf) {
+void kis_meshtastic_phy::handle_meshtashtic_pb(const std::string_view& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_telemetry_pb(const std::string& pbuf) {
+void kis_meshtastic_phy::handle_telemetry_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_powermetrics_pb(const std::string& pbuf) {
+void kis_meshtastic_phy::handle_powermetrics_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string& pbuf) {
+void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_position_pb(const std::string& pbuf) {
+void kis_meshtastic_phy::handle_position_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_user_pb(const std::string& pbuf) {
+void kis_meshtastic_phy::handle_user_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_nodeinfo_pb(const std::string& pbuf) {
+void kis_meshtastic_phy::handle_nodeinfo_pb(const std::string& pbuf,
+            std::shared_ptr<kis_tracked_device_base> base,
+            std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
