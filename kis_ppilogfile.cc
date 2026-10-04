@@ -111,14 +111,16 @@ bool kis_ppi_logfile::open_log(const std::string& in_template, const std::string
 }
 
 void kis_ppi_logfile::close_log() {
-    kis_lock_guard<kis_mutex> lk(log_mutex);
-
-    set_int_log_open(false);
-
+    // Remove the handler before taking log_mutex; remove_handler() waits for packet threads
+    // still in packet_handler(), which takes log_mutex
     auto packetchain =
         Globalreg::fetch_global_as<packet_chain>("PACKETCHAIN");
     if (packetchain != NULL) 
         packetchain->remove_handler(&kis_ppi_logfile::packet_handler, CHAINPOS_LOGGING);
+
+    kis_lock_guard<kis_mutex> lk(log_mutex);
+
+    set_int_log_open(false);
 
     // close files
     if (dumper != NULL) {

@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <chrono>
 #include <mutex>
 #include <shared_mutex>
 
@@ -45,13 +46,39 @@
 
 class SortLinkPriority {
 public:
-    inline bool operator() (const packet_chain::pc_link* x,
-                            const packet_chain::pc_link* y) const {
-        if (x->priority < y->priority)
+    inline bool operator() (const packet_chain::pc_link& x,
+                            const packet_chain::pc_link& y) const {
+        if (x.priority < y.priority)
             return 1;
         return 0;
     }
 };
+
+namespace {
+    // Chain snapshots held by the current thread (more than one if packets are injected from
+    // inside a handler)
+    thread_local std::vector<const void *> thread_held_chains;
+}
+
+void packet_chain::pc_chains_ref::set(pc_chains_ptr in_chains) {
+    reset();
+
+    chains = std::move(in_chains);
+
+    if (chains != nullptr)
+        thread_held_chains.push_back(chains.get());
+}
+
+void packet_chain::pc_chains_ref::reset() {
+    if (chains == nullptr)
+        return;
+
+    auto held = std::find(thread_held_chains.rbegin(), thread_held_chains.rend(), chains.get());
+    if (held != thread_held_chains.rend())
+        thread_held_chains.erase(std::next(held).base());
+
+    chains.reset();
+}
 
 packet_chain::packet_chain() {
     packetcomp_mutex.set_name("packetchain packet_comp");
@@ -186,13 +213,8 @@ packet_chain::packet_chain() {
     pack_comp_l1_agg = register_packet_component("RADIODATA_AGG");
 	pack_comp_datasource = register_packet_component("KISDATASRC");
 
-    postcap_chain_update = false;
-    llcdissect_chain_update = false;
-    decrypt_chain_update = false;
-    datadissect_chain_update = false;
-    classifier_chain_update = false;
-    tracker_chain_update = false;
-    logging_chain_update = false;
+    chains = std::make_shared<pc_chains>();
+    chains_generation = 0;
 }
 
 packet_chain::~packet_chain() {
@@ -230,13 +252,7 @@ packet_chain::~packet_chain() {
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
 
-        postcap_chain.clear();
-        llcdissect_chain.clear();
-        decrypt_chain.clear();
-        datadissect_chain.clear();
-        classifier_chain.clear();
-        tracker_chain.clear();
-        logging_chain.clear();
+        chains = std::make_shared<pc_chains>();
     }
 
 }
@@ -306,71 +322,27 @@ std::shared_ptr<kis_packet> packet_chain::generate_packet() {
 void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue) {
     std::shared_ptr<kis_packet> packet;
 
+    // The chain snapshot this thread is running.  It is kept between packets and only
+    // refreshed when the chains have changed, and released before waiting for more packets
+    // so that remove_handler() does not wait for idle threads.
+    pc_chains_ref cur_chains;
+
     while (!packetchain_shutdown &&
             !Globalreg::globalreg->spindown &&
             !Globalreg::globalreg->fatal_condition &&
             !Globalreg::globalreg->complete) {
 
-        packet_queue->wait_dequeue(packet);
+        if (!packet_queue->try_dequeue(packet)) {
+            cur_chains.reset();
+            packet_queue->wait_dequeue(packet);
+        }
 
         if (packet == nullptr)
             break;
 
-        // Lock the packet chain and update any processing queues by replacing
-        // the old queue with the new one.
-
-        kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "packet processor");
-
-        if (llcdissect_chain_update) {
-            llcdissect_chain = llcdissect_chain_new;
-            llcdissect_chain_new.clear();
-            llcdissect_chain_update = false;
-        }
-
-        if (decrypt_chain_update) {
-            decrypt_chain = decrypt_chain_new;
-            decrypt_chain_new.clear();
-            decrypt_chain_update = false;
-        }
-
-        if (datadissect_chain_update) {
-            datadissect_chain = datadissect_chain_new;
-            datadissect_chain_new.clear();
-            datadissect_chain_update = false;
-        }
-
-        if (classifier_chain_update) {
-            classifier_chain = classifier_chain_new;
-            classifier_chain_new.clear();
-            classifier_chain_update = false;
-        }
-
-        if (tracker_chain_update) {
-            tracker_chain = tracker_chain_new;
-            tracker_chain_new.clear();
-            tracker_chain_update = false;
-        }
-
-        if (logging_chain_update) {
-            logging_chain = logging_chain_new;
-            logging_chain_new.clear();
-            logging_chain_update = false;
-        }
-
-        lk.unlock();
-
-        // These can only be perturbed inside a sync, which can only occur when
-        // the worker thread is in the sync block above, so we shouldn't
-        // need to worry about the integrity of these vectors while running
-
-        /* Postcap is now handled before it gets into the per-thread chain
-           for (const auto& pcl : postcap_chain) {
-           if (pcl->callback != nullptr)
-           pcl->callback(pcl->auxdata, packet);
-           else if (pcl->l_callback != nullptr)
-           pcl->l_callback(packet);
-           }
-           */
+        if (cur_chains.get() == nullptr ||
+                cur_chains->generation != chains_generation.load(std::memory_order_acquire))
+            cur_chains.set(fetch_chains());
 
         // Lock the individual packet to make sure no competing processing threads
         // manipulate it (such as via dupe packet collision) while we're processing
@@ -431,34 +403,34 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
 
         // run the rest of the packet chain
 
-        for (const auto& pcl : llcdissect_chain) {
-            if (pcl->callback != nullptr)
-                pcl->callback(pcl->auxdata, packet);
+        for (const auto& pcl : cur_chains->llcdissect) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, packet);
         }
 
-        for (const auto& pcl : decrypt_chain) {
-            if (pcl->callback != nullptr)
-                pcl->callback(pcl->auxdata, packet);
+        for (const auto& pcl : cur_chains->decrypt) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, packet);
         }
 
-        for (const auto& pcl : datadissect_chain) {
-            if (pcl->callback != nullptr)
-                pcl->callback(pcl->auxdata, packet);
+        for (const auto& pcl : cur_chains->datadissect) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, packet);
         }
 
-        for (const auto& pcl : classifier_chain) {
-            if (pcl->callback != nullptr)
-                pcl->callback(pcl->auxdata, packet);
+        for (const auto& pcl : cur_chains->classifier) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, packet);
         }
 
-        for (const auto& pcl : tracker_chain) {
-            if (pcl->callback != nullptr)
-                pcl->callback(pcl->auxdata, packet);
+        for (const auto& pcl : cur_chains->tracker) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, packet);
         }
 
-        for (const auto& pcl : logging_chain) {
-            if (pcl->callback != nullptr)
-                pcl->callback(pcl->auxdata, packet);
+        for (const auto& pcl : cur_chains->logging) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, packet);
         }
 
         packet->mutex.unlock();
@@ -487,19 +459,15 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     packet_rate_rrd->add_sample(1, now);
     packet_peak_rrd->add_sample(1, now);
 
-    // Import the new postcap chain, if it has been modified
-    kis_unique_lock<kis_shared_mutex> lk(packetchain_mutex, "process_packet");
-    if (postcap_chain_update) {
-        postcap_chain = postcap_chain_new;
-        postcap_chain_new.clear();
-        postcap_chain_update = false;
-    }
-    lk.unlock();
-
     // Run the post-capture processing
-    for (const auto& pcl : postcap_chain) {
-        if (pcl->callback != nullptr)
-            pcl->callback(pcl->auxdata, in_pack);
+    {
+        pc_chains_ref cur_chains;
+        cur_chains.set(fetch_chains());
+
+        for (const auto& pcl : cur_chains->postcap) {
+            if (pcl.callback != nullptr)
+                pcl.callback(pcl.auxdata, in_pack);
+        }
     }
 
     // assign it to a thread
@@ -567,331 +535,172 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     return 1;
 }
 
-int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
+packet_chain::pc_chains_ptr packet_chain::fetch_chains() {
+    kis_shared_lock<kis_shared_mutex> lk(packetchain_mutex, "fetch_chains");
+    return chains;
+}
 
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
-
-    auto link = new pc_link;
-
-    // Generate packet, we'll nuke it if it's invalid later
-    link->priority = in_prio;
-    link->callback = in_cb;
-    link->auxdata = in_aux;
-    link->id = next_handlerid++;
-
+std::vector<packet_chain::pc_link> *packet_chain::select_chain(pc_chains *in_chains, int in_chain) {
     switch (in_chain) {
         case CHAINPOS_POSTCAP:
-            if (!postcap_chain_update) {
-                postcap_chain_update = true;
-                postcap_chain_new = postcap_chain;
-            }
-
-            postcap_chain_new.push_back(link);
-            stable_sort(postcap_chain_new.begin(), postcap_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->postcap;
         case CHAINPOS_LLCDISSECT:
-            if (!llcdissect_chain_update) {
-                llcdissect_chain_update = true;
-                llcdissect_chain_new = llcdissect_chain;
-            }
-
-            llcdissect_chain_new.push_back(link);
-            stable_sort(llcdissect_chain_new.begin(), llcdissect_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->llcdissect;
         case CHAINPOS_DECRYPT:
-            if (!decrypt_chain_update) {
-                decrypt_chain_update = true;
-                decrypt_chain_new = decrypt_chain;
-            }
-
-            decrypt_chain_new.push_back(link);
-            stable_sort(decrypt_chain_new.begin(), decrypt_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->decrypt;
         case CHAINPOS_DATADISSECT:
-            if (!datadissect_chain_update) {
-                datadissect_chain_update = true;
-                datadissect_chain_new = datadissect_chain;
-            }
-
-            datadissect_chain_new.push_back(link);
-            stable_sort(datadissect_chain_new.begin(), datadissect_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->datadissect;
         case CHAINPOS_CLASSIFIER:
-            if (!classifier_chain_update) {
-                classifier_chain_update = true;
-                classifier_chain_new = classifier_chain;
-            }
-
-            classifier_chain_new.push_back(link);
-            stable_sort(classifier_chain_new.begin(), classifier_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->classifier;
         case CHAINPOS_TRACKER:
-            if (!tracker_chain_update) {
-                tracker_chain_update = true;
-                tracker_chain_new = tracker_chain;
-            }
-
-            tracker_chain_new.push_back(link);
-            stable_sort(tracker_chain_new.begin(), tracker_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->tracker;
         case CHAINPOS_LOGGING:
-            if (!logging_chain_update) {
-                logging_chain_update = true;
-                logging_chain_new = logging_chain;
-            }
-
-            logging_chain_new.push_back(link);
-            stable_sort(logging_chain_new.begin(), logging_chain_new.end(),
-                    SortLinkPriority());
-            break;
-
+            return &in_chains->logging;
         default:
-            _MSG("packet_chain::register_handler requested unknown chain", MSGFLAG_ERROR);
-            return -1;
+            return nullptr;
+    }
+}
+
+void packet_chain::publish_chains(std::shared_ptr<pc_chains> in_chains) {
+    in_chains->generation = chains->generation + 1;
+
+    std::weak_ptr<const pc_chains> old_chains = chains;
+
+    chains = std::move(in_chains);
+    chains_generation.store(chains->generation, std::memory_order_release);
+
+    // Keep track of the replaced snapshot for remove_handler(); a thread may still be running it
+    std::lock_guard<std::mutex> rlk(retired_mutex);
+
+    retired_chains.erase(std::remove_if(retired_chains.begin(), retired_chains.end(),
+                [](const auto& r) { return r.expired(); }), retired_chains.end());
+
+    if (!old_chains.expired())
+        retired_chains.push_back(old_chains);
+}
+
+int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
+
+    auto new_chains = std::make_shared<pc_chains>(*chains);
+    auto chain = select_chain(new_chains.get(), in_chain);
+
+    if (chain == nullptr) {
+        _MSG("packet_chain::register_handler requested unknown chain", MSGFLAG_ERROR);
+        return -1;
     }
 
-    return link->id;
+    pc_link link;
+    link.priority = in_prio;
+    link.callback = in_cb;
+    link.auxdata = in_aux;
+    link.id = next_handlerid++;
+
+    chain->push_back(link);
+    std::stable_sort(chain->begin(), chain->end(), SortLinkPriority());
+
+    publish_chains(std::move(new_chains));
+
+    return link.id;
 }
 
 int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
     return register_int_handler(in_cb, in_aux, in_chain, in_prio);
 }
 
-int packet_chain::remove_handler(int in_id, int in_chain) {
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
+int packet_chain::remove_int_handler(const std::function<bool (const pc_link&)>& in_match, int in_chain) {
+    {
+        kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
 
-    unsigned int x;
+        auto new_chains = std::make_shared<pc_chains>(*chains);
+        auto chain = select_chain(new_chains.get(), in_chain);
 
-    switch (in_chain) {
-        case CHAINPOS_POSTCAP:
-            if (!postcap_chain_update) {
-                postcap_chain_update = true;
-                postcap_chain_new = postcap_chain;
-            }
-
-            for (x = 0; x < postcap_chain_new.size(); x++) {
-                if (postcap_chain_new[x]->id == in_id) {
-                    delete(*(postcap_chain_new.begin() + x));
-                    postcap_chain_new.erase(postcap_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_LLCDISSECT:
-            if (!llcdissect_chain_update) {
-                llcdissect_chain_update = true;
-                llcdissect_chain_new = llcdissect_chain;
-            }
-
-            for (x = 0; x < llcdissect_chain_new.size(); x++) {
-                if (llcdissect_chain_new[x]->id == in_id) {
-                    delete(*(llcdissect_chain_new.begin() + x));
-                    llcdissect_chain_new.erase(llcdissect_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_DECRYPT:
-            if (!decrypt_chain_update) {
-                decrypt_chain_update = true;
-                decrypt_chain_new = decrypt_chain;
-            }
-
-            for (x = 0; x < decrypt_chain_new.size(); x++) {
-                if (decrypt_chain_new[x]->id == in_id) {
-                    delete(*(decrypt_chain_new.begin() + x));
-                    decrypt_chain_new.erase(decrypt_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_DATADISSECT:
-            if (!datadissect_chain_update) {
-                datadissect_chain_update = true;
-                datadissect_chain_new = datadissect_chain;
-            }
-
-            for (x = 0; x < datadissect_chain_new.size(); x++) {
-                if (datadissect_chain_new[x]->id == in_id) {
-                    delete(*(datadissect_chain_new.begin() + x));
-                    datadissect_chain_new.erase(datadissect_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_CLASSIFIER:
-            if (!classifier_chain_update) {
-                classifier_chain_update = true;
-                classifier_chain_new = classifier_chain;
-            }
-
-            for (x = 0; x < classifier_chain_new.size(); x++) {
-                if (classifier_chain_new[x]->id == in_id) {
-                    delete(*(classifier_chain_new.begin() + x));
-                    classifier_chain_new.erase(classifier_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_TRACKER:
-            if (!tracker_chain_update) {
-                tracker_chain_update = true;
-                tracker_chain_new = tracker_chain;
-            }
-
-            for (x = 0; x < tracker_chain_new.size(); x++) {
-                if (tracker_chain_new[x]->id == in_id) {
-                    delete(*(tracker_chain_new.begin() + x));
-                    tracker_chain_new.erase(tracker_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_LOGGING:
-            if (!logging_chain_update) {
-                logging_chain_update = true;
-                logging_chain_new = logging_chain;
-            }
-
-            for (x = 0; x < logging_chain_new.size(); x++) {
-                if (logging_chain_new[x]->id == in_id) {
-                    delete(*(logging_chain_new.begin() + x));
-                    logging_chain_new.erase(logging_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        default:
-            _MSG("packet_chain::remove_handler requested unknown chain",
-                    MSGFLAG_ERROR);
+        if (chain == nullptr) {
+            _MSG("packet_chain::remove_handler requested unknown chain", MSGFLAG_ERROR);
             return -1;
+        }
+
+        auto removed = std::remove_if(chain->begin(), chain->end(), in_match);
+
+        if (removed == chain->end())
+            return 1;
+
+        chain->erase(removed, chain->end());
+
+        publish_chains(std::move(new_chains));
     }
 
+    // Once we return, the caller may destroy whatever the handler uses, so wait until no
+    // other thread can still be running it
+    wait_for_retired_chains();
+
     return 1;
+}
+
+void packet_chain::wait_for_retired_chains() {
+    // Snapshots held by this thread can't be waited for (we may have been called from a
+    // handler); neither can those held by other threads waiting here, or two handlers removing
+    // handlers at the same time would wait for each other.
+    std::vector<const void *> own_chains = thread_held_chains;
+
+    auto in_use = [&]() -> bool {
+        for (const auto& r : retired_chains) {
+            auto c = r.lock();
+
+            if (c == nullptr)
+                continue;
+
+            if (std::find(own_chains.begin(), own_chains.end(), c.get()) != own_chains.end())
+                continue;
+
+            if (waiting_chains.find(c.get()) != waiting_chains.end())
+                continue;
+
+            return true;
+        }
+
+        return false;
+    };
+
+    std::unique_lock<std::mutex> rlk(retired_mutex);
+
+    for (auto c : own_chains)
+        waiting_chains.insert(c);
+
+    // Packet threads finish their current packet and pick up the new chains with the next one,
+    // so this normally takes milliseconds; don't hang forever if a handler is blocked on a lock
+    // held by the caller.
+    auto start = std::chrono::steady_clock::now();
+    bool timed_out = false;
+
+    while (in_use()) {
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(5)) {
+            timed_out = true;
+            break;
+        }
+
+        rlk.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        rlk.lock();
+    }
+
+    for (auto c : own_chains) {
+        auto w = waiting_chains.find(c);
+        if (w != waiting_chains.end())
+            waiting_chains.erase(w);
+    }
+
+    rlk.unlock();
+
+    if (timed_out)
+        _MSG_ERROR("packet_chain::remove_handler timed out waiting for packet handlers to "
+                "finish; a handler may be blocked on a lock held by the caller");
+}
+
+int packet_chain::remove_handler(int in_id, int in_chain) {
+    return remove_int_handler([in_id](const pc_link& l) { return l.id == in_id; }, in_chain);
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
-
-    unsigned int x;
-
-    switch (in_chain) {
-        case CHAINPOS_POSTCAP:
-            if (!postcap_chain_update) {
-                postcap_chain_update = true;
-                postcap_chain_new = postcap_chain;
-            }
-
-            for (x = 0; x < postcap_chain_new.size(); x++) {
-                if (postcap_chain_new[x]->callback == in_cb) {
-                    delete(*(postcap_chain_new.begin() + x));
-                    postcap_chain_new.erase(postcap_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_LLCDISSECT:
-            if (!llcdissect_chain_update) {
-                llcdissect_chain_update = true;
-                llcdissect_chain_new = llcdissect_chain;
-            }
-
-            for (x = 0; x < llcdissect_chain_new.size(); x++) {
-                if (llcdissect_chain_new[x]->callback == in_cb) {
-                    delete(*(llcdissect_chain_new.begin() + x));
-                    llcdissect_chain_new.erase(llcdissect_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_DECRYPT:
-            if (!decrypt_chain_update) {
-                decrypt_chain_update = true;
-                decrypt_chain_new = decrypt_chain;
-            }
-
-            for (x = 0; x < decrypt_chain_new.size(); x++) {
-                if (decrypt_chain_new[x]->callback == in_cb) {
-                    delete(*(decrypt_chain_new.begin() + x));
-                    decrypt_chain_new.erase(decrypt_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_DATADISSECT:
-            if (!datadissect_chain_update) {
-                datadissect_chain_update = true;
-                datadissect_chain_new = datadissect_chain;
-            }
-
-            for (x = 0; x < datadissect_chain_new.size(); x++) {
-                if (datadissect_chain_new[x]->callback == in_cb) {
-                    delete(*(datadissect_chain_new.begin() + x));
-                    datadissect_chain_new.erase(datadissect_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_CLASSIFIER:
-            if (!classifier_chain_update) {
-                classifier_chain_update = true;
-                classifier_chain_new = classifier_chain;
-            }
-
-            for (x = 0; x < classifier_chain_new.size(); x++) {
-                if (classifier_chain_new[x]->callback == in_cb) {
-                    delete(*(classifier_chain_new.begin() + x));
-                    classifier_chain_new.erase(classifier_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_TRACKER:
-            if (!tracker_chain_update) {
-                tracker_chain_update = true;
-                tracker_chain_new = tracker_chain;
-            }
-
-            for (x = 0; x < tracker_chain_new.size(); x++) {
-                if (tracker_chain_new[x]->callback == in_cb) {
-                    delete(*(tracker_chain_new.begin() + x));
-                    tracker_chain_new.erase(tracker_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        case CHAINPOS_LOGGING:
-            if (!logging_chain_update) {
-                logging_chain_update = true;
-                logging_chain_new = logging_chain;
-            }
-
-            for (x = 0; x < logging_chain_new.size(); x++) {
-                if (logging_chain_new[x]->callback == in_cb) {
-                    delete(*(logging_chain_new.begin() + x));
-                    logging_chain_new.erase(logging_chain_new.begin() + x);
-                }
-            }
-            break;
-
-        default:
-            _MSG("packet_chain::remove_handler requested unknown chain",
-                    MSGFLAG_ERROR);
-            return -1;
-    }
-
-    return 1;
+    return remove_int_handler([in_cb](const pc_link& l) { return l.callback == in_cb; }, in_chain);
 }
-
