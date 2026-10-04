@@ -245,6 +245,7 @@ protected:
     // POI API
     void make_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    int poi_entry_id, poi_ts_sec_id, poi_ts_usec_id, poi_lat_id, poi_lon_id, poi_note_id;
 
     // Pcap streaming api
     void pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
