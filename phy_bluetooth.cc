@@ -91,12 +91,17 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     btdev_btle = devicetracker->get_cached_devicetype("BTLE");
     btdev_bt = devicetracker->get_cached_devicetype("BT");
 
-    alert_flipper_ref =
-        alertracker->activate_configured_alert("FLIPPERZERO",
-                "PROBE", kis_alert_severity::high,
-                "Flipper Zero devices can be used to generate spoofed "
-                "BTLE events which can act as denial of service attacks "
-                "or cause other problems with some Bluetooth devices.", phyid);
+    // The Bluetooth and BTLE phys both raise FLIPPERZERO; whichever loads second uses the
+    // alert the first one registered, registering it again would fail and leave this phy
+    // without a valid reference
+    alert_flipper_ref = alertracker->find_activated_alert("FLIPPERZERO");
+    if (alert_flipper_ref < 0)
+        alert_flipper_ref =
+            alertracker->activate_configured_alert("FLIPPERZERO",
+                    "PROBE", kis_alert_severity::high,
+                    "Flipper Zero devices can be used to generate spoofed "
+                    "BTLE events which can act as denial of service attacks "
+                    "or cause other problems with some Bluetooth devices.", phyid);
 
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
