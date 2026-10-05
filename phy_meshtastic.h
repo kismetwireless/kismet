@@ -78,6 +78,26 @@ public:
         return r;
     }
 
+    __Proxy(nodeid, std::string, std::string, std::string, nodeid_);
+
+    __Proxy(role, uint32_t, uint32_t, uint32_t, role_);
+
+    __Proxy(longname, std::string, std::string, std::string, longname_);
+    __Proxy(shortname, std::string, std::string, std::string, shortname_);
+
+    __Proxy(manuf_id, uint32_t, uint32_t, uint32_t, manuf_id_);
+
+    __Proxy(licensed, uint8_t, bool, bool, licensed_);
+
+    __Proxy(telem_ts, uint64_t, uint64_t, uint64_t, telem_ts_);
+    __Proxy(telem_battery_perc, uint8_t, uint8_t, uint8_t, telem_battery_perc_);
+    __Proxy(telem_battery_voltage, float, float, float, telem_battery_voltage_);
+    __Proxy(telem_channel_util, float, float, float, telem_chan_util_);
+    __Proxy(telem_channel_tx_util, float, float, float, telem_chan_tx_util_);
+
+    __Proxy(telem_uptime_sec, uint64_t, uint64_t, uint64_t, telem_uptime_sec_);
+
+
 protected:
     virtual void register_fields() override {
 
@@ -88,6 +108,8 @@ protected:
         register_field("meshtastic.node.role", "Meshtastic role (raw int)", &role_);
 
         register_field("meshtastic.node.manuf", "Manufacturer (raw int id)", &manuf_id_);
+
+        register_field("meshtastic.node.licensed", "Licensed operator", &licensed_);
 
         register_field("meshtastic.node.telem.timestamp", "Epoch timestamp", &telem_ts_);
         register_field("meshtastic.node.telem.battery", "Battery percentage", &telem_battery_perc_);
@@ -105,6 +127,8 @@ protected:
     std::shared_ptr<tracker_element_string> shortname_;
 
     std::shared_ptr<tracker_element_uint32> manuf_id_;
+
+    std::shared_ptr<tracker_element_uint8> licensed_;
 
     std::shared_ptr<tracker_element_uint64> telem_ts_;
     std::shared_ptr<tracker_element_uint16> telem_battery_perc_;
@@ -385,6 +409,8 @@ protected:
 
     int dlt_meshtastic;
 
+    uint16_t mesh_node_id;
+
     const static mac_addr mesh_to_mac(uint32_t meshid) {
         struct {
             uint8_t prefix_[2];
@@ -398,25 +424,24 @@ protected:
         return mac_addr((uint8_t *) &macbytes, 6);
     }
 
-    void handle_meshtashtic_pb(const std::string_view& pbuf,
+    void handle_telemetry_pb(const std::string_view& pbuf,
+            const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_telemetry_pb(const std::string& pbuf,
+    void handle_devicemetrics_pb(const std::string_view& pbuf,
+            const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_powermetrics_pb(const std::string& pbuf,
+    void handle_position_pb(const std::string_view& pbuf,
+            const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_devicemetrics_pb(const std::string& pbuf,
+    void handle_user_pb(const std::string_view& pbuf,
+            const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_position_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_user_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_nodeinfo_pb(const std::string& pbuf,
+    void handle_nodeinfo_pb(const std::string_view& pbuf,
+            const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
 
@@ -483,6 +508,9 @@ protected:
     std::shared_ptr<tracker_element_string> model_chatter2;
     std::shared_ptr<tracker_element_string> model_heltec_wireless_paper_v1_0;
     std::shared_ptr<tracker_element_string> model_heltec_wireless_tracker_v1_0;
+    std::shared_ptr<tracker_element_string> model_private_hw;
+
+    std::shared_ptr<tracker_element_string> model_id_to_string(int hw);
 
 public:
     const mac_addr mesh_broadcast{mesh_to_mac(0xFFFFFFFF)};

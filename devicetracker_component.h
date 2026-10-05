@@ -473,6 +473,22 @@ public:
 
     __Proxy(commonname, std::string, std::string, std::string, commonname);
 
+    // try to return the "most appropriate" name for printing that a message came from this
+    // device.  user attached names are the most likely, then descend down the list
+    const std::string& get_most_apt_name() {
+        if (has_username()) {
+            if (username->length() != 0) {
+                return username->get();
+            }
+        }
+
+        if (devicename->length() != 0) {
+            return devicename->get();
+        }
+
+        return commonname->get();
+    }
+
     // __Proxy(type_string, std::string, std::string, std::string, type_string);
     __ProxySwappingTrackable(type_string, tracker_element_string, type_string);
 

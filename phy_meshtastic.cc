@@ -52,6 +52,11 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
 
     generic_manuf = Globalreg::globalreg->manufdb->make_manuf("Lora / Meshtastic");
 
+    mesh_node_id =
+        Globalreg::globalreg->entrytracker->register_field("meshtastic.node",
+                tracker_element_factory<tracked_meshtastic_node>(),
+                "Meshtastic node");
+
     // cached names
     model_tlora_v2 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v2");
     model_tlora_v1 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v1");
@@ -105,6 +110,7 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     model_chatter2 = Globalreg::globalreg->manufdb->make_manuf("Chatter2");
     model_heltec_wireless_paper_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Paper v1.0");
     model_heltec_wireless_tracker_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Tracker v1.0");
+    model_private_hw = Globalreg::globalreg->manufdb->make_manuf("Lora (Private Hardware)");
 
     keys["default"] = std::string((const char *) default_key, 16);
     keys["default2"] = std::string((const char *) default_key2, 32);
@@ -168,6 +174,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
 
     auto src_mac = mesh_to_mac(mesh_frame->source_id);
     auto dst_mac = mesh_to_mac(mesh_frame->dest_id);
+
     if (in_pack->signal_info.data_ok) {
         in_pack->common_info.common_info_ok = true;
         in_pack->common_info.type = packet_basic_data;
@@ -185,7 +192,8 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     // override that location ourselves later once we've gotten our
     // adsb device and possibly merged packets
 
-    bool new_device;
+    bool new_device = false;
+    bool new_mesh = false;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
         mphy->devicetracker->update_common_device(src_mac, mphy, in_pack,
@@ -199,7 +207,21 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     kis_lock_guard<kis_mutex> lk(mphy->devicetracker->get_devicelist_mutex(), __func__);
 
     if (new_device) {
+        basedev->set_manuf(mphy->generic_manuf);
+        basedev->set_tracker_type_string(mphy->devicetracker->get_cached_devicetype("Meshtastic"));
+        basedev->set_devicename(fmt::format("Meshtastic !{:08X}", mesh_frame->source_id));
+    }
 
+    auto meshdev = basedev->get_sub_as<tracked_meshtastic_node>(mphy->mesh_node_id);
+    if (meshdev == nullptr) {
+        meshdev =
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<tracked_meshtastic_node>(mphy->mesh_node_id);
+        basedev->insert(meshdev);
+        new_mesh = true;
+    }
+
+    if (new_mesh) {
+        meshdev->set_nodeid(fmt::format("!{:08X}", mesh_frame->source_id));
     }
 
     uint8_t iv[16];
@@ -254,12 +276,37 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                 break;
             }
 
+            channels_map_t::iterator chan_i;
+
             switch (port) {
                 case meshtastic_portnum::text_message:
+                    chan_i = mphy->channels.find(k.first);
 
+                    // this shouldn't be possible
+                    if (chan_i != mphy->channels.end()) {
+                        chan_i->second.add_message(meshdev->get_nodeid(), subcontent.data());
+                        _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
+                                basedev->get_most_apt_name(), meshdev->get_nodeid(),
+                                k.first, std::string(subcontent.data(), subcontent.length()));
+                    } else {
+                        _MSG_ERROR("Meshtastic phy got message for un-tracked channel {}", k.first);
+                    }
+
+                    break;
+                case meshtastic_portnum::nodeinfo:
+                    mphy->handle_nodeinfo_pb(subcontent, in_pack, basedev, meshdev);
+                    break;
+                case meshtastic_portnum::position:
+                    mphy->handle_position_pb(subcontent, in_pack, basedev, meshdev);
+                    break;
+                case meshtastic_portnum::telemetry:
+                    mphy->handle_telemetry_pb(subcontent, in_pack, basedev, meshdev);
+                    break;
                 default:
                     break;
             }
+
+            break;
         } catch (...) {
             // silently skip decrypt or protobuf errors
             continue;
@@ -271,45 +318,306 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     return 1;
 }
 
-void kis_meshtastic_phy::handle_meshtashtic_pb(const std::string_view& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node) {
+void kis_meshtastic_phy::handle_telemetry_pb(const std::string_view& pbuf,
+        const std::shared_ptr<kis_packet>& packet,
+        std::shared_ptr<kis_tracked_device_base> base,
+        std::shared_ptr<tracked_meshtastic_node> node) {
 
 }
 
-void kis_meshtastic_phy::handle_telemetry_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node) {
+void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string_view& pbuf,
+        const std::shared_ptr<kis_packet>& packet,
+        std::shared_ptr<kis_tracked_device_base> base,
+        std::shared_ptr<tracked_meshtastic_node> node) {
+    protobuf_decoder::decoder dec(pbuf);
+
+    int64_t fn;
+    while (1) {
+        fn = dec.next_field();
+
+        if (fn < 0) {
+            break;
+        }
+
+        switch (static_cast<meshtastic_devicemetrics_pb>(fn)) {
+            case meshtastic_devicemetrics_pb::fn_battery_level:
+                node->set_telem_battery_perc(dec.get_int());
+                break;
+            case meshtastic_devicemetrics_pb::fn_voltage:
+                node->set_telem_battery_voltage(dec.get_float<float>());
+                break;
+            case meshtastic_devicemetrics_pb::fn_channel_utilization:
+                node->set_telem_channel_util(dec.get_float<float>());
+                break;
+            case meshtastic_devicemetrics_pb::fn_air_util_tx:
+                node->set_telem_channel_tx_util(dec.get_float<float>());
+                break;
+            case meshtastic_devicemetrics_pb::fn_uptime_seconds:
+                node->set_telem_uptime_sec(dec.get_int());
+                break;
+            default:
+                dec.ignore_field();
+        }
+    }
 
 }
 
-void kis_meshtastic_phy::handle_powermetrics_pb(const std::string& pbuf,
+void kis_meshtastic_phy::handle_user_pb(const std::string_view& pbuf,
+        const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node) {
+    protobuf_decoder::decoder dec(pbuf);
+
+    std::string_view data;
+    std::shared_ptr<tracker_element_string> manuf;
+
+    int64_t fn;
+    while (1) {
+        fn = dec.next_field();
+
+        if (fn < 0) {
+            break;
+        }
+
+        switch (static_cast<meshtastic_user_pb>(fn)) {
+            case meshtastic_user_pb::fn_id:
+                dec.next_field();
+                /* do nodes send out details for OTHER nodes?  if so we have to
+                 * convert & look up the proper device
+                data = dec.get_bytearray();
+                printf("  id: %s\n", std::string(data.data(), data.length()).c_str());
+                */
+                break;
+            case meshtastic_user_pb::fn_long_name:
+                data = dec.get_bytearray();
+                node->set_longname(std::string(data.data(), data.length()));
+                break;
+            case meshtastic_user_pb::fn_short_name:
+                data = dec.get_bytearray();
+                node->set_shortname(std::string(data.data(), data.length()));
+                break;
+            case meshtastic_user_pb::fn_hw_model:
+                node->set_manuf_id(dec.get_int());
+                manuf = model_id_to_string(node->get_manuf_id());
+                if (manuf != nullptr) {
+                    base->set_manuf(manuf);
+                }
+                break;
+            case meshtastic_user_pb::fn_is_licensed:
+                node->set_licensed(dec.get_int());
+                break;
+            case meshtastic_user_pb::fn_role:
+                node->set_role(dec.get_int());
+                break;
+            default:
+                dec.ignore_field();
+                break;
+        }
+    }
 
 }
 
-void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node) {
+void kis_meshtastic_phy::handle_position_pb(const std::string_view& pbuf,
+        const std::shared_ptr<kis_packet>& packet,
+        std::shared_ptr<kis_tracked_device_base> base,
+        std::shared_ptr<tracked_meshtastic_node> node) {
+    protobuf_decoder::decoder dec(pbuf);
 
+    int64_t fn;
+    double lat = 0, lon = 0;
+    double alt = 0;
+    double speed = 0;
+
+    while (1) {
+        fn = dec.next_field();
+
+        if (fn < 0) {
+            break;
+        }
+
+        // todo - handle heading?
+
+        switch (static_cast<meshtastic_position_pb>(fn)) {
+            case meshtastic_position_pb::fn_latitude_i:
+                lat = ((double) (int32_t) dec.get_int()) * 0.0000001;
+                break;
+            case meshtastic_position_pb::fn_longitude_i:
+                lon = ((double) (int32_t) dec.get_int()) * 0.0000001;
+                break;
+            case meshtastic_position_pb::fn_altitude:
+                alt = (uint32_t) dec.get_int();
+                break;
+            case meshtastic_position_pb::fn_ground_speed:
+                speed = (uint32_t) dec.get_int();
+                break;
+            default:
+                dec.ignore_field();
+        }
+    }
+
+    if (lat != 0 && lon != 0) {
+        packet->gps_info.gps_info_ok = true;
+        packet->gps_info.lat = lat;
+        packet->gps_info.lon = lon;
+        packet->gps_info.alt = alt;
+        packet->gps_info.speed = speed;
+        packet->gps_info.fix = alt == 0 ? 2 : 3;
+    }
 }
 
-void kis_meshtastic_phy::handle_position_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node) {
+void kis_meshtastic_phy::handle_nodeinfo_pb(const std::string_view& pbuf,
+        const std::shared_ptr<kis_packet>& packet,
+        std::shared_ptr<kis_tracked_device_base> base,
+        std::shared_ptr<tracked_meshtastic_node> node) {
+    protobuf_decoder:: decoder dec(pbuf);
 
+    int64_t fn;
+    while (1) {
+        fn = dec.next_field();
+
+        if (fn < 0) {
+            break;
+        }
+
+        switch (static_cast<meshtastic_nodeinfo_pb>(fn)) {
+            case meshtastic_nodeinfo_pb::fn_num:
+                dec.ignore_field();
+                break;
+            case meshtastic_nodeinfo_pb::fn_user:
+                dec.ignore_field();
+                break;
+            case meshtastic_nodeinfo_pb::fn_position:
+                dec.ignore_field();
+                break;
+            case meshtastic_nodeinfo_pb::fn_snr:
+                break;
+            case meshtastic_nodeinfo_pb::fn_last_heard:
+                break;
+            case meshtastic_nodeinfo_pb::fn_device_metrics:
+                dec.ignore_field();
+                break;
+            case meshtastic_nodeinfo_pb::fn_channels:
+                break;
+            case meshtastic_nodeinfo_pb::fn_via_mqtt:
+                break;
+            case meshtastic_nodeinfo_pb::fn_via_hops_away:
+                break;
+            default:
+                dec.ignore_field();
+                break;
+        }
+    }
 }
 
-void kis_meshtastic_phy::handle_user_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node) {
-
+std::shared_ptr<tracker_element_string> kis_meshtastic_phy::model_id_to_string(int hw) {
+    switch (static_cast<meshtastic_hw_model>(hw)) {
+        case meshtastic_hw_model::tlora_v2:
+            return model_tlora_v2;
+        case meshtastic_hw_model::tlora_v1:
+            return model_tlora_v1;
+        case meshtastic_hw_model::tlora_v2_1_1p6:
+            return model_tlora_v2_1_1p6;
+        case meshtastic_hw_model::tbeam:
+            return model_tbeam;
+        case meshtastic_hw_model::heltec_v2_0:
+            return model_heltec_v2_0;
+        case meshtastic_hw_model::tbeam_v0p7:
+            return model_tbeam_v0p7;
+        case meshtastic_hw_model::t_echo:
+            return model_t_echo;
+        case meshtastic_hw_model::tlora_v1_1p3:
+            return model_tlora_v1_1p3;
+        case meshtastic_hw_model::rak4631:
+            return model_rak4631;
+        case meshtastic_hw_model::heltec_v2_1:
+            return model_heltec_v2_1;
+        case meshtastic_hw_model::heltec_v1:
+            return model_heltec_v1;
+        case meshtastic_hw_model::lilygo_tbeam_s3_core:
+            return model_lilygo_tbeam_s3_core;
+        case meshtastic_hw_model::rak11200:
+            return model_rak11200;
+        case meshtastic_hw_model::nano_g1:
+            return model_nano_g1;
+        case meshtastic_hw_model::tlora_v2_1_1p8:
+            return model_tlora_v2_1_1p8;
+        case meshtastic_hw_model::tlora_t3_s3:
+            return model_tlora_t3_s3;
+        case meshtastic_hw_model::nano_g1_explorer:
+            return model_nano_g1_explorer;
+        case meshtastic_hw_model::nano_g2_ultra:
+            return model_nano_g2_ultra;
+        case meshtastic_hw_model::lora_type:
+            return model_lora_type;
+        case meshtastic_hw_model::station_g1:
+            return model_station_g1;
+        case meshtastic_hw_model::rak11310:
+            return model_rak11310;
+        case meshtastic_hw_model::senselora_s3:
+            return model_senselora_s3;
+        case meshtastic_hw_model::canaryone:
+            return model_canaryone;
+        case meshtastic_hw_model::rp2040_lora:
+            return model_rp2040_lora;
+        case meshtastic_hw_model::station_g2:
+            return model_station_g2;
+        case meshtastic_hw_model::lora_relay_v1:
+            return model_lora_relay_v1;
+        case meshtastic_hw_model::nrf52840dk:
+            return model_nrf52840dk;
+        case meshtastic_hw_model::ppr:
+            return model_ppr;
+        case meshtastic_hw_model::genieblocks:
+            return model_genieblocks;
+        case meshtastic_hw_model::nrf52_unknown:
+            return model_nrf52_unknown;
+        case meshtastic_hw_model::portuino:
+            return model_portuino;
+        case meshtastic_hw_model::android_sim:
+            return model_android_sim;
+        case meshtastic_hw_model::diy_v1:
+            return model_diy_v1;
+        case meshtastic_hw_model::nrf52840_pca10059:
+            return model_nrf52840_pca10059;
+        case meshtastic_hw_model::dr_dev:
+            return model_dr_dev;
+        case meshtastic_hw_model::m5stack:
+            return model_m5stack;
+        case meshtastic_hw_model::heltec_v3:
+            return model_heltec_v3;
+        case meshtastic_hw_model::heltec_wsl_v3:
+            return model_heltec_wsl_v3;
+        case meshtastic_hw_model::betafpv_2400_tx:
+            return model_betafpv_2400_tx;
+        case meshtastic_hw_model::betafpv_900_nano_tx:
+            return model_betafpv_900_nano_tx;
+        case meshtastic_hw_model::rpi_pico:
+            return model_rpi_pico;
+        case meshtastic_hw_model::heltec_wireless_tracker:
+            return model_heltec_wireless_tracker;
+        case meshtastic_hw_model::heltec_wireless_paper:
+            return model_heltec_wireless_paper;
+        case meshtastic_hw_model::t_deck:
+            return model_t_deck;
+        case meshtastic_hw_model::t_watch_s3:
+            return model_t_watch_s3;
+        case meshtastic_hw_model::picomputer_s3:
+            return model_picomputer_s3;
+        case meshtastic_hw_model::heltec_ht62:
+            return model_heltec_ht62;
+        case meshtastic_hw_model::ebyte_esp32_s3:
+            return model_ebyte_esp32_s3;
+        case meshtastic_hw_model::esp32_s3_pico:
+            return model_esp32_s3_pico;
+        case meshtastic_hw_model::chatter2:
+            return model_chatter2;
+        case meshtastic_hw_model::heltec_wireless_paper_v1_0:
+            return model_heltec_wireless_paper_v1_0;
+        case meshtastic_hw_model::heltec_wireless_tracker_v1_0:
+            return model_heltec_wireless_tracker_v1_0;
+        case meshtastic_hw_model::private_hw:
+            return model_private_hw;
+        default:
+            return nullptr;
+    }
 }
-
-void kis_meshtastic_phy::handle_nodeinfo_pb(const std::string& pbuf,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node) {
-
-}
-
