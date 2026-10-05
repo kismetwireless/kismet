@@ -196,6 +196,14 @@ bool kis_wiglecsv_logfile::open_log(const std::string& in_template, const std::s
 }
 
 void kis_wiglecsv_logfile::close_log() {
+    // Remove the handler before taking log_mutex; remove_handler() waits for packet threads
+    // still in packet_handler(), which takes log_mutex
+    auto packetchain =
+        Globalreg::fetch_global_as<packet_chain>();
+    if (packetchain != nullptr) {
+        packetchain->remove_handler(&kis_wiglecsv_logfile::packet_handler, CHAINPOS_LOGGING);
+    }
+
     kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_open(false);
@@ -204,12 +212,6 @@ void kis_wiglecsv_logfile::close_log() {
         fclose(csvfile);
 
     csvfile = nullptr;
-
-    auto packetchain =
-        Globalreg::fetch_global_as<packet_chain>();
-    if (packetchain != nullptr) {
-        packetchain->remove_handler(&kis_wiglecsv_logfile::packet_handler, CHAINPOS_LOGGING);
-    }
 }
 
 int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
