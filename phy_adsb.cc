@@ -826,10 +826,11 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     // Update the base dev without setting location, because we want to
     // override that location ourselves later once we've gotten our
     // adsb device and possibly merged packets
+    bool new_device;
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                 UCD_UPDATE_SEENBY), "ADSB");
+                 UCD_UPDATE_SEENBY), "ADSB", new_device);
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
 
@@ -839,10 +840,12 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
         dn = json["icao"];
     } catch (...) { }
 
-    basedev->set_manuf(rtl_manuf);
+    if (new_device) {
+        basedev->set_manuf(rtl_manuf);
 
-    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
-    basedev->set_devicename(fmt::format("ADSB {}", dn));
+        basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+        basedev->set_devicename(fmt::format("ADSB {}", dn));
+    }
 
     std::shared_ptr<adsb_tracked_adsb> adsbdev;
 
