@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 
@@ -130,9 +131,23 @@ int get_baud(int baud) {
     }
 }
 
+static uint64_t monotonic_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t) ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
 /* buffered readline; reads in bulk and splits on newline, stripping trailing \r.
- * overlong lines are dropped.  buffer overread in the local storage. */
-static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize) {
+ * overlong and empty lines are dropped.  buffer overread in the local storage.
+ * returns line length, 0 if no line within timeout_ms (0 = no timeout), or -1 on
+ * error/spindown.  buf is null terminated. */
+static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize,
+        unsigned int timeout_ms) {
+    if (local == NULL || buf == NULL || bufsize <= 0)
+        return -1;
+
+    uint64_t deadline = timeout_ms ? monotonic_ms() + timeout_ms : 0;
+
     while (1) {
         char *nl = memchr(local->rbuf, '\n', local->rbuf_len);
 
@@ -143,10 +158,12 @@ static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize) 
             if (len > 0 && local->rbuf[len - 1] == '\r')
                 len--;
 
-            bool drop = local->rbuf_discard || len >= (size_t) bufsize;
+            bool drop = local->rbuf_discard || len == 0 || len >= (size_t) bufsize;
 
-            if (!drop)
+            if (!drop) {
                 memcpy(buf, local->rbuf, len);
+                buf[len] = '\0';
+            }
 
             local->rbuf_len -= consumed;
             memmove(local->rbuf, local->rbuf + consumed, local->rbuf_len);
@@ -161,12 +178,14 @@ static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize) 
         /* buffer full with no newline; drop it and skip to the next newline */
         if (local->rbuf_len >= sizeof(local->rbuf)) {
             local->rbuf_len = 0;
-            local->rbuf_discard = false;
             local->rbuf_discard = true;
         }
 
         if (*(volatile int *) &local->caph->spindown)
             return -1;
+
+        if (deadline && monotonic_ms() >= deadline)
+            return 0;
 
         ssize_t r = read(local->fd, local->rbuf + local->rbuf_len,
                 sizeof(local->rbuf) - local->rbuf_len);
@@ -550,41 +569,62 @@ static void format_freq(char *buf, size_t len, double freq) {
    command is queued and a response comes from the radio.  is this bad?  kinda.
    is this a real concern given meshtastic radio rates?  we're going to assume
    not. */
-bool send_command(kis_capture_handler_t *caph, const char *command, size_t len,
-        char *msg) {
+bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, char *msg) {
     local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
     char respbuf[2048];
-    time_t start = time(0);
+    uint64_t deadline = monotonic_ms() + CMD_TIMEOUT * 1000;
+    size_t sent = 0;
 
     pthread_mutex_lock(&local->serial_mutex);
 
     ssize_t res;
 
+    /* drop anything pending in the kernel and our line buffer */
     tcflush(local->fd, TCIOFLUSH);
+    local->rbuf_len = 0;
+    local->rbuf_discard = false;
 
-    res = write(local->fd, command, len);
-    if (res < 0) {
-        snprintf(msg, STATUS_MAX, "%s failed to write command: %s", local->name, strerror(errno));
-        pthread_mutex_unlock(&local->serial_mutex);
-        return false;
+    while (sent < len) {
+        res = write(local->fd, command + sent, len - sent);
+
+        if (res < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+                continue;
+
+            snprintf(msg, STATUS_MAX, "%s failed to write command: %s", local->name, strerror(errno));
+            pthread_mutex_unlock(&local->serial_mutex);
+            return false;
+        }
+
+        sent += res;
     }
 
-    sleep(1);
-
     while (1) {
-        if (time(0) - start > CMD_TIMEOUT) {
+        uint64_t now = monotonic_ms();
+
+        if (now >= deadline) {
             snprintf(msg, STATUS_MAX, "%s failed to get a command response in %u seconds",
                     local->name, CMD_TIMEOUT);
             pthread_mutex_unlock(&local->serial_mutex);
             return false;
         }
 
-        res = serial_readline(local, respbuf, 2048);
+        errno = 0;
+        res = serial_readline(local, respbuf, sizeof(respbuf), (unsigned int) (deadline - now));
+
         if (res < 0) {
-            snprintf(msg, STATUS_MAX, "%s failed to read command response: %s", local->name, strerror(errno));
+            if (*(volatile int *) &caph->spindown)
+                snprintf(msg, STATUS_MAX, "%s shutting down while waiting for command response",
+                        local->name);
+            else
+                snprintf(msg, STATUS_MAX, "%s failed to read command response: %s", local->name,
+                        errno ? strerror(errno) : "unknown error");
             pthread_mutex_unlock(&local->serial_mutex);
             return false;
         }
+
+        if (res == 0)
+            continue;
 
         if (strncmp(respbuf, lorapipe_ok, strlen(lorapipe_ok)) == 0) {
             pthread_mutex_unlock(&local->serial_mutex);
@@ -598,10 +638,6 @@ bool send_command(kis_capture_handler_t *caph, const char *command, size_t len,
             return false;
         }
     }
-
-    pthread_mutex_unlock(&local->serial_mutex);
-
-    return true;
 }
 
 bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
@@ -882,7 +918,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         /*
-        int line_len = serial_readline(local, line, sizeof(line));
+        int line_len = serial_readline(local, line, sizeof(line), 0);
 
         if (line_len < 0) {
             if (*(volatile int *) &caph->spindown) {
