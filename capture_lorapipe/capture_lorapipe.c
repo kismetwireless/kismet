@@ -597,6 +597,61 @@ static void format_freq(char *buf, size_t len, double freq) {
         buf[--end] = '\0';
 }
 
+/* Channel list order; long turbo and long fast first, then the rest */
+static const lora_preset_type_t lora_channel_order[LORA_PRESET_MAX] = {
+    LORA_PRESET_LONG_TURBO,
+    LORA_PRESET_LONG_FAST,
+    LORA_PRESET_LONG_SLOW,
+    LORA_PRESET_MEDIUM_FAST,
+    LORA_PRESET_MEDIUM_SLOW,
+    LORA_PRESET_SHORT_FAST,
+    LORA_PRESET_SHORT_SLOW,
+    LORA_PRESET_LONG_MODERATE,
+    LORA_PRESET_MEDIUM_TURBO,
+    LORA_PRESET_SHORT_TURBO,
+};
+
+/* fills intf with the default slot for each preset valid in region; returns the number
+   of channels, or -1 on allocation failure */
+static int build_region_channels(lora_region_t region, cf_params_interface_t *intf) {
+    char chstr[64];
+    double freq;
+    int r;
+
+    if (intf == NULL || region >= LORA_REGION_MAX)
+        return -1;
+
+    intf->channels = (char **) calloc(LORA_PRESET_MAX, sizeof(char *));
+    if (intf->channels == NULL)
+        return -1;
+
+    intf->channels_len = 0;
+
+    for (int i = 0; i < LORA_PRESET_MAX; i++) {
+        lora_preset_type_t type = lora_channel_order[i];
+
+        if (meshtastic_default_freq(region, type, &freq) < 0)
+            continue;
+
+        r = snprintf(chstr, sizeof(chstr), "meshtastic-%s-%s", lora_region_names[region],
+                lora_preset_type_names[type]);
+        if (r < 0 || (size_t) r >= sizeof(chstr))
+            continue;
+
+        if ((intf->channels[intf->channels_len] = strdup(chstr)) == NULL)
+            return -1;
+
+        intf->channels_len++;
+    }
+
+    if (intf->channels_len > 0) {
+        if ((intf->chanset = strdup(intf->channels[0])) == NULL)
+            return -1;
+    }
+
+    return (int) intf->channels_len;
+}
+
 /* send a command; this will ignore packets that may come in between when the
    command is queued and a response comes from the radio.  is this bad?  kinda.
    is this a real concern given meshtastic radio rates?  we're going to assume
@@ -788,6 +843,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return 0;
+    }
 
     if (strstr(interface, "lorapipe") != interface) {
         snprintf(msg, STATUS_MAX, "Expected a 'lorapipe' interface, not matching");
@@ -799,6 +858,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return 0;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
         return 0;
@@ -816,14 +879,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     free(device);
 
-    /* Primary advertising channels only -- this datasource doesn't hop */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
-    for (int i = 37; i < 40; i++) {
-        char chstr[4];
-        snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 37] = strdup(chstr);
-    }
-    (*ret_interface)->channels_len = 3;
+    /* channels depend on region= and are provided at open */
 
     return 1;
 }
@@ -899,6 +955,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (local->region == LORA_REGION_MAX) {
         format_region_error(msg, local->name, placeholder, (size_t) placeholder_len);
+        free(device);
+        return -1;
+    }
+
+    int nchans = build_region_channels(local->region, *ret_interface);
+
+    if (nchans < 0) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+        free(device);
+        return -1;
+    }
+
+    if (nchans == 0) {
+        snprintf(msg, STATUS_MAX, "%s region %s has no supported meshtastic presets",
+                local->name, lora_region_names[local->region]);
         free(device);
         return -1;
     }
