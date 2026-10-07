@@ -16,7 +16,9 @@
 #include "../capture_framework.h"
 #include "../config.h"
 
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE     4096
+
+#define CMD_TIMEOUT     5
 
 #ifndef D_BAUDRATE
 #define D_BAUDRATE B115200
@@ -87,12 +89,22 @@ typedef struct {
     char *name;
     char *interface;
 
-    int channel;
+    char *channel;
 
     speed_t baudrate;
 
+    /* pending serial bytes not yet returned as a line */
+    char rbuf[BUFFER_SIZE];
+    size_t rbuf_len;
+    /* discarding the remainder of an overlong line */
+    bool rbuf_discard;
+
     kis_capture_handler_t *caph;
 } local_lorapipe_t;
+
+const char *lorapipe_ok = "  -> OK";
+const char *lorapipe_unk = "  -> Unknown command";
+const char *lorapipe_err = "  -> Error";
 
 int get_baud(int baud) {
     switch (baud) {
@@ -118,51 +130,68 @@ int get_baud(int baud) {
     }
 }
 
-/* inefficient readline that looks for a newline; but we're very low bandwidth so
- * it's probably fine */
-static int serial_readline(kis_capture_handler_t *caph, int fd, char *buf, int bufsize) {
-    int pos = 0;
+/* buffered readline; reads in bulk and splits on newline, stripping trailing \r.
+ * overlong lines are dropped.  buffer overread in the local storage. */
+static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize) {
+    while (1) {
+        char *nl = memchr(local->rbuf, '\n', local->rbuf_len);
 
-    while (pos < bufsize - 1) {
-        if (*(volatile int *) &caph->spindown) {
-            return -1;
+        if (nl != NULL) {
+            size_t consumed = (nl - local->rbuf) + 1;
+            size_t len = nl - local->rbuf;
+
+            if (len > 0 && local->rbuf[len - 1] == '\r')
+                len--;
+
+            bool drop = local->rbuf_discard || len >= (size_t) bufsize;
+
+            if (!drop)
+                memcpy(buf, local->rbuf, len);
+
+            local->rbuf_len -= consumed;
+            memmove(local->rbuf, local->rbuf + consumed, local->rbuf_len);
+            local->rbuf_discard = false;
+
+            if (drop)
+                continue;
+
+            return (ssize_t) len;
         }
 
-        char c;
-        int r = read(fd, &c, 1);
+        /* buffer full with no newline; drop it and skip to the next newline */
+        if (local->rbuf_len >= sizeof(local->rbuf)) {
+            local->rbuf_len = 0;
+            local->rbuf_discard = false;
+            local->rbuf_discard = true;
+        }
+
+        if (*(volatile int *) &local->caph->spindown)
+            return -1;
+
+        ssize_t r = read(local->fd, local->rbuf + local->rbuf_len,
+                sizeof(local->rbuf) - local->rbuf_len);
 
         if (r < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
                 continue;
-            }
             return -1;
         }
 
-        if (r == 0)
-            continue;
-
-        if (c == '\n') {
-            if (pos > 0 && buf[pos - 1] == '\r')
-                pos--;
-            return pos;
-        }
-
-        buf[pos++] = (uint8_t) c;
+        local->rbuf_len += r;
     }
-
-    return -1;
 }
 
-// Valid channels
-// [FREQUENCY]-[BW]-[SPREAD]-[CODING]-[SYNCWORD]
-//    906.875-250-11-5-2b
-// [PROTOCOL]-[REGION]-[TYPE]
-//    meshtastic-US-shortturbo
-//    meshtastic-EU_868-longfast
-//    meshtastic-EU433-longturbo
-//
-// local channel type is a simple string, sent to lorapipe as
-//    set radio 906.875,250,11,5,2b
+/* Valid channels
+   [FREQUENCY]-[BW]-[SPREAD]-[CODING]-[SYNCWORD]
+      906.875-250-11-5-2b
+   [PROTOCOL]-[REGION]-[TYPE]
+      meshtastic-US-shortturbo
+      meshtastic-EU_868-longfast
+      meshtastic-EU433-longturbo
+
+   local channel type is a simple string, sent to lorapipe as
+      set radio 906.875,250,11,5,2b
+*/
 
 typedef struct {
     double frequency;
@@ -199,7 +228,7 @@ static const char *lora_preset_type_names[LORA_PRESET_MAX] = {
     [LORA_PRESET_SHORT_TURBO] = "SHORT_TURBO",
 };
 
-// Regions from https://meshtastic.org/docs/overview/radio-settings/
+/* Regions from https://meshtastic.org/docs/overview/radio-settings/ */
 typedef enum {
     LORA_REGION_US,
     LORA_REGION_EU_433,
@@ -281,9 +310,9 @@ typedef struct {
     lora_preset_type_t type;
 } lora_preset_def_t;
 
-// Preset bandwidths (kHz), spread factor, coding rate, and the display names hashed to pick
-// the default slot, from the meshtastic firmware modemPresetToParams() and
-// getModemPresetDisplayName()
+/* Preset bandwidths (kHz), spread factor, coding rate, and the display names hashed to pick
+   the default slot, from the meshtastic firmware modemPresetToParams() and
+   getModemPresetDisplayName() */
 static const struct {
     float bandwidth;
     float wide_bandwidth;
@@ -303,8 +332,8 @@ static const struct {
     [LORA_PRESET_SHORT_TURBO] = { 500.0f, 1625.0f, 7, 5, "ShortTurbo" },
 };
 
-// EU_868 lacks the turbo presets; LITE regions only allow LITE_* presets, and NARROW
-// and HAM regions only allow NARROW_* and TINY_*, none of which we support
+/* EU_868 lacks the turbo presets; LITE regions only allow LITE_* presets, and NARROW
+   and HAM regions only allow NARROW_* and TINY_*, none of which we support */
 typedef enum {
     LORA_PROFILE_STD,
     LORA_PROFILE_EU868,
@@ -313,7 +342,7 @@ typedef enum {
     LORA_PROFILE_HAM,
 } lora_region_profile_t;
 
-// Region band edges (MHz) from the meshtastic firmware regions[] table
+/* Region band edges (MHz) from the meshtastic firmware regions[] table */
 static const struct {
     double freq_start;
     double freq_end;
@@ -406,8 +435,8 @@ static int parse_radio_def(const char *str, lora_radio_def_t *def) {
     return 0;
 }
 
-// Case-insensitive and ignores underscores, so eu433 matches EU_433 and longfast
-// matches LONG_FAST
+/* Case-insensitive and ignores underscores, so eu433 matches EU_433 and longfast
+   matches LONG_FAST */
 static int preset_name_match(const char *str, size_t len, const char *name) {
     const char *end = str + len;
 
@@ -468,8 +497,8 @@ static int parse_preset_def(const char *str, lora_preset_def_t *def) {
     return -1;
 }
 
-// Default slot as picked by the meshtastic firmware: the djb2 hash of the preset display
-// name, modulo the number of bandwidth-sized slots in the region
+/* Default slot as picked by the meshtastic firmware: the djb2 hash of the preset display
+   name, modulo the number of bandwidth-sized slots in the region */
 static int meshtastic_default_freq(lora_region_t region, lora_preset_type_t type, double *freq) {
     double bw;
     uint32_t num_slots;
@@ -502,7 +531,7 @@ static int meshtastic_default_freq(lora_region_t region, lora_preset_type_t type
     return 0;
 }
 
-// Up to 5 decimals for 2.4GHz slot spacing, trimmed back to at least 3
+/* Up to 5 decimals for 2.4GHz slot spacing, trimmed back to at least 3 */
 static void format_freq(char *buf, size_t len, double freq) {
     size_t end;
     char *dot;
@@ -515,6 +544,83 @@ static void format_freq(char *buf, size_t len, double freq) {
     end = strlen(buf);
     while (end > (size_t) (dot - buf) + 4 && buf[end - 1] == '0')
         buf[--end] = '\0';
+}
+
+/* send a command; this will ignore packets that may come in between when the
+   command is queued and a response comes from the radio.  is this bad?  kinda.
+   is this a real concern given meshtastic radio rates?  we're going to assume
+   not. */
+bool send_command(kis_capture_handler_t *caph, const char *command, size_t len,
+        char *msg) {
+    local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
+    char respbuf[2048];
+    time_t start = time(0);
+
+    pthread_mutex_lock(&local->serial_mutex);
+
+    ssize_t res;
+
+    tcflush(local->fd, TCIOFLUSH);
+
+    res = write(local->fd, command, len);
+    if (res < 0) {
+        snprintf(msg, STATUS_MAX, "%s failed to write command: %s", local->name, strerror(errno));
+        pthread_mutex_unlock(&local->serial_mutex);
+        return false;
+    }
+
+    sleep(1);
+
+    while (1) {
+        if (time(0) - start > CMD_TIMEOUT) {
+            snprintf(msg, STATUS_MAX, "%s failed to get a command response in %u seconds",
+                    local->name, CMD_TIMEOUT);
+            pthread_mutex_unlock(&local->serial_mutex);
+            return false;
+        }
+
+        res = serial_readline(local, respbuf, 2048);
+        if (res < 0) {
+            snprintf(msg, STATUS_MAX, "%s failed to read command response: %s", local->name, strerror(errno));
+            pthread_mutex_unlock(&local->serial_mutex);
+            return false;
+        }
+
+        if (strncmp(respbuf, lorapipe_ok, strlen(lorapipe_ok)) == 0) {
+            pthread_mutex_unlock(&local->serial_mutex);
+            return true;
+        }
+
+        if (strncmp(respbuf, lorapipe_err, strlen(lorapipe_err)) == 0 ||
+                strncmp(respbuf, lorapipe_unk, strlen(lorapipe_unk)) == 0) {
+            snprintf(msg, STATUS_MAX, "%s rejected command \"%s\": %s", local->name, command, respbuf);
+            pthread_mutex_unlock(&local->serial_mutex);
+            return false;
+        }
+    }
+
+    pthread_mutex_unlock(&local->serial_mutex);
+
+    return true;
+}
+
+bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
+    local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
+    bool ret;
+
+    char cmdbuf[256];
+    snprintf(cmdbuf, 256, "set radio %s\r\n", channel);
+
+    ret = send_command(caph, cmdbuf, strlen(cmdbuf), msg);
+
+    if (ret) {
+        if (local->channel) {
+            free(local->channel);
+        }
+        local->channel = strdup(channel);
+    }
+
+    return ret;
 }
 
 void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
@@ -571,10 +677,27 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     }
 
     snprintf(errstr, STATUS_MAX, "unable to parse requested channel '%s'; expected "
-            "FREQ-BW-SF-CR-SYNC (906.875-250-11-5-2b) or PROTOCOL-REGION-TYPE "
-            "(meshtastic-US-shortturbo)", chanstr);
+            "FREQ-BW-SF-CR-SYNC (ie 906.875-250-11-5-2b) or PROTOCOL-REGION-TYPE "
+            "(ie meshtastic-US-shortturbo)", chanstr);
     cf_send_message(caph, errstr, MSGFLAG_INFO);
     return NULL;
+}
+
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
+        char *msg) {
+    const char *channel = (const char *) privchan;
+    bool ret;
+
+    printf("debug - chancontrol %s\n", channel);
+
+    ret = set_channel(caph, channel, msg);
+
+    if (!ret) {
+        cf_send_error(caph, 0, msg);
+        cf_handler_spindown(caph);
+    }
+
+    return ret ? 1 : -1;
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
@@ -625,7 +748,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     free(device);
 
-    // Primary advertising channels only -- this datasource doesn't hop
+    /* Primary advertising channels only -- this datasource doesn't hop */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         char chstr[4];
@@ -673,22 +796,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             "%s expected device= path to serial device in definition", local->name);
         return -1;
     }
-
-    /*
-    localsniffle->channel = 37;
-    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
-        char *chanstr = strndup(placeholder, placeholder_len);
-        int chan = atoi(chanstr);
-        free(chanstr);
-        if (chan < 37 || chan > 39) {
-            snprintf(msg, STATUS_MAX,
-                "%s channel= must be 37, 38, or 39 (primary advertising channels only)",
-                localsniffle->name);
-            return -1;
-        }
-        localsniffle->channel = chan;
-    }
-    */
 
     if ((placeholder_len = cf_find_flag(&placeholder, "baud", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
@@ -740,11 +847,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     local->newtio.c_cflag &= ~(PARENB | PARODD | CSTOPB | CRTSCTS);
     local->newtio.c_iflag |= IGNPAR;
 
-    // Short read timeout, no minimum - matches capture_nrf_51822.c's approach,
-    // needed so sniffle_readline() can check caph->spindown between bytes
-    // rather than blocking forever if the dongle stops talking.
+    /* Short read timeout, no minimum - needed so readline can check
+     * caph->spindown between bytes rather than blocking forever if
+     * the dongle stops talking. */
     local->newtio.c_cc[VMIN] = 0;
-    local->newtio.c_cc[VTIME] = 1;
+    local->newtio.c_cc[VTIME] = 5;
 
     if (tcsetattr(local->fd, TCSANOW, &local->newtio) < 0) {
         snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
@@ -754,9 +861,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     tcflush(local->fd, TCIFLUSH);
+    local->rbuf_len = 0;
 
     pthread_mutex_unlock(&(local->serial_mutex));
-
 
     return 1;
 }
@@ -774,7 +881,8 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        int line_len = serial_readline(caph, local->fd, line, sizeof(line));
+        /*
+        int line_len = serial_readline(local, line, sizeof(line));
 
         if (line_len < 0) {
             if (*(volatile int *) &caph->spindown) {
@@ -786,6 +894,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             cf_handler_spindown(caph);
             break;
         }
+        */
+
+        int line_len = 0;
 
         if (line_len < 4) {
             continue;
@@ -816,6 +927,7 @@ int main(int argc, char *argv[]) {
     local_lorapipe_t local = {
         .name = NULL,
         .interface = NULL,
+        .channel = NULL,
         .baudrate = D_BAUDRATE,
     };
 
@@ -835,6 +947,8 @@ int main(int argc, char *argv[]) {
     cf_handler_set_open_cb(caph, open_callback);
     cf_handler_set_probe_cb(caph, probe_callback);
     cf_handler_set_capture_cb(caph, capture_thread);
+    cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
+    cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
 
     int r = cf_handler_parse_opts(caph, argc, argv);
     if (r == 0) {

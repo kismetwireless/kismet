@@ -126,7 +126,7 @@ public:
 
         // debatable; experimentation needed
         set_tune_capable(true);
-        set_hop_capable(true);
+        set_hop_capable(false);
     }
 };
 

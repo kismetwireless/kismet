@@ -2,7 +2,7 @@ include ../Makefile.inc
 
 MONITOR_OBJS = \
 	capture_lorapipe.c.o
-MONITOR_BIN = kismet_cap_lorapipe_ble
+MONITOR_BIN = kismet_cap_lorapipe
 
 all: $(MONITOR_BIN)
 

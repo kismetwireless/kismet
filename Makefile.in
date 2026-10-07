@@ -172,6 +172,9 @@ BUILD_CAPTURE_CATSNIFFER_ZIGBEE = @BUILD_CAPTURE_CATSNIFFER_ZIGBEE@
 CAPTURE_SNIFFLE_BLE = capture_sniffle_ble/kismet_cap_sniffle_ble
 BUILD_CAPTURE_SNIFFLE_BLE = @BUILD_CAPTURE_SNIFFLE_BLE@
 
+CAPTURE_LORAPIPE = capture_lorapipe/kismet_cap_lorapipe
+BUILD_CAPTURE_LORAPIPE = @BUILD_CAPTURE_LORAPIPE@
+
 CAPTURE_WCH_BLE_ANALYZER_PRO = capture_wch_ble_analyzer_pro/kismet_cap_wch_ble_analyzer_pro
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO = @BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO@
 
@@ -435,6 +438,9 @@ $(CAPTURE_CATSNIFFER_ZIGBEE): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_SNIFFLE_BLE): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sniffle_ble && $(MAKE))
 
+$(CAPTURE_LORAPIPE): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_lorapipe && $(MAKE))
+
 $(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_bladerf_wiphy && $(MAKE))
 
@@ -543,6 +549,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CATSNIFFER_ZIGBEE) $(BIN)/`basename $(CAPTURE_CATSNIFFER_ZIGBEE)` ; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_LORAPIPE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LORAPIPE) $(BIN)/`basename $(CAPTURE_LORAPIPE)` ; \
+	fi;
+
 	@if test "$(BUILD_CAPTURE_SNIFFLE_BLE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SNIFFLE_BLE) $(BIN)/`basename $(CAPTURE_SNIFFLE_BLE)` ; \
 	fi;
@@ -644,7 +654,7 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_BLADERF_WIPHY)"x = "1"x; then \
@@ -676,6 +686,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_SNIFFLE_BLE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SNIFFLE_BLE) $(BIN)/`basename $(CAPTURE_SNIFFLE_BLE)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_LORAPIPE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LORAPIPE) $(BIN)/`basename $(CAPTURE_LORAPIPE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)"x = "1"x; then \
