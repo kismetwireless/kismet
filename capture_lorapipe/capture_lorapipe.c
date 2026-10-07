@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <math.h>
+#include <poll.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,8 +158,13 @@ static const char *lora_region_names[LORA_REGION_MAX] = {
     [LORA_REGION_LORA_24] = "LORA_24",
 };
 
+/* lock order: serial_mutex, then channel_mutex */
 typedef struct {
     pthread_mutex_t serial_mutex;
+    pthread_mutex_t channel_mutex;
+
+    /* commands waiting on serial_mutex; capture thread yields to them */
+    atomic_int cmd_waiting;
 
     struct termios oldtio, newtio;
 
@@ -262,8 +269,28 @@ static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize,
         if (*(volatile int *) &local->caph->spindown)
             return -1;
 
-        if (deadline && monotonic_ms() >= deadline)
-            return 0;
+        if (deadline) {
+            uint64_t now = monotonic_ms();
+
+            if (now >= deadline)
+                return 0;
+
+            uint64_t wait_ms = deadline - now;
+            struct pollfd pfd = { .fd = local->fd, .events = POLLIN };
+            int pr = poll(&pfd, 1, wait_ms > INT_MAX ? INT_MAX : (int) wait_ms);
+
+            if (pr < 0) {
+                if (errno == EINTR)
+                    continue;
+                return -1;
+            }
+
+            if (pr == 0)
+                return 0;
+
+            if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
+                return -1;
+        }
 
         ssize_t r = read(local->fd, local->rbuf + local->rbuf_len,
                 sizeof(local->rbuf) - local->rbuf_len);
@@ -655,14 +682,12 @@ static int build_region_channels(lora_region_t region, cf_params_interface_t *in
 /* send a command; this will ignore packets that may come in between when the
    command is queued and a response comes from the radio.  is this bad?  kinda.
    is this a real concern given meshtastic radio rates?  we're going to assume
-   not. */
-bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, char *msg) {
-    local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
+   not.  caller must hold serial_mutex. */
+static bool send_command_locked(local_lorapipe_t *local, const char *command, size_t len,
+        char *msg) {
     char respbuf[2048];
     uint64_t deadline = monotonic_ms() + CMD_TIMEOUT * 1000;
     size_t sent = 0;
-
-    pthread_mutex_lock(&local->serial_mutex);
 
     ssize_t res;
 
@@ -679,7 +704,6 @@ bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, 
                 continue;
 
             snprintf(msg, STATUS_MAX, "%s failed to write command: %s", local->name, strerror(errno));
-            pthread_mutex_unlock(&local->serial_mutex);
             return false;
         }
 
@@ -692,7 +716,6 @@ bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, 
         if (now >= deadline) {
             snprintf(msg, STATUS_MAX, "%s failed to get a command response in %u seconds",
                     local->name, CMD_TIMEOUT);
-            pthread_mutex_unlock(&local->serial_mutex);
             return false;
         }
 
@@ -700,13 +723,12 @@ bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, 
         res = serial_readline(local, respbuf, sizeof(respbuf), (unsigned int) (deadline - now));
 
         if (res < 0) {
-            if (*(volatile int *) &caph->spindown)
+            if (*(volatile int *) &local->caph->spindown)
                 snprintf(msg, STATUS_MAX, "%s shutting down while waiting for command response",
                         local->name);
             else
                 snprintf(msg, STATUS_MAX, "%s failed to read command response: %s", local->name,
                         errno ? strerror(errno) : "unknown error");
-            pthread_mutex_unlock(&local->serial_mutex);
             return false;
         }
 
@@ -714,17 +736,33 @@ bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, 
             continue;
 
         if (strncmp(respbuf, lorapipe_ok, strlen(lorapipe_ok)) == 0) {
-            pthread_mutex_unlock(&local->serial_mutex);
             return true;
         }
 
         if (strncmp(respbuf, lorapipe_err, strlen(lorapipe_err)) == 0 ||
                 strncmp(respbuf, lorapipe_unk, strlen(lorapipe_unk)) == 0) {
             snprintf(msg, STATUS_MAX, "%s rejected command \"%s\": %s", local->name, command, respbuf);
-            pthread_mutex_unlock(&local->serial_mutex);
             return false;
         }
     }
+}
+
+/* take serial_mutex, flagging the capture thread to yield to us */
+static void lock_serial_cmd(local_lorapipe_t *local) {
+    atomic_fetch_add(&local->cmd_waiting, 1);
+    pthread_mutex_lock(&local->serial_mutex);
+    atomic_fetch_sub(&local->cmd_waiting, 1);
+}
+
+bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, char *msg) {
+    local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
+    bool ret;
+
+    lock_serial_cmd(local);
+    ret = send_command_locked(local, command, len, msg);
+    pthread_mutex_unlock(&local->serial_mutex);
+
+    return ret;
 }
 
 bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
@@ -732,16 +770,40 @@ bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
     bool ret;
 
     char cmdbuf[256];
-    snprintf(cmdbuf, 256, "set radio %s\r\n", channel);
+    int r;
 
-    ret = send_command(caph, cmdbuf, strlen(cmdbuf), msg);
+    if (channel == NULL) {
+        snprintf(msg, STATUS_MAX, "%s no channel provided", local->name);
+        return false;
+    }
+
+    r = snprintf(cmdbuf, sizeof(cmdbuf), "set radio %s\r\n", channel);
+    if (r < 0 || (size_t) r >= sizeof(cmdbuf)) {
+        snprintf(msg, STATUS_MAX, "%s channel definition too long", local->name);
+        return false;
+    }
+
+    /* hold serial_mutex until the channel is updated so no line read on the new
+       channel is tagged with the old one */
+    lock_serial_cmd(local);
+
+    ret = send_command_locked(local, cmdbuf, (size_t) r, msg);
 
     if (ret) {
-        if (local->channel) {
-            free(local->channel);
+        char *newchan = strdup(channel);
+
+        pthread_mutex_lock(&local->channel_mutex);
+        free(local->channel);
+        local->channel = newchan;
+        pthread_mutex_unlock(&local->channel_mutex);
+
+        if (newchan == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+            ret = false;
         }
-        local->channel = strdup(channel);
     }
+
+    pthread_mutex_unlock(&local->serial_mutex);
 
     return ret;
 }
@@ -1035,7 +1097,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
 
     char line[BUFFER_SIZE];
-    uint8_t decoded[BUFFER_SIZE];
+    char combo[BUFFER_SIZE + 128];
     char errstr[STATUS_MAX];
 
     while (1) {
@@ -1044,8 +1106,38 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        /*
-        int line_len = serial_readline(local, line, sizeof(line), 0);
+        /* let pending commands have the serial port */
+        if (atomic_load(&local->cmd_waiting) > 0) {
+            usleep(1000);
+            continue;
+        }
+
+        size_t combo_len = 0;
+
+        pthread_mutex_lock(&local->serial_mutex);
+
+        ssize_t line_len = serial_readline(local, line, sizeof(line), 500);
+
+        /* tag with the channel while still holding serial_mutex so a channel change
+           can't land between the read and the tag */
+        if (line_len >= 4) {
+            pthread_mutex_lock(&local->channel_mutex);
+
+            if (local->channel != NULL) {
+                size_t chan_len = strlen(local->channel);
+
+                if (chan_len + 1 + (size_t) line_len <= sizeof(combo)) {
+                    memcpy(combo, local->channel, chan_len);
+                    combo[chan_len] = ',';
+                    memcpy(combo + chan_len + 1, line, (size_t) line_len);
+                    combo_len = chan_len + 1 + (size_t) line_len;
+                }
+            }
+
+            pthread_mutex_unlock(&local->channel_mutex);
+        }
+
+        pthread_mutex_unlock(&local->serial_mutex);
 
         if (line_len < 0) {
             if (*(volatile int *) &caph->spindown) {
@@ -1057,11 +1149,8 @@ void capture_thread(kis_capture_handler_t *caph) {
             cf_handler_spindown(caph);
             break;
         }
-        */
 
-        int line_len = 0;
-
-        if (line_len < 4) {
+        if (combo_len == 0) {
             continue;
         }
 
@@ -1070,7 +1159,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         while (1) {
             int r = cf_send_data(caph, NULL, 0, NULL, NULL, tv, 0,
-                    (uint32_t) line_len, (uint32_t) line_len, (uint8_t *) line);
+                    (uint32_t) combo_len, (uint32_t) combo_len, (uint8_t *) combo);
 
             if (r < 0) {
                 cf_send_error(caph, 0, "unable to send DATA frame");
@@ -1096,6 +1185,7 @@ int main(int argc, char *argv[]) {
     };
 
     pthread_mutex_init(&local.serial_mutex, NULL);
+    pthread_mutex_init(&local.channel_mutex, NULL);
 
     kis_capture_handler_t *caph = cf_handler_init("lorapipe");
 
