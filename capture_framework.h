@@ -39,6 +39,7 @@
 
 #include <getopt.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <fcntl.h>
 
 /* According to POSIX.1-2001, POSIX.1-2008 */
@@ -333,7 +334,7 @@ struct kis_capture_handler {
     int tcp_fd;
 
     /* Die when we hit the end of our write buffer */
-    int spindown;
+    atomic_int spindown;
 
     /* TCP/IPC buffers */
     kis_simple_ringbuf_t *in_ringbuf;
@@ -354,7 +355,7 @@ struct kis_capture_handler {
     pthread_mutex_t out_ringbuf_flush_cond_mutex;
 
     /* Are we shutting down? */
-    int shutdown;
+    atomic_int shutdown;
     pthread_mutex_t handler_lock;
 
     /* Callbacks called for various incoming packets */

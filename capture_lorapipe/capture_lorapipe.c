@@ -266,7 +266,7 @@ static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize,
             local->rbuf_discard = true;
         }
 
-        if (*(volatile int *) &local->caph->spindown)
+        if (atomic_load(&local->caph->spindown))
             return -1;
 
         if (deadline) {
@@ -723,7 +723,7 @@ static bool send_command_locked(local_lorapipe_t *local, const char *command, si
         res = serial_readline(local, respbuf, sizeof(respbuf), (unsigned int) (deadline - now));
 
         if (res < 0) {
-            if (*(volatile int *) &local->caph->spindown)
+            if (atomic_load(&local->caph->spindown))
                 snprintf(msg, STATUS_MAX, "%s shutting down while waiting for command response",
                         local->name);
             else
@@ -1101,7 +1101,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
 
     while (1) {
-        if (*(volatile int *) &caph->spindown) {
+        if (atomic_load(&caph->spindown)) {
             tcsetattr(local->fd, TCSANOW, &local->oldtio);
             break;
         }
@@ -1140,7 +1140,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         pthread_mutex_unlock(&local->serial_mutex);
 
         if (line_len < 0) {
-            if (*(volatile int *) &caph->spindown) {
+            if (atomic_load(&caph->spindown)) {
                 break;
             }
 
