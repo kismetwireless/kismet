@@ -19,6 +19,8 @@
 #ifndef __AES_CTR_H__
 #define __AES_CTR_H__
 
+#include <cstring>
+#include <stdexcept>
 #include <string>
 
 #include <stdint.h>
@@ -30,24 +32,24 @@ namespace kis_aes {
 
 using state_t = uint8_t[4][4];
 
-const size_t aes256_blocklen = 16;
-const size_t aes256_keylen = 32;
-const size_t aes256_key_exp_size = 240;
+inline constexpr size_t aes256_blocklen = 16;
+inline constexpr size_t aes256_keylen = 32;
+inline constexpr size_t aes256_key_exp_size = 240;
 
-const size_t nk256 = 8;
-const size_t nr256 = 14;
-const size_t nb256 = 4;
+inline constexpr size_t nk256 = 8;
+inline constexpr size_t nr256 = 14;
+inline constexpr size_t nb256 = 4;
 
 
-const size_t aes128_blocklen = 16;
-const size_t aes128_keylen = 16;
-const size_t aes128_key_exp_size = 176;
+inline constexpr size_t aes128_blocklen = 16;
+inline constexpr size_t aes128_keylen = 16;
+inline constexpr size_t aes128_key_exp_size = 176;
 
-const size_t nk128 = 4;
-const size_t nr128 = 10;
-const size_t nb128 = 4;
+inline constexpr size_t nk128 = 4;
+inline constexpr size_t nr128 = 10;
+inline constexpr size_t nb128 = 4;
 
-static const uint8_t sbox[256] = {
+inline constexpr uint8_t sbox[256] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
     0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0,
@@ -82,9 +84,16 @@ static const uint8_t sbox[256] = {
     0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-static const uint8_t rcon[] = {
+inline constexpr uint8_t rcon[] = {
     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
 };
+
+// Zero key material in a way the compiler won't optimize out
+inline void secure_zero(void *buf, size_t len) {
+    volatile uint8_t *p = static_cast<volatile uint8_t *>(buf);
+    while (len--)
+        *p++ = 0;
+}
 
 
 class aes256 {
@@ -104,12 +113,17 @@ public:
         expand_key(key);
     }
 
-    aes256(const uint8_t key[aes256_keylen], uint8_t iv[aes256_blocklen]) {
+    aes256(const uint8_t key[aes256_keylen], const uint8_t iv[aes256_blocklen]) {
         memcpy(iv_, iv, aes256_blocklen);
         expand_key(std::string((const char *) key, aes256_keylen));
     }
 
-    void set(const uint8_t key[aes256_keylen], uint8_t iv[aes256_blocklen]) {
+    ~aes256() {
+        secure_zero(round_key_, sizeof(round_key_));
+        secure_zero(iv_, sizeof(iv_));
+    }
+
+    void set(const uint8_t key[aes256_keylen], const uint8_t iv[aes256_blocklen]) {
         memcpy(iv_, iv, aes256_blocklen);
         expand_key(std::string((const char *) key, aes256_keylen));
     }
@@ -145,30 +159,7 @@ public:
     }
 
     void ctr_crypt(const std::string& buffer, std::string& wbuffer) {
-        std::string ret(buffer.length(), 0x00);
-        uint8_t state[16];
-        size_t i;
-        int bi;
-
-        for (i = 0, bi = aes256_blocklen; i < buffer.length(); ++i, ++bi) {
-            if (bi == aes256_blocklen) {
-                memcpy(state, iv_, aes256_blocklen);
-                cipher(reinterpret_cast<state_t *>(state));
-
-                for (bi = (aes256_blocklen - 1); bi >= 0; --bi) {
-                    if (iv_[bi] == 255) {
-                        iv_[bi] = 0;
-                        continue;
-                    }
-                    iv_[bi] += 1;
-                    break;
-                }
-
-                bi = 0;
-            }
-
-            ret[i] = (buffer[i] ^ state[bi]);
-        }
+        wbuffer = ctr_crypt(buffer);
     }
 
 protected:
@@ -261,7 +252,7 @@ protected:
         (*state)[1][3] = temp;
     }
 
-    constexpr inline uint8_t xtime(uint8_t x) {
+    static constexpr uint8_t xtime(uint8_t x) {
         return ((x << 1) ^ (((x >> 7) & 1) * 0x1b));
     }
 
@@ -289,14 +280,6 @@ protected:
             tm = xtime(tm);
             (*state)[i][3] ^= tm ^ tmp;
         }
-    }
-
-    constexpr inline uint8_t multiply(uint8_t a, uint8_t b) {
-        return (((b & 1) * a) ^
-                ((b >> 1 & 1) * xtime(a)) ^
-                ((b >> 2 & 1) * xtime(xtime(a))) ^
-                ((b >> 3 & 1) * xtime(xtime(xtime(a)))) ^
-                ((b >> 4 & 1) * xtime(xtime(xtime(xtime(a))))));
     }
 
     void cipher(state_t *state) {
@@ -327,7 +310,6 @@ public:
         memset(round_key_, 0, aes128_key_exp_size);
     }
 
-    /*
     aes128(const std::string& key, const std::string& iv) {
         if (key.length() != aes128_keylen)
             throw std::runtime_error("aes invalid key length");
@@ -337,14 +319,18 @@ public:
         memcpy(iv_, iv.data(), aes128_blocklen);
         expand_key((const uint8_t *) key.data());
     }
-    */
 
-    aes128(const uint8_t key[aes128_keylen], uint8_t iv[aes128_blocklen]) {
+    aes128(const uint8_t key[aes128_keylen], const uint8_t iv[aes128_blocklen]) {
         memcpy(iv_, iv, aes128_blocklen);
         expand_key(key);
     }
 
-    void set(const uint8_t key[aes128_keylen], uint8_t iv[aes128_blocklen]) {
+    ~aes128() {
+        secure_zero(round_key_, sizeof(round_key_));
+        secure_zero(iv_, sizeof(iv_));
+    }
+
+    void set(const uint8_t key[aes128_keylen], const uint8_t iv[aes128_blocklen]) {
         memcpy(iv_, iv, aes128_blocklen);
         expand_key(key);
     }
@@ -377,6 +363,10 @@ public:
         }
 
         return ret;
+    }
+
+    void ctr_crypt(const std::string& buffer, std::string& wbuffer) {
+        wbuffer = ctr_crypt(buffer);
     }
 
 protected:
@@ -469,7 +459,7 @@ protected:
         (*state)[1][3] = temp;
     }
 
-    constexpr inline uint8_t xtime(uint8_t x) {
+    static constexpr uint8_t xtime(uint8_t x) {
         return ((x << 1) ^ (((x >> 7) & 1) * 0x1b));
     }
 
@@ -496,14 +486,6 @@ protected:
             tm = xtime(tm);
             (*state)[i][3] ^= tm ^ tmp;
         }
-    }
-
-    constexpr inline uint8_t multiply(uint8_t a, uint8_t b) {
-        return (((b & 1) * a) ^
-                ((b >> 1 & 1) * xtime(a)) ^
-                ((b >> 2 & 1) * xtime(xtime(a))) ^
-                ((b >> 3 & 1) * xtime(xtime(xtime(a)))) ^
-                ((b >> 4 & 1) * xtime(xtime(xtime(xtime(a))))));
     }
 
     void cipher(state_t *state) {
