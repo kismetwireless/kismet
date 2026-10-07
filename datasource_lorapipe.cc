@@ -157,6 +157,7 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
 
     packet->insert(pack_comp_decap, decapchunk);
 
+
     return 0;
 }
 

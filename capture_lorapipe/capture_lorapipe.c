@@ -957,6 +957,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
     char *localbaudratestr = NULL;
 
+    char *localchanstr = NULL;
+    char *localchan = NULL;
+
     local_lorapipe_t *local= (local_lorapipe_t *) caph->userdata;
 
     *ret_spectrum = NULL;
@@ -1046,6 +1049,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+        localchan = (char *) chantranslate_callback(caph, localchanstr);
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX, "%s could not parse channel= option provided in source " "definition", local->name);
+            return -1;
+        }
+
+        (*ret_interface)->chanset = strdup(localchan);
+
+    }
+
     pthread_mutex_lock(&local->serial_mutex);
 
     local->fd = open(device, O_RDWR | O_NOCTTY);
@@ -1090,6 +1107,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     pthread_mutex_unlock(&(local->serial_mutex));
 
+    snprintf(errstr, STATUS_MAX, "%s setting initial channel to %s",
+            local->name, (*ret_interface)->chanset);
+    cf_send_message(caph, errstr, MSGFLAG_INFO);
+
+    if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+        free(localchan);
+        localchan = NULL;
+        return -1;
+    }
+
+    free(localchan);
+    localchan = NULL;
+
     return 1;
 }
 
@@ -1121,16 +1151,18 @@ void capture_thread(kis_capture_handler_t *caph) {
         /* tag with the channel while still holding serial_mutex so a channel change
            can't land between the read and the tag */
         if (line_len >= 4) {
+            printf("debug - got line %u %.*s\n", line_len, line_len, line);
+
             pthread_mutex_lock(&local->channel_mutex);
 
             if (local->channel != NULL) {
+                printf("debug - combining local channel %s\n", local->channel);
+
                 size_t chan_len = strlen(local->channel);
 
                 if (chan_len + 1 + (size_t) line_len <= sizeof(combo)) {
-                    memcpy(combo, local->channel, chan_len);
-                    combo[chan_len] = ',';
-                    memcpy(combo + chan_len + 1, line, (size_t) line_len);
-                    combo_len = chan_len + 1 + (size_t) line_len;
+                    snprintf(combo, sizeof(combo), "%s,%.*s", local->channel, (unsigned int) line_len, line);
+                    combo_len = strlen(combo);
                 }
             }
 
@@ -1156,6 +1188,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         struct timeval tv;
         gettimeofday(&tv, NULL);
+
+        printf("debug - sending %u %.*s\n", combo_len, (int) combo_len, combo);
 
         while (1) {
             int r = cf_send_data(caph, NULL, 0, NULL, NULL, tv, 0,

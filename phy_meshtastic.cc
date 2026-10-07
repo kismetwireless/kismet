@@ -136,9 +136,10 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-
     httpd->register_route("/meshtastic/channels", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_jsonable_endpoint>(std::make_unique<json_adapter_v2::jsonable_map<channels_map_t, channels_map_t::iterator>>(channels, "meshtastic.channels"), mutex_));
+
+	packetchain->register_handler(&packet_handler, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 kis_meshtastic_phy::~kis_meshtastic_phy() {
@@ -285,6 +286,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                     // this shouldn't be possible
                     if (chan_i != mphy->channels.end()) {
                         chan_i->second.add_message(meshdev->get_nodeid(), subcontent.data());
+						_MSG_DEBUG("message frame, subcontent length {}", subcontent.length());
                         _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
                                 basedev->get_most_apt_name(), meshdev->get_nodeid(),
                                 k.first, std::string(subcontent.data(), subcontent.length()));
@@ -313,6 +315,10 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         }
     }
 
+	if (new_device) {
+		_MSG_INFO("Detected new Meshtastic Lora device {} ({})",
+				basedev->get_most_apt_name(), meshdev->get_nodeid());
+	}
 
 
     return 1;
