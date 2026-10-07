@@ -26,6 +26,49 @@
 #include "kis_net_beast_httpd.h"
 #include "manuf.h"
 
+namespace {
+    std::string_view sv_trim(std::string_view s) {
+        const auto ws = " \t\r\n";
+        const auto b = s.find_first_not_of(ws);
+
+        if (b == std::string_view::npos)
+            return {};
+
+        return s.substr(b, s.find_last_not_of(ws) - b + 1);
+    }
+
+    // Accept standard or url-safe base64, with or without padding; the decoder stops
+    // silently at unknown characters so reject them here
+    std::optional<std::string> normalize_b64(std::string_view in) {
+        std::string out;
+        out.reserve(in.size());
+
+        bool padding = false;
+
+        for (const auto c : in) {
+            if (c == '=') {
+                padding = true;
+                continue;
+            }
+
+            if (padding)
+                return std::nullopt;
+
+            if (c == '-')
+                out += '+';
+            else if (c == '_')
+                out += '/';
+            else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                    (c >= '0' && c <= '9') || c == '+' || c == '/')
+                out += c;
+            else
+                return std::nullopt;
+        }
+
+        return out;
+    }
+}
+
 kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
@@ -112,27 +155,55 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
     model_heltec_wireless_tracker_v1_0 = Globalreg::globalreg->manufdb->make_manuf("Heltec Wireless Tracker v1.0");
     model_private_hw = Globalreg::globalreg->manufdb->make_manuf("Lora (Private Hardware)");
 
-    keys["default"] = std::string((const char *) default_key, 16);
-    keys["default2"] = std::string((const char *) default_key2, 32);
+    max_live_messages = Globalreg::globalreg->kismet_config->fetch_opt_ulong("meshtastic_num_messages", 128);
+
+    const meshtastic_crypto::psk default_psk{meshtastic_crypto::psk_type::aes128,
+        std::string(reinterpret_cast<const char *>(meshtastic_crypto::default_psk.data()),
+                meshtastic_crypto::default_psk.size())};
+
+    for (const auto& name : meshtastic_crypto::preset_channel_names) {
+        channels.emplace(std::string{name}, meshtastic_channel{name, default_psk, max_live_messages});
+    }
 
     for (const auto& k : Globalreg::globalreg->kismet_config->fetch_opt_vec("meshtastic_key")) {
         auto toks = base_sv_tokenize(k, ",", "");
         if (toks.size() != 2) {
-            _MSG_ERROR("Invalid meshtastic key '{}', expected name,base64key", k);
+            _MSG_ERROR("Invalid meshtastic_key '{}', expected channelname,base64key", k);
             continue;
         }
 
-        auto dk = base64::decode(toks[1]);
-        if (dk.length() != 16 && dk.length() != 32) {
-            _MSG_ERROR("Invalid meshtastic key '{}', expected base64 key", k);
+        auto name = sv_trim(toks[0]);
+        if (name.length() == 0 || name.length() > meshtastic_crypto::max_channel_name_len) {
+            _MSG_ERROR("Invalid meshtastic_key channel name '{}', expected 1 to {} characters",
+                    name, meshtastic_crypto::max_channel_name_len);
             continue;
         }
+
+        auto b64 = normalize_b64(sv_trim(toks[1]));
+        if (!b64) {
+            _MSG_ERROR("Invalid meshtastic_key for channel '{}', key is not valid base64", name);
+            continue;
+        }
+
+        auto psk = meshtastic_crypto::expand_psk(base64::decode(*b64));
+        if (!psk) {
+            _MSG_ERROR("Invalid meshtastic_key for channel '{}', keys may be at most 32 bytes", name);
+            continue;
+        }
+
+        std::string name_s{name};
+
+        if (channels.erase(name_s) > 0) {
+            _MSG_INFO("Meshtastic channel '{}' redefined by meshtastic_key", name);
+        }
+
+        auto ci = channels.emplace(name_s, meshtastic_channel{name, *psk, max_live_messages}).first;
+
+        _MSG_INFO("Meshtastic added channel '{}' ({}, hash {:02x})", name,
+                psk->type == meshtastic_crypto::psk_type::none ? "unencrypted" :
+                psk->type == meshtastic_crypto::psk_type::aes128 ? "AES128" : "AES256",
+                ci->second.hash());
     }
-
-    max_live_messages = Globalreg::globalreg->kismet_config->fetch_opt_ulong("meshtastic_max_messages", 128);
-
-    channels.emplace("default", meshtastic_channel{"default", keys["default"], max_live_messages});
-    channels.emplace("default2", meshtastic_channel{"default2", keys["default2"], max_live_messages});
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -225,41 +296,52 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         meshdev->set_nodeid(fmt::format("!{:08X}", mesh_frame->source_id));
     }
 
+    const auto payload = std::string_view{(const char *) packdata->data() + sizeof(meshtastic_frame_t),
+        packdata->length() - sizeof(meshtastic_frame_t)};
+
+    // nonce is the packet id as a 64 bit int followed by the sender id, both little endian
     uint8_t iv[16];
+    memset(iv, 0, sizeof(iv));
+    memcpy(iv, packdata->data() + 8, 4);
+    memcpy(iv + 8, packdata->data() + 4, 4);
+
     kis_aes::aes128 aes128;
     kis_aes::aes256 aes256;
 
-    std::string decoded;
+    bool matched_hash = false;
 
-    for (const auto& k : mphy->keys) {
-        memset(iv, 0, 16);
+    // multiple channels can share an 8 bit hash, so try each until one decodes
+    for (auto& [chan_name, chan] : mphy->channels) {
+        if (chan.hash() != mesh_frame->channel) {
+            continue;
+        }
 
-        memcpy(iv, packdata->data() + 8, 4);
-        memcpy(iv + 8, packdata->data() + 4, 4);
+        matched_hash = true;
+
+        std::string decoded;
+
+        switch (chan.psk().type) {
+            case meshtastic_crypto::psk_type::none:
+                decoded = std::string{payload};
+                break;
+            case meshtastic_crypto::psk_type::aes128:
+                aes128.set((const uint8_t *) chan.psk().key.data(), iv);
+                decoded = aes128.ctr_crypt(std::string{payload});
+                break;
+            case meshtastic_crypto::psk_type::aes256:
+                aes256.set((const uint8_t *) chan.psk().key.data(), iv);
+                decoded = aes256.ctr_crypt(std::string{payload});
+                break;
+        }
+
+        std::optional<meshtastic_portnum> port;
+        std::string_view subcontent;
 
         try {
-            if (k.second.length() == 16) {
-                aes128.set((const uint8_t *) k.second.data(), iv);
-                decoded = aes128.ctr_crypt(std::string((const char *) packdata->data() + 16,
-                                packdata->length() - 16));
-            } else if (k.second.length() == 32) {
-                aes256.set((const uint8_t *) k.second.data(), iv);
-                decoded = aes128.ctr_crypt(std::string((const char *) packdata->data() + 16,
-                                packdata->length() - 16));
-            }
-
             protobuf_decoder::decoder decoder(decoded);
             int64_t fn;
-            meshtastic_portnum port;
-            std::string_view subcontent;
 
-            while (1) {
-                fn = decoder.next_field();
-
-                if (fn < 0) {
-                    break;
-                }
-
+            while ((fn = decoder.next_field()) >= 0) {
                 switch (static_cast<meshtastic_data_pb>(fn)) {
                     case meshtastic_data_pb::fn_portnum:
                         port = static_cast<meshtastic_portnum>(decoder.get_int());
@@ -272,52 +354,52 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                         break;
                 }
             }
-
-            if (subcontent.length() == 0) {
-                break;
-            }
-
-            channels_map_t::iterator chan_i;
-
-            switch (port) {
-                case meshtastic_portnum::text_message:
-                    chan_i = mphy->channels.find(k.first);
-
-                    // this shouldn't be possible
-                    if (chan_i != mphy->channels.end()) {
-                        chan_i->second.add_message(meshdev->get_nodeid(), subcontent.data());
-						_MSG_DEBUG("message frame, subcontent length {}", subcontent.length());
-                        _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
-                                basedev->get_most_apt_name(), meshdev->get_nodeid(),
-                                k.first, std::string(subcontent.data(), subcontent.length()));
-                    } else {
-                        _MSG_ERROR("Meshtastic phy got message for un-tracked channel {}", k.first);
-                    }
-
-                    break;
-                case meshtastic_portnum::nodeinfo:
-                    mphy->handle_nodeinfo_pb(subcontent, in_pack, basedev, meshdev);
-                    break;
-                case meshtastic_portnum::position:
-                    mphy->handle_position_pb(subcontent, in_pack, basedev, meshdev);
-                    break;
-                case meshtastic_portnum::telemetry:
-                    mphy->handle_telemetry_pb(subcontent, in_pack, basedev, meshdev);
-                    break;
-                default:
-                    break;
-            }
-
-            break;
-        } catch (...) {
-            // silently skip decrypt or protobuf errors
+        } catch (const std::exception& e) {
+            _MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
             continue;
         }
+
+        // a wrong key can still produce a parseable protobuf; require a port
+        if (!port) {
+            continue;
+        }
+
+		_MSG_DEBUG("decoded a packet on channel {}", chan_name);
+
+		try {
+			switch (*port) {
+				case meshtastic_portnum::text_message:
+					chan.add_message(meshdev->get_nodeid(), subcontent);
+					_MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
+							basedev->get_most_apt_name(), meshdev->get_nodeid(),
+							chan_name, std::string(subcontent.data(), subcontent.length()));
+					break;
+				case meshtastic_portnum::nodeinfo:
+					mphy->handle_nodeinfo_pb(subcontent, in_pack, basedev, meshdev);
+					break;
+				case meshtastic_portnum::position:
+					mphy->handle_position_pb(subcontent, in_pack, basedev, meshdev);
+					break;
+				case meshtastic_portnum::telemetry:
+					mphy->handle_telemetry_pb(subcontent, in_pack, basedev, meshdev);
+					break;
+				default:
+					break;
+			}
+		} catch (const std::exception& e) {
+			_MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
+			continue;
+		}
+
+        break;
+    }
+
+    if (!matched_hash) {
+        _MSG_DEBUG("meshtastic packet for unknown channel hash {:02x}", mesh_frame->channel);
     }
 
 	if (new_device) {
-		_MSG_INFO("Detected new Meshtastic Lora device {} ({})",
-				basedev->get_most_apt_name(), meshdev->get_nodeid());
+		_MSG_INFO("Detected new Meshtastic Lora device {} ({})", basedev->get_most_apt_name(), meshdev->get_nodeid());
 	}
 
 

@@ -21,6 +21,9 @@
 
 #include "config.h"
 
+#include <array>
+#include <optional>
+#include <string_view>
 #include <unordered_map>
 
 #include "datasourcetracker.h"
@@ -34,6 +37,7 @@
 #include "trackedelement.h"
 
 #include "aes_ctr.h"
+#include "base64.h"
 #include "protobuf_decode.h"
 
 
@@ -46,6 +50,88 @@
 // trying to push towards the new more efficient json formatter, the device
 // records will be in traditional tracked json but the new channel and message
 // endpoints will use the new json api
+
+// Channel key handling per the meshtastic firmware Channels::getKey() and
+// Channels::generateHash()
+namespace meshtastic_crypto {
+    inline constexpr std::array<uint8_t, 16> default_psk{
+        0xd4, 0xf1, 0xbb, 0x3a, 0x20, 0x29, 0x07, 0x59,
+        0xf0, 0xbc, 0xff, 0xab, 0xcf, 0x4e, 0x69, 0x01
+    };
+
+    inline constexpr size_t max_channel_name_len = 11;
+
+    // Unnamed channels use the modem preset display name
+    inline constexpr std::array<std::string_view, 10> preset_channel_names{
+        "LongFast", "LongSlow", "LongMod", "LongTurbo",
+        "MediumFast", "MediumSlow", "MediumTurbo",
+        "ShortFast", "ShortSlow", "ShortTurbo",
+    };
+
+    enum class psk_type : uint8_t {
+        none,
+        aes128,
+        aes256,
+    };
+
+    struct psk {
+        psk_type type;
+        std::string key;
+    };
+
+    // Empty or index 0 disables encryption, a 1 byte index selects a variant of the
+    // default key, and short keys are zero padded to aes128 or aes256
+    inline std::optional<psk> expand_psk(std::string_view raw) {
+        if (raw.size() == 0)
+            return psk{psk_type::none, ""};
+
+        if (raw.size() == 1) {
+            const auto index = static_cast<uint8_t>(raw[0]);
+
+            if (index == 0)
+                return psk{psk_type::none, ""};
+
+            std::string k(reinterpret_cast<const char *>(default_psk.data()), default_psk.size());
+            k.back() = static_cast<char>(static_cast<uint8_t>(k.back() + index - 1));
+            return psk{psk_type::aes128, std::move(k)};
+        }
+
+        if (raw.size() <= 16) {
+            std::string k{raw};
+            k.resize(16, '\0');
+            return psk{psk_type::aes128, std::move(k)};
+        }
+
+        if (raw.size() <= 32) {
+            std::string k{raw};
+            k.resize(32, '\0');
+            return psk{psk_type::aes256, std::move(k)};
+        }
+
+        return std::nullopt;
+    }
+
+    constexpr uint8_t xor_hash(std::string_view s) {
+        uint8_t h = 0;
+        for (const auto c : s)
+            h ^= static_cast<uint8_t>(c);
+        return h;
+    }
+
+    constexpr uint8_t xor_hash(const std::array<uint8_t, 16>& a) {
+        uint8_t h = 0;
+        for (const auto c : a)
+            h ^= c;
+        return h;
+    }
+
+    constexpr uint8_t channel_hash(std::string_view name, std::string_view key) {
+        return xor_hash(name) ^ xor_hash(key);
+    }
+
+    static_assert((xor_hash("LongFast") ^ xor_hash(default_psk)) == 0x08,
+            "default LongFast channel hash must be 0x08");
+}
 
 
 class tracked_meshtastic_node : public tracker_component {
@@ -247,31 +333,30 @@ template<> struct json_adapter_v2::json_encode<meshtastic_message> {
 class meshtastic_channel : public json_adapter_v2::jsonable {
     friend class kis_meshtastic_phy;
 public:
-    meshtastic_channel(const std::string_view channel, const std::string_view binkey,
+    meshtastic_channel(const std::string_view channel, const meshtastic_crypto::psk& psk,
             size_t max_messages) :
         json_adapter_v2::jsonable(),
         max_messages_{max_messages},
         channel_{channel.data(), channel.length()},
-        key_{base64::encode(binkey)} { }
-
-    meshtastic_channel(const std::string& channel, const std::string& binkey,
-            size_t max_messages) :
-        json_adapter_v2::jsonable(),
-        max_messages_{max_messages},
-        channel_{channel},
-        key_{base64::encode(binkey)} { }
+        key_{base64::encode(psk.key)},
+        psk_{psk},
+        hash_{meshtastic_crypto::channel_hash(channel, psk.key)} { }
 
     meshtastic_channel(meshtastic_channel&& m) :
         json_adapter_v2::jsonable(),
         max_messages_{m.max_messages_},
         channel_{std::move(m.channel_)},
         key_{std::move(m.key_)},
+        psk_{std::move(m.psk_)},
+        hash_{m.hash_},
         messages_{std::move(m.messages_)} { }
 
     meshtastic_channel& operator=(const meshtastic_channel& t) {
         max_messages_ = t.max_messages_;
         channel_ = t.channel_;
         key_ = t.key_;
+        psk_ = t.psk_;
+        hash_ = t.hash_;
         messages_ = t.messages_;
 
         return *this;
@@ -279,6 +364,8 @@ public:
 
     auto channel() const { return channel_; }
     auto key() const { return key_; }
+    const auto& psk() const { return psk_; }
+    auto hash() const { return hash_; }
 
     auto max_messages() {
         kis_unique_lock<kis_mutex> lk(mutex_, __func__);
@@ -287,6 +374,7 @@ public:
 
     void set_max_messages(size_t sz) {
         kis_unique_lock<kis_mutex> lk(mutex_, __func__);
+        max_messages_ = sz;
         if (messages_.size() > sz) {
             messages_.erase(messages_.begin() + sz, messages_.end());
         }
@@ -358,6 +446,8 @@ protected:
 
     std::string channel_;
     std::string key_;
+    meshtastic_crypto::psk psk_;
+    uint8_t hash_;
 
     using messages_iter_t = std::vector<meshtastic_message>::iterator;
     std::vector<meshtastic_message> messages_;
@@ -445,9 +535,6 @@ protected:
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
 
-    // channel keys in binary
-    std::unordered_map<std::string, std::string> keys;
-
     // tracked channels
     using channels_map_t = std::unordered_map<std::string, meshtastic_channel>;
     channels_map_t channels;
@@ -516,18 +603,6 @@ public:
     const mac_addr mesh_broadcast{mesh_to_mac(0xFFFFFFFF)};
 
     // default meshtastic key
-    const uint8_t default_key[16] = {
-        0xd4, 0xf1, 0xbb, 0x3a, 0x20, 0x29, 0x07, 0x59,
-        0xf0, 0xbc, 0xff, 0xab, 0xcf, 0x4e, 0x69, 0x01
-    };
-
-    const uint8_t default_key2[32] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-    };
-
     typedef struct {
         uint32_t dest_id;
         uint32_t source_id;
@@ -535,7 +610,10 @@ public:
         uint8_t flag;
         uint8_t channel;
         uint8_t nh;
+        uint8_t relay_node;
     } __attribute__((packed)) meshtastic_frame_t;
+
+    static_assert(sizeof(meshtastic_frame_t) == 16, "meshtastic header must be 16 bytes");
 
     enum class meshtastic_portnum {
         unknown = 0,
