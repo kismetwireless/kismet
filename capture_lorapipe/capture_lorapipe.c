@@ -80,6 +80,82 @@
 #define B4000000 4000000
 #endif
 
+/* Regions from https://meshtastic.org/docs/overview/radio-settings/ */
+typedef enum {
+    LORA_REGION_US,
+    LORA_REGION_EU_433,
+    LORA_REGION_EU_868,
+    LORA_REGION_EU_866,
+    LORA_REGION_EU_N_868,
+    LORA_REGION_CN,
+    LORA_REGION_JP,
+    LORA_REGION_ANZ,
+    LORA_REGION_ANZ_433,
+    LORA_REGION_RU,
+    LORA_REGION_KR,
+    LORA_REGION_TW,
+    LORA_REGION_IN,
+    LORA_REGION_NZ_865,
+    LORA_REGION_TH,
+    LORA_REGION_UA_433,
+    LORA_REGION_MY_433,
+    LORA_REGION_MY_919,
+    LORA_REGION_SG_923,
+    LORA_REGION_PH_433,
+    LORA_REGION_PH_868,
+    LORA_REGION_PH_915,
+    LORA_REGION_KZ_433,
+    LORA_REGION_KZ_863,
+    LORA_REGION_NP_865,
+    LORA_REGION_BR_902,
+    LORA_REGION_ITU1_2M,
+    LORA_REGION_ITU2_2M,
+    LORA_REGION_ITU3_2M,
+    LORA_REGION_ITU2_125CM,
+    LORA_REGION_ITU1_70CM,
+    LORA_REGION_ITU2_70CM,
+    LORA_REGION_ITU3_70CM,
+    LORA_REGION_LORA_24,
+    LORA_REGION_MAX
+} lora_region_t;
+
+static const char *lora_region_names[LORA_REGION_MAX] = {
+    [LORA_REGION_US] = "US",
+    [LORA_REGION_EU_433] = "EU_433",
+    [LORA_REGION_EU_868] = "EU_868",
+    [LORA_REGION_EU_866] = "EU_866",
+    [LORA_REGION_EU_N_868] = "EU_N_868",
+    [LORA_REGION_CN] = "CN",
+    [LORA_REGION_JP] = "JP",
+    [LORA_REGION_ANZ] = "ANZ",
+    [LORA_REGION_ANZ_433] = "ANZ_433",
+    [LORA_REGION_RU] = "RU",
+    [LORA_REGION_KR] = "KR",
+    [LORA_REGION_TW] = "TW",
+    [LORA_REGION_IN] = "IN",
+    [LORA_REGION_NZ_865] = "NZ_865",
+    [LORA_REGION_TH] = "TH",
+    [LORA_REGION_UA_433] = "UA_433",
+    [LORA_REGION_MY_433] = "MY_433",
+    [LORA_REGION_MY_919] = "MY_919",
+    [LORA_REGION_SG_923] = "SG_923",
+    [LORA_REGION_PH_433] = "PH_433",
+    [LORA_REGION_PH_868] = "PH_868",
+    [LORA_REGION_PH_915] = "PH_915",
+    [LORA_REGION_KZ_433] = "KZ_433",
+    [LORA_REGION_KZ_863] = "KZ_863",
+    [LORA_REGION_NP_865] = "NP_865",
+    [LORA_REGION_BR_902] = "BR_902",
+    [LORA_REGION_ITU1_2M] = "ITU1_2M",
+    [LORA_REGION_ITU2_2M] = "ITU2_2M",
+    [LORA_REGION_ITU3_2M] = "ITU3_2M",
+    [LORA_REGION_ITU2_125CM] = "ITU2_125CM",
+    [LORA_REGION_ITU1_70CM] = "ITU1_70CM",
+    [LORA_REGION_ITU2_70CM] = "ITU2_70CM",
+    [LORA_REGION_ITU3_70CM] = "ITU3_70CM",
+    [LORA_REGION_LORA_24] = "LORA_24",
+};
+
 typedef struct {
     pthread_mutex_t serial_mutex;
 
@@ -93,6 +169,8 @@ typedef struct {
     char *channel;
 
     speed_t baudrate;
+
+    lora_region_t region;
 
     /* pending serial bytes not yet returned as a line */
     char rbuf[BUFFER_SIZE];
@@ -245,82 +323,6 @@ static const char *lora_preset_type_names[LORA_PRESET_MAX] = {
     [LORA_PRESET_LONG_TURBO] = "LONG_TURBO",
     [LORA_PRESET_MEDIUM_TURBO] = "MEDIUM_TURBO",
     [LORA_PRESET_SHORT_TURBO] = "SHORT_TURBO",
-};
-
-/* Regions from https://meshtastic.org/docs/overview/radio-settings/ */
-typedef enum {
-    LORA_REGION_US,
-    LORA_REGION_EU_433,
-    LORA_REGION_EU_868,
-    LORA_REGION_EU_866,
-    LORA_REGION_EU_N_868,
-    LORA_REGION_CN,
-    LORA_REGION_JP,
-    LORA_REGION_ANZ,
-    LORA_REGION_ANZ_433,
-    LORA_REGION_RU,
-    LORA_REGION_KR,
-    LORA_REGION_TW,
-    LORA_REGION_IN,
-    LORA_REGION_NZ_865,
-    LORA_REGION_TH,
-    LORA_REGION_UA_433,
-    LORA_REGION_MY_433,
-    LORA_REGION_MY_919,
-    LORA_REGION_SG_923,
-    LORA_REGION_PH_433,
-    LORA_REGION_PH_868,
-    LORA_REGION_PH_915,
-    LORA_REGION_KZ_433,
-    LORA_REGION_KZ_863,
-    LORA_REGION_NP_865,
-    LORA_REGION_BR_902,
-    LORA_REGION_ITU1_2M,
-    LORA_REGION_ITU2_2M,
-    LORA_REGION_ITU3_2M,
-    LORA_REGION_ITU2_125CM,
-    LORA_REGION_ITU1_70CM,
-    LORA_REGION_ITU2_70CM,
-    LORA_REGION_ITU3_70CM,
-    LORA_REGION_LORA_24,
-    LORA_REGION_MAX
-} lora_region_t;
-
-static const char *lora_region_names[LORA_REGION_MAX] = {
-    [LORA_REGION_US] = "US",
-    [LORA_REGION_EU_433] = "EU_433",
-    [LORA_REGION_EU_868] = "EU_868",
-    [LORA_REGION_EU_866] = "EU_866",
-    [LORA_REGION_EU_N_868] = "EU_N_868",
-    [LORA_REGION_CN] = "CN",
-    [LORA_REGION_JP] = "JP",
-    [LORA_REGION_ANZ] = "ANZ",
-    [LORA_REGION_ANZ_433] = "ANZ_433",
-    [LORA_REGION_RU] = "RU",
-    [LORA_REGION_KR] = "KR",
-    [LORA_REGION_TW] = "TW",
-    [LORA_REGION_IN] = "IN",
-    [LORA_REGION_NZ_865] = "NZ_865",
-    [LORA_REGION_TH] = "TH",
-    [LORA_REGION_UA_433] = "UA_433",
-    [LORA_REGION_MY_433] = "MY_433",
-    [LORA_REGION_MY_919] = "MY_919",
-    [LORA_REGION_SG_923] = "SG_923",
-    [LORA_REGION_PH_433] = "PH_433",
-    [LORA_REGION_PH_868] = "PH_868",
-    [LORA_REGION_PH_915] = "PH_915",
-    [LORA_REGION_KZ_433] = "KZ_433",
-    [LORA_REGION_KZ_863] = "KZ_863",
-    [LORA_REGION_NP_865] = "NP_865",
-    [LORA_REGION_BR_902] = "BR_902",
-    [LORA_REGION_ITU1_2M] = "ITU1_2M",
-    [LORA_REGION_ITU2_2M] = "ITU2_2M",
-    [LORA_REGION_ITU3_2M] = "ITU3_2M",
-    [LORA_REGION_ITU2_125CM] = "ITU2_125CM",
-    [LORA_REGION_ITU1_70CM] = "ITU1_70CM",
-    [LORA_REGION_ITU2_70CM] = "ITU2_70CM",
-    [LORA_REGION_ITU3_70CM] = "ITU3_70CM",
-    [LORA_REGION_LORA_24] = "LORA_24",
 };
 
 typedef struct {
@@ -480,6 +482,42 @@ static int preset_name_match(const char *str, size_t len, const char *name) {
     return 1;
 }
 
+/* returns LORA_REGION_MAX if unknown */
+static lora_region_t lora_region_from_name(const char *str, size_t len) {
+    for (int i = 0; i < LORA_REGION_MAX; i++) {
+        if (preset_name_match(str, len, lora_region_names[i]))
+            return (lora_region_t) i;
+    }
+
+    return LORA_REGION_MAX;
+}
+
+/* error for a missing or unknown region=, listing the valid regions */
+static void format_region_error(char *msg, const char *name, const char *val, size_t val_len) {
+    size_t pos;
+    int r;
+
+    if (val == NULL)
+        r = snprintf(msg, STATUS_MAX, "%s expected region= in definition; one of:", name);
+    else
+        r = snprintf(msg, STATUS_MAX, "%s unsupported region= value '%.*s'; one of:", name,
+                (int) (val_len > 32 ? 32 : val_len), val);
+
+    if (r < 0 || r >= STATUS_MAX)
+        return;
+
+    pos = (size_t) r;
+
+    for (int i = 0; i < LORA_REGION_MAX; i++) {
+        r = snprintf(msg + pos, STATUS_MAX - pos, "%s %s", i ? "," : "", lora_region_names[i]);
+
+        if (r < 0 || (size_t) r >= STATUS_MAX - pos)
+            return;
+
+        pos += r;
+    }
+}
+
 static int parse_preset_def(const char *str, lora_preset_def_t *def) {
     const char *h1, *h2;
     size_t len;
@@ -494,13 +532,7 @@ static int parse_preset_def(const char *str, lora_preset_def_t *def) {
     def->protocol[len] = '\0';
 
     len = (size_t) (h2 - h1 - 1);
-    def->region = LORA_REGION_MAX;
-    for (int i = 0; i < LORA_REGION_MAX; i++) {
-        if (preset_name_match(h1 + 1, len, lora_region_names[i])) {
-            def->region = (lora_region_t) i;
-            break;
-        }
-    }
+    def->region = lora_region_from_name(h1 + 1, len);
 
     if (def->region == LORA_REGION_MAX)
         return -1;
@@ -827,6 +859,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX,
             "%s expected device= path to serial device in definition", local->name);
@@ -835,16 +871,36 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "baud", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
+        if (localbaudratestr == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+            free(device);
+            return -1;
+        }
         int req_baud = atoi(localbaudratestr);
         free(localbaudratestr);
         int b = get_baud(req_baud);
         if (b < 0) {
             snprintf(msg, STATUS_MAX, "%s unsupported baud= value", local->name);
+            free(device);
             return -1;
         }
         local->baudrate = b;
     } else {
         local->baudrate = D_BAUDRATE;
+    }
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "region", definition)) <= 0) {
+        format_region_error(msg, local->name, NULL, 0);
+        free(device);
+        return -1;
+    }
+
+    local->region = lora_region_from_name(placeholder, (size_t) placeholder_len);
+
+    if (local->region == LORA_REGION_MAX) {
+        format_region_error(msg, local->name, placeholder, (size_t) placeholder_len);
+        free(device);
+        return -1;
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
@@ -965,6 +1021,7 @@ int main(int argc, char *argv[]) {
         .interface = NULL,
         .channel = NULL,
         .baudrate = D_BAUDRATE,
+        .region = LORA_REGION_MAX,
     };
 
     pthread_mutex_init(&local.serial_mutex, NULL);
