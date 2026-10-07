@@ -25,6 +25,7 @@
 #include "alertracker.h"
 #include "packetchain.h"
 #include "timetracker.h"
+#include <cmath>
 #include <future>
 
 // We never instantiate from a generic tracker component or from a stored
@@ -436,6 +437,21 @@ void kis_datasource::set_channel_hop(double in_rate,
             in_cb(in_transaction, false, "Driver not capable of channel hopping");
         }
         return;
+    }
+
+    if (!std::isfinite(in_rate) || in_rate <= 0) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Invalid channel hop rate");
+        }
+        return;
+    }
+
+    auto max_rate = get_source_builder()->get_max_hop_rate();
+
+    if (max_rate > 0 && in_rate > max_rate) {
+        _MSG_INFO("Source '{}' requested channel hop rate {}/sec exceeds driver maximum, "
+                "using {}/sec", get_source_name(), in_rate, max_rate);
+        in_rate = max_rate;
     }
 
     // Generate the command and send it

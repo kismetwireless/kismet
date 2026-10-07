@@ -127,6 +127,9 @@ public:
         // debatable; experimentation needed
         set_tune_capable(true);
         set_hop_capable(true);
+
+        // One hop every 30 seconds
+        set_max_hop_rate(1.0 / 30);
     }
 };
 
