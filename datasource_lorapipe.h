@@ -118,7 +118,7 @@ public:
         set_source_type("lorapipe");
         set_source_description("Lora microcontroller with LoraPipe sniffer-capable firmware");
 
-        set_probe_capable(false);
+        set_probe_capable(true);
         set_list_capable(false);
         set_local_capable(true);
         set_remote_capable(true);
