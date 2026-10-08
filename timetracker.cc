@@ -43,13 +43,15 @@ time_tracker::time_tracker() {
     Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
 
     shutdown = false;
+    workers_shutdown = false;
 
-    // Allocate workers and fill them with joinable threads
-    auto n_worker_threads = static_cast<unsigned int>(std::thread::hardware_concurrency());
-    time_workers.resize(n_worker_threads);
+    auto n_worker_threads = std::max(4U, std::thread::hardware_concurrency());
 
-    for (unsigned int x = 0; x < time_workers.size(); x++) {
-        time_workers[x] = std::thread([]() { });
+    for (unsigned int x = 0; x < n_worker_threads; x++) {
+        time_workers.emplace_back([this]() {
+                thread_set_process_name("TIME_EVT");
+                time_worker();
+            });
     }
 
     /*
@@ -76,7 +78,19 @@ time_tracker::~time_tracker() {
     if (time_dispatch_t.joinable())
         time_dispatch_t.join();
 
-    // time_dispatch_t.join();
+    // Running callbacks finish; anything still queued is dropped
+    {
+        std::lock_guard<std::mutex> lk(work_mutex);
+        workers_shutdown = true;
+        work_queue.clear();
+    }
+
+    work_cv.notify_all();
+
+    for (auto& w : time_workers) {
+        if (w.joinable())
+            w.join();
+    }
 
     Globalreg::globalreg->remove_global("TIMETRACKER");
     Globalreg::globalreg->timetracker = NULL;
@@ -116,8 +130,10 @@ void time_tracker::time_dispatcher() {
         Globalreg::globalreg->last_tv_sec = cur_tm.tv_sec;
         Globalreg::globalreg->last_tv_usec = cur_tm.tv_usec;
 
-        // Sort and duplicate the vector to a safe list; we have to re-sort
-        // timers from recurring events
+        // Collect due timers under the lock; a timer whose last run hasn't finished is
+        // skipped and picked up again once it reschedules itself
+        std::vector<std::shared_ptr<timer_event>> due;
+
         lock.lock();
 
         if (timer_sort_required)
@@ -125,75 +141,28 @@ void time_tracker::time_dispatcher() {
 
         timer_sort_required = false;
 
-        auto action_timers = std::vector<std::shared_ptr<timer_event>>(sorted_timers.begin(), sorted_timers.end());
+        for (const auto& evt : sorted_timers) {
+            if (chrono_now < evt->trigger_tm)
+                break;
+
+            // Cancelled timers are already queued for removal
+            if (evt->timer_cancelled || evt->running)
+                continue;
+
+            evt->running = true;
+            due.push_back(evt);
+        }
+
         lock.unlock();
 
-        for (auto evt : action_timers) {
-            // If we're pending cancellation, throw us out
-            if (evt->timer_cancelled) {
-                kis_lock_guard<kis_mutex> rl(removed_id_mutex);
-                removed_timer_ids.push_back(evt->timer_id);
-                continue;
+        if (!due.empty()) {
+            {
+                std::lock_guard<std::mutex> lk(work_mutex);
+                for (auto& evt : due)
+                    work_queue.emplace_back(std::move(evt), chrono_now);
             }
 
-            // We're into the future, bail
-            if (chrono_now < evt->trigger_tm) {
-                break;
-            }
-
-            // Find a usable worker slot; this is a fast-burn while loop for now
-            // to see how it performs, if we need to add a sleep we will
-            bool launched = false;
-            time_t started_looking = time(0);
-            while (!launched) {
-                // Catch an unwinnable situation for timers; 5 seconds is actually excessively long for
-                // timers that could be executing at 10Hz.
-                if (started_looking - time(0) > 5) {
-                    throw std::runtime_error("Couldn't find a slot in the timer handlers in 5 seconds; something "
-                                             "has gone wrong, most likely thread deadlocks.");
-                }
-
-                for (unsigned int t = 0; t < time_workers.size(); t++) {
-                    // Found a worker slot
-                    if (time_workers[t].joinable()) {
-                        time_workers[t].join();
-
-                        time_workers[t] = std::thread([evt, this, chrono_now]() {
-                            thread_set_process_name("TIME_EVT");
-
-                            // Call the function with the given parameters
-                            int ret = 0;
-                            if (evt->callback != NULL) {
-                                ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
-                            } else if (evt->event != NULL) {
-                                ret = evt->event->timetracker_event(evt->timer_id);
-                            } else if (evt->event_func != NULL) {
-                                ret = evt->event_func(evt->timer_id);
-                            }
-
-                            if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
-                                kis_lock_guard<kis_mutex> tl(time_mutex, "event rescheduler");
-
-                                struct timeval cur_tm;
-                                gettimeofday(&cur_tm, NULL);
-
-                                evt->schedule_tm = chrono_now;
-
-                                evt->trigger_tm = chrono_now +
-                                    std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
-
-                                timer_sort_required = true;
-                            } else {
-                                kis_lock_guard<kis_mutex> rl(removed_id_mutex);
-                                removed_timer_ids.push_back(evt->timer_id);
-                            }
-                        });
-
-                        launched = true;
-                        break;
-                    }
-                }
-            }
+            work_cv.notify_all();
         }
 
         {
@@ -221,6 +190,56 @@ void time_tracker::time_dispatcher() {
         }
 
         std::this_thread::sleep_until(next);
+    }
+}
+
+void time_tracker::time_worker() {
+    while (true) {
+        std::pair<std::shared_ptr<timer_event>, std::chrono::system_clock::time_point> work;
+
+        {
+            std::unique_lock<std::mutex> lk(work_mutex);
+            work_cv.wait(lk, [this]() { return workers_shutdown || !work_queue.empty(); });
+
+            if (workers_shutdown)
+                return;
+
+            work = std::move(work_queue.front());
+            work_queue.pop_front();
+        }
+
+        run_timer(work.first, work.second);
+    }
+}
+
+void time_tracker::run_timer(const std::shared_ptr<timer_event>& evt,
+        std::chrono::system_clock::time_point dispatch_tm) {
+    int ret = 0;
+
+    // Cancelled between being dispatched and run
+    if (!evt->timer_cancelled) {
+        if (evt->callback != NULL) {
+            ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
+        } else if (evt->event != NULL) {
+            ret = evt->event->timetracker_event(evt->timer_id);
+        } else if (evt->event_func != NULL) {
+            ret = evt->event_func(evt->timer_id);
+        }
+    }
+
+    if (ret > 0 && evt->timeslices != -1 && evt->recurring && !evt->timer_cancelled) {
+        kis_lock_guard<kis_mutex> tl(time_mutex, "event rescheduler");
+
+        evt->schedule_tm = dispatch_tm;
+        evt->trigger_tm = dispatch_tm +
+            std::chrono::milliseconds((1000 / SERVER_TIMESLICES_SEC) * evt->timeslices);
+
+        timer_sort_required = true;
+        evt->running = false;
+    } else {
+        // Left marked running so it can't be dispatched again before it's removed
+        kis_lock_guard<kis_mutex> rl(removed_id_mutex, "event remover");
+        removed_timer_ids.push_back(evt->timer_id);
     }
 }
 

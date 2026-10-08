@@ -23,10 +23,15 @@
 
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
+#include <deque>
 #include <list>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <stdio.h>
 #include <string>
+#include <thread>
 #include <time.h>
 #include <vector>
 
@@ -58,7 +63,10 @@ public:
         double last_ms;
 
         // Is the timer cancelled?
-        std::atomic<bool> timer_cancelled;
+        std::atomic<bool> timer_cancelled{false};
+
+        // Dispatched and not finished; a timer never runs alongside itself
+        std::atomic<bool> running{false};
 
         // Time it was scheduled
         std::chrono::system_clock::time_point schedule_tm;
@@ -148,9 +156,19 @@ public:
 protected:
     kis_mutex time_mutex;
 
+    // Persistent workers run due timers so one slow timer can't delay the others; the
+    // dispatcher only queues work and never waits on a callback
     std::vector<std::thread> time_workers;
 
+    std::mutex work_mutex;
+    std::condition_variable work_cv;
+    std::deque<std::pair<std::shared_ptr<timer_event>, std::chrono::system_clock::time_point>> work_queue;
+    bool workers_shutdown;
+
     void time_dispatcher(void);
+    void time_worker(void);
+    void run_timer(const std::shared_ptr<timer_event>& evt,
+            std::chrono::system_clock::time_point dispatch_tm);
 
     // Do we have to re-sort the list of timers?
     std::atomic<bool> timer_sort_required;
