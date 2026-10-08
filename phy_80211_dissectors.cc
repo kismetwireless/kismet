@@ -665,11 +665,27 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         return 0;
     }
 
-    // If we're a duplicate packet and haven't processed the dot11 content yet,
-    // we have to process.  This prevents a desync between the postcap thread and
-    // the bulk packet processing threads.
-    if (in_pack->duplicate && packinfo != nullptr) {
-        return 0;
+    // A duplicate borrowed the original's decoded components when it was deduplicated;
+    // only the addressing lives in the packet itself and is copied.  Frequency comes
+    // from the duplicate's own capture.
+    if (in_pack->duplicate && in_pack->original != nullptr && in_pack->has(pack_comp_80211)) {
+        const auto& oci = in_pack->original->common_info;
+        auto& ci = in_pack->common_info;
+
+        ci.common_info_ok = oci.common_info_ok;
+        ci.phyid = oci.phyid;
+        ci.type = oci.type;
+        ci.source = oci.source;
+        ci.dest = oci.dest;
+        ci.network = oci.network;
+        ci.transmitter = oci.transmitter;
+        ci.datasize = oci.datasize;
+        ci.basic_crypt_set = oci.basic_crypt_set;
+
+        if (in_pack->signal_info.data_ok)
+            ci.freq_khz = in_pack->signal_info.freq_khz;
+
+        return 1;
     }
 
 
@@ -2789,7 +2805,8 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
 int kis_80211_phy::packet_wep_decryptor(kis_packet* in_pack) {
     std::shared_ptr<kis_datachunk> manglechunk;
 
-    if (in_pack->error)
+    // A duplicate shares the original's decode, decrypted or not
+    if (in_pack->error || in_pack->duplicate)
         return 0;
 
     // Grab the 80211 info, compare, bail

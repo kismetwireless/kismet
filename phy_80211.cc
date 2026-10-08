@@ -1263,8 +1263,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
     auto pack_datainfo = in_pack->fetch<kis_data_packinfo>(d11phy->pack_comp_basicdata);
 
-    // Handle duplicates; we update seenby, location, and signals, but that's it; we don't
-    // need to lock the entire device list
+    // Handle duplicates; we update seenby, location, and signals, but that's it.  The
+    // dot11 info is shared with the original and other duplicates, so it's only read.
     if (in_pack->duplicate) {
         if (dot11info->type == packet_management) {
             if (dot11info->bssid_dev != nullptr) {
@@ -1278,8 +1278,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         bflags |= UCD_UPDATE_SIGNAL;
                 }
 
-                dot11info->bssid_dev =
-                    d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
+                d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
                             in_pack, bflags, "Wi-Fi Device");
             }
 
@@ -1294,8 +1293,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 if (dot11info->distrib == distrib_to)
                     bflags |= (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION);
 
-                dot11info->source_dev =
-                    d11phy->devicetracker->update_common_device(dot11info->source_mac, d11phy,
+                d11phy->devicetracker->update_common_device(dot11info->source_mac, d11phy,
                             in_pack, bflags, "Wi-Fi Device");
             }
 
@@ -1304,8 +1302,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     dot11info->dest_mac != Globalreg::globalreg->empty_mac &&
                     !(dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
-                dot11info->dest_dev =
-                    d11phy->devicetracker->update_common_device(dot11info->dest_mac, d11phy,
+                d11phy->devicetracker->update_common_device(dot11info->dest_mac, d11phy,
                             in_pack, (UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
                             "Wi-Fi Device (Inferred)");
             }

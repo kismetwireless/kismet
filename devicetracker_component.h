@@ -1022,6 +1022,9 @@ class kis_tracked_device_info : public packet_component {
 public:
 	kis_tracked_device_info() { }
 
+    // Which devices this packet updated; per packet, so never borrowed by a duplicate
+    virtual bool unique() override { return true; }
+
     // We don't use mac masks here so an unordered map is safe
     std::unordered_map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;
 };
