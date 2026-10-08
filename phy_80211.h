@@ -518,6 +518,11 @@ public:
 
     virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 
+    // Every 802.11 device update holds that device's lock
+    virtual bool uses_device_locking() const override {
+        return true;
+    }
+
     std::shared_ptr<dot11_tracked_device> fetch_dot11_record(const std::shared_ptr<kis_tracked_device_base>& dev);
 
 protected:
@@ -670,6 +675,9 @@ protected:
 
     // Do we only get signal from beacons?
     bool signal_from_beacon;
+
+    // Hold the device list for the whole of each packet, as before per-device locking
+    bool global_device_lock;
 
     // Do we associate devices by bssts?
     bool associate_by_bssts;

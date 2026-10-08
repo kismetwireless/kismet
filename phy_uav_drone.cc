@@ -280,8 +280,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                 return 0;
             }
 
-            KIS_CHECK_NO_DEVICE_LOCKS("uav rf droneid");
-            auto lg = kis_lock_guard<kis_mutex>(uavphy->devicetracker->get_devicelist_mutex(), "uav rf droneid");
+            kis_device_lock dlk(basedev, false);
 
             basedev->set_manuf(uavphy->dji_manuf);
             basedev->set_tracker_type_string(uavphy->devicetracker->get_cached_devicetype("DJI UAV"));
@@ -339,9 +338,6 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
         return 1;
     }
 
-    KIS_CHECK_NO_DEVICE_LOCKS("uav_phy common_classifier");
-    kis_lock_guard<kis_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");
-
     for (auto di : devinfo->devrefs) {
         auto basedev = di.second;
 
@@ -351,6 +347,15 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
         // Only compare to the AP device for droneid and SSID matching
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
+
+        // Nothing to record without drone ID data or a new SSID to match; most packets
+        // stop here without locking anything
+        if (dot11info->droneid == NULL &&
+                !(dot11info->new_adv_ssid && dot11info->type == packet_management &&
+                    (dot11info->subtype == packet_sub_beacon || dot11info->subtype == packet_sub_probe_resp)))
+            continue;
+
+        kis_device_lock dlk(basedev, false);
 
         if (dot11info->droneid != NULL) {
             try {

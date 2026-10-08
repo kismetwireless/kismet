@@ -194,6 +194,14 @@ public:
             const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
             const std::string& in_basic_type, bool& new_device);
 
+    // As above, but the device is returned still locked exclusively by held_lock, so a phy
+    // can finish its own update of the device without locking it a second time.  held_lock
+    // must be unbound, and is left unbound when no device is returned.
+    std::shared_ptr<kis_tracked_device_base> update_common_device(
+            const mac_addr& in_mac, kis_phy_handler *phy,
+            const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
+            const std::string& in_basic_type, kis_device_lock& held_lock);
+
     // Set the common name of a device (and log it in the database for future runs)
     void set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
             const std::string& in_username);
@@ -380,6 +388,11 @@ protected:
         kis_lock_guard<kis_mutex> lk(view_snapshot_mutex, "device_tracker view snapshot");
         view_snapshot = v;
     }
+
+    std::shared_ptr<kis_tracked_device_base> update_common_device_impl(
+            const mac_addr& in_mac, kis_phy_handler *phy,
+            const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
+            const std::string& in_basic_type, bool& new_device, kis_device_lock& held_lock);
 
     // Common device update for a device the caller has locked
     void update_common_device_locked(const std::shared_ptr<kis_tracked_device_base>& device,

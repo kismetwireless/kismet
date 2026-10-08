@@ -1240,6 +1240,41 @@ std::shared_ptr<kis_tracked_device_base>
     device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
             const std::shared_ptr<kis_packet>& in_pack,
             unsigned int in_flags, const std::string& in_basic_type, bool &new_device) {
+    kis_device_lock dlg;
+    auto device = update_common_device_impl(in_mac, in_phy, in_pack, in_flags, in_basic_type,
+            new_device, dlg);
+    dlg.unlock();
+
+    // Without a packet to carry the new device event, publish it now that the device is
+    // unlocked
+    if (new_device && in_pack == nullptr) {
+        new_view_device(device);
+        auto evt = eventbus->get_eventbus_event(event_new_device());
+        evt->get_event_content()->insert(event_new_device(), device);
+        eventbus->publish(evt);
+    }
+
+    return device;
+}
+
+std::shared_ptr<kis_tracked_device_base>
+    device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
+            const std::shared_ptr<kis_packet>& in_pack,
+            unsigned int in_flags, const std::string& in_basic_type,
+            kis_device_lock& held_lock) {
+    if (in_pack == nullptr)
+        throw std::runtime_error("update_common_device with a held lock requires a packet");
+
+    bool new_device;
+    return update_common_device_impl(in_mac, in_phy, in_pack, in_flags, in_basic_type,
+            new_device, held_lock);
+}
+
+std::shared_ptr<kis_tracked_device_base>
+    device_tracker::update_common_device_impl(const mac_addr& in_mac, kis_phy_handler *in_phy,
+            const std::shared_ptr<kis_packet>& in_pack,
+            unsigned int in_flags, const std::string& in_basic_type, bool &new_device,
+            kis_device_lock& dlg) {
 
     // Find or create the device under the device list lock, then update it holding only
     // its own lock; a device expired in between is looked up (or created) again
@@ -1298,29 +1333,23 @@ std::shared_ptr<kis_tracked_device_base>
             }
         }
 
-        kis_device_lock dlg(device, false);
+        dlg.lock(device, false);
 
-        if (device->get_removed())
+        if (device->get_removed()) {
+            dlg.unlock();
             continue;
+        }
 
         update_common_device_locked(device, in_mac, in_pack, in_flags, new_device);
         break;
     }
 
-    if (new_device) {
-        // If we have no packet info, add it to the device list immediately,
-        // otherwise, flag the packet to trigger a new device event at the
-        // end of the packet processing stage of the chain
-        if (in_pack == nullptr) {
-            new_view_device(device);
-            auto evt = eventbus->get_eventbus_event(event_new_device());
-            evt->get_event_content()->insert(event_new_device(), device);
-            eventbus->publish(evt);
-        } else {
-            auto evt = eventbus->get_eventbus_event(event_new_device());
-            evt->get_event_content()->insert(event_new_device(), device);
-            in_pack->process_complete_events.push_back(evt);
-        }
+    // Flag the packet to trigger a new device event at the end of the packet processing
+    // stage of the chain; packetless updates are published by the caller once unlocked
+    if (new_device && in_pack != nullptr) {
+        auto evt = eventbus->get_eventbus_event(event_new_device());
+        evt->get_event_content()->insert(event_new_device(), device);
+        in_pack->process_complete_events.push_back(evt);
     }
 
     return device;
@@ -2258,7 +2287,10 @@ std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(co
     auto k = device_type_cache.find(type);
 
     if (k == device_type_cache.end()) {
+        // Shared by every device of this type; give it the field id now so devices never
+        // need to write it
         auto r = std::make_shared<tracker_element_string>(type);
+        r->set_id(entrytracker->get_field_id("kismet.device.base.type"));
         device_type_cache[type] = r;
         return r;
     }
@@ -2272,7 +2304,10 @@ std::shared_ptr<tracker_element_string> device_tracker::get_cached_phyname(const
     auto k = device_phy_name_cache.find(phyname);
 
     if (k == device_phy_name_cache.end()) {
+        // Shared by every device of this phy; give it the field id now so devices never
+        // need to write it
         auto r = std::make_shared<tracker_element_string>(phyname);
+        r->set_id(entrytracker->get_field_id("kismet.device.base.phyname"));
         device_phy_name_cache[phyname] = r;
         return r;
     }

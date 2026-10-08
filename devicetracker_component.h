@@ -543,6 +543,19 @@ public:
     __Proxy(basic_type_set, uint64_t, uint64_t, uint64_t, basic_type_set);
     __ProxyBitset(basic_type_set, uint64_t, basic_type_set);
 
+    // Wired is only inferred from bridged traffic, so any sign of a radio (client or AP)
+    // clears it and keeps it from being set again; the result doesn't depend on the order
+    // packets are processed in
+    void bitset_basic_type_radio(uint64_t in_bits) {
+        bitset_basic_type_set(in_bits);
+        bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
+    }
+
+    void bitset_basic_type_wired() {
+        if (!(get_basic_type_set() & (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP)))
+            bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
+    }
+
     __ProxyGet(type_string, std::string, std::string, type_string);
 
     // Use a function on the following so that we don't force a lookup / cache cycle unless we need the data
@@ -910,6 +923,10 @@ protected:
 // Scoped device lock that tolerates nesting within the same thread
 class kis_device_lock {
 public:
+    // Unbound until lock(), such as when update_common_device hands back the device locked
+    kis_device_lock() :
+        device{nullptr} { }
+
     kis_device_lock(kis_tracked_device_base *device, bool shared) :
         device{device} {
         device->lock_device(shared);
@@ -919,7 +936,27 @@ public:
         kis_device_lock(device.get(), shared) { }
 
     ~kis_device_lock() {
-        device->unlock_device();
+        if (device != nullptr)
+            device->unlock_device();
+    }
+
+    void lock(kis_tracked_device_base *in_device, bool shared) {
+        if (device != nullptr)
+            throw std::runtime_error("kis_device_lock already holds a device");
+
+        in_device->lock_device(shared);
+        device = in_device;
+    }
+
+    void lock(const std::shared_ptr<kis_tracked_device_base>& in_device, bool shared) {
+        lock(in_device.get(), shared);
+    }
+
+    void unlock() {
+        if (device != nullptr) {
+            device->unlock_device();
+            device = nullptr;
+        }
     }
 
     kis_device_lock(const kis_device_lock&) = delete;
@@ -927,6 +964,57 @@ public:
 
 protected:
     kis_tracked_device_base *device;
+};
+
+// Exclusive lock on two devices for updates which must change both together (such as a
+// client and its access point).  Devices are always locked in kis_internal_id order so
+// threads locking the same pair can't deadlock; either may be null, or both the same.
+class kis_device_pair_lock {
+public:
+    kis_device_pair_lock(const std::shared_ptr<kis_tracked_device_base>& a,
+            const std::shared_ptr<kis_tracked_device_base>& b) :
+        first{a.get()},
+        second{b.get()} {
+
+        if (first == second)
+            second = nullptr;
+
+        if (first == nullptr)
+            std::swap(first, second);
+
+        if (second != nullptr && second->get_kis_internal_id() < first->get_kis_internal_id())
+            std::swap(first, second);
+
+        // Holding any other device here could invert the order with another thread
+        for (const auto& e : kis_device_locks_held) {
+            if (e.device != first && e.device != second) {
+                static std::atomic<bool> reported{false};
+                kis_lock_order_violation("device pair lock taken while holding another device lock", reported);
+                break;
+            }
+        }
+
+        if (first != nullptr)
+            first->lock_device(false);
+
+        if (second != nullptr)
+            second->lock_device(false);
+    }
+
+    ~kis_device_pair_lock() {
+        if (second != nullptr)
+            second->unlock_device();
+
+        if (first != nullptr)
+            first->unlock_device();
+    }
+
+    kis_device_pair_lock(const kis_device_pair_lock&) = delete;
+    kis_device_pair_lock& operator=(const kis_device_pair_lock&) = delete;
+
+protected:
+    kis_tracked_device_base *first;
+    kis_tracked_device_base *second;
 };
 
 // Packinfo references

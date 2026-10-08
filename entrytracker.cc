@@ -219,29 +219,35 @@ std::string entry_tracker::get_field_description(uint16_t in_id) {
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(uint16_t in_id) {
-    kis_unique_lock<kis_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance id");
+    std::shared_ptr<reserved_field> def;
 
-    lock.lock();
-    auto iter = field_id_map.find(in_id);
-    lock.unlock();
+    {
+        kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_shared_instance id");
 
-    if (iter == field_id_map.end()) 
-        return nullptr;
+        auto iter = field_id_map.find(in_id);
+        if (iter == field_id_map.end())
+            return nullptr;
 
-    return iter->second->builder->clone_type();
+        def = iter->second;
+    }
+
+    return def->builder->clone_type();
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::string& in_name) {
-    kis_unique_lock<kis_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance name");
+    std::shared_ptr<reserved_field> def;
 
-    lock.lock();
-    auto iter = field_name_map.find(in_name);
-    lock.unlock();
+    {
+        kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_shared_instance name");
 
-    if (iter == field_name_map.end()) 
-        return nullptr;
+        auto iter = field_name_map.find(in_name);
+        if (iter == field_name_map.end())
+            return nullptr;
 
-    return iter->second->builder->clone_type();
+        def = iter->second;
+    }
+
+    return def->builder->clone_type();
 }
 
 void entry_tracker::register_serializer(const std::string& in_name, 
