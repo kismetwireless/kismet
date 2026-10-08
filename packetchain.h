@@ -310,6 +310,20 @@ protected:
     // are kept apart from the packets so the scan reads contiguous memory; a null packet
     // marks an empty slot.
     static constexpr size_t dedupe_list_sz = 1024;
+
+    // A packet goes to its assigned thread unless that thread is this far behind, then to
+    // the least busy thread, so one busy device can't overflow a single queue
+    static constexpr size_t assignment_spill_backlog = 1024;
+
+public:
+    // A packet thread is far enough behind that capture readers should pause, so a source
+    // faster than processing (such as a pcap replay) is slowed down instead of dropped
+    bool backlog_high() const;
+
+    // Readers pause above this backlog per thread, or half the drop limit if lower
+    static constexpr size_t reader_pause_backlog = 4096;
+
+protected:
     std::array<uint32_t, dedupe_list_sz> dedupe_hash;
     std::array<std::shared_ptr<kis_packet>, dedupe_list_sz> dedupe_pkt;
 

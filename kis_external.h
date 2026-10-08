@@ -147,6 +147,22 @@ public:
 
     std::shared_ptr<boost::asio::streambuf> in_buf_;
     std::list<std::shared_ptr<std::string>> out_bufs_;
+
+    // Bytes read from the stream and not yet split into frames; reading everything
+    // available at once avoids an async read (and thread handoff) per frame
+    boost::asio::streambuf rx_buf_{MAX_EXTERNAL_FRAME_LEN * 64};
+
+    template <class S>
+    void read_frames(S& stream);
+
+    // Resume reading once the packet threads have caught up
+    boost::asio::steady_timer backlog_timer_{Globalreg::globalreg->io};
+    void read_after_backlog();
+
+    // Hand each complete frame in rx_buf_ to the interface; < 0 on error
+    int dispatch_frames();
+
+    void handle_read_error(const boost::system::error_code& ec);
 };
 
 class kis_external_ipc : public kis_external_io {

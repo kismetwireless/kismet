@@ -525,23 +525,29 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
         }
     }
 
-    // assign it to a thread
+    // Packets with an assignment id go to a consistent thread; others are spread round
+    // robin.  A thread too far behind spills to the least busy one.
+    thread_local unsigned int unassigned_rr = 0;
+
     unsigned int processing_id;
 
-    // If there is no assignment id, randomly assign the packet to a thread.
-    // Otherwise transform the assignment id to a consistent thread.
-    // If the packet is a duplicate, assign it to the same thread as the original.
-    if (in_pack->assignment_id == 0) {
-        if (in_pack->original != nullptr) {
-            processing_id = in_pack->original->assignment_id % n_packet_threads;
-        } else {
-            processing_id = rand() % n_packet_threads;
-        }
-    } else {
+    if (in_pack->assignment_id == 0)
+        processing_id = unassigned_rr++ % n_packet_threads;
+    else
         processing_id = in_pack->assignment_id % n_packet_threads;
-    }
 
     auto qsize = packet_threads[processing_id]->packet_queue.size_approx();
+
+    if (qsize > assignment_spill_backlog) {
+        for (unsigned int i = 0; i < n_packet_threads; i++) {
+            const auto isize = packet_threads[i]->packet_queue.size_approx();
+
+            if (isize < qsize) {
+                qsize = isize;
+                processing_id = i;
+            }
+        }
+    }
 
     if (packet_queue_drop != 0 && qsize > packet_queue_drop) {
         time_t offt = now - last_packet_drop_user_warning;
@@ -588,6 +594,19 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     packet_queue_rrd->add_sample(qsize, now);
 
     return 1;
+}
+
+bool packet_chain::backlog_high() const {
+    // Pause well before a configured drop limit
+    const size_t pause = packet_queue_drop == 0 ? reader_pause_backlog :
+        std::min<size_t>(reader_pause_backlog, packet_queue_drop / 2);
+
+    for (unsigned int i = 0; i < n_packet_threads; i++) {
+        if (packet_threads[i]->packet_queue.size_approx() > pause)
+            return true;
+    }
+
+    return false;
 }
 
 packet_chain::pc_chains_ptr packet_chain::fetch_chains() {
