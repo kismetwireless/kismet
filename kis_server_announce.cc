@@ -103,7 +103,7 @@ void kis_server_announce::trigger_deferred_startup() {
             datasourcetracker->remote_listen(), datasourcetracker->remote_port());
 
 
-    timetracker->register_timer(std::chrono::seconds(5), true,
+    timerid = timetracker->register_timer(std::chrono::seconds(5), true,
             [this](int) -> int {
                 if (announce_sock <= 0)
                     return 0;
