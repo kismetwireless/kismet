@@ -654,6 +654,7 @@ BUILD_CAPTURE_ANTSDR_DRONEID
 BUILD_CAPTURE_USB_RADIACODE
 BUILD_CAPTURE_SERIAL_RADVIEW
 BUILD_CAPTURE_HAK5_COCONUT
+BUILD_CAPTURE_LORAPIPE
 BUILD_CAPTURE_SNIFFLE_BLE
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE
 BUILD_CAPTURE_NRF_52840
@@ -4810,6 +4811,7 @@ BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 BUILD_CAPTURE_USB_RADIACODE=0
 BUILD_CAPTURE_ANTSDR_DRONEID=1
 BUILD_CAPTURE_SNIFFLE_BLE=1
+BUILD_CAPTURE_LORAPIPE=1
 
 # deprecated
 BUILD_CAPTURE_SDR_RTL433=0
@@ -15334,6 +15336,9 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CATSNIFFER_ZIGBEE)"
 BUILD_CAPTURE_SNIFFLE_BLE=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SNIFFLE_BLE)"
 
+BUILD_CAPTURE_LORAPIPE=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LORAPIPE)"
+
 BUILD_CAPTURE_FREAKLABS_ZIGBEEV2=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_FREAKLABS_ZIGBEEV2)"
 
@@ -15732,11 +15737,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_proxy_adsb/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_proxy_adsb/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16455,6 +16461,7 @@ do
     "capture_ti_cc_2531/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ti_cc_2531/Makefile" ;;
     "capture_ubertooth_one/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ubertooth_one/Makefile" ;;
     "capture_wch_ble_analyzer_pro/Makefile") CONFIG_FILES="$CONFIG_FILES capture_wch_ble_analyzer_pro/Makefile" ;;
+    "capture_lorapipe/Makefile") CONFIG_FILES="$CONFIG_FILES capture_lorapipe/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -17283,6 +17290,12 @@ if test "$BUILD_CAPTURE_HAK5_COCONUT" = 1; then
 	echo "yes";
 else
 	echo "no (Hak5 WiFi Coconut not explicitly enabled)";
+fi
+printf "              Lorapipe: "
+if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
+	echo "yes";
+else
+	echo "no";
 fi
 
 printf " lm-sensors monitoring: "
