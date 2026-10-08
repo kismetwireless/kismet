@@ -1349,7 +1349,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         std::function<void ()> handle_probed_ssid_f;
 
         if (dot11info->bssid_dev != nullptr) {
-            kis_lock_guard<kis_shared_mutex> bssid_lg(dot11info->bssid_dev->device_mutex, fmt::format("{} mgmt bssiddev", __func__));
+            kis_device_lock bssid_lg(dot11info->bssid_dev, false);
 
             dot11info->bssid_dot11 =
                 dot11info->bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1478,7 +1478,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dot11info->source_dev != nullptr) {
-            kis_lock_guard<kis_shared_mutex> source_lg(dot11info->source_dev->device_mutex, fmt::format("{} mgmt sourcedev", __func__));
+            kis_device_lock source_lg(dot11info->source_dev, false);
 
             dot11info->source_dot11 =
                 dot11info->source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1539,7 +1539,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dot11info->dest_dev != nullptr) {
-            kis_lock_guard<kis_shared_mutex> dest_lg(dot11info->dest_dev->device_mutex, fmt::format("{} mgmt destdev", __func__));
+            kis_device_lock dest_lg(dot11info->dest_dev, false);
             dot11info->dest_dot11 =
                 dot11info->dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;

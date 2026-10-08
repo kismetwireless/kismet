@@ -288,7 +288,11 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
 
             bool m;
-            m = worker.match_device(dev);
+
+            {
+                kis_device_lock dlk(dev, false);
+                m = worker.match_device(dev);
+            }
 
             if (m)
                 ret->push_back(dev);
@@ -304,17 +308,12 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(device_tracker_view_worker& worker,
         std::shared_ptr<tracker_element_vector> devices) {
-
-    // read-only workers are currently disabled because it may not be reasonable to solve conflicts
-    // at the per-device level, use the locked worker.
-
-    return do_device_work(worker, devices);
-
-#if 0
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
 
-    kis_lock_guard<kis_mutex> ul_devlist(devicetracker->get_devicelist_mutex(),
+    // Writers are still serialized by the device list; the per-device shared lock is what
+    // protects reads once writers lock only the devices they change
+    kis_lock_guard<kis_mutex> dev_lg(devicetracker->get_devicelist_mutex(),
             "device_tracker_view do_readonly_device_work");
 
     std::for_each(devices->begin(), devices->end(),
@@ -325,7 +324,12 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
 
             auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
 
-            auto m = worker.match_device(dev);
+            bool m;
+
+            {
+                kis_device_lock dlk(dev, true);
+                m = worker.match_device(dev);
+            }
 
             if (m)
                 ret->push_back(dev);
@@ -337,7 +341,6 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     worker.finalize();
 
     return ret;
-#endif
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(device_key in_key) {

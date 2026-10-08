@@ -1242,7 +1242,7 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
     // lock the device itself before we alter it
-    kis_lock_guard dlg(device->device_mutex, __func__);
+    kis_device_lock dlg(device, false);
 
     // Tag the packet with the base device
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);

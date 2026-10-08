@@ -1512,11 +1512,17 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     }
 
     // Poke the pre-serialization function to update anything that needs updating before
-    // we create the new meta-object
+    // we create the new meta-object; post_serialize must run even if summarizing throws,
+    // since pre_serialize may hold a lock
+    struct serialize_scope {
+        tracker_element *e;
+        ~serialize_scope() { e->post_serialize(); }
+    };
+
     in->pre_serialize();
+    serialize_scope pscope{in.get()};
 
     if (in_summarization.size() == 0) {
-        in->post_serialize();
         return in;
     }
 
@@ -1566,8 +1572,6 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
             ret_elem->push_back(f);
         }
     }
-
-    in->post_serialize();
 
     return ret_elem;
 }

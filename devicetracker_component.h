@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -315,6 +316,16 @@ protected:
 #define KIS_DEVICE_BASICCRYPT_L3		(1 << 3)
 #define KIS_DEVICE_BASICCRYPT_WEAKCRYPT	(1 << 4)
 #define KIS_DEVICE_BASICCRYPT_DECRYPTED	(1 << 5)
+
+// device_mutex is not recursive; each thread records the devices it holds so that nested
+// locking (such as serializing a device inside a locked device worker) doesn't deadlock
+struct kis_device_lock_entry {
+    const void *device;
+    unsigned int depth;
+    bool shared;
+};
+
+inline thread_local std::vector<kis_device_lock_entry> kis_device_locks_held;
 
 // Base of all device tracking under the new trackerentry system
 class kis_tracked_device_base : public tracker_component {
@@ -632,6 +643,55 @@ public:
 
     kis_shared_mutex device_mutex;
 
+    // Lock the device, or nest inside a lock this thread already holds.  An exclusive
+    // request while this thread holds only a shared lock can't be satisfied and throws.
+    void lock_device(bool shared) {
+        for (auto& e : kis_device_locks_held) {
+            if (e.device != this)
+                continue;
+
+            if (e.shared && !shared)
+                throw std::runtime_error("device lock upgrade from shared to exclusive");
+
+            e.depth++;
+            return;
+        }
+
+        if (shared)
+            device_mutex.lock_shared();
+        else
+            device_mutex.lock();
+
+        kis_device_locks_held.push_back({this, 1, shared});
+    }
+
+    void unlock_device() {
+        for (auto i = kis_device_locks_held.begin(); i != kis_device_locks_held.end(); ++i) {
+            if (i->device != this)
+                continue;
+
+            if (--i->depth == 0) {
+                if (i->shared)
+                    device_mutex.unlock_shared();
+                else
+                    device_mutex.unlock();
+
+                kis_device_locks_held.erase(i);
+            }
+
+            return;
+        }
+    }
+
+    // Serializers hold a shared lock on the device while reading it
+    virtual void pre_serialize() override {
+        lock_device(true);
+    }
+
+    virtual void post_serialize() override {
+        unlock_device();
+    }
+
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
@@ -745,6 +805,28 @@ protected:
     uint16_t related_device_group_id;
 
     uint16_t location_cloud_id;
+};
+
+// Scoped device lock that tolerates nesting within the same thread
+class kis_device_lock {
+public:
+    kis_device_lock(kis_tracked_device_base *device, bool shared) :
+        device{device} {
+        device->lock_device(shared);
+    }
+
+    kis_device_lock(const std::shared_ptr<kis_tracked_device_base>& device, bool shared) :
+        kis_device_lock(device.get(), shared) { }
+
+    ~kis_device_lock() {
+        device->unlock_device();
+    }
+
+    kis_device_lock(const kis_device_lock&) = delete;
+    kis_device_lock& operator=(const kis_device_lock&) = delete;
+
+protected:
+    kis_tracked_device_base *device;
 };
 
 // Packinfo references
