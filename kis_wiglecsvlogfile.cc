@@ -265,17 +265,19 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     auto dev = d_k->second;
 
     // Stop looking at all if we're w/in the timeout for logging this device
-    const auto& time_k = wigle->timer_map.find(dev->get_key());
+    {
+        kis_lock_guard<kis_mutex> tlk(wigle->timer_mutex, "wigle timer_map");
 
-    if (time_k != wigle->timer_map.end()) {
-        if (time(0) < time_k->second)
-            return 1;
+        const auto& time_k = wigle->timer_map.find(dev->get_key());
+
+        if (time_k != wigle->timer_map.end()) {
+            if (time(0) < time_k->second)
+                return 1;
+        }
     }
 
-    // Lock the device tracker while we log this packet because we need to interact
-    // with the device internals
-
-    kis_lock_guard<kis_mutex> device_lk(wigle->devicetracker->get_devicelist_mutex());
+    // Hold the device while reading its internals
+    kis_device_lock device_lk(dev, true);
 
     // Break into per-phy handling
     if (wigle->dot11_phy->device_is_a(dev)) {
@@ -418,7 +420,10 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 type);
     }
 
-    wigle->timer_map[dev->get_key()] = time(0) + wigle->throttle_seconds;
+    {
+        kis_lock_guard<kis_mutex> tlk(wigle->timer_mutex, "wigle timer_map");
+        wigle->timer_map[dev->get_key()] = time(0) + wigle->throttle_seconds;
+    }
 
     fflush(wigle->csvfile);
 

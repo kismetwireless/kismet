@@ -22,6 +22,8 @@
 #include "config.h"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <list>
 #include <map>
 #include <stdexcept>
@@ -30,6 +32,7 @@
 #include <vector>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -323,9 +326,43 @@ struct kis_device_lock_entry {
     const void *device;
     unsigned int depth;
     bool shared;
+    // The device list lock was taken on behalf of this device
+    bool list_locked;
 };
 
 inline thread_local std::vector<kis_device_lock_entry> kis_device_locks_held;
+
+// Lock order is the device list, then devices, then views.  Going backwards is reported
+// once per site; set KISMET_LOCK_ORDER_ABORT to abort instead so tests fail loudly.
+inline thread_local unsigned int kis_view_locks_held = 0;
+
+// The device tracker's device list lock, set by the device tracker
+inline kis_mutex *kis_devicelist_mutex = nullptr;
+
+inline bool kis_devicelist_owned() {
+    return kis_devicelist_mutex != nullptr && kis_devicelist_mutex->owned_by_this_thread();
+}
+
+inline void kis_lock_order_violation(const char *what, std::atomic<bool>& reported) {
+    static const bool abort_on_violation = getenv("KISMET_LOCK_ORDER_ABORT") != nullptr;
+
+    if (!reported.exchange(true))
+        fprintf(stderr, "LOCK ORDER VIOLATION: %s\n", what);
+
+    if (abort_on_violation)
+        abort();
+}
+
+// Call before acquiring the device list lock; re-locking a list lock this thread already
+// holds is not a violation
+#define KIS_CHECK_NO_DEVICE_LOCKS(where) \
+    do { \
+        if ((!kis_device_locks_held.empty() || kis_view_locks_held != 0) && !kis_devicelist_owned()) { \
+            static std::atomic<bool> kis_lock_order_reported{false}; \
+            kis_lock_order_violation(where " takes the device list while holding a device or view lock", \
+                    kis_lock_order_reported); \
+        } \
+    } while (0)
 
 // Base of all device tracking under the new trackerentry system
 class kis_tracked_device_base : public tracker_component {
@@ -643,6 +680,15 @@ public:
 
     kis_shared_mutex device_mutex;
 
+    static constexpr unsigned int view_membership_capacity = 128;
+
+    // Safe default until the owning phy says otherwise
+    bool requires_list_lock{true};
+
+    std::array<std::atomic<uint64_t>, view_membership_capacity / 64> view_membership{};
+
+    std::atomic<bool> removed{false};
+
     // Lock the device, or nest inside a lock this thread already holds.  An exclusive
     // request while this thread holds only a shared lock can't be satisfied and throws.
     void lock_device(bool shared) {
@@ -657,12 +703,31 @@ public:
             return;
         }
 
+        if (kis_view_locks_held != 0) {
+            static std::atomic<bool> reported{false};
+            kis_lock_order_violation("device lock acquired while holding a view lock", reported);
+        }
+
+        // Devices from phys which don't lock devices are written under the device list
+        bool list_locked = false;
+
+        if (requires_list_lock && kis_devicelist_mutex != nullptr && !kis_devicelist_owned()) {
+            if (!kis_device_locks_held.empty()) {
+                static std::atomic<bool> reported{false};
+                kis_lock_order_violation("device list lock taken for a device while holding another device lock",
+                        reported);
+            }
+
+            kis_devicelist_mutex->lock();
+            list_locked = true;
+        }
+
         if (shared)
             device_mutex.lock_shared();
         else
             device_mutex.lock();
 
-        kis_device_locks_held.push_back({this, 1, shared});
+        kis_device_locks_held.push_back({this, 1, shared, list_locked});
     }
 
     void unlock_device() {
@@ -671,16 +736,51 @@ public:
                 continue;
 
             if (--i->depth == 0) {
+                const bool list_locked = i->list_locked;
+
                 if (i->shared)
                     device_mutex.unlock_shared();
                 else
                     device_mutex.unlock();
 
                 kis_device_locks_held.erase(i);
+
+                if (list_locked)
+                    kis_devicelist_mutex->unlock();
             }
 
             return;
         }
+    }
+
+    // Set from the phy at creation; see kis_phy_handler::uses_device_locking
+    void set_requires_list_lock(bool r) {
+        requires_list_lock = r;
+    }
+
+    // Set under the device lock when the device is expired from the tracker; anything
+    // holding a stale reference must look the device up again instead of updating it
+    bool get_removed() const {
+        return removed.load(std::memory_order_acquire);
+    }
+
+    void set_removed() {
+        removed.store(true, std::memory_order_release);
+    }
+
+    // Which views hold this device, so per-packet view updates can skip the view lock when
+    // membership doesn't change.  Only changed under the view's exclusive lock.
+    bool in_view(unsigned int index) const {
+        return (view_membership[index / 64].load(std::memory_order_acquire) >> (index % 64)) & 1;
+    }
+
+    void set_in_view(unsigned int index, bool in) {
+        const auto bit = uint64_t{1} << (index % 64);
+
+        if (in)
+            view_membership[index / 64].fetch_or(bit, std::memory_order_release);
+        else
+            view_membership[index / 64].fetch_and(~bit, std::memory_order_release);
     }
 
     // Serializers hold a shared lock on the device while reading it

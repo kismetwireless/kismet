@@ -48,6 +48,8 @@ protected:
 
     unsigned int throttle_seconds;
 
+    // Per-device throttle; written by any packet thread
+    kis_mutex timer_mutex;
     std::unordered_map<device_key, time_t> timer_map;
 
     std::shared_ptr<device_tracker> devicetracker;

@@ -908,14 +908,24 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     if (dev == nullptr)
                         return cl;
 
-                    auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                    // Copy the client keys under the device lock, then look them up after
+                    // releasing it; the device list is locked before devices
+                    std::vector<device_key> client_keys;
 
-                    if (dot11 == nullptr)
-                        return cl;
+                    {
+                        kis_device_lock dlk(dev, true);
 
-                    for (const auto& ci : *dot11->get_associated_client_map()) {
-                        auto dk = static_cast<tracker_element_device_key *>(ci.second.get());
-                        auto d = devicetracker->fetch_device(dk->get());
+                        auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                        if (dot11 == nullptr)
+                            return cl;
+
+                        for (const auto& ci : *dot11->get_associated_client_map())
+                            client_keys.push_back(static_cast<tracker_element_device_key *>(ci.second.get())->get());
+                    }
+
+                    for (const auto& k : client_keys) {
+                        auto d = devicetracker->fetch_device(k);
                         if (d != nullptr)
                             cl->push_back(d);
                     }
@@ -937,36 +947,41 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     if (dev == nullptr)
                         return cl;
 
-                    auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
-
-                    if (dot11 == nullptr)
-                        return cl;
-
                     // Make a map of devices we've already looked at
                     std::map<device_key, bool> seen_nodes;
 
                     std::function<void (std::shared_ptr<kis_tracked_device_base>)> find_clients =
                         [&](std::shared_ptr<kis_tracked_device_base> dev) {
 
-                        // Don't add non-dot11 devices
-                        auto dot11 =
-                            dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
-
-                        if (dot11 == nullptr)
-                            return;
-
                         // Don't add devices we've already added
                         if (seen_nodes.find(dev->get_key()) != seen_nodes.end())
                             return;
 
-                        // Add this device
-                        seen_nodes[dev->get_key()] = true;
-                        cl->push_back(dev);
+                        // Copy the client keys under the device lock, and recurse after
+                        // releasing it; the device list is locked before devices
+                        std::vector<device_key> client_keys;
+
+                        {
+                            kis_device_lock dlk(dev, true);
+
+                            // Don't add non-dot11 devices
+                            auto dot11 =
+                                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                            if (dot11 == nullptr)
+                                return;
+
+                            // Add this device
+                            seen_nodes[dev->get_key()] = true;
+                            cl->push_back(dev);
+
+                            for (const auto& ci : *dot11->get_associated_client_map())
+                                client_keys.push_back(static_cast<tracker_element_device_key *>(ci.second.get())->get());
+                        }
 
                         // For every client, repeat, looking for associated clients and shard APs
-                        for (const auto& ci : *dot11->get_associated_client_map()) {
-                            auto dk = static_cast<tracker_element_device_key *>(ci.second.get());
-                            auto d = devicetracker->fetch_device(dk->get());
+                        for (const auto& k : client_keys) {
+                            auto d = devicetracker->fetch_device(k);
 
                             if (d != nullptr)
                                 find_clients(d);
@@ -976,7 +991,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     find_clients(dev);
 
                     return cl;
-                }, devicetracker->get_devicelist_mutex()));
+                }));
 
     httpd->register_route("/phy/phy80211/by-key/:key/device/:device/pcap/handshake", {"GET"}, httpd->RO_ROLE, {"pcap"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -1288,6 +1303,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         return 1;
     }
 
+    KIS_CHECK_NO_DEVICE_LOCKS("phy80211 common_classifier");
     kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
             "phy80211 common_classifier");
 
@@ -2286,6 +2302,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Wi-Fi AP");
 
+        KIS_CHECK_NO_DEVICE_LOCKS("phy80211 json_classifier");
         kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
                 "phy80211 json_classifier");
 
@@ -3866,6 +3883,7 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
             dot11info->subtype == packet_sub_association_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
 
+        KIS_CHECK_NO_DEVICE_LOCKS("phy80211 handle_probed_ssid");
         kis_unique_lock<kis_mutex> list_locker(devicetracker->get_devicelist_mutex(),
                 "phy80211 handle_probed_ssid");
 
@@ -4796,6 +4814,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
 
     stream.write((const char *) &hdr, sizeof(hdr));
 
+    KIS_CHECK_NO_DEVICE_LOCKS("phy80211 generate_handshake_pcap");
     kis_unique_lock<kis_mutex> list_locker(devicetracker->get_devicelist_mutex(),
             "phy80211 generate_handshake_pcap");
 

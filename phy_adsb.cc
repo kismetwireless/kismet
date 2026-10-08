@@ -217,7 +217,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return adsb_map_endp_handler(con);
-                }, devicetracker->get_devicelist_mutex()));
+                }));
 
     httpd->register_websocket_route("/phy/ADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(

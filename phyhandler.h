@@ -64,6 +64,13 @@ public:
         return false;
     }
 
+    // Phys which lock each device they modify return true; otherwise their devices are
+    // modified under the device list lock, and anything locking one of them takes the
+    // device list lock as well
+    virtual bool uses_device_locking() const {
+        return false;
+    }
+
 protected:
     void set_phy_name(std::string in_phyname) {
         phyname = in_phyname;

@@ -280,6 +280,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                 return 0;
             }
 
+            KIS_CHECK_NO_DEVICE_LOCKS("uav rf droneid");
             auto lg = kis_lock_guard<kis_mutex>(uavphy->devicetracker->get_devicelist_mutex(), "uav rf droneid");
 
             basedev->set_manuf(uavphy->dji_manuf);
@@ -338,6 +339,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
         return 1;
     }
 
+    KIS_CHECK_NO_DEVICE_LOCKS("uav_phy common_classifier");
     kis_lock_guard<kis_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");
 
     for (auto di : devinfo->devrefs) {

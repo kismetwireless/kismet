@@ -1412,10 +1412,12 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     // Always return a map
-    auto ret_elem = Globalreg::new_from_pool<tracker_element_mapvec>();
+    auto ret_elem = std::make_shared<tracker_element_summary_mapvec>();
 
     if (in == nullptr)
         return ret_elem;
+
+    ret_elem->set_summary_source(in);
 
     // Process counted elements
     for (const auto& si : in_summarization) {
@@ -1675,6 +1677,63 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
     }
 
     return false;
+}
+
+template<typename T>
+static std::shared_ptr<tracker_element> clone_scalar_value(const std::shared_ptr<tracker_element>& e) {
+    auto r = std::make_shared<T>();
+    r->set(static_cast<const T *>(e.get())->get());
+    return r;
+}
+
+std::shared_ptr<tracker_element> clone_sortable_tracker_element(const std::shared_ptr<tracker_element>& e) {
+    if (e == nullptr)
+        return nullptr;
+
+    switch (e->get_type()) {
+        case tracker_type::tracker_string:
+            return clone_scalar_value<tracker_element_string>(e);
+        case tracker_type::tracker_string_pointer: {
+            // Don't keep a pointer into the source; compare by value
+            auto r = std::make_shared<tracker_element_string>();
+            auto sp = static_cast<const tracker_element_string_ptr *>(e.get())->get();
+            if (sp != nullptr)
+                r->set(*sp);
+            return r;
+        }
+        case tracker_type::tracker_byte_array:
+            return clone_scalar_value<tracker_element_byte_array>(e);
+        case tracker_type::tracker_int8:
+            return clone_scalar_value<tracker_element_int8>(e);
+        case tracker_type::tracker_uint8:
+            return clone_scalar_value<tracker_element_uint8>(e);
+        case tracker_type::tracker_int16:
+            return clone_scalar_value<tracker_element_int16>(e);
+        case tracker_type::tracker_uint16:
+            return clone_scalar_value<tracker_element_uint16>(e);
+        case tracker_type::tracker_int32:
+            return clone_scalar_value<tracker_element_int32>(e);
+        case tracker_type::tracker_uint32:
+            return clone_scalar_value<tracker_element_uint32>(e);
+        case tracker_type::tracker_int64:
+            return clone_scalar_value<tracker_element_int64>(e);
+        case tracker_type::tracker_uint64:
+            return clone_scalar_value<tracker_element_uint64>(e);
+        case tracker_type::tracker_float:
+            return clone_scalar_value<tracker_element_float>(e);
+        case tracker_type::tracker_double:
+            return clone_scalar_value<tracker_element_double>(e);
+        case tracker_type::tracker_mac_addr:
+            return clone_scalar_value<tracker_element_mac_addr>(e);
+        case tracker_type::tracker_uuid:
+            return clone_scalar_value<tracker_element_uuid>(e);
+        case tracker_type::tracker_atomic_uint64:
+            return clone_scalar_value<tracker_element_atomic_uint64>(e);
+        default:
+            // Never compared by value; the type alone decides.  (tracker_element_ipv4_addr
+            // is never instantiated, so there are no ipv4 fields to sort on.)
+            return e;
+    }
 }
 
 bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,

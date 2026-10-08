@@ -332,6 +332,9 @@ protected:
     // 2 = lost only
     // 3 = seen and lost
     std::map<mac_addr, unsigned int> macdevice_alert_conf_map;
+    // Protects macdevice_alert_conf_map and macdevice_flagged_vec; nothing else is
+    // locked while it's held
+    kis_mutex macdevice_mutex;
     // Timeout event
     int macdevice_alert_timeout_timer;
     // Trigger event called to see if we need to alert devices have
@@ -356,8 +359,32 @@ protected:
     // device ID.
     std::shared_ptr<tracker_element_vector> immutable_tracked_vec;
 
-    // List of views using new API as we transition the rest to the new API
+    // List of views using new API as we transition the rest to the new API; modified
+    // under the device list lock
     std::shared_ptr<tracker_element_vector> view_vec;
+
+    // Copy of view_vec rebuilt whenever it changes, so per-packet view updates can walk
+    // the views without holding a lock that would order before device locks
+    using view_snapshot_t = std::shared_ptr<const std::vector<std::shared_ptr<tracker_element>>>;
+    kis_mutex view_snapshot_mutex;
+    view_snapshot_t view_snapshot;
+
+    view_snapshot_t get_view_snapshot() {
+        kis_lock_guard<kis_mutex> lk(view_snapshot_mutex, "device_tracker view snapshot");
+        return view_snapshot;
+    }
+
+    // Caller holds the device list lock
+    void rebuild_view_snapshot() {
+        auto v = std::make_shared<std::vector<std::shared_ptr<tracker_element>>>(view_vec->begin(), view_vec->end());
+        kis_lock_guard<kis_mutex> lk(view_snapshot_mutex, "device_tracker view snapshot");
+        view_snapshot = v;
+    }
+
+    // Common device update for a device the caller has locked
+    void update_common_device_locked(const std::shared_ptr<kis_tracked_device_base>& device,
+            const mac_addr& in_mac, const std::shared_ptr<kis_packet>& in_pack,
+            unsigned int in_flags, bool new_device);
 
     using shared_con = std::shared_ptr<kis_net_beast_httpd_connection>;
     std::shared_ptr<tracker_element> multimac_endp_handler(shared_con con);
@@ -372,7 +399,7 @@ protected:
 	// Registered PHY types
 	int next_phy_id;
     ankerl::unordered_dense::map<int, kis_phy_handler *> phy_handler_map;
-    kis_mutex phy_mutex;
+    kis_shared_mutex phy_mutex;
 
     // New multimutex primitive
     kis_mutex devicelist_mutex;

@@ -62,6 +62,50 @@ public:
         return name;
     }
 
+    // Track the owning thread so lock ordering can tell a recursive re-lock from a new one
+    void lock() {
+        std::recursive_timed_mutex::lock();
+        note_locked();
+    }
+
+    bool try_lock() {
+        if (!std::recursive_timed_mutex::try_lock())
+            return false;
+
+        note_locked();
+        return true;
+    }
+
+    template<class Rep, class Period>
+    bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        if (!std::recursive_timed_mutex::try_lock_for(timeout_duration))
+            return false;
+
+        note_locked();
+        return true;
+    }
+
+    template<class Clock, class Duration>
+    bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        if (!std::recursive_timed_mutex::try_lock_until(timeout_time))
+            return false;
+
+        note_locked();
+        return true;
+    }
+
+    void unlock() {
+        if (--depth == 0)
+            owner.store(std::thread::id(), std::memory_order_relaxed);
+
+        std::recursive_timed_mutex::unlock();
+    }
+
+    // Only the owner writes its own id, so this is exact for the calling thread
+    bool owned_by_this_thread() const {
+        return owner.load(std::memory_order_relaxed) == std::this_thread::get_id();
+    }
+
     // Previous workaround for gcc try_lock_for bugs here, but now we require c++14 so we don't
     // need them
 
@@ -86,6 +130,17 @@ public:
     void unlock_shared() {
         throw std::runtime_error("unlock_shared called on non-shared mutex");
     }
+
+protected:
+    void note_locked() {
+        if (depth++ == 0)
+            owner.store(std::this_thread::get_id(), std::memory_order_relaxed);
+    }
+
+    std::atomic<std::thread::id> owner{};
+
+    // Only modified by the thread holding the lock
+    unsigned int depth{0};
 };
 
 class kis_shared_mutex {
