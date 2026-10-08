@@ -16,16 +16,42 @@ $('<link>')
 /* Convert a hop rate to human readable */
 export const hop_to_human = (hop) => {
     if (hop >= 1) {
-        return hop + "/second";
+        return parseFloat(hop.toFixed(2)) + "/second";
     }
 
-    var s = (hop / 60.0);
+    var m = hop * 60;
 
-    if (s < 60) {
-        return s + "/minute";
+    if (m >= 1) {
+        return parseFloat(m.toFixed(2)) + "/minute";
     }
 
-    return s + " seconds";
+    return "1 per " + parseFloat((1 / hop).toFixed(2)) + " seconds";
+}
+
+/* Convert a hop rate input value and unit to hops/sec; NaN if invalid */
+const hop_input_to_rate = (value, unit) => {
+    var v = parseFloat(value);
+
+    if (!isFinite(v) || v <= 0)
+        return NaN;
+
+    if (unit == 'sec')
+        return v;
+    if (unit == 'min')
+        return v / 60;
+    if (unit == 'dwell')
+        return 1 / v;
+
+    return NaN;
+}
+
+/* Pick the most readable unit for a hop rate and return [value, unit] */
+const hop_rate_to_input = (rate) => {
+    if (rate >= 1)
+        return [parseFloat(rate.toFixed(2)), 'sec'];
+    if (rate * 60 >= 1)
+        return [parseFloat((rate * 60).toFixed(2)), 'min'];
+    return [parseFloat((1 / rate).toFixed(2)), 'dwell'];
 }
 
 /* Sidebar:  Channel coverage
@@ -1409,12 +1435,137 @@ function update_datasource2(data) {
               })
             );
 
+          var max_hop_rate = source['kismet.datasource.type_driver']['kismet.datasource.driver.max_hop_rate'];
+          var initial_rate = hop_rate_to_input(source['kismet.datasource.hop_rate'] > 0 ?
+                  source['kismet.datasource.hop_rate'] : 1);
+
+          if (max_hop_rate > 0 && source['kismet.datasource.hop_rate'] > max_hop_rate)
+              initial_rate = hop_rate_to_input(max_hop_rate);
+
+          quickopts.append(
+            $('<span>', {
+              id: "hopratectl",
+              uuid: source['kismet.datasource.uuid']
+            })
+            .append(
+              $('<input>', {
+                id: "hopratevalue",
+                uuid: source['kismet.datasource.uuid'],
+                type: "number",
+                min: "0",
+                step: "any",
+                style: "width: 5em;",
+              }).val(initial_rate[0])
+            )
+            .append(
+              $('<select>', {
+                id: "hoprateunit",
+                uuid: source['kismet.datasource.uuid']
+              })
+              .append($('<option>', { value: "sec" }).text("hops/sec"))
+              .append($('<option>', { value: "min" }).text("hops/min"))
+              .append($('<option>', { value: "dwell" }).text("sec per hop"))
+              .val(initial_rate[1])
+            )
+            .append(
+              $('<button>', {
+                id: "hopratecmd",
+                uuid: source['kismet.datasource.uuid']
+              }).html("Set Rate")
+              .button()
+              .on('click', function() {
+                var uuid = $(this).attr('uuid');
+                var sdiv = $('#' + uuid, ds_state['ds_content']);
+                var valinput = $('#hopratevalue[uuid=' + uuid + ']', sdiv);
+                var unitinput = $('#hoprateunit[uuid=' + uuid + ']', sdiv);
+
+                var rate = hop_input_to_rate(valinput.val(), unitinput.val());
+
+                if (isNaN(rate)) {
+                    $('#hopratemax', sdiv).text("  Invalid hop rate");
+                    return;
+                }
+
+                var maxrate = 0;
+                for (var u in ds_state['datasources']) {
+                    if (ds_state['datasources'][u]['kismet.datasource.uuid'] == uuid) {
+                        maxrate = ds_state['datasources'][u]['kismet.datasource.type_driver']['kismet.datasource.driver.max_hop_rate'];
+                        break;
+                    }
+                }
+
+                // Cap to the driver maximum and show the value actually used
+                if (maxrate > 0 && rate > maxrate) {
+                    rate = maxrate;
+                    var capped = hop_rate_to_input(rate);
+                    valinput.val(capped[0]);
+                    unitinput.val(capped[1]);
+                }
+
+                ds_state['defer_source_update'] = true;
+                ds_state['defer_command_progress'] = true;
+
+                $('.k-ds-modal-message', sdiv).html("Setting channel hop rate...");
+                $('.k-ds-modal', sdiv).show();
+
+                var chans = [];
+                $('button.chanbutton[uuid=' + uuid + ']', ds_state['ds_content']).each(function(i) {
+                    chans.push($(this).attr('channel'));
+                });
+
+                var jscmd = {
+                    "cmd": "hop",
+                    "channels": chans,
+                    "rate": rate,
+                    "uuid": uuid
+                };
+
+                var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+
+                try {
+                    $.ajax({
+                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
+                        method: 'POST',
+                        data: postdata,
+                        dataType: 'json',
+                        success: function(data) {
+                            data = kismet.sanitizeObject(data);
+                            for (var u in ds_state['datasources']) {
+                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                                    ds_state['datasources'][u] = data;
+                                    ds_state['remove_pending'].push(uuid);
+                                    update_datasource2(null);
+                                    break;
+                                }
+                            }
+                        },
+                        timeout: 30000,
+                    });
+                } finally {
+                    ds_state['remove_pending'].push(uuid);
+                }
+              })
+            )
+            .append(
+              $('<span>', {
+                id: "hopratemax"
+              })
+            )
+          );
+
           quickopts.append(
             $('<span>', {
               id: "hoprate"
               }).html("")
             );
         }
+
+        var max_hop_rate = source['kismet.datasource.type_driver']['kismet.datasource.driver.max_hop_rate'];
+
+        if (max_hop_rate > 0)
+            $('#hopratemax', quickopts).text("  (max " + hop_to_human(max_hop_rate) + ")");
+        else
+            $('#hopratemax', quickopts).text("");
 
         var uuid = source['kismet.datasource.uuid'];
         var hop_chans = source['kismet.datasource.hop_channels'];

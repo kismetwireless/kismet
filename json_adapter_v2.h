@@ -29,10 +29,11 @@
 
 #include "fmt.h"
 
+#include "kis_mutex.h"
 #include "regex_adapter.h"
 
 namespace json_adapter_v2 {
-    constexpr int consthash(const std::string_view& sv) noexcept{
+    constexpr int consthash(const std::string_view& sv) noexcept {
         uint32_t hash = 5381;
 
         for(const char *c = sv.data(); c < sv.data() + sv.length(); ++c) {
@@ -41,6 +42,8 @@ namespace json_adapter_v2 {
 
         return (int) hash;
     }
+
+    int hash(const std::string_view& sv) noexcept;
 
     // pop the front element of a field path, returning the front element and
     // modifying the passed path element.
@@ -556,6 +559,135 @@ namespace json_adapter_v2 {
             opts->next_key_comma = true;
         }
     };
+
+    // wrapper around naked arrays of jsonable objects, so that we don't have to create
+    // more stub classes just to serialize them to a URI
+    template <typename At, typename Ati>
+    class jsonable_array : public jsonable {
+    public:
+        jsonable_array(At& back, const std::string& key) :
+            back_{back},
+            key_{key} { }
+
+        virtual ~jsonable_array() { };
+
+        virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
+            if (key_.length() == 0) {
+                json_adapter_v2::json_encode_array<Ati>{}(os, opts, back_.begin(), back_.end());
+            } else {
+                fmt::print(os, "{{");
+                auto sv_comma = opts->next_key_comma;
+                opts->next_key_comma = false;
+
+                json_adapter_v2::json_encode_keyed_array<Ati>{}(os, key_, opts, back_.begin(), back_.end());
+
+                opts->next_key_comma = sv_comma;
+                fmt::print(os, "}}");
+            }
+        }
+
+        virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts,
+                const json_adapter_v2::field_group_map& fields) override {
+            if (fields.size() == 0) {
+                return as_json(os, opts);
+            }
+
+            json_adapter_v2::field_group_map subgroup;
+
+            if (key_.length() == 0) {
+                json_adapter_v2::field_group_map fields_copy{fields};
+                json_adapter_v2::json_encode_array<Ati>{}(os, opts, back_.begin(), back_.end(), fields_copy);
+            } else {
+                fmt::print(os, "{{");
+                auto sv_comma = opts->next_key_comma;
+                opts->next_key_comma = false;
+
+                for (const auto& f : fields) {
+                    if (json_adapter_v2::consthash(f.first) == json_adapter_v2::consthash(key_)) {
+                        json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                        json_adapter_v2::json_encode_keyed_array<Ati>{}(os, key_, opts, back_.begin(), back_.end(), subgroup);
+                    } else {
+                        json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
+                    }
+                }
+
+                opts->next_key_comma = sv_comma;
+                fmt::print(os, "}}");
+            }
+        }
+
+    protected:
+        At &back_;
+        const std::string key_;
+    };
+
+    // wrapper around naked arrays of jsonable objects, so that we don't have to create
+    // more stub classes just to serialize them to a URI
+    template <typename Mt, typename Mti>
+    class jsonable_map : public jsonable {
+    public:
+        jsonable_map(Mt& back, const std::string& key) :
+            back_{back},
+            key_{key} { }
+
+        jsonable_map(jsonable_map&& m) :
+            back_{m.back_},
+            key_{m.key_} { }
+
+        virtual ~jsonable_map() { };
+
+        virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
+            if (key_.length() == 0) {
+                json_adapter_v2::json_encode_map<Mti>{}(os, opts, back_.begin(), back_.end());
+            } else {
+                fmt::print(os, "{{");
+                auto sv_comma = opts->next_key_comma;
+                opts->next_key_comma = false;
+
+                json_adapter_v2::json_encode_keyed_map<Mti>{}(os, key_, opts, back_.begin(), back_.end());
+
+                opts->next_key_comma = sv_comma;
+                fmt::print(os, "}}");
+            }
+        }
+
+        virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts,
+                const json_adapter_v2::field_group_map& fields) override {
+
+            if (fields.size() == 0) {
+                return as_json(os, opts);
+            }
+
+            json_adapter_v2::field_group_map subgroup;
+
+            if (key_.length() == 0) {
+                json_adapter_v2::field_group_map fields_copy{fields};
+                json_adapter_v2::json_encode_map<Mti>{}(os, opts, back_.begin(), back_.end(), fields_copy);
+            } else {
+                fmt::print(os, "{{");
+                auto sv_comma = opts->next_key_comma;
+                opts->next_key_comma = false;
+
+                for (const auto& f : fields) {
+                    if (json_adapter_v2::consthash(f.first) == json_adapter_v2::consthash(key_)) {
+                        json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                        json_adapter_v2::json_encode_keyed_map<Mti>{}(os, key_, opts, back_.begin(), back_.end(), subgroup);
+                    } else {
+                        json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
+                    }
+                }
+
+                opts->next_key_comma = sv_comma;
+                fmt::print(os, "}}");
+            }
+
+        }
+
+    protected:
+        Mt &back_;
+        const std::string key_;
+    };
+
 }
 
 namespace kis_regex {

@@ -627,14 +627,31 @@ public:
         pre_func{pre_func},
         post_func{post_func} { }
 
+    kis_net_web_jsonable_endpoint(std::unique_ptr<json_adapter_v2::jsonable> content,
+            kis_mutex& mutex,
+            wrapper_func_t pre_func = nullptr,
+            wrapper_func_t post_func = nullptr) :
+        content{content.get()},
+        unique_content{std::move(content)},
+        mutex{mutex},
+        use_mutex{true},
+        pre_func{pre_func},
+        post_func{post_func} { }
+
     kis_net_web_jsonable_endpoint(json_adapter_v2::jsonable *content) :
         content{content},
+        mutex{dfl_mutex} { }
+
+    kis_net_web_jsonable_endpoint(std::unique_ptr<json_adapter_v2::jsonable> content) :
+        content{content.get()},
+        unique_content{std::move(content)},
         mutex{dfl_mutex} { }
 
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
 
 protected:
-	json_adapter_v2::jsonable *content;
+    json_adapter_v2::jsonable *content;
+    std::unique_ptr<json_adapter_v2::jsonable> unique_content;
 
     kis_mutex& mutex;
     kis_mutex dfl_mutex;

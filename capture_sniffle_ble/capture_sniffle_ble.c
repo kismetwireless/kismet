@@ -337,7 +337,7 @@ static int sniffle_readline(kis_capture_handler_t *caph, int fd, char *buf, int 
     int pos = 0;
 
     while (pos < bufsize - 1) {
-        if (*(volatile int *) &caph->spindown)
+        if (atomic_load(&caph->spindown))
             return -1;
 
         char c;
@@ -563,7 +563,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
 
     while (1) {
-        if (*(volatile int *) &caph->spindown) {
+        if (atomic_load(&caph->spindown)) {
             tcsetattr(localsniffle->fd, TCSANOW, &localsniffle->oldtio);
             break;
         }
@@ -573,7 +573,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (line_len < 0) {
             // Either spindown or a real read error/closed device; either
             // way there's nothing more useful to do in this loop iteration
-            if (*(volatile int *) &caph->spindown)
+            if (atomic_load(&caph->spindown))
                 break;
             snprintf(errstr, STATUS_MAX, "%s error reading from serial device",
                 localsniffle->name);

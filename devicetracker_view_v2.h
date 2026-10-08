@@ -49,20 +49,31 @@
 
 // default new device: add no device automatically
 struct device_view_default_new_cb {
-    bool operator()(const kis_tracked_device_base_v2*) {
+    bool operator()(const kis_tracked_device_base_v2 *) {
         return false;
     }
 };
 
 // default update device:  keep all devices
 struct device_view_default_update_cb {
-    bool operator()(const kis_tracked_device_base_v2*) {
+    bool operator()(const kis_tracked_device_base_v2 *) {
         return true;
     }
 };
 
+// custom device state functors
+struct device_view_default_add_cb {
+    void operator()(const kis_tracked_device_base_v2 *) { }
+};
+
+struct device_view_default_remove_cb {
+    void operator()(const kis_tracked_device_base_v2 *) { }
+};
+
 template<typename NewFtor = device_view_default_new_cb,
-    typename UpdateFtor = device_view_default_update_cb>
+    typename UpdateFtor = device_view_default_update_cb,
+    typename AddFtor = device_view_default_add_cb,
+    typename RemoveFtor = device_view_default_remove_cb>
 class device_tracker_view_v2 : public json_adapter_v2::jsonable, public kis_shared_mutex {
 public:
     device_tracker_view_v2() :
@@ -73,7 +84,9 @@ public:
     virtual ~device_tracker_view_v2() { }
 
     void reset() {
-
+        auto lg = kis_unique_lock(this, __func__);
+        device_list_.clear();
+        device_presence_map_.clear();
     }
 
     auto view_id() const { return view_id_; }
@@ -93,6 +106,8 @@ public:
         if (device_presence_map_.find(d->key()) == device_presence_map_.end()) {
             device_list_.push_back(d);
             device_presence_map_[d->key()] = true;
+
+            AddFtor{}(d);
         }
     }
 
@@ -107,6 +122,8 @@ public:
             }
 
             device_presence_map_.erase(k);
+
+            RemoveFtor{}(d);
         }
     }
 
@@ -207,6 +224,12 @@ protected:
 
     std::vector<kis_tracked_device_base_v2 *> device_list_;
     ankerl::unordered_dense::map<device_key_v2, bool> device_presence_map_;
+
+    void device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+
+    // Build the URLs
+    void register_urls(const std::string& in_id);
 };
 
 template<typename N, typename U> struct json_adapter_v2::json_encode<device_tracker_view_v2<N, U>> {

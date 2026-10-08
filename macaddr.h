@@ -56,7 +56,7 @@ struct mac_addr {
         return ((uint64_t) -1) << (64 - bits);
     }
 
-    uint8_t num_left_bits(uint64_t v) const {
+    constexpr uint8_t num_left_bits(uint64_t v) const {
         uint8_t r = 0;
         for (int b = 0; b < 64; b++) {
             if ((v >> (63 - b)) & 0x1) {
@@ -70,14 +70,14 @@ struct mac_addr {
         return r;
     }
 
-    mac_addr(mac_addr&& o) noexcept :
+    constexpr mac_addr(mac_addr&& o) noexcept :
         longmac{o.longmac},
         maskbits{o.maskbits},
         state {
             .len = o.state.len,
-            .error = o.state.error 
+            .error = o.state.error
         } { }
-    
+
     uint64_t longmac;
     uint8_t maskbits;
 

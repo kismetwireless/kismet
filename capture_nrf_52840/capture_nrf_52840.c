@@ -408,7 +408,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     int r = 0;
 
     while(1) {
-	    if(*(volatile int *) &caph->spindown) {
+	    if(atomic_load(&caph->spindown)) {
             nrf_exit_promisc_mode(caph);
             /* set the port back to normal */
             pthread_mutex_lock(&(localnrf->serial_mutex));

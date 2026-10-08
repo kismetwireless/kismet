@@ -122,6 +122,9 @@ public:
 
     __Proxy(hop_capable, uint8_t, bool, bool, hop_capable);
 
+    // Maximum hops per second, 0 for unlimited
+    __Proxy(max_hop_rate, double, double, double, max_hop_rate);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -158,6 +161,9 @@ protected:
 
         register_field("kismet.datasource_driver.hop_capable",
                 "Datasource can channel hop", &hop_capable);
+
+        register_field("kismet.datasource.driver.max_hop_rate",
+                "Maximum channel hop rate (hops/sec), 0 for unlimited", &max_hop_rate);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -182,6 +188,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> passive_capable;
     std::shared_ptr<tracker_element_uint8> tune_capable;
     std::shared_ptr<tracker_element_uint8> hop_capable;
+    std::shared_ptr<tracker_element_double> max_hop_rate;
 };
 
 

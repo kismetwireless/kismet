@@ -24,7 +24,7 @@
 
 const std::string base64::b64_values{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"};
 
-std::string base64::decode(const std::string& in_str) {
+std::string base64::decode(const std::string_view& in_str) {
     auto len = in_str.size();
     int i = 0, j = 0, n = 0;
     unsigned char c4[4], c3[3];
@@ -62,37 +62,46 @@ std::string base64::decode(const std::string& in_str) {
         c3[1] = ((c4[1] & 0xf) << 4) + ((c4[2] & 0x3c) >> 2);
         c3[2] = ((c4[2] & 0x3) << 6) + c4[3];
 
-        for (j = 0; (j < i - 1); j++) 
+        for (j = 0; (j < i - 1); j++)
             ret += c3[j];
     }
 
     return ret;
+
+}
+
+std::string base64::decode(const std::string& in_str) {
+    return base64::decode(std::string_view{in_str});
+}
+
+std::string base64::encode(const std::string_view& in_str) {
+    std::stringstream ss;
+    size_t pos;
+
+    for (pos = 0; pos < in_str.length(); pos += 3) {
+        ss << b64_values[(in_str[pos] & 0xfc) >> 2];
+
+        if (pos + 1 < in_str.length()) {
+            ss << b64_values[((in_str[pos] & 0x03) << 4) | ((in_str[pos + 1] & 0xf0) >> 4)];
+        } else {
+            ss << b64_values[((in_str[pos] & 0x03) << 4)];
+        }
+
+        if (pos + 2 < in_str.length()) {
+            ss << b64_values[((in_str[pos + 1] & 0x0f) << 2) | ((in_str[pos + 2] & 0xc0) >> 6)];
+            ss << b64_values[in_str[pos + 2] & 0x3f];
+        } else if (pos + 1 < in_str.length()) {
+            ss << b64_values[((in_str[pos + 1] & 0x0f) << 2)];
+            ss << '=';
+        } else {
+            ss << "==";
+        }
+    }
+
+    return ss.str();
 }
 
 std::string base64::encode(const std::string& in_str) {
-	std::stringstream ss;
-	size_t pos;
-
-	for (pos = 0; pos < in_str.length(); pos += 3) {
-		ss << b64_values[in_str[pos] >> 2];
-
-		if (pos + 1 < in_str.length()) {
-			ss << b64_values[((in_str[pos] & 0x03) << 4) | ((in_str[pos + 1] & 0xf0) >> 4)];
-		} else {
-			ss << b64_values[((in_str[pos] & 0x03) << 4)];
-		}
-
-		if (pos + 2 < in_str.length()) {
-			ss << b64_values[((in_str[pos + 1] & 0x0f) << 2) | ((in_str[pos + 2] & 0xc0) >> 6)];
-			ss << b64_values[in_str[pos + 2] & 0x3f];
-		} else if (pos + 1 < in_str.length()) {
-			ss << b64_values[((in_str[pos + 1] & 0x0f) << 2)];
-			ss << '=';
-		} else {
-			ss << "==";
-		}
-	}
-
-	return ss.str();
+    return base64::encode(std::string_view{in_str});
 }
 

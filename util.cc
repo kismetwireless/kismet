@@ -611,6 +611,63 @@ std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std
     return ret;
 }
 
+std::vector<std::string_view> base_sv_tokenize(const std::string_view& in_str,
+        const std::string& in_split, const std::string& in_quote) {
+
+    std::vector<std::string_view> ret;
+
+    size_t begin = 0;
+    size_t end = 0;
+    size_t next = 0;
+
+    if (in_str.length() == 0)
+        return ret;
+
+    while (begin < in_str.length() && begin != std::string_view::npos) {
+        if (in_quote.length() != 0 && in_str.find(in_quote, begin) == begin) {
+            begin += in_quote.length();
+
+            if ((end = in_str.find(in_quote, begin)) == std::string_view::npos) {
+                throw std::runtime_error("invalid string missing end delimiter");
+            }
+
+            end += in_quote.length();
+
+            printf("quoted block between %lu:%lu\n", begin, end);
+
+            if (end >= in_str.length()) {
+                ret.push_back(in_str.substr(begin, end - begin - 1));
+                return ret;
+            }
+
+            if ((next = in_str.find(in_split, end)) != end) {
+                throw std::runtime_error("invalid string, separated block not delimited");
+            }
+
+            ret.push_back(in_str.substr(begin, end - begin - 1));
+
+            begin = next + in_split.length();
+            continue;
+        }
+
+        if ((end = in_str.find(in_split, end)) == std::string_view::npos) {
+            ret.push_back(in_str.substr(begin, end));
+            return ret;
+        }
+
+        end += in_split.length();
+        ret.push_back(in_str.substr(begin, end - begin - 1));
+        begin = end;
+    }
+
+    return ret;
+}
+
+std::vector<std::string_view> quote_sv_tokenize(const std::string_view& in_str,
+        const std::string& in_split) {
+    return base_sv_tokenize(in_str, in_split, "\"");
+}
+
 // Quick fetch of strings from a map of options
 std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec,
         const std::string& dvalue) {
@@ -1160,7 +1217,7 @@ double ts_now_to_double() {
 
 std::string hex_to_bytes(const std::string& in) {
     std::string ret;
-    ret.reserve((in.length() / 2) + 1);
+    ret.resize((in.length() / 2) + 1);
 
     uint8_t chartable[256];
     memset(chartable, 0, 256);
@@ -1188,17 +1245,72 @@ std::string hex_to_bytes(const std::string& in) {
     chartable[(uint8_t) 'f'] = 0xF;
 
     size_t i = 0;
+    size_t bi = 0;
 
     if (in.length() % 2 != 0) {
-        ret += chartable[(uint8_t) in[0]];
+        ret[0] = chartable[(uint8_t) in[0]];
+        i = 1;
+        bi = 1;
+    }
+
+    for (; i < in.length() - 1; i += 2) {
+        ret[bi++] = chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
+    }
+
+    ret.resize(bi);
+
+    return ret;
+}
+
+size_t hex_to_bytes(const std::string_view& in, uint8_t *buf_begin, size_t buf_len) {
+    if (in.length() % 2 == 0) {
+        if (buf_len < in.length() / 2) {
+            throw std::runtime_error("destination buffer too small");
+        }
+    } else {
+        if (buf_len < (in.length() / 2) + 1) {
+            throw std::runtime_error("destination buffer too small");
+        }
+    }
+
+    uint8_t chartable[256];
+    memset(chartable, 0, 256);
+    chartable[(uint8_t) '0'] = 0x0;
+    chartable[(uint8_t) '1'] = 0x1;
+    chartable[(uint8_t) '2'] = 0x2;
+    chartable[(uint8_t) '3'] = 0x3;
+    chartable[(uint8_t) '4'] = 0x4;
+    chartable[(uint8_t) '5'] = 0x5;
+    chartable[(uint8_t) '6'] = 0x6;
+    chartable[(uint8_t) '7'] = 0x7;
+    chartable[(uint8_t) '8'] = 0x8;
+    chartable[(uint8_t) '9'] = 0x9;
+    chartable[(uint8_t) 'A'] = 0xA;
+    chartable[(uint8_t) 'B'] = 0xB;
+    chartable[(uint8_t) 'C'] = 0xC;
+    chartable[(uint8_t) 'D'] = 0xD;
+    chartable[(uint8_t) 'E'] = 0xE;
+    chartable[(uint8_t) 'F'] = 0xF;
+    chartable[(uint8_t) 'a'] = 0xA;
+    chartable[(uint8_t) 'b'] = 0xB;
+    chartable[(uint8_t) 'c'] = 0xC;
+    chartable[(uint8_t) 'd'] = 0xD;
+    chartable[(uint8_t) 'e'] = 0xE;
+    chartable[(uint8_t) 'f'] = 0xF;
+
+    size_t i = 0;
+    uint8_t *bi = buf_begin;
+
+    if (in.length() % 2 != 0) {
+        *bi++ = chartable[(uint8_t) in[0]];
         i = 1;
     }
 
     for (; i < in.length() - 1; i += 2) {
-        ret += chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
+        *bi++ = chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
     }
 
-    return ret;
+    return bi - buf_begin;
 }
 
 

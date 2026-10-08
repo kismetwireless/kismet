@@ -366,7 +366,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     int r = 0;
 
     while (1) {
-        if (*(volatile int *) &caph->spindown) {
+        if (atomic_load(&caph->spindown)) {
             /* set the port back to normal */
             tcsetattr(localnrf->fd, TCSANOW, &localnrf->oldtio);
             break;

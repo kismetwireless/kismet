@@ -189,6 +189,11 @@ public:
             const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
             const std::string& in_basic_type);
 
+    std::shared_ptr<kis_tracked_device_base> update_common_device(
+            const mac_addr& in_mac, kis_phy_handler *phy,
+            const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
+            const std::string& in_basic_type, bool& new_device);
+
     // Set the common name of a device (and log it in the database for future runs)
     void set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
             const std::string& in_username);

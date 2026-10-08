@@ -55,6 +55,7 @@
 #include "kis_dlt_ppi.h"
 #include "kis_dlt_radiotap.h"
 #include "kis_dlt_btle_radio.h"
+#include "kis_dlt_loratap.h"
 
 #include "kis_dissector_ipdata.h"
 
@@ -62,6 +63,7 @@
 #include "antennatracker.h"
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
+
 #include "datasource_pcapfile.h"
 #include "datasource_kismetdb.h"
 #include "datasource_linux_wifi.h"
@@ -95,6 +97,7 @@
 #include "datasource_catsniffer_zigbee.h"
 #include "datasource_sniffle_ble.h"
 #include "datasource_wch_ble_analyzer_pro.h"
+#include "datasource_lorapipe.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -118,17 +121,19 @@
 #include "gpstracker.h"
 
 #include "devicetracker.h"
+
 #include "phy_80211.h"
-#include "phy_sensor.h"
-#include "phy_meter.h"
-#include "phy_adsb.h"
-#include "phy_zwave.h"
-#include "phy_bluetooth.h"
-#include "phy_uav_drone.h"
-#include "phy_nrf_mousejack.h"
-#include "phy_btle.h"
 #include "phy_802154.h"
+#include "phy_adsb.h"
+#include "phy_bluetooth.h"
+#include "phy_btle.h"
+#include "phy_meter.h"
+#include "phy_nrf_mousejack.h"
+#include "phy_meshtastic.h"
 #include "phy_radiation.h"
+#include "phy_sensor.h"
+#include "phy_uav_drone.h"
+#include "phy_zwave.h"
 
 #include "ipctracker_v2.h"
 #include "manuf.h"
@@ -894,6 +899,7 @@ int main(int argc, char *argv[], char *envp[]) {
     kis_dlt_ppi::create_dlt();
     kis_dlt_radiotap::create_dlt();
     kis_dlt_btle_radio::create_dlt();
+    kis_dlt_loratap::create_dlt();
 
     auto ipdissector = kis_dissector_ip_data::create_dissector_ip_data();
 
@@ -909,6 +915,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_adsb_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_802154_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_radiation_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshtastic_phy()));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
@@ -944,6 +951,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_catsniffer_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_sniffle_ble_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wch_ble_pro_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_lorapipe_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();
