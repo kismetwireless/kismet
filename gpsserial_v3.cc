@@ -51,6 +51,9 @@ kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder, uint64_t in_
     error_reconnect_timer = 
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                    // Serialized with the data timeout timer, which can also reopen the GPS
+                    kis_lock_guard<kis_mutex> lk(gps_mutex, "reconnect timer");
+
                     if (get_device_connected()) 
                         return 1;
 
@@ -62,6 +65,7 @@ kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder, uint64_t in_
     data_timeout_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                kis_lock_guard<kis_mutex> lk(gps_mutex, "data timer");
 
                 if (serialport.is_open() && time(0) - last_data_time > 30) {
                     close();

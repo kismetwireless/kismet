@@ -63,7 +63,7 @@ protected:
     // Last time we calculated the heading, don't do it more than once every 
     // few seconds or we get nasty noise
     time_t last_heading_time;
-    time_t last_data_time;
+    std::atomic<time_t> last_data_time;
 };
 
 #endif

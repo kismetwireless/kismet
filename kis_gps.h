@@ -134,6 +134,14 @@ public:
 
     __ProxyPrivSplitVM(device_connected, uint8_t, bool, bool, gps_connected, data_mutex);
 
+    virtual void pre_serialize() override {
+        kis_lock_guard<kis_mutex> lk(data_mutex, kismet::retain_lock, "gps preserialize");
+    }
+
+    virtual void post_serialize() override {
+        kis_lock_guard<kis_mutex> lk(data_mutex, std::adopt_lock);
+    }
+
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
         kis_lock_guard<kis_mutex> lk(data_mutex);
         return gps_location;
