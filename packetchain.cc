@@ -321,87 +321,92 @@ std::shared_ptr<kis_packet> packet_chain::generate_packet() {
     // return std::make_shared<kis_packet>();
 }
 
-void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue) {
-    std::shared_ptr<kis_packet> packet;
+void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
+    std::deque<std::shared_ptr<kis_packet>> batch;
 
     // The chain snapshot this thread is running.  It is kept between packets and only
     // refreshed when the chains have changed, and released before waiting for more packets
     // so that remove_handler() does not wait for idle threads.
     pc_chains_ref cur_chains;
 
-    while (!packetchain_shutdown &&
-            !Globalreg::globalreg->spindown &&
-            !Globalreg::globalreg->fatal_condition &&
-            !Globalreg::globalreg->complete) {
-
-        if (!packet_queue->try_dequeue(packet)) {
+    while (true) {
+        if (!packet_queue->try_dequeue_all(batch)) {
             cur_chains.reset();
-            packet_queue->wait_dequeue(packet);
+            packet_queue->wait_dequeue_all(batch);
         }
 
-        if (packet == nullptr)
-            break;
+        for (auto& packet : batch) {
+            if (packet == nullptr ||
+                    packetchain_shutdown ||
+                    Globalreg::globalreg->spindown ||
+                    Globalreg::globalreg->fatal_condition ||
+                    Globalreg::globalreg->complete)
+                return;
 
-        if (cur_chains.get() == nullptr ||
-                cur_chains->generation != chains_generation.load(std::memory_order_acquire))
-            cur_chains.set(fetch_chains());
+            if (cur_chains.get() == nullptr ||
+                    cur_chains->generation != chains_generation.load(std::memory_order_acquire))
+                cur_chains.set(fetch_chains());
 
-        // Lock the individual packet to make sure no competing processing threads
-        // manipulate it (such as via dupe packet collision) while we're processing
-        packet->mutex.lock();
+            // Lock the individual packet to make sure no competing processing threads
+            // manipulate it (such as via dupe packet collision) while we're processing
+            packet->mutex.lock();
 
-        const auto& chunk = packet->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+            const auto& chunk = packet->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
-        if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
-            packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
-            dedupe_packet(packet, chunk);
+            if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
+                packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
+                dedupe_packet(packet, chunk);
+            }
+
+            // run the rest of the packet chain
+
+            for (const auto& pcl : cur_chains->llcdissect) {
+                if (pcl.callback != nullptr)
+                    pcl.callback(pcl.auxdata, packet);
+            }
+
+            for (const auto& pcl : cur_chains->decrypt) {
+                if (pcl.callback != nullptr)
+                    pcl.callback(pcl.auxdata, packet);
+            }
+
+            for (const auto& pcl : cur_chains->datadissect) {
+                if (pcl.callback != nullptr)
+                    pcl.callback(pcl.auxdata, packet);
+            }
+
+            for (const auto& pcl : cur_chains->classifier) {
+                if (pcl.callback != nullptr)
+                    pcl.callback(pcl.auxdata, packet);
+            }
+
+            for (const auto& pcl : cur_chains->tracker) {
+                if (pcl.callback != nullptr)
+                    pcl.callback(pcl.auxdata, packet);
+            }
+
+            for (const auto& pcl : cur_chains->logging) {
+                if (pcl.callback != nullptr)
+                    pcl.callback(pcl.auxdata, packet);
+            }
+
+            packet->mutex.unlock();
+
+            uint64_t now = Globalreg::globalreg->last_tv_sec;
+
+            if (packet->error)
+                packet_error_rrd->add_sample(1, now);
+
+            if (packet->duplicate)
+                packet_dupe_rrd->add_sample(1, now);
+
+            packet_processed_rrd->add_sample(1, now);
+
+            packet.reset();
+            packet_queue->packet_done();
         }
 
-        // run the rest of the packet chain
-
-        for (const auto& pcl : cur_chains->llcdissect) {
-            if (pcl.callback != nullptr)
-                pcl.callback(pcl.auxdata, packet);
-        }
-
-        for (const auto& pcl : cur_chains->decrypt) {
-            if (pcl.callback != nullptr)
-                pcl.callback(pcl.auxdata, packet);
-        }
-
-        for (const auto& pcl : cur_chains->datadissect) {
-            if (pcl.callback != nullptr)
-                pcl.callback(pcl.auxdata, packet);
-        }
-
-        for (const auto& pcl : cur_chains->classifier) {
-            if (pcl.callback != nullptr)
-                pcl.callback(pcl.auxdata, packet);
-        }
-
-        for (const auto& pcl : cur_chains->tracker) {
-            if (pcl.callback != nullptr)
-                pcl.callback(pcl.auxdata, packet);
-        }
-
-        for (const auto& pcl : cur_chains->logging) {
-            if (pcl.callback != nullptr)
-                pcl.callback(pcl.auxdata, packet);
-        }
-
-        packet->mutex.unlock();
-
-        uint64_t now = Globalreg::globalreg->last_tv_sec;
-
-        if (packet->error)
-            packet_error_rrd->add_sample(1, now);
-
-        if (packet->duplicate)
-            packet_dupe_rrd->add_sample(1, now);
-
-        packet_processed_rrd->add_sample(1, now);
-
-        continue;
+        batch.clear();
     }
 }
 
@@ -457,14 +462,16 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet,
         packet->packet_no = orig->packet_no;
         packet->original = orig;
 
+        // Borrow the original's decoded components so the duplicate isn't decoded again.
+        // Everything the duplicate already has came from its own capture (raw frame,
+        // signal, checksum, source) and is kept, so it's logged as it was captured.
         for (unsigned int i = 0; i < MAX_PACKET_COMPONENTS; i++) {
-            auto cp = orig->content_vec[i];
-            if (cp != nullptr) {
-                if (cp->unique())
-                    continue;
+            const auto& cp = orig->content_vec[i];
 
-                packet->content_vec[i] = cp;
-            }
+            if (cp == nullptr || cp->unique() || packet->content_vec[i] != nullptr)
+                continue;
+
+            packet->content_vec[i] = cp;
         }
 
         // Merge the signal levels

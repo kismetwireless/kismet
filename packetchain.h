@@ -49,7 +49,8 @@
 #include "trackedelement.h"
 #include "trackedrrd.h"
 
-#include "moodycamel/blockingconcurrentqueue.h"
+#include <condition_variable>
+#include <deque>
 
 /*
  * Packets are captured (typically from an IO thread, either for ASIO IPC and TCP or
@@ -104,6 +105,64 @@
 
 class kis_packet;
 class kis_datachunk;
+
+// Handoff queue to one packet thread.  Packets come out in the order they were queued,
+// whichever threads queued them, so a source's packets are processed in capture order.
+class packet_fifo {
+public:
+    void enqueue(std::shared_ptr<kis_packet> in_pack) {
+        bool wake;
+
+        pending.fetch_add(1, std::memory_order_relaxed);
+
+        {
+            std::lock_guard<std::mutex> lk(mutex);
+            queue.push_back(std::move(in_pack));
+            wake = waiting;
+        }
+
+        if (wake)
+            cv.notify_one();
+    }
+
+    // Move everything queued into an empty out, in order; false if nothing was queued
+    bool try_dequeue_all(std::deque<std::shared_ptr<kis_packet>>& out) {
+        std::lock_guard<std::mutex> lk(mutex);
+
+        if (queue.empty())
+            return false;
+
+        std::swap(out, queue);
+        return true;
+    }
+
+    void wait_dequeue_all(std::deque<std::shared_ptr<kis_packet>>& out) {
+        std::unique_lock<std::mutex> lk(mutex);
+
+        waiting = true;
+        cv.wait(lk, [this]() { return !queue.empty(); });
+        waiting = false;
+
+        std::swap(out, queue);
+    }
+
+    // The consumer finished a dequeued packet
+    void packet_done() {
+        pending.fetch_sub(1, std::memory_order_relaxed);
+    }
+
+    // Packets queued or dequeued and not yet finished
+    size_t size_approx() const {
+        return pending.load(std::memory_order_relaxed);
+    }
+
+protected:
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::deque<std::shared_ptr<kis_packet>> queue;
+    bool waiting = false;
+    std::atomic<size_t> pending{0};
+};
 
 class packet_chain : public lifetime_global {
 public:
@@ -178,7 +237,7 @@ public:
     }
 
 protected:
-    void packet_queue_processor(moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> *packet_queue);
+    void packet_queue_processor(packet_fifo *packet_queue);
 
     // Common function for both insertion methods
     int register_int_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
@@ -254,7 +313,7 @@ protected:
 
     struct packet_thread {
         std::thread packet_thread;
-        moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> packet_queue;
+        packet_fifo packet_queue;
     };
 
     packet_thread **packet_threads;
