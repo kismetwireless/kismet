@@ -371,7 +371,7 @@ protected:
     static constexpr size_t dedupe_list_sz = 1024;
 
     // A packet goes to its assigned thread unless that thread is this far behind, then to
-    // the least busy thread, so one busy device can't overflow a single queue
+    // its key's alternate thread if that one is less busy
     static constexpr size_t assignment_spill_backlog = 1024;
 
 public:

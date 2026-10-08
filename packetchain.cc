@@ -533,7 +533,8 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     }
 
     // Packets with an assignment id go to a consistent thread; others are spread round
-    // robin.  A thread too far behind spills to the least busy one.
+    // robin.  A busy key may spill to one alternate thread, so a hot device is shared by
+    // at most two threads instead of contending across all of them.
     thread_local unsigned int unassigned_rr = 0;
 
     unsigned int processing_id;
@@ -545,14 +546,17 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
     auto qsize = packet_threads[processing_id]->packet_queue.size_approx();
 
-    if (qsize > assignment_spill_backlog) {
-        for (unsigned int i = 0; i < n_packet_threads; i++) {
-            const auto isize = packet_threads[i]->packet_queue.size_approx();
+    if (qsize > assignment_spill_backlog && in_pack->assignment_id != 0 && n_packet_threads > 1) {
+        auto alt = (in_pack->assignment_id >> 16) % n_packet_threads;
 
-            if (isize < qsize) {
-                qsize = isize;
-                processing_id = i;
-            }
+        if (alt == processing_id)
+            alt = (alt + 1) % n_packet_threads;
+
+        const auto asize = packet_threads[alt]->packet_queue.size_approx();
+
+        if (asize < qsize) {
+            qsize = asize;
+            processing_id = alt;
         }
     }
 
