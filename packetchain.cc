@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <cstring>
 #include <chrono>
 #include <mutex>
 #include <shared_mutex>
@@ -87,6 +88,7 @@ packet_chain::packet_chain() {
 
     unique_packet_no = 1;
 
+    dedupe_hash.fill(0);
     dedupe_list_pos = 0;
 
     Globalreg::enable_pool_type<kis_tracked_packet>([](auto *a) { a->reset(); });
@@ -352,53 +354,7 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
 
         if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
             packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
-
-            // Lock the hash list, gating all hash comparisons
-            auto no_lk = kis_unique_lock<kis_shared_mutex>(pack_no_mutex, "hash handler");
-
-            for (const auto& p : dedupe_list) {
-                if (p.hash == packet->hash) {
-                    packet->duplicate = true;
-                    packet->packet_no = p.packno;
-                    packet->original = p.original_pkt;
-
-                    // We have to wait until everything is done being changed in the packet
-                    // before we can copy the duplicate decoded state over, grab the lock that
-                    // is released at the end of the chain
-                    kis_lock_guard<kis_mutex> lg(p.original_pkt->mutex);
-                    for (unsigned int c = 0; c < MAX_PACKET_COMPONENTS; c++) {
-                        auto cp = p.original_pkt->content_vec[c];
-                        if (cp != nullptr) {
-                            if (cp->unique())
-                                continue;
-
-                            packet->content_vec[c] = cp;
-                        }
-                    }
-
-                    // Merge the signal levels
-					// TODO fix for new embedded l1 data
-#if 0
-                    if (packet->has(pack_comp_l1) && packet->has(pack_comp_datasource)) {
-                        auto l1 = packet->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
-                        auto radio_agg = packet->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
-                        auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
-                        radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
-                    }
-#endif
-
-                    break;
-                }
-            }
-
-            // Assign a new packet number and cache it in the dedupe
-            if (!packet->duplicate) {
-                auto listpos = dedupe_list_pos++ % 1024;
-                packet->packet_no = unique_packet_no++;
-                dedupe_list[listpos].hash = packet->hash;
-                dedupe_list[listpos].packno = unique_packet_no++;
-                dedupe_list[listpos].original_pkt = packet;
-            }
+            dedupe_packet(packet, chunk);
         }
 
         // run the rest of the packet chain
@@ -447,6 +403,105 @@ void packet_chain::packet_queue_processor(moodycamel::BlockingConcurrentQueue<st
 
         continue;
     }
+}
+
+void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet,
+        const std::shared_ptr<kis_datachunk>& chunk) {
+    // Earlier packets sharing this hash; per thread so we don't allocate per packet
+    thread_local std::vector<std::shared_ptr<kis_packet>> candidates;
+    candidates.clear();
+
+    std::shared_ptr<kis_packet> evicted;
+
+    {
+        kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "packetchain dedupe");
+
+        for (size_t i = 0; i < dedupe_list_sz; i++) {
+            if (dedupe_hash[i] == packet->hash && dedupe_pkt[i] != nullptr)
+                candidates.push_back(dedupe_pkt[i]);
+        }
+
+        for (const auto& p : dedupe_pending) {
+            if (p->hash == packet->hash)
+                candidates.push_back(p);
+        }
+
+        if (candidates.empty()) {
+            evicted = dedupe_insert(packet);
+            packet->packet_no = unique_packet_no.fetch_add(1);
+            return;
+        }
+
+        // Pending before we release the lock so a simultaneous identical packet finds us
+        dedupe_pending.push_back(packet);
+    }
+
+    // A hash match only means a possible duplicate.  Wait for each candidate to finish its
+    // chain (they were visible before us, so waits never cycle) and compare the frames.
+    bool duplicate = false;
+
+    for (const auto& c : candidates) {
+        kis_lock_guard<kis_mutex> lg(c->mutex, "packetchain dedupe candidate");
+
+        const auto& c_chunk = c->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (c_chunk == nullptr || c_chunk->length() != chunk->length() ||
+                memcmp(c_chunk->data(), chunk->data(), chunk->length()) != 0)
+            continue;
+
+        const auto& orig = (c->duplicate && c->original != nullptr) ? c->original : c;
+
+        kis_lock_guard<kis_mutex> olg(orig->mutex, "packetchain dedupe original");
+
+        packet->duplicate = true;
+        packet->packet_no = orig->packet_no;
+        packet->original = orig;
+
+        for (unsigned int i = 0; i < MAX_PACKET_COMPONENTS; i++) {
+            auto cp = orig->content_vec[i];
+            if (cp != nullptr) {
+                if (cp->unique())
+                    continue;
+
+                packet->content_vec[i] = cp;
+            }
+        }
+
+        // Merge the signal levels
+        // TODO fix for new embedded l1 data
+#if 0
+        if (packet->has(pack_comp_l1) && packet->has(pack_comp_datasource)) {
+            auto l1 = packet->original->fetch<kis_layer1_packinfo>(pack_comp_l1);
+            auto radio_agg = packet->fetch_or_add<kis_layer1_aggregate_packinfo>(pack_comp_l1_agg);
+            auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+            radio_agg->source_l1_map[datasrc->ref_source->get_source_uuid()] = l1;
+        }
+#endif
+
+        duplicate = true;
+        break;
+    }
+
+    kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "packetchain dedupe resolve");
+
+    dedupe_pending.erase(std::find(dedupe_pending.begin(), dedupe_pending.end(), packet));
+
+    // Hash collision with different frames; we're an original
+    if (!duplicate) {
+        evicted = dedupe_insert(packet);
+        packet->packet_no = unique_packet_no.fetch_add(1);
+    }
+}
+
+std::shared_ptr<kis_packet> packet_chain::dedupe_insert(const std::shared_ptr<kis_packet>& packet) {
+    const auto slot = dedupe_list_pos;
+    dedupe_list_pos = (dedupe_list_pos + 1) % dedupe_list_sz;
+
+    auto evicted = std::move(dedupe_pkt[slot]);
+    dedupe_hash[slot] = packet->hash;
+    dedupe_pkt[slot] = packet;
+
+    return evicted;
 }
 
 int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {

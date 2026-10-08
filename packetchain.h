@@ -103,6 +103,7 @@
     const std::shared_ptr<kis_packet>& in_pack
 
 class kis_packet;
+class kis_datachunk;
 
 class packet_chain : public lifetime_global {
 public:
@@ -305,23 +306,27 @@ protected:
     // Next unique packet number
     std::atomic<uint64_t> unique_packet_no;
 
-    // A simple array of hash to packet ID for the past 1024 unique packets
-    typedef struct packno_map {
-        packno_map() {
-            hash = 0;
-            packno = 0;
-        }
+    // Recent unique packets for duplicate detection, protected by pack_no_mutex.  Hashes
+    // are kept apart from the packets so the scan reads contiguous memory; a null packet
+    // marks an empty slot.
+    static constexpr size_t dedupe_list_sz = 1024;
+    std::array<uint32_t, dedupe_list_sz> dedupe_hash;
+    std::array<std::shared_ptr<kis_packet>, dedupe_list_sz> dedupe_pkt;
 
-        uint32_t hash;
-        uint64_t packno;
-        std::shared_ptr<kis_packet> original_pkt;
-    } packno_map_t;
+    // Next slot to fill in the dedupe list
+    size_t dedupe_list_pos;
 
-    std::array<packno_map_t, 1024> dedupe_list;
-    // packno_map_t dedupe_list[1024];
+    // Packets which matched a hash and are still being compared; they're visible to the
+    // dedupe scan but don't occupy the window until confirmed as originals
+    std::vector<std::shared_ptr<kis_packet>> dedupe_pending;
 
-    // Current position in the dedupe list
-    std::atomic<unsigned int> dedupe_list_pos;
+    // Number the packet or alias it to an identical earlier packet
+    void dedupe_packet(const std::shared_ptr<kis_packet>& packet,
+            const std::shared_ptr<kis_datachunk>& chunk);
+
+    // Add an original to the window; caller holds pack_no_mutex.  Returns the evicted packet
+    // so it can be released after the lock is dropped.
+    std::shared_ptr<kis_packet> dedupe_insert(const std::shared_ptr<kis_packet>& packet);
 
 	int pack_comp_linkframe, pack_comp_decap, pack_comp_l1_agg, pack_comp_datasource;
 
