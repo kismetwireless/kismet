@@ -415,9 +415,18 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (in_pack->duplicate) {
+    // The dissector only fills in addresses the frame carries, as 2-byte short or 8-byte
+    // extended addresses; a missing one is left at the 6-byte default
+    auto addr_present = [](const mac_addr& m) {
+        return m.length() == 2 || m.length() == 8;
+    };
+
+    const auto& source = in_pack->common_info.source;
+    const auto& dest = in_pack->common_info.dest;
+
+    if (in_pack->duplicate && addr_present(source)) {
         auto source_dev =
-            mphy->devicetracker->update_common_device(in_pack->common_info.source,
+            mphy->devicetracker->update_common_device(source,
                     mphy, in_pack,
                     (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                      UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY),
@@ -427,40 +436,38 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     // as source
     // Update with all the options in case we can add signal and frequency
     // in the future
-    auto source_dev =
-        mphy->devicetracker->update_common_device(in_pack->common_info.source,
-                mphy, in_pack,
-                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                 UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-                "802.15.4");
+    if (addr_present(source)) {
+        auto source_dev =
+            mphy->devicetracker->update_common_device(source,
+                    mphy, in_pack,
+                    (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                     UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                    "802.15.4");
 
-    auto source_kis_802154 = source_dev->get_sub_as<kis_802154_tracked_device>(
-        mphy->kis_802154_device_entry_id);
+        auto source_kis_802154 = source_dev->get_sub_as<kis_802154_tracked_device>(
+            mphy->kis_802154_device_entry_id);
 
-    if (source_kis_802154 == NULL) {
-        _MSG_INFO(
-            "Detected new 802.15.4 device {}", in_pack->common_info.source.mac_to_string());
-        source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
-        source_dev->insert(source_kis_802154);
+        if (source_kis_802154 == NULL) {
+            _MSG_INFO(
+                "Detected new 802.15.4 device {}", source.mac_to_string());
+            source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
+            source_dev->insert(source_kis_802154);
+        }
     }
 
     // as destination
-    // Update with all the options in case we can add signal and frequency
-    // in the future
-    auto dest_dev = mphy->devicetracker->update_common_device(in_pack->common_info.dest,
-            mphy, in_pack,
-            (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-             UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-            "802.15.4");
+    // The destination didn't transmit this frame, so it must not get the signal and location
+    // of the sender, and a destination alone is not enough to create a device (like the 802.11
+    // destination handling).  Skip the 0xFFFF broadcast address entirely.
+    static const uint8_t bcast_short[2] = {0xFF, 0xFF};
+    static const mac_addr broadcast_short(bcast_short, 2);
 
-    auto dest_kis_802154 = dest_dev->get_sub_as<kis_802154_tracked_device>(
-        mphy->kis_802154_device_entry_id);
-
-    if (dest_kis_802154 == NULL) {
-        _MSG_INFO(
-            "Detected new 802.15.4 device {}", in_pack->common_info.dest.mac_to_string());
-        dest_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
-        dest_dev->insert(dest_kis_802154);
+    if (addr_present(dest) &&
+            !(dest.length() == 2 && dest == broadcast_short)) {
+        mphy->devicetracker->update_common_device(dest,
+                mphy, in_pack,
+                (UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
+                "802.15.4");
     }
 
     return 1;
