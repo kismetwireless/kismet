@@ -44,9 +44,6 @@
 #define ACK_802154      0x02
 #define CMD_802154      0x03
 
-uint8_t chan = 0;
-uint8_t sigstr = 0;
-
 // 802.15.4 header
 struct _802_15_4_fcf {
     unsigned char type : 3;
@@ -61,14 +58,6 @@ struct _802_15_4_fcf {
     unsigned char frame_ver : 2;
     unsigned char src_addr_mode : 2;
 };
-
-uint8_t dest[2] = {0x00, 0x00};
-uint8_t dest_pan[2] = {0x00, 0x00};
-uint8_t src[2] = {0x00, 0x00};
-uint8_t src_pan[2] = {0x00, 0x00};
-
-uint8_t ext_dest[8];
-uint8_t ext_source[8];
 
 
 kis_802154_phy::kis_802154_phy(int in_phyid) :
@@ -115,6 +104,17 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
     _802_15_4_tap *tap_header = nullptr;
+
+    // Per-packet parse state; the dissector runs in all packet threads at once, so this must
+    // not be shared between calls.  The PANs, channel and signal are parsed but not used yet.
+    uint8_t dest[2] = {0x00, 0x00};
+    [[maybe_unused]] uint8_t dest_pan[2] = {0x00, 0x00};
+    uint8_t src[2] = {0x00, 0x00};
+    [[maybe_unused]] uint8_t src_pan[2] = {0x00, 0x00};
+    uint8_t ext_dest[8] = {0};
+    uint8_t ext_source[8] = {0};
+    [[maybe_unused]] uint8_t chan = 0;
+    [[maybe_unused]] uint8_t sigstr = 0;
 
     unsigned short fcf = 0;
     auto hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
