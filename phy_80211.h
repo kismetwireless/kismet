@@ -29,6 +29,7 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+#include <atomic>
 #include <string>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -91,8 +92,9 @@ class dot11_wep_key {
         mac_addr bssid;
         unsigned char key[DOT11_WEPKEY_MAX];
         unsigned int len;
-        unsigned int decrypted;
-        unsigned int failed;
+        // Updated by any packet thread
+        std::atomic<unsigned int> decrypted;
+        std::atomic<unsigned int> failed;
 };
 
 // dot11 packet components
@@ -478,6 +480,7 @@ public:
 
     void set_string_extract(int in_extr);
 
+    // Only safe before packet processing starts; packet threads read wepkeys unlocked
     void add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
     static std::string crypt_to_string(uint64_t cryptset);
@@ -569,8 +572,6 @@ protected:
 
     int load_wepkeys();
 
-    std::map<mac_addr, std::string> bssid_cloak_map;
-
     std::string ssid_cache_path, ip_cache_path;
     int ssid_cache_track, ip_cache_track;
 
@@ -589,7 +590,8 @@ protected:
     // Do we pull strings?
     int dissect_strings, dissect_all_strings;
 
-    // SSID regex filter
+    // SSID regex filter; like the canary map and IE fingerprint lists, filled at startup
+    // and read without locking by packet threads
     std::shared_ptr<tracker_element_vector> ssid_regex_vec;
     int ssid_regex_vec_element_id;
 
@@ -610,7 +612,8 @@ protected:
 
     // Are we allowed to send wepkeys to the client (server config)
     int client_wepkey_allowed;
-    // Map of wepkeys to BSSID (or bssid masks)
+    // Map of wepkeys to BSSID (or bssid masks); filled at startup and read without locking
+    // by packet threads, so it must not change once packets are being processed
     std::map<mac_addr, dot11_wep_key *> wepkeys;
 
     // Generated WEP identity / base
@@ -631,13 +634,6 @@ protected:
     int addfiltercmd_ref, addnetclifiltercmd_ref;
 
     int proto_ref_ssid, proto_ref_device, proto_ref_client;
-
-    // SSID cloak file as a config file
-    config_file *ssid_conf;
-    time_t conf_save;
-
-    // probe assoc to owning network
-    std::map<mac_addr, kis_tracked_device_base *> probe_assoc_map;
 
     // Do we time out components of devices?
     int device_idle_expiration;
