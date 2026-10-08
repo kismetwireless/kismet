@@ -564,6 +564,82 @@ uint64_t kis_80211_phy::wfa_auth_conv(ie221_wfa_mgmt cipher) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
+namespace {
+    // murmur3 64-bit finalizer folded to 32 bits; never 0, which means unassigned
+    constexpr uint32_t dot11_mix_assignment(uint64_t v) {
+        v ^= v >> 33;
+        v *= 0xff51afd7ed558ccdULL;
+        v ^= v >> 33;
+        v *= 0xc4ceb9fe1a85ec53ULL;
+        v ^= v >> 33;
+
+        const auto r = static_cast<uint32_t>(v ^ (v >> 32));
+        return r == 0 ? 1 : r;
+    }
+
+    // A unicast, non-empty address as an integer, or 0
+    uint64_t dot11_assignable_mac(const uint8_t *addr) {
+        if (addr[0] & 0x01)
+            return 0;
+
+        uint64_t v = 0;
+        memcpy(&v, addr, PHY80211_MAC_LEN);
+        return v;
+    }
+}
+
+// Packets are assigned to a processing thread before the dissector runs, so pick the
+// thread from the raw header.  Frames for the same BSS go to the same thread whatever the
+// client, so a busy AP isn't contended between threads and its frames (such as handshakes)
+// are handled in order.  WDS frames group by the transmitting AP, and frames without a
+// BSSID (such as probe requests) by the sender.  Anything else is left unassigned.
+int kis_80211_phy::packet_dot11_assign_thread(kis_packet *in_pack) {
+    if (in_pack->error)
+        return 0;
+
+    const auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+    if (chunk == nullptr || chunk->dlt != KDLT_IEEE802_11 || chunk->length() < 24)
+        return 0;
+
+    const auto data = reinterpret_cast<const uint8_t *>(chunk->data());
+
+    const unsigned int type = (data[0] >> 2) & 0x03;
+    const bool to_ds = data[1] & 0x01;
+    const bool from_ds = data[1] & 0x02;
+
+    const uint8_t *addr0 = data + 4;
+    const uint8_t *addr1 = data + 10;
+    const uint8_t *addr2 = data + 16;
+
+    uint64_t key = 0;
+
+    if (type == packet_management) {
+        key = dot11_assignable_mac(addr2);
+
+        if (key == 0)
+            key = dot11_assignable_mac(addr1);
+    } else if (type == packet_data) {
+        if (!to_ds && !from_ds) {
+            key = dot11_assignable_mac(addr2);
+
+            if (key == 0)
+                key = dot11_assignable_mac(addr1);
+        } else if (from_ds && !to_ds) {
+            key = dot11_assignable_mac(addr1);
+        } else if (to_ds && !from_ds) {
+            key = dot11_assignable_mac(addr0);
+        } else {
+            key = dot11_assignable_mac(addr1);
+        }
+    }
+
+    if (key != 0)
+        in_pack->assignment_id = dot11_mix_assignment(key);
+
+    return 1;
+}
+
 int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     if (in_pack->error) {
         return 0;
@@ -1532,14 +1608,6 @@ eap_end:
     in_pack->common_info.type = packet_basic_data;
 
     in_pack->insert(pack_comp_80211, packinfo);
-
-    uint32_t aid = 0;
-    aid = adler32_checksum(&in_pack->common_info.source.longmac, sizeof(in_pack->common_info.source.longmac));
-    aid = adler32_append_checksum(&in_pack->common_info.dest.longmac, sizeof(in_pack->common_info.dest.longmac), aid);
-    aid = adler32_append_checksum(&in_pack->common_info.network.longmac, sizeof(in_pack->common_info.network.longmac), aid);
-    aid = adler32_append_checksum(&in_pack->common_info.transmitter.longmac, sizeof(in_pack->common_info.transmitter.longmac), aid);
-
-    in_pack->assignment_id = aid;
 
     return 1;
 }

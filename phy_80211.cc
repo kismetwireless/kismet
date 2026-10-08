@@ -106,6 +106,10 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
     return ((kis_80211_phy *) auxdata)->packet_dot11_dissector(in_pack.get());
 }
 
+int phydot11_packethook_assign(CHAINCALL_PARMS) {
+    return ((kis_80211_phy *) auxdata)->packet_dot11_assign_thread(in_pack.get());
+}
+
 kis_80211_phy::kis_80211_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
@@ -179,6 +183,8 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     packetchain->register_handler(&packet_dot11_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
     packetchain->register_handler(&phydot11_packethook_wep, this, CHAINPOS_DECRYPT, -100);
     packetchain->register_handler(&phydot11_packethook_dot11, this, CHAINPOS_LLCDISSECT, -100);
+    // After the DLT decapsulation handlers, before the packet is handed to a thread
+    packetchain->register_handler(&phydot11_packethook_assign, this, CHAINPOS_POSTCAP, 100);
 
     // If we haven't registered packet components yet, do so.  We have to
     // co-exist with the old tracker core for some time
@@ -1078,6 +1084,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 kis_80211_phy::~kis_80211_phy() {
     packetchain->remove_handler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
     packetchain->remove_handler(&phydot11_packethook_dot11, CHAINPOS_LLCDISSECT);
+    packetchain->remove_handler(&phydot11_packethook_assign, CHAINPOS_POSTCAP);
     packetchain->remove_handler(&packet_dot11_common_classifier, CHAINPOS_CLASSIFIER);
 
     timetracker->remove_timer(device_idle_timer);
