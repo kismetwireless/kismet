@@ -62,9 +62,10 @@ void datasource_tracker_source_probe::cancel() {
 
     cancelled = true;
 
-    // Cancel any timers
+    // Cancel any timers; they hold this probe and call cancel(), which needs probe_lock,
+    // so don't wait for them
     for (auto i : cancel_timer_vec)
-        timetracker->remove_timer(i);
+        timetracker->cancel_timer(i);
 
     if (probe_cb) {
         lk.unlock();
@@ -205,7 +206,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (unsigned
 
         i.second->probe_interface(definition, i.first,
                 [cancel_timer, self=shared_from_this()](unsigned int transaction, bool success, std::string reason) {
-                    self->timetracker->remove_timer(cancel_timer);
+                    self->timetracker->cancel_timer(cancel_timer);
                     self->complete_probe(success, transaction, reason);
                 });
     }
@@ -241,7 +242,8 @@ void datasource_tracker_source_list::cancel() {
 
     cancelled = true;
 
-    timetracker->remove_timer(cancel_event_id);
+    // The timer holds this list and calls cancel(), which needs list_lock
+    timetracker->cancel_timer(cancel_event_id);
 
     if (ipc_list_map.size() == 0 && list_cb) {
         list_cb(listed_sources);

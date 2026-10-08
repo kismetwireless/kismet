@@ -651,7 +651,8 @@ void kis_external_interface::close_external_impl() {
         s.second->locker->unlock();
     }
 
-    timetracker->remove_timer(ping_timer_id);
+    // Under ext_mutex, which the ping timer takes; the datasource destructor waits for it
+    timetracker->cancel_timer(ping_timer_id);
 
     if (io_ != nullptr) {
         io_->close();

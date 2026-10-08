@@ -85,8 +85,10 @@ void kis_gps_gpsd_v3::handle_error() {
     set_int_device_connected(false);
     stopped = true;
 
+    // Runs on the strand, which a timer holding gps_mutex may be waiting on; the timer
+    // holds a reference to us, so cancelling is enough
     if (error_reconnect_timer > 0)
-        timetracker->remove_timer(error_reconnect_timer);
+        timetracker->cancel_timer(error_reconnect_timer);
 
     error_reconnect_timer = 
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0,

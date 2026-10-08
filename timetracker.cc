@@ -212,12 +212,22 @@ void time_tracker::time_worker() {
     }
 }
 
+namespace {
+    // Timer whose callback this worker thread is running
+    thread_local int current_timer_id = -1;
+}
+
 void time_tracker::run_timer(const std::shared_ptr<timer_event>& evt,
         std::chrono::system_clock::time_point dispatch_tm) {
     int ret = 0;
 
-    // Cancelled between being dispatched and run
+    // Marked before checking for cancellation; remove_timer cancels before checking this,
+    // so either the callback is skipped or remove_timer waits for it
+    evt->in_callback = true;
+
     if (!evt->timer_cancelled) {
+        current_timer_id = evt->timer_id;
+
         if (evt->callback != NULL) {
             ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
         } else if (evt->event != NULL) {
@@ -225,7 +235,16 @@ void time_tracker::run_timer(const std::shared_ptr<timer_event>& evt,
         } else if (evt->event_func != NULL) {
             ret = evt->event_func(evt->timer_id);
         }
+
+        current_timer_id = -1;
     }
+
+    {
+        std::lock_guard<std::mutex> lk(done_mutex);
+        evt->in_callback = false;
+    }
+
+    done_cv.notify_all();
 
     if (ret > 0 && evt->timeslices != -1 && evt->recurring && !evt->timer_cancelled) {
         kis_lock_guard<kis_mutex> tl(time_mutex, "event rescheduler");
@@ -433,22 +452,57 @@ int time_tracker::register_timer(const slice& in_timeslices,
     return evt->timer_id;
 }
 
-int time_tracker::remove_timer(int in_timerid) {
-    // Removing a timer sets the atomic cancelled and puts us on the abort list;
-    // we'll get cleaned out of the main list the next iteration through the main code.
-
+std::shared_ptr<time_tracker::timer_event> time_tracker::cancel_timer_event(int in_timerid) {
+    // Cancel and queue for removal from the main list on the next dispatch pass
     kis_lock_guard<kis_mutex> lk(time_mutex);
 
     auto itr = timer_map.find(in_timerid);
 
-    if (itr != timer_map.end()) {
-        itr->second->timer_cancelled = true;
+    if (itr == timer_map.end())
+        return nullptr;
 
-        kis_lock_guard<kis_mutex> lk(removed_id_mutex);
-        removed_timer_ids.push_back(in_timerid);
-    } else {
+    itr->second->timer_cancelled = true;
+
+    kis_lock_guard<kis_mutex> rl(removed_id_mutex);
+    removed_timer_ids.push_back(in_timerid);
+
+    return itr->second;
+}
+
+int time_tracker::cancel_timer(int in_timerid) {
+    return cancel_timer_event(in_timerid) != nullptr;
+}
+
+int time_tracker::remove_timer(int in_timerid) {
+    auto evt = cancel_timer_event(in_timerid);
+
+    if (evt == nullptr)
         return 0;
+
+    // A timer removing itself is still inside its callback
+    if (in_timerid == current_timer_id)
+        return 1;
+
+    std::unique_lock<std::mutex> lk(done_mutex);
+
+    if (!evt->in_callback)
+        return 1;
+
+    if (current_timer_id >= 0) {
+        // Don't wait on a timer which is itself waiting, directly or through others, on
+        // the timer we're running in
+        for (auto w = waits_on.find(in_timerid); w != waits_on.end(); w = waits_on.find(w->second)) {
+            if (w->second == current_timer_id)
+                return 1;
+        }
+
+        waits_on[current_timer_id] = in_timerid;
     }
+
+    done_cv.wait(lk, [&evt]() { return !evt->in_callback; });
+
+    if (current_timer_id >= 0)
+        waits_on.erase(current_timer_id);
 
     return 1;
 }

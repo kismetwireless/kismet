@@ -68,6 +68,9 @@ public:
         // Dispatched and not finished; a timer never runs alongside itself
         std::atomic<bool> running{false};
 
+        // Callback is executing; remove_timer waits for it to clear
+        std::atomic<bool> in_callback{false};
+
         // Time it was scheduled
         std::chrono::system_clock::time_point schedule_tm;
 
@@ -148,8 +151,14 @@ public:
     int register_timer(const slice& in_timeslices,
             int in_recurring, std::function<int (int)> event);
 
-    // Remove a timer that's going to execute
+    // Cancel a timer and wait for its callback to finish if it's running, so the callback
+    // never runs after this returns.  A timer may remove itself from its own callback.  The
+    // caller must not hold a lock the callback takes.
     int remove_timer(int timer_id);
+
+    // Cancel a timer without waiting; a callback already running may still finish.  For
+    // callers holding a lock the callback takes, where the object outlives the callback.
+    int cancel_timer(int timer_id);
 
     void spawn_timetracker_thread();
 
@@ -164,6 +173,14 @@ protected:
     std::condition_variable work_cv;
     std::deque<std::pair<std::shared_ptr<timer_event>, std::chrono::system_clock::time_point>> work_queue;
     bool workers_shutdown;
+
+    // Signalled when a callback finishes; waits_on maps the timer whose callback is waiting
+    // in remove_timer to the timer it waits for, so timers removing each other can't deadlock
+    std::mutex done_mutex;
+    std::condition_variable done_cv;
+    std::map<int, int> waits_on;
+
+    std::shared_ptr<timer_event> cancel_timer_event(int timer_id);
 
     void time_dispatcher(void);
     void time_worker(void);

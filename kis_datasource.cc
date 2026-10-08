@@ -88,7 +88,8 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
 }
 
 kis_datasource::~kis_datasource() {
-    // Cancel any timer
+    // Wait out any running timer callback, they hold this; elsewhere timers are only
+    // cancelled since the callbacks take ext_mutex, which those callers hold
     timetracker->remove_timer(error_timer_id);
     timetracker->remove_timer(ping_timer_id);
 
@@ -321,7 +322,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // If we have an error callback that's going to try to re-open us, cancel it
     if (error_timer_id > 0)
-        timetracker->remove_timer(error_timer_id);
+        timetracker->cancel_timer(error_timer_id);
 
     if (!launch_ipc()) {
         return;
@@ -336,7 +337,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
         // If we got here we're valid; start a PING timer
-        timetracker->remove_timer(ping_timer_id);
+        timetracker->cancel_timer(ping_timer_id);
         ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
                 kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource v2 ping_timer lambda");
 
@@ -495,7 +496,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     // Kill any error handlers
     if (error_timer_id > 0)
-        timetracker->remove_timer(error_timer_id);
+        timetracker->cancel_timer(error_timer_id);
 
     // Reset the state
     set_int_source_running(true);
@@ -533,7 +534,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
     if (ping_timer_id > 0)
-        timetracker->remove_timer(ping_timer_id);
+        timetracker->cancel_timer(ping_timer_id);
 
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
@@ -585,7 +586,7 @@ void kis_datasource::disable_source() {
 
     // cancel any timers
     if (error_timer_id > 0)
-        timetracker->remove_timer(error_timer_id);
+        timetracker->cancel_timer(error_timer_id);
 
     error_timer_id = -1;
 }
@@ -674,7 +675,7 @@ void kis_datasource::close_external_impl() {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource close_external");
 
     if (ping_timer_id > 0) {
-        timetracker->remove_timer(ping_timer_id);
+        timetracker->cancel_timer(ping_timer_id);
         ping_timer_id = -1;
     }
 
@@ -910,7 +911,7 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
 
         // Cancel any timers
         if (cmd->timer_id > -1) {
-            timetracker->remove_timer(cmd->timer_id);
+            timetracker->cancel_timer(cmd->timer_id);
             cmd->timer_id = -1;
         }
 
@@ -3617,7 +3618,7 @@ void kis_datasource::handle_source_error() {
         return;
 
     if (ping_timer_id > 0) {
-        timetracker->remove_timer(ping_timer_id);
+        timetracker->cancel_timer(ping_timer_id);
         ping_timer_id = -1;
     }
 

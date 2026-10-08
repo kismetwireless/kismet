@@ -681,14 +681,14 @@ device_tracker::device_tracker() :
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
+                // consumer-supplied key# per monitor request, timer id of monitor event; lives
+                // for the whole connection since handle_request blocks until it closes
+                std::unordered_map<unsigned int, int> key_timer_map;
+
                 auto ws =
                     std::make_shared<kis_net_web_websocket_endpoint>(con,
-                        [this, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                        [this, con, &key_timer_map](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
                             std::shared_ptr<boost::asio::streambuf> buf, bool text) mutable {
-						// consumer-supplied key# per monitor request, timer id of monitor event
-                		std::unordered_map<unsigned int, int> key_timer_map;
-
-
                         if (!text) {
 							for (const auto& ti : key_timer_map) {
 								timetracker->remove_timer(ti.second);
@@ -797,6 +797,8 @@ device_tracker::device_tracker() :
 								timetracker->remove_timer(ti.second);
 							}
 
+                            key_timer_map.clear();
+
                             _MSG_ERROR("Invalid device monitor request: {}", e.what());
                             return;
                         }
@@ -808,6 +810,9 @@ device_tracker::device_tracker() :
                 try {
                     ws->handle_request(con);
                 } catch (...) { }
+
+                for (const auto& ti : key_timer_map)
+                    timetracker->remove_timer(ti.second);
             }));
 
     phy_phyentry_id =

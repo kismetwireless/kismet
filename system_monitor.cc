@@ -240,13 +240,14 @@ Systemmonitor::Systemmonitor() :
 }
 
 Systemmonitor::~Systemmonitor() {
-    kis_lock_guard<kis_mutex> lk(monitor_mutex);
-
-    Globalreg::globalreg->remove_global("SYSTEMMONITOR");
-
+    // Before taking the lock; the timer callbacks take it too
     timetracker->remove_timer(timer_id);
     timetracker->remove_timer(kismetdb_log_timer);
     timetracker->remove_timer(event_timer_id);
+
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
+
+    Globalreg::globalreg->remove_global("SYSTEMMONITOR");
 
     eventbus->remove_listener(logopen_evt_id);
 }

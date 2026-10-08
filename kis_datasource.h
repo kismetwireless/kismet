@@ -563,19 +563,26 @@ protected:
             timetracker =
                 Globalreg::fetch_mandatory_global_as<time_tracker>();
 
-            // Generate a timeout for 5 seconds from now
-            auto src_alias = in_src;
+            // Generate a timeout for 30 seconds from now; it may run after this command or
+            // the source is gone, so it holds only a weak source and the sequence
+            std::weak_ptr<kis_external_interface> src_weak = in_src->weak_from_this();
             timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 30,
-                    NULL, 0, [src_alias, this](int) -> int {
-                    src_alias->cancel_command(command_seq, "Command did not complete");
+                    NULL, 0, [src_weak, in_seq](int) -> int {
+                    auto src = std::static_pointer_cast<kis_datasource>(src_weak.lock());
+
+                    if (src != nullptr)
+                        src->cancel_command(in_seq, "Command did not complete");
+
                     return 0;
                 });
 
         }
 
         ~tracked_command() {
+            // Destroyed under ext_mutex, which the timeout takes; the timeout holds only
+            // the source and sequence, so it may safely finish after we're gone
             if (timer_id > -1) {
-                timetracker->remove_timer(timer_id);
+                timetracker->cancel_timer(timer_id);
                 timer_id = -1;
             }
         }
