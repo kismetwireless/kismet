@@ -25,6 +25,8 @@
 #include "phy_80211.h"
 #include "phy_80211_components.h"
 
+#include <array>
+
 void dot11_tracked_eapol::register_fields() {
     tracker_component::register_fields();
 
@@ -486,3 +488,7 @@ void dot11_tracked_ietag::set_from_tag(const dot11_ie::dot11_ie_tag& tag) {
     set_unique_tag_id(tag.tag_num());
 }
 
+std::mutex& dot11_tracked_device::serialize_count_mutex(const dot11_tracked_device *dev) {
+    static std::array<std::mutex, 64> stripes;
+    return stripes[(reinterpret_cast<uintptr_t>(dev) >> 6) % stripes.size()];
+}

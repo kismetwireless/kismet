@@ -84,12 +84,10 @@ void packet_chain::pc_chains_ref::reset() {
 packet_chain::packet_chain() {
     packetcomp_mutex.set_name("packetchain packet_comp");
     packetchain_mutex.set_name("packetchain packetchain");
-    pack_no_mutex.set_name("packetchain packetno");
 
     unique_packet_no = 1;
+    arrival_packet_no = 1;
 
-    dedupe_hash.fill(0);
-    dedupe_list_pos = 0;
 
     Globalreg::enable_pool_type<kis_tracked_packet>([](auto *a) { a->reset(); });
 
@@ -266,6 +264,8 @@ void packet_chain::start_processing() {
         n_packet_threads = std::max(4, static_cast<int>(std::thread::hardware_concurrency() / 4));
     }
 
+    dedupe_windows = std::make_unique<dedupe_window[]>(n_packet_threads);
+
     packet_threads = new packet_thread*[n_packet_threads];
 
     for (unsigned int n = 0; n < n_packet_threads; n++) {
@@ -418,27 +418,37 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet,
 
     std::shared_ptr<kis_packet> evicted;
 
-    {
-        kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "packetchain dedupe");
+    auto& window = dedupe_windows[packet->assignment_id % n_packet_threads];
 
+    {
+        std::lock_guard<std::mutex> lk(window.mutex);
+
+        // Threads run at different points in the stream, so an identical packet which
+        // arrived later may already be in the window; match it either way
         for (size_t i = 0; i < dedupe_list_sz; i++) {
-            if (dedupe_hash[i] == packet->hash && dedupe_pkt[i] != nullptr)
-                candidates.push_back(dedupe_pkt[i]);
+            if (window.hash[i] != packet->hash || window.pkt[i] == nullptr)
+                continue;
+
+            const auto a = window.arrival_no[i];
+            const auto dist = a > packet->arrival_no ? a - packet->arrival_no : packet->arrival_no - a;
+
+            if (dist <= dedupe_list_sz)
+                candidates.push_back(window.pkt[i]);
         }
 
-        for (const auto& p : dedupe_pending) {
+        for (const auto& p : window.pending) {
             if (p->hash == packet->hash)
                 candidates.push_back(p);
         }
 
         if (candidates.empty()) {
-            evicted = dedupe_insert(packet);
             packet->packet_no = unique_packet_no.fetch_add(1);
+            evicted = dedupe_insert(window, packet);
             return;
         }
 
         // Pending before we release the lock so a simultaneous identical packet finds us
-        dedupe_pending.push_back(packet);
+        window.pending.push_back(packet);
     }
 
     // A hash match only means a possible duplicate.  Wait for each candidate to finish its
@@ -489,26 +499,47 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet,
         break;
     }
 
-    kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "packetchain dedupe resolve");
+    std::lock_guard<std::mutex> lk(window.mutex);
 
-    dedupe_pending.erase(std::find(dedupe_pending.begin(), dedupe_pending.end(), packet));
+    window.pending.erase(std::find(window.pending.begin(), window.pending.end(), packet));
 
     // Hash collision with different frames; we're an original
     if (!duplicate) {
-        evicted = dedupe_insert(packet);
         packet->packet_no = unique_packet_no.fetch_add(1);
+        evicted = dedupe_insert(window, packet);
     }
 }
 
-std::shared_ptr<kis_packet> packet_chain::dedupe_insert(const std::shared_ptr<kis_packet>& packet) {
-    const auto slot = dedupe_list_pos;
-    dedupe_list_pos = (dedupe_list_pos + 1) % dedupe_list_sz;
+std::shared_ptr<kis_packet> packet_chain::dedupe_insert(dedupe_window& window,
+        const std::shared_ptr<kis_packet>& packet) {
+    const auto slot = window.pos;
+    window.pos = (window.pos + 1) % dedupe_list_sz;
 
-    auto evicted = std::move(dedupe_pkt[slot]);
-    dedupe_hash[slot] = packet->hash;
-    dedupe_pkt[slot] = packet;
+    auto evicted = std::move(window.pkt[slot]);
+    window.hash[slot] = packet->hash;
+    window.arrival_no[slot] = packet->arrival_no;
+    window.pkt[slot] = packet;
 
     return evicted;
+}
+
+namespace {
+    // Bounded cost on the capture thread: at most the first 64 bytes, never 0 (unassigned)
+    uint32_t frame_prefix_assignment(const char *data, size_t len) {
+        uint64_t h = 0xcbf29ce484222325ULL;
+
+        for (size_t i = 0; i < std::min<size_t>(len, 64); i++) {
+            h ^= static_cast<uint8_t>(data[i]);
+            h *= 0x100000001b3ULL;
+        }
+
+        h ^= h >> 33;
+        h *= 0xff51afd7ed558ccdULL;
+        h ^= h >> 33;
+
+        const auto r = static_cast<uint32_t>(h ^ (h >> 32));
+        return r == 0 ? 1 : r;
+    }
 }
 
 int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
@@ -532,9 +563,18 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
         }
     }
 
-    // Packets with an assignment id go to a consistent thread; others are spread round
-    // robin.  A busy key may spill to one alternate thread, so a hot device is shared by
-    // at most two threads instead of contending across all of them.
+    // Packets with an assignment id go to a consistent thread.  Others are assigned from
+    // the start of the frame, so identical frames share a thread and dedupe window while
+    // the full checksum stays in the packet threads; packets without a frame are spread
+    // round robin.  A busy key may spill to one alternate thread, so a hot device is shared
+    // by at most two threads instead of contending across all of them.
+    if (in_pack->assignment_id == 0) {
+        const auto& chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0)
+            in_pack->assignment_id = frame_prefix_assignment(chunk->data(), chunk->length());
+    }
+
     thread_local unsigned int unassigned_rr = 0;
 
     unsigned int processing_id;
@@ -601,6 +641,7 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
 
     // Queue the packet to the target thread
+    in_pack->arrival_no = arrival_packet_no.fetch_add(1, std::memory_order_relaxed);
     packet_threads[processing_id]->packet_queue.enqueue(in_pack);
     packet_queue_rrd->add_sample(qsize, now);
 

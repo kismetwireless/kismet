@@ -334,6 +334,9 @@ public:
     // Unique number of this packet
     uint64_t packet_no;
 
+    // Order the packet was queued for processing; bounds the dedupe lookback
+    uint64_t arrival_no;
+
     // Do we know this is in error from the capture source itself?
     int error;
 

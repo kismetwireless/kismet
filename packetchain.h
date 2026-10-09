@@ -359,15 +359,14 @@ protected:
 
     ankerl::unordered_dense::map<size_t, std::shared_ptr<void>> component_pool_map;
 
-    // Unique lock for packet number and dedupe
-    kis_shared_mutex pack_no_mutex;
-
     // Next unique packet number
     std::atomic<uint64_t> unique_packet_no;
 
-    // Recent unique packets for duplicate detection, protected by pack_no_mutex.  Hashes
-    // are kept apart from the packets so the scan reads contiguous memory; a null packet
-    // marks an empty slot.
+    // Next arrival number
+    std::atomic<uint64_t> arrival_packet_no;
+
+    // Recent unique packets per window for duplicate detection; matches are limited to
+    // packets which arrived within this many packets of each other
     static constexpr size_t dedupe_list_sz = 1024;
 
     // A packet goes to its assigned thread unless that thread is this far behind, then to
@@ -383,23 +382,37 @@ public:
     static constexpr size_t reader_pause_backlog = 4096;
 
 protected:
-    std::array<uint32_t, dedupe_list_sz> dedupe_hash;
-    std::array<std::shared_ptr<kis_packet>, dedupe_list_sz> dedupe_pkt;
+    // Identical frames get the same assignment id, so each assignment slot keeps its own
+    // duplicate window and lock; a packet spilled to another thread still checks its slot's
+    // window.  Hashes are kept apart from the packets so the scan reads contiguous memory;
+    // a null packet marks an empty slot.
+    struct dedupe_window {
+        std::mutex mutex;
 
-    // Next slot to fill in the dedupe list
-    size_t dedupe_list_pos;
+        // Window load follows the assignment keys, so a busy window covers less time than
+        // a quiet one; the arrival bound keeps the lookback the same for every window
+        std::array<uint32_t, dedupe_list_sz> hash{};
+        std::array<uint64_t, dedupe_list_sz> arrival_no{};
+        std::array<std::shared_ptr<kis_packet>, dedupe_list_sz> pkt;
 
-    // Packets which matched a hash and are still being compared; they're visible to the
-    // dedupe scan but don't occupy the window until confirmed as originals
-    std::vector<std::shared_ptr<kis_packet>> dedupe_pending;
+        // Next slot to fill
+        size_t pos = 0;
+
+        // Packets which matched a hash and are still being compared; they're visible to the
+        // dedupe scan but don't occupy the window until confirmed as originals
+        std::vector<std::shared_ptr<kis_packet>> pending;
+    };
+
+    std::unique_ptr<dedupe_window[]> dedupe_windows;
 
     // Number the packet or alias it to an identical earlier packet
     void dedupe_packet(const std::shared_ptr<kis_packet>& packet,
             const std::shared_ptr<kis_datachunk>& chunk);
 
-    // Add an original to the window; caller holds pack_no_mutex.  Returns the evicted packet
-    // so it can be released after the lock is dropped.
-    std::shared_ptr<kis_packet> dedupe_insert(const std::shared_ptr<kis_packet>& packet);
+    // Add an original to the window; caller holds the window lock.  Returns the evicted
+    // packet so it can be released after the lock is dropped.
+    std::shared_ptr<kis_packet> dedupe_insert(dedupe_window& window,
+            const std::shared_ptr<kis_packet>& packet);
 
 	int pack_comp_linkframe, pack_comp_decap, pack_comp_l1_agg, pack_comp_datasource;
 

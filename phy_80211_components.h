@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1389,31 +1390,27 @@ public:
         last_adv_ssid = adv_ssid;
     }
 
+    // Serializers share the device lock, so the maps can't change and concurrent serializers
+    // compute the same counts; only the first one to take the stripe lock writes them
     virtual void pre_serialize() override {
-        if (client_map != nullptr)
-            set_num_client_aps(client_map->size());
-        else
-            set_num_client_aps(0);
+        const uint64_t n_client_aps = client_map != nullptr ? client_map->size() : 0;
+        const uint64_t n_adv = advertised_ssid_map != nullptr ? advertised_ssid_map->size() : 0;
+        const uint64_t n_resp = responded_ssid_map != nullptr ? responded_ssid_map->size() : 0;
+        const uint64_t n_probed = probed_ssid_map != nullptr ? probed_ssid_map->size() : 0;
+        const uint64_t n_assoc = associated_client_map != nullptr ? associated_client_map->size() : 0;
 
-        if (advertised_ssid_map != nullptr)
-            set_num_advertised_ssids(advertised_ssid_map->size());
-        else
-            set_num_advertised_ssids(0);
+        std::lock_guard<std::mutex> lk(serialize_count_mutex(this));
 
-        if (responded_ssid_map != nullptr)
-            set_num_responded_ssids(responded_ssid_map->size());
-        else
-            set_num_responded_ssids(0);
-
-        if (probed_ssid_map != nullptr)
-            set_num_probed_ssids(probed_ssid_map->size());
-        else
-            set_num_probed_ssids(0);
-
-        if (associated_client_map != nullptr)
-            set_num_associated_clients(associated_client_map->size());
-        else
-            set_num_associated_clients(0);
+        if (get_num_client_aps() != n_client_aps)
+            set_num_client_aps(n_client_aps);
+        if (get_num_advertised_ssids() != n_adv)
+            set_num_advertised_ssids(n_adv);
+        if (get_num_responded_ssids() != n_resp)
+            set_num_responded_ssids(n_resp);
+        if (get_num_probed_ssids() != n_probed)
+            set_num_probed_ssids(n_probed);
+        if (get_num_associated_clients() != n_assoc)
+            set_num_associated_clients(n_assoc);
     }
 
     __Proxy(min_tx_power, uint8_t, unsigned int, unsigned int, min_tx_power);
@@ -1457,6 +1454,8 @@ public:
 	}
 
 protected:
+    // Striped locks for publishing the serialized counts
+    static std::mutex& serialize_count_mutex(const dot11_tracked_device *dev);
 
     virtual void register_fields() override {
         register_field("dot11.device.typeset", "bitset of device type", &type_set);
