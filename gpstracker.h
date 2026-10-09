@@ -76,6 +76,9 @@ public:
 
     virtual void trigger_deferred_startup() override;
 
+    // Close every GPS while the IO threads still run, so drivers can undo device changes
+    virtual void trigger_deferred_shutdown() override;
+
     // Register a gps builder prototype
     void register_gps_builder(shared_gps_builder in_builder);
 

@@ -85,6 +85,7 @@ void gps_tracker::trigger_deferred_startup() {
 
     // Register the built-in GPS drivers
     register_gps_builder(shared_gps_builder(new gps_serial_v3_builder()));
+    register_gps_builder(shared_gps_builder(new gps_nmea_v3_builder()));
     register_gps_builder(shared_gps_builder(new gps_tcp_v2_builder()));
     register_gps_builder(shared_gps_builder(new gps_gpsd_v3_builder()));
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));
@@ -406,23 +407,48 @@ std::string gps_tracker::find_next_name(const std::string& in_name) {
     return "ERROR";
 }
 
+void gps_tracker::trigger_deferred_shutdown() {
+    std::vector<shared_gps> all;
+
+    {
+        kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker shutdown");
+
+        if (gps_instances_vec == nullptr)
+            return;
+
+        for (const auto& g : *gps_instances_vec)
+            all.push_back(std::static_pointer_cast<kis_gps>(g));
+    }
+
+    for (const auto& g : all)
+        g->close_gps();
+}
+
 bool gps_tracker::remove_gps(uuid in_uuid) {
-    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "remove_gps");
+    shared_gps removed;
 
-    if (gps_instances_vec == nullptr)
-        return false;
+    {
+        kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "remove_gps");
 
-    for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
-        auto gps = static_cast<kis_gps *>((*gps_instances_vec)[i].get());
+        if (gps_instances_vec == nullptr)
+            return false;
 
-        if (gps->get_gps_uuid() == in_uuid) {
-            gps_instances_vec->erase(gps_instances_vec->begin() + i);
+        for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
+            auto gps = std::static_pointer_cast<kis_gps>((*gps_instances_vec)[i]);
 
-            return true;
+            if (gps->get_gps_uuid() == in_uuid) {
+                gps_instances_vec->erase(gps_instances_vec->begin() + i);
+                removed = gps;
+                break;
+            }
         }
     }
 
-    return false;
+    // Otherwise a pending read keeps the device open and running
+    if (removed != nullptr)
+        removed->close_gps();
+
+    return removed != nullptr;
 }
 
 std::shared_ptr<kis_gps> gps_tracker::find_gps_by_id(uint64_t in_id) {

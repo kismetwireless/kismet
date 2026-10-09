@@ -28,6 +28,7 @@
 #include "packetchain.h"
 #include "trackedelement.h"
 #include "util.h"
+#include "gps_proto.h"
 
 class kis_gps_location;
 class kis_gps_packinfo;
@@ -158,6 +159,9 @@ public:
 
     virtual bool open_gps(std::string in_definition);
 
+    // Stop the device when the GPS is removed; it won't reconnect
+    virtual void close_gps() { }
+
     // Various GPS transformation utility functions
     static double gps_calc_heading(double in_lat, double in_lon, double in_lat2, double in_lon2);
     static double gps_calc_rad(double lat);
@@ -204,6 +208,17 @@ protected:
 
     // Push the locations into the tracked locations and swap
     virtual void update_locations();
+
+    // Merge a decoded protocol report into the current location
+    void apply_fix(const gps_fix_update& update);
+
+    // Last time heading was set or calculated; calculating it more often than every few
+    // seconds is mostly noise
+    time_t fix_heading_time = 0;
+
+    // Last time the receiver reported its fix mode (NMEA GSA or a binary navigation report)
+    static constexpr time_t fix_reported_stale = 3;
+    time_t fix_reported_time = 0;
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<gps_tracker> gpstracker;

@@ -86,11 +86,15 @@ bool kis_gps::open_gps(std::string in_definition) {
         }
     }
 
-    std::string sname = fetch_opt("name", source_definition_opts);
-    if (sname != "") {
-        set_int_gps_name(gpstracker->find_next_name(sname));
-    } else {
-        set_int_gps_name(gpstracker->find_next_name(gps_prototype->get_default_name()));
+    // A reconnect reopens with the same definition; keep the name instead of finding
+    // our own name in use and picking a new one
+    if (get_gps_name().empty()) {
+        std::string sname = fetch_opt("name", source_definition_opts);
+        if (sname != "") {
+            set_int_gps_name(gpstracker->find_next_name(sname));
+        } else {
+            set_int_gps_name(gpstracker->find_next_name(gps_prototype->get_default_name()));
+        }
     }
 
     std::string suuid = fetch_opt("uuid", source_definition_opts);
@@ -126,8 +130,10 @@ bool kis_gps::open_gps(std::string in_definition) {
         if (sscanf(sprio.c_str(), "%d", &priority) != 1) {
             _MSG("Invalid priority passed in GPS definition as priority=... for " + 
                     get_gps_name(), MSGFLAG_FATAL);
-            set_int_gps_priority(priority);
+            return false;
         }
+
+        set_int_gps_priority(priority);
     } else {
         set_int_gps_priority(gps_prototype->get_gps_priority());
     }
@@ -224,6 +230,81 @@ double kis_gps::gps_calc_rad(double lat) {
 
     r = r * 1000.0;
     return r;
+}
+
+void kis_gps::apply_fix(const gps_fix_update& update) {
+    if (update.empty())
+        return;
+
+    auto loc = packetchain->new_packet_component<kis_gps_packinfo>();
+
+    struct timeval now;
+    gettimeofday(&now, nullptr);
+
+    kis_lock_guard<kis_mutex> lk(data_mutex, "gps apply_fix");
+
+    const auto prev = gps_location;
+
+    // A fix mode report which matches the current fix doesn't refresh the location, and a
+    // no fix report before any location doesn't create one
+    if (update.fix_reported && !update.has_position && !update.has_alt && !update.has_speed &&
+            !update.has_heading && !update.has_magheading &&
+            ((prev->gps_info_ok && prev->fix == update.fix) || (!prev->gps_info_ok && update.fix < 2))) {
+        fix_reported_time = now.tv_sec;
+        set_int_gps_data_time(now.tv_sec);
+        return;
+    }
+
+    // Fields this report doesn't carry come from the previous report
+    loc->set(prev);
+
+    if (update.has_position) {
+        loc->lat = update.lat;
+        loc->lon = update.lon;
+    }
+
+    if (update.has_alt)
+        loc->alt = update.alt;
+
+    if (update.has_speed)
+        loc->speed = update.speed;
+
+    if (update.has_heading) {
+        loc->heading = update.heading;
+        fix_heading_time = now.tv_sec;
+    }
+
+    if (update.has_magheading) {
+        loc->magheading = update.magheading;
+        fix_heading_time = now.tv_sec;
+    }
+
+    if (update.has_fix && update.fix_reported) {
+        loc->fix = update.fix;
+        fix_reported_time = now.tv_sec;
+    } else if (update.has_fix && now.tv_sec - fix_reported_time > fix_reported_stale) {
+        // Keep a better fix from another sentence in this reporting cycle, but not a stale one
+        const int64_t age_us = (static_cast<int64_t>(now.tv_sec) - prev->tv.tv_sec) * 1000000 +
+            (now.tv_usec - prev->tv.tv_usec);
+
+        const bool prev_recent = prev->gps_info_ok && age_us >= 0 && age_us < 1000000;
+        loc->fix = std::max(update.fix, prev_recent ? prev->fix : 0);
+    }
+
+    if (update.has_position && !update.has_heading && prev->fix >= 2 &&
+            now.tv_sec - fix_heading_time > 5) {
+        loc->heading = gps_calc_heading(loc->lat, loc->lon, prev->lat, prev->lon);
+        fix_heading_time = now.tv_sec;
+    }
+
+    loc->gps_info_ok = true;
+    loc->tv = now;
+    loc->gps_id = gps_id;
+
+    gps_last_location = prev;
+    gps_location = loc;
+
+    update_locations();
 }
 
 void kis_gps::update_locations() {

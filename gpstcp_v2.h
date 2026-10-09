@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#include "gpsnmea_v2.h"
+#include "gpsnmea_v3.h"
 #include "kis_gps.h"
 
 #define ASIO_HAS_STD_CHRONO
@@ -32,7 +32,7 @@ using boost::asio::ip::tcp;
 
 // Raw NMEA over TCP, as served from many phone apps
 
-class kis_gps_tcp_v2 : public kis_gps_nmea_v2 {
+class kis_gps_tcp_v2 : public kis_gps_nmea_v3 {
 public:
     kis_gps_tcp_v2(shared_gps_builder in_builder, uint64_t in_id);
     virtual ~kis_gps_tcp_v2();
@@ -59,13 +59,6 @@ protected:
     virtual void close_impl() override;
 
     std::string host, port;
-
-    // Have we ever seen data from the device?
-    bool ever_seen_gps;
-
-    // Last time we calculated the heading, don't do it more than once every 
-    // few seconds or we get nasty noise
-    time_t last_heading_time;
 
     // Decaying reconnection algorithm
     int error_reconnect_timer;
