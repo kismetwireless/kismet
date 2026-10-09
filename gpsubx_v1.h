@@ -43,9 +43,18 @@ enum class ubx_port : uint8_t {
 enum class ubx_nav_msg : uint8_t {
     posllh = 0x02,
     status = 0x03,
+    dop = 0x04,
     sol = 0x06,
     pvt = 0x07,
     velned = 0x12,
+    svinfo = 0x30,
+    sat = 0x35,
+};
+
+// A message and how often to send it, in navigation solutions
+struct ubx_msg_rate {
+    ubx_nav_msg msg;
+    uint8_t rate;
 };
 
 struct ubx_ack {
@@ -78,6 +87,14 @@ public:
     // Larger messages are never decoded, so they aren't held while waiting for the rest
     static constexpr size_t max_payload = 1024;
 
+    // Satellite reports grow with the satellites in view: 8 bytes plus 12 per satellite
+    static constexpr size_t max_sat_payload = 8 + 12 * 255;
+
+    static constexpr size_t max_payload_for(uint8_t msg_class, uint8_t msg_id) {
+        return msg_class == class_nav && (msg_id == nav_sat || msg_id == nav_svinfo) ?
+            max_sat_payload : max_payload;
+    }
+
     static constexpr uint8_t class_nav = 0x01;
     static constexpr uint8_t class_ack = 0x05;
     static constexpr uint8_t class_cfg = 0x06;
@@ -88,16 +105,20 @@ public:
     static constexpr uint8_t cfg_msg = 0x01;
     static constexpr uint8_t cfg_valset = 0x8A;
     static constexpr uint8_t cfg_valget = 0x8B;
+    static constexpr uint8_t mon_io = 0x02;
     static constexpr uint8_t mon_ver = 0x04;
     static constexpr uint8_t mon_comms = 0x36;
     static constexpr uint8_t nav_posllh = 0x02;
     static constexpr uint8_t nav_status = 0x03;
+    static constexpr uint8_t nav_dop = 0x04;
     static constexpr uint8_t nav_sol = 0x06;
     static constexpr uint8_t nav_pvt = 0x07;
     static constexpr uint8_t nav_velned = 0x12;
+    static constexpr uint8_t nav_svinfo = 0x30;
+    static constexpr uint8_t nav_sat = 0x35;
 
     enum class result {
-        // Location, or a no fix report (fix 1 only)
+        // Location, a no fix report (fix 1 only), or signal quality only
         update,
         // Valid message which carries nothing to apply (an unhandled message)
         ignored,
@@ -136,6 +157,9 @@ public:
 
     static bool parse_mon_comms(std::string_view frame, std::vector<ubx_port_stats>& ports);
 
+    // MON-IO, the port counters of receivers older than MON-COMMS
+    static bool parse_mon_io(std::string_view frame, std::vector<ubx_port_stats>& ports);
+
     // Value of one key from a CFG-VALGET response
     static bool parse_valget(std::string_view frame, uint32_t key, uint32_t& value);
 
@@ -158,8 +182,20 @@ public:
     // CFG-VALGET reads one layer by index; 0 is RAM
     static constexpr uint8_t valget_layer_ram = 0x00;
 
-    static constexpr uint32_t pvt_rate_key(ubx_port port) {
-        return 0x20910006 + static_cast<uint32_t>(port);
+    // CFG-MSGOUT key of a message on a port; 0 for messages without one
+    static constexpr uint32_t nav_rate_key(ubx_nav_msg msg, ubx_port port) {
+        const uint32_t p = static_cast<uint32_t>(port);
+
+        switch (msg) {
+            case ubx_nav_msg::pvt:
+                return 0x20910006 + p;
+            case ubx_nav_msg::dop:
+                return 0x20910038 + p;
+            case ubx_nav_msg::sat:
+                return 0x20910015 + p;
+            default:
+                return 0;
+        }
     }
 
     // 0 for ports without a baud rate
@@ -169,17 +205,18 @@ public:
 
     static std::string poll_mon_ver();
     static std::string poll_mon_comms();
+    static std::string poll_mon_io();
 
     // Legacy CFG-MSG, which only changes the port the command arrives on
     static std::string set_nav_rate_current_port(ubx_nav_msg msg, uint8_t rate);
 
-    // CFG-VALGET from RAM
-    static std::string get_pvt_rate(ubx_port port);
+    // CFG-VALGET from RAM; empty for messages without a key
+    static std::string get_nav_rate(ubx_nav_msg msg, ubx_port port);
     // Empty for ports without a baud rate
     static std::string get_uart_baud(ubx_port port);
 
-    // CFG-VALSET in RAM
-    static std::string set_pvt_rate(ubx_port port, uint8_t rate);
+    // CFG-VALSET in RAM; empty for messages without a key
+    static std::string set_nav_rate(ubx_nav_msg msg, ubx_port port, uint8_t rate);
 
 protected:
     static std::string frame(uint8_t msg_class, uint8_t msg_id, const std::vector<uint8_t>& payload);

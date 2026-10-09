@@ -171,6 +171,11 @@ void kis_gps_serial_v3::close_port() {
     ublox_hint = false;
     sirf_hint = false;
     ubx_protver = -1;
+    ubx_seen_pos = false;
+    ubx_seen_dop = false;
+    ubx_seen_sat = false;
+    ubx_enabled_msgs.clear();
+    ubx_port_known = false;
 
     boost::system::error_code ec;
 
@@ -183,10 +188,13 @@ void kis_gps_serial_v3::close_port() {
     write_active = false;
 
     framer.reset();
+    nmea_gsv.reset();
     ubx_decoder.reset();
     sirf_decoder.reset();
     last_binary_fix = {};
     using_binary = false;
+
+    clear_quality();
 
     if (port_open) {
         port_open = false;
@@ -494,7 +502,7 @@ void kis_gps_serial_v3::handle_frame(const gps_framer_v1::frame& frame) {
     bool binary;
 
     if (frame.type == gps_framer_v1::frame_type::nmea) {
-        const auto r = gps_nmea::parse(frame.data, update);
+        const auto r = gps_nmea::parse(frame.data, update, &nmea_gsv);
 
         if (r != gps_nmea::result::update && r != gps_nmea::result::ignored)
             return;
@@ -562,7 +570,10 @@ void kis_gps_serial_v3::handle_frame(const gps_framer_v1::frame& frame) {
 
     const auto now = std::chrono::steady_clock::now();
 
-    if (binary && has_update) {
+    // Location or fix; reports which only carry signal quality don't decide the protocol
+    const bool nav = has_update && !update.empty();
+
+    if (binary && nav) {
         last_binary_fix = now;
 
         if (!using_binary) {
@@ -571,15 +582,18 @@ void kis_gps_serial_v3::handle_frame(const gps_framer_v1::frame& frame) {
             _MSG_INFO("(GPS) Serial GPS {} is sending {} navigation reports; using them instead "
                     "of NMEA", active_device, binary_name);
         }
-    } else if (!binary && has_update && using_binary && now - last_binary_fix > binary_fix_stale) {
+    } else if (!binary && nav && using_binary && now - last_binary_fix > binary_fix_stale) {
         using_binary = false;
         _MSG_INFO("(GPS) Serial GPS {} stopped sending {} navigation reports; using NMEA",
                 active_device, binary_name);
     }
 
-    // Binary reports are more complete; NMEA only fills in when they stop
-    if (has_update && (binary || !using_binary))
+    // Binary reports are more complete; NMEA only fills in when they stop, except for
+    // signal quality the binary reports don't carry
+    if (nav && (binary || !using_binary))
         apply_fix(update);
+    else if (has_update && !update.quality.empty())
+        apply_quality(update.quality);
     else
         set_int_gps_data_time(time(0));
 
@@ -754,8 +768,15 @@ void kis_gps_serial_v3::ubx_cfg_begin() {
 
 void kis_gps_serial_v3::ubx_nav_seen(uint8_t msg_id) {
     if (ubx_cfg == ubx_cfg_state::observing) {
-        // Already sending binary reports; nothing to change
-        if (msg_id == gps_ubx_decoder_v1::nav_pvt || msg_id == gps_ubx_decoder_v1::nav_posllh) {
+        if (msg_id == gps_ubx_decoder_v1::nav_pvt || msg_id == gps_ubx_decoder_v1::nav_posllh)
+            ubx_seen_pos = true;
+        else if (msg_id == gps_ubx_decoder_v1::nav_dop)
+            ubx_seen_dop = true;
+        else if (msg_id == gps_ubx_decoder_v1::nav_sat || msg_id == gps_ubx_decoder_v1::nav_svinfo)
+            ubx_seen_sat = true;
+
+        // Already sending everything; nothing to change
+        if (ubx_seen_pos && ubx_seen_dop && ubx_seen_sat) {
             ubx_cfg = ubx_cfg_state::done;
             cfg_step++;
             cfg_timer.cancel();
@@ -764,22 +785,43 @@ void kis_gps_serial_v3::ubx_nav_seen(uint8_t msg_id) {
         return;
     }
 
-    if (ubx_cfg != ubx_cfg_state::confirming || ubx_enable_msgs.empty())
-        return;
-
-    // The position report is what matters; for u-blox 6 that's POSLLH
-    const auto want = ubx_enable_msgs.front() == ubx_nav_msg::pvt ?
-        gps_ubx_decoder_v1::nav_pvt : gps_ubx_decoder_v1::nav_posllh;
-
-    if (msg_id != want)
+    if (ubx_cfg != ubx_cfg_state::confirming || msg_id != ubx_confirm_id)
         return;
 
     ubx_cfg = ubx_cfg_state::done;
     cfg_step++;
     cfg_timer.cancel();
 
-    _MSG_INFO("(GPS) Serial GPS {} is now sending UBX navigation reports; this was changed in the "
-            "receiver's RAM only and is undone when Kismet closes the GPS", active_device);
+    bool nav = false, dop = false, sat = false;
+
+    for (const auto& m : ubx_enabled_msgs) {
+        if (m.msg == ubx_nav_msg::dop)
+            dop = true;
+        else if (m.msg == ubx_nav_msg::sat || m.msg == ubx_nav_msg::svinfo)
+            sat = true;
+        else
+            nav = true;
+    }
+
+    std::vector<const char *> names;
+    if (nav)
+        names.push_back("navigation");
+    if (dop)
+        names.push_back("DOP");
+    if (sat)
+        names.push_back("satellite");
+
+    std::string what;
+    for (size_t i = 0; i < names.size(); i++) {
+        if (i > 0)
+            what += names.size() > 2 ? ", " : " ";
+        if (i > 0 && i == names.size() - 1)
+            what += "and ";
+        what += names[i];
+    }
+
+    _MSG_INFO("(GPS) Serial GPS {} is now sending UBX {} reports; this was changed in the "
+            "receiver's RAM only and is undone when Kismet closes the GPS", active_device, what);
 }
 
 void kis_gps_serial_v3::ubx_cfg_observed() {
@@ -791,6 +833,34 @@ void kis_gps_serial_v3::ubx_cfg_observed() {
     // One poll to a receiver with no u-blox hints; it isn't a valid NMEA sentence, so
     // other receivers ignore it
     ubx_query_version(ublox_hint ? ubx_command_tries : 1);
+}
+
+std::vector<ubx_msg_rate> kis_gps_serial_v3::ubx_wanted_msgs(bool port_keys, bool uart) {
+    std::vector<ubx_msg_rate> msgs;
+
+    if (!ubx_seen_pos) {
+        // u-blox 6 and older don't report a protocol version or have NAV-PVT
+        if (port_keys || ubx_protver >= ubx_protver_pvt)
+            msgs.push_back({ubx_nav_msg::pvt, 1});
+        else
+            msgs.insert(msgs.end(), {{ubx_nav_msg::status, 1}, {ubx_nav_msg::posllh, 1},
+                    {ubx_nav_msg::velned, 1}});
+    }
+
+    if (!ubx_seen_dop)
+        msgs.push_back({ubx_nav_msg::dop, 1});
+
+    const uint8_t sat_rate = uart ? ubx_sat_rate(active_baud) : 1;
+
+    if (!ubx_seen_sat && sat_rate > 0)
+        msgs.push_back({port_keys || ubx_protver >= ubx_protver_sat ?
+                ubx_nav_msg::sat : ubx_nav_msg::svinfo, sat_rate});
+
+    return msgs;
+}
+
+void kis_gps_serial_v3::ubx_enabled(ubx_nav_msg msg, uint8_t rate) {
+    ubx_enabled_msgs.push_back({msg, rate});
 }
 
 void kis_gps_serial_v3::ubx_query_version(unsigned int tries) {
@@ -813,17 +883,25 @@ void kis_gps_serial_v3::ubx_query_version(unsigned int tries) {
                 }
 
                 ubx_protver = gps_ubx_decoder_v1::parse_protver(frame);
+                ubx_enabled_msgs.clear();
 
-                // u-blox 6 and older don't report a protocol version or have NAV-PVT
-                if (ubx_protver >= ubx_protver_pvt)
-                    ubx_enable_msgs = {ubx_nav_msg::pvt};
-                else
-                    ubx_enable_msgs = {ubx_nav_msg::status, ubx_nav_msg::posllh, ubx_nav_msg::velned};
+                if (ubx_protver >= ubx_protver_no_legacy) {
+                    ubx_detect_port(0, [this](bool found, const char *reason) {
+                                ubx_detected_for_port_keys(found, reason);
+                            });
+                    return;
+                }
 
-                if (ubx_protver >= ubx_protver_no_legacy)
-                    ubx_detect_port(0);
-                else
-                    ubx_enable_current_port(0, ubx_command_tries);
+                // The legacy command changes the port it arrives on; knowing which port that is
+                // only decides how often satellite reports fit, so a receiver which can't tell
+                // is treated as a serial port at the baud rate Kismet is using
+                ubx_detect_port(0, [this](bool found, const char *) {
+                            const bool uart = !found || ubx_detected_port == ubx_port::uart1 ||
+                                ubx_detected_port == ubx_port::uart2;
+
+                            ubx_enable_msgs = ubx_wanted_msgs(false, uart);
+                            ubx_enable_current_port(0, ubx_command_tries);
+                        });
             });
 }
 
@@ -833,18 +911,18 @@ void kis_gps_serial_v3::ubx_enable_current_port(size_t index, unsigned int tries
         return;
     }
 
-    const auto msg = ubx_enable_msgs[index];
+    const auto m = ubx_enable_msgs[index];
 
-    ubx_command(gps_ubx_commands_v1::set_nav_rate_current_port(msg, 1),
+    ubx_command(gps_ubx_commands_v1::set_nav_rate_current_port(m.msg, m.rate),
             gps_ubx_decoder_v1::class_cfg, gps_ubx_decoder_v1::cfg_msg, true,
-            [this, index, tries, msg](bool ok, std::string_view frame) {
+            [this, index, tries, m](bool ok, std::string_view frame) {
                 if (ok) {
                     // Only this port was changed, and the receiver wasn't sending it, so
                     // restoring sets it back to 0
-                    restore_kind = ubx_restore_kind::current_port;
-                    if (std::find(restore_msgs.begin(), restore_msgs.end(), msg) == restore_msgs.end())
-                        restore_msgs.push_back(msg);
+                    if (std::find(restore_msgs.begin(), restore_msgs.end(), m.msg) == restore_msgs.end())
+                        restore_msgs.push_back(m.msg);
 
+                    ubx_enabled(m.msg, m.rate);
                     ubx_enable_current_port(index + 1, ubx_command_tries);
                     return;
                 }
@@ -855,10 +933,21 @@ void kis_gps_serial_v3::ubx_enable_current_port(size_t index, unsigned int tries
                     return;
                 }
 
-                // Newer receivers may refuse the legacy command; find our port instead
-                if (index == 0 && !frame.empty() && ubx_protver >= ubx_protver_comms &&
-                        ubx_enable_msgs.front() == ubx_nav_msg::pvt) {
-                    ubx_detect_port(0);
+                // Newer receivers may refuse the legacy command; use our port's keys instead
+                if (index == 0 && !frame.empty() && ubx_protver >= ubx_protver_comms) {
+                    if (ubx_port_known)
+                        ubx_detected_for_port_keys(true, "");
+                    else
+                        ubx_detect_port(0, [this](bool found, const char *reason) {
+                                    ubx_detected_for_port_keys(found, reason);
+                                });
+                    return;
+                }
+
+                // Firmware without a quality report refuses it; the location doesn't need it
+                if (!frame.empty() && (m.msg == ubx_nav_msg::dop || m.msg == ubx_nav_msg::sat ||
+                            m.msg == ubx_nav_msg::svinfo)) {
+                    ubx_enable_current_port(index + 1, ubx_command_tries);
                     return;
                 }
 
@@ -867,24 +956,32 @@ void kis_gps_serial_v3::ubx_enable_current_port(size_t index, unsigned int tries
             });
 }
 
-void kis_gps_serial_v3::ubx_detect_port(unsigned int attempt) {
-    if (ubx_protver < ubx_protver_comms) {
-        ubx_cfg_failed("the receiver can't report which port Kismet is attached to");
-        return;
-    }
+std::string kis_gps_serial_v3::ubx_port_stats_poll() const {
+    return ubx_protver >= ubx_protver_comms ? gps_ubx_commands_v1::poll_mon_comms() :
+        gps_ubx_commands_v1::poll_mon_io();
+}
 
+bool kis_gps_serial_v3::ubx_parse_port_stats(std::string_view frame,
+        std::vector<ubx_port_stats>& ports) const {
+    return ubx_protver >= ubx_protver_comms ? gps_ubx_decoder_v1::parse_mon_comms(frame, ports) :
+        gps_ubx_decoder_v1::parse_mon_io(frame, ports);
+}
+
+void kis_gps_serial_v3::ubx_detect_port(unsigned int attempt, ubx_detect_cb cb) {
     if (attempt >= ubx_detect_padding.size()) {
-        ubx_cfg_failed("couldn't tell which receiver port Kismet is attached to");
+        cb(false, "couldn't tell which receiver port Kismet is attached to");
         return;
     }
 
-    ubx_command(gps_ubx_commands_v1::poll_mon_comms(), gps_ubx_decoder_v1::class_mon,
-            gps_ubx_decoder_v1::mon_comms, false,
-            [this, attempt](bool ok, std::string_view frame) {
+    const uint8_t poll_id = ubx_protver >= ubx_protver_comms ? gps_ubx_decoder_v1::mon_comms :
+        gps_ubx_decoder_v1::mon_io;
+
+    ubx_command(ubx_port_stats_poll(), gps_ubx_decoder_v1::class_mon, poll_id, false,
+            [this, attempt, cb = std::move(cb)](bool ok, std::string_view frame) mutable {
                 std::vector<ubx_port_stats> first;
 
-                if (!ok || !gps_ubx_decoder_v1::parse_mon_comms(frame, first)) {
-                    ubx_cfg_failed("the receiver didn't report its port statistics");
+                if (!ok || !ubx_parse_port_stats(frame, first)) {
+                    cb(false, "the receiver didn't report its port statistics");
                     return;
                 }
 
@@ -899,21 +996,24 @@ void kis_gps_serial_v3::ubx_detect_port(unsigned int attempt) {
                     queue_write(std::move(pad));
                 }
 
-                sent += gps_ubx_commands_v1::poll_mon_comms().size();
+                sent += ubx_port_stats_poll().size();
 
-                ubx_detect_compare(attempt, std::move(first), first_rx, sent);
+                ubx_detect_compare(attempt, std::move(first), first_rx, sent, std::move(cb));
             });
 }
 
 void kis_gps_serial_v3::ubx_detect_compare(unsigned int attempt, std::vector<ubx_port_stats> first,
-        uint64_t first_rx, size_t sent) {
-    ubx_command(gps_ubx_commands_v1::poll_mon_comms(), gps_ubx_decoder_v1::class_mon,
-            gps_ubx_decoder_v1::mon_comms, false,
-            [this, attempt, first = std::move(first), first_rx, sent](bool ok, std::string_view frame) {
+        uint64_t first_rx, size_t sent, ubx_detect_cb cb) {
+    const uint8_t poll_id = ubx_protver >= ubx_protver_comms ? gps_ubx_decoder_v1::mon_comms :
+        gps_ubx_decoder_v1::mon_io;
+
+    ubx_command(ubx_port_stats_poll(), gps_ubx_decoder_v1::class_mon, poll_id, false,
+            [this, attempt, first = std::move(first), first_rx, sent, cb = std::move(cb)]
+            (bool ok, std::string_view frame) mutable {
                 std::vector<ubx_port_stats> second;
 
-                if (!ok || !gps_ubx_decoder_v1::parse_mon_comms(frame, second)) {
-                    ubx_cfg_failed("the receiver didn't report its port statistics");
+                if (!ok || !ubx_parse_port_stats(frame, second)) {
+                    cb(false, "the receiver didn't report its port statistics");
                     return;
                 }
 
@@ -923,6 +1023,7 @@ void kis_gps_serial_v3::ubx_detect_compare(unsigned int attempt, std::vector<ubx
                 const uint64_t slack = std::max<uint64_t>(256, we_read / 4);
 
                 unsigned int matches = 0;
+                ubx_port found = ubx_port::uart1;
 
                 for (const auto& s : second) {
                     for (const auto& f : first) {
@@ -935,18 +1036,29 @@ void kis_gps_serial_v3::ubx_detect_compare(unsigned int attempt, std::vector<ubx
 
                         if (rx == sent && diff <= slack) {
                             matches++;
-                            ubx_detected_port = s.port;
+                            found = s.port;
                         }
                     }
                 }
 
                 if (matches != 1) {
-                    ubx_detect_port(attempt + 1);
+                    ubx_detect_port(attempt + 1, std::move(cb));
                     return;
                 }
 
-                ubx_check_port_baud();
+                ubx_detected_port = found;
+                ubx_port_known = true;
+                cb(true, "");
             });
+}
+
+void kis_gps_serial_v3::ubx_detected_for_port_keys(bool found, const char *reason) {
+    if (!found) {
+        ubx_cfg_failed(reason);
+        return;
+    }
+
+    ubx_check_port_baud();
 }
 
 void kis_gps_serial_v3::ubx_check_port_baud() {
@@ -954,7 +1066,7 @@ void kis_gps_serial_v3::ubx_check_port_baud() {
 
     // USB, I2C, and SPI have no baud rate to check
     if (cmd.empty()) {
-        ubx_enable_port_key();
+        ubx_enable_port_key(0);
         return;
     }
 
@@ -969,47 +1081,99 @@ void kis_gps_serial_v3::ubx_check_port_baud() {
                     return;
                 }
 
-                ubx_enable_port_key();
+                ubx_enable_port_key(0);
             });
 }
 
-void kis_gps_serial_v3::ubx_enable_port_key() {
+void kis_gps_serial_v3::ubx_enable_port_key(size_t index) {
     const auto port = ubx_detected_port;
 
-    ubx_command(gps_ubx_commands_v1::get_pvt_rate(port), gps_ubx_decoder_v1::class_cfg,
+    if (index == 0) {
+        ubx_enabled_msgs.clear();
+        ubx_enable_msgs = ubx_wanted_msgs(true,
+                port == ubx_port::uart1 || port == ubx_port::uart2);
+    }
+
+    if (index >= ubx_enable_msgs.size()) {
+        ubx_confirm();
+        return;
+    }
+
+    const auto m = ubx_enable_msgs[index];
+    const bool required = m.msg == ubx_nav_msg::pvt;
+
+    ubx_command(gps_ubx_commands_v1::get_nav_rate(m.msg, port), gps_ubx_decoder_v1::class_cfg,
             gps_ubx_decoder_v1::cfg_valget, false,
-            [this, port](bool ok, std::string_view frame) {
+            [this, port, m, index, required](bool ok, std::string_view frame) {
                 uint32_t old_rate = 0;
 
                 if (!ok || !gps_ubx_decoder_v1::parse_valget(frame,
-                            gps_ubx_commands_v1::pvt_rate_key(port), old_rate) || old_rate > 0xFF) {
-                    ubx_cfg_failed("the receiver didn't report its current settings");
+                            gps_ubx_commands_v1::nav_rate_key(m.msg, port), old_rate) || old_rate > 0xFF) {
+                    if (required) {
+                        ubx_cfg_failed("the receiver didn't report its current settings");
+                        return;
+                    }
+
+                    ubx_enable_port_key(index + 1);
                     return;
                 }
 
-                ubx_enable_msgs = {ubx_nav_msg::pvt};
+                // Already sent, slower than the observing window caught; leave it alone
+                if (old_rate != 0) {
+                    ubx_enable_port_key(index + 1);
+                    return;
+                }
 
-                ubx_command(gps_ubx_commands_v1::set_pvt_rate(port, 1), gps_ubx_decoder_v1::class_cfg,
-                        gps_ubx_decoder_v1::cfg_valset, true,
-                        [this, port, old_rate](bool ok, std::string_view) {
+                ubx_command(gps_ubx_commands_v1::set_nav_rate(m.msg, port, m.rate),
+                        gps_ubx_decoder_v1::class_cfg, gps_ubx_decoder_v1::cfg_valset, true,
+                        [this, port, m, index, required, old_rate](bool ok, std::string_view) {
                             if (!ok) {
-                                ubx_cfg_failed("the receiver refused the change");
+                                if (required) {
+                                    ubx_cfg_failed("the receiver refused the change");
+                                    return;
+                                }
+
+                                ubx_enable_port_key(index + 1);
                                 return;
                             }
 
-                            restore_kind = ubx_restore_kind::port_key;
-                            restore_port = port;
-                            restore_value = static_cast<uint8_t>(old_rate);
+                            // Keep the first saved value; a reopen without a power cycle reads
+                            // back our own change
+                            const bool saved = std::any_of(restore_keys.begin(), restore_keys.end(),
+                                    [&](const ubx_restore_key& k) {
+                                        return k.msg == m.msg && k.port == port;
+                                    });
 
-                            ubx_confirm();
+                            if (!saved)
+                                restore_keys.push_back({m.msg, port, static_cast<uint8_t>(old_rate)});
+
+                            ubx_enabled(m.msg, m.rate);
+                            ubx_enable_port_key(index + 1);
                         });
             });
 }
 
 void kis_gps_serial_v3::ubx_confirm() {
+    if (ubx_enabled_msgs.empty()) {
+        ubx_cfg = ubx_cfg_state::done;
+        return;
+    }
+
+    // The position report is what matters most; for u-blox 6 that's POSLLH
+    auto confirm = ubx_enabled_msgs.front();
+
+    for (const auto& m : ubx_enabled_msgs) {
+        if (m.msg == ubx_nav_msg::pvt || m.msg == ubx_nav_msg::posllh) {
+            confirm = m;
+            break;
+        }
+    }
+
+    ubx_confirm_id = static_cast<uint8_t>(confirm.msg);
     ubx_cfg = ubx_cfg_state::confirming;
 
-    arm_cfg_timer(ubx_confirm_wait, [this]() {
+    // A report sent every n solutions takes n seconds at the usual 1Hz
+    arm_cfg_timer(ubx_confirm_wait + std::chrono::seconds(confirm.rate - 1), [this]() {
                 if (ubx_cfg != ubx_cfg_state::confirming)
                     return;
 
@@ -1027,23 +1191,28 @@ void kis_gps_serial_v3::ubx_cfg_failed(const std::string& reason) {
 
     if (!logged_ubx_failure) {
         logged_ubx_failure = true;
-        _MSG_INFO("(GPS) Serial GPS {} looks like a u-blox receiver, but Kismet couldn't enable UBX "
-                "navigation reports ({}); using NMEA.", active_device, reason);
+
+        if (ubx_seen_pos)
+            _MSG_INFO("(GPS) Serial GPS {} couldn't enable UBX DOP and satellite reports ({}); "
+                    "the signal quality comes from what the receiver already sends.",
+                    active_device, reason);
+        else
+            _MSG_INFO("(GPS) Serial GPS {} looks like a u-blox receiver, but Kismet couldn't enable UBX "
+                    "navigation reports ({}); using NMEA.", active_device, reason);
     }
 }
 
 std::vector<std::string> kis_gps_serial_v3::ubx_restore_commands() {
     std::vector<std::string> cmds;
 
-    if (restore_kind == ubx_restore_kind::current_port) {
-        for (auto m : restore_msgs)
-            cmds.push_back(gps_ubx_commands_v1::set_nav_rate_current_port(m, 0));
-    } else if (restore_kind == ubx_restore_kind::port_key) {
-        cmds.push_back(gps_ubx_commands_v1::set_pvt_rate(restore_port, restore_value));
-    }
+    for (auto m : restore_msgs)
+        cmds.push_back(gps_ubx_commands_v1::set_nav_rate_current_port(m, 0));
 
-    restore_kind = ubx_restore_kind::none;
+    for (const auto& k : restore_keys)
+        cmds.push_back(gps_ubx_commands_v1::set_nav_rate(k.msg, k.port, k.value));
+
     restore_msgs.clear();
+    restore_keys.clear();
 
     return cmds;
 }

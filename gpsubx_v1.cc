@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <array>
 #include <cmath>
 
 #include "gpsubx_v1.h"
@@ -77,6 +78,22 @@ namespace {
         return true;
     }
 
+    // Accuracy estimates in mm; vertical only means something with a 3d fix
+    void set_accuracy(uint32_t h_mm, uint32_t v_mm, int fix, gps_quality_update& q) {
+        // Receivers report huge values before the estimate settles
+        constexpr uint32_t max_mm = 1000000;
+
+        if (h_mm > 0 && h_mm < max_mm) {
+            q.has_error_h = true;
+            q.error_h = h_mm / 1000.0;
+        }
+
+        if (fix >= 3 && v_mm > 0 && v_mm < max_mm) {
+            q.has_error_v = true;
+            q.error_v = v_mm / 1000.0;
+        }
+    }
+
     // Degrees * 1e5 to 0-360
     double heading_e5(int32_t h) {
         double v = std::fmod(h * 1e-5, 360.0);
@@ -98,6 +115,9 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
 
     const uint8_t msg_class = f[2];
     const uint8_t msg_id = f[3];
+
+    auto& q = update.quality;
+    q.rank = gps_quality_update::source_rank::binary;
     const uint8_t *p = f + header_len;
 
     if (msg_class != class_nav)
@@ -115,14 +135,18 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
             fix = pvt_fix;
             fix_ok = pvt_fix_ok;
 
+            q.has_sats_used = true;
+            q.sats_used = p[23];
+
             if (!pvt_fix_ok || pvt_fix < 2)
                 return no_fix(update);
+
+            set_accuracy(get_u32(p + 40), get_u32(p + 44), pvt_fix, q);
 
             if (!set_position(get_i32(p + 28), get_i32(p + 24), update))
                 return result::malformed;
 
             update.has_fix = true;
-
             update.fix_reported = true;
             update.fix = pvt_fix;
 
@@ -154,7 +178,6 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
                 return no_fix(update);
 
             update.has_fix = true;
-
             update.fix_reported = true;
             update.fix = fix;
             return result::update;
@@ -167,11 +190,13 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
             fix = map_fix(p[10]);
             fix_ok = (p[11] & 0x01) != 0;
 
+            q.has_sats_used = true;
+            q.sats_used = p[47];
+
             if (!fix_ok || fix < 2)
                 return no_fix(update);
 
             update.has_fix = true;
-
             update.fix_reported = true;
             update.fix = fix;
             return result::update;
@@ -186,6 +211,8 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
 
             if (!set_position(get_i32(p + 8), get_i32(p + 4), update))
                 return result::malformed;
+
+            set_accuracy(get_u32(p + 20), get_u32(p + 24), fix, q);
 
             if (fix >= 3) {
                 update.has_alt = true;
@@ -207,6 +234,71 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
 
             update.has_heading = true;
             update.heading = heading_e5(get_i32(p + 24));
+
+            return result::update;
+        }
+
+        case nav_dop: {
+            if (len < 18)
+                return result::malformed;
+
+            // DOP * 100; 99.99 means unknown
+            const uint16_t vdop = get_u16(p + 10);
+            const uint16_t hdop = get_u16(p + 12);
+
+            if (hdop > 0 && hdop < 9999) {
+                q.has_hdop = true;
+                q.hdop = hdop / 100.0;
+            }
+
+            if (vdop > 0 && vdop < 9999) {
+                q.has_vdop = true;
+                q.vdop = vdop / 100.0;
+            }
+
+            return q.empty() ? result::ignored : result::update;
+        }
+
+        case nav_sat: {
+            if (len < 8 || len != 8 + 12 * static_cast<size_t>(p[5]))
+                return result::malformed;
+
+            // Satellites used come from the navigation solution, not the satellite list
+            std::array<double, 255> cn0;
+            const size_t n = p[5];
+
+            for (size_t i = 0; i < n; i++)
+                cn0[i] = p[8 + 12 * i + 2];
+
+            q.has_sats_visible = true;
+            q.sats_visible = static_cast<unsigned int>(n);
+            q.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), n, q.cn0);
+
+            return result::update;
+        }
+
+        case nav_svinfo: {
+            if (len < 8 || len != 8 + 12 * static_cast<size_t>(p[4]))
+                return result::malformed;
+
+            std::array<double, 255> cn0;
+            size_t ncn0 = 0;
+            unsigned int visible = 0;
+
+            for (size_t i = 0; i < p[4]; i++) {
+                const auto *ch = p + 8 + 12 * i;
+
+                // Idle channels have no satellite
+                if (ch[1] == 0)
+                    continue;
+
+                visible++;
+                cn0[ncn0++] = ch[4];
+            }
+
+            q.has_sats_visible = true;
+            q.sats_visible = visible;
+            q.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), ncn0, q.cn0);
 
             return result::update;
         }
@@ -317,6 +409,34 @@ bool gps_ubx_decoder_v1::parse_mon_comms(std::string_view frame, std::vector<ubx
     return true;
 }
 
+bool gps_ubx_decoder_v1::parse_mon_io(std::string_view frame, std::vector<ubx_port_stats>& ports) {
+    uint8_t c, i;
+
+    // One block per port, in port id order: I2C, UART1, UART2, USB, SPI, then reserved
+    constexpr size_t block_len = 20;
+    constexpr size_t max_blocks = 8;
+    constexpr ubx_port order[] = {ubx_port::i2c, ubx_port::uart1, ubx_port::uart2, ubx_port::usb,
+        ubx_port::spi};
+
+    if (!frame_id(frame, c, i) || c != class_mon || i != mon_io)
+        return false;
+
+    const auto *p = reinterpret_cast<const uint8_t *>(frame.data()) + header_len;
+    const size_t len = frame.size() - header_len - checksum_len;
+
+    if (len == 0 || len % block_len != 0 || len / block_len > max_blocks)
+        return false;
+
+    ports.clear();
+
+    for (size_t n = 0; n < len / block_len && n < sizeof(order) / sizeof(order[0]); n++) {
+        const auto *b = p + n * block_len;
+        ports.push_back(ubx_port_stats{order[n], get_u32(b + 4), get_u32(b)});
+    }
+
+    return true;
+}
+
 bool gps_ubx_decoder_v1::parse_valget(std::string_view frame, uint32_t key, uint32_t& value) {
     uint8_t c, i;
 
@@ -393,14 +513,23 @@ std::string gps_ubx_commands_v1::poll_mon_comms() {
     return frame(gps_ubx_decoder_v1::class_mon, gps_ubx_decoder_v1::mon_comms, {});
 }
 
+std::string gps_ubx_commands_v1::poll_mon_io() {
+    return frame(gps_ubx_decoder_v1::class_mon, gps_ubx_decoder_v1::mon_io, {});
+}
+
 std::string gps_ubx_commands_v1::set_nav_rate_current_port(ubx_nav_msg msg, uint8_t rate) {
     return frame(gps_ubx_decoder_v1::class_cfg, gps_ubx_decoder_v1::cfg_msg,
             {gps_ubx_decoder_v1::class_nav, static_cast<uint8_t>(msg), rate});
 }
 
-std::string gps_ubx_commands_v1::get_pvt_rate(ubx_port port) {
+std::string gps_ubx_commands_v1::get_nav_rate(ubx_nav_msg msg, ubx_port port) {
+    const auto key = nav_rate_key(msg, port);
+
+    if (key == 0)
+        return {};
+
     std::vector<uint8_t> p{0x00, valget_layer_ram, 0x00, 0x00};
-    put_u32(p, pvt_rate_key(port));
+    put_u32(p, key);
     return frame(gps_ubx_decoder_v1::class_cfg, gps_ubx_decoder_v1::cfg_valget, p);
 }
 
@@ -415,9 +544,14 @@ std::string gps_ubx_commands_v1::get_uart_baud(ubx_port port) {
     return frame(gps_ubx_decoder_v1::class_cfg, gps_ubx_decoder_v1::cfg_valget, p);
 }
 
-std::string gps_ubx_commands_v1::set_pvt_rate(ubx_port port, uint8_t rate) {
+std::string gps_ubx_commands_v1::set_nav_rate(ubx_nav_msg msg, ubx_port port, uint8_t rate) {
+    const auto key = nav_rate_key(msg, port);
+
+    if (key == 0)
+        return {};
+
     std::vector<uint8_t> p{0x00, valset_layer_ram, 0x00, 0x00};
-    put_u32(p, pvt_rate_key(port));
+    put_u32(p, key);
     p.push_back(rate);
     return frame(gps_ubx_decoder_v1::class_cfg, gps_ubx_decoder_v1::cfg_valset, p);
 }

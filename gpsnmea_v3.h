@@ -21,7 +21,10 @@
 
 #include "config.h"
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
+#include <ctime>
 #include <string_view>
 
 #include "globalregistry.h"
@@ -51,8 +54,58 @@ namespace gps_nmea {
         malformed,
     };
 
-    // Decode one sentence; trailing CR/LF is ignored
-    result parse(std::string_view sentence, gps_fix_update& update);
+    // Satellites in view arrive as a group of GSV sentences for each constellation (and
+    // each signal, on NMEA 4.1 receivers); this combines the complete groups.  Owned by
+    // one reader, and not thread safe.
+    class gsv_collector {
+    public:
+        // One GSV sentence; true when it completes a group, with the satellites in view
+        // and signal strength of every current group
+        bool add(std::string_view talker, const std::string_view *fields, size_t nf,
+                time_t now, gps_quality_update& quality);
+
+        void reset() {
+            groups = {};
+        }
+
+    protected:
+        // Constellations and signals
+        static constexpr size_t max_groups = 16;
+        // Satellites listed in one group
+        static constexpr size_t max_sats = 64;
+        // A constellation which stops reporting is dropped
+        static constexpr time_t group_expire = 3;
+
+        struct satellites {
+            size_t count = 0;
+            std::array<uint16_t, max_sats> prn{};
+            std::array<uint8_t, max_sats> snr{};
+        };
+
+        struct group {
+            bool used = false;
+            char talker[2] = {0, 0};
+            uint8_t signal = 0;
+
+            // Group being received
+            unsigned int total = 0;
+            unsigned int next = 0;
+            unsigned int in_view = 0;
+            satellites building;
+
+            // Last complete group
+            bool complete = false;
+            time_t time = 0;
+            unsigned int done_in_view = 0;
+            satellites done;
+        };
+
+        std::array<group, max_groups> groups;
+    };
+
+    // Decode one sentence; trailing CR/LF is ignored.  GSV sentences are only decoded with
+    // a collector.
+    result parse(std::string_view sentence, gps_fix_update& update, gsv_collector *gsv = nullptr);
 
     // Sentence has an address field (GPGGA, PUBX, ...) and a matching *hh checksum; parse
     // accepts sentences without one, but random bytes rarely produce both
@@ -91,6 +144,7 @@ protected:
     virtual void start_read_impl() = 0;
 
     boost::asio::streambuf in_buf;
+    gps_nmea::gsv_collector gsv;
     boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     std::atomic<bool> stopped;
 

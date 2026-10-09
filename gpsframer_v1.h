@@ -54,7 +54,7 @@ public:
     static constexpr size_t max_nmea_len = 130;
 
     static constexpr size_t max_ubx_len = gps_ubx_decoder_v1::header_len +
-        gps_ubx_decoder_v1::max_payload + gps_ubx_decoder_v1::checksum_len;
+        gps_ubx_decoder_v1::max_sat_payload + gps_ubx_decoder_v1::checksum_len;
 
     static constexpr size_t max_sirf_len = gps_sirf_decoder_v1::header_len +
         gps_sirf_decoder_v1::max_payload + gps_sirf_decoder_v1::trailer_len;

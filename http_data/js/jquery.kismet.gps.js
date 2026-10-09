@@ -108,6 +108,50 @@
                         }).html("n/a")
                     )
                 )
+                .append(
+                    $('<tr>')
+                    .append(
+                        $('<td>').html('Satellites')
+                    )
+                    .append(
+                        $('<td>', {
+                            id: 'satellites'
+                        }).html("n/a")
+                    )
+                )
+                .append(
+                    $('<tr>')
+                    .append(
+                        $('<td>').html('DOP')
+                    )
+                    .append(
+                        $('<td>', {
+                            id: 'dop'
+                        }).html("n/a")
+                    )
+                )
+                .append(
+                    $('<tr>')
+                    .append(
+                        $('<td>').html('Precision')
+                    )
+                    .append(
+                        $('<td>', {
+                            id: 'precision'
+                        }).html("n/a")
+                    )
+                )
+                .append(
+                    $('<tr>')
+                    .append(
+                        $('<td>').html('Signal')
+                    )
+                    .append(
+                        $('<td>', {
+                            id: 'signal'
+                        }).html("n/a")
+                    )
+                )
             );
 
     // Close the alert panel if we click outside it
@@ -140,7 +184,7 @@
 
         var nominal_w = 400;
         //var nominal_h = ($(window).height() / 3) * 2;
-        var nominal_h = 120;
+        var nominal_h = 200;
 
         var pos = { };
 
@@ -178,6 +222,8 @@
             fullscreen = false;
         }
 
+        gps_quality_refresh();
+
         if (last_gps == null ||
             (last_gps != null &&
                 (last_gps['kismet.common.location.fix'] < 2))) {
@@ -208,6 +254,48 @@
         e.stopImmediatePropagation();
     }
 
+    // Signal quality fields are only present while the GPS reports them
+    var gps_quality_refresh = function() {
+        var q = last_gps ?? {};
+
+        var used = q['kismet.gps.satellites_used'];
+        var visible = q['kismet.gps.satellites_visible'];
+        var sats = [];
+        if (used !== undefined)
+            sats.push(used + ' used');
+        if (visible !== undefined)
+            sats.push(visible + ' in view');
+        $('#satellites', gps_popup_content).html(sats.length ? sats.join(', ') : 'n/a');
+
+        var dop = [];
+        if (q['kismet.gps.hdop'] !== undefined)
+            dop.push('H ' + q['kismet.gps.hdop'].toFixed(1));
+        if (q['kismet.gps.vdop'] !== undefined)
+            dop.push('V ' + q['kismet.gps.vdop'].toFixed(1));
+        $('#dop', gps_popup_content).html(dop.length ? dop.join(', ') : 'n/a');
+
+        var prec = [];
+        if (q['kismet.gps.precision_h'] !== undefined)
+            prec.push('&plusmn;' + kismet_ui.renderHeightDistance(q['kismet.gps.precision_h'], 1) + ' horizontal');
+        if (q['kismet.gps.precision_v'] !== undefined)
+            prec.push('&plusmn;' + kismet_ui.renderHeightDistance(q['kismet.gps.precision_v'], 1) + ' vertical');
+        if (prec.length && q['kismet.gps.precision_source'] !== undefined)
+            prec.push('(' + q['kismet.gps.precision_source'] + ')');
+        $('#precision', gps_popup_content).html(prec.length ? prec.join(' ') : 'n/a');
+
+        var quality = q['kismet.gps.signal_quality'];
+        if (quality !== undefined) {
+            var label = quality >= 80 ? 'excellent' : quality >= 60 ? 'good' :
+                quality >= 40 ? 'fair' : quality > 0 ? 'poor' : 'no fix';
+            var sig = quality + '% (' + label + ')';
+            if (q['kismet.gps.signal_cn0'] !== undefined)
+                sig += ', ' + q['kismet.gps.signal_cn0'].toFixed(0) + ' dB-Hz';
+            $('#signal', gps_popup_content).html(sig);
+        } else {
+            $('#signal', gps_popup_content).html('n/a');
+        }
+    }
+
     var gps_refresh = function(data) {
         if (kismet.getStorage('kismet.ui.gps.icon') === 'False') {
             gpsicon.hide();
@@ -234,6 +322,8 @@
         data = kismet.sanitizeObject(data);
 
         last_gps = data;
+
+        gps_quality_refresh();
 
         var d = "Unknown"
         try {

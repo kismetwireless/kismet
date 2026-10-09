@@ -111,6 +111,8 @@ void kis_gps_tcp_v2::close_impl() {
 
     // Don't splice a partial line onto the next connection
     in_buf.consume(in_buf.size());
+    gsv.reset();
+    clear_quality();
 }
 
 void kis_gps_tcp_v2::start_read_impl() {

@@ -95,7 +95,7 @@ size_t gps_framer_v1::scan_ubx(size_t pos, const frame_cb& cb) {
 
     const size_t payload_len = static_cast<size_t>(p[4] | (p[5] << 8));
 
-    if (payload_len > ubx::max_payload)
+    if (payload_len > ubx::max_payload_for(p[2], p[3]))
         return std::string::npos;
 
     const size_t total = ubx::header_len + payload_len + ubx::checksum_len;

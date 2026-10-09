@@ -31,6 +31,7 @@
 
 #include "globalregistry.h"
 #include "gpsframer_v1.h"
+#include "gpsnmea_v3.h"
 #include "gpssirf_v1.h"
 #include "gpsubx_v1.h"
 #include "kis_gps.h"
@@ -47,10 +48,10 @@
 // NMEA, UBX, or SiRF binary arrives, starting with the rate that worked last time.  UBX
 // and SiRF navigation reports are used in place of NMEA while the device sends them.
 //
-// A u-blox receiver which only sends NMEA is asked to also send UBX navigation reports.
-// Only message output rates are changed, only in the receiver's RAM, and the previous
-// rates are restored when the GPS is closed; a power cycle also undoes it.  Nothing is ever
-// sent to a SiRF receiver.
+// A u-blox receiver is asked to also send the UBX navigation, DOP, and satellite reports it
+// isn't already sending.  Only message output rates are changed, only in the receiver's
+// RAM, and the previous rates are restored when the GPS is closed; a power cycle also
+// undoes it.  Nothing is ever sent to a SiRF receiver.
 
 class kis_gps_serial_v3 : public kis_gps, public std::enable_shared_from_this<kis_gps_serial_v3> {
 public:
@@ -135,8 +136,9 @@ protected:
     // receive count on the port we're attached to is distinctive
     static constexpr std::array<unsigned int, 3> ubx_detect_padding{1, 3, 5};
 
-    // First protocol version with NAV-PVT, MON-COMMS, and without the legacy CFG-MSG
+    // First protocol version with NAV-PVT, NAV-SAT, MON-COMMS, and without the legacy CFG-MSG
     static constexpr int ubx_protver_pvt = 1400;
+    static constexpr int ubx_protver_sat = 1500;
     static constexpr int ubx_protver_comms = 2700;
     static constexpr int ubx_protver_no_legacy = 3400;
 
@@ -150,12 +152,17 @@ protected:
         done,
     };
 
-    enum class ubx_restore_kind {
-        none,
-        // CFG-MSG on the current port, back to 0
-        current_port,
-        // CFG-VALSET of one port's NAV-PVT rate, back to the saved value
-        port_key,
+    // Satellite reports are 8 bytes plus 12 per satellite, so a slow serial link sends them
+    // less often, and 4800 baud doesn't send them at all
+    static constexpr uint8_t ubx_sat_rate(unsigned int baud) {
+        return baud >= 38400 ? 1 : baud >= 9600 ? 10 : 0;
+    }
+
+    // A rate changed with CFG-VALSET, and the value to put back
+    struct ubx_restore_key {
+        ubx_nav_msg msg;
+        ubx_port port;
+        uint8_t value;
     };
 
     // Strand only
@@ -189,11 +196,22 @@ protected:
     void ubx_cfg_observed();
     void ubx_query_version(unsigned int tries);
     void ubx_enable_current_port(size_t index, unsigned int tries);
-    void ubx_detect_port(unsigned int attempt);
+    // Find the receiver port Kismet is attached to from its byte counters: MON-COMMS, or
+    // MON-IO on older receivers
+    using ubx_detect_cb = std::function<void (bool found, const char *reason)>;
+    void ubx_detect_port(unsigned int attempt, ubx_detect_cb cb);
     void ubx_detect_compare(unsigned int attempt, std::vector<ubx_port_stats> first,
-            uint64_t first_rx, size_t sent);
+            uint64_t first_rx, size_t sent, ubx_detect_cb cb);
+    std::string ubx_port_stats_poll() const;
+    bool ubx_parse_port_stats(std::string_view frame, std::vector<ubx_port_stats>& ports) const;
+    // Port found; check it and enable reports with CFG-VALSET
+    void ubx_detected_for_port_keys(bool found, const char *reason);
     void ubx_check_port_baud();
-    void ubx_enable_port_key();
+    void ubx_enable_port_key(size_t index);
+    // Messages to enable which the receiver isn't already sending; port keys are only used
+    // on receivers with CFG-VALSET
+    std::vector<ubx_msg_rate> ubx_wanted_msgs(bool port_keys, bool uart);
+    void ubx_enabled(ubx_nav_msg msg, uint8_t rate);
     void ubx_confirm();
     void ubx_cfg_failed(const std::string& reason);
     void ubx_check_reply(std::string_view frame);
@@ -221,6 +239,7 @@ protected:
 
     std::array<uint8_t, 1024> read_buf;
     gps_framer_v1 framer;
+    gps_nmea::gsv_collector nmea_gsv;
     gps_ubx_decoder_v1 ubx_decoder;
     gps_sirf_decoder_v1 sirf_decoder;
 
@@ -274,8 +293,15 @@ protected:
     bool ublox_hint = false;
     bool sirf_hint = false;
     int ubx_protver = -1;
-    std::vector<ubx_nav_msg> ubx_enable_msgs;
+    std::vector<ubx_msg_rate> ubx_enable_msgs;
+    // Reports seen while observing, and what this open enabled
+    bool ubx_seen_pos = false;
+    bool ubx_seen_dop = false;
+    bool ubx_seen_sat = false;
+    std::vector<ubx_msg_rate> ubx_enabled_msgs;
+    uint8_t ubx_confirm_id = 0;
     ubx_port ubx_detected_port = ubx_port::uart1;
+    bool ubx_port_known = false;
     uint64_t rx_total = 0;
     bool logged_ubx_failure = false;
 
@@ -289,10 +315,9 @@ protected:
 
     // Strand only; what was changed in the receiver, kept across reopens until the GPS is
     // closed
-    ubx_restore_kind restore_kind = ubx_restore_kind::none;
+    // CFG-MSG on the current port, set back to 0
     std::vector<ubx_nav_msg> restore_msgs;
-    ubx_port restore_port = ubx_port::uart1;
-    uint8_t restore_value = 0;
+    std::vector<ubx_restore_key> restore_keys;
 
     // Strand only; last binary navigation report, which takes priority over NMEA
     std::chrono::steady_clock::time_point last_binary_fix;

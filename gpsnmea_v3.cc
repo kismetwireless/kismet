@@ -70,6 +70,36 @@ namespace {
         return true;
     }
 
+    // Non-negative whole number, such as a satellite count
+    bool parse_count(std::string_view field, unsigned int max, unsigned int& out) {
+        if (field.empty() || field.size() > 3)
+            return false;
+
+        unsigned int v = 0;
+        for (auto c : field) {
+            if (!is_digit(c))
+                return false;
+            v = v * 10 + (c - '0');
+        }
+
+        if (v > max)
+            return false;
+
+        out = v;
+        return true;
+    }
+
+    // DOP values are positive; empty or 0 means the receiver doesn't know
+    bool parse_dop(std::string_view field, double& out) {
+        double v;
+
+        if (!parse_double(field, v) || !(v > 0) || v > 100)
+            return false;
+
+        out = v;
+        return true;
+    }
+
     // ddmm.mmmm or dddmm.mmmm plus a hemisphere field
     bool parse_coord(std::string_view field, size_t deg_digits, std::string_view hemi,
             char pos_hemi, char neg_hemi, double max_deg, double& out) {
@@ -137,7 +167,162 @@ bool gps_nmea::has_valid_checksum(std::string_view sentence) {
     return sum == static_cast<unsigned int>((hi << 4) | lo);
 }
 
-gps_nmea::result gps_nmea::parse(std::string_view sentence, gps_fix_update& update) {
+bool gps_nmea::gsv_collector::add(std::string_view talker, const std::string_view *f, size_t nf,
+        time_t now, gps_quality_update& quality) {
+    unsigned int total, msg, in_view;
+
+    if (talker.size() != 2 || nf < 4 ||
+            !parse_count(f[1], 99, total) || !parse_count(f[2], 99, msg) ||
+            !parse_count(f[3], 999, in_view) || total == 0 || msg == 0 || msg > total)
+        return false;
+
+    // Satellites come in blocks of 4 fields; NMEA 4.1 adds a signal id at the end
+    const size_t blocks = (nf - 4) / 4;
+    uint8_t signal = 0;
+
+    if ((nf - 4) % 4 == 1) {
+        unsigned int sig;
+        if (!parse_count(f[nf - 1], 15, sig))
+            return false;
+        signal = static_cast<uint8_t>(sig);
+    }
+
+    group *g = nullptr;
+    group *free_slot = nullptr;
+    group *oldest = &groups[0];
+
+    for (auto& c : groups) {
+        if (c.used && c.talker[0] == talker[0] && c.talker[1] == talker[1] && c.signal == signal) {
+            g = &c;
+            break;
+        }
+
+        if (!c.used && free_slot == nullptr)
+            free_slot = &c;
+
+        if (c.time < oldest->time)
+            oldest = &c;
+    }
+
+    if (g == nullptr) {
+        g = free_slot != nullptr ? free_slot : oldest;
+        *g = group{};
+        g->used = true;
+        g->talker[0] = talker[0];
+        g->talker[1] = talker[1];
+        g->signal = signal;
+    }
+
+    if (msg == 1) {
+        g->total = total;
+        g->in_view = in_view;
+        g->building.count = 0;
+    } else if (msg != g->next || total != g->total) {
+        // Missed part of the group; wait for the next one
+        g->next = 0;
+        return false;
+    }
+
+    for (size_t b = 0; b < blocks; b++) {
+        const auto *sat = f + 4 + b * 4;
+        unsigned int prn, snr = 0;
+
+        if (sat[0].empty())
+            continue;
+
+        if (!parse_count(sat[0], 999, prn) || (!sat[3].empty() && !parse_count(sat[3], 99, snr))) {
+            g->next = 0;
+            return false;
+        }
+
+        if (g->building.count >= max_sats)
+            continue;
+
+        g->building.prn[g->building.count] = static_cast<uint16_t>(prn);
+        g->building.snr[g->building.count] = static_cast<uint8_t>(snr);
+        g->building.count++;
+    }
+
+    if (msg != total) {
+        g->next = msg + 1;
+        return false;
+    }
+
+    g->next = 0;
+    g->complete = true;
+    g->time = now;
+    g->done_in_view = g->in_view;
+    g->done = g->building;
+
+    // Every signal of a constellation lists the same satellites, so a constellation counts
+    // its largest group, and each satellite counts its strongest signal
+    unsigned int visible = 0;
+    std::array<double, max_groups * max_sats> snrs;
+    size_t nsnr = 0;
+
+    for (size_t i = 0; i < groups.size(); i++) {
+        const auto& a = groups[i];
+
+        if (!a.used || !a.complete || now - a.time > group_expire || now < a.time)
+            continue;
+
+        bool counted = false;
+        unsigned int most = a.done_in_view;
+
+        for (size_t j = 0; j < groups.size(); j++) {
+            const auto& o = groups[j];
+
+            if (j == i || !o.used || !o.complete || now - o.time > group_expire || now < o.time ||
+                    o.talker[0] != a.talker[0] || o.talker[1] != a.talker[1])
+                continue;
+
+            // The first group of a constellation does the counting
+            if (j < i)
+                counted = true;
+
+            most = std::max(most, o.done_in_view);
+        }
+
+        if (!counted)
+            visible += most;
+
+        for (size_t s = 0; s < a.done.count; s++) {
+            if (a.done.snr[s] == 0)
+                continue;
+
+            bool stronger_elsewhere = false;
+
+            for (size_t j = 0; j < groups.size() && !stronger_elsewhere; j++) {
+                const auto& o = groups[j];
+
+                if (j == i || !o.used || !o.complete || now - o.time > group_expire || now < o.time ||
+                        o.talker[0] != a.talker[0] || o.talker[1] != a.talker[1])
+                    continue;
+
+                for (size_t t = 0; t < o.done.count; t++) {
+                    if (o.done.prn[t] == a.done.prn[s] &&
+                            (o.done.snr[t] > a.done.snr[s] || (o.done.snr[t] == a.done.snr[s] && j < i))) {
+                        stronger_elsewhere = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!stronger_elsewhere)
+                snrs[nsnr++] = a.done.snr[s];
+        }
+    }
+
+    quality = gps_quality_update{};
+    quality.has_sats_visible = true;
+    quality.sats_visible = visible;
+    quality.has_cn0 = gps_quality_update::strongest_cn0(snrs.data(), nsnr, quality.cn0);
+
+    return true;
+}
+
+gps_nmea::result gps_nmea::parse(std::string_view sentence, gps_fix_update& update,
+        gsv_collector *gsv) {
     update = gps_fix_update{};
 
     while (!sentence.empty() && (sentence.back() == '\r' || sentence.back() == '\n'))
@@ -243,16 +428,24 @@ gps_nmea::result gps_nmea::parse(std::string_view sentence, gps_fix_update& upda
         if (nf < 10)
             return result::malformed;
 
+        // Quality comes with a usable position, or with no fix; a fix with a bad position
+        // makes the whole sentence suspect
+        auto& q = update.quality;
+        q.has_sats_used = parse_count(f[7], 99, q.sats_used);
+        q.has_hdop = parse_dop(f[8], q.hdop);
+
         // Some receivers repeat their last position with no fix
         if (f[6] == "0")
-            return result::ignored;
+            return q.empty() ? result::ignored : result::update;
 
         double lat, lon, alt;
 
         if (!parse_coord(f[2], 2, f[3], 'N', 'S', 90, lat) ||
                 !parse_coord(f[4], 3, f[5], 'E', 'W', 180, lon) ||
-                !parse_double(f[9], alt))
+                !parse_double(f[9], alt)) {
+            update = gps_fix_update{};
             return result::ignored;
+        }
 
         update.has_position = true;
         update.lat = lat;
@@ -385,9 +578,15 @@ gps_nmea::result gps_nmea::parse(std::string_view sentence, gps_fix_update& upda
         if (nf < 3)
             return result::malformed;
 
+        if (nf >= 18) {
+            auto& q = update.quality;
+            q.has_hdop = parse_dop(f[16], q.hdop);
+            q.has_vdop = parse_dop(f[17], q.vdop);
+        }
+
         // No fix overrides the fix implied by GGA and RMC
         if (f[2] != "1" && f[2] != "2" && f[2] != "3")
-            return result::ignored;
+            return update.quality.empty() ? result::ignored : result::update;
 
         update.has_fix = true;
         update.fix_reported = true;
@@ -396,19 +595,76 @@ gps_nmea::result gps_nmea::parse(std::string_view sentence, gps_fix_update& upda
         return result::update;
     }
 
-    /*
-        NMEA GSV standard referenced from: https://gpsd.io/NMEA.html#_gsv_satellites_in_view
-        These sentences describe the sky position of a UPS satellite in view. Typically they’re shipped in a group of 2 or 3
-        Example:
-        $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74
-        $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74
-        $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
+    if (type == "GST") {
+        /*
+            NMEA GST standard referenced from: https://gpsd.io/NMEA.html#_gst_gps_pseudorange_noise_statistics
+            Example: $GPGST,182141.000,15.5,15.3,7.2,21.8,0.9,0.5,0.8*54
+            $--GST,hhmmss.ss,x,x,x,x,x,x,x*hh<CR><LF>
+            Field Number:
+                0.  Talker ID + GST
+                1.  UTC time of associated GGA fix
+                2.  Total RMS standard deviation of ranges inputs to the navigation solution
+                3.  Standard deviation (meters) of semi-major axis of error ellipse
+                4.  Standard deviation (meters) of semi-minor axis of error ellipse
+                5.  Orientation of semi-major axis of error ellipse (true north degrees)
+                6.  Standard deviation (meters) of latitude error
+                7.  Standard deviation (meters) of longitude error
+                8.  Standard deviation (meters) of altitude error
+                9.  Checksum
+        */
+        if (nf < 9)
+            return result::malformed;
 
-        Not currently handled, in the future could be used for a graphical plot of
-        the satellite position
-    */
+        auto& q = update.quality;
+        double lat_err, lon_err, alt_err;
 
-    return result::ignored;
+        if (parse_double(f[6], lat_err) && parse_double(f[7], lon_err) && lat_err >= 0 &&
+                lon_err >= 0 && lat_err + lon_err > 0) {
+            q.has_error_h = true;
+            q.error_h = std::sqrt(lat_err * lat_err + lon_err * lon_err);
+        }
+
+        if (parse_double(f[8], alt_err) && alt_err > 0) {
+            q.has_error_v = true;
+            q.error_v = alt_err;
+        }
+
+        return q.empty() ? result::ignored : result::update;
+    }
+
+    if (type == "GSV") {
+        /*
+            NMEA GSV standard referenced from: https://gpsd.io/NMEA.html#_gsv_satellites_in_view
+            These sentences describe the sky position of a UPS satellite in view. Typically they're shipped in a group of 2 or 3
+            Example:
+            $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74
+            $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74
+            $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
+            $--GSV,x,x,x,x,x,x,x,...*hh<CR><LF>
+            NMEA 4.1:
+            $--GSV,x,x,x,x,x,x,x,...,s*hh<CR><LF>
+            Field Number:
+                0.  Talker ID + GSV
+                1.  Total number of GSV sentences in this group
+                2.  Sentence number in this group
+                3.  Total number of satellites in view
+                4.  Satellite ID or PRN number
+                5.  Elevation, degrees
+                6.  Azimuth, degrees
+                7.  SNR, 00-99 dB-Hz (null when not tracking)
+                    Repeated for up to 4 satellites
+                n.  Signal ID (NMEA 4.1 and later)
+        */
+        if (gsv == nullptr)
+            return result::ignored;
+
+        if (!gsv->add(f[0].substr(0, 2), f.data(), nf, time(nullptr), update.quality))
+            return result::ignored;
+
+        return result::update;
+    }
+
+return result::ignored;
 }
 
 void kis_gps_nmea_v3::start_read() {
@@ -448,7 +704,7 @@ void kis_gps_nmea_v3::handle_read(const boost::system::error_code& ec, std::size
 
     gps_fix_update update;
 
-    switch (gps_nmea::parse(line, update)) {
+    switch (gps_nmea::parse(line, update, &gsv)) {
         case gps_nmea::result::update:
             apply_fix(update);
             last_data_time = time(0);

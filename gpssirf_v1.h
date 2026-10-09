@@ -34,6 +34,7 @@
 //
 // MID 41 (geodetic navigation data) is a complete report.  Firmware without it reports
 // MID 2 (ECEF position and velocity), which is converted and used until MID 41 shows up.
+// MID 4 (measured tracker data) carries the satellites in view and their signal strength.
 class gps_sirf_decoder_v1 {
 public:
     static constexpr uint8_t start_1 = 0xA0;
@@ -50,10 +51,11 @@ public:
     static constexpr size_t max_payload = 1023;
 
     static constexpr uint8_t mid_measured_nav = 2;
+    static constexpr uint8_t mid_tracker = 4;
     static constexpr uint8_t mid_geodetic_nav = 41;
 
     enum class result {
-        // Location, or a no fix report (fix 1 only)
+        // Location, a no fix report (fix 1 only), or signal quality only
         update,
         // Valid message which carries nothing to apply (an unhandled message)
         ignored,

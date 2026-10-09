@@ -119,6 +119,7 @@ void gps_tracker::trigger_deferred_startup() {
                         auto gps = find_gps_by_id(pi->gps_id);
                         if (gps != nullptr) {
                             ue->set(gps->get_gps_uuid());
+                            gps->add_signal_report(*loctrip);
                         }
 
                         loctrip->set_location(pi->lat, pi->lon);
@@ -162,6 +163,8 @@ void gps_tracker::trigger_deferred_startup() {
                         loctrip->insert(ue);
                     }
 
+                    gps->add_signal_report(*loctrip);
+
                     return loctrip;
                 }, gpsmanager_mutex));
 
@@ -184,6 +187,8 @@ void gps_tracker::trigger_deferred_startup() {
                             loctrip->set_time_sec(pi->tv.tv_sec);
                             loctrip->set_time_usec(pi->tv.tv_usec);
                         }
+
+                        gps->add_signal_report(*loctrip);
 
                         ret->insert(gps->get_gps_uuid(), loctrip);
                     }
@@ -244,6 +249,7 @@ void gps_tracker::trigger_deferred_startup() {
                         auto gps = find_gps_by_id(pi->gps_id);
                         if (gps != nullptr) {
                             ue->set(gps->get_gps_uuid());
+                            gps->add_signal_report(*loctrip);
                         }
                         loctrip->set_location(pi->lat, pi->lon);
                         loctrip->set_alt(pi->alt);

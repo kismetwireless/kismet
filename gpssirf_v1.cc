@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <array>
 #include <cmath>
 
 #include "gpssirf_v1.h"
@@ -73,6 +74,18 @@ namespace {
         return gps_sirf_decoder_v1::result::update;
     }
 
+    // Receivers report huge errors before the estimate settles
+    constexpr uint32_t max_error_cm = 100000000;
+
+    // HDOP * 5; 0 when unknown
+    void set_hdop(uint8_t hdop5, gps_quality_update& q) {
+        if (hdop5 == 0)
+            return;
+
+        q.has_hdop = true;
+        q.hdop = hdop5 * 0.2;
+    }
+
     double heading_deg(double east, double north) {
         double h = std::atan2(east, north) * 180.0 / pi;
         return h < 0 ? h + 360.0 : h;
@@ -93,6 +106,9 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
 
     const uint8_t *p = f + header_len;
 
+    auto& q = update.quality;
+    q.rank = gps_quality_update::source_rank::binary;
+
     switch (p[0]) {
         case mid_geodetic_nav: {
             if (len < 91)
@@ -102,6 +118,10 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
 
             // Any invalid bit set means the fix isn't usable
             const int fix = map_fix(get_u16(p + 3));
+
+            q.has_sats_used = true;
+            q.sats_used = p[88];
+            set_hdop(p[89], q);
 
             if (get_u16(p + 1) != 0 || fix < 2)
                 return no_fix(update);
@@ -117,13 +137,26 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
             update.lon = lon;
 
             update.has_fix = true;
-
             update.fix_reported = true;
             update.fix = fix;
 
             if (fix >= 3) {
                 update.has_alt = true;
                 update.alt = get_i32(p + 35) / 100.0;
+            }
+
+            // Estimated position errors, cm
+            const uint32_t ehpe = get_u32(p + 50);
+            const uint32_t evpe = get_u32(p + 54);
+
+            if (ehpe > 0 && ehpe < max_error_cm) {
+                q.has_error_h = true;
+                q.error_h = ehpe / 100.0;
+            }
+
+            if (fix >= 3 && evpe > 0 && evpe < max_error_cm) {
+                q.has_error_v = true;
+                q.error_v = evpe / 100.0;
             }
 
             // m/s * 100, degrees * 100
@@ -147,6 +180,10 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
                 return result::ignored;
 
             const int fix = map_fix(p[19]);
+
+            q.has_sats_used = true;
+            q.sats_used = p[28];
+            set_hdop(p[20], q);
 
             if (fix < 2)
                 return no_fix(update);
@@ -176,7 +213,6 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
             update.lon = lon * 180.0 / pi;
 
             update.has_fix = true;
-
             update.fix_reported = true;
             update.fix = fix;
 
@@ -202,6 +238,47 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
 
             update.has_heading = true;
             update.heading = heading_deg(east, north);
+
+            return result::update;
+        }
+
+        case mid_tracker: {
+            constexpr size_t chan_start = 8;
+            constexpr size_t chan_len = 15;
+            constexpr size_t cn0_samples = 10;
+
+            if (len < chan_start || len < chan_start + chan_len * p[7])
+                return result::malformed;
+
+            std::array<double, 255> cn0;
+            size_t ncn0 = 0;
+            unsigned int visible = 0;
+
+            for (size_t c = 0; c < p[7]; c++) {
+                const auto *ch = p + chan_start + c * chan_len;
+
+                if (ch[0] == 0)
+                    continue;
+
+                visible++;
+
+                // Ten C/N0 samples, one per 100ms
+                unsigned int sum = 0;
+                unsigned int n = 0;
+                for (size_t i = 0; i < cn0_samples; i++) {
+                    if (ch[5 + i] > 0) {
+                        sum += ch[5 + i];
+                        n++;
+                    }
+                }
+
+                if (n > 0)
+                    cn0[ncn0++] = static_cast<double>(sum) / n;
+            }
+
+            q.has_sats_visible = true;
+            q.sats_visible = visible;
+            q.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), ncn0, q.cn0);
 
             return result::update;
         }

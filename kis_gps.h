@@ -21,6 +21,8 @@
 
 #include "config.h"
 
+#include <array>
+
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
@@ -137,6 +139,7 @@ public:
 
     virtual void pre_serialize() override {
         kis_lock_guard<kis_mutex> lk(data_mutex, kismet::retain_lock, "gps preserialize");
+        publish_quality(time(0));
     }
 
     virtual void post_serialize() override {
@@ -161,6 +164,9 @@ public:
 
     // Stop the device when the GPS is removed; it won't reconnect
     virtual void close_gps() { }
+
+    // Copy the current signal quality fields into a location report
+    void add_signal_report(tracker_component& report);
 
     // Various GPS transformation utility functions
     static double gps_calc_heading(double in_lat, double in_lon, double in_lat2, double in_lon2);
@@ -204,6 +210,27 @@ protected:
                 "Unix timestamp of last data from GPS", &gps_data_time);
         register_field("kismet.gps.signal_time",
                 "Unix timestamp of last signal from GPS", &gps_signal_time);
+
+        // Signal quality; only present while known
+        sats_used_id = register_dynamic_field<tracker_element_uint8>("kismet.gps.satellites_used",
+                "Satellites used in the fix");
+        sats_visible_id = register_dynamic_field<tracker_element_uint8>("kismet.gps.satellites_visible",
+                "Satellites in view");
+        hdop_id = register_dynamic_field<tracker_element_double>("kismet.gps.hdop",
+                "Horizontal dilution of precision, as reported by the GPS");
+        vdop_id = register_dynamic_field<tracker_element_double>("kismet.gps.vdop",
+                "Vertical dilution of precision, as reported by the GPS");
+        precision_h_id = register_dynamic_field<tracker_element_double>("kismet.gps.precision_h",
+                "Estimated horizontal position error, in meters");
+        precision_v_id = register_dynamic_field<tracker_element_double>("kismet.gps.precision_v",
+                "Estimated vertical position error, in meters");
+        precision_source_id = register_dynamic_field<tracker_element_string>("kismet.gps.precision_source",
+                "Position error source: 'reported' by the GPS (each GPS uses its own confidence "
+                "level), 'estimated' from the dilution of precision, or 'mixed'");
+        signal_cn0_id = register_dynamic_field<tracker_element_double>("kismet.gps.signal_cn0",
+                "Average signal strength (C/N0) of the strongest satellites, in dB-Hz");
+        signal_quality_id = register_dynamic_field<tracker_element_uint8>("kismet.gps.signal_quality",
+                "Estimated GPS signal quality, 0 (no fix) to 100");
     }
 
     // Push the locations into the tracked locations and swap
@@ -211,6 +238,75 @@ protected:
 
     // Merge a decoded protocol report into the current location
     void apply_fix(const gps_fix_update& update);
+
+    // Merge signal quality which arrived without a location
+    void apply_quality(const gps_quality_update& update);
+
+    // Forget the signal quality, such as when the device disconnects
+    void clear_quality();
+
+    // Quality values are dropped when no report has refreshed them for this long; slow
+    // reports such as UBX NAV-SAT at low baud rates arrive every 10 seconds
+    static constexpr time_t quality_expire = 12;
+
+    // Pseudorange error used to estimate the position error from the DOP, meters
+    static constexpr double estimated_uere = 4.0;
+
+    enum class quality_field : uint8_t {
+        sats_used,
+        sats_visible,
+        hdop,
+        vdop,
+        error_h,
+        error_v,
+        cn0,
+        count,
+    };
+
+    struct quality_value {
+        bool present = false;
+        double value = 0;
+        time_t time = 0;
+        gps_quality_update::source_rank rank = gps_quality_update::source_rank::nmea;
+    };
+
+    // Under data_mutex
+    std::array<quality_value, static_cast<size_t>(quality_field::count)> quality_state;
+
+    quality_value& quality_at(quality_field f) {
+        return quality_state[static_cast<size_t>(f)];
+    }
+
+    void merge_quality(const gps_quality_update& update, time_t now);
+    void expire_quality(time_t now);
+    // Position error for a fix from the current quality values; 0 when unknown
+    double quality_precision(bool vertical, bool& reported);
+    // Update the tracked quality fields from the current values and location
+    void publish_quality(time_t now);
+
+    template<typename T, typename V>
+    void set_quality_field(uint16_t id, const V& v) {
+        auto ci = find(id);
+
+        if (ci == end()) {
+            auto e = Globalreg::globalreg->entrytracker->get_shared_instance_as<T>(id);
+            e->set(v);
+            insert(e);
+            return;
+        }
+
+        std::static_pointer_cast<T>(ci->second)->set(v);
+    }
+
+    void clear_quality_field(uint16_t id) {
+        auto ci = find(id);
+
+        if (ci != end())
+            erase(ci);
+    }
+
+    uint16_t sats_used_id, sats_visible_id, hdop_id, vdop_id, precision_h_id, precision_v_id,
+             precision_source_id, signal_cn0_id, signal_quality_id;
 
     // Last time heading was set or calculated; calculating it more often than every few
     // seconds is mostly noise
