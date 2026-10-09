@@ -165,6 +165,11 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     char buf[1024];
     short int m[3];
 
+    // Addresses shorter than an OUI (802.15.4 short addresses) have no manufacturer; OUI()
+    // would pad them with zeros and could match a real OUI
+    if (in_mac.length() < 3)
+        return unknown_manuf;
+
     if (zmfile == nullptr)
         return unknown_manuf;
 
