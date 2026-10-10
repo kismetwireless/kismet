@@ -23,6 +23,7 @@
 #include "base64.h"
 #include "configfile.h"
 #include "dlttracker.h"
+#include "kis_httpd_registry.h"
 #include "kis_net_beast_httpd.h"
 #include "manuf.h"
 
@@ -99,6 +100,9 @@ kis_meshtastic_phy::kis_meshtastic_phy(int in_phyid) :
         Globalreg::globalreg->entrytracker->register_field("meshtastic.node",
                 tracker_element_factory<tracked_meshtastic_node>(),
                 "Meshtastic node");
+
+    auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
+    httpregistry->register_js_module("kismet_ui_meshtastic", "js/kismet.ui.meshtastic.js");
 
     // cached names
     model_tlora_v2 = Globalreg::globalreg->manufdb->make_manuf("T-Lora v2");
