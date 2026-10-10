@@ -939,6 +939,12 @@ void device_tracker::trigger_deferred_startup() {
 device_tracker::~device_tracker() {
     kis_devicelist_mutex = nullptr;
 
+    // The kis_database destructor closes the handle after this runs
+    {
+        kis_lock_guard<kis_mutex> lk(ds_mutex, "~device_tracker stored stmts");
+        finalize_stored_stmts();
+    }
+
     if (eventbus != nullptr) {
         eventbus->remove_listener(new_datasource_evt_id);
         eventbus->remove_listener(new_device_evt_id);
@@ -1806,6 +1812,7 @@ int device_tracker::database_upgrade_db() {
         if (r != SQLITE_OK) {
             _MSG("device_tracker unable to create device_names table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
+            finalize_stored_stmts();
             sqlite3_close(db);
             db = NULL;
             return -1;
@@ -1826,6 +1833,7 @@ int device_tracker::database_upgrade_db() {
         if (r != SQLITE_OK) {
             _MSG("device_tracker unable to create device_tags table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
+            finalize_stored_stmts();
             sqlite3_close(db);
             db = NULL;
             return -1;
@@ -1967,6 +1975,40 @@ void device_tracker::databaselog_write_devices() {
     last_database_logged = log_time;
 }
 
+sqlite3_stmt *device_tracker::get_stored_stmt(sqlite3_stmt*& stmt, const char *sql) {
+    // Statements belong to the handle they were prepared on; re-prepare if it changed
+    if (stored_stmt_db != db)
+        finalize_stored_stmts();
+
+    if (stmt == nullptr) {
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+            _MSG_ERROR("device_tracker unable to prepare stored device query in {}: {}",
+                    ds_dbfile, sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            stmt = nullptr;
+            return nullptr;
+        }
+
+        stored_stmt_db = db;
+    }
+
+    return stmt;
+}
+
+void device_tracker::finalize_stored_stmts() {
+    sqlite3_finalize(stored_name_stmt);
+    sqlite3_finalize(stored_tags_stmt);
+    stored_name_stmt = nullptr;
+    stored_tags_stmt = nullptr;
+    stored_stmt_db = nullptr;
+}
+
+void device_tracker::database_close() {
+    kis_lock_guard<kis_mutex> lk(ds_mutex, "device_tracker database_close");
+    finalize_stored_stmts();
+    kis_database::database_close();
+}
+
 void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
     // Lock the database; we're doing a single query
     kis_lock_guard<kis_mutex> lk(ds_mutex);
@@ -1974,41 +2016,21 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
     if (!database_valid())
         return;
 
-    // This should only get called inside device creation which should be a safe time, don't lock here
-    // Lock the device itself
-    // auto devlocker = devicelist_range_scope_locker(shared_from_this(), in_dev);
-
-    std::string sql;
-    std::string keystring = in_dev->get_key().as_string();
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql =
-        "SELECT name FROM device_names WHERE key = ? ";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database query for stored devicename in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+    auto stmt = get_stored_stmt(stored_name_stmt, "SELECT name FROM device_names WHERE key = ?");
+    if (stmt == nullptr)
         return;
-    }
 
-    sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
+    const auto keystring = in_dev->get_key().as_string();
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), SQLITE_STATIC);
 
     while (1) {
-        r = sqlite3_step(stmt);
+        const auto r = sqlite3_step(stmt);
 
         if (r == SQLITE_ROW) {
-            const unsigned char *rowstr;
+            const auto rowstr = (const char *) sqlite3_column_text(stmt, 0);
 
-            rowstr = (const unsigned char *) sqlite3_column_text(stmt, 0);
-
-            in_dev->set_username(std::string((const char *) rowstr));
-
+            if (rowstr != nullptr)
+                in_dev->set_username(std::string(rowstr));
         } else if (r == SQLITE_DONE) {
             break;
         } else {
@@ -2018,7 +2040,9 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
         }
     }
 
-    sqlite3_finalize(stmt);
+    // Reset so the statement doesn't hold a read transaction or keystring between devices
+    sqlite3_reset(stmt);
+    sqlite3_clear_bindings(stmt);
 }
 
 void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev) {
@@ -2028,45 +2052,27 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
     if (!database_valid())
         return;
 
-    // This should be safe b/c it's only called inside device creation, don't lock
-    // Lock the device itself
-    // auto devlocker = devicelist_range_scope_locker(shared_from_this(), in_dev);
-
-    std::string sql;
-    std::string keystring = in_dev->get_key().as_string();
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql =
-        "SELECT tag, content FROM device_tags WHERE key = ?";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database query for stored devicetag in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+    auto stmt = get_stored_stmt(stored_tags_stmt, "SELECT tag, content FROM device_tags WHERE key = ?");
+    if (stmt == nullptr)
         return;
-    }
 
-    sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
+    const auto keystring = in_dev->get_key().as_string();
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), SQLITE_STATIC);
 
     while (1) {
-        r = sqlite3_step(stmt);
+        const auto r = sqlite3_step(stmt);
 
         if (r == SQLITE_ROW) {
-            const unsigned char *tagstr;
-            const unsigned char *contentstr;
+            const auto tagstr = (const char *) sqlite3_column_text(stmt, 0);
+            const auto contentstr = (const char *) sqlite3_column_text(stmt, 1);
 
-            tagstr = (const unsigned char *) sqlite3_column_text(stmt, 0);
-            contentstr = (const unsigned char *) sqlite3_column_text(stmt, 1);
+            if (tagstr == nullptr || contentstr == nullptr)
+                continue;
 
             auto tagc = std::make_shared<tracker_element_string>();
-            tagc->set(std::string((const char *) contentstr));
+            tagc->set(std::string(contentstr));
 
-            in_dev->get_tag_map()->insert(std::string((const char *) tagstr), tagc);
+            in_dev->get_tag_map()->insert(std::string(tagstr), tagc);
         } else if (r == SQLITE_DONE) {
             break;
         } else {
@@ -2076,7 +2082,9 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
         }
     }
 
-    sqlite3_finalize(stmt);
+    // Reset so the statement doesn't hold a read transaction or keystring between devices
+    sqlite3_reset(stmt);
+    sqlite3_clear_bindings(stmt);
 }
 
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,

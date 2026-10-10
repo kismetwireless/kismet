@@ -226,6 +226,7 @@ public:
 
     // Database API
     virtual int database_upgrade_db() override;
+    virtual void database_close() override;
 
     // Store all devices to the database
     virtual void databaselog_write_devices();
@@ -442,6 +443,16 @@ protected:
 
     // Load stored tags
     void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
+
+    // Stored name and tag queries run for every new device, so they're prepared once
+    // per database handle; ds_mutex must be held, and they're finalized before the
+    // handle is closed
+    sqlite3_stmt *stored_name_stmt = nullptr;
+    sqlite3_stmt *stored_tags_stmt = nullptr;
+    sqlite3 *stored_stmt_db = nullptr;
+
+    sqlite3_stmt *get_stored_stmt(sqlite3_stmt*& stmt, const char *sql);
+    void finalize_stored_stmts();
 
     // Cached device type map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_type_cache;
