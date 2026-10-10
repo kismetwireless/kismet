@@ -339,7 +339,14 @@ void capture_thread(kis_capture_handler_t *caph) {
             local_pcap->pcapfname,
             strlen(pcap_errstr) == 0 ? "end of pcapfile reached" : pcap_errstr );
 
-    cf_send_message(caph, errstr, MSGFLAG_INFO);
+    /* The outbound ringbuffer is usually full right after the last packets, and a
+     * message that doesn't fit is dropped; wait for room and retry as packets do */
+    while (cf_send_message(caph, errstr, MSGFLAG_INFO) == 0) {
+        if (caph->shutdown || caph->spindown)
+            break;
+
+        cf_handler_wait_ringbuffer(caph);
+    }
 
     /* Instead of dying, spin forever in a sleep loop */
     while (1) {

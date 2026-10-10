@@ -1432,8 +1432,23 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
-    pthread_cond_wait(&(caph->out_ringbuf_flush_cond),
-            &(caph->out_ringbuf_flush_cond_mutex));
+    /* Flushes broadcast without holding the mutex, so a wakeup can be missed; wait at
+     * most 100ms, callers retry their send after this returns */
+    struct timeval tv;
+    struct timespec ts;
+
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec;
+    ts.tv_nsec = ((long) tv.tv_usec * 1000) + (100 * 1000 * 1000);
+
+    if (ts.tv_nsec >= 1000000000L) {
+        ts.tv_sec += 1;
+        ts.tv_nsec -= 1000000000L;
+    }
+
+    pthread_mutex_lock(&(caph->out_ringbuf_flush_cond_mutex));
+    pthread_cond_timedwait(&(caph->out_ringbuf_flush_cond),
+            &(caph->out_ringbuf_flush_cond_mutex), &ts);
     pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
 }
 
