@@ -109,6 +109,7 @@ class kis_adsb_icao {
 public:
     kis_adsb_icao();
 
+    // Load the ICAO file into compressed blocks in memory
     void index();
 
     std::shared_ptr<tracked_adsb_icao> get_unknown_icao() const {
@@ -120,27 +121,40 @@ public:
         return lookup_icao(string_to_n<uint32_t>(icao, std::hex));
     }
 
-    struct index_pos {
-        uint32_t icao;
-        z_off_t pos;
-    };
-
     struct icao_data {
         uint32_t icao;
         std::shared_ptr<tracked_adsb_icao> icao_record;
     };
 
 protected:
+    // The ICAO file is ~23MB of text, so records are kept as independently deflated blocks
+    // of lines and a lookup inflates one block.  Written only during construction, so
+    // searched without a lock.
+    static constexpr size_t icao_block_lines = 100;
+
+    struct icao_block {
+        uint32_t first_icao;
+        uint32_t offset;
+        uint32_t comp_len;
+        uint32_t raw_len;
+    };
+
+    std::vector<icao_block> icao_blocks;
+    std::string icao_block_data;
+
+    bool compress_icao_block(uint32_t first_icao, const std::string& raw);
+    std::shared_ptr<tracked_adsb_icao> parse_icao_line(uint32_t icao, const std::string& line);
+
+    // Protects icao_map, the cache of resolved and unknown ICAOs
     kis_mutex mutex;
     std::map<char, std::shared_ptr<tracker_element_string>> atype_map;
 
-    gzFile zmfile;
+    gzFile zmfile = nullptr;
 
     int icao_id;
     int icao_type_id;
     std::shared_ptr<tracked_adsb_icao> unknown_icao;
 
-    std::vector<index_pos> index_vec;
     ankerl::unordered_dense::map<uint32_t, std::shared_ptr<tracked_adsb_icao>> icao_map;
 };
 

@@ -26,10 +26,32 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
+
+// Sorted id to name records loaded once from a gzipped 'XXXX<tab>Name' file; immutable
+// after loading, so it can be searched without a lock
+class kis_bt_id_table {
+public:
+    // Loads and closes the file; returns the number of records
+    size_t load(gzFile file);
+
+    bool find(uint32_t id, std::string_view& name) const;
+
+protected:
+    struct record {
+        uint32_t id;
+        uint32_t name_offset;
+        uint16_t name_len;
+    };
+
+    std::vector<record> records;
+    std::string names;
+};
 
 class kis_bt_oid : public lifetime_global {
 public:
@@ -47,14 +69,10 @@ private:
 public:
     virtual ~kis_bt_oid();
 
+    // Load the OID file into memory
     void index_bt_oids();
 
     std::shared_ptr<tracker_element_string> lookup_oid(uint32_t in_oid);
-
-    struct index_pos {
-        uint32_t oid;
-        z_off_t pos;
-    };
 
     struct oid_data {
         uint32_t oid;
@@ -64,13 +82,14 @@ public:
     bool is_unknown_oid(std::shared_ptr<tracker_element_string> in_oid);
 
 protected:
-    kis_mutex mutex;
+    kis_bt_id_table oid_table;
 
-    std::vector<index_pos> index_vec;
+    // Protects oid_map, which holds config file records and known OIDs already looked up
+    kis_mutex mutex;
 
     std::unordered_map<uint32_t, oid_data> oid_map;
 
-    gzFile zofile;
+    gzFile zofile = nullptr;
 
     int oid_id;
     std::shared_ptr<tracker_element_string> unknown_oid;
@@ -92,14 +111,10 @@ private:
 public:
     virtual ~kis_bt_manuf();
 
+    // Load the manufacturer file into memory
     void index_bt_manufs();
 
     std::shared_ptr<tracker_element_string> lookup_manuf(uint32_t in_manuf);
-
-    struct index_pos {
-        uint32_t id;
-        z_off_t pos;
-    };
 
     struct manuf_data {
         uint32_t id;
@@ -109,13 +124,14 @@ public:
     bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
 
 protected:
-    kis_mutex mutex;
+    kis_bt_id_table manuf_table;
 
-    std::vector<index_pos> index_vec;
+    // Protects manuf_map, which holds config file records and known IDs already looked up
+    kis_mutex mutex;
 
     std::unordered_map<uint32_t, manuf_data> manuf_map;
 
-    gzFile zmfile;
+    gzFile zmfile = nullptr;
 
     int manuf_id;
     std::shared_ptr<tracker_element_string> unknown_manuf;

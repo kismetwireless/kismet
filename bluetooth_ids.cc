@@ -18,9 +18,68 @@
 
 #include "bluetooth_ids.h"
 
+#include <algorithm>
+
 #include "configfile.h"
 #include "entrytracker.h"
 #include "messagebus.h"
+
+size_t kis_bt_id_table::load(gzFile file) {
+    char buf[1024];
+    uint32_t last_id = 0;
+    bool sorted = true;
+
+    // Lines are 'XXXX<tab>Name'
+    while (gzgets(file, buf, sizeof(buf)) != nullptr) {
+        auto len = strlen(buf);
+
+        while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r'))
+            len--;
+
+        const auto tab = static_cast<const char *>(memchr(buf, '\t', len));
+        if (tab == nullptr || tab == buf)
+            continue;
+
+        char *end = nullptr;
+        const auto id = strtoul(buf, &end, 16);
+        if (end != tab || id > UINT32_MAX)
+            continue;
+
+        const size_t name_len = len - (tab + 1 - buf);
+        if (name_len == 0 || name_len > UINT16_MAX)
+            continue;
+
+        if (id < last_id)
+            sorted = false;
+        last_id = id;
+
+        records.push_back({(uint32_t) id, (uint32_t) names.size(), (uint16_t) name_len});
+        names.append(tab + 1, name_len);
+    }
+
+    gzclose(file);
+
+    // Stable so the first record for a duplicated id still wins
+    if (!sorted)
+        std::stable_sort(records.begin(), records.end(),
+                [](const record& a, const record& b) { return a.id < b.id; });
+
+    records.shrink_to_fit();
+    names.shrink_to_fit();
+
+    return records.size();
+}
+
+bool kis_bt_id_table::find(uint32_t id, std::string_view& name) const {
+    auto ri = std::lower_bound(records.begin(), records.end(), id,
+            [](const record& r, uint32_t i) { return r.id < i; });
+
+    if (ri == records.end() || ri->id != id)
+        return false;
+
+    name = std::string_view(names.data() + ri->name_offset, ri->name_len);
+    return true;
+}
 
 kis_bt_oid::kis_bt_oid() {
     mutex.set_name("kis_bt_oid");
@@ -83,118 +142,39 @@ kis_bt_oid::~kis_bt_oid() {
 }
 
 void kis_bt_oid::index_bt_oids() {
-    char buf[1024];
-    int line = 0;
-    z_off_t prev_pos;
-    uint32_t oid;
-
     if (zofile == nullptr)
         return;
 
-    kis_lock_guard<kis_mutex> lk(mutex, "kis_btoit index_bt_oids");
+    _MSG_INFO("Loading Bluetooth OID list");
 
-    _MSG_INFO("Indexing Bluetooth OID list");
+    // load() closes the file
+    const auto n = oid_table.load(zofile);
+    zofile = nullptr;
 
-    prev_pos = gzseek(zofile, 0, SEEK_CUR);
-
-    while (!gzeof(zofile)) {
-        if (gzgets(zofile, buf, 1024) == nullptr || gzeof(zofile))
-            break;
-
-        if ((line % 50) == 0) {
-            if (sscanf(buf, "%x", &oid) != 1) {
-                line--;
-                continue;
-            }
-
-            index_pos ip;
-
-            ip.oid = oid;
-            ip.pos = prev_pos;
-
-            index_vec.push_back(ip);
-        }
-
-        prev_pos = gzseek(zofile, 0, SEEK_CUR);
-        line++;
-    }
-
-    _MSG_INFO("Completed indexing Bluetooth OID database, {} entries, {} indexes.",
-            line, index_vec.size());
+    _MSG_INFO("Loaded Bluetooth OID database, {} records", n);
 }
 
 std::shared_ptr<tracker_element_string> kis_bt_oid::lookup_oid(uint32_t in_oid) {
-    int matched = -1;
-    char buf[1024];
-    uint32_t poid;
+    // Config file records and previously resolved OIDs
+    {
+        kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_oid lookup_oid");
 
-    if (zofile == nullptr)
+        auto ci = oid_map.find(in_oid);
+        if (ci != oid_map.end())
+            return ci->second.data;
+    }
+
+    // Unknown OIDs aren't cached; the table search is cheap
+    std::string_view name;
+    if (!oid_table.find(in_oid, name))
         return unknown_oid;
 
-    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_oit lookup_oid");
+    auto data = std::make_shared<tracker_element_string>(oid_id,
+            munge_to_printable(name.data(), name.size()));
 
-    if (oid_map.find(in_oid) != oid_map.end())
-        return oid_map[in_oid].data;
-
-    for (unsigned int x = 0; x < index_vec.size(); x++) {
-        if (in_oid > index_vec[x].oid) {
-            matched = x;
-            continue;
-        }
-
-        break;
-    }
-
-    if (matched < 0) {
-        oid_data od;
-        od.oid = in_oid;
-        od.data = unknown_oid;
-        oid_map[in_oid] = od;
-
-        return od.data;
-    }
-
-    if (matched > 0)
-        matched -= 1;
-
-    gzseek(zofile, index_vec[matched].pos, SEEK_SET);
-
-    while (!gzeof(zofile)) {
-        if (gzgets(zofile, buf, 1024) == nullptr || gzeof(zofile))
-            break;
-
-        if (strlen(buf) < 5)
-            continue;
-
-        auto mlen = strlen(buf + 5) - 1;
-
-        if (mlen == 0)
-            continue;
-
-        if (sscanf(buf, "%x", &poid) != 1)
-            continue;
-
-        if (poid == in_oid) {
-            oid_data od;
-            od.oid = poid;
-            od.data = 
-                std::make_shared<tracker_element_string>(oid_id, munge_to_printable(std::string(buf + 5, mlen)));
-            oid_map[poid] = od;
-            return od.data;
-        }
-
-        if (poid > in_oid) {
-            oid_data od;
-            od.oid = in_oid;
-            od.data = unknown_oid;
-            oid_map[in_oid] = od;
-
-            return od.data;
-        }
-
-    }
-
-    return unknown_oid;
+    // Another thread may have resolved it first; keep one shared record per OID
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_oid lookup_oid insert");
+    return oid_map.try_emplace(in_oid, oid_data{in_oid, data}).first->second.data;
 }
 
 bool kis_bt_oid::is_unknown_oid(std::shared_ptr<tracker_element_string> in_oid) {
@@ -263,119 +243,39 @@ kis_bt_manuf::~kis_bt_manuf() {
 }
 
 void kis_bt_manuf::index_bt_manufs() {
-    char buf[1024];
-    int line = 0;
-    z_off_t prev_pos;
-    uint32_t oid;
-
     if (zmfile == nullptr)
         return;
 
-    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf index_bt_manufs");
+    _MSG_INFO("Loading Bluetooth manufacturer list");
 
-    _MSG_INFO("Indexing Bluetooth manufacturer list");
+    // load() closes the file
+    const auto n = manuf_table.load(zmfile);
+    zmfile = nullptr;
 
-    prev_pos = gzseek(zmfile, 0, SEEK_CUR);
-
-    while (!gzeof(zmfile)) {
-        if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
-            break;
-
-        if ((line % 50) == 0) {
-            if (sscanf(buf, "%x", &oid) != 1) {
-                line--;
-                continue;
-            }
-
-            index_pos ip;
-
-            ip.id = oid;
-            ip.pos = prev_pos;
-
-            index_vec.push_back(ip);
-        }
-
-        prev_pos = gzseek(zmfile, 0, SEEK_CUR);
-        line++;
-    }
-
-    _MSG_INFO("Completed indexing Bluetooth manufacturer database, {} entries, {} indexes.",
-            line, index_vec.size());
+    _MSG_INFO("Loaded Bluetooth manufacturer database, {} records", n);
 }
 
 std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_manuf(uint32_t in_id) {
-    int matched = -1;
-    char buf[1024];
-    uint32_t pid;
+    // Config file records and previously resolved IDs
+    {
+        kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf lookup_manuf");
 
-    if (zmfile == nullptr)
+        auto ci = manuf_map.find(in_id);
+        if (ci != manuf_map.end())
+            return ci->second.manuf;
+    }
+
+    // Unknown IDs aren't cached; the table search is cheap
+    std::string_view name;
+    if (!manuf_table.find(in_id, name))
         return unknown_manuf;
 
-    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf lookup_manuf");
+    auto manuf = std::make_shared<tracker_element_string>(manuf_id,
+            munge_to_printable(name.data(), name.size()));
 
-    if (manuf_map.find(in_id) != manuf_map.end())
-        return manuf_map[in_id].manuf;
-
-    for (unsigned int x = 0; x < index_vec.size(); x++) {
-        if (in_id > index_vec[x].id) {
-            matched = x;
-            continue;
-        }
-
-        break;
-    }
-
-    if (matched < 0) {
-        manuf_data md;
-        md.id = in_id;
-        md.manuf = unknown_manuf;
-        manuf_map[in_id] = md;
-
-        return md.manuf;
-    }
-
-    if (matched > 0)
-        matched -= 1;
-
-    gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
-
-    while (!gzeof(zmfile)) {
-        if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
-            break;
-
-        if (strlen(buf) < 5)
-            continue;
-
-        auto mlen = strlen(buf + 5) - 1;
-
-        if (mlen == 0)
-            continue;
-
-        if (sscanf(buf, "%x", &pid) != 1)
-            continue;
-
-        if (pid == in_id) {
-            manuf_data md;
-            md.id = pid;
-            md.manuf = 
-                std::make_shared<tracker_element_string>(manuf_id, 
-                        munge_to_printable(std::string(buf + 5, mlen)));
-            manuf_map[pid] = md;
-            return md.manuf;
-        }
-
-        if (pid > in_id) {
-            manuf_data md;
-            md.id = in_id;
-            md.manuf = unknown_manuf;
-            manuf_map[in_id] = md;
-
-            return md.manuf;
-        }
-
-    }
-
-    return unknown_manuf;
+    // Another thread may have resolved it first; keep one shared record per ID
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf lookup_manuf insert");
+    return manuf_map.try_emplace(in_id, manuf_data{in_id, manuf}).first->second.manuf;
 }
 
 bool kis_bt_manuf::is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf) {
