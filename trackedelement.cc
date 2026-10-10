@@ -33,6 +33,20 @@
 
 #include "messagebus.h"
 
+namespace {
+    // Field paths come from API requests, so every step is type checked regardless of
+    // TE_TYPE_SAFETY; resolves an alias and returns the element as a map, or nullptr
+    tracker_element_map *path_as_map(tracker_element *e) {
+        if (e != nullptr && e->get_type() == tracker_type::tracker_alias)
+            e = static_cast<tracker_element_alias *>(e)->get().get();
+
+        if (e == nullptr || e->get_type() != tracker_type::tracker_map)
+            return nullptr;
+
+        return static_cast<tracker_element_map *>(e);
+    }
+}
+
 device_key::device_key() {
     spkey = 0;
     dkey = 0;
@@ -104,10 +118,13 @@ bool operator ==(const device_key& x, const device_key& y) {
 std::ostream& operator<<(std::ostream& os, const device_key& k) {
     std::ios::fmtflags fflags;
 
+    // The fill character isn't part of flags(), restore it separately
     fflags = os.flags();
+    const auto ffill = os.fill();
     os << std::uppercase << std::setfill('0') << std::setw(2) <<
         std::hex << kis_hton64(k.spkey) << "_" << kis_hton64(k.dkey);
     os.flags(fflags);
+    os.fill(ffill);
     return os;
 }
 
@@ -744,27 +761,22 @@ void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& 
     if (inter->get_type() == tracker_type::tracker_alias)
         inter = static_cast<tracker_element_alias *>(inter.get())->get();
 
-    try {
-        for (const auto& p : in_summary->resolved_path) {
-#if TE_TYPE_SAFETY == 1
-            inter->enforce_type(tracker_type::tracker_map);
-#endif
+    for (const auto& p : in_summary->resolved_path) {
+        auto inter_map = path_as_map(inter.get());
 
-            // inter = std::static_pointer_cast<tracker_element_map>(inter)->get_sub(p);
-            inter = static_cast<tracker_element_map *>(inter.get())->get_sub(p);
+        if (inter_map == nullptr)
+            return;
 
-            if (inter == nullptr)
-                return;
+        inter = inter_map->get_sub(p);
 
-            // Descend down the alias trail
-            if (inter->get_type() == tracker_type::tracker_alias)
-                inter = static_cast<tracker_element_alias *>(inter.get())->get();
+        if (inter == nullptr)
+            return;
 
-            inter->pre_serialize();
-        }
-    } catch (std::runtime_error& c) {
-        // Do nothing if we hit a map error
-        return;
+        // Descend down the alias trail
+        if (inter->get_type() == tracker_type::tracker_alias)
+            inter = static_cast<tracker_element_alias *>(inter.get())->get();
+
+        inter->pre_serialize();
     }
 }
 
@@ -782,26 +794,22 @@ void tracker_element_serializer::post_serialize_path(const SharedElementSummary&
     if (inter->get_type() == tracker_type::tracker_alias)
         inter = static_cast<tracker_element_alias *>(inter.get())->get();
 
-    try {
-        for (const auto& p : in_summary->resolved_path) {
-#if TE_TYPE_SAFETY == 1
-            inter->enforce_type(tracker_type::tracker_map);
-#endif
+    for (const auto& p : in_summary->resolved_path) {
+        auto inter_map = path_as_map(inter.get());
 
-            inter = static_cast<tracker_element_map *>(inter.get())->get_sub(p);
+        if (inter_map == nullptr)
+            return;
 
-            if (inter == nullptr)
-                return;
+        inter = inter_map->get_sub(p);
 
-            // Descend down the alias trail
-            if (inter->get_type() == tracker_type::tracker_alias)
-                inter = static_cast<tracker_element_alias *>(inter.get())->get();
+        if (inter == nullptr)
+            return;
 
-            inter->post_serialize();
-        }
-    } catch (std::runtime_error& c) {
-        // Do nothing if we hit a map error
-        return;
+        // Descend down the alias trail
+        if (inter->get_type() == tracker_type::tracker_alias)
+            inter = static_cast<tracker_element_alias *>(inter.get())->get();
+
+        inter->post_serialize();
     }
 }
 
@@ -923,17 +931,12 @@ shared_tracker_element get_tracker_element_path(const std::vector<std::string>& 
         if (id == 0)
             return nullptr;
 
-        if (next_elem == nullptr) {
-#if TE_TYPE_SAFETY == 1
-            elem->enforce_type(tracker_type::tracker_map);
-#endif
-            next_elem = static_cast<tracker_element_map *>(elem.get())->get_sub(id);
-        } else {
-#if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(tracker_type::tracker_map);
-#endif
-            next_elem = static_cast<tracker_element_map *>(next_elem.get())->get_sub(id);
-        }
+        auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
+
+        if (cur_map == nullptr)
+            return nullptr;
+
+        next_elem = cur_map->get_sub(id);
 
         if (next_elem == nullptr)
             return nullptr;
@@ -958,30 +961,12 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
         if (pe < 0)
             return nullptr;
 
-        if (next_elem == nullptr) {
-#if TE_TYPE_SAFETY == 1
-            try {
-                elem->enforce_type(tracker_type::tracker_map);
-            } catch (std::runtime_error& e) {
-                return nullptr;
-            }
-#endif
-            next_elem = static_cast<tracker_element_map *>(elem.get())->get_sub(pe);
-        } else {
-            // Descend down the alias trail
-            if (next_elem->get_type() == tracker_type::tracker_alias)
-                next_elem = static_cast<tracker_element_alias *>(next_elem.get())->get();
+        auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
 
-#if TE_TYPE_SAFETY == 1
-            try {
-                elem->enforce_type(tracker_type::tracker_map);
-            } catch (std::runtime_error& e) {
-                return nullptr;
-            }
-#endif
+        if (cur_map == nullptr)
+            return nullptr;
 
-            next_elem = static_cast<tracker_element_map *>(next_elem.get())->get_sub(pe);
-        }
+        next_elem = cur_map->get_sub(pe);
 
         if (next_elem == nullptr)
             return nullptr;
@@ -1002,6 +987,9 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
     std::vector<shared_tracker_element> ret;
 
     if (in_path.size() < 1)
+        return ret;
+
+    if (elem == nullptr)
         return ret;
 
     shared_tracker_element next_elem = NULL;
@@ -1029,21 +1017,12 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
             return ret;
         }
 
-        if (next_elem == nullptr) {
-#if TE_TYPE_SAFETY == 1
-            elem->enforce_type(tracker_type::tracker_map);
-#endif
-            next_elem = static_cast<tracker_element_map *>(elem.get())->get_sub(id);
-        } else {
-            // Descend down the alias trail
-            if (next_elem->get_type() == tracker_type::tracker_alias)
-                next_elem = static_cast<tracker_element_alias *>(next_elem.get())->get();
+        auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
 
-#if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(tracker_type::tracker_map);
-#endif
-            next_elem = static_cast<tracker_element_map *>(next_elem.get())->get_sub(id);
-        }
+        if (cur_map == nullptr)
+            return ret;
+
+        next_elem = cur_map->get_sub(id);
 
         if (next_elem == nullptr) {
             return ret;
@@ -1153,6 +1132,9 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
     if (in_path.size() < 1)
         return ret;
 
+    if (elem == nullptr)
+        return ret;
+
     shared_tracker_element next_elem = nullptr;
 
     // Descend down the alias trail
@@ -1167,21 +1149,12 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
             return ret;
         }
 
-        if (next_elem == nullptr) {
-#if TE_TYPE_SAFETY == 1
-            elem->enforce_type(tracker_type::tracker_map);
-#endif
-            next_elem = static_cast<tracker_element_map *>(elem.get())->get_sub(id);
-        } else {
-            // Descend down the alias trail
-            if (next_elem->get_type() == tracker_type::tracker_alias)
-                next_elem = static_cast<tracker_element_alias *>(next_elem.get())->get();
+        auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
 
-#if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(tracker_type::tracker_map);
-#endif
-            next_elem = static_cast<tracker_element_map *>(next_elem.get())->get_sub(id);
-        }
+        if (cur_map == nullptr)
+            return ret;
+
+        next_elem = cur_map->get_sub(id);
 
         if (next_elem == nullptr) {
             return ret;

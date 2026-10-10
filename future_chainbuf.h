@@ -191,27 +191,18 @@ public:
         else
             total_sz_-= consumed_sz;
 
-        try {
-            if (write_waiting_)
-                write_wait_promise_.set_value();
-        } catch (const std::future_error& e) {
-            ;
-        }
+        notify_write_locked();
     }
 
     void put_data(const char *data, size_t sz) {
-        mutex_.lock();
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
 
         // Don't even try if we're shut down
-        if (!running()) {
-            mutex_.unlock();
+        if (!running())
             return;
-        }
 
-        if (packet_) {
-            mutex_.unlock();
+        if (packet_)
             throw std::runtime_error("can't put char* in packet mode");
-        }
 
         data_chunk *target;
 
@@ -238,31 +229,25 @@ public:
 
         total_sz_ += sz;
 
-        mutex_.unlock();
-
-        if (packet_ || size() > sync_sz_)
-            sync();
+        if (total_sz_ > sync_sz_)
+            notify_locked();
     }
 
     // Secondary put_data that takes a shared buffer pointer and directly applies it
     // without a copy
     void put_data(std::shared_ptr<char> data, size_t sz) {
-        mutex_.lock();
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
 
         // Don't even try
-        if (!running()) {
-            mutex_.unlock();
+        if (!running())
             return;
-        }
 
         if (packet_) {
             data_chunk *target = new data_chunk(data, sz);
             chunk_list_.push_back(target);
             total_sz_ += sz;
-            mutex_.unlock();
 
-            if (packet_ || size() > sync_sz_)
-                sync();
+            notify_locked();
 
             return;
         }
@@ -292,21 +277,16 @@ public:
 
         total_sz_ += sz;
 
-        mutex_.unlock();
-
-        if (packet_ || size() > sync_sz_)
-            sync();
-
+        if (total_sz_ > sync_sz_)
+            notify_locked();
     }
 
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
         if (packet_)
             throw std::runtime_error("cannot use stream methods in packet mode");
 
+        // put_data wakes the consumer once enough data is buffered
         put_data(s, n);
-
-        if (size() > sync_sz_)
-            sync();
 
         return n;
     }
@@ -315,24 +295,18 @@ public:
         if (packet_)
             throw std::runtime_error("cannot use stream methods in packet mode");
 
-        put_data((char *) &ch, 1);
+        if (traits_type::eq_int_type(ch, traits_type::eof()))
+            return traits_type::not_eof(ch);
 
-        if (size() > sync_sz_)
-            sync();
+        const char c = traits_type::to_char_type(ch);
+        put_data(&c, 1);
 
         return ch;
     }
 
     int sync() override {
         const std::lock_guard<std::recursive_mutex> lock(mutex_);
-        try {
-            wait_promise_.set_value();
-        } catch (const std::future_error& e) {
-            ;
-        }
-
-        waiting_ = false;
-
+        notify_locked();
         return 1;
     }
 
@@ -363,10 +337,10 @@ public:
     }
 
     void cancel() {
-        mutex_.lock();
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
         cancel_ = true;
-        mutex_.unlock();
-        sync();
+        notify_locked();
+        notify_write_locked();
     }
 
     void complete() {
@@ -405,7 +379,8 @@ public:
         if (write_waiting_)
             throw std::runtime_error("future_stream already blocking for write");
 
-        if (!running())
+        // With nothing buffered no consume() is coming to wake us
+        if (!running() || total_sz_ == 0)
             return total_sz_;
 
         write_waiting_ = true;
@@ -419,6 +394,35 @@ public:
     }
 
 protected:
+    // Wake a blocked consumer; mutex_ must be held.  The promise is only set while
+    // wait() is blocked on it, since setting an already satisfied promise throws
+    void notify_locked() {
+        if (!waiting_)
+            return;
+
+        waiting_ = false;
+
+        try {
+            wait_promise_.set_value();
+        } catch (const std::future_error& e) {
+            ;
+        }
+    }
+
+    // Wake a producer blocked in wait_write(); mutex_ must be held
+    void notify_write_locked() {
+        if (!write_waiting_)
+            return;
+
+        write_waiting_ = false;
+
+        try {
+            write_wait_promise_.set_value();
+        } catch (const std::future_error& e) {
+            ;
+        }
+    }
+
     std::recursive_mutex mutex_;
 
     std::list<data_chunk *> chunk_list_;

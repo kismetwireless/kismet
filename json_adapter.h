@@ -115,10 +115,10 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     if (prettyprint)
                         stream << indent;
 
+                    // Integral values outside the long long range would overflow the cast
                     if (std::isnan(i) || std::isinf(i))
                         stream << "0";
-
-                    if (floor(i) == i)
+                    else if (floor(i) == i && std::fabs(i) < 9.2e18)
                         stream << fmt::format("{}", (long long) i);
                     else
                         stream << fmt::format("{:f}", i);
@@ -138,7 +138,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     if (prettyprint)
                         stream << indent;
 
-                    stream << "\"" << i << "\"";
+                    stream << "\"" << sanitize_string(i) << "\"";
                 }
                 stream << ppendl << indent << "]";
                 break;
@@ -390,11 +390,10 @@ void pack(std::ostream &stream, shared_tracker_element e,
                         if (std::isnan(i.first) || std::isinf(i.first)) {
                             stream << indent << "\"0\"";
                         } else if (floor(i.first) == i.first)  {
-                            auto prec = stream.precision(0);
-                            stream << indent << "\"" << std::fixed << i.first << "\"";
-                            stream.precision(prec);
+                            // Formatted directly so std::fixed and precision don't stick to the stream
+                            stream << indent << "\"" << fmt::format("{:.0f}", i.first) << "\"";
                         } else {
-                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                            stream << indent << "\"" << fmt::format("{:f}", i.first) << "\"";
                         }
 
                         if (!as_key_vector)
@@ -431,14 +430,8 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     prepend_comma = true;
 
                     if (!as_vector) {
-                        // Double keys are handled as strings in json
-                        if (std::isnan(i.first) || std::isinf(i.first)) {
-                            stream << indent << "\"0\"";
-                        } else if (floor(i.first) == i.first)  {
-                            stream << indent << "\"" << (long) i.first << "\"";
-                        } else {
-                            stream << indent << "\"" << std::fixed << i.first << "\"";
-                        }
+                        // Hash keys are integers, handled as strings in json
+                        stream << indent << "\"" << (long) i.first << "\"";
 
                         if (!as_key_vector)
                             stream << ": ";
@@ -475,10 +468,13 @@ void pack(std::ostream &stream, shared_tracker_element e,
                         // Double keys are handled as strings in json
                         if (std::isnan(i.first) || std::isinf(i.first)) {
                             stream << indent << "\"0\"";
-                        } else if (floor(i.first) == i.first)  {
-                            stream << indent << "\"" << (long) i.first << "\"";
+                        } else if (floor(i.first) == i.first && std::fabs(i.first) < 9.2e18)  {
+                            stream << indent << "\"" << (long long) i.first << "\"";
+                        } else if (floor(i.first) == i.first) {
+                            stream << indent << "\"" << fmt::format("{:.0f}", i.first) << "\"";
                         } else {
-                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                            // Formatted directly so std::fixed doesn't stick to the stream
+                            stream << indent << "\"" << fmt::format("{:f}", i.first) << "\"";
                         }
 
                         if (!as_key_vector)
@@ -488,8 +484,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     if (!as_key_vector) {
                         if (std::isnan(i.second) || std::isinf(i.second))
                             stream << "0";
-
-                        if (floor(i.second) == i.second)
+                        else if (floor(i.second) == i.second && std::fabs(i.second) < 9.2e18)
                             stream << fmt::format("{}", (long long) i.second);
                         else
                             stream << fmt::format("{:f}", i.second);
