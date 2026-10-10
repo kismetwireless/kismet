@@ -110,6 +110,9 @@ protected:
     };
 
 public:
+    // std::stringbuf can start with a small put area of its own (libc++ uses its inline
+    // string buffer); single characters written with sputc() would land there and never
+    // reach the chain, so clear it to route every write through xsputn() / overflow()
     future_chainbuf() :
         chunk_sz_{4096},
         sync_sz_{4096},
@@ -118,8 +121,10 @@ public:
         write_waiting_{false},
         complete_{false},
         cancel_{false},
-        packet_{false} { }
-        
+        packet_{false} {
+        setp(nullptr, nullptr);
+    }
+
     future_chainbuf(size_t chunk_sz, size_t sync_sz = 1024) :
         chunk_sz_{chunk_sz},
         sync_sz_{sync_sz},
@@ -128,7 +133,9 @@ public:
         write_waiting_{false},
         complete_{false},
         cancel_{false},
-        packet_{false} { }
+        packet_{false} {
+        setp(nullptr, nullptr);
+    }
 
     ~future_chainbuf() {
         cancel();
