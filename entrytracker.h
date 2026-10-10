@@ -103,16 +103,15 @@ public:
     }
     std::shared_ptr<tracker_element> get_shared_instance(uint16_t in_id);
 
-    // cascade to globalreg new from pool, but lock the entry mutex first
+    // Cascade to globalreg new from pool; the pools have their own locking, the entry mutex
+    // protects only the field maps
     template<typename T>
     std::shared_ptr<T> new_from_pool(const T* model, std::function<std::shared_ptr<T> (const T*)> fallback_new = nullptr) {
-        kis_lock_guard<kis_mutex> lg(entry_mutex, "entrytracker new_from_pool");
         return Globalreg::new_from_pool<T>(model, fallback_new);
     }
 
     template<typename T>
     std::shared_ptr<T> new_from_pool(std::function<std::shared_ptr<T> ()> fallback_new = nullptr) {
-        kis_lock_guard<kis_mutex> lg(entry_mutex, "entrytracker new_from_pool");
         return Globalreg::new_from_pool<T>(fallback_new);
     }
 
@@ -147,7 +146,14 @@ public:
     bool search_xform(std::shared_ptr<tracker_element> elem, std::string& mapped_str);
 
 protected:
-    kis_mutex entry_mutex;
+    struct reserved_field;
+
+    // Find or add a field definition; throws if it exists with a different type
+    std::shared_ptr<reserved_field> register_field_def(const std::string& in_name,
+            const std::shared_ptr<tracker_element>& in_builder, const std::string& in_desc);
+
+    // Shared for lookups, exclusive only to add fields or search transforms
+    kis_shared_mutex entry_mutex;
     // kis_mutex serializer_mutex;
 
     int next_field_num;

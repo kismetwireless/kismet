@@ -353,6 +353,13 @@ namespace Globalreg {
     }
 
 
+    // Per-type pool, published once by enable_pool_type so new_from_pool can find it without
+    // the pool map lock or a type hash.  Pools are owned by object_pool_map and never removed.
+    template<typename T>
+    struct pool_slot {
+        static inline std::atomic<shared_object_pool<T> *> pool{nullptr};
+    };
+
     // Enable pooling for a type, with an optional resetter function.  By default, a returned object 
     // has 'reset()' called on it during return, and must implement this
     template<typename T>
@@ -367,44 +374,35 @@ namespace Globalreg {
         pool->set_max(1024);
         pool->set_reset(resetter);
         Globalreg::globalreg->object_pool_map.insert({typeid(T).hash_code(), pool});
+        pool_slot<T>::pool.store(pool.get(), std::memory_order_release);
     }
 
     // Grab an object from a pool, with an optional fallback creator for generating it if the pool
     // is not enabled for this type.  By default a uniqueptr is constructed with a generic new
     template<typename T>
     std::shared_ptr<T> new_from_pool(std::function<std::shared_ptr<T> ()> fallback_new = nullptr) {
-        kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
+        auto pool = pool_slot<T>::pool.load(std::memory_order_acquire);
 
-        auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
-        if (p == Globalreg::globalreg->object_pool_map.end()) {
-            // Unlock before instantiating a new item, in case it in turns needs to touch the pool, 
-            // such as creating complex tracked components
-            lk.unlock();
-
+        if (pool == nullptr) {
             if (fallback_new)
                 return fallback_new();
             return std::make_shared<T>();
         }
 
-        return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
+        return pool->acquire();
     }
 
     template<typename T>
         std::shared_ptr<T> new_from_pool(const T* model, std::function<std::shared_ptr<T> (const T*)> fallback_new = nullptr) {
-            kis_unique_lock<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex, "globalreg new_from_pool");
+            auto pool = pool_slot<T>::pool.load(std::memory_order_acquire);
 
-            auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
-            if (p == Globalreg::globalreg->object_pool_map.end()) {
-                // Unlock before instantiating a new item, in case it in turns needs to touch the pool,
-                // such as creating complex tracked components
-                lk.unlock();
-
+            if (pool == nullptr) {
                 if (fallback_new)
                     return fallback_new(model);
                 return std::make_shared<T>(model);
             }
 
-            return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
+            return pool->acquire();
         }
 
     std::string *cache_string(const char *string, size_t len);

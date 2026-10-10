@@ -156,6 +156,7 @@ class tracker_component : public tracker_element_map {
                 insert(cvar); \
                 return cvar; \
             } \
+            return nullptr; \
         } \
         return std::static_pointer_cast<ctype>(ci->second); \
     } \
@@ -167,6 +168,7 @@ class tracker_component : public tracker_element_map {
                 insert(cvar); \
                 return get_tracker_value<ptype>(cvar); \
             } \
+            return (rtype){}; \
         } \
         return (rtype) get_tracker_value<ptype>(ci->second); \
     } \
@@ -186,6 +188,7 @@ class tracker_component : public tracker_element_map {
                 cvar->set(in); \
                 return; \
             } \
+            return; \
         } \
         std::static_pointer_cast<ctype>(ci->second)->set(in); \
     } \
@@ -642,6 +645,7 @@ class tracker_component : public tracker_element_map {
                 this->insert(cvar); \
                 return cvar; \
             } \
+            return nullptr; \
         } \
         return std::static_pointer_cast<ctype>(ci->second); \
     } \
@@ -662,6 +666,7 @@ class tracker_component : public tracker_element_map {
                 this->insert(cvar); \
                 return cvar; \
             } \
+            return nullptr; \
         } \
         return std::static_pointer_cast<ctype>(ci->second); \
     } \

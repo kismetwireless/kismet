@@ -61,7 +61,7 @@ entry_tracker::entry_tracker() {
 }
 
 entry_tracker::~entry_tracker() {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "~entrytracker");
+    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "~entrytracker");
 
     Globalreg::globalreg->remove_global("ENTRYTRACKER");
 }
@@ -81,7 +81,7 @@ void entry_tracker::trigger_deferred_shutdown() {
 }
 
 void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker tracked_fields_endp_handler");
+    kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker tracked_fields_endp_handler");
 
     std::ostream stream(&con->response_stream());
 
@@ -113,26 +113,39 @@ void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_ht
 }
 
 
-int entry_tracker::register_field(const std::string& in_name,
-        std::shared_ptr<tracker_element> in_builder,
+std::shared_ptr<entry_tracker::reserved_field> entry_tracker::register_field_def(const std::string& in_name,
+        const std::shared_ptr<tracker_element>& in_builder,
         const std::string& in_desc) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_field");
 
-    // std::string lname = str_lower(in_name);
-
-    auto field_iter = field_name_map.find(in_name);
-
-    if (field_iter != field_name_map.end()) {
-        if (field_iter->second->builder->get_signature() != in_builder->get_signature())  {
+    auto check_existing = [&in_name, &in_builder](const std::shared_ptr<reserved_field>& def) {
+        if (def->builder->get_signature() != in_builder->get_signature())  {
             const auto e = fmt::format("tried to register field {} of type {}/{} "
                     "but field already exists with conflicting type/signature {}/{}",
                     in_name, in_builder->get_type_as_string(), in_builder->get_signature(),
-                    field_iter->second->builder->get_type_as_string(),
-                    field_iter->second->builder->get_signature());
+                    def->builder->get_type_as_string(),
+                    def->builder->get_signature());
             throw std::runtime_error(e);
         }
+    };
 
-        return field_iter->second->field_id;
+    // Nearly every call is for a field that already exists, so look under the shared lock first
+    {
+        kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker register_field");
+
+        auto field_iter = field_name_map.find(in_name);
+        if (field_iter != field_name_map.end()) {
+            check_existing(field_iter->second);
+            return field_iter->second;
+        }
+    }
+
+    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker register_field new");
+
+    // Another thread may have registered it between the locks
+    auto field_iter = field_name_map.find(in_name);
+    if (field_iter != field_name_map.end()) {
+        check_existing(field_iter->second);
+        return field_iter->second;
     }
 
     auto definition = std::make_shared<reserved_field>();
@@ -145,47 +158,25 @@ int entry_tracker::register_field(const std::string& in_name,
     field_name_map[in_name] = definition;
     field_id_map[definition->field_id] = definition;
 
-    return definition->field_id;
+    return definition;
+}
+
+int entry_tracker::register_field(const std::string& in_name,
+        std::shared_ptr<tracker_element> in_builder,
+        const std::string& in_desc) {
+    return register_field_def(in_name, in_builder, in_desc)->field_id;
 }
 
 std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std::string& in_name,
         std::shared_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_and_get_field");
-
-    // std::string lname = str_lower(in_name);
-
-    auto field_iter = field_name_map.find(in_name);
-
-    if (field_iter != field_name_map.end()) {
-        if (field_iter->second->builder->get_signature() != in_builder->get_signature()) {
-            const auto e = fmt::format("tried to register field {} of type {}/{} "
-                    "but field already exists with conflicting type/signature {}/{}",
-                    in_name, in_builder->get_type_as_string(), in_builder->get_signature(),
-                    field_iter->second->builder->get_type_as_string(),
-                    field_iter->second->builder->get_signature());
-            throw std::runtime_error(e);
-        }
-
-        return field_iter->second->builder->clone_type();
-    }
-
-    auto definition = std::make_shared<reserved_field>();
-    definition->field_id = next_field_num++;
-    definition->field_name = in_name;
-    definition->field_description = in_desc;
-    definition->builder = in_builder;
-    definition->builder->set_id(definition->field_id);
-
-    field_name_map[in_name] = definition;
-    field_id_map[definition->field_id] = definition;
-
-    return definition->builder->clone_type();
+    // Cloned outside the lock; building a component can register its own fields
+    return register_field_def(in_name, in_builder, in_desc)->builder->clone_type();
 }
 
 
 uint16_t entry_tracker::get_field_id(const std::string& in_name) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_id");
+    kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_field_id");
 
     // std::string mod_name = str_lower(in_name);
 
@@ -197,7 +188,7 @@ uint16_t entry_tracker::get_field_id(const std::string& in_name) {
 }
 
 std::string entry_tracker::get_field_name(uint16_t in_id) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_name");
+    kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_field_name");
 
     auto iter = field_id_map.find(in_id);
     if (iter == field_id_map.end()) 
@@ -207,7 +198,7 @@ std::string entry_tracker::get_field_name(uint16_t in_id) {
 }
 
 std::string entry_tracker::get_field_description(uint16_t in_id) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_description");
+    kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_field_description");
 
     auto iter = field_id_map.find(in_id);
 
@@ -222,7 +213,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(uint16_t in_
     std::shared_ptr<reserved_field> def;
 
     {
-        kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_shared_instance id");
+        kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_shared_instance id");
 
         auto iter = field_id_map.find(in_id);
         if (iter == field_id_map.end())
@@ -238,7 +229,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::s
     std::shared_ptr<reserved_field> def;
 
     {
-        kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_shared_instance name");
+        kis_shared_lock<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_shared_instance name");
 
         auto iter = field_name_map.find(in_name);
         if (iter == field_name_map.end())
@@ -327,12 +318,12 @@ int entry_tracker::serialize_with_json_summary(const std::string& type, std::ost
 void entry_tracker::register_search_xform(uint16_t in_field_id, std::function<void (std::shared_ptr<tracker_element>,
             std::string& mapped_str)> in_xform) {
 
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_search_xform");
+    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker register_search_xform");
     search_xform_map[in_field_id] = in_xform;
 }
 
 void entry_tracker::remove_search_xform(uint16_t in_field_id) {
-    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker remove_search_xform");
+    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker remove_search_xform");
 
     auto i = search_xform_map.find(in_field_id);
 
@@ -343,7 +334,7 @@ void entry_tracker::remove_search_xform(uint16_t in_field_id) {
 }
 
 bool entry_tracker::search_xform(std::shared_ptr<tracker_element> elem, std::string& mapped_str) {
-    kis_unique_lock<kis_mutex> lk(entry_mutex, std::defer_lock, "entry_tracker search_xform");
+    kis_shared_lock<kis_shared_mutex> lk(entry_mutex, std::defer_lock, "entry_tracker search_xform");
 
     lk.lock();
 
