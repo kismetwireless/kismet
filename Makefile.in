@@ -562,6 +562,7 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
+	mkdir -p $(ETC)/kismet_site.d
 	mkdir -p $(BIN)
 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS);
@@ -728,7 +729,8 @@ configsinstall: $(CONFINSTTARGETS)
 	@echo "    make forceconfigs";
 	@echo 
 	@echo "You can simplify future configuration changes by using the ";
-	@echo "kismet_site.conf config file, for more info see the docs at:";
+	@echo "kismet_site.conf config file or the kismet_site.d directory, for ";
+	@echo "more info see the docs at:";
 	@echo "https://www.kismetwireless.net/docs/readme/configuring/configfiles/";
 	@echo
 	@echo

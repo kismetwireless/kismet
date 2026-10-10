@@ -168,8 +168,14 @@ protected:
             std::map<std::string, int> &target_map_dirty);
 
     // Option included override file, don't error if it's not found; parsed
-    // at the END of the file parse cycle, for each 
-    int parse_opt_override(const std::string path);
+    // at the END of the file parse cycle, for each.  Paths from an override
+    // directory are exact and must not be globbed.
+    int parse_opt_override(const std::string path, bool glob_path = true);
+
+    // Queue every *.conf file in a directory as an override, in natural order
+    void queue_override_dir(const std::string& path);
+
+    static constexpr size_t max_override_dir_files = 256;
 
     int parse_config(const char *in_fname, 
             std::map<std::string, std::vector<config_entity> > &target_map,
@@ -185,8 +191,13 @@ protected:
     uint32_t checksum;
     std::string ckstring;
 
+    struct override_entry {
+        std::string path;
+        bool glob_path;
+    };
+
     // List of config files which are *overriding*
-    std::vector<std::string> config_override_file_list;
+    std::vector<override_entry> config_override_file_list;
 
     std::string final_override;
 

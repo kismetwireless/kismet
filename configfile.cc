@@ -19,6 +19,7 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <string>
 #include <unordered_set>
 #include <ctype.h>
@@ -28,6 +29,7 @@
 #include <pthread.h>
 #include <stdexcept>
 #include <glob.h>
+#include <dirent.h>
 #include <sys/stat.h>
 
 #include "util.h"
@@ -68,12 +70,12 @@ int config_file::parse_config(const char *in_fname) {
     for (size_t i = 0; i < config_override_file_list.size(); i++) {
         const auto f = config_override_file_list[i];
 
-        if (!loaded_overrides.insert(f).second) {
-            _MSG_INFO("Skipping config override file '{}', already loaded", f);
+        if (!loaded_overrides.insert(f.path).second) {
+            _MSG_INFO("Skipping config override file '{}', already loaded", f.path);
             continue;
         }
 
-        r = parse_opt_override(f);
+        r = parse_opt_override(f.path, f.glob_path);
 
         if (r < 0)
             break;
@@ -168,7 +170,9 @@ int config_file::parse_config(const char *in_fname,
                 }
             } else if (directive == "opt_override") {
                 // Store the override for parsing at the end
-                config_override_file_list.push_back(expand_log_path(value, "", "", 0, 1));
+                config_override_file_list.push_back({expand_log_path(value, "", "", 0, 1), true});
+            } else if (directive == "opt_override_dir") {
+                queue_override_dir(expand_log_path(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname, append);
                 target_map[str_lower(directive)].push_back(e);
@@ -229,7 +233,60 @@ int config_file::parse_opt_include(const std::string path,
     return 1;
 }
 
-int config_file::parse_opt_override(const std::string path) {
+void config_file::queue_override_dir(const std::string& path) {
+    DIR *dir;
+    struct dirent *de;
+    struct stat st;
+    std::vector<std::string> names;
+    constexpr std::string_view conf_ext{".conf"};
+
+    if ((dir = opendir(path.c_str())) == nullptr) {
+        if (errno == ENOENT)
+            _MSG_INFO("Optional config override directory not present: {}", path);
+        else
+            _MSG_ERROR("Could not read config override directory '{}': {}", path,
+                    kis_strerror_r(errno));
+        return;
+    }
+
+    const auto prefix = (path.length() > 0 && path.back() == '/') ? path : path + "/";
+
+    while ((de = readdir(dir)) != nullptr) {
+        std::string_view name{de->d_name};
+
+        // Skip hidden files, which also covers editor swap files
+        if (name.length() <= conf_ext.length() || name[0] == '.')
+            continue;
+
+        if (name.substr(name.length() - conf_ext.length()) != conf_ext)
+            continue;
+
+        if (stat((prefix + de->d_name).c_str(), &st) != 0 || !S_ISREG(st.st_mode))
+            continue;
+
+        names.emplace_back(name);
+    }
+
+    closedir(dir);
+
+    std::sort(names.begin(), names.end(),
+            [](const std::string& a, const std::string& b) {
+                return natural_compare(a, b) < 0;
+            });
+
+    if (names.size() > max_override_dir_files) {
+        _MSG_ERROR("Config override directory '{}' has {} files, only loading the first {}",
+                path, names.size(), max_override_dir_files);
+        names.resize(max_override_dir_files);
+    }
+
+    _MSG_INFO("Found {} config override file(s) in '{}'", names.size(), path);
+
+    for (const auto& n : names)
+        config_override_file_list.push_back({prefix + n, false});
+}
+
+int config_file::parse_opt_override(const std::string path, bool glob_path) {
     std::map<std::string, std::vector<config_entity> > override_config_map;
     std::map<std::string, int> override_config_map_dirty;
     int r;
@@ -237,7 +294,10 @@ int config_file::parse_opt_override(const std::string path) {
     _MSG("Loading config override file '" + path + "'", MSGFLAG_INFO);
 
     // Parse into our submaps
-    r = parse_opt_include(path, override_config_map, override_config_map_dirty);
+    if (glob_path)
+        r = parse_opt_include(path, override_config_map, override_config_map_dirty);
+    else
+        r = parse_config(path.c_str(), override_config_map, override_config_map_dirty);
 
     // If we hit a legit error or a missing file, bail
     if (r <= 0)
