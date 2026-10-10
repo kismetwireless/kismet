@@ -570,7 +570,7 @@ void dot11_advertised_ssid_v2::as_json(std::ostream& os, json_adapter_v2::opts *
 
     json_adapter_v2::json_encode_keyed<bool>{}(os, "dot11.advertisedssid.dot11e_qbss", opts, dot11e_qbss_);
     json_adapter_v2::json_encode_keyed<uint16_t>{}(os, "dot11.advertisedssid.dot11e_qbss_stations", opts, dot11e_qbss_stations_);
-    json_adapter_v2::json_encode_keyed<double>{}(os, "dot11.advertisedssid.dot11e_qbss_channe_utilization", opts, dot11e_qbss_load_);
+    json_adapter_v2::json_encode_keyed<double>{}(os, "dot11.advertisedssid.dot11e_channel_utilization_perc", opts, dot11e_qbss_load_);
 
     json_adapter_v2::json_encode_keyed<uint8_t>{}(os, "dot11.advertisedssid.ccx_txpower", opts, ccx_txpower_);
     json_adapter_v2::json_encode_keyed<bool>{}(os, "dot11.advertisedssid.cisco_client_mfp", opts, cisco_client_mfp_);
@@ -724,7 +724,7 @@ void dot11_advertised_ssid_v2::filtered_as_json(std::ostream& os, json_adapter_v
             case json_adapter_v2::consthash("dot11.advertisedssid.dot11e_qbss_stations"):
                 json_adapter_v2::json_encode_keyed<uint16_t>{}(os, f.second.rename, opts, dot11e_qbss_stations_);
                 break;
-            case json_adapter_v2::consthash("dot11.advertisedssid.dot11e_qbss_channe_utilization"):
+            case json_adapter_v2::consthash("dot11.advertisedssid.dot11e_channel_utilization_perc"):
                 json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, dot11e_qbss_load_);
                 break;
             case json_adapter_v2::consthash("dot11.advertisedssid.ccx_txpower"):
