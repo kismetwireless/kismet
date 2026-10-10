@@ -1290,13 +1290,22 @@ std::shared_ptr<kis_tracked_device_base>
     std::shared_ptr<kis_tracked_device_base> device;
     device_key key(in_phy->fetch_phyname_hash(), in_mac);
 
+    // The manufacturer of a new device is looked up without holding the device list
+    // lock, then the list is checked again before the device is created
+    std::shared_ptr<tracker_element_string> new_manuf;
+    bool manuf_resolved = Globalreg::globalreg->manufdb == nullptr;
+
     while (true) {
+        bool need_manuf = false;
+
         {
             kis_lock_guard<kis_mutex> lg(get_devicelist_mutex(), "device_tracker update_common_device");
 
             device = fetch_device_nr(key);
 
-            if (device == nullptr) {
+            if (device == nullptr && !(in_flags & UCD_UPDATE_EXISTING_ONLY) && !manuf_resolved) {
+                need_manuf = true;
+            } else if (device == nullptr) {
                 if (in_flags & UCD_UPDATE_EXISTING_ONLY)
                     return nullptr;
 
@@ -1322,9 +1331,8 @@ std::shared_ptr<kis_tracked_device_base>
 
                 device->set_tracker_type_string(get_cached_devicetype(in_basic_type));
 
-                if (Globalreg::globalreg->manufdb != NULL) {
-                    device->set_manuf(Globalreg::globalreg->manufdb->lookup_oui(in_mac));
-                }
+                if (new_manuf != nullptr)
+                    device->set_manuf(new_manuf);
 
                 load_stored_username(device);
                 load_stored_tags(device);
@@ -1336,6 +1344,12 @@ std::shared_ptr<kis_tracked_device_base>
 
                 new_device = true;
             }
+        }
+
+        if (need_manuf) {
+            new_manuf = Globalreg::globalreg->manufdb->lookup_oui(in_mac);
+            manuf_resolved = true;
+            continue;
         }
 
         dlg.lock(device, false);

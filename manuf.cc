@@ -19,6 +19,9 @@
 #include "config.h"
 
 #include <stdio.h>
+
+#include <algorithm>
+
 #include "configfile.h"
 #include "entrytracker.h"
 #include "messagebus.h"
@@ -100,248 +103,89 @@ kis_manuf::kis_manuf() {
 
 void kis_manuf::IndexOUI() {
     char buf[1024];
-    int line = 0;
-    z_off_t prev_pos;
     short int m[3];
     uint32_t last_oui = 0;
-
-    kis_lock_guard<kis_mutex> lk(mutex);
+    bool sorted = true;
 
     if (zmfile == nullptr)
         return;
 
-    _MSG("Indexing manufacturer db", MSGFLAG_INFO);
+    _MSG("Loading manufacturer db", MSGFLAG_INFO);
 
-    prev_pos = gzseek(zmfile, 0, SEEK_CUR);
+    // Lines are 'AA:BB:CC<tab>Name'
+    while (gzgets(zmfile, buf, sizeof(buf)) != nullptr) {
+        auto len = strlen(buf);
 
-    while (!gzeof(zmfile)) {
-        if (gzgets(zmfile, buf, 1024) == NULL || gzeof(zmfile))
-            break;
+        while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r'))
+            len--;
 
-        if ((line % 50) == 0) {
-            if (sscanf(buf, "%hx:%hx:%hx",
-                       &(m[0]), &(m[1]), &(m[2])) == 3) {
+        if (len < 10 || buf[8] != '\t')
+            continue;
 
-                // Log a position at the previous pos - which is the line before
-                // this one, so we're inclusive
-                index_pos ip;
-                uint32_t oui;
+        if (sscanf(buf, "%2hx:%2hx:%2hx", &(m[0]), &(m[1]), &(m[2])) != 3)
+            continue;
 
-                oui = 0;
-                oui |= (uint32_t) m[0] << 16;
-                oui |= (uint32_t) m[1] << 8;
-                oui |= (uint32_t) m[2];
+        const uint32_t oui = ((uint32_t) (m[0] & 0xFF) << 16) |
+            ((uint32_t) (m[1] & 0xFF) << 8) | (uint32_t) (m[2] & 0xFF);
 
-                if (oui < last_oui) {
-                    _MSG("Warning:  kis_manuf file appears to be out of order, expected "
-                            "sorted manuf OUI data", MSGFLAG_ERROR);
-                }
+        if (oui < last_oui)
+            sorted = false;
+        last_oui = oui;
 
-                ip.oui = oui;
-                ip.pos = prev_pos;
-
-                last_oui = oui;
-
-                index_vec.push_back(ip);
-            } else {
-                // Compensate for not getting a reasonable line (probably a
-                // comment) by decrementing here so we keep trying at each
-                // index point until we get info we're looking for
-                line--;
-            }
-        }
-
-        prev_pos = gzseek(zmfile, 0, SEEK_CUR);
-        line++;
+        oui_records.push_back({oui, (uint32_t) oui_names.size(), (uint16_t) (len - 9)});
+        oui_names.append(buf + 9, len - 9);
     }
 
-    _MSG_INFO("Completed indexing manufacturer db, {} lines and {} indexes.",
-            line, index_vec.size());
+    gzclose(zmfile);
+    zmfile = nullptr;
+
+    // Stable so the first record for a duplicated OUI still wins
+    if (!sorted) {
+        _MSG("Warning:  kis_manuf file appears to be out of order, expected "
+                "sorted manuf OUI data", MSGFLAG_ERROR);
+        std::stable_sort(oui_records.begin(), oui_records.end(),
+                [](const oui_record& a, const oui_record& b) { return a.oui < b.oui; });
+    }
+
+    oui_records.shrink_to_fit();
+    oui_names.shrink_to_fit();
+
+    _MSG_INFO("Loaded manufacturer db, {} records", oui_records.size());
 }
 
 std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
-    uint32_t soui = in_mac.OUI(), toui;
-    int matched = -1;
-    char buf[1024];
-    short int m[3];
-
     // Addresses shorter than an OUI (802.15.4 short addresses) have no manufacturer; OUI()
     // would pad them with zeros and could match a real OUI
     if (in_mac.length() < 3)
         return unknown_manuf;
 
-    if (zmfile == nullptr)
-        return unknown_manuf;
-
-    {
-        kis_lock_guard<kis_mutex> lk(mutex);
-
-        // Use the cache first
-        if (oui_map.find(soui) != oui_map.end()) {
-            return oui_map[soui].manuf;
-        }
-
-        for (unsigned int x = 0; x < index_vec.size(); x++) {
-            if (soui > index_vec[x].oui) {
-                matched = x;
-                continue;
-            }
-
-            break;
-        }
-
-        // Cache unknown to save us effort in the future
-        if (matched < 0) {
-            manuf_data md;
-            md.oui = soui;
-            md.manuf = unknown_manuf;
-            oui_map[soui] = md;
-
-            return md.manuf;
-        }
-
-        // Jump backwards one index in the matching unless we're in the first block
-        if (matched > 0)
-            matched -= 1;
-    }
-
-    {
-        kis_lock_guard<kis_mutex> lk(mutex);
-
-        gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
-
-        while (!gzeof(zmfile)) {
-            if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
-                break;
-
-            if (strlen(buf) < 10)
-                continue;
-
-            // Trim \n
-            auto mlen = strlen(buf + 9) - 1;
-
-            if (mlen == 0)
-                continue;
-
-
-            if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
-
-                // Log a position at the previous pos - which is the line before
-                // this one, so we're inclusive
-                toui = mac_addr::OUI(m);
-
-                if (toui == soui) {
-                    manuf_data md;
-                    md.oui = soui;
-
-                    md.manuf = std::make_shared<tracker_element_string>(manuf_id);
-                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
-                    oui_map[soui] = md;
-                    return md.manuf;
-                }
-
-                if (toui > soui) {
-                    manuf_data md;
-                    md.oui = soui;
-                    md.manuf = unknown_manuf;
-                    oui_map[soui] = md;
-                    return md.manuf;
-                }
-            }
-        }
-    }
-
-    return unknown_manuf;
+    return lookup_oui(in_mac.OUI());
 }
 
 std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
-    uint32_t soui = in_oui, toui;
-    int matched = -1;
-    char buf[1024];
-    short int m[3];
+    // Config file records and previously resolved OUIs
+    {
+        kis_lock_guard<kis_mutex> lk(mutex);
 
-    if (zmfile == nullptr)
+        auto ci = oui_map.find(in_oui);
+        if (ci != oui_map.end())
+            return ci->second.manuf;
+    }
+
+    // oui_records is immutable after construction, so search it without the lock
+    auto ri = std::lower_bound(oui_records.begin(), oui_records.end(), in_oui,
+            [](const oui_record& r, uint32_t o) { return r.oui < o; });
+
+    // Unknown OUIs aren't cached; randomized addresses would grow the cache without bound
+    if (ri == oui_records.end() || ri->oui != in_oui)
         return unknown_manuf;
 
-    {
-        kis_lock_guard<kis_mutex> lk(mutex);
+    auto manuf = std::make_shared<tracker_element_string>(manuf_id);
+    manuf->set(munge_to_printable(oui_names.data() + ri->name_offset, ri->name_len));
 
-        // Use the cache first
-        if (oui_map.find(soui) != oui_map.end()) {
-            return oui_map[soui].manuf;
-        }
-
-        for (unsigned int x = 0; x < index_vec.size(); x++) {
-            if (soui > index_vec[x].oui) {
-                matched = x;
-                continue;
-            }
-
-            break;
-        }
-
-        // Cache unknown to save us effort in the future
-        if (matched < 0) {
-            manuf_data md;
-            md.oui = soui;
-            md.manuf = unknown_manuf;
-            oui_map[soui] = md;
-
-            return md.manuf;
-        }
-
-        // Jump backwards one index in the matching unless we're in the first block
-        if (matched > 0)
-            matched -= 1;
-    }
-
-    {
-        kis_lock_guard<kis_mutex> lk(mutex);
-
-        gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
-
-        while (!gzeof(zmfile)) {
-            if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
-                break;
-
-            if (strlen(buf) < 10)
-                continue;
-
-            // Trim \n
-            auto mlen = strlen(buf + 9) - 1;
-
-            if (mlen == 0)
-                continue;
-
-
-            if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
-
-                // Log a position at the previous pos - which is the line before
-                // this one, so we're inclusive
-                toui = mac_addr::OUI(m);
-
-                if (toui == soui) {
-                    manuf_data md;
-                    md.oui = soui;
-
-                    md.manuf = std::make_shared<tracker_element_string>(manuf_id);
-                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
-                    oui_map[soui] = md;
-                    return md.manuf;
-                }
-
-                if (toui > soui) {
-                    manuf_data md;
-                    md.oui = soui;
-                    md.manuf = unknown_manuf;
-                    oui_map[soui] = md;
-                    return md.manuf;
-                }
-            }
-        }
-    }
-
-    return unknown_manuf;
+    // Another thread may have resolved it first; keep one shared record per OUI
+    kis_lock_guard<kis_mutex> lk(mutex);
+    return oui_map.try_emplace(in_oui, manuf_data{in_oui, manuf}).first->second.manuf;
 }
 
 std::shared_ptr<tracker_element_string> kis_manuf::make_manuf(const std::string& in_manuf) {

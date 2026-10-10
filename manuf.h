@@ -45,6 +45,7 @@ class kis_manuf {
 public:
     kis_manuf();
 
+    // Load the OUI file into memory
     void IndexOUI();
 
     std::shared_ptr<tracker_element_string> lookup_oui(mac_addr in_mac);
@@ -56,11 +57,6 @@ public:
         return random_manuf;
     }
 
-    struct index_pos {
-        uint32_t oui;
-        z_off_t pos;
-    };
-
     struct manuf_data {
         uint32_t oui;
         std::shared_ptr<tracker_element_string> manuf;
@@ -69,13 +65,23 @@ public:
     bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
 
 protected:
-    kis_mutex mutex;
+    // OUI records loaded from the OUI file, sorted by OUI; the name is a range of
+    // oui_names.  Written only during construction, so searched without a lock.
+    struct oui_record {
+        uint32_t oui;
+        uint32_t name_offset;
+        uint16_t name_len;
+    };
 
-    std::vector<index_pos> index_vec;
+    std::vector<oui_record> oui_records;
+    std::string oui_names;
+
+    // Protects oui_map, which holds config file records and known OUIs already looked up
+    kis_mutex mutex;
 
     ankerl::unordered_dense::map<uint32_t, manuf_data> oui_map;
 
-    gzFile zmfile;
+    gzFile zmfile = nullptr;
 
     // IDs for manufacturer objects
     int manuf_id;
