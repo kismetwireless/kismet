@@ -97,6 +97,10 @@ protected:
     // Warn about packets dropped because the writer fell behind; rate limited unless final
     void report_drops(bool final);
 
+    // Stop logging after a write error.  Runs on the writer thread, so it can't call
+    // close_log(), which joins that thread; close_log() finishes the teardown later
+    void writer_failed();
+
     pcapng_stream_packetchain<pcapng_logfile_accept_ftor, pcapng_logfile_select_ftor> *pcapng;
     future_chainbuf *buffer;
     FILE *pcapng_file;
