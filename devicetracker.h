@@ -438,11 +438,16 @@ protected:
     // Insert a device directly into the records
     void add_device(std::shared_ptr<kis_tracked_device_base> device);
 
-    // Load stored username
-    void load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev);
+    // Stored name and tags for a device key, looked up before a device is created so the
+    // queries don't run under the device list lock
+    struct stored_device_info {
+        bool has_name = false;
+        std::string name;
+        std::vector<std::pair<std::string, std::string>> tags;
+    };
 
-    // Load stored tags
-    void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
+    void lookup_stored_name(const std::string& keystring, stored_device_info& info);
+    void lookup_stored_tags(const std::string& keystring, stored_device_info& info);
 
     // Stored name and tag queries run for every new device, so they're prepared once
     // per database handle; ds_mutex must be held, and they're finalized before the

@@ -1296,21 +1296,23 @@ std::shared_ptr<kis_tracked_device_base>
     std::shared_ptr<kis_tracked_device_base> device;
     device_key key(in_phy->fetch_phyname_hash(), in_mac);
 
-    // The manufacturer of a new device is looked up without holding the device list
-    // lock, then the list is checked again before the device is created
+    // The manufacturer, stored name, and stored tags of a new device are looked up without
+    // holding the device list lock, then the list is checked again before the device is
+    // created, so a new device is never visible without them
     std::shared_ptr<tracker_element_string> new_manuf;
-    bool manuf_resolved = Globalreg::globalreg->manufdb == nullptr;
+    stored_device_info stored;
+    bool lookups_done = false;
 
     while (true) {
-        bool need_manuf = false;
+        bool need_lookups = false;
 
         {
             kis_lock_guard<kis_mutex> lg(get_devicelist_mutex(), "device_tracker update_common_device");
 
             device = fetch_device_nr(key);
 
-            if (device == nullptr && !(in_flags & UCD_UPDATE_EXISTING_ONLY) && !manuf_resolved) {
-                need_manuf = true;
+            if (device == nullptr && !(in_flags & UCD_UPDATE_EXISTING_ONLY) && !lookups_done) {
+                need_lookups = true;
             } else if (device == nullptr) {
                 if (in_flags & UCD_UPDATE_EXISTING_ONLY)
                     return nullptr;
@@ -1340,8 +1342,14 @@ std::shared_ptr<kis_tracked_device_base>
                 if (new_manuf != nullptr)
                     device->set_manuf(new_manuf);
 
-                load_stored_username(device);
-                load_stored_tags(device);
+                if (stored.has_name)
+                    device->set_username(stored.name);
+
+                for (const auto& t : stored.tags) {
+                    auto tagc = std::make_shared<tracker_element_string>();
+                    tagc->set(t.second);
+                    device->get_tag_map()->insert(t.first, tagc);
+                }
 
                 // Add it before releasing the list so other threads find this device
                 tracked_map[key] = device;
@@ -1352,9 +1360,15 @@ std::shared_ptr<kis_tracked_device_base>
             }
         }
 
-        if (need_manuf) {
-            new_manuf = Globalreg::globalreg->manufdb->lookup_oui(in_mac);
-            manuf_resolved = true;
+        if (need_lookups) {
+            if (Globalreg::globalreg->manufdb != nullptr)
+                new_manuf = Globalreg::globalreg->manufdb->lookup_oui(in_mac);
+
+            const auto keystring = key.as_string();
+            lookup_stored_name(keystring, stored);
+            lookup_stored_tags(keystring, stored);
+
+            lookups_done = true;
             continue;
         }
 
@@ -2009,7 +2023,7 @@ void device_tracker::database_close() {
     kis_database::database_close();
 }
 
-void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
+void device_tracker::lookup_stored_name(const std::string& keystring, stored_device_info& info) {
     // Lock the database; we're doing a single query
     kis_lock_guard<kis_mutex> lk(ds_mutex);
 
@@ -2020,7 +2034,6 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
     if (stmt == nullptr)
         return;
 
-    const auto keystring = in_dev->get_key().as_string();
     sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), SQLITE_STATIC);
 
     while (1) {
@@ -2029,8 +2042,10 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
         if (r == SQLITE_ROW) {
             const auto rowstr = (const char *) sqlite3_column_text(stmt, 0);
 
-            if (rowstr != nullptr)
-                in_dev->set_username(std::string(rowstr));
+            if (rowstr != nullptr) {
+                info.name = rowstr;
+                info.has_name = true;
+            }
         } else if (r == SQLITE_DONE) {
             break;
         } else {
@@ -2045,7 +2060,7 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
     sqlite3_clear_bindings(stmt);
 }
 
-void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev) {
+void device_tracker::lookup_stored_tags(const std::string& keystring, stored_device_info& info) {
     // Lock the database; we're doing a single query
     kis_lock_guard<kis_mutex> lk(ds_mutex);
 
@@ -2056,7 +2071,6 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
     if (stmt == nullptr)
         return;
 
-    const auto keystring = in_dev->get_key().as_string();
     sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), SQLITE_STATIC);
 
     while (1) {
@@ -2069,10 +2083,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
             if (tagstr == nullptr || contentstr == nullptr)
                 continue;
 
-            auto tagc = std::make_shared<tracker_element_string>();
-            tagc->set(std::string(contentstr));
-
-            in_dev->get_tag_map()->insert(std::string(tagstr), tagc);
+            info.tags.emplace_back(tagstr, contentstr);
         } else if (r == SQLITE_DONE) {
             break;
         } else {
