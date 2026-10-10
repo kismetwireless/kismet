@@ -396,7 +396,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                     break;
             }
         } catch (const std::exception& e) {
-            _MSG_DEBUG("meshtastic failed to decode: {}", chan_name, e.what());
+            _MSG_DEBUG("meshtastic failed to decode on channel \"{}\": {}", chan_name, e.what());
             continue;
         }
 

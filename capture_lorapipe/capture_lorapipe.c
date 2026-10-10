@@ -334,7 +334,7 @@ typedef enum {
     LORA_PRESET_SHORT_SLOW,
     LORA_PRESET_LONG_MODERATE,
     LORA_PRESET_LONG_TURBO,
-    LORA_PRESET_MEDIUM_TURBO,
+    /* LORA_PRESET_MEDIUM_TURBO, */
     LORA_PRESET_SHORT_TURBO,
     LORA_PRESET_MAX
 } lora_preset_type_t;
@@ -348,7 +348,7 @@ static const char *lora_preset_type_names[LORA_PRESET_MAX] = {
     [LORA_PRESET_SHORT_SLOW] = "SHORT_SLOW",
     [LORA_PRESET_LONG_MODERATE] = "LONG_MODERATE",
     [LORA_PRESET_LONG_TURBO] = "LONG_TURBO",
-    [LORA_PRESET_MEDIUM_TURBO] = "MEDIUM_TURBO",
+    /* [LORA_PRESET_MEDIUM_TURBO] = "MEDIUM_TURBO", */
     [LORA_PRESET_SHORT_TURBO] = "SHORT_TURBO",
 };
 
@@ -376,7 +376,7 @@ static const struct {
     [LORA_PRESET_SHORT_SLOW] = { 250.0f, 812.5f, 8, 5, "ShortSlow" },
     [LORA_PRESET_LONG_MODERATE] = { 125.0f, 406.25f, 11, 8, "LongMod" },
     [LORA_PRESET_LONG_TURBO] = { 500.0f, 1625.0f, 11, 8, "LongTurbo" },
-    [LORA_PRESET_MEDIUM_TURBO] = { 500.0f, 1625.0f, 9, 5, "MediumTurbo" },
+    /* [LORA_PRESET_MEDIUM_TURBO] = { 500.0f, 1625.0f, 9, 5, "MediumTurbo" }, */
     [LORA_PRESET_SHORT_TURBO] = { 500.0f, 1625.0f, 7, 5, "ShortTurbo" },
 };
 
@@ -583,7 +583,7 @@ static int meshtastic_default_freq(lora_region_t region, lora_preset_type_t type
     uint32_t hash = 5381;
 
     if (lora_region_params[region].profile == LORA_PROFILE_EU868) {
-        if (type == LORA_PRESET_LONG_TURBO || type == LORA_PRESET_MEDIUM_TURBO ||
+        if (type == LORA_PRESET_LONG_TURBO || /* type == LORA_PRESET_MEDIUM_TURBO || */
                 type == LORA_PRESET_SHORT_TURBO)
             return -1;
     } else if (lora_region_params[region].profile != LORA_PROFILE_STD) {
@@ -625,7 +625,7 @@ static void format_freq(char *buf, size_t len, double freq) {
 }
 
 /* Channel list order; long turbo and long fast first, then the rest */
-static const lora_preset_type_t lora_channel_order[LORA_PRESET_MAX] = {
+static const lora_preset_type_t lora_channel_order[] = {
     LORA_PRESET_LONG_TURBO,
     LORA_PRESET_LONG_FAST,
     LORA_PRESET_LONG_SLOW,
@@ -634,9 +634,11 @@ static const lora_preset_type_t lora_channel_order[LORA_PRESET_MAX] = {
     LORA_PRESET_SHORT_FAST,
     LORA_PRESET_SHORT_SLOW,
     LORA_PRESET_LONG_MODERATE,
-    LORA_PRESET_MEDIUM_TURBO,
+    /* LORA_PRESET_MEDIUM_TURBO, */
     LORA_PRESET_SHORT_TURBO,
 };
+
+#define LORA_CHANNEL_ORDER_LEN (sizeof(lora_channel_order) / sizeof(lora_channel_order[0]))
 
 /* fills intf with the default slot for each preset valid in region; returns the number
    of channels, or -1 on allocation failure */
@@ -648,13 +650,13 @@ static int build_region_channels(lora_region_t region, cf_params_interface_t *in
     if (intf == NULL || region >= LORA_REGION_MAX)
         return -1;
 
-    intf->channels = (char **) calloc(LORA_PRESET_MAX, sizeof(char *));
+    intf->channels = (char **) calloc(LORA_CHANNEL_ORDER_LEN, sizeof(char *));
     if (intf->channels == NULL)
         return -1;
 
     intf->channels_len = 0;
 
-    for (int i = 0; i < LORA_PRESET_MAX; i++) {
+    for (size_t i = 0; i < LORA_CHANNEL_ORDER_LEN; i++) {
         lora_preset_type_t type = lora_channel_order[i];
 
         if (meshtastic_default_freq(region, type, &freq) < 0)

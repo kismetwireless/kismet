@@ -62,9 +62,9 @@ namespace meshtastic_crypto {
     inline constexpr size_t max_channel_name_len = 11;
 
     // Unnamed channels use the modem preset display name
-    inline constexpr std::array<std::string_view, 10> preset_channel_names{
+    inline constexpr std::array<std::string_view, 9> preset_channel_names{
         "LongFast", "LongSlow", "LongMod", "LongTurbo",
-        "MediumFast", "MediumSlow", "MediumTurbo",
+        "MediumFast", "MediumSlow", // "MediumTurbo",
         "ShortFast", "ShortSlow", "ShortTurbo",
     };
 
