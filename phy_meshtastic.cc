@@ -379,9 +379,9 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         try {
             switch (*port) {
                 case meshtastic_portnum::text_message:
-                    _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\":  len {} {}",
+                    _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
                             basedev->get_most_apt_name(), meshdev->get_nodeid(),
-                            chan_name, subcontent.length(), std::string(subcontent.data(), subcontent.length()));
+                            chan_name, std::string(subcontent.data(), subcontent.length()));
                     chan.add_message(meshdev->get_nodeid(), subcontent);
                     break;
                 case meshtastic_portnum::nodeinfo:
