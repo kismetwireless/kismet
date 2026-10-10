@@ -131,10 +131,17 @@ public:
         total_lifetime_ft.wait();
     }
 
+    // Packets discarded because the buffer was over the backlog limit (non-blocking mode)
+    uint64_t get_dropped_packets() const {
+        return dropped_packets;
+    }
+
 protected:
     kis_mutex pcap_mutex;
 
     future_chainbuf *chainbuf;
+
+    std::atomic<uint64_t> dropped_packets{0};
 
     std::promise<void> total_lifetime_promise;
     std::future<void> total_lifetime_ft;
@@ -437,8 +444,10 @@ protected:
         }
 
         // Allocate 4 bytes larger to hold the final length
-        if (!block_until(buf_sz + 4))
+        if (!block_until(buf_sz + 4)) {
+            dropped_packets++;
             return 0;
+        }
 
         pcapng_epb *epb;
         pcapng_option *opt;
@@ -589,8 +598,10 @@ protected:
         // Total buffer size is header + data + options
         size_t buf_sz = sizeof(pcapng_epb) + PAD_TO_32BIT(in_data.size()) + sizeof(pcapng_option);
 
-        if (!block_until(buf_sz + 4))
+        if (!block_until(buf_sz + 4)) {
+            dropped_packets++;
             return 0;
+        }
 
         pcapng_epb *epb;
         pcapng_option *opt;
@@ -677,11 +688,15 @@ protected:
 template<typename fn_accept, typename fn_selector>
 class pcapng_stream_packetchain : public pcapng_stream_futurebuf<fn_accept, fn_selector> {
 public:
+    // Non-blocking by default: when the buffer is over backlog_sz, packets are dropped (and
+    // counted) instead of stalling the packet threads
     pcapng_stream_packetchain(future_chainbuf *buffer, 
             fn_accept accept_filter,
             fn_selector data_selector,
-            size_t backlog_sz) :
-        pcapng_stream_futurebuf<fn_accept, fn_selector>{buffer, accept_filter, data_selector, backlog_sz, false} { }
+            size_t backlog_sz,
+            bool block_for_write = false) :
+        pcapng_stream_futurebuf<fn_accept, fn_selector>{buffer, accept_filter, data_selector,
+            backlog_sz, block_for_write} { }
 
     virtual ~pcapng_stream_packetchain() {
         this->packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);

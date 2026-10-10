@@ -80,6 +80,9 @@ struct pcapng_logfile_select_ftor {
 };
 
 
+// Default pcapng_log_buffer_mb
+constexpr unsigned long PCAPNG_LOG_DEFAULT_BUFFER_MB = 16;
+
 class kis_pcapng_logfile : public kis_logfile {
 public:
     kis_pcapng_logfile(shared_log_builder in_builder);
@@ -91,6 +94,9 @@ public:
 protected:
     void rotate_log();
 
+    // Warn about packets dropped because the writer fell behind; rate limited unless final
+    void report_drops(bool final);
+
     pcapng_stream_packetchain<pcapng_logfile_accept_ftor, pcapng_logfile_select_ftor> *pcapng;
     future_chainbuf *buffer;
     FILE *pcapng_file;
@@ -99,6 +105,14 @@ protected:
     bool log_duplicate_packets;
     bool truncate_duplicate_packets;
     bool log_data_packets;
+
+    // Bytes the writer may fall behind before packets are dropped, or blocked on when
+    // blocking is enabled
+    size_t buffer_backlog;
+    bool block_on_buffer;
+
+    uint64_t reported_drops = 0;
+    time_t last_drop_report = 0;
 
     int pack_comp_l1data, pack_comp_linkframe;
 };

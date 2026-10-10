@@ -22,6 +22,9 @@
 #include "kis_pcapnglogfile.h"
 #include "messagebus.h"
 
+#include <algorithm>
+#include <ctime>
+
 kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder) {
     buffer = new future_chainbuf(4096, 1024);
@@ -39,6 +42,15 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     max_size = 
         Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_max_mb", 0L);
     max_size = max_size * 1024 * 1024;
+
+    // How far the writer may fall behind before packets are dropped (or wait, when
+    // blocking); at least 1MB
+    buffer_backlog =
+        Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_buffer_mb", PCAPNG_LOG_DEFAULT_BUFFER_MB);
+    buffer_backlog = std::max<size_t>(buffer_backlog, 1) * 1024 * 1024;
+
+    block_on_buffer =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_blocking", false);
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
     pack_comp_l1data = packetchain->register_packet_component("L1RAW");
@@ -86,7 +98,8 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
     pcapng = new pcapng_stream_packetchain(buffer, 
             pcapng_logfile_accept_ftor(log_duplicate_packets, log_data_packets),
-            pcapng_logfile_select_ftor(truncate_duplicate_packets), (size_t) 16384);
+            pcapng_logfile_select_ftor(truncate_duplicate_packets), buffer_backlog,
+            block_on_buffer);
 
     _MSG_INFO("Opened pcapng log file '{}'", in_path);
 
@@ -117,6 +130,8 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
                 buffer->consume(sz);
 
                 log_size += sz;
+
+                report_drops(false);
 
                 // Flush the buffer, close the log, and make a new one
                 if (log_size >= max_size && max_size != 0) {
@@ -191,6 +206,35 @@ void kis_pcapng_logfile::rotate_log() {
     // Return to the packet handling loop thread and let it start processing packets again
 }
 
+void kis_pcapng_logfile::report_drops(bool final) {
+    if (pcapng == nullptr)
+        return;
+
+    const auto dropped = pcapng->get_dropped_packets();
+
+    if (dropped == reported_drops)
+        return;
+
+    const auto now = time(nullptr);
+
+    if (!final && now - last_drop_report < 10)
+        return;
+
+    const auto msg = fmt::format("pcapng log '{}' dropped {} packets ({} total) because writing "
+            "the log could not keep up; increase pcapng_log_buffer_mb, or set "
+            "pcapng_log_blocking=true to log every packet", get_log_path(),
+            dropped - reported_drops, dropped);
+
+    // Logs are closed after the message bus stops printing during shutdown
+    if (Globalreg::globalreg->spindown)
+        fmt::print(stderr, "ERROR: {}\n", msg);
+    else
+        _MSG_ERROR("{}", msg);
+
+    reported_drops = dropped;
+    last_drop_report = now;
+}
+
 void kis_pcapng_logfile::close_log() {
     kis_lock_guard<kis_mutex> lk(log_mutex);
 
@@ -200,6 +244,8 @@ void kis_pcapng_logfile::close_log() {
 
     if (stream_t.joinable())
         stream_t.join();
+
+    report_drops(true);
 
     if (pcapng_file)
         fclose(pcapng_file);
