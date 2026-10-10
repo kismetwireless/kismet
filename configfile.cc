@@ -20,6 +20,7 @@
 #include "config.h"
 
 #include <string>
+#include <unordered_set>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,12 +61,22 @@ int config_file::parse_config(const char *in_fname) {
     if (r < 0)
         return r;
 
-    for (auto f : config_override_file_list) {
+    // Override files may queue more overrides, so iterate by index as the list
+    // can grow; skip files already loaded to break include loops
+    std::unordered_set<std::string> loaded_overrides;
+
+    for (size_t i = 0; i < config_override_file_list.size(); i++) {
+        const auto f = config_override_file_list[i];
+
+        if (!loaded_overrides.insert(f).second) {
+            _MSG_INFO("Skipping config override file '{}', already loaded", f);
+            continue;
+        }
+
         r = parse_opt_override(f);
 
         if (r < 0)
             break;
-
     }
 
     config_override_file_list.clear();
@@ -151,8 +162,10 @@ int config_file::parse_config(const char *in_fname,
                 }
             } else if (directive == "opt_include") {
                 if (parse_opt_include(expand_log_path(value, "", "", 0, 1), target_map, 
-                            target_map_dirty) < 0)
+                            target_map_dirty) < 0) {
+                    fclose(configf);
                     return -1;
+                }
             } else if (directive == "opt_override") {
                 // Store the override for parsing at the end
                 config_override_file_list.push_back(expand_log_path(value, "", "", 0, 1));
@@ -178,6 +191,8 @@ int config_file::parse_opt_include(const std::string path,
 
     std::stringstream sstream;
 
+    memset(&globbed, 0, sizeof(globbed));
+
     if (glob(path.c_str(), GLOB_TILDE_CHECK, NULL, &globbed) == 0) {
         for(i=0; i<globbed.gl_pathc; i++) {
             if (stat(globbed.gl_pathv[i], &st) != 0) {
@@ -197,6 +212,7 @@ int config_file::parse_opt_include(const std::string path,
                     globbed.gl_pathv[i];
                 _MSG(sstream.str(), MSGFLAG_ERROR);
                 sstream.str("");
+                globfree(&globbed);
                 return -1;
             }
         }
@@ -204,6 +220,7 @@ int config_file::parse_opt_include(const std::string path,
         sstream << "Optional sub-config file not present: " << path;
         _MSG(sstream.str(), MSGFLAG_INFO);
         sstream.str("");
+        globfree(&globbed);
         return 0;
     }
 
