@@ -242,6 +242,8 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         return 0;
     }
 
+    // _MSG_DEBUG("packdata length {}", packdata->length());
+
     auto mesh_frame = reinterpret_cast<const meshtastic_frame_t *>(packdata->data());
 
     auto src_mac = mesh_to_mac(mesh_frame->source_id);
@@ -273,6 +275,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY), "Meshtastic", new_device);
 
     if (basedev == nullptr) {
+        // _MSG_DEBUG("Failed to make new device");
         return 0;
     }
 
@@ -296,8 +299,9 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         meshdev->set_nodeid(fmt::format("!{:08X}", mesh_frame->source_id));
     }
 
-    const auto payload = std::string_view{(const char *) packdata->data() + sizeof(meshtastic_frame_t),
-        packdata->length() - sizeof(meshtastic_frame_t)};
+    const auto payload =
+        packdata->substr(sizeof(meshtastic_frame_t),
+                packdata->length() - sizeof(meshtastic_frame_t));
 
     // nonce is the packet id as a 64 bit int followed by the sender id, both little endian
     uint8_t iv[16];
@@ -337,6 +341,8 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
         std::optional<meshtastic_portnum> port;
         std::string_view subcontent;
 
+        // _MSG_DEBUG("decoded paylaod size {}", decoded.size());
+
         try {
             protobuf_decoder::decoder decoder(decoded);
             int64_t fn;
@@ -355,7 +361,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                 }
             }
         } catch (const std::exception& e) {
-            _MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
+            // _MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
             continue;
         }
 
@@ -364,15 +370,15 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
             continue;
         }
 
-        _MSG_DEBUG("decoded a packet on channel {}", chan_name);
+        // _MSG_DEBUG("decoded a packet on channel {}", chan_name);
 
         try {
             switch (*port) {
                 case meshtastic_portnum::text_message:
-                    chan.add_message(meshdev->get_nodeid(), subcontent);
-                    _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
+                    _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\":  len {} {}",
                             basedev->get_most_apt_name(), meshdev->get_nodeid(),
-                            chan_name, std::string(subcontent.data(), subcontent.length()));
+                            chan_name, subcontent.length(), std::string(subcontent.data(), subcontent.length()));
+                    chan.add_message(meshdev->get_nodeid(), subcontent);
                     break;
                 case meshtastic_portnum::nodeinfo:
                     mphy->handle_nodeinfo_pb(subcontent, in_pack, basedev, meshdev);
@@ -387,7 +393,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                     break;
             }
         } catch (const std::exception& e) {
-            _MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
+            // _MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
             continue;
         }
 

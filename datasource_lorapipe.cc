@@ -97,7 +97,9 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
         return 1;
     }
 
-    // make a v1 header and fill in what we can
+    content_sz = (toks[9].length() / 2) + 1;
+
+    // _MSG_DEBUG("toks[9] {} len {} content sz {}", toks[9], toks[9].length(), content_sz);
 
     std::string convbuf(sizeof(kis_dlt_loratap::loratap_header_v1_t) + content_sz, (char) 0x0);
     auto loratap = reinterpret_cast<kis_dlt_loratap::loratap_header_v1_t *>(convbuf.data());
@@ -140,8 +142,7 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
     // slice the decoded data off the synthetic header
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
 
-    decapchunk->set_data(packet->data.substr(sizeof(kis_dlt_loratap::loratap_header_v1_t),
-                data_sz - sizeof(kis_dlt_loratap::loratap_header_v1_t)));
+    decapchunk->set_data(packet->data.substr(sizeof(kis_dlt_loratap::loratap_header_v1_t), data_sz));
 
     switch (syncword) {
         case kis_dlt_loratap::sync_meshtastic:

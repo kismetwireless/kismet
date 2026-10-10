@@ -873,7 +873,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     const char *channel = (const char *) privchan;
     bool ret;
 
-    printf("debug - chancontrol %s\n", channel);
+    // printf("debug - chancontrol %s\n", channel);
 
     ret = set_channel(caph, channel, msg);
 
@@ -1151,12 +1151,12 @@ void capture_thread(kis_capture_handler_t *caph) {
         /* tag with the channel while still holding serial_mutex so a channel change
            can't land between the read and the tag */
         if (line_len >= 4) {
-            printf("debug - got line %u %.*s\n", line_len, line_len, line);
+            // printf("debug - got line %u %.*s\n", line_len, line_len, line);
 
             pthread_mutex_lock(&local->channel_mutex);
 
             if (local->channel != NULL) {
-                printf("debug - combining local channel %s\n", local->channel);
+                // printf("debug - combining local channel %s\n", local->channel);
 
                 size_t chan_len = strlen(local->channel);
 
@@ -1189,7 +1189,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         struct timeval tv;
         gettimeofday(&tv, NULL);
 
-        printf("debug - sending %u %.*s\n", combo_len, (int) combo_len, combo);
+        // printf("debug - sending %u %.*s\n", combo_len, (int) combo_len, combo);
 
         while (1) {
             int r = cf_send_data(caph, NULL, 0, NULL, NULL, tv, 0,
