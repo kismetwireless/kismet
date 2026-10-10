@@ -38,7 +38,10 @@
 #include <inttypes.h>
 #endif
 #include <algorithm>
+#include <array>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <vector>
 #include <map>
 #include <sstream>
@@ -52,31 +55,19 @@
 #define MAC_LEN_MAX		8
 
 struct mac_addr {
-    constexpr uint64_t bits_to_mask(unsigned int bits) const {
-        return ((uint64_t) -1) << (64 - bits);
+    // Shifting a 64 bit value by 64 is undefined; clamp to 64 and keep the shift in
+    // 0..63, then zero the result for 0 bits.  Branchless since it's on the hash path.
+    static constexpr uint64_t bits_to_mask(unsigned int bits) {
+        const auto shifted = ~(uint64_t) 0 << ((64 - std::min(bits, 64U)) & 63);
+        return shifted & (0 - (uint64_t) (bits != 0));
     }
 
-    constexpr uint8_t num_left_bits(uint64_t v) const {
-        uint8_t r = 0;
-        for (int b = 0; b < 64; b++) {
-            if ((v >> (63 - b)) & 0x1) {
-                r++;
-                continue;
-            }
-
-            break;
-        }
-
-        return r;
+    // Count of leading 1 bits; clz is undefined for 0, so all-ones is handled explicitly
+    static constexpr uint8_t num_left_bits(uint64_t v) {
+        if (v == ~(uint64_t) 0)
+            return 64;
+        return __builtin_clzll(~v);
     }
-
-    constexpr mac_addr(mac_addr&& o) noexcept :
-        longmac{o.longmac},
-        maskbits{o.maskbits},
-        state {
-            .len = o.state.len,
-            .error = o.state.error
-        } { }
 
     uint64_t longmac;
     uint8_t maskbits;
@@ -161,6 +152,14 @@ struct mac_addr {
         }
 
         maskbits = num_left_bits(longmask);
+
+        // A mask with no leading bits would match everything; reject it, and fall
+        // back to an exact match for callers that don't check error()
+        if (mode == 1 && maskbits == 0) {
+            state.error = true;
+            maskbits = 64;
+        }
+
         state.len = len - 1;
     }
 
@@ -172,13 +171,11 @@ struct mac_addr {
             .error = 0
         } { }
 
-    constexpr mac_addr(const mac_addr& in) :
-        longmac{in.longmac},
-        maskbits{in.maskbits},
-        state {
-            .len = in.state.len,
-            .error = in.state.error
-        } { }
+    // Defaulted so mac_addr stays trivially copyable and passes in registers
+    constexpr mac_addr(const mac_addr& in) = default;
+    constexpr mac_addr(mac_addr&& in) noexcept = default;
+    mac_addr& operator=(const mac_addr& op) = default;
+    mac_addr& operator=(mac_addr&& op) noexcept = default;
 
     mac_addr(const char *in) {
         string2long(in);
@@ -276,18 +273,30 @@ struct mac_addr {
         }
 
         ret_len = nbyte;
-        ret_term = temp_long >> ((MAC_LEN_MAX - nbyte) * 8);
+
+        if (nbyte == 0)
+            ret_term = 0;
+        else
+            ret_term = temp_long >> ((MAC_LEN_MAX - nbyte) * 8);
 
         return true;
     }
 
-    // Match against a partial MAC address, prepared with prepare_search_term
-    bool partial_search(uint64_t in_term, unsigned int in_len) const {
-        unsigned char *rt = (uint8_t *) &in_term;
-        unsigned char *rlm = (uint8_t *) &longmac;
+    // Match against a partial MAC address, prepared with prepare_search_term; compares
+    // each byte-aligned window of longmac by shifting, matching the previous little
+    // endian memcmp behavior on any byte order
+    constexpr17 bool partial_search(uint64_t in_term, unsigned int in_len) const {
+        if (in_len == 0)
+            return true;
 
-        for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) 
-            if (memcmp(rt, rlm + p, in_len) == 0)
+        if (in_len > MAC_LEN_MAX)
+            return false;
+
+        const uint64_t window = in_len >= MAC_LEN_MAX ? ~(uint64_t) 0 :
+            ((uint64_t) 1 << (in_len * 8)) - 1;
+
+        for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++)
+            if (((longmac >> (p * 8)) & window) == in_term)
                 return true;
 
         return false;
@@ -297,10 +306,9 @@ struct mac_addr {
         return (longmac & op.longmac);
     }
 
+    // Compared under the narrower of the two masks
     constexpr17 bool operator== (const mac_addr& op) const {
-        if (maskbits < op.maskbits)
-            return ((longmac & bits_to_mask(maskbits)) == (op.longmac & bits_to_mask(maskbits)));
-        return ((longmac & op.bits_to_mask(op.maskbits)) == (op.longmac & bits_to_mask(op.maskbits)));
+        return ((longmac ^ op.longmac) & bits_to_mask(std::min(maskbits, op.maskbits))) == 0;
     }
 
     constexpr17 bool operator== (const uint64_t op) const {
@@ -312,19 +320,14 @@ struct mac_addr {
     }
 
     constexpr17 bool operator<=(const mac_addr& op) const {
-        return (longmac & bits_to_mask(maskbits)) <= (op.longmac & bits_to_mask(maskbits));
+        const auto mask = bits_to_mask(maskbits);
+        return (longmac & mask) <= (op.longmac & mask);
     }
 
     // MAC less-than for STL sorts...
     constexpr17 bool operator< (const mac_addr& op) const {
-        return (longmac & bits_to_mask(maskbits)) < (op.longmac & bits_to_mask(maskbits));
-    }
-
-    mac_addr& operator= (const mac_addr& op) {
-        longmac = op.longmac;
-        maskbits = op.maskbits;
-        state = op.state;
-        return *this;
+        const auto mask = bits_to_mask(maskbits);
+        return (longmac & mask) < (op.longmac & mask);
     }
 
     mac_addr& operator= (const char *in) {
@@ -394,87 +397,32 @@ struct mac_addr {
         return (longmac >> ((MAC_LEN_MAX - 1) * 8)) & 0x01;
     }
 
+    // Longest formatted mac or mask, 8 bytes as XX:XX:..., no terminator
+    static constexpr size_t str_max_len = (MAC_LEN_MAX * 3) - 1;
+    using str_buf_t = std::array<char, str_max_len>;
+
+    // Format into a caller buffer without allocating; the view is only valid
+    // while buf is
+    std::string_view to_chars(str_buf_t& buf) const {
+        return std::string_view(buf.data(), format_hex(longmac, buf));
+    }
+
+    std::string_view mask_to_chars(str_buf_t& buf) const {
+        return std::string_view(buf.data(), format_hex(bits_to_mask(maskbits), buf));
+    }
+
     std::string as_string() const {
         return mac_to_string();
     }
 
     std::string mac_to_string() const {
-        switch (state.len) {
-            case 0:
-                return fmt::format("{:02X}", 
-                        index64(longmac, 0));
-            case 1:
-                return fmt::format("{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1));
-            case 2:
-                return fmt::format("{:02X}:{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2));
-            case 3:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-                        index64(longmac, 3));
-            case 4:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-                        index64(longmac, 3), index64(longmac, 4));
-            case 5:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-                        index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
-            case 6:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-                        index64(longmac, 3), index64(longmac, 4), index64(longmac, 5),
-                        index64(longmac, 6));
-            case 7:
-            default:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-                        index64(longmac, 3), index64(longmac, 4), index64(longmac, 5),
-                        index64(longmac, 6), index64(longmac, 7));
-
-
-        }
+        str_buf_t buf;
+        return std::string(to_chars(buf));
     }
 
     std::string mac_mask_to_string() const {
-        auto longmask = bits_to_mask(maskbits);
-        switch (state.len) {
-            case 0:
-                return fmt::format("{:02X}", 
-                        index64(longmask, 0));
-            case 1:
-                return fmt::format("{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1));
-            case 2:
-                return fmt::format("{:02X}:{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2));
-            case 3:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                        index64(longmask, 3));
-            case 4:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                        index64(longmask, 3), index64(longmask, 4));
-            case 5:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                        index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
-            case 6:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                        index64(longmask, 3), index64(longmask, 4), index64(longmask, 5),
-                        index64(longmask, 6));
-            case 7:
-            default:
-                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                        index64(longmask, 3), index64(longmask, 4), index64(longmask, 5),
-                        index64(longmask, 6), index64(longmask, 7));
-
-
-        }
+        str_buf_t buf;
+        return std::string(mask_to_chars(buf));
     }
 
     constexpr17 uint64_t get_as_long() const {
@@ -482,18 +430,59 @@ struct mac_addr {
     }
 
     std::string mac_full_to_string() const {
-        const auto s = fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
+        str_buf_t buf;
+        std::string s;
+        s.reserve((str_max_len * 2) + 1);
+        s.append(to_chars(buf));
+        s.push_back('/');
+        s.append(mask_to_chars(buf));
         return s;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);
     friend std::istream& operator>>(std::istream& is, mac_addr& m);
+
+private:
+    // Writes the first length() bytes of v as XX:XX:..., returns chars written
+    size_t format_hex(uint64_t v, str_buf_t& buf) const {
+        constexpr char hex[] = "0123456789ABCDEF";
+        const auto len = length();
+        size_t p = 0;
+
+        for (unsigned int i = 0; i < len; i++) {
+            if (i > 0)
+                buf[p++] = ':';
+
+            const auto b = index64(v, i);
+            buf[p++] = hex[(b >> 4) & 0xF];
+            buf[p++] = hex[b & 0xF];
+        }
+
+        return p;
+    }
 };
+
+static_assert(std::is_trivially_copyable_v<mac_addr>, "mac_addr must stay trivially copyable");
+static_assert(mac_addr::bits_to_mask(0) == 0);
+static_assert(mac_addr::bits_to_mask(1) == 0x8000000000000000ULL);
+static_assert(mac_addr::bits_to_mask(48) == 0xFFFFFFFFFFFF0000ULL);
+static_assert(mac_addr::bits_to_mask(64) == ~(uint64_t) 0);
+static_assert(mac_addr::bits_to_mask(200) == ~(uint64_t) 0);
+static_assert(mac_addr::num_left_bits(0) == 0);
+static_assert(mac_addr::num_left_bits(0xFFFFFF0000000000ULL) == 24);
+static_assert(mac_addr::num_left_bits(0x7FFFFFFFFFFFFFFFULL) == 0);
+static_assert(mac_addr::num_left_bits(~(uint64_t) 0) == 64);
 
 std::ostream& operator<<(std::ostream& os, const mac_addr& m);
 std::istream& operator>>(std::istream& is, mac_addr& m);
 
-template <>struct fmt::formatter<mac_addr> : fmt::ostream_formatter {};
+// Formats straight from a stack buffer; inherits string_view specs like width and alignment
+template <> struct fmt::formatter<mac_addr> : fmt::formatter<std::string_view> {
+    auto format(const mac_addr& m, fmt::format_context& ctx) const {
+        mac_addr::str_buf_t buf;
+        return fmt::formatter<std::string_view>::format(m.to_chars(buf), ctx);
+    }
+};
 
 // A hash algorithm which is unique by mask.
 //
@@ -518,7 +507,8 @@ namespace kis_regex {
     // conversely, it would take 3x the ram per mac to have a saved string conversion
     template<> struct regex_match<mac_addr> {
         bool operator()(const regex& re, const mac_addr& m) {
-            return re.match(m.as_string());
+            mac_addr::str_buf_t buf;
+            return re.match(m.to_chars(buf));
         }
     };
 

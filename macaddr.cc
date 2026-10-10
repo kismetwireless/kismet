@@ -19,7 +19,8 @@
 #include "macaddr.h"
 
 std::ostream& operator<<(std::ostream& os, const mac_addr& m) {
-    os << m.mac_to_string();
+    mac_addr::str_buf_t buf;
+    os << m.to_chars(buf);
     return os;
 }
 
