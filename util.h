@@ -85,6 +85,65 @@ std::string str_strip(const std::string& in_str);
 
 std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl);
 
+// Natural order compare (2_foo < 10_foo); digit runs are compared by length then
+// digits so long numbers can't overflow, and ties fall back to byte order
+constexpr int natural_compare(std::string_view a, std::string_view b) {
+    auto is_digit = [](char c) { return c >= '0' && c <= '9'; };
+    size_t ai = 0, bi = 0;
+
+    while (ai < a.size() && bi < b.size()) {
+        if (is_digit(a[ai]) && is_digit(b[bi])) {
+            while (ai < a.size() && a[ai] == '0')
+                ai++;
+            while (bi < b.size() && b[bi] == '0')
+                bi++;
+
+            const auto as = ai, bs = bi;
+
+            while (ai < a.size() && is_digit(a[ai]))
+                ai++;
+            while (bi < b.size() && is_digit(b[bi]))
+                bi++;
+
+            if (ai - as != bi - bs)
+                return (ai - as) < (bi - bs) ? -1 : 1;
+
+            for (size_t i = 0; i < ai - as; i++) {
+                if (a[as + i] != b[bs + i])
+                    return a[as + i] < b[bs + i] ? -1 : 1;
+            }
+
+            continue;
+        }
+
+        if (a[ai] != b[bi])
+            return static_cast<unsigned char>(a[ai]) < static_cast<unsigned char>(b[bi]) ? -1 : 1;
+
+        ai++;
+        bi++;
+    }
+
+    if (ai < a.size())
+        return 1;
+    if (bi < b.size())
+        return -1;
+
+    const auto r = a.compare(b);
+    return r < 0 ? -1 : (r > 0 ? 1 : 0);
+}
+
+static_assert(natural_compare("1_foo", "2_foo") < 0);
+static_assert(natural_compare("2_foo", "10_foo") < 0);
+static_assert(natural_compare("10_foo", "11_foo") < 0);
+static_assert(natural_compare("11_foo", "2_foo") > 0);
+static_assert(natural_compare("a2", "a10") < 0);
+static_assert(natural_compare("abc", "abd") < 0);
+static_assert(natural_compare("a", "a1") < 0);
+static_assert(natural_compare("01_a", "1_a") < 0);
+static_assert(natural_compare("1_a", "01_a") > 0);
+static_assert(natural_compare("10_foo", "10_foo") == 0);
+static_assert(natural_compare("99999999999999999999999_a", "100000000000000000000000_a") < 0);
+
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
 template<class t> 
