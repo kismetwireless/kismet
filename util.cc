@@ -263,9 +263,8 @@ std::size_t munge_extra_space(const char *s, size_t len, bool utf8) noexcept {
 
             default:
                 if (!utf8) {
-                    if (c >= 32 && c <= 126) {
-                        result += 1;
-                    } else {
+                    // from c (1 byte) to \xNN (4 bytes)
+                    if (c < 32 || c > 126) {
                         result += 3;
                     }
                 } else {
@@ -292,12 +291,16 @@ std::string munge_to_printable(const char *s, size_t len) noexcept {
         return "";
     }
 
+    // Bounded by len throughout; s may not be null terminated and may contain nulls
     const auto utf8 = is_valid_utf8(s, len);
-    const auto space = munge_extra_space(s, utf8);
+    const auto space = munge_extra_space(s, len, utf8);
 
     if (space == 0) {
-        return s;
+        return std::string(s, len);
     }
+
+    constexpr char hex_upper[] = "0123456789ABCDEF";
+    constexpr char hex_lower[] = "0123456789abcdef";
 
     // create a result string of necessary size
     std::string result(len + space, '\\');
@@ -368,17 +371,22 @@ std::string munge_to_printable(const char *s, size_t len) noexcept {
                     if (c >= 32 && c <= 126) {
                         result[pos++] = c;
                     } else {
-                        sprintf(&result[pos], "x%02X", c);
+                        // \xNN; result[pos] is already the backslash
+                        result[pos + 1] = 'x';
+                        result[pos + 2] = hex_upper[c >> 4];
+                        result[pos + 3] = hex_upper[c & 0x0F];
                         pos += 4;
                     }
                 } else {
 
                     if (c >= 0x00 and c <= 0x1f) {
-                        // print character c as \uxxxx
-                        sprintf(&result[pos + 1], "u%04x", int(c));
+                        // print character c as \u00xx
+                        result[pos + 1] = 'u';
+                        result[pos + 2] = '0';
+                        result[pos + 3] = '0';
+                        result[pos + 4] = hex_lower[c >> 4];
+                        result[pos + 5] = hex_lower[c & 0x0F];
                         pos += 6;
-                        // overwrite trailing null character
-                        result[pos] = '\\';
                     } else {
                         // all other characters are added as-is
                         result[pos++] = c;
