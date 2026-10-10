@@ -407,7 +407,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
-    printf("interface: %s\n", interface);
 
     // Only handle our interface type
     if (strstr(interface, "catsniffer_zigbee") != interface) {
