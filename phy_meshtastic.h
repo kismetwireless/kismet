@@ -645,6 +645,67 @@ public:
         max = 511,
     };
 
+    static constexpr std::string_view portnum_to_string(meshtastic_portnum port) {
+        switch (port) {
+            case meshtastic_portnum::unknown:
+                return "unknown";
+            case meshtastic_portnum::text_message:
+                return "text_message";
+            case meshtastic_portnum::remote_hardware:
+                return "remote_hardware";
+            case meshtastic_portnum::position:
+                return "position";
+            case meshtastic_portnum::nodeinfo:
+                return "nodeinfo";
+            case meshtastic_portnum::routing:
+                return "routing";
+            case meshtastic_portnum::admin:
+                return "admin";
+            case meshtastic_portnum::text_message_compressed:
+                return "text_message_compressed";
+            case meshtastic_portnum::waypoint:
+                return "waypoint";
+            case meshtastic_portnum::audio:
+                return "audio";
+            case meshtastic_portnum::detection_sensor:
+                return "detection_sensor";
+            case meshtastic_portnum::reply:
+                return "reply";
+            case meshtastic_portnum::ip_tunnel:
+                return "ip_tunnel";
+            case meshtastic_portnum::paxcounter:
+                return "paxcounter";
+            case meshtastic_portnum::serial:
+                return "serial";
+            case meshtastic_portnum::store_forward:
+                return "store_forward";
+            case meshtastic_portnum::range_test:
+                return "range_test";
+            case meshtastic_portnum::telemetry:
+                return "telemetry";
+            case meshtastic_portnum::zps:
+                return "zps";
+            case meshtastic_portnum::simulator:
+                return "simulator";
+            case meshtastic_portnum::traceroute:
+                return "traceroute";
+            case meshtastic_portnum::neighborinfo:
+                return "neighborinfo";
+            case meshtastic_portnum::atak:
+                return "atak";
+            case meshtastic_portnum::map_report:
+                return "map_report";
+            case meshtastic_portnum::private_app:
+                return "private_app";
+            case meshtastic_portnum::atak_forwarder:
+                return "atak_forwarder";
+            case meshtastic_portnum::max:
+                return "max";
+        }
+
+        return "unknown";
+    }
+
     enum class meshtastic_data_pb {
         fn_unknown = 0,
 

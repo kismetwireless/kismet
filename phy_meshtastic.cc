@@ -381,7 +381,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                     chan.add_message(meshdev->get_nodeid(), subcontent);
                     break;
                 case meshtastic_portnum::nodeinfo:
-                    mphy->handle_nodeinfo_pb(subcontent, in_pack, basedev, meshdev);
+                    mphy->handle_user_pb(subcontent, in_pack, basedev, meshdev);
                     break;
                 case meshtastic_portnum::position:
                     mphy->handle_position_pb(subcontent, in_pack, basedev, meshdev);
@@ -390,10 +390,13 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                     mphy->handle_telemetry_pb(subcontent, in_pack, basedev, meshdev);
                     break;
                 default:
+                    _MSG_DEBUG("Meshtastic \"{}\" ({}) not handling message on port {} ({})",
+                            basedev->get_most_apt_name(), meshdev->get_nodeid(),
+                            portnum_to_string(*port), static_cast<int>(*port));
                     break;
             }
         } catch (const std::exception& e) {
-            // _MSG_DEBUG("meshtastic channel '{}' failed to decode: {}", chan_name, e.what());
+            _MSG_DEBUG("meshtastic failed to decode: {}", chan_name, e.what());
             continue;
         }
 
@@ -463,6 +466,8 @@ void kis_meshtastic_phy::handle_user_pb(const std::string_view& pbuf,
 
     std::string_view data;
     std::shared_ptr<tracker_element_string> manuf;
+
+    _MSG_DEBUG("meshtastic - handling user block");
 
     int64_t fn;
     while (1) {
