@@ -2245,6 +2245,120 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     return 1;
 }
 
+// Crypt bits for one Android ScanResult capabilities element (without the
+// brackets), such as "WPA2-PSK-CCMP", "RSN-PSK+PSK-SHA256+SAE-CCMP" or
+// "WPA-EAP-TKIP": the protocol, the '+'-joined key management list and the
+// '+'-joined pairwise cipher list, separated by '-'.  Android 10 and newer
+// report an RSN network twice, as "WPA2-..." (PSK and EAP only) and as
+// "RSN-..." (every key management type).
+//
+// Key management and ciphers map onto the same bits the beacon RSN/WPA parser
+// sets, so a network seen both in a beacon and in a scan report gets the same
+// crypt set and does not flap the advertised encryption.  Android does not
+// report the group cipher; it is taken as the weakest pairwise cipher, which
+// is what mixed TKIP/CCMP networks use.
+static uint64_t dot11_android_capability_crypt(std::string element) {
+    auto bracket = element.find(']');
+    if (bracket != std::string::npos)
+        element.resize(bracket);
+
+    auto proto_end = element.find('-');
+    if (proto_end == std::string::npos)
+        return 0;
+
+    auto proto = element.substr(0, proto_end);
+    uint64_t ret = 0;
+
+    if (proto == "WPA")
+        ret |= dot11_crypt_general_wpa | dot11_crypt_general_wpa1;
+    else if (proto == "WPA2" || proto == "RSN")
+        ret |= dot11_crypt_general_wpa | dot11_crypt_general_wpa2;
+    else
+        return 0;
+
+    // The cipher list starts at the first '-' followed by a cipher name; key
+    // management names can contain '-' themselves (PSK-SHA256).
+    auto cipher_start = std::string::npos;
+    for (auto pos = element.find('-', proto_end + 1); pos != std::string::npos;
+            pos = element.find('-', pos + 1)) {
+        for (const auto c : {"CCMP", "TKIP", "GCMP", "SMS4", "NONE"}) {
+            if (element.compare(pos + 1, strlen(c), c) == 0) {
+                cipher_start = pos;
+                break;
+            }
+        }
+
+        if (cipher_start != std::string::npos)
+            break;
+    }
+
+    auto akms = element.substr(proto_end + 1, cipher_start == std::string::npos ?
+            std::string::npos : cipher_start - proto_end - 1);
+    auto ciphers = cipher_start == std::string::npos ? std::string() :
+        element.substr(cipher_start + 1);
+
+    for (const auto& a : str_tokenize(akms, "+")) {
+        if (a == "PSK")
+            ret |= dot11_crypt_akm_psk;
+        else if (a == "EAP")
+            ret |= dot11_crypt_akm_1x;
+        else if (a == "FT/PSK")
+            ret |= dot11_crypt_akm_psk_ft;
+        else if (a == "FT/EAP")
+            ret |= dot11_crypt_akm_1x_ft;
+        else if (a == "PSK-SHA256")
+            ret |= dot11_crypt_akm_psk_sha256;
+        else if (a == "EAP-SHA256")
+            ret |= dot11_crypt_akm_1x_sha256;
+        else if (a == "SAE")
+            ret |= dot11_crypt_general_wpa3 | dot11_crypt_akm_sae;
+        else if (a == "FT/SAE")
+            ret |= dot11_crypt_general_wpa3 | dot11_crypt_akm_sae_ft;
+        else if (a == "OWE")
+            ret |= dot11_crypt_general_wpa3 | dot11_crypt_akm_owe;
+        else if (a == "EAP_SUITE_B_192")
+            ret |= dot11_crypt_general_wpa3 | dot11_crypt_akm_1x_suiteb_sha384;
+        else if (a == "FILS-SHA256")
+            ret |= dot11_crypt_general_wpa3 | dot11_crypt_akm_fils_sha256;
+        else if (a == "FILS-SHA384")
+            ret |= dot11_crypt_general_wpa3 | dot11_crypt_akm_fils_sha384;
+    }
+
+    auto cipher_list = str_tokenize(ciphers, "+");
+    bool tkip = false;
+
+    for (const auto& c : cipher_list)
+        if (c == "TKIP")
+            tkip = true;
+
+    if (tkip)
+        ret |= dot11_crypt_group_tkip;
+
+    for (const auto& c : cipher_list) {
+        if (c == "CCMP") {
+            ret |= dot11_crypt_pairwise_ccmp128;
+            if (!tkip)
+                ret |= dot11_crypt_group_ccmp128;
+        } else if (c == "TKIP") {
+            ret |= dot11_crypt_pairwise_tkip;
+        } else if (c == "CCMP-256") {
+            ret |= dot11_crypt_pairwise_ccmp256;
+            if (!tkip)
+                ret |= dot11_crypt_group_ccmp256;
+        } else if (c == "GCMP-128") {
+            ret |= dot11_crypt_pairwise_gcmp128;
+            if (!tkip)
+                ret |= dot11_crypt_group_gcmp128;
+        } else if (c == "GCMP-256") {
+            ret |= dot11_crypt_pairwise_gcmp256;
+            if (!tkip)
+                ret |= dot11_crypt_group_gcmp256;
+        }
+    }
+
+    return ret;
+}
+
 int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     auto *d11phy = (kis_80211_phy *) auxdata;
 
@@ -2389,19 +2503,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             auto caps_list = str_tokenize(capabilities, "[");
 
             for (const auto& c : caps_list) {
-                if (c.find("PSK") != std::string::npos) {
-                    if (c.find("WPA2") != std::string::npos)
-                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa2 + dot11_crypt_akm_psk;
-                    else
-                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa1 + dot11_crypt_akm_psk;
-                }
+                cryptset |= dot11_android_capability_crypt(c);
 
                 if (c.find("EAP") != std::string::npos) {
-                    if (c.find("WPA2") != std::string::npos)
-                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa2 + dot11_crypt_akm_1x;
-                    else
-                        cryptset |= dot11_crypt_general_wpa + dot11_crypt_general_wpa1 + dot11_crypt_akm_1x;
-
                     if (c.find("PEAP") != std::string::npos)
                         cryptset |= dot11_crypt_eap_peap;
 
@@ -2410,24 +2514,13 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
                     if (c.find("TTLS") != std::string::npos)
                         cryptset |= dot11_crypt_eap_ttls;
-
-                    if (c.find("SAE") != std::string::npos)
-                        cryptset |= dot11_crypt_akm_sae;
-                }
-
-                // Not sure if this is actually a valid option
-                if (c.find("OWE") != std::string::npos) {
-                    cryptset |= crypt_wpa_owe;
                 }
 
                 if (c.find("WEP40") != std::string::npos)
-                    cryptset |= dot11_crypt_general_wep + dot11_crypt_group_wep40 + dot11_crypt_pairwise_wep40;
+                    cryptset |= dot11_crypt_general_wep | dot11_crypt_group_wep40 | dot11_crypt_pairwise_wep40;
 
                 if (c.find("WEP104") != std::string::npos)
-                    cryptset |= dot11_crypt_general_wep + dot11_crypt_group_wep104 + dot11_crypt_pairwise_wep104;
-
-                if (c.find("CCMP") != std::string::npos || c.find("CCMP128") != std::string::npos)
-                    cryptset |= dot11_crypt_general_wpa + dot11_crypt_group_ccmp128 + dot11_crypt_pairwise_ccmp128;
+                    cryptset |= dot11_crypt_general_wep | dot11_crypt_group_wep104 | dot11_crypt_pairwise_wep104;
             }
 
         } else {
