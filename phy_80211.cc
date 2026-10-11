@@ -2260,7 +2260,8 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json->type != "DOT11SCAN")
         return 0;
 
-    if (!in_pack->common_info.common_info_ok) {
+    // Don't reclassify something that's already been seen
+    if (in_pack->common_info.common_info_ok) {
         return 0;
     }
 
