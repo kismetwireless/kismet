@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <termios.h>
 #include <time.h>
 
 #include <algorithm>
@@ -41,6 +43,7 @@ kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder, uint64_t in_
     data_timer{strand_},
     probe_timer{strand_},
     cfg_timer{strand_},
+    read_retry_timer{strand_},
     write_active{false},
     fixed_baud{0},
     binary_allowed{true},
@@ -162,6 +165,7 @@ void kis_gps_serial_v3::close_port() {
 
     state = serial_state::closed;
     probe_timer.cancel();
+    read_retry_timer.cancel();
 
     // Configuration starts over on the next open; what was changed is kept for restoring
     cfg_step++;
@@ -235,6 +239,25 @@ void kis_gps_serial_v3::open_impl() {
         serialport.set_option(spb::flow_control(spb::flow_control::none), ec);
     if (!ec && rate != 0)
         serialport.set_option(spb::baud_rate(rate), ec);
+
+    // Ignore modem control lines so a missing DCD doesn't block or hang up the port, and
+    // block for at least one byte so an idle port doesn't return empty reads.  Later baud
+    // changes only touch the speed, so these persist.
+    if (!ec) {
+        const auto fd = serialport.native_handle();
+        struct termios tio;
+
+        if (tcgetattr(fd, &tio) != 0) {
+            ec.assign(errno, boost::system::system_category());
+        } else {
+            tio.c_cflag |= (CLOCAL | CREAD);
+            tio.c_cc[VMIN] = 1;
+            tio.c_cc[VTIME] = 0;
+
+            if (tcsetattr(fd, TCSANOW, &tio) != 0)
+                ec.assign(errno, boost::system::system_category());
+        }
+    }
 
     if (ec) {
         // Retried until it works, so only say so once
@@ -447,6 +470,21 @@ void kis_gps_serial_v3::start_read() {
                 }));
 }
 
+void kis_gps_serial_v3::schedule_read_retry() {
+    // Delayed so a port which keeps returning nothing doesn't spin
+    read_retry_timer.expires_after(empty_read_retry);
+    read_retry_timer.async_wait(boost::asio::bind_executor(strand_,
+                [weak = weak_from_this(), gen = generation](const boost::system::error_code& ec) {
+                    auto self = weak.lock();
+
+                    if (ec || self == nullptr || gen != self->generation || self->stopped)
+                        return;
+
+                    if (self->state != serial_state::closed)
+                        self->start_read();
+                }));
+}
+
 void kis_gps_serial_v3::handle_read(const boost::system::error_code& ec, std::size_t sz) {
     if (stopped)
         return;
@@ -455,7 +493,18 @@ void kis_gps_serial_v3::handle_read(const boost::system::error_code& ec, std::si
         if (ec == boost::asio::error::operation_aborted)
             return;
 
+        // A zero-length read is no data, not end of file; serial ports don't have an end
+        if (ec == boost::asio::error::eof) {
+            schedule_read_retry();
+            return;
+        }
+
         handle_port_error("reading from", ec, true);
+        return;
+    }
+
+    if (sz == 0) {
+        schedule_read_retry();
         return;
     }
 

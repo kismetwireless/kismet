@@ -105,6 +105,10 @@ protected:
     // case it's plugged straight back in
     static constexpr std::chrono::seconds read_error_retry{2};
 
+    // A read with no data is retried after this long rather than treated as a disconnect;
+    // a port which really went away is caught by the data timeout
+    static constexpr std::chrono::milliseconds empty_read_retry{100};
+
     // Retry delays after consecutive failures
     static constexpr std::array<std::chrono::seconds, 3> reconnect_backoff{
         std::chrono::seconds{10}, std::chrono::seconds{30}, std::chrono::seconds{60}
@@ -171,6 +175,7 @@ protected:
     void close_port();
     void schedule_reconnect(bool after_read_error = false);
     void arm_data_timer();
+    void schedule_read_retry();
 
     void start_probe(size_t index);
     void arm_probe_timer(std::chrono::milliseconds delay);
@@ -236,6 +241,7 @@ protected:
     boost::asio::steady_timer data_timer;
     boost::asio::steady_timer probe_timer;
     boost::asio::steady_timer cfg_timer;
+    boost::asio::steady_timer read_retry_timer;
 
     std::array<uint8_t, 1024> read_buf;
     gps_framer_v1 framer;
