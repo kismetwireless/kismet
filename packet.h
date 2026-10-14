@@ -825,25 +825,25 @@ public:
     }
 
     auto ts_sec() { return ts_sec_; }
-    void set_ts_sec(auto time) { ts_sec_ = time; }
+    void set_ts_sec(uint64_t time) { ts_sec_ = time; }
 
     auto ts_usec() { return ts_usec_; }
-    void set_ts_usec(auto time) { ts_usec_ = time; }
+    void set_ts_usec(uint64_t time) { ts_usec_ = time; }
 
     const auto time() { return std::make_pair(ts_sec_, ts_usec_); }
-    void set_time(auto ts, auto us) {
+    void set_time(uint64_t ts, uint64_t us) {
         ts_sec_ = ts;
         ts_usec_ = us;
     }
 
     auto dlt() { return dlt_; }
-    void set_dlt(auto dlt) { dlt_ = dlt; }
+    void set_dlt(uint64_t dlt) { dlt_ = dlt; }
 
     auto source_id() { return source_id_; }
-    void set_source_id(auto id) { source_id_ = id; }
+    void set_source_id(uint64_t id) { source_id_ = id; }
 
     const auto& data() { return data_; }
-    void set_data(auto data) { data_ = base64::encode(data); }
+    void set_data(const std::string_view& data) { data_ = base64::encode(data); }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) {
         fmt::print(os, "{{");

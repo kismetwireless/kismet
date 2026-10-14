@@ -288,16 +288,16 @@ public:
     auto& mutex() { return mutex_; }
 
     const auto internal_id() const { return internal_id_; }
-    void set_internal_id(auto id) { internal_id_ = id; }
+    template<typename T> void set_internal_id(T id) { internal_id_ = id; }
 
     const auto& key() const { return key_; }
-    void set_key(const auto& k) { key_ = k; }
+    template<typename T> void set_key(const T& k) { key_ = k; }
 
     const auto phyname() { return phyname_; }
-    void set_phyname(const auto& phy) { phyname_ = phy; }
+    template<typename T> void set_phyname(const T& phy) { phyname_ = phy; }
 
     const auto phyid() { return phyid_; }
-    void set_phyid(auto phy) { phyid_ = phy; }
+    template<typename T> void set_phyid(T phy) { phyid_ = phy; }
 
     const auto& commonname() {
         if (username() != "") {
@@ -306,50 +306,50 @@ public:
 
         return commonname_;
     }
-    void set_commonname(const auto& name) { commonname_ = name; }
+    template<typename T> void set_commonname(const T& name) { commonname_ = name; }
 
     const auto& devicename() { return devicename_; }
-    void set_devicename(const auto& name) {
+    template<typename T> void set_devicename(const T& name) {
         devicename_ = name;
         commonname_ = "";
     }
 
     const std::string& username() { return username_; }
-    void set_username(const auto& name) { username_ = name; }
+    template<typename T> void set_username(const T& name) { username_ = name; }
 
     const auto& type_string() { return type_string_; }
-    void set_type_string(const auto& type) { type_string_ = type; }
-    void set_type_string_if(const auto& type, uint64_t ifset) {
+    template<typename T> void set_type_string(const T& type) { type_string_ = type; }
+    template<typename T> void set_type_string_if(const T& type, uint64_t ifset) {
         if (basic_type_set_ & ifset) {
             type_string_ = type;
         }
     }
-    void set_type_string_ifonly(const auto& type, uint64_t ifset) {
+    template<typename T> void set_type_string_ifonly(const T& type, uint64_t ifset) {
         if (basic_type_set_ == ifset) {
             type_string_ = type;
         }
     }
-    void set_type_string_ifnot(const auto& type, uint64_t ifset) {
+    template<typename T> void set_type_string_ifnot(const T& type, uint64_t ifset) {
         if ((basic_type_set_ & ifset) != ifset) {
             type_string_ = type;
         }
     }
-    void set_type_string_ifnotany(const auto& type, uint64_t ifset) {
+    template<typename T> void set_type_string_ifnotany(const T& type, uint64_t ifset) {
         if (!(basic_type_set_ & ifset)) {
             type_string_ = type;
         }
     }
-    void set_type_string_ifany(const auto& type, uint64_t ifset) {
+    template<typename T> void set_type_string_ifany(const T& type, uint64_t ifset) {
         if ((basic_type_set_ & ifset)) {
             type_string_ = type;
         }
     }
 
     const auto& basic_type_set() { return basic_type_set_; }
-    void set_basic_type_set(auto set) { basic_type_set_ = set; }
+    template<typename T> void set_basic_type_set(T set) { basic_type_set_ = set; }
 
     const auto& mac_addr() { return mac_addr_; }
-    void set_mac_addr(const auto& mac) {
+    template<typename T> void set_mac_addr(const T& mac) {
         mac_addr_ = mac;
         if (commonname() == "") {
             set_commonname(mac.to_string());
@@ -357,31 +357,31 @@ public:
     }
 
     const auto first_time() { return first_time_; }
-    void set_first_time(auto time) { first_time_ = time; }
-    void set_first_time_ifless(auto time) {
+    template<typename T> void set_first_time(T time) { first_time_ = time; }
+    template<typename T> void set_first_time_ifless(T time) {
         if (time < first_time_) {
             first_time_ = time;
         }
     }
 
     const auto last_time() { return last_time_; }
-    void set_last_time(auto time) { last_time_ = time; }
-    void set_last_time_ifgreater(auto time) {
+    template<typename T> void set_last_time(T time) { last_time_ = time; }
+    template<typename T> void set_last_time_ifgreater(T time) {
         if (last_time_ < time) {
             last_time_ = time;
         }
     }
 
     const auto mod_time() { return mod_time_; }
-    void set_mod_time(auto time) { mod_time_ = time; }
+    template<typename T> void set_mod_time(T time) { mod_time_ = time; }
     void set_mod_time_now() { mod_time_ = Globalreg::globalreg->last_tv_sec; }
 
     const auto& crypt_string() { return crypt_string_; }
     void set_crypt_string(const std::string& crypt) { crypt_string_ = crypt; }
 
     const auto basic_crypt_set() { return basic_crypt_set_; }
-    void set_basic_crypt_set(const auto set) { basic_crypt_set_ = set; }
-    void add_basic_crypt_set(const auto set) { basic_crypt_set_ |= set; }
+    template<typename T> void set_basic_crypt_set(const T set) { basic_crypt_set_ = set; }
+    template<typename T> void add_basic_crypt_set(const T set) { basic_crypt_set_ |= set; }
 
     const auto packets() { return packets_; }
     void set_packets(uint64_t packets) { packets_ = packets; }
@@ -436,10 +436,10 @@ public:
     void inc_packets_tx_rrd(time_t time) { packets_tx_rrd_.add_sample(1, time); }
 
     const auto& channel() { return channel_; }
-    void set_channel(const auto& channel) { channel_ = channel; }
+    template<typename T> void set_channel(const T& channel) { channel_ = channel; }
 
     const auto frequency_khz() { return frequency_khz_; }
-    void set_frequency_khz(auto freq) { frequency_khz_ = freq; }
+    template<typename T> void set_frequency_khz(T freq) { frequency_khz_ = freq; }
 
     auto& freq_khz_distribution() { return freq_khz_distribution_; }
     void inc_freq_khz_distribution(uint64_t freq) { freq_khz_distribution_[freq]++; }
@@ -447,7 +447,7 @@ public:
     auto& signal() { return signal_; }
 
     const auto& manuf() { return manuf_; }
-    void set_manuf(const auto& manuf) { manuf_ = manuf; }
+    template<typename T> void set_manuf(const T& manuf) { manuf_ = manuf; }
 
     auto& tag_map() { return tag_map_; }
 
@@ -462,7 +462,7 @@ public:
     }
 
     const auto num_alerts() { return num_alerts_; }
-    void set_num_alerts(auto num) { num_alerts_ = num; }
+    template<typename T> void set_num_alerts(T num) { num_alerts_ = num; }
     void inc_num_alerts() { num_alerts_++; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;

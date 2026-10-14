@@ -265,7 +265,7 @@ std::string kis_external_tcp::remote_addresss() {
 }
 
 bool kis_external_tcp::is_remote() {
-    return !(remote_addresss().starts_with("127."));
+    return !(remote_addresss().compare(0, 4, "127.") == 0);
 }
 
 void kis_external_tcp::start_read() {
@@ -347,7 +347,7 @@ std::string kis_external_ws::remote_addresss() {
 
 bool kis_external_ws::is_remote() {
     if (ws_ != nullptr) {
-        return !(ws_->remote_address().starts_with("127."));
+        return !(ws_->remote_address().compare(0, 4, "127.") == 0);
     }
 
     return true;

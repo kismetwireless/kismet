@@ -16,7 +16,11 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include <charconv>
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 
 #include "datasource_lorapipe.h"
 
@@ -24,6 +28,55 @@
 
 #include "kis_endian.h"
 #include "kis_dlt_loratap.h"
+
+// <charconv> isn't available, or lacks floating point, on older compilers.  Tokens are
+// copied to a terminated buffer and must be consumed completely.
+namespace {
+    constexpr size_t lorapipe_num_max = 32;
+
+    bool lorapipe_copy_num(const std::string_view& sv, char (&buf)[lorapipe_num_max]) {
+        if (sv.empty() || sv.length() >= lorapipe_num_max)
+            return false;
+
+        // strto* skip leading whitespace and accept '+', which from_chars did not
+        if (sv[0] == '+' || isspace((unsigned char) sv[0]))
+            return false;
+
+        memcpy(buf, sv.data(), sv.length());
+        buf[sv.length()] = 0;
+        return true;
+    }
+
+    bool lorapipe_parse(const std::string_view& sv, float& out) {
+        char buf[lorapipe_num_max];
+
+        if (!lorapipe_copy_num(sv, buf))
+            return false;
+
+        char *end;
+        errno = 0;
+        out = strtof(buf, &end);
+
+        return errno == 0 && end == buf + sv.length();
+    }
+
+    bool lorapipe_parse(const std::string_view& sv, unsigned int& out, int base = 10) {
+        char buf[lorapipe_num_max];
+
+        if (!lorapipe_copy_num(sv, buf) || buf[0] == '-')
+            return false;
+
+        char *end;
+        errno = 0;
+        const auto v = strtoul(buf, &end, base);
+
+        if (errno != 0 || end != buf + sv.length() || v > UINT_MAX)
+            return false;
+
+        out = static_cast<unsigned int>(v);
+        return true;
+    }
+}
 
 int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
@@ -48,50 +101,43 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
     float freq, signal, snr;
     unsigned int bandwidth, spreading, coding, syncword;
 
-    auto cres = std::from_chars(toks[0].begin(), toks[0].end(), freq);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[0], freq)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;
     }
 
-    cres = std::from_chars(toks[1].begin(), toks[1].end(), bandwidth);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[1], bandwidth)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;
     }
 
-    cres = std::from_chars(toks[2].begin(), toks[2].end(), spreading);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[2], spreading)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;
     }
 
-    cres = std::from_chars(toks[3].begin(), toks[3].end(), coding);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[3], coding)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;
     }
 
-    cres = std::from_chars(toks[4].begin(), toks[4].end(), syncword, 16);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[4], syncword, 16)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;
     }
 
-    cres = std::from_chars(toks[7].begin(), toks[7].end(), signal);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[7], signal)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;
     }
 
-    cres = std::from_chars(toks[8].begin(), toks[8].end(), snr);
-    if (cres.ec != std::errc{}) {
+    if (!lorapipe_parse(toks[8], snr)) {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         return 1;

@@ -246,13 +246,13 @@ public:
     }
 
     auto nodeid() const { return nodeid_; }
-    void set_nodeid(auto v) { nodeid_ = v; }
+    template<typename T> void set_nodeid(T v) { nodeid_ = v; }
 
     auto channel() const { return channel_; }
-    void set_channel(auto v) { channel_ = v; }
+    template<typename T> void set_channel(T v) { channel_ = v; }
 
     auto message() const { return message_; }
-    void set_message(auto v) { message_ = v; }
+    template<typename T> void set_message(T v) { message_ = v; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
 

@@ -75,28 +75,28 @@ public:
     }
 
     auto eapol_time() const { return eapol_time_; }
-    void set_eapol_time(auto time) { eapol_time_ = time; }
+    template<typename T> void set_eapol_time(T time) { eapol_time_ = time; }
 
     auto eapol_dir() const { return eapol_dir_; };
-    void set_eapol_dir(auto dir) { eapol_dir_ = dir; }
+    template<typename T> void set_eapol_dir(T dir) { eapol_dir_ = dir; }
 
     auto eapol_replay_counter() const { return eapol_replay_counter_; }
-    void set_eapol_replay_counter(auto c) { eapol_replay_counter_ = c; }
+    template<typename T> void set_eapol_replay_counter(T c) { eapol_replay_counter_ = c; }
 
     auto eapol_msg_num() const { return eapol_msg_num_; }
-    void set_eapol_msg_num(auto num) { eapol_msg_num_ = num; }
+    template<typename T> void set_eapol_msg_num(T num) { eapol_msg_num_ = num; }
 
     auto eapol_install() const { return eapol_install_; }
-    void set_eapol_install(auto i) { eapol_install_ = i; }
+    template<typename T> void set_eapol_install(T i) { eapol_install_ = i; }
 
     const auto& eapol_nonce() const { return eapol_nonce_; }
-    void set_eapol_nonce(const auto& nonce) { eapol_nonce_ = base64::encode(nonce); }
+    template<typename T> void set_eapol_nonce(const T& nonce) { eapol_nonce_ = base64::encode(nonce); }
 
     const auto& eapol_rsn_pmkid() const { return eapol_rsn_pmkid_; }
-    void set_eapol_rsn_pmkid(const auto& pmk) { eapol_rsn_pmkid_ = base64::encode(pmk); }
+    template<typename T> void set_eapol_rsn_pmkid(const T& pmk) { eapol_rsn_pmkid_ = base64::encode(pmk); }
 
     auto& packet() const { return packet_; }
-    void set_packet(const auto& packet) { packet_ = packet; }
+    template<typename T> void set_packet(const T& packet) { packet_ = packet; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -157,19 +157,19 @@ public:
     }
 
     auto eapol_time() const { return eapol_time_; }
-    void set_eapol_time(auto time) { eapol_time_ = time; }
+    template<typename T> void set_eapol_time(T time) { eapol_time_ = time; }
 
     auto eapol_replay_counter() const { return eapol_replay_counter_; }
-    void set_eapol_replay_counter(auto c) { eapol_replay_counter_ = c; }
+    template<typename T> void set_eapol_replay_counter(T c) { eapol_replay_counter_ = c; }
 
     auto eapol_msg_num() const { return eapol_msg_num_; }
-    void set_eapol_msg_num(auto num) { eapol_msg_num_ = num; }
+    template<typename T> void set_eapol_msg_num(T num) { eapol_msg_num_ = num; }
 
     auto eapol_install() const { return eapol_install_; }
-    void set_eapol_install(auto i) { eapol_install_ = i; }
+    template<typename T> void set_eapol_install(T i) { eapol_install_ = i; }
 
     const auto& eapol_nonce() const { return eapol_nonce_; }
-    void set_eapol_nonce(const auto& nonce) { eapol_nonce_ = base64::encode(nonce); }
+    template<typename T> void set_eapol_nonce(const T& nonce) { eapol_nonce_ = base64::encode(nonce); }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -240,13 +240,13 @@ public:
     }
 
     const auto ssid_group_name() { return ssid_group_name_; }
-    void set_ssid_group_name(auto name) { ssid_group_name_ = name; }
+    template<typename T> void set_ssid_group_name(T name) { ssid_group_name_ = name; }
 
     const auto ssid_regex() { return ssid_regex_; }
     void set_ssid_regex(const std::string& regex);
 
     auto& allowed_macs() { return allowed_macs_vec_; }
-    void set_allowed_macs(const auto& macs) { allowed_macs_vec_ = macs; }
+    template<typename T> void set_allowed_macs(const T& macs) { allowed_macs_vec_ = macs; }
 
     bool compare_ssid(const std::string& ssid, const mac_addr& mac);
 
@@ -317,13 +317,13 @@ public:
     }
 
     auto startchan() { return startchan_; }
-    void set_startchan(auto start) { startchan_ = start; }
+    template<typename T> void set_startchan(T start) { startchan_ = start; }
 
     auto numchan() { return numchan_; }
-    void set_numchan(auto num) { numchan_ = num; }
+    template<typename T> void set_numchan(T num) { numchan_ = num; }
 
     auto txpower() { return txpower_; }
-    void set_txpower(auto pow) { txpower_ = pow; }
+    template<typename T> void set_txpower(T pow) { txpower_ = pow; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -381,22 +381,22 @@ public:
     }
 
     auto unique_tag_id() { return unique_tag_id_; }
-    void set_unique_tag_id(auto id) { unique_tag_id_ = id; }
+    template<typename T> void set_unique_tag_id(T id) { unique_tag_id_ = id; }
 
     auto tag_number() { return tag_number_; }
-    void set_tag_number(auto num) { tag_number_ = num; }
+    template<typename T> void set_tag_number(T num) { tag_number_ = num; }
 
     auto tag_oui() { return tag_oui_; }
-    void set_tag_oui(auto oui) { tag_oui_ = oui; }
+    template<typename T> void set_tag_oui(T oui) { tag_oui_ = oui; }
 
     const auto& tag_oui_manuf() { return tag_oui_manuf_; }
-    void set_tag_oui_manuf(const auto& manuf) { tag_oui_manuf_ = manuf; }
+    template<typename T> void set_tag_oui_manuf(const T& manuf) { tag_oui_manuf_ = manuf; }
 
     auto tag_vendor() { return tag_vendor_; }
-    void set_tag_vendor(auto v) { tag_vendor_ = v; }
+    template<typename T> void set_tag_vendor(T v) { tag_vendor_ = v; }
 
     const auto& tag_data() { return tag_data_; }
-    void set_tag_data(const auto& d) { tag_data_ = base64::encode(d); }
+    template<typename T> void set_tag_data(const T& d) { tag_data_ = base64::encode(d); }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -473,74 +473,74 @@ public:
     }
 
     const auto first_time() { return first_time_; }
-    void set_first_time(auto time) { first_time_ = time; }
-    void set_first_time_ifless(auto time) {
+    template<typename T> void set_first_time(T time) { first_time_ = time; }
+    template<typename T> void set_first_time_ifless(T time) {
         if (time < first_time_) {
             first_time_ = time;
         }
     }
 
     const auto last_time() { return last_time_; }
-    void set_last_time(auto time) { last_time_ = time; }
-    void set_last_time_ifgreater(auto time) {
+    template<typename T> void set_last_time(T time) { last_time_ = time; }
+    template<typename T> void set_last_time_ifgreater(T time) {
         if (last_time_ < time) {
             last_time_ = time;
         }
     }
 
     const auto& ssid() const { return ssid_; }
-    void set_ssid(const auto& ssid) { ssid_ = ssid; }
+    template<typename T> void set_ssid(const T& ssid) { ssid_ = ssid; }
 
     auto ssid_len() const { return ssid_len_; }
-    void set_ssid_len(auto len) { ssid_len_ = len; }
+    template<typename T> void set_ssid_len(T len) { ssid_len_ = len; }
 
     const auto& bssid() const { return bssid_; }
-    void set_bssid(const auto& bssid) { bssid_ = bssid; }
+    template<typename T> void set_bssid(const T& bssid) { bssid_ = bssid; }
 
     auto& location() const { return location_; }
-    void set_location(const auto& loc) { location_ = loc; }
+    template<typename T> void set_location(const T& loc) { location_ = loc; }
 
     auto dot11r_mobility() const { return dot11r_mobility_; }
-    void set_dot11r_mobility(auto m) { dot11r_mobility_ = m; }
+    template<typename T> void set_dot11r_mobility(T m) { dot11r_mobility_ = m; }
 
     auto dot11r_mobility_domain() const { return dot11r_mobility_domain_; }
-    void set_dot11r_mobility_domain(auto d) { dot11r_mobility_domain_ = d; }
+    template<typename T> void set_dot11r_mobility_domain(T d) { dot11r_mobility_domain_ = d; }
 
     auto crypt_set() const { return crypt_set_; }
-    void set_crypt_set(auto s) { crypt_set_ = s; }
+    template<typename T> void set_crypt_set(T s) { crypt_set_ = s; }
 
     const auto& crypt_string() const { return crypt_string_; }
-    void set_crypt_string(const auto& c) { crypt_string_ = c; }
+    template<typename T> void set_crypt_string(const T& c) { crypt_string_ = c; }
 
     auto wpa_mfp_required() const { return wpa_mfp_required_; }
-    void set_wpa_mfp_required(auto r) { wpa_mfp_required_ = r; }
+    template<typename T> void set_wpa_mfp_required(T r) { wpa_mfp_required_ = r; }
 
     auto wpa_mfp_supported() const { return wpa_mfp_supported_; }
-    void set_wpa_mfp_supported(auto v) { wpa_mfp_supported_ = v; }
+    template<typename T> void set_wpa_mfp_supported(T v) { wpa_mfp_supported_ = v; }
 
     auto& ie_tag_list() { return ie_tag_list_; }
-    void set_ie_tag_list(const auto& v) { ie_tag_list_ = v; }
+    template<typename T> void set_ie_tag_list(const T& v) { ie_tag_list_ = v; }
 
     auto wps_version() const { return wps_version_; }
-    void set_wps_version(auto v) { wps_version_ = v; }
+    template<typename T> void set_wps_version(T v) { wps_version_ = v; }
 
     auto wps_state() const { return wps_state_; }
-    void set_wps_state(auto v) { wps_state_ = v; }
+    template<typename T> void set_wps_state(T v) { wps_state_ = v; }
 
     auto wps_config_methods() const { return wps_config_methods_; }
-    void set_wps_config_methods(auto v) { wps_config_methods_ = v; }
+    template<typename T> void set_wps_config_methods(T v) { wps_config_methods_ = v; }
 
     const auto& wps_manuf() const { return wps_manuf_; }
-    void set_wps_manuf(const auto& v) { wps_manuf_ = v; }
+    template<typename T> void set_wps_manuf(const T& v) { wps_manuf_ = v; }
 
     const auto& wps_device_name() const { return wps_device_name_; }
-    void set_wps_device_name(const auto& v) { wps_device_name_ = v; }
+    template<typename T> void set_wps_device_name(const T& v) { wps_device_name_ = v; }
 
     const auto& wps_model_name() const { return wps_model_name_; }
-    void set_wps_model_name(const auto& v) { wps_model_name_ = v; }
+    template<typename T> void set_wps_model_name(const T& v) { wps_model_name_ = v; }
 
     const auto& wps_uuid_e() const { return wps_uuid_e_; }
-    void set_wps_uuid_e(const auto& v) { wps_uuid_e_ = v; }
+    template<typename T> void set_wps_uuid_e(const T& v) { wps_uuid_e_ = v; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -682,92 +682,92 @@ public:
     }
 
     const auto& ssid() const { return ssid_; }
-    void set_ssid(const auto& v) { ssid_ = v; }
+    template<typename T> void set_ssid(const T& v) { ssid_ = v; }
 
     auto ssid_len() const { return ssid_len_; }
-    void set_ssid_len(auto v) { ssid_len_ = v; }
+    template<typename T> void set_ssid_len(T v) { ssid_len_ = v; }
 
     auto ssid_hash() const { return ssid_hash_; }
-    void set_ssid_hash(auto v) { ssid_hash_ = v; }
+    template<typename T> void set_ssid_hash(T v) { ssid_hash_ = v; }
 
     auto ssid_cloaked() const { return ssid_cloaked_; }
-    void set_ssid_cloaked(auto v) { ssid_cloaked_ = v; }
+    template<typename T> void set_ssid_cloaked(T v) { ssid_cloaked_ = v; }
 
     auto ssid_crc32_hash() const { return ssid_crc32_hash_; }
-    void set_ssid_crc32_hash(auto v) { ssid_crc32_hash_ = v; }
+    template<typename T> void set_ssid_crc32_hash(T v) { ssid_crc32_hash_ = v; }
 
     const auto& owe_ssid() const { return owe_ssid_; }
-    void set_owe_ssid(const auto& v) { owe_ssid_ = v; }
+    template<typename T> void set_owe_ssid(const T& v) { owe_ssid_ = v; }
 
     auto owe_ssid_len() const { return owe_ssid_len_; }
-    void set_owe_ssid_len(auto v) { owe_ssid_len_ = v; }
+    template<typename T> void set_owe_ssid_len(T v) { owe_ssid_len_ = v; }
 
     const auto& owe_bssid() const { return owe_bssid_; }
-    void set_owe_bssid(const auto& v) { owe_bssid_ = v; }
+    template<typename T> void set_owe_bssid(const T& v) { owe_bssid_ = v; }
 
     auto ssid_beacon() const { return ssid_beacon_; }
-    void set_ssid_beacon(auto v) { ssid_beacon_ = v; }
+    template<typename T> void set_ssid_beacon(T v) { ssid_beacon_ = v; }
 
     auto ssid_probe_response() const { return ssid_probe_response_; }
-    void set_ssid_probe_response(auto v) { ssid_probe_response_ = v; }
+    template<typename T> void set_ssid_probe_response(T v) { ssid_probe_response_ = v; }
 
     const auto& channel() const { return channel_; }
-    void set_channel(const auto& v) { channel_ = v; }
+    template<typename T> void set_channel(const T& v) { channel_ = v; }
 
     const auto& ht_mode() const { return ht_mode_; }
-    void set_ht_mode(const auto& v) { ht_mode_ = v; }
+    template<typename T> void set_ht_mode(const T& v) { ht_mode_ = v; }
 
     auto ht_center_1() const { return ht_center_1_; }
-    void set_ht_center_1(auto v) { ht_center_1_ = v; }
+    template<typename T> void set_ht_center_1(T v) { ht_center_1_ = v; }
 
     auto ht_center_2() const { return ht_center_2_; }
-    void set_ht_center_2(auto v) { ht_center_2_ = v; }
+    template<typename T> void set_ht_center_2(T v) { ht_center_2_ = v; }
 
     auto channel_width() const { return channel_width_; }
-    void set_channel_width(auto v) { channel_width_ = v; }
+    template<typename T> void set_channel_width(T v) { channel_width_ = v; }
 
     const auto first_time() { return first_time_; }
-    void set_first_time(auto time) { first_time_ = time; }
-    void set_first_time_ifless(auto time) {
+    template<typename T> void set_first_time(T time) { first_time_ = time; }
+    template<typename T> void set_first_time_ifless(T time) {
         if (time < first_time_) {
             first_time_ = time;
         }
     }
 
     const auto last_time() { return last_time_; }
-    void set_last_time(auto time) { last_time_ = time; }
-    void set_last_time_ifgreater(auto time) {
+    template<typename T> void set_last_time(T time) { last_time_ = time; }
+    template<typename T> void set_last_time_ifgreater(T time) {
         if (last_time_ < time) {
             last_time_ = time;
         }
     }
 
     auto& location() const { return location_; }
-    void set_location(const auto& v) { location_ = v; }
+    template<typename T> void set_location(const T& v) { location_ = v; }
 
     const auto& beacon_info() const { return beacon_info_; }
-    void set_beacon_info(const auto& v) { beacon_info_ = v; }
+    template<typename T> void set_beacon_info(const T& v) { beacon_info_ = v; }
 
     auto crypt_set() const { return crypt_set_; }
-    void set_crypt_set(auto v) { crypt_set_ = v; }
+    template<typename T> void set_crypt_set(T v) { crypt_set_ = v; }
 
     const auto& crypt_string() const { return crypt_string_; }
-    void set_crypt_string(const auto& v) { crypt_string_ = v; }
+    template<typename T> void set_crypt_string(const T& v) { crypt_string_ = v; }
 
     auto wpa_mfp_required() const { return wpa_mfp_required_; }
-    void set_wpa_mfp_required(auto v) { wpa_mfp_required_ = v; }
+    template<typename T> void set_wpa_mfp_required(T v) { wpa_mfp_required_ = v; }
 
     auto wpa_mfp_supported() const { return wpa_mfp_supported_; }
-    void set_wpa_mfp_supported(auto v) { wpa_mfp_supported_ = v; }
+    template<typename T> void set_wpa_mfp_supported(T v) { wpa_mfp_supported_ = v; }
 
     auto maxrate() const { return maxrate_; }
-    void set_maxrate(auto v) { maxrate_ = v; }
+    template<typename T> void set_maxrate(T v) { maxrate_ = v; }
 
     auto beaconrate() const { return beaconrate_; }
-    void set_beaconrate(auto v) { beaconrate_ = v; }
+    template<typename T> void set_beaconrate(T v) { beaconrate_ = v; }
 
     auto beacons_seen() const { return beacons_seen_; }
-    void set_beacons_seen(auto v) { beacons_seen_ = v; }
+    template<typename T> void set_beacons_seen(T v) { beacons_seen_ = v; }
     void inc_beacons_seen(unsigned int seen, time_t time) {
         if (beacons_seen_sec_ != time) {
             beacons_seen_sec_ = time;
@@ -778,73 +778,73 @@ public:
     }
 
     const auto& ie_tag_list() const { return ie_tag_list_; }
-    void set_ie_tag_list(const auto& v) { ie_tag_list_ = v; }
+    template<typename T> void set_ie_tag_list(const T& v) { ie_tag_list_ = v; }
 
     auto ie_tag_checksum() const { return ie_tag_checksum_; }
-    void set_ie_tag_checksum(auto v) { ie_tag_checksum_ = v; }
+    template<typename T> void set_ie_tag_checksum(T v) { ie_tag_checksum_ = v; }
 
     const auto& dot11d_country() const { return dot11d_country_; }
-    void set_dot11d_country(const auto& v) { dot11d_country_ = v; }
+    template<typename T> void set_dot11d_country(const T& v) { dot11d_country_ = v; }
 
     const auto& dot11d_vec() const { return dot11d_vec_; }
-    void set_dot11d_vec(const auto& v) { dot11d_vec_ = v; }
+    template<typename T> void set_dot11d_vec(const T& v) { dot11d_vec_ = v; }
 
     auto wps_version() const { return wps_version_; }
-    void set_wps_version(auto v) { wps_version_ = v; }
+    template<typename T> void set_wps_version(T v) { wps_version_ = v; }
 
     auto wps_state() const { return wps_state_; }
-    void set_wps_state(auto v) { wps_state_ = v; }
+    template<typename T> void set_wps_state(T v) { wps_state_ = v; }
 
     auto wps_config_methods() const { return wps_config_methods_; }
-    void set_wps_config_methods(auto v) { wps_config_methods_ = v; }
+    template<typename T> void set_wps_config_methods(T v) { wps_config_methods_ = v; }
 
     const auto& wps_manuf() const { return wps_manuf_; }
-    void set_wps_manuf(const auto& v) { wps_manuf_ = v; }
+    template<typename T> void set_wps_manuf(const T& v) { wps_manuf_ = v; }
 
     const auto& wps_device_name() const { return wps_device_name_; }
-    void set_wps_device_name(const auto& v) { wps_device_name_ = v; }
+    template<typename T> void set_wps_device_name(const T& v) { wps_device_name_ = v; }
 
     const auto& wps_model_name() const { return wps_model_name_; }
-    void set_wps_model_name(const auto& v) { wps_model_name_ = v; }
+    template<typename T> void set_wps_model_name(const T& v) { wps_model_name_ = v; }
 
     const auto& wps_uuid_e() const { return wps_uuid_e_; }
-    void set_wps_uuid_e(const auto& v) { wps_uuid_e_ = v; }
+    template<typename T> void set_wps_uuid_e(const T& v) { wps_uuid_e_ = v; }
 
     auto dot11r_mobility() const { return dot11r_mobility_; }
-    void set_dot11r_mobility(auto v) { dot11r_mobility_ = v; }
+    template<typename T> void set_dot11r_mobility(T v) { dot11r_mobility_ = v; }
 
     auto dot11r_mobility_domain() const { return dot11r_mobility_domain_; }
-    void set_dot11r_mobility_domain(auto v) { dot11r_mobility_domain_ = v; }
+    template<typename T> void set_dot11r_mobility_domain(T v) { dot11r_mobility_domain_ = v; }
 
     auto dot11e_qbss() const { return dot11e_qbss_; }
-    void set_dot11e_qbss(auto v) { dot11e_qbss_ = v; }
+    template<typename T> void set_dot11e_qbss(T v) { dot11e_qbss_ = v; }
 
     auto dot11e_qbss_stations() const { return dot11e_qbss_stations_; }
-    void set_dot11e_qbss_stations(auto v) { dot11e_qbss_stations_ = v; }
+    template<typename T> void set_dot11e_qbss_stations(T v) { dot11e_qbss_stations_ = v; }
 
     auto dot11e_qbss_load() const { return dot11e_qbss_load_; }
-    void set_dot11e_qbss_load(auto v) { dot11e_qbss_load_ = v; }
+    template<typename T> void set_dot11e_qbss_load(T v) { dot11e_qbss_load_ = v; }
 
     auto ccx_txpower() const { return ccx_txpower_; }
-    void set_ccx_txpower(auto v) { ccx_txpower_ = v; }
+    template<typename T> void set_ccx_txpower(T v) { ccx_txpower_ = v; }
 
     auto cisco_client_mfp() const { return cisco_client_mfp_; }
-    void set_cisco_client_mfp(auto v) { cisco_client_mfp_ = v; }
+    template<typename T> void set_cisco_client_mfp(T v) { cisco_client_mfp_ = v; }
 
     const auto& meshid() const { return meshid_; }
-    void set_meshid(const auto& v) { meshid_ = v; }
+    template<typename T> void set_meshid(const T& v) { meshid_ = v; }
 
     auto mesh_gateway() const { return mesh_gateway_; }
-    void set_mesh_gateway(auto v) { mesh_gateway_ = v; }
+    template<typename T> void set_mesh_gateway(T v) { mesh_gateway_ = v; }
 
     auto mesh_peerings() const { return mesh_peerings_; }
-    void set_mesh_peerings(auto v) { mesh_peerings_ = v; }
+    template<typename T> void set_mesh_peerings(T v) { mesh_peerings_ = v; }
 
     auto mesh_forwarding() const { return mesh_forwarding_; }
-    void set_mesh_forwarding(auto v) { mesh_forwarding_ = v; }
+    template<typename T> void set_mesh_forwarding(T v) { mesh_forwarding_ = v; }
 
     auto adv_tx_power() const { return adv_tx_power_; }
-    void set_adv_tx_power(auto v) { adv_tx_power_ = v; }
+    template<typename T> void set_adv_tx_power(T v) { adv_tx_power_ = v; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -981,69 +981,69 @@ public:
     }
 
     auto client_type() const { return client_type_; }
-    void set_client_type(auto v) { client_type_ = v; }
+    template<typename T> void set_client_type(T v) { client_type_ = v; }
 
     auto& location() const { return location_; }
-    void set_location(const auto& v) { location_ = v; }
+    template<typename T> void set_location(const T& v) { location_ = v; }
 
     const auto& bssid() const { return bssid_; }
-    void set_bssid(const auto& v) { bssid_ = v; }
+    template<typename T> void set_bssid(const T& v) { bssid_ = v; }
 
     const auto& bssid_key() const { return bssid_key_; }
-    void set_bssid_key(const auto& v) { bssid_key_ = v; }
+    template<typename T> void set_bssid_key(const T& v) { bssid_key_ = v; }
 
     const auto first_time() { return first_time_; }
-    void set_first_time(auto time) { first_time_ = time; }
-    void set_first_time_ifless(auto time) {
+    template<typename T> void set_first_time(T time) { first_time_ = time; }
+    template<typename T> void set_first_time_ifless(T time) {
         if (time < first_time_) {
             first_time_ = time;
         }
     }
 
     const auto last_time() { return last_time_; }
-    void set_last_time(auto time) { last_time_ = time; }
-    void set_last_time_ifgreater(auto time) {
+    template<typename T> void set_last_time(T time) { last_time_ = time; }
+    template<typename T> void set_last_time_ifgreater(T time) {
         if (last_time_ < time) {
             last_time_ = time;
         }
     }
 
     const auto& dhcp_host() const { return dhcp_host_; }
-    void set_dhcp_host(const auto& v) { dhcp_host_ = v; }
+    template<typename T> void set_dhcp_host(const T& v) { dhcp_host_ = v; }
 
     const auto& dhcp_vendor() const { return dhcp_vendor_; }
-    void set_dhcp_vendor(const auto& v) { dhcp_vendor_ = v; }
+    template<typename T> void set_dhcp_vendor(const T& v) { dhcp_vendor_ = v; }
 
     const auto& eap_identity() const { return eap_identity_; }
-    void set_eap_identity(const auto& v) { eap_identity_ = v; }
+    template<typename T> void set_eap_identity(const T& v) { eap_identity_ = v; }
 
     const auto& cdp_device() const { return cdp_device_; }
-    void set_cdp_device(const auto& v) { cdp_device_ = v; }
+    template<typename T> void set_cdp_device(const T& v) { cdp_device_ = v; }
 
     const auto& cdp_port() const { return cdp_port_; }
-    void set_cdp_port(const auto& v) { cdp_port_ = v; }
+    template<typename T> void set_cdp_port(const T& v) { cdp_port_ = v; }
 
     auto& ip_v4() const { return ip_v4_; }
-    void set_ip_v4(const auto& v) { ip_v4_ = v; }
+    template<typename T> void set_ip_v4(const T& v) { ip_v4_ = v; }
 
     constexpr auto decrypted() const { return decrypted_; }
-    void set_decrypted(auto v) { decrypted_ = v; }
+    template<typename T> void set_decrypted(T v) { decrypted_ = v; }
 
     constexpr auto datasize() const { return datasize_; }
-    void set_datasize(auto v) { datasize_ = v; }
-    void inc_datasize(auto v) { datasize_ += v; }
+    template<typename T> void set_datasize(T v) { datasize_ = v; }
+    template<typename T> void inc_datasize(T v) { datasize_ += v; }
 
     constexpr auto datasize_retry() const { return datasize_retry_; }
-    void set_datasize_retry(auto v) { datasize_retry_ = v; }
-    void inc_datasize_retry(auto v) { datasize_retry_ += v; }
+    template<typename T> void set_datasize_retry(T v) { datasize_retry_ = v; }
+    template<typename T> void inc_datasize_retry(T v) { datasize_retry_ += v; }
 
     constexpr auto num_fragments() const { return num_fragments_; }
-    void set_num_fragments(auto v) { num_fragments_ = v; }
-    void inc_num_fragments(auto v) { num_fragments_ += v; }
+    template<typename T> void set_num_fragments(T v) { num_fragments_ = v; }
+    template<typename T> void inc_num_fragments(T v) { num_fragments_ += v; }
 
     constexpr auto num_retries() const { return num_retries_; }
-    void set_num_retries(auto v) { num_retries_ = v; }
-    void inc_num_retries(auto v) { num_retries_ += v; }
+    template<typename T> void set_num_retries(T v) { num_retries_ = v; }
+    template<typename T> void inc_num_retries(T v) { num_retries_ += v; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -1165,28 +1165,28 @@ public:
     }
 
     constexpr auto type_set() const { return type_set_; }
-    void set_type_set(auto v) { type_set_ = v; }
+    template<typename T> void set_type_set(T v) { type_set_ = v; }
 
     constexpr auto snapshot_next_beacon() const { return snapshot_next_beacon_; }
-    void set_snapshot_next_beacon(auto v) { snapshot_next_beacon_ = v; }
+    template<typename T> void set_snapshot_next_beacon(T v) { snapshot_next_beacon_ = v; }
 
     auto& client_map() const { return client_map_; }
-    void set_client_map(auto& v) { client_map_ = v; }
+    template<typename T> void set_client_map(T& v) { client_map_ = v; }
 
     auto& advertised_ssid_map() const { return advertised_ssid_map_; }
-    void set_advertised_ssid_map(auto& v) { advertised_ssid_map_ = v; }
+    template<typename T> void set_advertised_ssid_map(T& v) { advertised_ssid_map_ = v; }
 
     auto& responded_ssid_map() const { return responded_ssid_map_; }
-    void set_responded_ssid_map(auto& v) { responded_ssid_map_ = v; }
+    template<typename T> void set_responded_ssid_map(T& v) { responded_ssid_map_ = v; }
 
     auto& probed_ssid_map() const { return probed_ssid_map_; }
-    void set_probed_ssid_map(auto& v) { probed_ssid_map_ = v; }
+    template<typename T> void set_probed_ssid_map(T& v) { probed_ssid_map_ = v; }
 
     auto& associated_client_map() const { return associated_client_map_; }
-    void set_associated_client_map(auto& v) { associated_client_map_ = v; }
+    template<typename T> void set_associated_client_map(T& v) { associated_client_map_ = v; }
 
     constexpr auto client_disconnects() const { return client_disconnects_; }
-    void set_client_disconnects(auto v) { client_disconnects_ = v; }
+    template<typename T> void set_client_disconnects(T v) { client_disconnects_ = v; }
     void inc_client_disconnects(unsigned int d, time_t time) {
         if (client_disconnect_last_time_ != time) {
             client_disconnect_last_time_ = time;
@@ -1197,32 +1197,32 @@ public:
     }
 
     constexpr auto bss_timestamp() const { return bss_timestamp_; }
-    void set_bss_timestamp(auto v) { bss_timestamp_ = v; }
+    template<typename T> void set_bss_timestamp(T v) { bss_timestamp_ = v; }
 
     constexpr auto num_fragments() const { return num_fragments_; }
-    void set_num_fragments(auto v) { num_fragments_ = v; }
-    void inc_num_fragments(auto v) { num_fragments_ += v; }
+    template<typename T> void set_num_fragments(T v) { num_fragments_ = v; }
+    template<typename T> void inc_num_fragments(T v) { num_fragments_ += v; }
 
     constexpr auto num_retries() const { return num_retries_; }
-    void set_num_retries(auto v) { num_retries_ = v; }
-    void inc_num_retries(auto r) { num_retries_ += r; }
+    template<typename T> void set_num_retries(T v) { num_retries_ = v; }
+    template<typename T> void inc_num_retries(T r) { num_retries_ += r; }
 
     constexpr auto datasize() const { return datasize_; }
-    void set_datasize(auto v) { datasize_ = v; }
-    void inc_datasize(auto v) { datasize_ += v; }
+    template<typename T> void set_datasize(T v) { datasize_ = v; }
+    template<typename T> void inc_datasize(T v) { datasize_ += v; }
 
     constexpr auto datasize_retry() const { return datasize_retry_; }
-    void set_datasize_retry(auto v) { datasize_retry_ = v; }
-    void inc_datasize_retry(auto v) { datasize_retry_ += v; }
+    template<typename T> void set_datasize_retry(T v) { datasize_retry_ = v; }
+    template<typename T> void inc_datasize_retry(T v) { datasize_retry_ += v; }
 
     constexpr auto last_bssid() const { return last_bssid_; }
-    void set_last_bssid(auto v) { last_bssid_ = v; }
+    template<typename T> void set_last_bssid(T v) { last_bssid_ = v; }
 
     constexpr auto last_beacon_time() const { return last_beacon_time_; }
-    void set_last_beacon_time(auto v) { last_beacon_time_ = v; }
+    template<typename T> void set_last_beacon_time(T v) { last_beacon_time_ = v; }
 
     constexpr auto wpa_m3_count() const { return wpa_m3_count_; }
-    void set_wpa_m3_count(auto v) { wpa_m3_count_ = v; }
+    template<typename T> void set_wpa_m3_count(T v) { wpa_m3_count_ = v; }
     void inc_wpa_m3_count(unsigned int d, time_t time) {
         if (wpa_m3_last_time_ != time) {
             wpa_m3_last_time_ = time;
@@ -1233,7 +1233,7 @@ public:
     }
 
 	constexpr auto csa_count() const { return csa_count_; }
-	void set_csa_count(auto v) { csa_count_ = v; }
+	template<typename T> void set_csa_count(T v) { csa_count_ = v; }
 	void inc_csa_count(unsigned int d, time_t time, unsigned int time_window) {
 		if (time - csa_last_time_ <= time_window) {
 			csa_count_ += d;
@@ -1244,55 +1244,55 @@ public:
 	}
 
     auto& wpa_key_map() const { return wpa_key_map_; }
-    void set_wpa_key_map(auto& v) { wpa_key_map_ = v; }
+    template<typename T> void set_wpa_key_map(T& v) { wpa_key_map_ = v; }
 
     auto& wpa_nonce_vec() const { return wpa_nonce_vec_; }
-    void set_wpa_nonce_vec(auto& v) { wpa_nonce_vec_ = v; }
+    template<typename T> void set_wpa_nonce_vec(T& v) { wpa_nonce_vec_ = v; }
 
     auto& wpa_anonce_vec() const { return wpa_nonce_vec_; }
-    void set_wpa_anonce_vec(auto& v) { wpa_nonce_vec_ = v; }
+    template<typename T> void set_wpa_anonce_vec(T& v) { wpa_nonce_vec_ = v; }
 
     auto& beacon_packet() const { return beacon_packet_; }
-    void set_beacon_packet(auto& v) { beacon_packet_ = v; }
+    template<typename T> void set_beacon_packet(T& v) { beacon_packet_ = v; }
 
     auto& pmkid_packet() const { return pmkid_packet_; }
-    void set_pmkid_packet(auto& v) { pmkid_packet_ = v; }
+    template<typename T> void set_pmkid_packet(T& v) { pmkid_packet_ = v; }
 
     constexpr auto last_adv_ie_checksum() const { return last_adv_ie_checksum_; }
-    void set_last_adv_ie_checksum(auto v) { last_adv_ie_checksum_ = v; }
+    template<typename T> void set_last_adv_ie_checksum(T v) { last_adv_ie_checksum_ = v; }
 
     auto last_advertised_ssid() const { return last_advertised_ssid_; }
-    void set_last_advertised_ssid(auto v) { last_advertised_ssid_ = v; }
+    template<typename T> void set_last_advertised_ssid(T v) { last_advertised_ssid_ = v; }
 
     auto last_probed_ssid() const { return last_probed_ssid_; }
-    void set_last_probed_ssid(auto v) { last_probed_ssid_ = v; }
+    template<typename T> void set_last_probed_ssid(T v) { last_probed_ssid_ = v; }
 
     constexpr auto min_tx_power() const { return min_tx_power_; }
-    void set_min_tx_power(auto v) { min_tx_power_ = v; }
+    template<typename T> void set_min_tx_power(T v) { min_tx_power_ = v; }
 
     constexpr auto max_tx_power() const { return max_tx_power_; }
-    void set_max_tx_power(auto v) { max_tx_power_ = v; }
+    template<typename T> void set_max_tx_power(T v) { max_tx_power_ = v; }
 
     auto& supported_channels_vec() const { return supported_channels_vec_; }
-    void set_supported_channels_vec(auto& v) { supported_channels_vec_ = v; }
+    template<typename T> void set_supported_channels_vec(T& v) { supported_channels_vec_ = v; }
 
     constexpr auto link_measurement_capable() const { return link_measurement_capable_; }
-    void set_link_measurement_capable(auto v) { link_measurement_capable_ = v; }
+    template<typename T> void set_link_measurement_capable(T v) { link_measurement_capable_ = v; }
 
     constexpr auto neighbor_report_capable() const { return neighbor_report_capable_; }
-    void set_neighbor_report_capable(auto v) { neighbor_report_capable_ = v; }
+    template<typename T> void set_neighbor_report_capable(T v) { neighbor_report_capable_ = v; }
 
     auto& extended_capabilities_vec() const { return extended_capabilities_vec_; }
-    void set_extended_capabilities_vec(auto& v) { extended_capabilities_vec_ = v; }
+    template<typename T> void set_extended_capabilities_vec(T& v) { extended_capabilities_vec_ = v; }
 
     constexpr auto beacon_fingerprint() const { return beacon_fingerprint_; }
-    void set_beacon_fingerprint(auto v) { beacon_fingerprint_ = v; }
+    template<typename T> void set_beacon_fingerprint(T v) { beacon_fingerprint_ = v; }
 
     constexpr auto probe_fingerprint() const { return probe_fingerprint_; }
-    void set_probe_fingerprint(auto v) { probe_fingerprint_ = v; }
+    template<typename T> void set_probe_fingerprint(T v) { probe_fingerprint_ = v; }
 
     constexpr auto response_fingerprint() const { return response_fingerprint_; }
-    void set_response_fingerprint(auto v) { response_fingerprint_ = v; }
+    template<typename T> void set_response_fingerprint(T v) { response_fingerprint_ = v; }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
