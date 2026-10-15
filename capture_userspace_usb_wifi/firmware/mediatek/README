@@ -1,5 +1,10 @@
-MediaTek MT7961 (MT7921) and MT7925 Wi-Fi firmware from linux-firmware
+MediaTek MT7961 (MT7921), MT7925 and MT7662 (MT76x2U) Wi-Fi firmware from linux-firmware
 https://gitlab.com/kernel-firmware/linux-firmware
 Commit: d5455717ead0affc6116809d8c6e71f95c63e8e1
-Redistributable under LICENCE.mediatek; distributed as separate files, not
+Redistributable under LICENCE.mediatek, and mt7662*.bin under
+LICENCE.ralink_a_mediatek_company_firmware; distributed as separate files, not
 linked into any program.
+
+mt7662.bin and mt7662_rom_patch.bin are requested without the mediatek/ prefix;
+../mt7662.bin and ../mt7662_rom_patch.bin are links to them, as linux-firmware
+installs them.

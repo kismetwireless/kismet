@@ -204,6 +204,41 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef, struct ieee80211
     }
 }
 
+/* As net/wireless/chan.c, without the S1G, EDMG, NPCA and puncturing checks; none of
+ * those are used by the USB devices supported */
+bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef) {
+    if (!chandef->chan || chandef->freq1_offset >= 1000)
+        return false;
+
+    switch (chandef->width) {
+        case NL80211_CHAN_WIDTH_20:
+        case NL80211_CHAN_WIDTH_20_NOHT:
+            if (ieee80211_chandef_to_khz(chandef) != ieee80211_channel_to_khz(chandef->chan))
+                return false;
+            if (chandef->center_freq2)
+                return false;
+            break;
+        case NL80211_CHAN_WIDTH_80P80:
+            if (!chandef->center_freq2)
+                return false;
+            /* adjacent is not allowed -- that's a 160 MHz channel */
+            if (chandef->center_freq1 - chandef->center_freq2 == 80 ||
+                    chandef->center_freq2 - chandef->center_freq1 == 80)
+                return false;
+            break;
+        default:
+            if (chandef->center_freq2)
+                return false;
+            break;
+    }
+
+    /* channel 14 is only for IEEE 802.11b */
+    if (chandef->center_freq1 == 2484 && chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
+        return false;
+
+    return true;
+}
+
 bool cfg80211_chandef_usable(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef,
         u32 prohibited_flags) {
     (void) wiphy;
