@@ -631,6 +631,7 @@ BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO
 BUILD_CAPTURE_ANTSDR_DRONEID
 BUILD_CAPTURE_USB_RADIACODE
 BUILD_CAPTURE_SERIAL_RADVIEW
+BUILD_CAPTURE_MM8108
 BUILD_CAPTURE_USBWIFI
 BUILD_CAPTURE_HAK5_COCONUT
 BUILD_CAPTURE_LORAPIPE
@@ -832,6 +833,7 @@ with_netlink_tiny
 enable_libusb
 enable_wifi_coconut
 enable_usbwifi
+enable_mm8108
 enable_ubertooth
 enable_librtlsdr
 enable_mosquitto
@@ -1534,6 +1536,8 @@ Optional Features:
                           sources
   --enable-wifi-coconut   Enable Hak5 WiFi Coconut userspace
   --enable-usbwifi        Enable userspace USB Wi-Fi (Linux drivers on libusb)
+  --enable-mm8108         Enable Morse Micro MM8108 USB HaLow (userspace via
+                          libusb)
   --disable-ubertooth     Disable Ubertooth One support
   --disable-librtlsdr     Disable librtlsdr support and any librtlsdr based
                           data sources
@@ -4734,6 +4738,7 @@ BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
 BUILD_CAPTURE_USBWIFI=0
+BUILD_CAPTURE_MM8108=0
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE=1
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 BUILD_CAPTURE_USB_RADIACODE=0
@@ -14855,6 +14860,30 @@ if test x"$want_usbwifi" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USBWIFI)"
 fi
 
+want_mm8108="no"
+# Check whether --enable-mm8108 was given.
+if test ${enable_mm8108+y}
+then :
+  enableval=$enable_mm8108; case "${enableval}" in
+         yes) want_mm8108=yes ;;
+           *) want_mm8108=no ;;
+	 esac
+else case e in #(
+  e) want_mm8108=no
+ ;;
+esac
+fi
+
+
+BUILD_CAPTURE_MM8108=0
+if test x"$want_mm8108" = x"yes"; then
+    if test x"$have_usb" != "xyes"; then
+        as_fn_error $? "libusb-1.0 required for MM8108 HaLow support" "$LINENO" 5
+    fi
+    BUILD_CAPTURE_MM8108=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_MM8108)"
+fi
+
 
 want_ubertooth="yes"
 # Check whether --enable-ubertooth was given.
@@ -15801,11 +15830,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_proxy_adsb/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_proxy_adsb/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16466,6 +16496,7 @@ do
     "capture_freaklabs_zigbee_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_freaklabs_zigbee_v2/Makefile" ;;
     "capture_hak5_wifi_coconut/Makefile") CONFIG_FILES="$CONFIG_FILES capture_hak5_wifi_coconut/Makefile" ;;
     "capture_userspace_usb_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_userspace_usb_wifi/Makefile" ;;
+    "capture_morse_mm8108_usb_halow/Makefile") CONFIG_FILES="$CONFIG_FILES capture_morse_mm8108_usb_halow/Makefile" ;;
     "capture_linux_bluetooth/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_bluetooth/Makefile" ;;
     "capture_linux_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_wifi/Makefile" ;;
     "capture_nrf_51822/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_51822/Makefile" ;;
@@ -17332,6 +17363,12 @@ if test "$BUILD_CAPTURE_USBWIFI" = 1; then
 	echo "yes";
 else
 	echo "no (userspace USB Wi-Fi not explicitly enabled)";
+fi
+printf "    MM8108 HaLow (USB): "
+if test "$BUILD_CAPTURE_MM8108" = 1; then
+	echo "yes";
+else
+	echo "no (MM8108 HaLow not explicitly enabled)";
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then

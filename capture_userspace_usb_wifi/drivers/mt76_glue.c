@@ -24,6 +24,9 @@
 #include "mt76/mt792x.h"
 #include "mt76/mt7921/mt7921.h"
 
+/* From mt7925/mt7925.h, which can't be included alongside mt7921.h */
+int mt7925_init_debugfs(struct mt792x_dev *dev);
+
 /* From mt76 dma.c (BSD-3-Clause-Clear) */
 void
 mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
@@ -44,6 +47,11 @@ int mt792x_wpdma_reinit_cond(struct mt792x_dev *dev) {
 
 /* No debugfs */
 int mt7921_init_debugfs(struct mt792x_dev *dev) {
+    (void) dev;
+    return 0;
+}
+
+int mt7925_init_debugfs(struct mt792x_dev *dev) {
     (void) dev;
     return 0;
 }

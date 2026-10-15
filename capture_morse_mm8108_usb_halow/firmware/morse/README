@@ -1,0 +1,14 @@
+Morse Micro MM8108 Wi-Fi HaLow firmware and board configuration files (BCFs) from
+morse-firmware
+https://github.com/MorseMicro/morse-firmware
+Commit: 919f27a6dc2d46a988682d6ff64dd3fdb9ffc465
+
+mm8108b2-rl.bin                      MM8108 standard firmware
+bcf_*.bin                            Morse Micro and AzureWave module BCFs
+bcf_boardtype_XXXX.bin               links naming each BCF by the board type in OTP
+
+Redistributable complete and unmodified, solely for use with hardware containing
+Morse Micro Wi-Fi HaLow chips, under the Morse Micro Binary Distribution License
+Agreement in LICENSE.morse; distributed as separate files, not linked into any
+program.  The Quectel and NetPrisma BCFs from morse-firmware have no stated license
+and are not included.

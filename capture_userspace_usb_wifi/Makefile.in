@@ -47,6 +47,7 @@ MT76_OBJS = \
 	drivers/mt76/usb.o \
 	drivers/mt76/mt76_connac_mcu.o \
 	drivers/mt76/mt76_connac_mac.o \
+	drivers/mt76/mt76_connac3_mac.o \
 	drivers/mt76/mt792x_core.o \
 	drivers/mt76/mt792x_mac.o \
 	drivers/mt76/mt792x_usb.o \
@@ -55,7 +56,14 @@ MT76_OBJS = \
 	drivers/mt76/mt7921/mac.o \
 	drivers/mt76/mt7921/mcu.o \
 	drivers/mt76/mt7921/usb.o \
-	drivers/mt76/mt7921/regd.o
+	drivers/mt76/mt7921/regd.o \
+	drivers/mt76/mt7925/init.o \
+	drivers/mt76/mt7925/main.o \
+	drivers/mt76/mt7925/mac.o \
+	drivers/mt76/mt7925/mcu.o \
+	drivers/mt76/mt7925/usb.o \
+	drivers/mt76/mt7925/regd.o \
+	drivers/mt76/mt7925/nan.o
 
 GLUE_OBJS = \
 	drivers/mt76_glue.o
@@ -104,6 +112,7 @@ tools/uwifi_test.o: tools/uwifi_test.c
 
 # Kernel module names, as the driver reports them
 drivers/mt76/mt7921/usb.o: MODNAME = mt7921u
+drivers/mt76/mt7925/usb.o: MODNAME = mt7925u
 
 drivers/mt76/%.o: drivers/mt76/%.c
 	$(CC) $(DRV_CFLAGS) -c $< -o $@

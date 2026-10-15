@@ -63,6 +63,12 @@ static inline struct netmem_desc *pp_page_to_nmdesc(struct page *p) { return &p-
 struct page *alloc_pages(gfp_t gfp, unsigned int order);
 #define alloc_page(gfp) alloc_pages(gfp, 0)
 #define dev_alloc_pages(order) alloc_pages(GFP_ATOMIC, order)
+static inline int get_order(unsigned long size) {
+    int order = 0;
+    for (size = (size - 1) >> PAGE_SHIFT; size; size >>= 1)
+        order++;
+    return order;
+}
 void __free_pages(struct page *p, unsigned int order);
 #define __free_page(p) __free_pages(p, 0)
 static inline void get_page(struct page *p) { atomic_inc(&p->refcount); }
@@ -313,6 +319,7 @@ static inline u16 skb_get_queue_mapping(const struct sk_buff *skb) { return skb-
 static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 q) { skb->queue_mapping = q; }
 static inline void skb_mark_for_recycle(struct sk_buff *skb) { (void) skb; }
 static inline void skb_reset_mac_header(struct sk_buff *skb) { (void) skb; }
+static inline void skb_set_mac_header(struct sk_buff *skb, int o) { (void) skb; (void) o; }
 static inline void skb_reset_network_header(struct sk_buff *skb) { (void) skb; }
 static inline void skb_reset_transport_header(struct sk_buff *skb) { (void) skb; }
 static inline void skb_set_network_header(struct sk_buff *skb, int o) { (void) skb; (void) o; }

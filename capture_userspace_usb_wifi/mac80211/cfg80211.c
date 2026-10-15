@@ -145,6 +145,33 @@ unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
 	return hdrlen;
 }
 
+/* As net/wireless/util.c */
+struct ieee80211_channel *ieee80211_get_channel_khz(struct wiphy *wiphy, u32 freq) {
+    for (int b = 0; b < NUM_NL80211_BANDS; b++) {
+        struct ieee80211_supported_band *sband = wiphy->bands[b];
+
+        if (sband == NULL)
+            continue;
+
+        for (int c = 0; c < sband->n_channels; c++) {
+            if (ieee80211_channel_to_khz(&sband->channels[c]) == freq)
+                return &sband->channels[c];
+        }
+    }
+
+    return NULL;
+}
+
+const struct wiphy_iftype_ext_capab *cfg80211_get_iftype_ext_capa(struct wiphy *wiphy,
+        enum nl80211_iftype type) {
+    for (unsigned int i = 0; i < wiphy->num_iftype_ext_capab; i++) {
+        if (wiphy->iftype_ext_capab[i].iftype == type)
+            return &wiphy->iftype_ext_capab[i];
+    }
+
+    return NULL;
+}
+
 /* As net/wireless/chan.c */
 void cfg80211_chandef_create(struct cfg80211_chan_def *chandef, struct ieee80211_channel *chan,
         enum nl80211_channel_type chan_type) {
@@ -209,4 +236,9 @@ void wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
 
 void wiphy_rfkill_start_polling(struct wiphy *wiphy) {
     (void) wiphy;
+}
+
+/* NAN interfaces are never created */
+void cfg80211_next_nan_dw_notif(struct wireless_dev *wdev, struct ieee80211_channel *chan, gfp_t gfp) {
+    (void) wdev; (void) chan; (void) gfp;
 }

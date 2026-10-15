@@ -165,6 +165,9 @@ BUILD_CAPTURE_HAK5_COCONUT = @BUILD_CAPTURE_HAK5_COCONUT@
 CAPTURE_USBWIFI = capture_userspace_usb_wifi/kismet_cap_usbwifi
 BUILD_CAPTURE_USBWIFI = @BUILD_CAPTURE_USBWIFI@
 
+CAPTURE_MM8108 = capture_morse_mm8108_usb_halow/kismet_cap_mm8108_halow
+BUILD_CAPTURE_MM8108 = @BUILD_CAPTURE_MM8108@
+
 CAPTURE_SERIAL_RADVIEW = capture_serial_radview/kismet_cap_serial_radview
 BUILD_CAPTURE_SERIAL_RADVIEW = @BUILD_CAPTURE_SERIAL_RADVIEW@
 
@@ -457,6 +460,9 @@ $(CAPTURE_HAK5_COCONUT): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_USBWIFI): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_userspace_usb_wifi && $(MAKE))
 
+$(CAPTURE_MM8108): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_morse_mm8108_usb_halow && $(MAKE))
+
 $(CAPTURE_SERIAL_RADVIEW): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_serial_radview && $(MAKE))
 
@@ -538,7 +544,13 @@ binsuidinstall: $(DATASOURCE_BINS)
 	@if test "$(BUILD_CAPTURE_USBWIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_USBWIFI) $(BIN)/`basename $(CAPTURE_USBWIFI)` && \
 		mkdir -p $(SHARE)/firmware/mediatek && \
-		cp capture_userspace_usb_wifi/firmware/mediatek/* $(SHARE)/firmware/mediatek/ ; \
+		cp -R capture_userspace_usb_wifi/firmware/mediatek/* $(SHARE)/firmware/mediatek/ ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` && \
+		mkdir -p $(SHARE)/firmware/morse && \
+		cp -R capture_morse_mm8108_usb_halow/firmware/morse/* $(SHARE)/firmware/morse/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
@@ -688,7 +700,13 @@ commoninstall: $(INSTBINS)
 	@if test "$(BUILD_CAPTURE_USBWIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_USBWIFI) $(BIN)/`basename $(CAPTURE_USBWIFI)` && \
 		mkdir -p $(SHARE)/firmware/mediatek && \
-		cp capture_userspace_usb_wifi/firmware/mediatek/* $(SHARE)/firmware/mediatek/ ; \
+		cp -R capture_userspace_usb_wifi/firmware/mediatek/* $(SHARE)/firmware/mediatek/ ; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` && \
+		mkdir -p $(SHARE)/firmware/morse && \
+		cp -R capture_morse_mm8108_usb_halow/firmware/morse/* $(SHARE)/firmware/morse/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433V2)"x = "1"x; then \
@@ -914,6 +932,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_rz_killerbee && make clean)
 	@(cd capture_hak5_wifi_coconut && make clean)
 	@(cd capture_userspace_usb_wifi && make clean)
+	@(cd capture_morse_mm8108_usb_halow && make clean)
 	@(cd capture_serial_radview && make clean)
 	@(cd capture_radiacode && make clean)
 	@(cd capture_antsdr_droneid && make clean)
