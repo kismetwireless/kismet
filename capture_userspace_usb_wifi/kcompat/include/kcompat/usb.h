@@ -150,6 +150,8 @@ struct usb_device {
     struct usb_interface *kc_intf;
     struct work_struct kc_reset_work;
     bool kc_gone;
+    /* Kernel driver detached by hand rather than by libusb auto-detach */
+    bool kc_reattach;
 };
 
 struct urb;

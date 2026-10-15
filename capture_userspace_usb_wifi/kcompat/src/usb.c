@@ -256,6 +256,40 @@ static char *kc_usb_get_string(libusb_device_handle *h, uint8_t idx) {
     return strdup((const char *) buf);
 }
 
+/* On Linux the kernel's own driver may be bound to the interface.  libusb's auto-detach
+ * detaches it on claim and reattaches it on release; where that's unavailable, detach by
+ * hand and reattach in kc_usb_reattach_kernel. */
+static int kc_usb_detach_kernel(struct usb_device *udev, int ifnum) {
+    int r = libusb_kernel_driver_active(udev->kc_handle, ifnum);
+
+    /* Not supported on this platform, or nothing bound */
+    if (r <= 0)
+        return 0;
+
+    dev_info(&udev->dev, "detaching kernel driver from interface %d\n", ifnum);
+
+    if (libusb_set_auto_detach_kernel_driver(udev->kc_handle, 1) == LIBUSB_SUCCESS)
+        return 0;
+
+    if ((r = libusb_detach_kernel_driver(udev->kc_handle, ifnum)) < 0 && r != LIBUSB_ERROR_NOT_FOUND) {
+        dev_err(&udev->dev, "could not detach kernel driver from interface %d: %s\n", ifnum,
+                libusb_strerror(r));
+        return kc_usb_errno(r);
+    }
+
+    udev->kc_reattach = (r == LIBUSB_SUCCESS);
+    return 0;
+}
+
+static void kc_usb_reattach_kernel(struct usb_device *udev, int ifnum) {
+    if (!udev->kc_reattach)
+        return;
+
+    udev->kc_reattach = false;
+    if (!udev->kc_gone)
+        libusb_attach_kernel_driver(udev->kc_handle, ifnum);
+}
+
 int kc_usb_probe_device(const struct kc_usb_probe_entry *entry, struct usb_interface **intfp) {
     struct libusb_device_descriptor d;
     struct libusb_config_descriptor *cfg = NULL;
@@ -358,6 +392,9 @@ int kc_usb_probe_device(const struct kc_usb_probe_entry *entry, struct usb_inter
     cfg = NULL;
 
     if ((r = libusb_open(entry->dev, &udev->kc_handle)) < 0) {
+        if (r == LIBUSB_ERROR_ACCESS)
+            dev_err(&udev->dev, "no permission to open the USB device; run as root or "
+                    "grant access with a udev rule\n");
         r = kc_usb_errno(r);
         goto fail;
     }
@@ -366,16 +403,20 @@ int kc_usb_probe_device(const struct kc_usb_probe_entry *entry, struct usb_inter
     udev->manufacturer = kc_usb_get_string(udev->kc_handle, d.iManufacturer);
     udev->serial = kc_usb_get_string(udev->kc_handle, d.iSerialNumber);
 
-    /* A kernel driver may hold the interface on Linux */
-    libusb_set_auto_detach_kernel_driver(udev->kc_handle, 1);
+    if ((r = kc_usb_detach_kernel(udev, id->bInterfaceNumber)) < 0)
+        goto fail;
 
     if ((r = libusb_claim_interface(udev->kc_handle, id->bInterfaceNumber)) < 0) {
+        dev_err(&udev->dev, "could not claim interface %d: %s%s\n", id->bInterfaceNumber,
+                libusb_strerror(r), r == LIBUSB_ERROR_BUSY ? " (in use by another program)" : "");
         r = kc_usb_errno(r);
+        kc_usb_reattach_kernel(udev, id->bInterfaceNumber);
         goto fail;
     }
 
     if ((r = entry->driver->probe(intf, entry->id)) < 0) {
         libusb_release_interface(udev->kc_handle, id->bInterfaceNumber);
+        kc_usb_reattach_kernel(udev, id->bInterfaceNumber);
         goto fail;
     }
 
@@ -397,6 +438,7 @@ void kc_usb_disconnect(struct usb_interface *intf) {
 
     cancel_work_sync(&udev->kc_reset_work);
     libusb_release_interface(udev->kc_handle, intf->altsetting->desc.bInterfaceNumber);
+    kc_usb_reattach_kernel(udev, intf->altsetting->desc.bInterfaceNumber);
     kc_usb_free_device(udev);
 }
 
@@ -468,9 +510,20 @@ int usb_reset_device(struct usb_device *dev) {
     if (r < 0)
         return kc_usb_errno(r);
 
-    /* A reset drops the claim on some platforms */
-    if (dev->kc_intf)
-        libusb_claim_interface(dev->kc_handle, dev->kc_intf->altsetting->desc.bInterfaceNumber);
+    /* A reset drops the claim on some platforms, and a kernel driver may rebind meanwhile */
+    if (dev->kc_intf) {
+        int ifnum = dev->kc_intf->altsetting->desc.bInterfaceNumber;
+
+        if ((r = kc_usb_detach_kernel(dev, ifnum)) < 0)
+            return r;
+
+        r = libusb_claim_interface(dev->kc_handle, ifnum);
+        if (r < 0) {
+            dev_err(&dev->dev, "could not reclaim interface %d after reset: %s\n", ifnum,
+                    libusb_strerror(r));
+            return kc_usb_errno(r);
+        }
+    }
 
     return 0;
 }
