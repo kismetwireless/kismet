@@ -116,7 +116,8 @@ enum phy_carrier_type {
     carrier_80211fhss,
     carrier_80211dsss,
     carrier_80211n20,
-    carrier_80211n40
+    carrier_80211n40,
+    carrier_80211ah
 };
 
 // Packet encoding info - how are packets encoded?

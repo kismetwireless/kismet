@@ -1,0 +1,45 @@
+include ../Makefile.inc
+
+# Userspace driver for Morse Micro MM8108 USB 802.11ah (Wi-Fi HaLow) adapters (see README.md)
+
+LIB_OBJS = \
+	libmm8108/mm_usb.c.o \
+	libmm8108/mm_hw.c.o \
+	libmm8108/mm_fw.c.o \
+	libmm8108/mm_yaps.c.o \
+	libmm8108/mm_cmd.c.o \
+	libmm8108/mm_channels.c.o \
+	libmm8108/mm_radiotap.c.o \
+	libmm8108/mm8108.c.o
+
+MONITOR_OBJS = $(LIB_OBJS) capture_mm8108.c.o
+TEST_OBJS = $(LIB_OBJS) mm8108_halow_test.c.o
+
+MONITOR_BIN = kismet_cap_mm8108_halow
+TEST_BIN = mm8108_halow_test
+
+CFLAGS += $(LIBUSBCFLAGS) -DFIRMWAREDIR=\"$(SHARE)/firmware\"
+
+all: $(MONITOR_BIN) $(TEST_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBUSBLIBS) $(DATASOURCE_LIBS)
+
+$(TEST_BIN):	$(TEST_OBJS) $(patsubst %c.o,%c.d,$(TEST_OBJS))
+		$(CCLD) $(LDFLAGS) -o $(TEST_BIN) $(TEST_OBJS) $(LIBUSBLIBS)
+
+clean:
+	@-rm -f $(MONITOR_BIN) $(TEST_BIN)
+	@-rm -f *.o *.d
+	@-rm -f libmm8108/*.o libmm8108/*.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $*.c | sed -e "s|^[^:]*\.o:|$*.c.o:|" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS) $(TEST_OBJS)))

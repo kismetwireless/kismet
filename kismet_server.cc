@@ -90,7 +90,11 @@
 #include "datasource_adsbproxy.h"
 #include "datasource_bt_geiger.h"
 #include "datasource_hak5_wifi_coconut.h"
+<<<<<<< HEAD
 #include "datasource_usbwifi.h"
+=======
+#include "datasource_mm8108.h"
+>>>>>>> halow-mm
 #include "datasource_mqtt.h"
 #include "datasource_radview.h"
 #include "datasource_radiacode.h"
@@ -946,6 +950,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bt_geiger_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_hak5_wifi_coconut_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_usbwifi_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_mm8108_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_mqtt_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radview_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_radiacode_usb_builder()));
