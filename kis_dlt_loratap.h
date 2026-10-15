@@ -57,10 +57,11 @@ protected:
     int dlt_meshtastic, dlt_meshcore, dlt_lora_generic;
 
 public:
+    // Bandwidth in 125kHz steps
     enum class channel_bandwidth {
         bw_125 = 1,
         bw_250 = 2,
-        bw_500 = 3,
+        bw_500 = 4,
     };
 
     enum class syncwords {
@@ -90,7 +91,7 @@ public:
 
     typedef struct {
         uint8_t version;
-        uint16_t padding;
+        uint8_t padding;
         uint16_t length;
     } __attribute__((packed)) loratap_header_prefix_t;
 
@@ -122,6 +123,29 @@ public:
 
     static const uint8_t sync_meshtastic = 0x2b;
     static const uint8_t sync_meshcore = 0x12;
+
+    // Header fields use LoRaTAP encodings: frequency in Hz, bandwidth as 125kHz steps,
+    // RSSI as dBm + 139, and SNR in quarter dB
+
+    // Bandwidths other than 125/250/500kHz have no LoRaTAP value and are written as 0
+    static constexpr uint8_t bandwidth_to_loratap(double bw_khz) {
+        return bw_khz == 125 ? static_cast<uint8_t>(channel_bandwidth::bw_125) :
+            bw_khz == 250 ? static_cast<uint8_t>(channel_bandwidth::bw_250) :
+            bw_khz == 500 ? static_cast<uint8_t>(channel_bandwidth::bw_500) : 0;
+    }
+
+    static constexpr unsigned int loratap_to_bandwidth(uint8_t bw) {
+        return bw * 125u;
+    }
+
+    static constexpr uint8_t rssi_to_loratap(double dbm) {
+        return dbm <= -139 ? 0 : dbm >= 116 ? 255 : static_cast<uint8_t>(dbm + 139 + 0.5);
+    }
+
+    static constexpr uint8_t snr_to_loratap(double snr) {
+        return static_cast<uint8_t>(static_cast<int8_t>(snr * 4 <= -128 ? -128 :
+                    snr * 4 >= 127 ? 127 : snr * 4 + (snr < 0 ? -0.5 : 0.5)));
+    }
 };
 
 #endif /* __KIS_DLT_LORATAP__ */

@@ -17,6 +17,7 @@
 */
 
 #include <cctype>
+#include <cmath>
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
@@ -47,7 +48,7 @@ namespace {
         return true;
     }
 
-    bool lorapipe_parse(const std::string_view& sv, float& out) {
+    bool lorapipe_parse(const std::string_view& sv, double& out) {
         char buf[lorapipe_num_max];
 
         if (!lorapipe_copy_num(sv, buf))
@@ -55,9 +56,9 @@ namespace {
 
         char *end;
         errno = 0;
-        out = strtof(buf, &end);
+        out = strtod(buf, &end);
 
-        return errno == 0 && end == buf + sv.length();
+        return errno == 0 && end == buf + sv.length() && std::isfinite(out);
     }
 
     bool lorapipe_parse(const std::string_view& sv, unsigned int& out, int base = 10) {
@@ -86,79 +87,70 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
     // Kismet prepended raw radio data:
     // 906.875,250,11,5,2b,1715770553,RXLOG,-31.00,5.75,FFFFFFFF084A3C43A25D0C2800080008FC383FF6194371FE2B6C
 
-    const auto toks = base_sv_tokenize({(const char *) content, content_sz}, ",", "");
-
-    if (toks.size() != 10) {
-        packet->error = 1;
-        return 1;
-    }
-
-    if (toks[6] != "RXLOG") {
-        packet->error = 1;
-        return 1;
-    }
-
-    float freq, signal, snr;
-    unsigned int bandwidth, spreading, coding, syncword;
-
-    if (!lorapipe_parse(toks[0], freq)) {
+    // Errors and frames both return 1; errors keep the raw line for logging
+    auto fail = [&]() {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
         return 1;
+    };
+
+    const auto toks = base_sv_tokenize({(const char *) content, content_sz}, ",", "");
+
+    if (toks.size() != 10 || toks[6] != "RXLOG") {
+        return fail();
+    }
+
+    // Bandwidth may be fractional (62.5, or 812.5 for 2.4GHz)
+    double freq, bandwidth, signal, snr;
+    unsigned int spreading, coding, syncword;
+
+    if (!lorapipe_parse(toks[0], freq)) {
+        return fail();
     }
 
     if (!lorapipe_parse(toks[1], bandwidth)) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+        return fail();
     }
 
     if (!lorapipe_parse(toks[2], spreading)) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+        return fail();
     }
 
     if (!lorapipe_parse(toks[3], coding)) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+        return fail();
     }
 
-    if (!lorapipe_parse(toks[4], syncword, 16)) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+    if (!lorapipe_parse(toks[4], syncword, 16) || syncword > 0xFF) {
+        return fail();
     }
 
     if (!lorapipe_parse(toks[7], signal)) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+        return fail();
     }
 
     if (!lorapipe_parse(toks[8], snr)) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+        return fail();
     }
 
-    content_sz = (toks[9].length() / 2) + 1;
+    const size_t payload_sz = (toks[9].length() / 2) + 1;
 
-    // _MSG_DEBUG("toks[9] {} len {} content sz {}", toks[9], toks[9].length(), content_sz);
-
-    std::string convbuf(sizeof(kis_dlt_loratap::loratap_header_v1_t) + content_sz, (char) 0x0);
+    std::string convbuf(sizeof(kis_dlt_loratap::loratap_header_v1_t) + payload_sz, (char) 0x0);
     auto loratap = reinterpret_cast<kis_dlt_loratap::loratap_header_v1_t *>(convbuf.data());
 
-    loratap->v0_common.version = 0;
+    if (freq <= 0 || freq * 1000000 > UINT32_MAX || spreading > 0xFF || coding > 0xFF) {
+        return fail();
+    }
+
+    loratap->v0_common.version = 1;
     loratap->v0_common.padding = 0;
     loratap->v0_common.length = kis_hton16(sizeof(kis_dlt_loratap::loratap_header_v1_t));
-    loratap->v0_common.frequency = kis_hton32(freq * 1024 * 1024);
-    loratap->v0_common.bandwidth = bandwidth;
-    loratap->v0_common.spread_factor = spreading;
-    loratap->v0_common.rssi = (uint8_t) signal + 139;
-    loratap->v0_common.current_rssi = (uint8_t) signal;
-    loratap->v0_common.snr = (uint8_t) snr * 4;
+    loratap->v0_common.frequency = kis_hton32((uint32_t) std::lround(freq * 1000000));
+    loratap->v0_common.bandwidth = kis_dlt_loratap::bandwidth_to_loratap(bandwidth);
+    loratap->v0_common.spread_factor = (uint8_t) spreading;
+    loratap->v0_common.rssi = kis_dlt_loratap::rssi_to_loratap(signal);
+    loratap->v0_common.current_rssi = kis_dlt_loratap::rssi_to_loratap(signal);
+    loratap->v0_common.snr = kis_dlt_loratap::snr_to_loratap(snr);
     loratap->v0_common.sync_word = (uint8_t) syncword;
     loratap->code_rate = (uint8_t) coding;
 
@@ -167,12 +159,11 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
         data_sz = hex_to_bytes(toks[9], (uint8_t *) convbuf.data() + sizeof(kis_dlt_loratap::loratap_header_v1_t),
                 convbuf.length() - sizeof(kis_dlt_loratap::loratap_header_v1_t));
     } catch (...) {
-        packet->error = 1;
-        packet->set_data((const char *) content, content_sz);
-        return 1;
+        return fail();
     }
 
     packet->set_data(convbuf.data(), sizeof(kis_dlt_loratap::loratap_header_v1_t) + data_sz);
+    packet->original_len = packet->data.length();
 
     datachunk->dlt = KDLT_LORATAP;
     datachunk->set_data(packet->data);
@@ -181,8 +172,8 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
     packet->signal_info.data_ok = true;
     packet->signal_info.signal_type = kis_l1_signal_type_dbm;
     packet->signal_info.signal_dbm = signal;
-    packet->signal_info.freq_khz = freq * 1024;
-    packet->signal_info.channel = fmt::format("{}-{}-{}-{}-{:2x}",
+    packet->signal_info.freq_khz = freq * 1000;
+    packet->signal_info.channel = fmt::format("{}-{}-{}-{}-{:02x}",
             freq, bandwidth, spreading, coding, syncword);
 
     // slice the decoded data off the synthetic header
@@ -204,7 +195,6 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
 
     packet->insert(pack_comp_decap, decapchunk);
 
-
-    return 0;
+    return 1;
 }
 

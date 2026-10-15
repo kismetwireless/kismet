@@ -820,7 +820,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     char *ret_chan = NULL;
 
     if (parse_radio_def(chanstr, &radio) == 0) {
-        ret_chan = (char *) malloc(64);
+        if ((ret_chan = (char *) malloc(64)) == NULL)
+            return NULL;
         format_freq(freqstr, sizeof(freqstr), radio.frequency);
         snprintf(ret_chan, 64, "%s,%u,%u,%u,%02x", freqstr, radio.bandwidth,
                 radio.spread, radio.coding, radio.syncword);
@@ -855,7 +856,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         else
             preset_bw = lora_preset_params[preset.type].bandwidth;
 
-        ret_chan = (char *) malloc(64);
+        if ((ret_chan = (char *) malloc(64)) == NULL)
+            return NULL;
         format_freq(freqstr, sizeof(freqstr), preset_freq);
         snprintf(ret_chan, 64, "%s,%g,%u,%u,%02x", freqstr, preset_bw,
                 lora_preset_params[preset.type].spread, lora_preset_params[preset.type].coding,
@@ -1058,11 +1060,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (localchan == NULL) {
             snprintf(msg, STATUS_MAX, "%s could not parse channel= option provided in source " "definition", local->name);
+            free(device);
             return -1;
         }
 
+        free((*ret_interface)->chanset);
         (*ret_interface)->chanset = strdup(localchan);
+    } else {
+        /* Default to the first channel of the region */
+        localchan = (char *) chantranslate_callback(caph, (*ret_interface)->chanset);
 
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX, "%s could not use default channel %s", local->name,
+                    (*ret_interface)->chanset);
+            free(device);
+            return -1;
+        }
     }
 
     pthread_mutex_lock(&local->serial_mutex);
@@ -1074,6 +1087,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local->name, strerror(errno));
         pthread_mutex_unlock(&(local->serial_mutex));
         free(device);
+        free(localchan);
         return -1;
     }
 
@@ -1100,7 +1114,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (tcsetattr(local->fd, TCSANOW, &local->newtio) < 0) {
         snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
             local->name, strerror(errno));
+        close(local->fd);
+        local->fd = -1;
         pthread_mutex_unlock(&(local->serial_mutex));
+        free(localchan);
         return -1;
     }
 

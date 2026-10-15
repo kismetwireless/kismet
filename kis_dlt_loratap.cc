@@ -64,24 +64,15 @@ int kis_dlt_loratap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     auto len = kis_ntoh16(prefix_hdr->length);
     uint8_t syncword = 0;
 
+    const loratap_header_v0_t *v0_hdr;
+    unsigned int coding = 0;
+
     if (prefix_hdr->version == 0) {
         if (len < sizeof(loratap_header_v0_t) || len > linkchunk->length()) {
             return 1;
         }
 
-        auto v0_hdr = reinterpret_cast<const loratap_header_v0_t *>(linkchunk->data());
-
-        syncword = v0_hdr->sync_word;
-
-        in_pack->signal_info.data_ok = true;
-        in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
-        in_pack->signal_info.signal_dbm = -139 + v0_hdr->rssi;
-        in_pack->signal_info.freq_khz = (double) kis_ntoh32(v0_hdr->frequency) / 1024;
-        in_pack->signal_info.channel = fmt::format("{}-{}-{}-0-{:2x}",
-                in_pack->signal_info.freq_khz * 1024,
-                v0_hdr->bandwidth, v0_hdr->spread_factor,
-                v0_hdr->sync_word);
-
+        v0_hdr = reinterpret_cast<const loratap_header_v0_t *>(linkchunk->data());
     } else if (prefix_hdr->version == 1) {
         if (len < sizeof(loratap_header_v1_t) || len > linkchunk->length()) {
             return 1;
@@ -89,19 +80,23 @@ int kis_dlt_loratap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
 
         auto v1_hdr = reinterpret_cast<const loratap_header_v1_t *>(linkchunk->data());
 
-        syncword = v1_hdr->v0_common.sync_word;
-
-        in_pack->signal_info.data_ok = true;
-        in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
-        in_pack->signal_info.signal_dbm = -139 + v1_hdr->v0_common.rssi;
-        in_pack->signal_info.freq_khz = (double) kis_ntoh32(v1_hdr->v0_common.frequency) / 1024;
-        in_pack->signal_info.channel = fmt::format("{}-{}-{}-0-{:2x}",
-                in_pack->signal_info.freq_khz * 1024,
-                v1_hdr->v0_common.bandwidth, v1_hdr->v0_common.spread_factor,
-                v1_hdr->v0_common.sync_word);
+        v0_hdr = &v1_hdr->v0_common;
+        coding = v1_hdr->code_rate;
     } else {
         return 1;
     }
+
+    syncword = v0_hdr->sync_word;
+
+    auto freq_hz = kis_ntoh32(v0_hdr->frequency);
+
+    in_pack->signal_info.data_ok = true;
+    in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+    in_pack->signal_info.signal_dbm = -139 + v0_hdr->rssi;
+    in_pack->signal_info.freq_khz = (double) freq_hz / 1000;
+    in_pack->signal_info.channel = fmt::format("{}-{}-{}-{}-{:02x}",
+            (double) freq_hz / 1000000, loratap_to_bandwidth(v0_hdr->bandwidth),
+            v0_hdr->spread_factor, coding, syncword);
 
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
 
