@@ -13,7 +13,8 @@ KC_CFLAGS = -std=gnu11 -pthread -MMD -MP $(KC_INCLUDES) $(LIBUSBCFLAGS) -O2 -g -
 
 # Our kernel-side code
 OWN_CFLAGS = $(KC_CFLAGS) -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare \
-	-Wno-missing-field-initializers -Wno-address-of-packed-member -Wno-unknown-warning-option \
+	-Wno-missing-field-initializers -Wno-address-of-packed-member -Wno-format-truncation \
+	-Wno-unknown-warning-option \
 	-I. -Imac80211 -Idrivers
 
 # Vendored kernel code, built as-is; kernel style trips warnings that aren't ours to fix

@@ -132,7 +132,9 @@ typedef unsigned long kernel_ulong_t;
 #define __no_context_analysis
 #define notrace
 #define memzero_explicit(p, n) do { volatile u8 *__p = (volatile u8 *) (p); for (size_t __i = 0; __i < (n); __i++) __p[__i] = 0; } while (0)
+#ifndef __attribute_const__
 #define __attribute_const__ __attribute__((__const__))
+#endif
 #define BUILD_BUG_ON_NOT_POWER_OF_2(n) BUILD_BUG_ON((n) == 0 || (((n) & ((n) - 1)) != 0))
 #define memset_after(obj, v, member) \
     memset((u8 *) (obj) + offsetofend(typeof(*(obj)), member), v, \

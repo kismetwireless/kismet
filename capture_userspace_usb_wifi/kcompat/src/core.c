@@ -18,6 +18,8 @@
 
 /* Logging, allocation, managed device resources, idr, firmware loading and randomness */
 
+#define _GNU_SOURCE
+
 #include <fcntl.h>
 #include <sys/random.h>
 #include <sys/stat.h>

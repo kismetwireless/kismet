@@ -28,6 +28,8 @@
 
 #include "sync.h"
 
+#include <time.h>
+
 #define HZ 1000
 #define USEC_PER_SEC 1000000L
 #define NSEC_PER_SEC 1000000000L
@@ -107,6 +109,8 @@ struct timer_list {
 void timer_setup(struct timer_list *t, void (*fn)(struct timer_list *), unsigned int flags);
 int mod_timer(struct timer_list *t, unsigned long expires);
 void add_timer(struct timer_list *t);
+/* Not the POSIX timer_delete() from time.h */
+#define timer_delete kc_timer_delete
 int timer_delete(struct timer_list *t);
 int timer_delete_sync(struct timer_list *t);
 #define del_timer timer_delete
