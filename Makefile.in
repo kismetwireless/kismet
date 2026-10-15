@@ -6,6 +6,7 @@ CONFIGFILES = \
 	kismet_alerts.conf \
 	kismet_memory.conf \
 	kismet_meshtastic.conf \
+	kismet_meshcore.conf \
 	kismet_logging.conf \
 	kismet_filter.conf \
 	kismet_uav.conf \
@@ -284,7 +285,7 @@ PSO	= util.cc.o crc32.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_components_v2.cc.o phy_80211_dissectors.cc.o \
 	phy_sensor.cc.o phy_meter.cc.o phy_adsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_802154.cc.o \
-	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o \
+	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \

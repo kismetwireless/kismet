@@ -308,18 +308,24 @@ static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize,
 /* Valid channels
    [FREQUENCY]-[BW]-[SPREAD]-[CODING]-[SYNCWORD]
       906.875-250-11-5-2b
+      910.525-62.5-7-5-12
    [PROTOCOL]-[REGION]-[TYPE]
       meshtastic-US-shortturbo
       meshtastic-EU_868-longfast
       meshtastic-EU433-longturbo
+      meshcore-US-narrow
+      meshcore-EU_868-narrow
 
    local channel type is a simple string, sent to lorapipe as
       set radio 906.875,250,11,5,2b
 */
 
+#define MESHTASTIC_SYNCWORD 0x2b
+#define MESHCORE_SYNCWORD 0x12
+
 typedef struct {
     double frequency;
-    unsigned int bandwidth;
+    double bandwidth;
     unsigned int spread;
     unsigned int coding;
     uint8_t syncword;
@@ -355,7 +361,7 @@ static const char *lora_preset_type_names[LORA_PRESET_MAX] = {
 typedef struct {
     char protocol[32];
     lora_region_t region;
-    lora_preset_type_t type;
+    char name[32];
 } lora_preset_def_t;
 
 /* Preset bandwidths (kHz), spread factor, coding rate, and the display names hashed to pick
@@ -464,9 +470,16 @@ static int parse_radio_def(const char *str, lora_radio_def_t *def) {
         return -1;
     pos = end + 1;
 
-    if (parse_uint_field(&pos, &v, 10, '-') < 0 || v > UINT_MAX)
+    /* Fractional bandwidths such as 62.5 are allowed */
+    if (!isdigit((unsigned char) *pos))
         return -1;
-    def->bandwidth = (unsigned int) v;
+
+    errno = 0;
+    def->bandwidth = strtod(pos, &end);
+    if (errno != 0 || end == pos || *end != '-' || !isfinite(def->bandwidth) ||
+            def->bandwidth <= 0)
+        return -1;
+    pos = end + 1;
 
     if (parse_uint_field(&pos, &v, 10, '-') < 0 || v > UINT_MAX)
         return -1;
@@ -565,14 +578,84 @@ static int parse_preset_def(const char *str, lora_preset_def_t *def) {
         return -1;
 
     len = strlen(h2 + 1);
+    if (len == 0 || len >= sizeof(def->name))
+        return -1;
+    memcpy(def->name, h2 + 1, len + 1);
+
+    return 0;
+}
+
+/* returns LORA_PRESET_MAX if unknown */
+static lora_preset_type_t meshtastic_preset_from_name(const char *name) {
     for (int i = 0; i < LORA_PRESET_MAX; i++) {
-        if (preset_name_match(h2 + 1, len, lora_preset_type_names[i])) {
-            def->type = (lora_preset_type_t) i;
-            return 0;
-        }
+        if (preset_name_match(name, strlen(name), lora_preset_type_names[i]))
+            return (lora_preset_type_t) i;
     }
 
-    return -1;
+    return LORA_PRESET_MAX;
+}
+
+/* MeshCore has no slot hashing; presets are fixed radio settings, from the preset list
+   the MeshCore apps load (docs/radio_presets.md, api.meshcore.nz/api/v1/config), grouped
+   under the closest region */
+typedef struct {
+    lora_region_t region;
+    const char *name;
+    double frequency;
+    double bandwidth;
+    unsigned int spread;
+    unsigned int coding;
+} meshcore_preset_t;
+
+static const meshcore_preset_t meshcore_presets[] = {
+    { LORA_REGION_US, "NARROW", 910.525, 62.5, 7, 5 },          /* USA, Canada */
+    { LORA_REGION_US, "SOCAL", 927.875, 62.5, 7, 5 },
+    { LORA_REGION_US, "COSTA_RICA", 910.525, 125, 11, 5 },
+    { LORA_REGION_EU_868, "NARROW", 869.618, 62.5, 8, 8 },      /* EU/UK, Switzerland */
+    { LORA_REGION_EU_868, "DEFAULT", 869.618, 62.5, 8, 5 },     /* firmware build default */
+    { LORA_REGION_EU_868, "SF7", 869.618, 62.5, 7, 5 },         /* NL, HU, SK */
+    { LORA_REGION_EU_868, "PORTUGAL", 869.618, 62.5, 7, 6 },
+    { LORA_REGION_EU_868, "CZECH", 869.432, 62.5, 7, 5 },
+    { LORA_REGION_EU_868, "LEGACY", 869.525, 250, 11, 5 },
+    { LORA_REGION_EU_433, "LONG", 433.650, 250, 11, 5 },
+    { LORA_REGION_EU_433, "NARROW", 433.650, 62.5, 8, 8 },
+    { LORA_REGION_EU_433, "PORTUGAL", 433.375, 62.5, 9, 6 },
+    { LORA_REGION_ANZ, "DEFAULT", 915.800, 250, 10, 5 },        /* Australia */
+    { LORA_REGION_ANZ, "NARROW", 916.575, 62.5, 7, 7 },
+    { LORA_REGION_ANZ, "MID", 915.075, 125, 9, 5 },
+    { LORA_REGION_ANZ, "SA_WA", 923.125, 62.5, 8, 8 },
+    { LORA_REGION_ANZ, "QLD", 923.125, 62.5, 8, 5 },
+    { LORA_REGION_ANZ, "NZ_NARROW", 917.375, 62.5, 7, 5 },
+    { LORA_REGION_ANZ, "NZ_GISBORNE", 917.375, 250, 11, 5 },
+    { LORA_REGION_BR_902, "DEFAULT", 923.125, 62.5, 8, 8 },
+};
+
+#define MESHCORE_PRESETS_LEN (sizeof(meshcore_presets) / sizeof(meshcore_presets[0]))
+
+static const meshcore_preset_t *meshcore_preset_find(lora_region_t region, const char *name) {
+    for (size_t i = 0; i < MESHCORE_PRESETS_LEN; i++) {
+        if (meshcore_presets[i].region == region &&
+                preset_name_match(name, strlen(name), meshcore_presets[i].name))
+            return &meshcore_presets[i];
+    }
+
+    return NULL;
+}
+
+/* The explicit LoRa header carries the coding rate, so presets differing only in coding
+   rate receive the same frames and need only one hop slot */
+static int meshcore_preset_redundant(size_t idx) {
+    const meshcore_preset_t *p = &meshcore_presets[idx];
+
+    for (size_t i = 0; i < idx; i++) {
+        const meshcore_preset_t *q = &meshcore_presets[i];
+
+        if (q->region == p->region && q->frequency == p->frequency &&
+                q->bandwidth == p->bandwidth && q->spread == p->spread)
+            return 1;
+    }
+
+    return 0;
 }
 
 /* Default slot as picked by the meshtastic firmware: the djb2 hash of the preset display
@@ -650,7 +733,7 @@ static int build_region_channels(lora_region_t region, cf_params_interface_t *in
     if (intf == NULL || region >= LORA_REGION_MAX)
         return -1;
 
-    intf->channels = (char **) calloc(LORA_CHANNEL_ORDER_LEN, sizeof(char *));
+    intf->channels = (char **) calloc(LORA_CHANNEL_ORDER_LEN + MESHCORE_PRESETS_LEN, sizeof(char *));
     if (intf->channels == NULL)
         return -1;
 
@@ -664,6 +747,21 @@ static int build_region_channels(lora_region_t region, cf_params_interface_t *in
 
         r = snprintf(chstr, sizeof(chstr), "meshtastic-%s-%s", lora_region_names[region],
                 lora_preset_type_names[type]);
+        if (r < 0 || (size_t) r >= sizeof(chstr))
+            continue;
+
+        if ((intf->channels[intf->channels_len] = strdup(chstr)) == NULL)
+            return -1;
+
+        intf->channels_len++;
+    }
+
+    for (size_t i = 0; i < MESHCORE_PRESETS_LEN; i++) {
+        if (meshcore_presets[i].region != region || meshcore_preset_redundant(i))
+            continue;
+
+        r = snprintf(chstr, sizeof(chstr), "meshcore-%s-%s", lora_region_names[region],
+                meshcore_presets[i].name);
         if (r < 0 || (size_t) r >= sizeof(chstr))
             continue;
 
@@ -823,18 +921,59 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         if ((ret_chan = (char *) malloc(64)) == NULL)
             return NULL;
         format_freq(freqstr, sizeof(freqstr), radio.frequency);
-        snprintf(ret_chan, 64, "%s,%u,%u,%u,%02x", freqstr, radio.bandwidth,
+        snprintf(ret_chan, 64, "%s,%g,%u,%u,%02x", freqstr, radio.bandwidth,
                 radio.spread, radio.coding, radio.syncword);
         return ret_chan;
     }
 
     if (parse_preset_def(chanstr, &preset) == 0) {
         double preset_freq = 0;
-        float preset_bw;
-        uint8_t preset_sync = 0;
+        double preset_bw;
+        unsigned int preset_spread, preset_coding;
+        uint8_t preset_sync;
 
         if (strcasecmp(preset.protocol, "meshtastic") == 0) {
-            preset_sync = 0x2b;
+            lora_preset_type_t type = meshtastic_preset_from_name(preset.name);
+
+            if (type == LORA_PRESET_MAX) {
+                snprintf(errstr, STATUS_MAX, "%s - unknown meshtastic preset '%s' in channel '%s'",
+                        local->name, preset.name, chanstr);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                return NULL;
+            }
+
+            if (meshtastic_default_freq(preset.region, type, &preset_freq) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s - unable to use channel '%s'; the %s preset is not "
+                        "available in region %s", local->name, chanstr,
+                        lora_preset_type_names[type], lora_region_names[preset.region]);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                return NULL;
+            }
+
+            if (lora_region_params[preset.region].wide_lora)
+                preset_bw = lora_preset_params[type].wide_bandwidth;
+            else
+                preset_bw = lora_preset_params[type].bandwidth;
+
+            preset_spread = lora_preset_params[type].spread;
+            preset_coding = lora_preset_params[type].coding;
+            preset_sync = MESHTASTIC_SYNCWORD;
+        } else if (strcasecmp(preset.protocol, "meshcore") == 0) {
+            const meshcore_preset_t *mc = meshcore_preset_find(preset.region, preset.name);
+
+            if (mc == NULL) {
+                snprintf(errstr, STATUS_MAX, "%s - unknown meshcore preset '%s' for region %s "
+                        "in channel '%s'", local->name, preset.name,
+                        lora_region_names[preset.region], chanstr);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                return NULL;
+            }
+
+            preset_freq = mc->frequency;
+            preset_bw = mc->bandwidth;
+            preset_spread = mc->spread;
+            preset_coding = mc->coding;
+            preset_sync = MESHCORE_SYNCWORD;
         } else {
             snprintf(errstr, STATUS_MAX, "%s - unknown protocol '%s' in preset; a custom "
                     "sync word can be set using FREQ-BW-SF-CR-SYNC channel formats",
@@ -843,31 +982,17 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
             return NULL;
         }
 
-        if (meshtastic_default_freq(preset.region, preset.type, &preset_freq) < 0) {
-            snprintf(errstr, STATUS_MAX, "%s - unable to use channel '%s'; the %s preset is not "
-                    "available in region %s", local->name, chanstr,
-                    lora_preset_type_names[preset.type], lora_region_names[preset.region]);
-            cf_send_message(caph, errstr, MSGFLAG_ERROR);
-            return NULL;
-        }
-
-        if (lora_region_params[preset.region].wide_lora)
-            preset_bw = lora_preset_params[preset.type].wide_bandwidth;
-        else
-            preset_bw = lora_preset_params[preset.type].bandwidth;
-
         if ((ret_chan = (char *) malloc(64)) == NULL)
             return NULL;
         format_freq(freqstr, sizeof(freqstr), preset_freq);
         snprintf(ret_chan, 64, "%s,%g,%u,%u,%02x", freqstr, preset_bw,
-                lora_preset_params[preset.type].spread, lora_preset_params[preset.type].coding,
-                preset_sync);
+                preset_spread, preset_coding, preset_sync);
         return ret_chan;
     }
 
     snprintf(errstr, STATUS_MAX, "unable to parse requested channel '%s'; expected "
             "FREQ-BW-SF-CR-SYNC (ie 906.875-250-11-5-2b) or PROTOCOL-REGION-TYPE "
-            "(ie meshtastic-US-shortturbo)", chanstr);
+            "(ie meshtastic-US-shortturbo or meshcore-US-narrow)", chanstr);
     cf_send_message(caph, errstr, MSGFLAG_INFO);
     return NULL;
 }
@@ -1037,7 +1162,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if (nchans == 0) {
-        snprintf(msg, STATUS_MAX, "%s region %s has no supported meshtastic presets",
+        snprintf(msg, STATUS_MAX, "%s region %s has no supported meshtastic or meshcore presets",
                 local->name, lora_region_names[local->region]);
         free(device);
         return -1;

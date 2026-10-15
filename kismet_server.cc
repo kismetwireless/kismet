@@ -132,6 +132,7 @@
 #include "phy_meter.h"
 #include "phy_nrf_mousejack.h"
 #include "phy_meshtastic.h"
+#include "phy_meshcore.h"
 #include "phy_radiation.h"
 #include "phy_sensor.h"
 #include "phy_uav_drone.h"
@@ -918,6 +919,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_802154_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_radiation_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshtastic_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshcore_phy()));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
