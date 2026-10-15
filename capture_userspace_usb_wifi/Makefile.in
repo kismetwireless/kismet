@@ -51,6 +51,16 @@ MT76_OBJS = \
 	drivers/mt76/mt792x_core.o \
 	drivers/mt76/mt792x_mac.o \
 	drivers/mt76/mt792x_usb.o \
+	drivers/mt76/mt76x02_util.o \
+	drivers/mt76/mt76x02_mac.o \
+	drivers/mt76/mt76x02_mcu.o \
+	drivers/mt76/mt76x02_eeprom.o \
+	drivers/mt76/mt76x02_phy.o \
+	drivers/mt76/mt76x02_txrx.o \
+	drivers/mt76/mt76x02_dfs.o \
+	drivers/mt76/mt76x02_beacon.o \
+	drivers/mt76/mt76x02_usb_mcu.o \
+	drivers/mt76/mt76x02_usb_core.o \
 	drivers/mt76/mt7921/init.o \
 	drivers/mt76/mt7921/main.o \
 	drivers/mt76/mt7921/mac.o \
@@ -63,7 +73,18 @@ MT76_OBJS = \
 	drivers/mt76/mt7925/mcu.o \
 	drivers/mt76/mt7925/usb.o \
 	drivers/mt76/mt7925/regd.o \
-	drivers/mt76/mt7925/nan.o
+	drivers/mt76/mt7925/nan.o \
+	drivers/mt76/mt76x2/eeprom.o \
+	drivers/mt76/mt76x2/mac.o \
+	drivers/mt76/mt76x2/init.o \
+	drivers/mt76/mt76x2/phy.o \
+	drivers/mt76/mt76x2/mcu.o \
+	drivers/mt76/mt76x2/usb.o \
+	drivers/mt76/mt76x2/usb_init.o \
+	drivers/mt76/mt76x2/usb_main.o \
+	drivers/mt76/mt76x2/usb_mac.o \
+	drivers/mt76/mt76x2/usb_mcu.o \
+	drivers/mt76/mt76x2/usb_phy.o
 
 GLUE_OBJS = \
 	drivers/mt76_glue.o
@@ -113,6 +134,7 @@ tools/uwifi_test.o: tools/uwifi_test.c
 # Kernel module names, as the driver reports them
 drivers/mt76/mt7921/usb.o: MODNAME = mt7921u
 drivers/mt76/mt7925/usb.o: MODNAME = mt7925u
+drivers/mt76/mt76x2/usb.o: MODNAME = mt76x2u
 
 drivers/mt76/%.o: drivers/mt76/%.c
 	$(CC) $(DRV_CFLAGS) -c $< -o $@

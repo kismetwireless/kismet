@@ -543,7 +543,7 @@ binsuidinstall: $(DATASOURCE_BINS)
 	@if test "$(BUILD_CAPTURE_USBWIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_USBWIFI) $(BIN)/`basename $(CAPTURE_USBWIFI)` && \
 		mkdir -p $(SHARE)/firmware/mediatek && \
-		cp -R capture_userspace_usb_wifi/firmware/mediatek/* $(SHARE)/firmware/mediatek/ ; \
+		cp -R capture_userspace_usb_wifi/firmware/* $(SHARE)/firmware/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
@@ -699,7 +699,7 @@ commoninstall: $(INSTBINS)
 	@if test "$(BUILD_CAPTURE_USBWIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_USBWIFI) $(BIN)/`basename $(CAPTURE_USBWIFI)` && \
 		mkdir -p $(SHARE)/firmware/mediatek && \
-		cp -R capture_userspace_usb_wifi/firmware/mediatek/* $(SHARE)/firmware/mediatek/ ; \
+		cp -R capture_userspace_usb_wifi/firmware/* $(SHARE)/firmware/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \

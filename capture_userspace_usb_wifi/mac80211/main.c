@@ -500,12 +500,22 @@ struct sk_buff *ieee80211_beacon_get_template(struct ieee80211_hw *hw, struct ie
         struct ieee80211_mutable_offsets *offs, unsigned int link_id) {
     (void) hw; (void) vif; (void) offs; (void) link_id; return NULL;
 }
+struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+        u16 *tim_offset, u16 *tim_length, unsigned int link_id) {
+    (void) hw; (void) vif; (void) tim_offset; (void) tim_length; (void) link_id; return NULL;
+}
+struct sk_buff *ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif) {
+    (void) hw; (void) vif; return NULL;
+}
 bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif, unsigned int link_id) {
     (void) vif; (void) link_id; return false;
 }
 void ieee80211_csa_finish(struct ieee80211_vif *vif, unsigned int link_id) { (void) vif; (void) link_id; }
 void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success, unsigned int link_id) {
     (void) vif; (void) success; (void) link_id;
+}
+void ieee80211_radar_detected(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *chanctx_conf) {
+    (void) hw; (void) chanctx_conf;
 }
 void ieee80211_beacon_loss(struct ieee80211_vif *vif) { (void) vif; }
 void ieee80211_connection_loss(struct ieee80211_vif *vif) { (void) vif; }
@@ -546,6 +556,9 @@ void ieee80211_ready_on_channel(struct ieee80211_hw *hw) { (void) hw; }
 void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw) { (void) hw; }
 u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw, struct ieee80211_rx_status *status, int len) {
     (void) hw; (void) status; (void) len; return 0;
+}
+u32 ieee80211_calc_tx_airtime(struct ieee80211_hw *hw, struct ieee80211_tx_info *info, int len) {
+    (void) hw; (void) info; (void) len; return 0;
 }
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw, const u8 *src_addr, const u8 *ssid,
         size_t ssid_len, size_t tailroom) {
