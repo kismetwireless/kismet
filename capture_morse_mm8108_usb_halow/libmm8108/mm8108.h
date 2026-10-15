@@ -306,6 +306,15 @@ int mm_error(struct mm8108_dev *dev, int err, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /* USB transport (mm_usb.c) */
+/* An attached adapter; path is the USB port chain, which stays the same across re-plugging */
+struct mm_usb_devinfo {
+    int bus;
+    int address;
+    char path[32];
+};
+
+/* Lists attached adapters ordered by port path; returns the number found or a negative error */
+int mm_usb_list(libusb_context *ctx, struct mm_usb_devinfo *out, size_t max);
 int mm_usb_open(struct mm8108_dev *dev, int bus, int address);
 void mm_usb_close(struct mm8108_dev *dev);
 int mm_usb_mem_read(struct mm8108_dev *dev, uint32_t addr, uint8_t *buf, size_t len);

@@ -24,6 +24,7 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/time.h>
 
 #include "mm8108.h"
@@ -284,6 +285,47 @@ static int mm_usb_find_endpoints(struct mm8108_dev *dev, libusb_device *usbdev) 
 }
 
 /* Opens the first MM8108, or the one at bus/address if both are >= 0 */
+static int mm_usb_devinfo_cmp(const void *a, const void *b) {
+    const struct mm_usb_devinfo *da = a, *db = b;
+    return strcmp(da->path, db->path);
+}
+
+int mm_usb_list(libusb_context *ctx, struct mm_usb_devinfo *out, size_t max) {
+    libusb_device **list = NULL;
+    ssize_t count;
+    size_t n = 0;
+
+    if ((count = libusb_get_device_list(ctx, &list)) < 0)
+        return mm_usb_err((int) count);
+
+    for (ssize_t i = 0; i < count && n < max; i++) {
+        struct libusb_device_descriptor desc;
+        uint8_t ports[8];
+        int nports, pos;
+
+        if (libusb_get_device_descriptor(list[i], &desc) < 0 ||
+                desc.idVendor != MM8108_USB_VID || desc.idProduct != MM8108_USB_PID)
+            continue;
+
+        out[n].bus = libusb_get_bus_number(list[i]);
+        out[n].address = libusb_get_device_address(list[i]);
+
+        pos = snprintf(out[n].path, sizeof(out[n].path), "%03d", out[n].bus);
+        nports = libusb_get_port_numbers(list[i], ports, sizeof(ports));
+
+        for (int p = 0; p < nports && pos > 0 && (size_t) pos < sizeof(out[n].path); p++)
+            pos += snprintf(out[n].path + pos, sizeof(out[n].path) - pos, "-%03u", ports[p]);
+
+        n++;
+    }
+
+    libusb_free_device_list(list, 1);
+
+    qsort(out, n, sizeof(out[0]), mm_usb_devinfo_cmp);
+
+    return (int) n;
+}
+
 int mm_usb_open(struct mm8108_dev *dev, int bus, int address) {
     libusb_device **list = NULL;
     libusb_device *found = NULL;

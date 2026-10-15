@@ -1096,6 +1096,15 @@ std::string kis_80211_phy::khz_to_channel(const double in_khz) {
 
     int mhz = in_khz / 1000;
 
+    // 802.11ah in the 902-928MHz band, numbered from 902MHz in 500kHz steps for every
+    // channel width; the US plan, also used in Australia and New Zealand
+    if (in_khz >= 902000 && in_khz <= 928000)
+        return fmt::format("{}ah", static_cast<int>(std::lround((in_khz - 902000) / 500)));
+
+    // Other S1G bands keep their half MHz centers
+    if (mhz < 1000)
+        return fmt::format("{}MHz", in_khz / 1000);
+
     if (mhz < 2412)
         return fmt::format("{}MHz", mhz);
 
