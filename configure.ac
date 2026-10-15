@@ -45,6 +45,7 @@ BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
+BUILD_CAPTURE_USBWIFI=0
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE=1
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 BUILD_CAPTURE_USB_RADIACODE=0
@@ -1643,6 +1644,25 @@ if test x"$want_coconut" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HAK5_COCONUT)"
 fi
 
+want_usbwifi="no"
+AC_ARG_ENABLE([usbwifi],
+    AS_HELP_STRING([--enable-usbwifi], [Enable userspace USB Wi-Fi (Linux drivers on libusb)]),
+	[case "${enableval}" in
+         yes) want_usbwifi=yes ;;
+           *) want_usbwifi=no ;;
+	 esac],
+         [want_usbwifi=no]
+)
+
+BUILD_CAPTURE_USBWIFI=0
+if test x"$want_usbwifi" = x"yes"; then
+    if test x"$have_usb" != "xyes"; then
+        AC_MSG_ERROR([libusb-1.0 required for userspace USB Wi-Fi support])
+    fi
+    BUILD_CAPTURE_USBWIFI=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USBWIFI)"
+fi
+
 
 want_ubertooth="yes"
 AC_ARG_ENABLE([ubertooth],
@@ -2053,6 +2073,7 @@ AC_SUBST(BUILD_CAPTURE_CATSNIFFER_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_SNIFFLE_BLE)
 AC_SUBST(BUILD_CAPTURE_LORAPIPE)
 AC_SUBST(BUILD_CAPTURE_HAK5_COCONUT)
+AC_SUBST(BUILD_CAPTURE_USBWIFI)
 AC_SUBST(BUILD_CAPTURE_SERIAL_RADVIEW)
 AC_SUBST(BUILD_CAPTURE_USB_RADIACODE)
 AC_SUBST(BUILD_CAPTURE_ANTSDR_DRONEID)
@@ -2073,6 +2094,7 @@ AC_CONFIG_FILES([
     capture_catsniffer_zigbee/Makefile
     capture_freaklabs_zigbee_v2/Makefile
     capture_hak5_wifi_coconut/Makefile
+    capture_userspace_usb_wifi/Makefile
     capture_linux_bluetooth/Makefile
     capture_linux_wifi/Makefile
     capture_nrf_51822/Makefile
@@ -2338,6 +2360,12 @@ if test "$BUILD_CAPTURE_HAK5_COCONUT" = 1; then
 	echo "yes";
 else
 	echo "no (Hak5 WiFi Coconut not explicitly enabled)";
+fi
+printf "    USB Wi-Fi (uspace): "
+if test "$BUILD_CAPTURE_USBWIFI" = 1; then
+	echo "yes";
+else
+	echo "no (userspace USB Wi-Fi not explicitly enabled)";
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then

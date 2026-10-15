@@ -1,0 +1,118 @@
+include ../Makefile.inc
+
+# Userspace USB Wi-Fi: Linux drivers built unmodified against kernel and mac80211
+# emulation on libusb (see README.md)
+
+prefix = @prefix@
+datarootdir = @datarootdir@
+FIRMWAREDIR = @datadir@/kismet/firmware
+
+# Kernel headers resolve to kcompat first, then the unmodified upstream wireless headers
+KC_INCLUDES = -Ikcompat/include -Ikcompat/upstream -Ikcompat/upstream/uapi
+KC_CFLAGS = -std=gnu11 -pthread -MMD -MP $(KC_INCLUDES) $(LIBUSBCFLAGS) -O2 -g -fPIE
+
+# Our kernel-side code
+OWN_CFLAGS = $(KC_CFLAGS) -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare \
+	-Wno-missing-field-initializers -Wno-address-of-packed-member -Wno-unknown-warning-option \
+	-I. -Imac80211 -Idrivers
+
+# Vendored kernel code, built as-is; kernel style trips warnings that aren't ours to fix
+MODNAME = mt76
+DRV_CFLAGS = $(KC_CFLAGS) -w -Idrivers/mt76 -DKBUILD_MODNAME='"$(MODNAME)"'
+
+# The capture binary uses Kismet's headers, not kcompat's
+CAP_CFLAGS = $(CFLAGS) -MMD -MP -I.. -DFIRMWAREDIR=\"$(FIRMWAREDIR)\"
+
+KCOMPAT_OBJS = \
+	kcompat/src/core.o \
+	kcompat/src/sched.o \
+	kcompat/src/skb.o \
+	kcompat/src/usb.o
+
+MAC80211_OBJS = \
+	mac80211/main.o \
+	mac80211/rx.o \
+	mac80211/cfg80211.o
+
+MT76_OBJS = \
+	drivers/mt76/mac80211.o \
+	drivers/mt76/util.o \
+	drivers/mt76/mcu.o \
+	drivers/mt76/tx.o \
+	drivers/mt76/eeprom.o \
+	drivers/mt76/channel.o \
+	drivers/mt76/agg-rx.o \
+	drivers/mt76/scan.o \
+	drivers/mt76/usb.o \
+	drivers/mt76/mt76_connac_mcu.o \
+	drivers/mt76/mt76_connac_mac.o \
+	drivers/mt76/mt792x_core.o \
+	drivers/mt76/mt792x_mac.o \
+	drivers/mt76/mt792x_usb.o \
+	drivers/mt76/mt7921/init.o \
+	drivers/mt76/mt7921/main.o \
+	drivers/mt76/mt7921/mac.o \
+	drivers/mt76/mt7921/mcu.o \
+	drivers/mt76/mt7921/usb.o \
+	drivers/mt76/mt7921/regd.o
+
+GLUE_OBJS = \
+	drivers/mt76_glue.o
+
+COMMON_OBJS = \
+	common/uwifi.o \
+	common/uwifi_kismet.o \
+	common/pcap.o \
+	common/wifi_ht_channels.o
+
+LIB = libuwifi.a
+MONITOR_BIN = kismet_cap_usbwifi
+TOOL = uwifi_test
+
+ALL_OBJS = $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(GLUE_OBJS) $(COMMON_OBJS) \
+	capture_usbwifi.o tools/uwifi_test.o
+
+# Drivers register from constructors, so the whole archive is linked
+ifeq ($(shell uname -s),Darwin)
+WHOLE_ARCHIVE = -Wl,-force_load,$(LIB)
+else
+WHOLE_ARCHIVE = -Wl,--whole-archive $(LIB) -Wl,--no-whole-archive
+endif
+
+all: $(MONITOR_BIN) $(TOOL)
+
+$(LIB): $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(GLUE_OBJS) $(COMMON_OBJS)
+	rm -f $@
+	$(AR) rcs $@ $^
+
+$(MONITOR_BIN): capture_usbwifi.o $(LIB) ../libkismetdatasource.a
+	$(CC) $(LDFLAGS) -pthread -o $@ capture_usbwifi.o $(WHOLE_ARCHIVE) ../libkismetdatasource.a \
+		$(LIBUSBLIBS) $(DATASOURCE_LIBS)
+
+$(TOOL): tools/uwifi_test.o $(LIB)
+	$(CC) $(LDFLAGS) -pthread -o $@ tools/uwifi_test.o $(WHOLE_ARCHIVE) $(LIBUSBLIBS)
+
+capture_usbwifi.o: capture_usbwifi.c
+	$(CC) $(CAP_CFLAGS) -c $< -o $@
+
+common/wifi_ht_channels.o: ../wifi_ht_channels.c
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+
+tools/uwifi_test.o: tools/uwifi_test.c
+	$(CC) $(OWN_CFLAGS) -DFIRMWAREDIR=\"$(FIRMWAREDIR)\" -c $< -o $@
+
+# Kernel module names, as the driver reports them
+drivers/mt76/mt7921/usb.o: MODNAME = mt7921u
+
+drivers/mt76/%.o: drivers/mt76/%.c
+	$(CC) $(DRV_CFLAGS) -c $< -o $@
+
+%.o: %.c
+	$(CC) $(OWN_CFLAGS) -c $< -o $@
+
+clean:
+	@-rm -f $(MONITOR_BIN) $(TOOL) $(LIB) $(ALL_OBJS) $(ALL_OBJS:.o=.d)
+
+.PHONY: all clean
+
+-include $(ALL_OBJS:.o=.d)

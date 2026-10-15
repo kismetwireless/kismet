@@ -1,0 +1,8 @@
+Source: Linux kernel drivers/net/wireless/mediatek/mt76
+Tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+Commit: 0fcb05b72344f40806cbe810de8872f1698bf053 (v7.3-rc7)
+License: BSD-3-Clause-Clear (see SPDX headers)
+
+Files are copied unmodified and built as-is against kcompat and mac80211; the
+few functions needed from files not copied are in ../mt76_glue.c.  Refresh from
+a newer kernel by copying the same file list.

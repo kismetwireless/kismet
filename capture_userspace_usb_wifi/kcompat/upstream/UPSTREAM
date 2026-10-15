@@ -1,0 +1,5 @@
+Unmodified headers from the Linux kernel
+Commit: 0fcb05b72344f40806cbe810de8872f1698bf053 (v7.3-rc7)
+License: GPL-2.0 (see SPDX headers); uapi headers carry the Linux-syscall-note.
+
+Searched after kcompat/include, which provides the kernel internals these need.

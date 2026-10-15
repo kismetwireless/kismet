@@ -49,6 +49,9 @@ python_modules/*/dist/
 capture_nrf_mousejack/kismet_cap_nrf_mousejack
 capture_linux_bluetooth/kismet_cap_linux_bluetooth
 capture_linux_wifi/kismet_cap_linux_wifi
+capture_userspace_usb_wifi/uwifi_test
+capture_userspace_usb_wifi/libuwifi.a
+capture_userspace_usb_wifi/kismet_cap_usbwifi
 capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 capture_ti_cc_2540/kismet_cap_ti_cc_2540
 capture_ti_cc_2531/kismet_cap_ti_cc_2531
