@@ -551,3 +551,15 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw, const u8 *src_ad
         size_t ssid_len, size_t tailroom) {
     (void) hw; (void) src_addr; (void) ssid; (void) ssid_len; (void) tailroom; return NULL;
 }
+
+/* Only the monitor interface exists: never MLD, NAN or backed by a wireless_dev */
+struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif) { (void) vif; return NULL; }
+void ieee80211_set_active_links_async(struct ieee80211_vif *vif, u16 active_links) {
+    (void) vif; (void) active_links;
+}
+bool ieee80211_vif_nan_started(struct ieee80211_vif *vif) { (void) vif; return false; }
+void ieee80211_nan_sched_update_done(struct ieee80211_vif *vif) { (void) vif; }
+void ieee80211_nan_cluster_joined(struct ieee80211_vif *vif, const u8 *cluster_id, bool new_cluster,
+        gfp_t gfp) {
+    (void) vif; (void) cluster_id; (void) new_cluster; (void) gfp;
+}
