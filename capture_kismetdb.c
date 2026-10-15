@@ -604,8 +604,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         /* Merge the timelines of the two tables; if the packet comes first process it,
          * otherwise process the data, and repeat */
-        if (data_ts_sec == 0 || packet_ts_sec < data_ts_sec ||
-                (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec)) {
+        if (packet_r == SQLITE_ROW && (data_r != SQLITE_ROW || packet_ts_sec < data_ts_sec ||
+                (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec))) {
             colno = 2;
 
             packet_frequency = sqlite3_column_int64(packet_stmt, colno++);
@@ -651,7 +651,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             data_type = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
             data_json = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
 
-            kismetdb_dispatch_data_cb((u_char *) caph, packet_ts_sec, packet_ts_usec,
+            kismetdb_dispatch_data_cb((u_char *) caph, data_ts_sec, data_ts_usec,
                     data_type, data_json,
                     lat, lon, alt, speed, heading);
 
