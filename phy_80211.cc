@@ -3254,6 +3254,23 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
 }
 
+// An AirMAX radio name names the device when it has no name or no known SSID
+static void set_airmax_devicename(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev, const std::string& radioname) {
+    if (radioname.length() == 0)
+        return;
+
+    const auto adv = dot11dev->get_last_adv_ssid();
+    const bool ssid_known = adv != nullptr && !adv->get_ssid_cloaked() && adv->get_ssid().length() != 0;
+    const auto devicename = basedev->get_devicename();
+
+    if (devicename.length() != 0 && ssid_known)
+        return;
+
+    if (devicename != radioname)
+        basedev->set_devicename(radioname);
+}
+
 void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
@@ -3606,6 +3623,35 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         ssid->set_wpa_mfp_required(false);
         ssid->set_wpa_mfp_supported(false);
     }
+
+    // Ubiquiti AirMAX and MikroTik vendor IEs
+    if (dot11info->airmax_ac.payload_parsed()) {
+        const auto& airmax = dot11info->airmax_ac;
+
+        ssid->set_airmax_variant("AC");
+        ssid->set_airmax_version(airmax.version());
+
+        if (airmax.msg_type() == dot11_ie_221_ubnt_airmax_ac::airmax_msg::beacon) {
+            ssid->set_airmax_radio_mac(airmax.radio_mac());
+            ssid->set_airmax_cap_flags(airmax.cap_flags());
+            ssid->set_airmax_mixed_mode(airmax.mixed_mode());
+        }
+
+        if (airmax.ssid().length() != 0)
+            ssid->set_airmax_ssid(munge_to_printable(airmax.ssid()));
+
+        if (airmax.radioname().length() != 0) {
+            const auto radioname = munge_to_printable(airmax.radioname());
+            ssid->set_airmax_radioname(radioname);
+            set_airmax_devicename(basedev, dot11dev, radioname);
+        }
+    } else if (dot11info->airmax_m.payload_parsed()) {
+        ssid->set_airmax_variant("M");
+        ssid->set_airmax_version(dot11info->airmax_m.version());
+    }
+
+    if (dot11info->mikrotik.parsed())
+        ssid->set_mikrotik_device_name(munge_to_printable(dot11info->mikrotik.device_name()));
 
     if (dot11info->subtype == packet_sub_beacon) {
         auto tag_hash = xx_hash_cpp{};
@@ -4085,6 +4131,41 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
                 if (dot11info->wps_serial_number != "")
                     probessid->set_wps_serial_number(dot11info->wps_serial_number);
             }
+
+            // Ubiquiti AirMAX and MikroTik vendor IEs
+            if (dot11info->airmax_ac.payload_parsed()) {
+                const auto& airmax = dot11info->airmax_ac;
+
+                probessid->set_airmax_variant("AC");
+                probessid->set_airmax_version(airmax.version());
+
+                if (airmax.msg_type() == dot11_ie_221_ubnt_airmax_ac::airmax_msg::assoc_req) {
+                    probessid->set_airmax_tx_chainmask(airmax.tx_chainmask());
+                    probessid->set_airmax_rx_chainmask(airmax.rx_chainmask());
+                    probessid->set_airmax_cap_flags(airmax.cap_flags());
+                }
+
+                if (airmax.has_txpower())
+                    probessid->set_airmax_txpower(airmax.txpower());
+
+                if (airmax.ssid().length() != 0)
+                    probessid->set_airmax_ssid(munge_to_printable(airmax.ssid()));
+
+                if (airmax.fwname().length() != 0)
+                    probessid->set_airmax_fwname(munge_to_printable(airmax.fwname()));
+
+                if (airmax.radioname().length() != 0) {
+                    const auto radioname = munge_to_printable(airmax.radioname());
+                    probessid->set_airmax_radioname(radioname);
+                    set_airmax_devicename(basedev, dot11dev, radioname);
+                }
+            } else if (dot11info->airmax_m.payload_parsed()) {
+                probessid->set_airmax_variant("M");
+                probessid->set_airmax_version(dot11info->airmax_m.version());
+            }
+
+            if (dot11info->mikrotik.parsed())
+                probessid->set_mikrotik_device_name(munge_to_printable(dot11info->mikrotik.device_name()));
 
             // Update the IE listing at the device level
             if (keep_ie_tags_per_bssid) {

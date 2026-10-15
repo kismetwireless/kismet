@@ -402,6 +402,17 @@ void dot11_probed_ssid_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts
     json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.wps_serial_number", opts, wps_serial_number_);
     json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.wps_uuid_e", opts, wps_uuid_e_);
 
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.airmax_variant", opts, airmax_variant_);
+    json_adapter_v2::json_encode_keyed<uint16_t>{}(os, "dot11.probedssid.airmax_version", opts, airmax_version_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.airmax_radioname", opts, airmax_radioname_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.airmax_ssid", opts, airmax_ssid_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.airmax_fwname", opts, airmax_fwname_);
+    json_adapter_v2::json_encode_keyed<uint8_t>{}(os, "dot11.probedssid.airmax_txpower", opts, airmax_txpower_);
+    json_adapter_v2::json_encode_keyed<uint8_t>{}(os, "dot11.probedssid.airmax_tx_chainmask", opts, airmax_tx_chainmask_);
+    json_adapter_v2::json_encode_keyed<uint8_t>{}(os, "dot11.probedssid.airmax_rx_chainmask", opts, airmax_rx_chainmask_);
+    json_adapter_v2::json_encode_keyed<uint32_t>{}(os, "dot11.probedssid.airmax_cap_flags", opts, airmax_cap_flags_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.probedssid.mikrotik_device_name", opts, mikrotik_device_name_);
+
     opts->next_key_comma = sv_comma;
 
     fmt::print(os, "}}");
@@ -488,6 +499,36 @@ void dot11_probed_ssid_v2::filtered_as_json(std::ostream& os, json_adapter_v2::o
                 break;
             case json_adapter_v2::consthash("dot11.probedssid.wps_uuid_e"):
                 json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, wps_uuid_e_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_variant"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_variant_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_version"):
+                json_adapter_v2::json_encode_keyed<uint16_t>{}(os, f.second.rename, opts, airmax_version_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_radioname"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_radioname_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_ssid"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_ssid_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_fwname"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_fwname_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_txpower"):
+                json_adapter_v2::json_encode_keyed<uint8_t>{}(os, f.second.rename, opts, airmax_txpower_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_tx_chainmask"):
+                json_adapter_v2::json_encode_keyed<uint8_t>{}(os, f.second.rename, opts, airmax_tx_chainmask_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_rx_chainmask"):
+                json_adapter_v2::json_encode_keyed<uint8_t>{}(os, f.second.rename, opts, airmax_rx_chainmask_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.airmax_cap_flags"):
+                json_adapter_v2::json_encode_keyed<uint32_t>{}(os, f.second.rename, opts, airmax_cap_flags_);
+                break;
+            case json_adapter_v2::consthash("dot11.probedssid.mikrotik_device_name"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, mikrotik_device_name_);
                 break;
             default:
                 json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
@@ -581,6 +622,15 @@ void dot11_advertised_ssid_v2::as_json(std::ostream& os, json_adapter_v2::opts *
     json_adapter_v2::json_encode_keyed<bool>{}(os, "dot11.advertisedssid.dot11s.forwarding", opts, mesh_forwarding_);
 
     json_adapter_v2::json_encode_keyed<uint8_t>{}(os, "dot11.advertisedssid.advertised_txpower", opts, adv_tx_power_);
+
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.advertisedssid.airmax_variant", opts, airmax_variant_);
+    json_adapter_v2::json_encode_keyed<uint16_t>{}(os, "dot11.advertisedssid.airmax_version", opts, airmax_version_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.advertisedssid.airmax_radioname", opts, airmax_radioname_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.advertisedssid.airmax_ssid", opts, airmax_ssid_);
+    json_adapter_v2::json_encode_keyed<mac_addr>{}(os, "dot11.advertisedssid.airmax_radio_mac", opts, airmax_radio_mac_);
+    json_adapter_v2::json_encode_keyed<uint32_t>{}(os, "dot11.advertisedssid.airmax_cap_flags", opts, airmax_cap_flags_);
+    json_adapter_v2::json_encode_keyed<uint32_t>{}(os, "dot11.advertisedssid.airmax_mixed_mode", opts, airmax_mixed_mode_);
+    json_adapter_v2::json_encode_keyed<std::string>{}(os, "dot11.advertisedssid.mikrotik_device_name", opts, mikrotik_device_name_);
 
     fmt::print(os, "}}");
     opts->next_key_comma = sv_comma;
@@ -747,6 +797,30 @@ void dot11_advertised_ssid_v2::filtered_as_json(std::ostream& os, json_adapter_v
                 break;
             case json_adapter_v2::consthash("dot11.advertisedssid.advertised_txpower"):
                 json_adapter_v2::json_encode_keyed<uint8_t>{}(os, f.second.rename, opts, adv_tx_power_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_variant"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_variant_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_version"):
+                json_adapter_v2::json_encode_keyed<uint16_t>{}(os, f.second.rename, opts, airmax_version_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_radioname"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_radioname_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_ssid"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, airmax_ssid_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_radio_mac"):
+                json_adapter_v2::json_encode_keyed<mac_addr>{}(os, f.second.rename, opts, airmax_radio_mac_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_cap_flags"):
+                json_adapter_v2::json_encode_keyed<uint32_t>{}(os, f.second.rename, opts, airmax_cap_flags_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.airmax_mixed_mode"):
+                json_adapter_v2::json_encode_keyed<uint32_t>{}(os, f.second.rename, opts, airmax_mixed_mode_);
+                break;
+            case json_adapter_v2::consthash("dot11.advertisedssid.mikrotik_device_name"):
+                json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, mikrotik_device_name_);
                 break;
             default:
                 json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);

@@ -470,6 +470,17 @@ public:
         wps_model_number_ = {};
         wps_serial_number_ = {};
         wps_uuid_e_ = {};
+
+        airmax_variant_ = {};
+        airmax_version_ = 0;
+        airmax_radioname_ = {};
+        airmax_ssid_ = {};
+        airmax_fwname_ = {};
+        airmax_txpower_ = 0;
+        airmax_tx_chainmask_ = 0;
+        airmax_rx_chainmask_ = 0;
+        airmax_cap_flags_ = 0;
+        mikrotik_device_name_ = {};
     }
 
     const auto first_time() { return first_time_; }
@@ -542,6 +553,36 @@ public:
     const auto& wps_uuid_e() const { return wps_uuid_e_; }
     template<typename T> void set_wps_uuid_e(const T& v) { wps_uuid_e_ = v; }
 
+    const std::string& airmax_variant() const { return airmax_variant_; }
+    void set_airmax_variant(const std::string& v) { airmax_variant_ = v; }
+
+    constexpr uint16_t airmax_version() const { return airmax_version_; }
+    void set_airmax_version(uint16_t v) { airmax_version_ = v; }
+
+    const std::string& airmax_radioname() const { return airmax_radioname_; }
+    void set_airmax_radioname(const std::string& v) { airmax_radioname_ = v; }
+
+    const std::string& airmax_ssid() const { return airmax_ssid_; }
+    void set_airmax_ssid(const std::string& v) { airmax_ssid_ = v; }
+
+    const std::string& airmax_fwname() const { return airmax_fwname_; }
+    void set_airmax_fwname(const std::string& v) { airmax_fwname_ = v; }
+
+    constexpr uint8_t airmax_txpower() const { return airmax_txpower_; }
+    void set_airmax_txpower(uint8_t v) { airmax_txpower_ = v; }
+
+    constexpr uint8_t airmax_tx_chainmask() const { return airmax_tx_chainmask_; }
+    void set_airmax_tx_chainmask(uint8_t v) { airmax_tx_chainmask_ = v; }
+
+    constexpr uint8_t airmax_rx_chainmask() const { return airmax_rx_chainmask_; }
+    void set_airmax_rx_chainmask(uint8_t v) { airmax_rx_chainmask_ = v; }
+
+    constexpr uint32_t airmax_cap_flags() const { return airmax_cap_flags_; }
+    void set_airmax_cap_flags(uint32_t v) { airmax_cap_flags_ = v; }
+
+    const std::string& mikrotik_device_name() const { return mikrotik_device_name_; }
+    void set_mikrotik_device_name(const std::string& v) { mikrotik_device_name_ = v; }
+
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
@@ -577,6 +618,18 @@ protected:
     std::string wps_model_number_;
     std::string wps_serial_number_;
     std::string wps_uuid_e_;
+
+    // Ubiquiti AirMAX and MikroTik vendor IEs
+    std::string airmax_variant_;
+    uint16_t airmax_version_;
+    std::string airmax_radioname_;
+    std::string airmax_ssid_;
+    std::string airmax_fwname_;
+    uint8_t airmax_txpower_;
+    uint8_t airmax_tx_chainmask_;
+    uint8_t airmax_rx_chainmask_;
+    uint32_t airmax_cap_flags_;
+    std::string mikrotik_device_name_;
 };
 
 template<> struct json_adapter_v2::json_encode<dot11_probed_ssid_v2> {
@@ -679,6 +732,15 @@ public:
         mesh_forwarding_ = 0;
 
         adv_tx_power_ = 0;
+
+        airmax_variant_ = {};
+        airmax_version_ = 0;
+        airmax_radioname_ = {};
+        airmax_ssid_ = {};
+        airmax_radio_mac_ = {};
+        airmax_cap_flags_ = 0;
+        airmax_mixed_mode_ = 0;
+        mikrotik_device_name_ = {};
     }
 
     const auto& ssid() const { return ssid_; }
@@ -846,6 +908,30 @@ public:
     auto adv_tx_power() const { return adv_tx_power_; }
     template<typename T> void set_adv_tx_power(T v) { adv_tx_power_ = v; }
 
+    const std::string& airmax_variant() const { return airmax_variant_; }
+    void set_airmax_variant(const std::string& v) { airmax_variant_ = v; }
+
+    constexpr uint16_t airmax_version() const { return airmax_version_; }
+    void set_airmax_version(uint16_t v) { airmax_version_ = v; }
+
+    const std::string& airmax_radioname() const { return airmax_radioname_; }
+    void set_airmax_radioname(const std::string& v) { airmax_radioname_ = v; }
+
+    const std::string& airmax_ssid() const { return airmax_ssid_; }
+    void set_airmax_ssid(const std::string& v) { airmax_ssid_ = v; }
+
+    const mac_addr& airmax_radio_mac() const { return airmax_radio_mac_; }
+    void set_airmax_radio_mac(const mac_addr& v) { airmax_radio_mac_ = v; }
+
+    constexpr uint32_t airmax_cap_flags() const { return airmax_cap_flags_; }
+    void set_airmax_cap_flags(uint32_t v) { airmax_cap_flags_ = v; }
+
+    constexpr uint32_t airmax_mixed_mode() const { return airmax_mixed_mode_; }
+    void set_airmax_mixed_mode(uint32_t v) { airmax_mixed_mode_ = v; }
+
+    const std::string& mikrotik_device_name() const { return mikrotik_device_name_; }
+    void set_mikrotik_device_name(const std::string& v) { mikrotik_device_name_ = v; }
+
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
 
@@ -922,6 +1008,16 @@ protected:
     bool mesh_forwarding_;
 
     uint8_t adv_tx_power_;
+
+    // Ubiquiti AirMAX and MikroTik vendor IEs
+    std::string airmax_variant_;
+    uint16_t airmax_version_;
+    std::string airmax_radioname_;
+    std::string airmax_ssid_;
+    mac_addr airmax_radio_mac_;
+    uint32_t airmax_cap_flags_;
+    uint32_t airmax_mixed_mode_;
+    std::string mikrotik_device_name_;
 };
 
 template<> struct json_adapter_v2::json_encode<dot11_advertised_ssid_v2> {

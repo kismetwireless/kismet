@@ -47,6 +47,10 @@ PARSERS = \
 	dot11_parsers/dot11_ie_221_wpa_transition.cc.o \
 	dot11_parsers/dot11_ie_221_rsn_pmkid.cc.o \
 	dot11_parsers/dot11_ie_221_wfa.cc.o \
+	dot11_parsers/dot11_ie_221_ubnt_airmax_ac.cc.o \
+	dot11_parsers/dot11_ie_221_ubnt_airmax_m.cc.o \
+	dot11_parsers/dot11_ie_221_mikrotik.cc.o \
+	dot11_parsers/dot11_ubnt_airmax_crypto.cc.o \
 	dot11_parsers/dot11_ie_232_s1g_operation.cc.o \
 	dot11_parsers/dot11_ie_255_ext_tag.cc.o \
 	dot11_parsers/dot11_action.cc.o \

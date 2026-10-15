@@ -483,6 +483,17 @@ public:
             __ImportId(wps_serial_number_id, p);
             __ImportId(wps_uuid_e_id, p);
 
+            __ImportId(airmax_variant_id, p);
+            __ImportId(airmax_version_id, p);
+            __ImportId(airmax_radioname_id, p);
+            __ImportId(airmax_ssid_id, p);
+            __ImportId(airmax_fwname_id, p);
+            __ImportId(airmax_txpower_id, p);
+            __ImportId(airmax_tx_chainmask_id, p);
+            __ImportId(airmax_rx_chainmask_id, p);
+            __ImportId(airmax_cap_flags_id, p);
+            __ImportId(mikrotik_device_name_id, p);
+
             reserve_fields(nullptr);
         }
 
@@ -558,6 +569,24 @@ public:
     __ProxyFullyDynamic(wps_serial_number, std::string, std::string, std::string, tracker_element_string, wps_serial_number_id);
     __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_byte_array, wps_uuid_e_id);
 
+    __ProxyFullyDynamic(airmax_variant, std::string, std::string, std::string, tracker_element_string,
+            airmax_variant_id);
+    __ProxyFullyDynamic(airmax_version, uint16_t, uint16_t, uint16_t, tracker_element_uint16, airmax_version_id);
+    __ProxyFullyDynamic(airmax_radioname, std::string, std::string, std::string, tracker_element_string,
+            airmax_radioname_id);
+    __ProxyFullyDynamic(airmax_ssid, std::string, std::string, std::string, tracker_element_string, airmax_ssid_id);
+    __ProxyFullyDynamic(airmax_fwname, std::string, std::string, std::string, tracker_element_string,
+            airmax_fwname_id);
+    __ProxyFullyDynamic(airmax_txpower, uint8_t, uint8_t, uint8_t, tracker_element_uint8, airmax_txpower_id);
+    __ProxyFullyDynamic(airmax_tx_chainmask, uint8_t, uint8_t, uint8_t, tracker_element_uint8,
+            airmax_tx_chainmask_id);
+    __ProxyFullyDynamic(airmax_rx_chainmask, uint8_t, uint8_t, uint8_t, tracker_element_uint8,
+            airmax_rx_chainmask_id);
+    __ProxyFullyDynamic(airmax_cap_flags, uint32_t, uint32_t, uint32_t, tracker_element_uint32,
+            airmax_cap_flags_id);
+    __ProxyFullyDynamic(mikrotik_device_name, std::string, std::string, std::string, tracker_element_string,
+            mikrotik_device_name_id);
+
 protected:
     virtual void register_fields() override;
 
@@ -593,6 +622,18 @@ protected:
     uint16_t wps_model_number_id;
     uint16_t wps_serial_number_id;
     uint16_t wps_uuid_e_id;
+
+    // Ubiquiti AirMAX and MikroTik vendor IEs
+    uint16_t airmax_variant_id;
+    uint16_t airmax_version_id;
+    uint16_t airmax_radioname_id;
+    uint16_t airmax_ssid_id;
+    uint16_t airmax_fwname_id;
+    uint16_t airmax_txpower_id;
+    uint16_t airmax_tx_chainmask_id;
+    uint16_t airmax_rx_chainmask_id;
+    uint16_t airmax_cap_flags_id;
+    uint16_t mikrotik_device_name_id;
 };
 
 /* Advertised SSID
@@ -695,6 +736,15 @@ public:
             __ImportId(mesh_forwarding_id, p);
 
             __ImportField(adv_tx_power, p);
+
+            __ImportId(airmax_variant_id, p);
+            __ImportId(airmax_version_id, p);
+            __ImportId(airmax_radioname_id, p);
+            __ImportId(airmax_ssid_id, p);
+            __ImportId(airmax_radio_mac_id, p);
+            __ImportId(airmax_cap_flags_id, p);
+            __ImportId(airmax_mixed_mode_id, p);
+            __ImportId(mikrotik_device_name_id, p);
 
             reserve_fields(nullptr);
         }
@@ -840,6 +890,21 @@ public:
 
     __Proxy(adv_tx_power, uint8_t, uint8_t, uint8_t, adv_tx_power);
 
+    __ProxyFullyDynamic(airmax_variant, std::string, std::string, std::string, tracker_element_string,
+            airmax_variant_id);
+    __ProxyFullyDynamic(airmax_version, uint16_t, uint16_t, uint16_t, tracker_element_uint16, airmax_version_id);
+    __ProxyFullyDynamic(airmax_radioname, std::string, std::string, std::string, tracker_element_string,
+            airmax_radioname_id);
+    __ProxyFullyDynamic(airmax_ssid, std::string, std::string, std::string, tracker_element_string, airmax_ssid_id);
+    __ProxyFullyDynamic(airmax_radio_mac, mac_addr, mac_addr, mac_addr, tracker_element_mac_addr,
+            airmax_radio_mac_id);
+    __ProxyFullyDynamic(airmax_cap_flags, uint32_t, uint32_t, uint32_t, tracker_element_uint32,
+            airmax_cap_flags_id);
+    __ProxyFullyDynamic(airmax_mixed_mode, uint32_t, uint32_t, uint32_t, tracker_element_uint32,
+            airmax_mixed_mode_id);
+    __ProxyFullyDynamic(mikrotik_device_name, std::string, std::string, std::string, tracker_element_string,
+            mikrotik_device_name_id);
+
 protected:
     virtual void register_fields() override;
 
@@ -953,6 +1018,16 @@ protected:
     uint16_t mesh_forwarding_id;
 
     std::shared_ptr<tracker_element_uint8> adv_tx_power;
+
+    // Ubiquiti AirMAX and MikroTik vendor IEs
+    uint16_t airmax_variant_id;
+    uint16_t airmax_version_id;
+    uint16_t airmax_radioname_id;
+    uint16_t airmax_ssid_id;
+    uint16_t airmax_radio_mac_id;
+    uint16_t airmax_cap_flags_id;
+    uint16_t airmax_mixed_mode_id;
+    uint16_t mikrotik_device_name_id;
 };
 
 /* dot11 client

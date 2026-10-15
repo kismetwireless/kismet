@@ -234,6 +234,37 @@ void dot11_probed_ssid::register_fields() {
         register_dynamic_field<tracker_element_string>("dot11.probedssid.wps_serial_number", "wps serial number");
     wps_uuid_e_id =
         register_dynamic_field<tracker_element_string>("dot11.probedssid.wps_uuid_e", "wps euuid");
+
+    airmax_variant_id =
+        register_dynamic_field<tracker_element_string>("dot11.probedssid.airmax_variant",
+                "Ubiquiti AirMAX variant (AC or M)");
+    airmax_version_id =
+        register_dynamic_field<tracker_element_uint16>("dot11.probedssid.airmax_version",
+                "Ubiquiti AirMAX payload version");
+    airmax_radioname_id =
+        register_dynamic_field<tracker_element_string>("dot11.probedssid.airmax_radioname",
+                "Ubiquiti AirMAX radio name");
+    airmax_ssid_id =
+        register_dynamic_field<tracker_element_string>("dot11.probedssid.airmax_ssid",
+                "Ubiquiti AirMAX SSID");
+    airmax_fwname_id =
+        register_dynamic_field<tracker_element_string>("dot11.probedssid.airmax_fwname",
+                "Ubiquiti AirMAX firmware name");
+    airmax_txpower_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.probedssid.airmax_txpower",
+                "Ubiquiti AirMAX transmit power");
+    airmax_tx_chainmask_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.probedssid.airmax_tx_chainmask",
+                "Ubiquiti AirMAX transmit chainmask");
+    airmax_rx_chainmask_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.probedssid.airmax_rx_chainmask",
+                "Ubiquiti AirMAX receive chainmask");
+    airmax_cap_flags_id =
+        register_dynamic_field<tracker_element_uint32>("dot11.probedssid.airmax_cap_flags",
+                "Ubiquiti AirMAX capability flags");
+    mikrotik_device_name_id =
+        register_dynamic_field<tracker_element_string>("dot11.probedssid.mikrotik_device_name",
+                "MikroTik device name");
 }
 
 void dot11_advertised_ssid::register_fields() {
@@ -378,6 +409,31 @@ void dot11_advertised_ssid::register_fields() {
 
     register_field("dot11.advertisedssid.advertised_txpower",
             "advertised transmit power (TPC)", &adv_tx_power);
+
+    airmax_variant_id =
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.airmax_variant",
+                "Ubiquiti AirMAX variant (AC or M)");
+    airmax_version_id =
+        register_dynamic_field<tracker_element_uint16>("dot11.advertisedssid.airmax_version",
+                "Ubiquiti AirMAX payload version");
+    airmax_radioname_id =
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.airmax_radioname",
+                "Ubiquiti AirMAX radio name");
+    airmax_ssid_id =
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.airmax_ssid",
+                "Ubiquiti AirMAX SSID");
+    airmax_radio_mac_id =
+        register_dynamic_field<tracker_element_mac_addr>("dot11.advertisedssid.airmax_radio_mac",
+                "Ubiquiti AirMAX radio MAC");
+    airmax_cap_flags_id =
+        register_dynamic_field<tracker_element_uint32>("dot11.advertisedssid.airmax_cap_flags",
+                "Ubiquiti AirMAX capability flags");
+    airmax_mixed_mode_id =
+        register_dynamic_field<tracker_element_uint32>("dot11.advertisedssid.airmax_mixed_mode",
+                "Ubiquiti AirMAX mixed mode");
+    mikrotik_device_name_id =
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.mikrotik_device_name",
+                "MikroTik device name");
 }
 
 void dot11_advertised_ssid::set_ietag_content_from_packet(const dot11_ie& tags) {

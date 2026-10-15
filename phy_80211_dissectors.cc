@@ -68,11 +68,42 @@
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
 #include "dot11_parsers/dot11_ie_221_wfa.h"
+#include "dot11_parsers/dot11_ie_221_mikrotik.h"
+#include "dot11_parsers/dot11_ie_221_ubnt_airmax_ac.h"
+#include "dot11_parsers/dot11_ie_221_ubnt_airmax_m.h"
+#include "dot11_parsers/dot11_ubnt_airmax_crypto.h"
 #include "dot11_parsers/dot11_ie_232_s1g_operation.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
 #include "dot11_parsers/dot11_s1g.h"
 
 #include "crc32.h"
+
+// AirMAX payloads are keyed to the destination, but identity frames use the broadcast key even
+// when unicast.  A payload is only accepted if it decodes and carries the 802.11 source MAC.
+template<typename T>
+static bool airmax_decrypt_verify(T& ie, const mac_addr& src, const mac_addr& dst) {
+    static const mac_addr broadcast((const uint8_t *) "\xff\xff\xff\xff\xff\xff", 6);
+
+    const auto try_key = [&ie, &src](const mac_addr& key_dst) -> bool {
+        std::string plaintext;
+
+        if (!ubnt_airmax::decrypt(ie.ciphertext(), src, key_dst, plaintext))
+            return false;
+
+        try {
+            ie.parse_payload(plaintext);
+        } catch (...) {
+            return false;
+        }
+
+        return ie.payload_parsed() && ie.src_mac() == src;
+    };
+
+    if (!dst.is_broadcast() && try_key(dst))
+        return true;
+
+    return try_key(broadcast);
+}
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -2535,6 +2566,41 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                                         }
                                     }
                                 }
+                            } catch (...) { }
+
+                            break;
+
+                        case dot11_ie_221_ubnt_airmax_ac::vendor_oui():
+                            try {
+                                dot11_ie_221_ubnt_airmax_ac airmax;
+                                airmax.parse(vendor.vendor_tag());
+
+                                if (airmax.parsed() && airmax.encrypted() &&
+                                        airmax_decrypt_verify(airmax, packinfo->source_mac, packinfo->dest_mac))
+                                    packinfo->airmax_ac = std::move(airmax);
+                            } catch (...) { }
+
+                            break;
+
+                        case dot11_ie_221_ubnt_airmax_m::vendor_oui():
+                            try {
+                                dot11_ie_221_ubnt_airmax_m airmax;
+                                airmax.parse(vendor.vendor_tag());
+
+                                if (airmax.parsed() &&
+                                        airmax_decrypt_verify(airmax, packinfo->source_mac, packinfo->dest_mac))
+                                    packinfo->airmax_m = std::move(airmax);
+                            } catch (...) { }
+
+                            break;
+
+                        case dot11_ie_221_mikrotik::vendor_oui():
+                            try {
+                                dot11_ie_221_mikrotik mikrotik;
+                                mikrotik.parse(vendor.vendor_tag());
+
+                                if (mikrotik.parsed() && mikrotik.device_name().length() != 0)
+                                    packinfo->mikrotik = std::move(mikrotik);
                             } catch (...) { }
 
                             break;

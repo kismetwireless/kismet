@@ -792,6 +792,163 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             },
 
             {
+                field: "dot11_airmax_group",
+                id: "dot11_airmax_group",
+                groupTitle: "Ubiquiti AirMAX",
+                liveupdate: true,
+                help: "Ubiquiti AirMAX devices include an obfuscated vendor IE tag describing the radio, and MikroTik devices may include their device name.  Kismet decodes AirMAX tags only when the payload matches the transmitting MAC.",
+                filter: function(opts) {
+                    const keys = [
+                        "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_variant",
+                        "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.mikrotik_device_name",
+                        "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_variant",
+                        "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.mikrotik_device_name",
+                    ];
+
+                    try {
+                        for (const k of keys) {
+                            const v = kismet.ObjectByString(opts['data'], k);
+                            if (typeof(v) !== 'undefined' && v !== null && v.length != 0)
+                                return true;
+                        }
+                    } catch (_error) {
+                        return false;
+                    }
+
+                    return false;
+                },
+                fields: [
+                {
+                    field: "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_variant",
+                    liveupdate: true,
+                    title: "AirMAX (AP)",
+                    filterOnEmpty: true,
+                    help: "The AirMAX variant and payload version advertised by this device as an access point.",
+                    draw: function(opts) {
+                        return "AirMAX " + opts['value'] + " (version " +
+                            kismet.ObjectByString(opts['data'], "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_version") + ")";
+                    },
+                },
+                {
+                    field: "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_radioname",
+                    liveupdate: true,
+                    title: "Radio Name",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The radio name configured on the AirMAX access point.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_ssid",
+                    liveupdate: true,
+                    title: "AirMAX SSID",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The SSID in the AirMAX IE tag; this may be present even when the beaconed SSID is hidden.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_radio_mac",
+                    liveupdate: true,
+                    title: "Radio MAC",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorMAC(opts['value']);
+                    },
+                    help: "The radio MAC address in the AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.airmax_cap_flags",
+                    liveupdate: true,
+                    title: "Capabilities",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return "0x" + ("00000000" + opts['value'].toString(16)).substr(-8);
+                    },
+                    help: "The capability flags in the AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.mikrotik_device_name",
+                    liveupdate: true,
+                    title: "MikroTik Device (AP)",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The device name advertised in a MikroTik / RouterBoard IE tag.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_variant",
+                    liveupdate: true,
+                    title: "AirMAX (Client)",
+                    filterOnEmpty: true,
+                    help: "The AirMAX variant and payload version sent by this device as a client.",
+                    draw: function(opts) {
+                        return "AirMAX " + opts['value'] + " (version " +
+                            kismet.ObjectByString(opts['data'], "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_version") + ")";
+                    },
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_radioname",
+                    liveupdate: true,
+                    title: "Client Radio Name",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The radio name configured on the AirMAX client.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_ssid",
+                    liveupdate: true,
+                    title: "Client AirMAX SSID",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The SSID in the AirMAX IE tag sent by the client.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_fwname",
+                    liveupdate: true,
+                    title: "Firmware",
+                    filterOnEmpty: true,
+                    help: "The firmware name in the AirMAX IE tag sent by the client.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_txpower",
+                    liveupdate: true,
+                    title: "TX Power",
+                    filterOnEmpty: true,
+                    help: "The transmit power in the AirMAX IE tag, in the units the device reports.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_tx_chainmask",
+                    liveupdate: true,
+                    title: "Chains",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return "TX 0x" + opts['value'].toString(16) + ", RX 0x" +
+                            kismet.ObjectByString(opts['data'], "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.airmax_rx_chainmask").toString(16);
+                    },
+                    help: "The transmit and receive antenna chainmasks in the AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.mikrotik_device_name",
+                    liveupdate: true,
+                    title: "MikroTik Device (Client)",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The device name sent in a MikroTik / RouterBoard IE tag.",
+                },
+                ],
+            },
+
+            {
                 field: "dot11.device/dot11.device.wpa_handshake_list",
                 id: "wpa_handshake_title",
                 filter: function(opts) {
@@ -1073,6 +1230,64 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "WPS Serial #",
                     filterOnEmpty: true,
                     help: "Clients which support Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.probedssid.airmax_variant",
+                    title: "AirMAX",
+                    filterOnEmpty: true,
+                    help: "Ubiquiti AirMAX clients include an obfuscated vendor IE tag describing the radio.  Kismet decodes it when the payload matches the transmitting MAC.",
+                    draw: function(opts) {
+                        return "AirMAX " + opts['value'] + " (version " + opts['base']['dot11.probedssid.airmax_version'] + ")";
+                    },
+                },
+                {
+                    field: "dot11.probedssid.airmax_radioname",
+                    title: "AirMAX Radio Name",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The radio name configured on a Ubiquiti AirMAX device.",
+                },
+                {
+                    field: "dot11.probedssid.airmax_ssid",
+                    title: "AirMAX SSID",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The SSID in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.probedssid.airmax_fwname",
+                    title: "AirMAX Firmware",
+                    filterOnEmpty: true,
+                    help: "The firmware name in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.probedssid.airmax_txpower",
+                    title: "AirMAX TX Power",
+                    filterOnEmpty: true,
+                    help: "The transmit power in the Ubiquiti AirMAX IE tag, in the units the device reports.",
+                },
+                {
+                    field: "dot11.probedssid.airmax_tx_chainmask",
+                    title: "AirMAX Chains",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return "TX 0x" + opts['value'].toString(16) + ", RX 0x" +
+                            opts['base']['dot11.probedssid.airmax_rx_chainmask'].toString(16);
+                    },
+                    help: "The transmit and receive antenna chainmasks in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.probedssid.mikrotik_device_name",
+                    title: "MikroTik Device",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "MikroTik / RouterBoard devices may advertise their configured device name in a vendor IE tag.",
                 },
 
                 ],
@@ -1482,6 +1697,66 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     },
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
                 },
+                {
+                    field: "dot11.advertisedssid.airmax_variant",
+                    liveupdate: true,
+                    title: "AirMAX",
+                    filterOnEmpty: true,
+                    help: "Ubiquiti AirMAX access points include an obfuscated vendor IE tag describing the radio.  Kismet decodes it when the payload matches the transmitting MAC.",
+                    draw: function(opts) {
+                        return "AirMAX " + opts['value'] + " (version " + opts['base']['dot11.advertisedssid.airmax_version'] + ")";
+                    },
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_radioname",
+                    liveupdate: true,
+                    title: "AirMAX Radio Name",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The radio name configured on a Ubiquiti AirMAX device.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_ssid",
+                    liveupdate: true,
+                    title: "AirMAX SSID",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The SSID in the Ubiquiti AirMAX IE tag; this may be present even when the beaconed SSID is hidden.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_radio_mac",
+                    liveupdate: true,
+                    title: "AirMAX Radio MAC",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorMAC(opts['value']);
+                    },
+                    help: "The radio MAC address in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_cap_flags",
+                    liveupdate: true,
+                    title: "AirMAX Capabilities",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return "0x" + ("00000000" + opts['value'].toString(16)).substr(-8);
+                    },
+                    help: "The capability flags in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.advertisedssid.mikrotik_device_name",
+                    liveupdate: true,
+                    title: "MikroTik Device",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "MikroTik / RouterBoard access points may advertise their configured device name in a vendor IE tag.",
+                },
 
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
@@ -1857,6 +2132,66 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         return kismet.censorString(opts['value']);
                     },
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_variant",
+                    liveupdate: true,
+                    title: "AirMAX",
+                    filterOnEmpty: true,
+                    help: "Ubiquiti AirMAX access points include an obfuscated vendor IE tag describing the radio.  Kismet decodes it when the payload matches the transmitting MAC.",
+                    draw: function(opts) {
+                        return "AirMAX " + opts['value'] + " (version " + opts['base']['dot11.advertisedssid.airmax_version'] + ")";
+                    },
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_radioname",
+                    liveupdate: true,
+                    title: "AirMAX Radio Name",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The radio name configured on a Ubiquiti AirMAX device.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_ssid",
+                    liveupdate: true,
+                    title: "AirMAX SSID",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "The SSID in the Ubiquiti AirMAX IE tag; this may be present even when the beaconed SSID is hidden.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_radio_mac",
+                    liveupdate: true,
+                    title: "AirMAX Radio MAC",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorMAC(opts['value']);
+                    },
+                    help: "The radio MAC address in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.advertisedssid.airmax_cap_flags",
+                    liveupdate: true,
+                    title: "AirMAX Capabilities",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return "0x" + ("00000000" + opts['value'].toString(16)).substr(-8);
+                    },
+                    help: "The capability flags in the Ubiquiti AirMAX IE tag.",
+                },
+                {
+                    field: "dot11.advertisedssid.mikrotik_device_name",
+                    liveupdate: true,
+                    title: "MikroTik Device",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return kismet.censorString(opts['value']);
+                    },
+                    help: "MikroTik / RouterBoard access points may advertise their configured device name in a vendor IE tag.",
                 },
 
                 {

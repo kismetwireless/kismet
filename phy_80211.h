@@ -73,6 +73,9 @@
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
+#include "dot11_parsers/dot11_ie_221_mikrotik.h"
+#include "dot11_parsers/dot11_ie_221_ubnt_airmax_ac.h"
+#include "dot11_parsers/dot11_ie_221_ubnt_airmax_m.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
 #include "dot11_parsers/dot11_ie_232_s1g_operation.h"
@@ -212,6 +215,10 @@ class dot11_packinfo : public packet_component {
             droneid.reset();
             s1g.reset();
 
+            airmax_ac.reset();
+            airmax_m.reset();
+            mikrotik.reset();
+
             basic_rates.clear();
             extended_rates.clear();
             mcs_rates.clear();
@@ -333,6 +340,11 @@ class dot11_packinfo : public packet_component {
         dot11_ie_232_s1g_operation s1g_operation;
 
         std::shared_ptr<dot11_ie_221_dji_droneid> droneid;
+
+        // AirMAX payloads are only kept when they decrypt to the source MAC
+        dot11_ie_221_ubnt_airmax_ac airmax_ac;
+        dot11_ie_221_ubnt_airmax_m airmax_m;
+        dot11_ie_221_mikrotik mikrotik;
 
         double maxrate;
         // 11g rates
