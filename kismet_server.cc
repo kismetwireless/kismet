@@ -90,11 +90,8 @@
 #include "datasource_adsbproxy.h"
 #include "datasource_bt_geiger.h"
 #include "datasource_hak5_wifi_coconut.h"
-<<<<<<< HEAD
 #include "datasource_usbwifi.h"
-=======
 #include "datasource_mm8108.h"
->>>>>>> halow-mm
 #include "datasource_mqtt.h"
 #include "datasource_radview.h"
 #include "datasource_radiacode.h"

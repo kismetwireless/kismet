@@ -46,6 +46,7 @@ BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_HAK5_COCONUT=0
 BUILD_CAPTURE_USBWIFI=0
+BUILD_CAPTURE_MM8108=0
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE=1
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 BUILD_CAPTURE_USB_RADIACODE=0
@@ -1663,6 +1664,25 @@ if test x"$want_usbwifi" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USBWIFI)"
 fi
 
+want_mm8108="no"
+AC_ARG_ENABLE([mm8108],
+    AS_HELP_STRING([--enable-mm8108], [Enable Morse Micro MM8108 USB HaLow (userspace via libusb)]),
+	[case "${enableval}" in
+         yes) want_mm8108=yes ;;
+           *) want_mm8108=no ;;
+	 esac],
+         [want_mm8108=no]
+)
+
+BUILD_CAPTURE_MM8108=0
+if test x"$want_mm8108" = x"yes"; then
+    if test x"$have_usb" != "xyes"; then
+        AC_MSG_ERROR([libusb-1.0 required for MM8108 HaLow support])
+    fi
+    BUILD_CAPTURE_MM8108=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_MM8108)"
+fi
+
 
 want_ubertooth="yes"
 AC_ARG_ENABLE([ubertooth],
@@ -2074,6 +2094,7 @@ AC_SUBST(BUILD_CAPTURE_SNIFFLE_BLE)
 AC_SUBST(BUILD_CAPTURE_LORAPIPE)
 AC_SUBST(BUILD_CAPTURE_HAK5_COCONUT)
 AC_SUBST(BUILD_CAPTURE_USBWIFI)
+AC_SUBST(BUILD_CAPTURE_MM8108)
 AC_SUBST(BUILD_CAPTURE_SERIAL_RADVIEW)
 AC_SUBST(BUILD_CAPTURE_USB_RADIACODE)
 AC_SUBST(BUILD_CAPTURE_ANTSDR_DRONEID)
@@ -2095,6 +2116,7 @@ AC_CONFIG_FILES([
     capture_freaklabs_zigbee_v2/Makefile
     capture_hak5_wifi_coconut/Makefile
     capture_userspace_usb_wifi/Makefile
+    capture_morse_mm8108_usb_halow/Makefile
     capture_linux_bluetooth/Makefile
     capture_linux_wifi/Makefile
     capture_nrf_51822/Makefile
@@ -2366,6 +2388,12 @@ if test "$BUILD_CAPTURE_USBWIFI" = 1; then
 	echo "yes";
 else
 	echo "no (userspace USB Wi-Fi not explicitly enabled)";
+fi
+printf "    MM8108 HaLow (USB): "
+if test "$BUILD_CAPTURE_MM8108" = 1; then
+	echo "yes";
+else
+	echo "no (MM8108 HaLow not explicitly enabled)";
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
