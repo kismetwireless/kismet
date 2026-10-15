@@ -29,8 +29,8 @@
  *   firmware=DIR     directory searched first for firmware and board config files
  *   verbose=true     driver logging
  *
- * Firmware is not included; it's distributed by Morse Micro under their own license at
- * https://github.com/MorseMicro/morse-firmware
+ * Firmware and board config files from https://github.com/MorseMicro/morse-firmware are
+ * installed to Kismet's share/kismet/firmware/morse, under Morse Micro's license
  */
 
 #define _GNU_SOURCE

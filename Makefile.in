@@ -547,7 +547,9 @@ binsuidinstall: $(DATASOURCE_BINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` ; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` && \
+		mkdir -p $(SHARE)/firmware/morse && \
+		cp -R capture_morse_mm8108_usb_halow/firmware/morse/* $(SHARE)/firmware/morse/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
@@ -701,7 +703,9 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` ; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` && \
+		mkdir -p $(SHARE)/firmware/morse && \
+		cp -R capture_morse_mm8108_usb_halow/firmware/morse/* $(SHARE)/firmware/morse/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433V2)"x = "1"x; then \
