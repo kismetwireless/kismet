@@ -639,7 +639,6 @@ BUILD_CAPTURE_SNIFFLE_BLE
 BUILD_CAPTURE_CATSNIFFER_ZIGBEE
 BUILD_CAPTURE_NRF_52840
 BUILD_CAPTURE_RZ_KILLERBEE
-BUILD_CAPTURE_PROXY_ADSB
 BUILD_CAPTURE_NXP_KW41Z
 BUILD_CAPTURE_NRF_51822
 BUILD_CAPTURE_UBERTOOTH_ONE
@@ -4755,7 +4754,6 @@ BUILD_CAPTURE_SDR_RTLAMR=0
 BUILD_CAPTURE_SDR_RTLADSB=0
 BUILD_CAPTURE_BT_GEIGER=0
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
-BUILD_CAPTURE_PROXY_ADSB=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -15861,12 +15859,11 @@ sharedatadir=${sharedatadir}
 
 
 
-
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_proxy_adsb/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16536,7 +16533,6 @@ do
     "capture_nxp_kw41z/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nxp_kw41z/Makefile" ;;
     "capture_openbsd_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_openbsd_wifi/Makefile" ;;
     "capture_osx_corewlan_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_osx_corewlan_wifi/Makefile" ;;
-    "capture_proxy_adsb/Makefile") CONFIG_FILES="$CONFIG_FILES capture_proxy_adsb/Makefile" ;;
     "capture_radiacode/Makefile") CONFIG_FILES="$CONFIG_FILES capture_radiacode/Makefile" ;;
     "capture_rz_killerbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_rz_killerbee/Makefile" ;;
     "capture_sdr_rtl433_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtl433_v2/Makefile" ;;

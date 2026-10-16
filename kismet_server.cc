@@ -87,7 +87,6 @@
 #include "datasource_dot11_scan.h"
 #include "datasource_bluetooth_scan.h"
 #include "datasource_bladerf_wiphy.h"
-#include "datasource_adsbproxy.h"
 #include "datasource_bt_geiger.h"
 #include "datasource_hak5_wifi_coconut.h"
 #include "datasource_usbwifi.h"
@@ -945,7 +944,6 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_adsbproxy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bt_geiger_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_hak5_wifi_coconut_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_usbwifi_builder()));

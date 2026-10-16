@@ -987,7 +987,11 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
     // Insert GPS data as soon as possible in the chain if there's no data
     // from the rest of the processing
     if (!packet->gps_info.gps_info_ok && !packet->suppress_gps) {
-        gpstracker->get_best_location(packet->gps_info);
+        // Virtual sources inject packets directly and never set the cached gpstracker
+        if (gpstracker != nullptr)
+            gpstracker->get_best_location(packet->gps_info);
+        else
+            Globalreg::fetch_mandatory_global_as<gps_tracker>()->get_best_location(packet->gps_info);
     }
 
     // Inject the packet into the packetchain if we have one

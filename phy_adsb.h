@@ -31,19 +31,6 @@
 #include "phyhandler.h"
 #include "trackedelement.h"
 
-/* ADSB BEAST binary frame
- * https://wiki.jetvision.de/wiki/Mode-S_Beast:Data_Output_Formats
- */
-typedef struct adsb_beast_frame {
-    char esc;
-    char frametype;
-    // We use the top 28 bits as the lower part of a unix timestamp, 
-    // and the bottom 20 bits as the uS.
-    char mlat_ts[6];
-    char signal;
-    char modes[0];
-} __attribute__((packed)) adsb_beast_frame_t;
-
 // ADSB plane data
 class adsb_tracked_adsb : public tracker_component {
 public:
