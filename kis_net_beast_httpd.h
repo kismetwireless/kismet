@@ -655,7 +655,7 @@ protected:
 
     kis_mutex& mutex;
     kis_mutex dfl_mutex;
-    bool use_mutex;
+    bool use_mutex{false};
 
     wrapper_func_t pre_func;
     wrapper_func_t post_func;
