@@ -261,6 +261,59 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len) {
     return len == 0 ? 0 : -EFAULT;
 }
 
+/* As net/core/skbuff.c ___pskb_trim(); trimming into a frag list isn't supported */
+int __pskb_trim(struct sk_buff *skb, unsigned int len) {
+    struct skb_shared_info *sh = skb_shinfo(skb);
+    unsigned int offset = skb_headlen(skb);
+    int nfrags = sh->nr_frags;
+    int i = 0;
+
+    if (!skb_is_nonlinear(skb)) {
+        __skb_trim(skb, len);
+        return 0;
+    }
+
+    if (offset < len) {
+        bool found = false;
+
+        for (; i < nfrags; i++) {
+            unsigned int end = offset + sh->frags[i].size;
+
+            if (end < len) {
+                offset = end;
+                continue;
+            }
+
+            sh->frags[i++].size = len - offset;
+            found = true;
+            break;
+        }
+
+        /* len ends inside the frag list */
+        if (!found)
+            return -EINVAL;
+    }
+
+    sh->nr_frags = (u8) i;
+    for (; i < nfrags; i++)
+        put_page(sh->frags[i].page);
+    if (sh->frag_list) {
+        kfree_skb_list(sh->frag_list);
+        sh->frag_list = NULL;
+    }
+
+    if (len > skb_headlen(skb)) {
+        skb->data_len -= skb->len - len;
+        skb->len = len;
+    } else {
+        skb->len = len;
+        skb->data_len = 0;
+        skb->tail = skb->data + len;
+    }
+
+    return 0;
+}
+
 int skb_linearize(struct sk_buff *skb) {
     struct skb_shared_info *sh = skb_shinfo(skb);
     unsigned int headroom = skb_headroom(skb);

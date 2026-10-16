@@ -63,6 +63,56 @@ char *kvasprintf(gfp_t flags, const char *fmt, va_list ap);
 #define kfree_const(p) kfree(p)
 #define kstrdup_const(s, f) kstrdup(s, f)
 
+/* Record fifos, as linux/kfifo.h: a power-of-two ring of fixed-size elements, with the
+ * size rounded down as kfifo_alloc() does */
+struct __kfifo {
+    unsigned int in;
+    unsigned int out;
+    unsigned int mask;
+    unsigned int esize;
+    void *data;
+};
+#define DECLARE_KFIFO_PTR(fifo, type) struct { struct __kfifo kfifo; type *ptr; } fifo
+#define kfifo_alloc(fifo, size, gfp) ({ \
+    typeof(fifo) __f = (fifo); \
+    unsigned int __n = (size), __s = 1; \
+    while (__s <= __n / 2) \
+        __s <<= 1; \
+    __f->kfifo.in = __f->kfifo.out = 0; \
+    __f->kfifo.esize = sizeof(*__f->ptr); \
+    __f->kfifo.data = __n < 2 ? NULL : kmalloc_array(__s, __f->kfifo.esize, gfp); \
+    __f->kfifo.mask = __f->kfifo.data ? __s - 1 : 0; \
+    __n < 2 ? -EINVAL : (__f->kfifo.data ? 0 : -ENOMEM); \
+})
+#define kfifo_free(fifo) do { \
+    kfree((fifo)->kfifo.data); \
+    (fifo)->kfifo.data = NULL; \
+    (fifo)->kfifo.in = (fifo)->kfifo.out = (fifo)->kfifo.mask = 0; \
+} while (0)
+#define kfifo_reset(fifo) do { (fifo)->kfifo.in = (fifo)->kfifo.out = 0; } while (0)
+#define kfifo_len(fifo) ((fifo)->kfifo.in - (fifo)->kfifo.out)
+#define kfifo_is_empty(fifo) ((fifo)->kfifo.in == (fifo)->kfifo.out)
+#define kfifo_is_full(fifo) (kfifo_len(fifo) > (fifo)->kfifo.mask)
+#define kfifo_put(fifo, val) ({ \
+    typeof(fifo) __f = (fifo); \
+    typeof(*__f->ptr) __v = (val); \
+    unsigned int __ok = !kfifo_is_full(__f); \
+    if (__ok) { \
+        ((typeof(__f->ptr)) __f->kfifo.data)[__f->kfifo.in & __f->kfifo.mask] = __v; \
+        __f->kfifo.in++; \
+    } \
+    __ok; \
+})
+#define kfifo_get(fifo, valp) ({ \
+    typeof(fifo) __f = (fifo); \
+    unsigned int __ok = !kfifo_is_empty(__f); \
+    if (__ok) { \
+        *(valp) = ((typeof(__f->ptr)) __f->kfifo.data)[__f->kfifo.out & __f->kfifo.mask]; \
+        __f->kfifo.out++; \
+    } \
+    __ok; \
+})
+
 /* Devices */
 struct device_driver {
     const char *name;

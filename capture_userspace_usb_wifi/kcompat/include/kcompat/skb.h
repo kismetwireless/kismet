@@ -300,6 +300,10 @@ static inline void skb_trim(struct sk_buff *skb, unsigned int len) {
     if (skb->len > len)
         __skb_trim(skb, len);
 }
+int __pskb_trim(struct sk_buff *skb, unsigned int len);
+static inline int pskb_trim(struct sk_buff *skb, unsigned int len) {
+    return len < skb->len ? __pskb_trim(skb, len) : 0;
+}
 static inline int skb_put_padto(struct sk_buff *skb, unsigned int len) {
     if (skb->len < len) {
         unsigned int pad = len - skb->len;
