@@ -44,7 +44,7 @@ int antenna_tracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) 
         auto a = std::static_pointer_cast<tracked_antenna>(ai.second);
 
         if (a->get_source_uuid() == in_src && a->get_source_antnum() == in_srcnum) { 
-            return a->get_id();
+            return a->get_antenna_id();
         }
     }
 
@@ -53,16 +53,16 @@ int antenna_tracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) 
     uuid u;
     u.generate_random_time_uuid();
     
-    ant->set_id(next_ant_id++);
+    ant->set_antenna_id(next_ant_id++);
     ant->set_source_uuid(in_src);
     ant->set_source_antnum(in_srcnum);
     ant->set_power_adjust(in_adjustment);
 
     ant->set_antenna_uuid(u);
 
-    antenna_id_map->insert(ant->get_id(), ant);
+    antenna_id_map->insert(ant->get_antenna_id(), ant);
 
-    return ant->get_id();
+    return ant->get_antenna_id();
 }
 
 int antenna_tracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, uuid in_ant_uuid) {
@@ -72,21 +72,21 @@ int antenna_tracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, 
         auto a = std::static_pointer_cast<tracked_antenna>(ai.second);
 
         if (a->get_source_uuid() == in_src && a->get_source_antnum() == in_srcnum) { 
-            return a->get_id();
+            return a->get_antenna_id();
         }
     }
 
     auto ant = std::make_shared<tracked_antenna>();
 
-    ant->set_id(next_ant_id++);
+    ant->set_antenna_id(next_ant_id++);
     ant->set_source_uuid(in_src);
     ant->set_source_antnum(in_srcnum);
     ant->set_power_adjust(in_adjustment);
     ant->set_antenna_uuid(in_ant_uuid);
 
-    antenna_id_map->insert(ant->get_id(), ant);
+    antenna_id_map->insert(ant->get_antenna_id(), ant);
 
-    return ant->get_id();
+    return ant->get_antenna_id();
 }
 
 int antenna_tracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
