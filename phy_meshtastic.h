@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <array>
+#include <deque>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
@@ -372,20 +373,24 @@ public:
         return max_messages_;
     }
 
+    // Both keep the newest messages
     void set_max_messages(size_t sz) {
         kis_unique_lock<kis_mutex> lk(mutex_, __func__);
         max_messages_ = sz;
-        if (messages_.size() > sz) {
-            messages_.erase(messages_.begin() + sz, messages_.end());
-        }
+        while (messages_.size() > sz)
+            messages_.pop_front();
     }
 
     void add_message(const std::string_view& nodeid, const std::string_view& message) {
         kis_unique_lock<kis_mutex> lk(mutex_, __func__);
+
+        if (max_messages_ == 0)
+            return;
+
+        while (messages_.size() >= max_messages_)
+            messages_.pop_front();
+
         messages_.emplace_back(nodeid, channel(), message);
-        if (messages_.size() > max_messages()) {
-            messages_.erase(messages_.begin() + max_messages(), messages_.end());
-        }
     }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override {
@@ -449,8 +454,8 @@ protected:
     meshtastic_crypto::psk psk_;
     uint8_t hash_;
 
-    using messages_iter_t = std::vector<meshtastic_message>::iterator;
-    std::vector<meshtastic_message> messages_;
+    using messages_iter_t = std::deque<meshtastic_message>::iterator;
+    std::deque<meshtastic_message> messages_;
 };
 
 template<> struct json_adapter_v2::json_encode<meshtastic_channel> {
