@@ -26,7 +26,11 @@
  * Source options:
  *   country=XX       regulatory domain (default: the adapter OTP, else US)
  *   widths=1,2,...   only use channels of these widths in MHz
- *   firmware=DIR     directory searched first for firmware and board config files
+ *   firmwaredir=DIR  directory searched first for firmware and board config files
+ *   firmware=FILE    firmware file name to load instead of the one chosen by chip revision;
+ *                    found in the firmware directories, not a path
+ *   boardfile=FILE   board config (BCF) file name to load instead of the one chosen by the
+ *                    board type in OTP; found in the firmware directories, not a path
  *   verbose=true     driver logging
  *
  * Firmware and board config files from https://github.com/MorseMicro/morse-firmware are
@@ -190,6 +194,12 @@ static bool find_firmware(const char *fw_dir, const char *name, char *out, size_
     return false;
 }
 
+/* A bare file name, so firmware= can't reach outside the firmware directories */
+static bool firmware_name_valid(const char *name) {
+    return name[0] != 0 && strchr(name, '/') == NULL && strchr(name, '\\') == NULL &&
+        strcmp(name, ".") != 0 && strcmp(name, "..") != 0;
+}
+
 static bool width_allowed(const char *widths, unsigned int bw) {
     char buf[64], *save = NULL;
 
@@ -348,7 +358,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     struct mm_disabled_channel dis[256];
     struct mm8108_boot_config boot;
     struct mm_usb_devinfo info;
-    char *placeholder = NULL, *country = NULL, *fw_dir = NULL, *widths = NULL;
+    char *placeholder = NULL, *country = NULL, *fw_dir = NULL, *fw_name = NULL, *bcf_name = NULL;
+    char *widths = NULL;
     char fw_path[1024], bcf_path[1024], fname[64], version[129], buf[256];
     struct mm8108_dev *dev = &local->dev;
     size_t num_dis = 0;
@@ -372,13 +383,32 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    if ((fw_name = flag_dup(definition, "firmware")) != NULL &&
+            (!firmware_name_valid(fw_name) || strlen(fw_name) >= sizeof(fname))) {
+        snprintf(msg, STATUS_MAX, "%s firmware= takes a firmware file name, not a path; use "
+                "firmwaredir= to set the directory", local->name);
+        free(fw_name);
+        return -1;
+    }
+
+    if ((bcf_name = flag_dup(definition, "boardfile")) != NULL &&
+            (!firmware_name_valid(bcf_name) || strlen(bcf_name) >= sizeof(fname))) {
+        snprintf(msg, STATUS_MAX, "%s boardfile= takes a board config file name, not a path; "
+                "use firmwaredir= to set the directory", local->name);
+        free(fw_name);
+        free(bcf_name);
+        return -1;
+    }
+
     if (!mm8108_find_device(local->interface, &info)) {
         snprintf(msg, STATUS_MAX, "%s is not an attached MM8108 HaLow adapter", local->name);
+        free(fw_name);
+        free(bcf_name);
         return -1;
     }
 
     country = flag_dup(definition, "country");
-    fw_dir = flag_dup(definition, "firmware");
+    fw_dir = flag_dup(definition, "firmwaredir");
     widths = flag_dup(definition, "widths");
 
     pthread_mutex_lock(&local->dev_lock);
@@ -417,18 +447,26 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         goto out;
     }
 
-    snprintf(fname, sizeof(fname), "mm8108%s-rl.bin", mm_chip_rev_string(dev->chip_id));
+    if (fw_name != NULL)
+        snprintf(fname, sizeof(fname), "%s", fw_name);
+    else
+        snprintf(fname, sizeof(fname), "mm8108%s-rl.bin", mm_chip_rev_string(dev->chip_id));
+
     if (!find_firmware(fw_dir, fname, fw_path, sizeof(fw_path))) {
         snprintf(msg, STATUS_MAX, "%s could not find firmware %s; download it from "
-                "https://github.com/MorseMicro/morse-firmware and use the firmware= option",
+                "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
                 local->name, fname);
         goto out;
     }
 
-    snprintf(fname, sizeof(fname), "bcf_boardtype_%04x.bin", dev->board_type);
+    if (bcf_name != NULL)
+        snprintf(fname, sizeof(fname), "%s", bcf_name);
+    else
+        snprintf(fname, sizeof(fname), "bcf_boardtype_%04x.bin", dev->board_type);
+
     if (!find_firmware(fw_dir, fname, bcf_path, sizeof(bcf_path))) {
         snprintf(msg, STATUS_MAX, "%s could not find board config %s; download it from "
-                "https://github.com/MorseMicro/morse-firmware and use the firmware= option",
+                "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
                 local->name, fname);
         goto out;
     }
@@ -491,9 +529,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(buf);
     }
 
-    snprintf(buf, sizeof(buf), "%s %s firmware %s, regulatory domain %s, %zu channels",
-            local->name, mm_chip_name(dev->chip_id), version, local->region->country,
-            (*ret_interface)->channels_len);
+    {
+        const char *fw_base = strrchr(fw_path, '/'), *bcf_base = strrchr(bcf_path, '/');
+
+        snprintf(buf, sizeof(buf), "%s %s firmware %s (%s), board config %s, regulatory domain "
+                "%s, %zu channels", local->name, mm_chip_name(dev->chip_id), version,
+                fw_base ? fw_base + 1 : fw_path, bcf_base ? bcf_base + 1 : bcf_path,
+                local->region->country, (*ret_interface)->channels_len);
+    }
     cf_send_message(caph, buf, MSGFLAG_INFO);
 
     *dlt = KDLT_IEEE802_11_RADIO;
@@ -504,6 +547,8 @@ out:
 
     free(country);
     free(fw_dir);
+    free(fw_name);
+    free(bcf_name);
     free(widths);
 
     return ret;
