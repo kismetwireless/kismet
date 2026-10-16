@@ -309,6 +309,9 @@ static ssize_t serial_readline(local_lorapipe_t *local, char *buf, int bufsize,
    [FREQUENCY]-[BW]-[SPREAD]-[CODING]-[SYNCWORD]
       906.875-250-11-5-2b
       910.525-62.5-7-5-12
+   [PROTOCOL]-[FREQUENCY]-[BW]-[SPREAD]-[CODING], sync word from the protocol
+      meshcore-919.500-500-10-5
+      meshtastic-906.875-250-11-5
    [PROTOCOL]-[REGION]-[TYPE]
       meshtastic-US-shortturbo
       meshtastic-EU_868-longfast
@@ -456,10 +459,37 @@ static int parse_uint_field(const char **pos, unsigned long *ret, int base, char
     return 0;
 }
 
+/* returns -1 if the protocol has no known sync word */
+static int mesh_syncword_from_name(const char *str, size_t len, uint8_t *syncword) {
+    if (len == strlen("meshtastic") && strncasecmp(str, "meshtastic", len) == 0) {
+        *syncword = MESHTASTIC_SYNCWORD;
+        return 0;
+    }
+
+    if (len == strlen("meshcore") && strncasecmp(str, "meshcore", len) == 0) {
+        *syncword = MESHCORE_SYNCWORD;
+        return 0;
+    }
+
+    return -1;
+}
+
 static int parse_radio_def(const char *str, lora_radio_def_t *def) {
     const char *pos = str;
+    const char *dash;
+    bool proto_sync = false;
     char *end;
     unsigned long v;
+
+    /* a protocol prefix supplies the sync word in place of a trailing one */
+    if (isalpha((unsigned char) *pos)) {
+        if ((dash = strchr(pos, '-')) == NULL ||
+                mesh_syncword_from_name(pos, (size_t) (dash - pos), &def->syncword) < 0)
+            return -1;
+
+        proto_sync = true;
+        pos = dash + 1;
+    }
 
     if (!isdigit((unsigned char) *pos))
         return -1;
@@ -485,9 +515,12 @@ static int parse_radio_def(const char *str, lora_radio_def_t *def) {
         return -1;
     def->spread = (unsigned int) v;
 
-    if (parse_uint_field(&pos, &v, 10, '-') < 0 || v > UINT_MAX)
+    if (parse_uint_field(&pos, &v, 10, proto_sync ? '\0' : '-') < 0 || v > UINT_MAX)
         return -1;
     def->coding = (unsigned int) v;
+
+    if (proto_sync)
+        return 0;
 
     if (parse_uint_field(&pos, &v, 16, '\0') < 0 || v > 0xFF)
         return -1;
@@ -925,6 +958,15 @@ int set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
 
     pthread_mutex_unlock(&local->serial_mutex);
 
+    /*
+    if (ret > 0) {
+        char dbgstr[STATUS_MAX];
+
+        snprintf(dbgstr, STATUS_MAX, "%s configured channel %s", local->name, channel);
+        cf_send_message(caph, dbgstr, MSGFLAG_INFO);
+    }
+    */
+
     return ret;
 }
 
@@ -1072,7 +1114,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *in_chanstr
     }
 
     snprintf(errstr, STATUS_MAX, "unable to parse requested channel '%s'; expected "
-            "FREQ-BW-SF-CR-SYNC (ie 906.875-250-11-5-2b) or PROTOCOL-REGION-TYPE "
+            "FREQ-BW-SF-CR-SYNC (ie 906.875-250-11-5-2b), PROTOCOL-FREQ-BW-SF-CR "
+            "(ie meshcore-919.500-500-10-5), or PROTOCOL-REGION-TYPE "
             "(ie meshtastic-US-shortturbo or meshcore-US-narrow)", chanstr);
     cf_send_message(caph, errstr, MSGFLAG_INFO);
     return NULL;

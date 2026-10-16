@@ -95,6 +95,10 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
         return 1;
     };
 
+    // raw line includes the payload hex
+    // _MSG_INFO("{} - lorapipe rx {}", get_source_name(),
+    //         munge_to_printable((const char *) content, content_sz));
+
     const auto toks = base_sv_tokenize({(const char *) content, content_sz}, ",", "");
 
     if (toks.size() != 10 || toks[6] != "RXLOG") {
