@@ -1645,17 +1645,31 @@ if test x"$want_coconut" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HAK5_COCONUT)"
 fi
 
-want_usbwifi="no"
+# Built by default on Linux and macOS when libusb is available
+want_usbwifi="auto"
 AC_ARG_ENABLE([usbwifi],
-    AS_HELP_STRING([--enable-usbwifi], [Enable userspace USB Wi-Fi (Linux drivers on libusb)]),
+    AS_HELP_STRING([--disable-usbwifi], [Disable userspace USB Wi-Fi (Linux drivers on libusb); built by default on Linux and macOS when libusb is available]),
 	[case "${enableval}" in
-         yes) want_usbwifi=yes ;;
-           *) want_usbwifi=no ;;
+          no) want_usbwifi=no ;;
+           *) want_usbwifi=yes ;;
 	 esac],
-         [want_usbwifi=no]
+         [want_usbwifi=auto]
 )
 
 BUILD_CAPTURE_USBWIFI=0
+usbwifi_reason="disabled"
+if test x"$want_usbwifi" = x"auto"; then
+    if test x"$linux" != x"yes" -a x"$darwin" != x"yes"; then
+        want_usbwifi=no
+        usbwifi_reason="only built by default on Linux and macOS, use --enable-usbwifi"
+    elif test x"$have_usb" != x"yes"; then
+        want_usbwifi=no
+        usbwifi_reason="libusb-1.0 not found"
+    else
+        want_usbwifi=yes
+    fi
+fi
+
 if test x"$want_usbwifi" = x"yes"; then
     if test x"$have_usb" != "xyes"; then
         AC_MSG_ERROR([libusb-1.0 required for userspace USB Wi-Fi support])
@@ -1664,17 +1678,31 @@ if test x"$want_usbwifi" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USBWIFI)"
 fi
 
-want_mm8108="no"
+# Built by default on Linux and macOS when libusb is available
+want_mm8108="auto"
 AC_ARG_ENABLE([mm8108],
-    AS_HELP_STRING([--enable-mm8108], [Enable Morse Micro MM8108 USB HaLow (userspace via libusb)]),
+    AS_HELP_STRING([--disable-mm8108], [Disable Morse Micro MM8108 USB HaLow (userspace via libusb); built by default on Linux and macOS when libusb is available]),
 	[case "${enableval}" in
-         yes) want_mm8108=yes ;;
-           *) want_mm8108=no ;;
+          no) want_mm8108=no ;;
+           *) want_mm8108=yes ;;
 	 esac],
-         [want_mm8108=no]
+         [want_mm8108=auto]
 )
 
 BUILD_CAPTURE_MM8108=0
+mm8108_reason="disabled"
+if test x"$want_mm8108" = x"auto"; then
+    if test x"$linux" != x"yes" -a x"$darwin" != x"yes"; then
+        want_mm8108=no
+        mm8108_reason="only built by default on Linux and macOS, use --enable-mm8108"
+    elif test x"$have_usb" != x"yes"; then
+        want_mm8108=no
+        mm8108_reason="libusb-1.0 not found"
+    else
+        want_mm8108=yes
+    fi
+fi
+
 if test x"$want_mm8108" = x"yes"; then
     if test x"$have_usb" != "xyes"; then
         AC_MSG_ERROR([libusb-1.0 required for MM8108 HaLow support])
@@ -2387,13 +2415,13 @@ printf "    USB Wi-Fi (uspace): "
 if test "$BUILD_CAPTURE_USBWIFI" = 1; then
 	echo "yes";
 else
-	echo "no (userspace USB Wi-Fi not explicitly enabled)";
+	echo "no ($usbwifi_reason)";
 fi
 printf "    MM8108 HaLow (USB): "
 if test "$BUILD_CAPTURE_MM8108" = 1; then
 	echo "yes";
 else
-	echo "no (MM8108 HaLow not explicitly enabled)";
+	echo "no ($mm8108_reason)";
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
