@@ -196,6 +196,13 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
             if (quote != NULL) {
                 if ((comma != NULL && quote < comma) || comma == NULL) {
                     equote = strstr(quote + 1, "\"");
+
+                    /* unterminated quote */
+                    if (equote == NULL) {
+                        *ret_value = NULL;
+                        return -1;
+                    }
+
                     *ret_value = quote + 1;
                     return (equote - (quote + 1));
                 } else {
@@ -225,6 +232,11 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
             if ((comma != NULL && quote < comma) || comma == NULL) {
                 /* Jump to the end of the quote */
                 equote = strstr(quote + 1, "\"");
+
+                if (equote == NULL) {
+                    *ret_value = NULL;
+                    return -1;
+                }
 
                 /* Find a trailing comma */
                 comma = strstr(equote, ",");

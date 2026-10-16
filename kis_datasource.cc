@@ -762,6 +762,24 @@ double kis_datasource::get_definition_opt_double(std::string in_opt, double in_d
     return d;
 }
 
+namespace {
+    // Channel list options, split on commas with surrounding whitespace removed
+    std::vector<std::string> definition_channel_list(const std::string& in_list) {
+        std::vector<std::string> ret;
+
+        for (const auto& c : str_tokenize(in_list, ",")) {
+            const auto b = c.find_first_not_of(" \t");
+
+            if (b == std::string::npos)
+                continue;
+
+            ret.push_back(c.substr(b, c.find_last_not_of(" \t") - b + 1));
+        }
+
+        return ret;
+    }
+}
+
 bool kis_datasource::parse_source_definition(std::string in_definition) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource parse_interface");
 
@@ -883,7 +901,12 @@ std::string kis_datasource::generate_source_definition() {
                 ss << ",";
             comma = true;
 
-            ss << o.first << "=" << o.second;
+            // Values with commas, such as channel lists, are quoted so the definition
+            // parses the same way when the source is re-opened
+            if (o.second.find(',') != std::string::npos)
+                ss << o.first << "=\"" << o.second << "\"";
+            else
+                ss << o.first << "=" << o.second;
         }
     }
 
@@ -1898,7 +1921,8 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     source_hop_vec->clear();
 
     // add the channel= to the source channels list
-    const auto def_chan = get_definition_opt("channel");
+    const auto def_chan_v = definition_channel_list(get_definition_opt("channel"));
+    const auto def_chan = def_chan_v.empty() ? std::string{} : def_chan_v[0];
     if (def_chan != "") {
         string_vector_merge<std::vector<std::string>, tracker_element_vector_string>({def_chan}, source_channels_vec.get(),
                 [](const std::string& a, const std::string& b) -> bool {
@@ -1906,9 +1930,9 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
                 });
     }
 
-    const std::vector<std::string> def_vec = str_tokenize(get_definition_opt("channels"), ",");
-    const std::vector<std::string> add_vec = str_tokenize(get_definition_opt("add_channels"), ",");
-    const std::vector<std::string> block_vec = str_tokenize(get_definition_opt("block_channels"), ",");
+    const std::vector<std::string> def_vec = definition_channel_list(get_definition_opt("channels"));
+    const std::vector<std::string> add_vec = definition_channel_list(get_definition_opt("add_channels"));
+    const std::vector<std::string> block_vec = definition_channel_list(get_definition_opt("block_channels"));
 
     // handle the channel list merge
 
@@ -2826,10 +2850,11 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     source_hop_vec->clear();
 
     // Add the channel= to the channels list
-    std::string def_chan = get_definition_opt("channel");
+    const auto def_chan_v = definition_channel_list(get_definition_opt("channel"));
+    const auto def_chan = def_chan_v.empty() ? std::string{} : def_chan_v[0];
     if (def_chan != "") {
         bool append = true;
-        for (const auto& sci : *source_hop_vec) {
+        for (const auto& sci : *source_channels_vec) {
             if (strcasecmp(sci.c_str(), def_chan.c_str()) == 0) {
                 append = false;
                 break;
@@ -2841,9 +2866,9 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
         }
     }
 
-    std::vector<std::string> def_vec = str_tokenize(get_definition_opt("channels"), ",");
-    std::vector<std::string> add_vec = str_tokenize(get_definition_opt("add_channels"), ",");
-    std::vector<std::string> block_vec = str_tokenize(get_definition_opt("block_channels"), ",");
+    std::vector<std::string> def_vec = definition_channel_list(get_definition_opt("channels"));
+    std::vector<std::string> add_vec = definition_channel_list(get_definition_opt("add_channels"));
+    std::vector<std::string> block_vec = definition_channel_list(get_definition_opt("block_channels"));
 
     if (def_vec.size() != 0) {
         // If we override the channels, use our supplied list entirely, and we don't

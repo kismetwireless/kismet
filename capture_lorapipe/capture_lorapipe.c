@@ -782,8 +782,9 @@ static int build_region_channels(lora_region_t region, cf_params_interface_t *in
 /* send a command; this will ignore packets that may come in between when the
    command is queued and a response comes from the radio.  is this bad?  kinda.
    is this a real concern given meshtastic radio rates?  we're going to assume
-   not.  caller must hold serial_mutex. */
-static bool send_command_locked(local_lorapipe_t *local, const char *command, size_t len,
+   not.  caller must hold serial_mutex.  returns 1 on success, 0 if the radio
+   rejected the command, and -1 on an I/O failure */
+static int send_command_locked(local_lorapipe_t *local, const char *command, size_t len,
         char *msg) {
     char respbuf[2048];
     uint64_t deadline = monotonic_ms() + CMD_TIMEOUT * 1000;
@@ -804,7 +805,7 @@ static bool send_command_locked(local_lorapipe_t *local, const char *command, si
                 continue;
 
             snprintf(msg, STATUS_MAX, "%s failed to write command: %s", local->name, strerror(errno));
-            return false;
+            return -1;
         }
 
         sent += res;
@@ -816,7 +817,7 @@ static bool send_command_locked(local_lorapipe_t *local, const char *command, si
         if (now >= deadline) {
             snprintf(msg, STATUS_MAX, "%s failed to get a command response in %u seconds",
                     local->name, CMD_TIMEOUT);
-            return false;
+            return -1;
         }
 
         errno = 0;
@@ -829,20 +830,26 @@ static bool send_command_locked(local_lorapipe_t *local, const char *command, si
             else
                 snprintf(msg, STATUS_MAX, "%s failed to read command response: %s", local->name,
                         errno ? strerror(errno) : "unknown error");
-            return false;
+            return -1;
         }
 
         if (res == 0)
             continue;
 
         if (strncmp(respbuf, lorapipe_ok, strlen(lorapipe_ok)) == 0) {
-            return true;
+            return 1;
         }
 
         if (strncmp(respbuf, lorapipe_err, strlen(lorapipe_err)) == 0 ||
                 strncmp(respbuf, lorapipe_unk, strlen(lorapipe_unk)) == 0) {
-            snprintf(msg, STATUS_MAX, "%s rejected command \"%s\": %s", local->name, command, respbuf);
-            return false;
+            size_t cmd_len = len;
+
+            while (cmd_len > 0 && (command[cmd_len - 1] == '\r' || command[cmd_len - 1] == '\n'))
+                cmd_len--;
+
+            snprintf(msg, STATUS_MAX, "%s rejected command \"%.*s\": %s", local->name,
+                    (int) cmd_len, command, respbuf);
+            return 0;
         }
     }
 }
@@ -859,37 +866,50 @@ bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, 
     bool ret;
 
     lock_serial_cmd(local);
-    ret = send_command_locked(local, command, len, msg);
+    ret = send_command_locked(local, command, len, msg) > 0;
     pthread_mutex_unlock(&local->serial_mutex);
 
     return ret;
 }
 
-bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
+/* returns 1 on success, 0 if the radio rejected the channel, and -1 on failure */
+int set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
     local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
-    bool ret;
+    bool same;
+    int ret;
 
     char cmdbuf[256];
     int r;
 
     if (channel == NULL) {
         snprintf(msg, STATUS_MAX, "%s no channel provided", local->name);
-        return false;
+        return -1;
     }
 
     r = snprintf(cmdbuf, sizeof(cmdbuf), "set radio %s\r\n", channel);
     if (r < 0 || (size_t) r >= sizeof(cmdbuf)) {
         snprintf(msg, STATUS_MAX, "%s channel definition too long", local->name);
-        return false;
+        return -1;
     }
 
     /* hold serial_mutex until the channel is updated so no line read on the new
        channel is tagged with the old one */
     lock_serial_cmd(local);
 
+    /* a command flushes the serial buffers and drops any frame in flight, so don't
+       retune to the channel we're already on */
+    pthread_mutex_lock(&local->channel_mutex);
+    same = local->channel != NULL && strcmp(local->channel, channel) == 0;
+    pthread_mutex_unlock(&local->channel_mutex);
+
+    if (same) {
+        pthread_mutex_unlock(&local->serial_mutex);
+        return 1;
+    }
+
     ret = send_command_locked(local, cmdbuf, (size_t) r, msg);
 
-    if (ret) {
+    if (ret > 0) {
         char *newchan = strdup(channel);
 
         pthread_mutex_lock(&local->channel_mutex);
@@ -899,7 +919,7 @@ bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
 
         if (newchan == NULL) {
             snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
-            ret = false;
+            ret = -1;
         }
     }
 
@@ -908,14 +928,75 @@ bool set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
     return ret;
 }
 
-void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
+/* copy a channel name without surrounding whitespace, as from "a, b" lists */
+static int trim_channel(const char *in, size_t in_len, char *out, size_t out_len) {
+    while (in_len > 0 && isspace((unsigned char) *in)) {
+        in++;
+        in_len--;
+    }
+
+    while (in_len > 0 && isspace((unsigned char) in[in_len - 1]))
+        in_len--;
+
+    if (in_len == 0 || in_len >= out_len)
+        return -1;
+
+    memcpy(out, in, in_len);
+    out[in_len] = '\0';
+
+    return 0;
+}
+
+/* the name a channel is reported as; presets use the names from the channel list so
+   they match it regardless of the case used, radio settings are kept as given */
+static int canonical_channel(const char *chanstr, char *out, size_t len) {
+    lora_radio_def_t radio;
+    lora_preset_def_t preset;
+    char chanbuf[128];
+    int r = -1;
+
+    if (trim_channel(chanstr, strlen(chanstr), chanbuf, sizeof(chanbuf)) < 0)
+        return -1;
+
+    if (parse_radio_def(chanbuf, &radio) == 0) {
+        r = snprintf(out, len, "%s", chanbuf);
+    } else if (parse_preset_def(chanbuf, &preset) == 0) {
+        if (strcasecmp(preset.protocol, "meshtastic") == 0) {
+            lora_preset_type_t type = meshtastic_preset_from_name(preset.name);
+
+            if (type != LORA_PRESET_MAX)
+                r = snprintf(out, len, "meshtastic-%s-%s", lora_region_names[preset.region],
+                        lora_preset_type_names[type]);
+        } else if (strcasecmp(preset.protocol, "meshcore") == 0) {
+            const meshcore_preset_t *mc = meshcore_preset_find(preset.region, preset.name);
+
+            if (mc != NULL)
+                r = snprintf(out, len, "meshcore-%s-%s", lora_region_names[preset.region],
+                        mc->name);
+        }
+    }
+
+    if (r < 0 || (size_t) r >= len)
+        return -1;
+
+    return 0;
+}
+
+void *chantranslate_callback(kis_capture_handler_t *caph, const char *in_chanstr) {
     local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
 
     lora_radio_def_t radio;
     lora_preset_def_t preset;
     char errstr[STATUS_MAX];
     char freqstr[32];
+    char chanstr[128];
     char *ret_chan = NULL;
+
+    if (trim_channel(in_chanstr, strlen(in_chanstr), chanstr, sizeof(chanstr)) < 0) {
+        snprintf(errstr, STATUS_MAX, "%s - invalid channel '%.64s'", local->name, in_chanstr);
+        cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        return NULL;
+    }
 
     if (parse_radio_def(chanstr, &radio) == 0) {
         if ((ret_chan = (char *) malloc(64)) == NULL)
@@ -999,19 +1080,40 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
+    local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
     const char *channel = (const char *) privchan;
-    bool ret;
+    int ret;
 
     // printf("debug - chancontrol %s\n", channel);
 
-    ret = set_channel(caph, channel, msg);
+    /* while hopping (seqno 0), channels that could not be translated or that the radio
+       rejects are skipped and dropped from the hop list; anything else is fatal */
+    if (channel == NULL) {
+        snprintf(msg, STATUS_MAX, "%s invalid channel; skipping", local->name);
 
-    if (!ret) {
-        cf_send_error(caph, 0, msg);
-        cf_handler_spindown(caph);
+        if (seqno == 0)
+            return 0;
+
+        ret = -1;
+    } else {
+        ret = set_channel(caph, channel, msg);
+
+        if (ret == 0 && seqno == 0) {
+            char errstr[STATUS_MAX];
+
+            snprintf(errstr, STATUS_MAX, "%s; skipping channel", msg);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            return 0;
+        }
     }
 
-    return ret ? 1 : -1;
+    if (ret <= 0) {
+        cf_send_error(caph, 0, msg);
+        cf_handler_spindown(caph);
+        return -1;
+    }
+
+    return 1;
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
@@ -1178,20 +1280,64 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    /* start on channel=, or the first usable channels= entry, or the region default */
     if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
-        localchanstr = strndup(placeholder, placeholder_len);
-        localchan = (char *) chantranslate_callback(caph, localchanstr);
-        free(localchanstr);
+        char canon[128];
 
-        if (localchan == NULL) {
-            snprintf(msg, STATUS_MAX, "%s could not parse channel= option provided in source " "definition", local->name);
+        localchanstr = strndup(placeholder, placeholder_len);
+
+        if (localchanstr == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
             free(device);
             return -1;
         }
 
+        localchan = (char *) chantranslate_callback(caph, localchanstr);
+
+        if (localchan == NULL || canonical_channel(localchanstr, canon, sizeof(canon)) < 0) {
+            snprintf(msg, STATUS_MAX, "%s could not parse channel= option provided in source " "definition", local->name);
+            free(localchanstr);
+            free(localchan);
+            free(device);
+            return -1;
+        }
+
+        free(localchanstr);
+
         free((*ret_interface)->chanset);
-        (*ret_interface)->chanset = strdup(localchan);
-    } else {
+        if (((*ret_interface)->chanset = strdup(canon)) == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+            free(localchan);
+            free(device);
+            return -1;
+        }
+    } else if ((placeholder_len = cf_find_flag(&placeholder, "channels", definition)) > 0) {
+        const char *pos = placeholder;
+        const char *end = placeholder + placeholder_len;
+
+        while (pos < end && localchan == NULL) {
+            const char *comma = memchr(pos, ',', (size_t) (end - pos));
+            const char *tok_end = comma != NULL ? comma : end;
+            char tok[128];
+            char canon[128];
+
+            if (trim_channel(pos, (size_t) (tok_end - pos), tok, sizeof(tok)) == 0 &&
+                    canonical_channel(tok, canon, sizeof(canon)) == 0 &&
+                    (localchan = (char *) chantranslate_callback(caph, tok)) != NULL) {
+                free((*ret_interface)->chanset);
+                if (((*ret_interface)->chanset = strdup(canon)) == NULL) {
+                    snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+                    free(localchan);
+                    free(device);
+                    return -1;
+                }
+            }
+
+            pos = tok_end + 1;
+        }
+    }
+
+    if (localchan == NULL) {
         /* Default to the first channel of the region */
         localchan = (char *) chantranslate_callback(caph, (*ret_interface)->chanset);
 
@@ -1255,7 +1401,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local->name, (*ret_interface)->chanset);
     cf_send_message(caph, errstr, MSGFLAG_INFO);
 
-    if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+    /* the initial channel must be accepted, even though a hopped one may be skipped */
+    if (set_channel(caph, localchan, msg) <= 0) {
         free(localchan);
         localchan = NULL;
         return -1;
