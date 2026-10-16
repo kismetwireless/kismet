@@ -224,7 +224,7 @@ int alert_tracker::register_alert(std::string in_header, std::string in_class,
     kis_lock_guard<kis_mutex> lk(alert_mutex, "alert_tracker register_alert");
 
     // Bail if this header is registered
-    if (alert_name_map.find(in_header) != alert_name_map.end()) {
+    if (alert_name_map.find(str_upper(in_header)) != alert_name_map.end()) {
         _MSG("Tried to re-register duplicate alert " + in_header, MSGFLAG_ERROR);
         return -1;
     }
@@ -269,7 +269,8 @@ int alert_tracker::register_alert(std::string in_header, std::string in_class,
 int alert_tracker::fetch_alert_ref(std::string in_header) {
     kis_lock_guard<kis_mutex> lk(alert_mutex, "alert_tracker fetch_alert_ref");
 
-    auto ni = alert_name_map.find(in_header);
+    // Alert names are stored upper case
+    auto ni = alert_name_map.find(str_upper(in_header));
 
     if (ni != alert_name_map.end())
         return ni->second;
@@ -587,6 +588,11 @@ int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
         int *ret_rate) {
     std::vector<std::string> units = str_tokenize(in_ru, "/");
 
+    if (units.empty() || units.size() > 2) {
+        _MSG_ERROR("Invalid alert rate '{}'", in_ru);
+        return -1;
+    }
+
     if (units.size() == 1) {
         // Unit is per minute if not specified
         (*ret_unit) = sat_minute;
@@ -608,7 +614,7 @@ int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
     }
 
     // Get the number
-    if (sscanf(units[0].c_str(), "%d", ret_rate) != 1) {
+    if (sscanf(units[0].c_str(), "%d", ret_rate) != 1 || *ret_rate < 0) {
         _MSG("Invalid rate '" + units[0] + "' for alert", MSGFLAG_ERROR);
         return -1;
     }
@@ -699,8 +705,10 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
 int alert_tracker::find_activated_alert(std::string in_header) {
     kis_lock_guard<kis_mutex> lk(alert_mutex, "alert_tracker find_activated_alert");
 
-    for (auto x : alert_ref_map) {
-        if (x.second->get_header() == in_header)
+    const auto hdr = str_upper(in_header);
+
+    for (const auto& x : alert_ref_map) {
+        if (x.second->get_header() == hdr)
             return x.first;
     }
 
@@ -773,6 +781,12 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
                     &burst_unit, &burst_rate) < 0) {
             throw std::runtime_error("could not parse burst limits");
         }
+
+        if (name.empty())
+            throw std::runtime_error("missing alert name");
+
+        if (burst_unit > limit_unit)
+            throw std::runtime_error("burst time unit must not be longer than the throttle time unit");
 
         int phyid = KIS_PHY_ANY;
 
