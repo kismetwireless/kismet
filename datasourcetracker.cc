@@ -823,7 +823,7 @@ void datasource_tracker::trigger_deferred_startup() {
                         throw std::runtime_error("no such datasource");
 
                     _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
-                    ds->disable_source();
+                    ds->stop_source();
                     return(ds);
                 }));
 
@@ -840,7 +840,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (ds == nullptr)
                         throw std::runtime_error("no such datasource");
 
-                    _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                    _MSG_INFO("Disabling source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
                     ds->disable_source();
                     return(ds);
                 }));
@@ -866,6 +866,8 @@ void datasource_tracker::trigger_deferred_startup() {
                         throw std::runtime_error("source already running");
 
                     _MSG_INFO("Re-opening source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+
+                    ds->clear_source_disabled();
 
                     ds->open_interface(ds->get_source_definition(), 0,
                             [&set_success, &set_promise](unsigned int, bool success, std::string) mutable {
@@ -1695,6 +1697,14 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
                     "the rtlsdr family, you may need to manually set the uuid= source parameter.",
                     in_uuid.uuid_to_string(), merge_target_device->get_source_name());
             incoming->trigger_error("mismatch device type for this uuid");
+            return nullptr;
+        }
+
+        if (merge_target_device->get_source_disabled()) {
+            _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
+                    "which has been disabled.  Re-open the source to accept the remote connection.",
+                    in_uuid.uuid_to_string(), merge_target_device->get_source_name());
+            incoming->trigger_error("source disabled");
             return nullptr;
         }
 

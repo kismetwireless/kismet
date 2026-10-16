@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <functional>
 
 #include "globalregistry.h"
@@ -327,10 +328,23 @@ public:
     virtual void close_source_async(std::function<void (void)> cb);
 
 
+    // Closes a source at the user's request.  The error retry is disabled, so the source
+    // stays closed until re-opened; remote sources re-open when the remote reconnects.
+    virtual void stop_source();
+
     // Disables a source
-    // Cancels any current activity, and sends a terminate to the capture binary.
-    // Disables any error state and disables the error retry.
+    // Closes the source, marks it in error, and disables the error retry.  Disabled sources
+    // stay closed, and remote reconnects are refused, until the source is re-opened.
     virtual void disable_source();
+
+    bool get_source_disabled() const {
+        return source_disabled.load();
+    }
+
+    void clear_source_disabled() {
+        if (source_disabled.exchange(false))
+            set_int_source_error_reason("");
+    }
 
 
     // Pauses a source
@@ -895,6 +909,8 @@ protected:
     // Interfaces we found via list
     std::vector<shared_interface> listed_interfaces;
     int listed_interface_entry_id;
+
+    std::atomic<bool> source_disabled{false};
 
     // Special modes which suppress error output and retry handling
     bool mode_probing;

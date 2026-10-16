@@ -574,8 +574,23 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     send_open_source(get_source_definition(), 0, in_cb);
 }
 
+void kis_datasource::stop_source() {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource stop_source");
+
+    set_int_source_retry(false);
+
+    if (error_timer_id > 0)
+        timetracker->cancel_timer(error_timer_id);
+
+    error_timer_id = -1;
+
+    close_source();
+}
+
 void kis_datasource::disable_source() {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource disable_source");
+
+    source_disabled = true;
 
     close_source();
 
