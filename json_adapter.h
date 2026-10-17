@@ -40,7 +40,8 @@ void pack(std::ostream &stream, shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr,
         bool prettyprint = false, unsigned int depth = 0,
         Permuter name_permuter = 
-            [](const std::string& s) -> std::string { return s; }) {
+            [](const std::string& s) -> std::string { return s; },
+        bool summary_field = false) {
 
     std::string indent;
     std::string ppendl;
@@ -55,6 +56,11 @@ void pack(std::ostream &stream, shared_tracker_element e,
     }
 
     serializer_scope s(e, name_map);
+
+    // Renames are keyed by element, and apply to the fields a summary picked (the children of
+    // a summary mapvec).  Below such a field the same element can show up again, e.g. through
+    // an alias, and must keep its own name there, so don't pass the renames further down.
+    auto sub_map = summary_field ? nullptr : name_map;
     
     uuid euuid;
 
@@ -98,7 +104,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     if (prettyprint)
                         stream << indent;
 
-                    json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter);
+                    json_adapter::pack(stream, i, sub_map, prettyprint, depth + 1, name_permuter);
                 }
                 stream << ppendl << indent << "]";
                 break;
@@ -168,9 +174,9 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     prepend_comma = true;
 
                     if (!as_vector) {
-                        if (name_map != NULL) {
-                            tracker_element_serializer::rename_map::iterator nmi = name_map->find(i.second);
-                            if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
+                        if (sub_map != NULL) {
+                            tracker_element_serializer::rename_map::iterator nmi = sub_map->find(i.second);
+                            if (nmi != sub_map->end() && nmi->second->rename.length() != 0) {
                                 tname = nmi->second->rename;
                                 named = true;
                             }
@@ -210,7 +216,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                         stream << indent << "\"" << tname << "\": ";
                     }
 
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
 
                 }
 
@@ -247,7 +253,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -284,7 +290,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -321,7 +327,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -357,7 +363,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -401,7 +407,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -438,7 +444,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream, i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -524,7 +530,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        json_adapter::pack(stream,i.second, name_map, prettyprint, depth + 1, name_permuter);
+                        json_adapter::pack(stream,i.second, sub_map, prettyprint, depth + 1, name_permuter);
                     }
                 }
 
@@ -600,7 +606,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
 
                     stream << indent << "\"" << tname << "\": ";
 
-                    json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter);
+                    json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter, true);
                 }
 
                 stream << ppendl << indent << "}";
