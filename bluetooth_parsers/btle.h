@@ -65,6 +65,26 @@ public:
         return 0x6;
     }
 
+    // ADV_EXT_IND and the AUX_ PDUs share a type; they're told apart by channel
+    constexpr17 uint16_t pdu_adv_ext_ind() const {
+        return 0x7;
+    }
+
+    // Extended advertising header formats (BT5)
+    constexpr17 bool is_extended() const {
+        return m_extended;
+    }
+
+    // An ADV_EXT_IND on a primary channel normally points to the AUX_ADV_IND
+    // instead of carrying its own address and data
+    constexpr17 bool has_aux_ptr() const {
+        return m_has_aux_ptr;
+    }
+
+    constexpr17 bool has_advertising_address() const {
+        return m_has_advertising_address;
+    }
+
     constexpr17 bool is_rfu() const {
         return (packet_header() & 0x10);
     }
@@ -84,6 +104,8 @@ public:
     }
 
     mac_addr advertising_address() const {
+        if (!m_has_advertising_address)
+            return mac_addr{};
         return mac_addr(m_advertising_address.data(), 6);
     }
 
@@ -92,10 +114,18 @@ public:
     }
 
 protected:
+    void set_address(const std::string& payload, size_t offt);
+
+    // Returns the offset of the advertising data
+    size_t parse_extended_header(const std::string& payload);
+
     uint32_t m_access_address;
     uint8_t m_packet_header;
     uint8_t m_length;
     std::string m_advertising_address;
+    bool m_has_advertising_address = false;
+    bool m_extended = false;
+    bool m_has_aux_ptr = false;
 
     std::shared_ptr<shared_advdata_vector> m_advertised_data;
 
@@ -106,6 +136,9 @@ public:
         ~bluetooth_btle_advdata() { }
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
+
+        // One complete length/type/data record
+        void parse(const std::string& record);
 
         constexpr17 uint8_t length() const {
             return m_length;

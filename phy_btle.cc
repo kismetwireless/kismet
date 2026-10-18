@@ -247,16 +247,21 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    in_pack->common_info.common_info_ok = true;
-    in_pack->common_info.phyid = mphy->fetch_phy_id();
-    in_pack->common_info.basic_crypt_set = crypt_none;
-    in_pack->common_info.type = packet_basic_mgmt;
-
     auto btle_info = mphy->packetchain->new_packet_component<btle_packinfo>();
 
     try {
         auto btle = std::make_shared<bluetooth_btle>();
         btle->parse(btle_stream);
+
+        // Extended advertising headers on the primary channels usually only point
+        // at the secondary channel PDU; there's no device to record
+        if (!btle->has_advertising_address())
+            return 0;
+
+        in_pack->common_info.common_info_ok = true;
+        in_pack->common_info.phyid = mphy->fetch_phy_id();
+        in_pack->common_info.basic_crypt_set = crypt_none;
+        in_pack->common_info.type = packet_basic_mgmt;
 
         in_pack->common_info.source = btle->advertising_address();
         in_pack->common_info.transmitter = btle->advertising_address();
