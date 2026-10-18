@@ -1284,7 +1284,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
                                         ss << "IEE80211 Access Point BSSID " <<
                                             packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
-                                            "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
+                                            "neighbor channel of " << (unsigned int) ie_rmm.channel_number() << " which is " <<
                                             "greater than the maximum channel, 224.  This may be an " <<
                                             "exploit attempt against Broadcom chipsets used in mobile " <<
                                             "devices.";
