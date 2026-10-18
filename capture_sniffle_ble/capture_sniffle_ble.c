@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -132,6 +133,11 @@ typedef struct {
     char *interface;
 
     int channel; // primary advertising channel: 37, 38, or 39
+
+    /* Follow extended advertising AuxPtrs to the secondary channels, and the PHY
+     * to scan (1M or coded/long range); both needed for BT5 Remote ID */
+    bool auxadv;
+    uint8_t phy;
 
     speed_t baudrate;
 
@@ -267,6 +273,21 @@ static void sniffle_send_cmd(local_sniffle_t *localsniffle, const uint8_t *cmd_b
     pthread_mutex_unlock(&(localsniffle->serial_mutex));
 }
 
+static bool flag_true(char *definition, const char *flag, bool dfl) {
+    char *placeholder = NULL;
+    int len;
+
+    if ((len = cf_find_flag(&placeholder, flag, definition)) <= 0)
+        return dfl;
+
+    if (strncasecmp(placeholder, "true", len) == 0)
+        return true;
+    if (strncasecmp(placeholder, "false", len) == 0)
+        return false;
+
+    return dfl;
+}
+
 /* Configure Sniffle for passive advertising-channel scanning on a single
  * channel, matching setup_sniffer(mode=SnifferMode.PASSIVE_SCAN, chan=...)
  * in sniffle_hw.py exactly, command-for-command and in the same order. */
@@ -285,7 +306,7 @@ static void sniffle_setup_passive_scan(local_sniffle_t *localsniffle) {
     cmd[3] = (uint8_t) ((BLE_ADV_AA >> 8) & 0xFF);
     cmd[4] = (uint8_t) ((BLE_ADV_AA >> 16) & 0xFF);
     cmd[5] = (uint8_t) ((BLE_ADV_AA >> 24) & 0xFF);
-    cmd[6] = PHY_1M;
+    cmd[6] = localsniffle->phy;
     cmd[7] = (uint8_t) (BLE_ADV_CRCI & 0xFF);
     cmd[8] = (uint8_t) ((BLE_ADV_CRCI >> 8) & 0xFF);
     cmd[9] = (uint8_t) ((BLE_ADV_CRCI >> 16) & 0xFF);
@@ -304,8 +325,8 @@ static void sniffle_setup_passive_scan(local_sniffle_t *localsniffle) {
     cmd[0] = 0x15; cmd[1] = 0x00;
     sniffle_send_cmd(localsniffle, cmd, 2);
 
-    // cmd_auxadv(false)
-    cmd[0] = 0x16; cmd[1] = 0x00;
+    // cmd_auxadv(false), unless following extended advertising
+    cmd[0] = 0x16; cmd[1] = localsniffle->auxadv ? 0x01 : 0x00;
     sniffle_send_cmd(localsniffle, cmd, 2);
 
     // cmd_mac() - no target MAC/IRK, no payload
@@ -479,6 +500,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localsniffle->channel = chan;
     }
 
+    localsniffle->auxadv = flag_true(definition, "auxadv", false);
+
+    localsniffle->phy = PHY_1M;
+    if ((placeholder_len = cf_find_flag(&placeholder, "phy", definition)) > 0) {
+        if (strncasecmp(placeholder, "1m", placeholder_len) == 0 && placeholder_len == 2) {
+            localsniffle->phy = PHY_1M;
+        } else if (strncasecmp(placeholder, "coded", placeholder_len) == 0 && placeholder_len == 5) {
+            localsniffle->phy = PHY_CODED_S8;
+        } else {
+            snprintf(msg, STATUS_MAX, "%s phy= must be 1m or coded", localsniffle->name);
+            return -1;
+        }
+    }
+
     // Baud rate: Sniffle's own default (2,000,000) works for CP2102N based dongles
     if ((placeholder_len = cf_find_flag(&placeholder, "baud", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
@@ -630,6 +665,8 @@ int main(int argc, char *argv[]) {
         .name = NULL,
         .interface = NULL,
         .channel = 37,
+        .auxadv = false,
+        .phy = PHY_1M,
         .baudrate = D_BAUDRATE,
     };
 

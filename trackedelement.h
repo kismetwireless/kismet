@@ -2178,8 +2178,9 @@ public:
     }
 
     void reset() {
-        // do nothing, keep old data until new data is set since a pair has
-        // no reset function; determine if this is safe in the future
+        // Pooled owners (location triplets) are reused; stale data would leak
+        // into the next owner
+        pair = pair_t{};
     }
 
     virtual bool is_stringable() const override {

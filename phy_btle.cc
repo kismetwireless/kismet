@@ -39,6 +39,7 @@
 #include "alertracker.h"
 
 #include "phy_btle.h"
+#include "phy_uav_drone.h"
 
 #include "kaitai/kaitaistream.h"
 #include "bluetooth_parsers/btle.h"
@@ -70,6 +71,7 @@ public:
 #define BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE 0x06
 #define BTLE_ADVDATA_SERVICE_UUID128_COMPLETE   0x07
 #define BTLE_ADVDATA_DEVICE_NAME                0x09
+#define BTLE_ADVDATA_SERVICE_DATA_UUID16        0x16
 #define BTLE_ADVDATA_MANUFACTURER_DATA          0xFF
 
 #define BTLE_ADVDATA_FLAG_LIMITED_DISCOVERABLE      (1 << 0)
@@ -140,6 +142,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_btle = packetchain->register_packet_component("BTLE");
+    pack_comp_remoteid = packetchain->register_packet_component("UAVREMOTEID");
 
     alert_bleedingtooth_ref =
         alertracker->activate_configured_alert("BLEEDINGTOOTH",
@@ -229,8 +232,9 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
             (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 2])) << 8 |
             (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 3]));
 
+        // Advertising CRC init is 0x555555; the reflected LFSR takes it bit-reversed
         uint32_t packet_crc =
-            ble_crc24(0x555555, packdata->data() + 4, packdata->length() - 7);
+            ble_crc24(0xAAAAAA, packdata->data() + 4, packdata->length() - 7);
 
         if (packet_crc != line_crc) {
             in_pack->crc_ok = true;
@@ -246,16 +250,21 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    in_pack->common_info.common_info_ok = true;
-    in_pack->common_info.phyid = mphy->fetch_phy_id();
-    in_pack->common_info.basic_crypt_set = crypt_none;
-    in_pack->common_info.type = packet_basic_mgmt;
-
     auto btle_info = mphy->packetchain->new_packet_component<btle_packinfo>();
 
     try {
         auto btle = std::make_shared<bluetooth_btle>();
         btle->parse(btle_stream);
+
+        // Extended advertising headers on the primary channels usually only point
+        // at the secondary channel PDU; there's no device to record
+        if (!btle->has_advertising_address())
+            return 0;
+
+        in_pack->common_info.common_info_ok = true;
+        in_pack->common_info.phyid = mphy->fetch_phy_id();
+        in_pack->common_info.basic_crypt_set = crypt_none;
+        in_pack->common_info.type = packet_basic_mgmt;
 
         in_pack->common_info.source = btle->advertising_address();
         in_pack->common_info.transmitter = btle->advertising_address();
@@ -289,8 +298,29 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info->btle_decode == nullptr)
         return 0;
 
+    // Remote ID rides in 16-bit service data; Remote ID transmitters normally use random
+    // addresses, so they're kept even when other random devices are ignored
+    std::shared_ptr<uav_remoteid_packinfo> remoteid;
+
+    for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+        if (ad->type() != BTLE_ADVDATA_SERVICE_DATA_UUID16)
+            continue;
+
+        auto rid = mphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
+        const auto& sd = ad->data();
+
+        if (odid::decode_ble_service_data((const uint8_t *) sd.data(), sd.length(),
+                    rid->counter, rid->messages)) {
+            rid->transport = btle_info->btle_decode->is_extended() ? "BLE extended" : "BLE legacy";
+            rid->device_mac = in_pack->common_info.source;
+            in_pack->insert(mphy->pack_comp_remoteid, rid);
+            remoteid = rid;
+            break;
+        }
+    }
+
     // Drop randoms
-    if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random)
+    if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random && remoteid == nullptr)
         return 0;
 
 #if 0

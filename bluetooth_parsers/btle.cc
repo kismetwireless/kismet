@@ -16,28 +16,126 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <stdexcept>
+
 #include "btle.h"
 
 void bluetooth_btle::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_advertised_data = std::make_shared<shared_advdata_vector>();
+    m_has_advertising_address = false;
 
     m_access_address = p_io->read_u4le();
     m_packet_header = p_io->read_u1();
     m_length = p_io->read_u1();
 
-    // BTLE stores the MAC address backwards 
-    m_advertising_address = p_io->read_bytes(6);
-    m_advertising_address = kaitai::kstream::reverse(m_advertising_address);
+    // The PDU length bounds the payload; the CRC follows it
+    std::string payload = p_io->read_bytes(m_length);
+    size_t adv_off = 0;
 
-    while (p_io->pos() < p_io->size() - 3) {
-        auto adv_datum = std::make_shared<bluetooth_btle_advdata>();
-        adv_datum->parse(p_io);
-        m_advertised_data->push_back(adv_datum);
+    switch (pdu_type()) {
+        case 0x0:   // ADV_IND
+        case 0x2:   // ADV_NONCONN_IND
+        case 0x4:   // SCAN_RSP
+        case 0x6:   // ADV_SCAN_IND
+            set_address(payload, 0);
+            adv_off = 6;
+            break;
+
+        case 0x1:   // ADV_DIRECT_IND: AdvA, TargetA
+        case 0x3:   // SCAN_REQ: ScanA, AdvA
+        case 0x5:   // CONNECT_IND: InitA, AdvA, LLData
+            // The transmitter address is first; there's no advertising data
+            set_address(payload, 0);
+            return;
+
+        case 0x7:   // ADV_EXT_IND, AUX_ADV_IND, AUX_SCAN_RSP, AUX_SYNC_IND, AUX_CHAIN_IND
+        case 0x8:   // AUX_CONNECT_RSP
+            adv_off = parse_extended_header(payload);
+            break;
+
+        default:
+            return;
     }
+
+    // Advertising data runs to the end of the payload; a zero length entry is padding
+    while (adv_off + 2 <= payload.length()) {
+        uint8_t ad_len = (uint8_t) payload[adv_off];
+
+        if (ad_len == 0 || adv_off + 1 + ad_len > payload.length())
+            break;
+
+        auto adv_datum = std::make_shared<bluetooth_btle_advdata>();
+        adv_datum->parse(payload.substr(adv_off, 1 + ad_len));
+        m_advertised_data->push_back(adv_datum);
+
+        adv_off += 1 + ad_len;
+    }
+}
+
+void bluetooth_btle::set_address(const std::string& payload, size_t offt) {
+    if (offt + 6 > payload.length())
+        throw std::runtime_error("btle address past end of pdu");
+
+    // BTLE stores the MAC address backwards
+    m_advertising_address = kaitai::kstream::reverse(payload.substr(offt, 6));
+    m_has_advertising_address = true;
+}
+
+size_t bluetooth_btle::parse_extended_header(const std::string& payload) {
+    // Common extended advertising payload: header length and mode, then flags and
+    // the optional fields in flag order
+    if (payload.length() < 1)
+        throw std::runtime_error("btle extended pdu too short");
+
+    size_t hdr_len = (uint8_t) payload[0] & 0x3F;
+    size_t end = 1 + hdr_len;
+
+    if (end > payload.length())
+        throw std::runtime_error("btle extended header past end of pdu");
+
+    m_extended = true;
+
+    if (hdr_len == 0)
+        return end;
+
+    uint8_t flags = payload[1];
+    size_t offt = 2;
+
+    // AdvA, TargetA, CTEInfo, ADI, AuxPtr, SyncInfo, TxPower
+    static const size_t field_len[] = { 6, 6, 1, 2, 3, 18, 1 };
+
+    for (unsigned int f = 0; f < 7; f++) {
+        if (!(flags & (1 << f)))
+            continue;
+
+        if (offt + field_len[f] > end)
+            throw std::runtime_error("btle extended header field past end of header");
+
+        if (f == 0)
+            set_address(payload, offt);
+        else if (f == 4)
+            m_has_aux_ptr = true;
+
+        offt += field_len[f];
+    }
+
+    return end;
+}
+
+void bluetooth_btle::bluetooth_btle_advdata::parse(const std::string& record) {
+    m_length = (uint8_t) record[0];
+    m_type = (uint8_t) record[1];
+
+    m_data = record.substr(2);
+    m_data_stream = std::make_shared<kaitai::kstream>(m_data);
 }
 
 void bluetooth_btle::bluetooth_btle_advdata::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_length = p_io->read_u1();
+
+    if (m_length == 0)
+        throw std::runtime_error("btle zero length advertising data");
+
     m_type = p_io->read_u1();
 
     m_data = p_io->read_bytes(length() - 1);

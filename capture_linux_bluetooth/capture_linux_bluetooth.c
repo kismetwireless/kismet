@@ -100,6 +100,7 @@ static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len);
 static char *eir_get_uuids_json(const uint8_t *eir, uint16_t eir_len);
 static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
         char **out_company_id_hex, char **out_data_hex);
+static char *eir_get_service_data_json(const uint8_t *eir, uint16_t eir_len);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
@@ -110,6 +111,7 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     char address[BDADDR_STR_LEN];
     char *name, *safe_name;
     char *uuids_json;
+    char *service_data_json;
     char *manuf_company_id_hex, *manuf_data_hex;
     uint16_t eirlen;
 
@@ -135,6 +137,7 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     /* Same EIR buffer works for both classic and LE scans; no need to
      * branch on dev->addr.type here. */
     uuids_json = eir_get_uuids_json(dev->eir, eirlen);
+    service_data_json = eir_get_service_data_json(dev->eir, eirlen);
     eir_get_manuf(dev->eir, eirlen, &manuf_company_id_hex, &manuf_data_hex);
 
     snprintf(json, sizeof(json), "{"
@@ -143,11 +146,13 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
             "\"type\": %u,"
             "\"connectable\": %u,"
             "\"service_uuids\": %s,"
+            "\"service_data\": %s,"
             "\"manuf_company_id\": \"%s\","
             "\"manuf_data\": \"%s\""
             "}",
             address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1,
             uuids_json,
+            service_data_json,
             manuf_company_id_hex != NULL ? manuf_company_id_hex : "",
             manuf_data_hex != NULL ? manuf_data_hex : "");
 
@@ -160,6 +165,7 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     }
 
     free(uuids_json);
+    free(service_data_json);
     if (manuf_company_id_hex != NULL)
         free(manuf_company_id_hex);
     if (manuf_data_hex != NULL)
@@ -559,11 +565,64 @@ static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
     }
 }
 
+/* 16-bit UUID service data records (such as Remote ID) as a JSON array of hex
+ * strings, each the UUID followed by the data */
+static char *eir_get_service_data_json(const uint8_t *eir, uint16_t eir_len) {
+    /* Worst case every byte becomes 2 hex chars, plus quoting and commas */
+    size_t bufsz = (size_t) eir_len * 4 + 3;
+    char *ret = malloc(bufsz);
+    size_t pos = 0;
+    uint16_t parsed = 0;
+    int first = 1;
+
+    if (ret == NULL)
+        return strdup("[]");
+
+    ret[pos++] = '[';
+
+    while (eir_len >= 2 && parsed < eir_len - 1) {
+        uint8_t field_len = eir[0];
+        size_t i;
+
+        if (field_len == 0)
+            break;
+
+        parsed += field_len + 1;
+        if (parsed > eir_len)
+            break;
+
+        if (eir[1] == 0x16 && field_len >= 3) {
+            if (!first)
+                ret[pos++] = ',';
+            first = 0;
+
+            ret[pos++] = '"';
+            for (i = 0; i < (size_t) field_len - 1; i++) {
+                snprintf(ret + pos, 3, "%02x", eir[2 + i]);
+                pos += 2;
+            }
+            ret[pos++] = '"';
+        }
+
+        eir += field_len + 1;
+    }
+
+    ret[pos++] = ']';
+    ret[pos] = '\0';
+
+    return ret;
+}
+
 /* Actual device found in scan trigger */
 void evt_device_found(local_bluetooth_t *localbt, uint16_t len, const void *param) {
     struct mgmt_ev_device_found *dev = (struct mgmt_ev_device_found *) param;
 
     if (len < sizeof(struct mgmt_ev_device_found)) {
+        return;
+    }
+
+    /* The EIR data has to fit in the event */
+    if (le16toh(dev->eir_len) > len - sizeof(struct mgmt_ev_device_found)) {
         return;
     }
 
