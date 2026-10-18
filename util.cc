@@ -1261,7 +1261,7 @@ std::string hex_to_bytes(const std::string& in) {
         bi = 1;
     }
 
-    for (; i < in.length() - 1; i += 2) {
+    for (; i + 1 < in.length(); i += 2) {
         ret[bi++] = chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
     }
 
@@ -1314,7 +1314,7 @@ size_t hex_to_bytes(const std::string_view& in, uint8_t *buf_begin, size_t buf_l
         i = 1;
     }
 
-    for (; i < in.length() - 1; i += 2) {
+    for (; i + 1 < in.length(); i += 2) {
         *bi++ = chartable[(uint8_t) in[i]] << 4 | chartable[(uint8_t) in[i+1]];
     }
 
