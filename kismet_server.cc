@@ -514,9 +514,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set thread mask for all new threads
     pthread_sigmask(SIG_BLOCK, &core_signal_mask, nullptr);
 
-    // Launch signal catching thread that bypasses the block
-    Globalreg::globalreg->signal_service_thread = std::thread(signal_thread_handler);
-
     // Fill in base globalreg elements
     globalregistry->version_major = VERSION_MAJOR;
     globalregistry->version_minor = VERSION_MINOR;
@@ -610,6 +607,11 @@ int main(int argc, char *argv[], char *envp[]) {
             exit(0);
         }
     }
+
+    // Launch signal catching thread that bypasses the block.  This has to happen after
+    // daemonizing: fork() only copies the calling thread, so a thread started before it
+    // doesn't exist in the daemon, which then never sees SIGTERM, SIGINT or SIGHUP
+    Globalreg::globalreg->signal_service_thread = std::thread(signal_thread_handler);
 
     // Entrytracker needs to be allocated before almost everything else, anything which
     // handles serializable data needs it
