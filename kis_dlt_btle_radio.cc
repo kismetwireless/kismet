@@ -105,12 +105,12 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
     } else if (rf_ll->monitor_channel == 39) {
         in_pack->signal_info.channel = "39";
         in_pack->signal_info.freq_khz = (2480 * 1000);
-    }  else if (rf_ll->monitor_channel <= 10) {
-        in_pack->signal_info.channel = fmt::format("{}", rf_ll->monitor_channel - 1);
-        in_pack->signal_info.freq_khz = (2404 + (rf_ll->monitor_channel * 2)) * 1000;
-    } else {
-        in_pack->signal_info.channel = fmt::format("{}", rf_ll->monitor_channel);
-        in_pack->signal_info.freq_khz = (2428 + ((rf_ll->monitor_channel - 11) * 2)) * 1000;
+    } else if (rf_ll->monitor_channel < 39) {
+        // RF channels are 2 MHz apart from 2402; data channels 0-10 sit below the
+        // 2426 MHz advertising channel and 11-36 above it
+        unsigned int rf = rf_ll->monitor_channel;
+        in_pack->signal_info.channel = fmt::format("{}", rf < 12 ? rf - 1 : rf - 2);
+        in_pack->signal_info.freq_khz = (2402 + (rf * 2)) * 1000;
     }
 
     // TODO handle dewhitening
