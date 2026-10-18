@@ -1235,8 +1235,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 // Action frames have their own structure and a non-traditional
-                // fixed parameters field, handle it all here
-                packinfo->header_offset = 22;
+                // fixed parameters field, handle it all here; the body starts with
+                // the category code after the 24 byte header
+                packinfo->header_offset = 24;
                 fixparm = NULL;
 
                 // Action frames can be encrypted; we can't do anything with them if they are.
