@@ -229,8 +229,9 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
             (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 2])) << 8 |
             (uint32_t)((uint8_t)(packdata->data()[packdata->length() - 3]));
 
+        // Advertising CRC init is 0x555555; the reflected LFSR takes it bit-reversed
         uint32_t packet_crc =
-            ble_crc24(0x555555, packdata->data() + 4, packdata->length() - 7);
+            ble_crc24(0xAAAAAA, packdata->data() + 4, packdata->length() - 7);
 
         if (packet_crc != line_crc) {
             in_pack->crc_ok = true;
