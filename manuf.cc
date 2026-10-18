@@ -154,9 +154,9 @@ void kis_manuf::IndexOUI() {
 }
 
 std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
-    // Addresses shorter than an OUI (802.15.4 short addresses) have no manufacturer; OUI()
-    // would pad them with zeros and could match a real OUI
-    if (in_mac.length() < 3)
+    // Addresses shorter than a MAC-48 (802.15.4 short addresses, alone or with their PAN)
+    // carry no OUI; OUI() would take the PAN or pad with zeros and could match a real OUI
+    if (in_mac.length() < 6)
         return unknown_manuf;
 
     return lookup_oui(in_mac.OUI());
