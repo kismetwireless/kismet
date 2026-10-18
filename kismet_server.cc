@@ -273,6 +273,8 @@ int usage(char *argv) {
            "     --no-console-wrapper     Disable server console wrapper\n"
            "     --no-ncurses-wrapper     Disable server console wrapper\n"
            "     --no-ncurses             Disable server console wrapper\n"
+           "     --enable-ncurses         Enable the server console wrapper even if\n"
+           "                              enable_ncurses=false in the config\n"
            "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
            " -c <datasource>              Use the specified datasource\n"
@@ -436,10 +438,16 @@ int main(int argc, char *argv[], char *envp[]) {
 
     bool debug_mode = false;
 
+    // Console wrapper from the command line; -1 follows enable_ncurses in the config.
+    // Debug and daemon mode always disable it.
+    int cli_wrapper = -1;
+    bool wrapper_forced_off = false;
+
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
         { "no-console-wrapper", no_argument, 0, 'w' },
         { "no-ncurses", no_argument, 0, 'w' },
+        { "enable-ncurses", no_argument, 0, 'e' },
         { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
@@ -455,16 +463,20 @@ int main(int argc, char *argv[], char *envp[]) {
         if (r < 0) break;
 
         if (r == 'w') {
-            wrapper = false; 
-            glob_linewrap = false;
+            cli_wrapper = 0;
+        } else if (r == 'e') {
+            cli_wrapper = 1;
         } else if (r == 'd') {
             debug_mode = true;
-            wrapper = false;
-            glob_linewrap = false;
+            wrapper_forced_off = true;
         } else if (r == 'D') {
-            wrapper = false;
-            glob_linewrap = false;
+            wrapper_forced_off = true;
         }
+    }
+
+    if (wrapper_forced_off || cli_wrapper == 0) {
+        wrapper = false;
+        glob_linewrap = false;
     }
 
     optind = 0;
@@ -728,6 +740,13 @@ int main(int argc, char *argv[], char *envp[]) {
         exit(1);
     }
     globalregistry->kismet_config = conf;
+
+    // The config can disable the console wrapper unless the command line picked; this
+    // has to be read before the wrapper changes the screen
+    if (wrapper && cli_wrapper < 0 && !conf->fetch_opt_bool("enable_ncurses", true)) {
+        wrapper = false;
+        glob_linewrap = false;
+    }
 
     struct stat fstat;
     std::string configdir;
