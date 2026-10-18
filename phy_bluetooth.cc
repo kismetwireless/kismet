@@ -31,6 +31,7 @@
 #include "packetchain.h"
 #include "timetracker.h"
 #include "phy_bluetooth.h"
+#include "phy_uav_drone.h"
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
 #include "alertracker.h"
@@ -85,6 +86,7 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
     pack_comp_json = packetchain->register_packet_component("JSON");
+    pack_comp_remoteid = packetchain->register_packet_component("UAVREMOTEID");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 
     btdev_bredr = devicetracker->get_cached_devicetype("BR/EDR");
@@ -274,6 +276,33 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
             auto manuf_data_j = json["manuf_data"];
             if (manuf_data_j.is_string())
                 btdev->set_manuf_data(manuf_data_j.get<std::string>());
+        }
+
+        // 16-bit service data, as hex of the UUID and data; Remote ID goes on to
+        // the UAV phy
+        auto service_data_j = json["service_data"];
+        if (service_data_j.is_array()) {
+            for (const auto& sd : service_data_j) {
+                if (!sd.is_string())
+                    continue;
+
+                const auto& sd_hex = sd.get_ref<const std::string&>();
+
+                // UUID, app code, counter, and at least one message
+                if (sd_hex.length() % 2 != 0 || sd_hex.length() / 2 < 4 + odid::message_len)
+                    continue;
+
+                auto raw = hex_to_bytes(sd_hex);
+                auto rid = btphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
+
+                if (odid::decode_ble_service_data((const uint8_t *) raw.data(), raw.length(),
+                            rid->counter, rid->messages)) {
+                    rid->transport = "BLE (HCI)";
+                    rid->device_mac = btaddr_mac;
+                    in_pack->insert(btphy->pack_comp_remoteid, rid);
+                    break;
+                }
+            }
         }
 
     } catch (const std::exception& e) {

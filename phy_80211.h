@@ -601,7 +601,8 @@ protected:
     // Packet components
     int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
         pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
-        pack_comp_decap, pack_comp_datapayload, pack_comp_json;
+        pack_comp_decap, pack_comp_datapayload, pack_comp_json,
+        pack_comp_remoteid;
 
     // Do we do any data dissection or do we hide it all (legal safety
     // cutout)

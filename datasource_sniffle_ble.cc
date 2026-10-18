@@ -108,13 +108,19 @@ int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
             freq_khz = 2480 * 1000;
             break;
         default:
-            // Shouldn't happen - this datasource only configures Sniffle to
-            // listen on a primary advertising channel - but don't silently
-            // mis-map into another valid-looking channel if it ever does.
-            packet->error = 1;
-            packet->set_data((const char *) content, content_sz);
-            datachunk->set_data(packet->data);
-            return 1;
+            // Secondary channels carry AUX_ PDUs when following extended
+            // advertising (auxadv=true); the RF channel skips the 2426 MHz
+            // primary channel
+            if (chan > 36) {
+                packet->error = 1;
+                packet->set_data((const char *) content, content_sz);
+                datachunk->set_data(packet->data);
+                return 1;
+            }
+
+            monitor_channel = chan <= 10 ? chan + 1 : chan + 2;
+            freq_khz = (2402 + (monitor_channel * 2)) * 1000;
+            break;
     }
 
     // Decap payload = access address (4) + PDU (body_len) + dummy CRC (3).

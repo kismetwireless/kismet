@@ -20,12 +20,15 @@
 #ifndef __PHY_UAV_DRONE_H__
 #define __PHY_UAV_DRONE_H__
 
+#include <array>
+
 #include "trackedelement.h"
 #include "trackedlocation.h"
 #include "phyhandler.h"
 #include "packetchain.h"
 
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
+#include "uav_parsers/opendroneid.h"
 
 #ifdef HAVE_LIBPCRE1
 #include <pcre.h>
@@ -174,6 +177,292 @@ protected:
 
     std::shared_ptr<tracker_element_uint8> motor_on;
     std::shared_ptr<tracker_element_uint8> airborne;
+};
+
+// Open Drone ID / Remote ID broadcast record; the location message goes into the
+// common telemetry history, the operator location into the app location
+class uav_tracked_remoteid : public tracker_component {
+public:
+    uav_tracked_remoteid() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    uav_tracked_remoteid(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    uav_tracked_remoteid(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    uav_tracked_remoteid(const uav_tracked_remoteid *p) :
+        tracker_component{p} {
+            __ImportField(transport, p);
+            __ImportField(protocol_version, p);
+            __ImportField(message_counter, p);
+            __ImportId(serial_number_id, p);
+            __ImportId(registration_id_id, p);
+            __ImportId(utm_id_id, p);
+            __ImportId(session_id_id, p);
+            __ImportId(ua_type_id, p);
+            __ImportId(status_id, p);
+            __ImportId(height_type_id, p);
+            __ImportId(direction_id, p);
+            __ImportId(speed_horizontal_id, p);
+            __ImportId(speed_vertical_id, p);
+            __ImportId(altitude_baro_id, p);
+            __ImportId(altitude_geo_id, p);
+            __ImportId(height_id, p);
+            __ImportId(horiz_accuracy_id, p);
+            __ImportId(vert_accuracy_id, p);
+            __ImportId(baro_accuracy_id, p);
+            __ImportId(speed_accuracy_id, p);
+            __ImportId(timestamp_accuracy_id, p);
+            __ImportId(location_timestamp_id, p);
+            __ImportId(self_id_type_id, p);
+            __ImportId(self_id_id, p);
+            __ImportId(operator_id_type_id, p);
+            __ImportId(operator_id_id, p);
+            __ImportId(operator_location_type_id, p);
+            __ImportId(operator_altitude_id, p);
+            __ImportId(classification_type_id, p);
+            __ImportId(eu_category_id, p);
+            __ImportId(eu_class_id, p);
+            __ImportId(area_count_id, p);
+            __ImportId(area_radius_id, p);
+            __ImportId(area_ceiling_id, p);
+            __ImportId(area_floor_id, p);
+            __ImportId(system_timestamp_id, p);
+            __ImportId(auth_type_id, p);
+            __ImportId(auth_timestamp_id, p);
+            __ImportId(auth_data_id, p);
+        }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("uav_tracked_remoteid");
+    }
+
+    virtual ~uav_tracked_remoteid() { }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(transport, std::string, std::string, std::string, transport);
+    __Proxy(protocol_version, uint8_t, uint8_t, uint8_t, protocol_version);
+    __Proxy(message_counter, uint8_t, uint8_t, uint8_t, message_counter);
+
+    __ProxyFullyDynamic(serial_number, std::string, std::string, std::string, tracker_element_string, serial_number_id);
+    __ProxyFullyDynamic(registration_id, std::string, std::string, std::string, tracker_element_string, registration_id_id);
+    __ProxyFullyDynamic(utm_id, std::string, std::string, std::string, tracker_element_string, utm_id_id);
+    __ProxyFullyDynamic(session_id, std::string, std::string, std::string, tracker_element_string, session_id_id);
+    __ProxyFullyDynamic(ua_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, ua_type_id);
+
+    __ProxyFullyDynamic(status, uint8_t, uint8_t, uint8_t, tracker_element_uint8, status_id);
+    __ProxyFullyDynamic(height_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, height_type_id);
+    __ProxyFullyDynamic(direction, double, double, double, tracker_element_double, direction_id);
+    __ProxyFullyDynamic(speed_horizontal, double, double, double, tracker_element_double, speed_horizontal_id);
+    __ProxyFullyDynamic(speed_vertical, double, double, double, tracker_element_double, speed_vertical_id);
+    __ProxyFullyDynamic(altitude_baro, double, double, double, tracker_element_double, altitude_baro_id);
+    __ProxyFullyDynamic(altitude_geo, double, double, double, tracker_element_double, altitude_geo_id);
+    __ProxyFullyDynamic(height, double, double, double, tracker_element_double, height_id);
+    __ProxyFullyDynamic(horiz_accuracy, uint8_t, uint8_t, uint8_t, tracker_element_uint8, horiz_accuracy_id);
+    __ProxyFullyDynamic(vert_accuracy, uint8_t, uint8_t, uint8_t, tracker_element_uint8, vert_accuracy_id);
+    __ProxyFullyDynamic(baro_accuracy, uint8_t, uint8_t, uint8_t, tracker_element_uint8, baro_accuracy_id);
+    __ProxyFullyDynamic(speed_accuracy, uint8_t, uint8_t, uint8_t, tracker_element_uint8, speed_accuracy_id);
+    __ProxyFullyDynamic(timestamp_accuracy, uint8_t, uint8_t, uint8_t, tracker_element_uint8, timestamp_accuracy_id);
+    __ProxyFullyDynamic(location_timestamp, double, double, double, tracker_element_double, location_timestamp_id);
+
+    __ProxyFullyDynamic(self_id_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, self_id_type_id);
+    __ProxyFullyDynamic(self_id, std::string, std::string, std::string, tracker_element_string, self_id_id);
+    __ProxyFullyDynamic(operator_id_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, operator_id_type_id);
+    __ProxyFullyDynamic(operator_id, std::string, std::string, std::string, tracker_element_string, operator_id_id);
+
+    __ProxyFullyDynamic(operator_location_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, operator_location_type_id);
+    __ProxyFullyDynamic(operator_altitude, double, double, double, tracker_element_double, operator_altitude_id);
+    __ProxyFullyDynamic(classification_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, classification_type_id);
+    __ProxyFullyDynamic(eu_category, uint8_t, uint8_t, uint8_t, tracker_element_uint8, eu_category_id);
+    __ProxyFullyDynamic(eu_class, uint8_t, uint8_t, uint8_t, tracker_element_uint8, eu_class_id);
+    __ProxyFullyDynamic(area_count, uint16_t, uint16_t, uint16_t, tracker_element_uint16, area_count_id);
+    __ProxyFullyDynamic(area_radius, double, double, double, tracker_element_double, area_radius_id);
+    __ProxyFullyDynamic(area_ceiling, double, double, double, tracker_element_double, area_ceiling_id);
+    __ProxyFullyDynamic(area_floor, double, double, double, tracker_element_double, area_floor_id);
+    __ProxyFullyDynamic(system_timestamp, uint64_t, uint64_t, uint64_t, tracker_element_uint64, system_timestamp_id);
+
+    __ProxyFullyDynamic(auth_type, uint8_t, uint8_t, uint8_t, tracker_element_uint8, auth_type_id);
+    __ProxyFullyDynamic(auth_timestamp, uint64_t, uint64_t, uint64_t, tracker_element_uint64, auth_timestamp_id);
+    __ProxyFullyDynamic(auth_data, std::string, std::string, std::string, tracker_element_string, auth_data_id);
+
+    // Collect an authentication page; publishes the data once every page from 0 to
+    // the last page index has arrived with the same timestamp
+    void add_auth_page(const odid::auth_msg& a);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("uav.remoteid.transport", "Last transport (Wi-Fi beacon, NAN, BLE)", &transport);
+        register_field("uav.remoteid.protocol_version", "Remote ID protocol version", &protocol_version);
+        register_field("uav.remoteid.message_counter", "Last message counter", &message_counter);
+
+        serial_number_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.serial_number", "Serial number (ANSI/CTA-2063-A)");
+        registration_id_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.registration_id", "CAA registration ID");
+        utm_id_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.utm_id", "UTM assigned UUID");
+        session_id_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.session_id", "Specific session ID");
+        ua_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.ua_type", "UA type");
+
+        status_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.status", "Operational status");
+        height_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.height_type", "Height reference (0 takeoff, 1 ground)");
+        direction_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.direction", "Track direction, degrees from north");
+        speed_horizontal_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.speed_horizontal", "Ground speed, m/s");
+        speed_vertical_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.speed_vertical", "Vertical speed, m/s");
+        altitude_baro_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.altitude_baro", "Pressure altitude, m");
+        altitude_geo_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.altitude_geo", "Geodetic altitude, m");
+        height_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.height", "Height, m");
+        horiz_accuracy_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.horiz_accuracy", "Horizontal accuracy (enum)");
+        vert_accuracy_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.vert_accuracy", "Vertical accuracy (enum)");
+        baro_accuracy_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.baro_accuracy", "Pressure altitude accuracy (enum)");
+        speed_accuracy_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.speed_accuracy", "Speed accuracy (enum)");
+        timestamp_accuracy_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.timestamp_accuracy", "Timestamp accuracy, 0.1s");
+        location_timestamp_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.location_timestamp", "Location time, seconds past the hour");
+
+        self_id_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.self_id_type", "Self ID description type");
+        self_id_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.self_id", "Self ID description");
+        operator_id_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.operator_id_type", "Operator ID type");
+        operator_id_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.operator_id", "Operator ID");
+
+        operator_location_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.operator_location_type", "Operator location source");
+        operator_altitude_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.operator_altitude", "Operator geodetic altitude, m");
+        classification_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.classification_type", "Classification type");
+        eu_category_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.eu_category", "EU UA category");
+        eu_class_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.eu_class", "EU UA class");
+        area_count_id =
+            register_dynamic_field<tracker_element_uint16>("uav.remoteid.area_count", "Operating area aircraft count");
+        area_radius_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.area_radius", "Operating area radius, m");
+        area_ceiling_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.area_ceiling", "Operating area ceiling, m");
+        area_floor_id =
+            register_dynamic_field<tracker_element_double>("uav.remoteid.area_floor", "Operating area floor, m");
+        system_timestamp_id =
+            register_dynamic_field<tracker_element_uint64>("uav.remoteid.system_timestamp", "System message time (unix)");
+
+        auth_type_id =
+            register_dynamic_field<tracker_element_uint8>("uav.remoteid.auth_type", "Authentication type");
+        auth_timestamp_id =
+            register_dynamic_field<tracker_element_uint64>("uav.remoteid.auth_timestamp", "Authentication time (unix)");
+        auth_data_id =
+            register_dynamic_field<tracker_element_string>("uav.remoteid.auth_data", "Authentication data (hex)");
+    }
+
+    std::shared_ptr<tracker_element_string> transport;
+    std::shared_ptr<tracker_element_uint8> protocol_version;
+    std::shared_ptr<tracker_element_uint8> message_counter;
+
+    uint16_t serial_number_id;
+    uint16_t registration_id_id;
+    uint16_t utm_id_id;
+    uint16_t session_id_id;
+    uint16_t ua_type_id;
+
+    uint16_t status_id;
+    uint16_t height_type_id;
+    uint16_t direction_id;
+    uint16_t speed_horizontal_id;
+    uint16_t speed_vertical_id;
+    uint16_t altitude_baro_id;
+    uint16_t altitude_geo_id;
+    uint16_t height_id;
+    uint16_t horiz_accuracy_id;
+    uint16_t vert_accuracy_id;
+    uint16_t baro_accuracy_id;
+    uint16_t speed_accuracy_id;
+    uint16_t timestamp_accuracy_id;
+    uint16_t location_timestamp_id;
+
+    uint16_t self_id_type_id;
+    uint16_t self_id_id;
+    uint16_t operator_id_type_id;
+    uint16_t operator_id_id;
+
+    uint16_t operator_location_type_id;
+    uint16_t operator_altitude_id;
+    uint16_t classification_type_id;
+    uint16_t eu_category_id;
+    uint16_t eu_class_id;
+    uint16_t area_count_id;
+    uint16_t area_radius_id;
+    uint16_t area_ceiling_id;
+    uint16_t area_floor_id;
+    uint16_t system_timestamp_id;
+
+    uint16_t auth_type_id;
+    uint16_t auth_timestamp_id;
+    uint16_t auth_data_id;
+
+    // Reassembly state, not serialized
+    std::array<std::string, odid::max_auth_pages> auth_pages;
+    uint32_t auth_page_mask = 0;
+    uint32_t auth_page_ts = 0;
+    uint8_t auth_last_page = 0;
+    uint8_t auth_length = 0;
+    uint8_t auth_pending_type = 0;
+};
+
+// Remote ID messages decoded by the Wi-Fi and BLE phys, for the UAV phy to attach
+// to the transmitting device
+class uav_remoteid_packinfo : public packet_component {
+public:
+    uav_remoteid_packinfo() { }
+
+    void reset() {
+        messages.clear();
+        counter = 0;
+        transport = nullptr;
+        device_mac = mac_addr{};
+    }
+
+    std::vector<odid::message> messages;
+    uint8_t counter = 0;
+    const char *transport = nullptr;
+    mac_addr device_mac;
 };
 
 // Match a manufacturer (such as OUI, SSID, or both)
@@ -327,6 +616,7 @@ public:
             __ImportField(home_location, p);
             __ImportField(app_location, p);
             __ImportId(matched_rule_id, p);
+            __ImportId(remoteid_id, p);
 
             reserve_fields(nullptr);
         }
@@ -363,6 +653,8 @@ public:
 
     __ProxyDynamicTrackable(matched_rule, tracker_element_alias, matched_rule, matched_rule_id);
 
+    __ProxyDynamicTrackable(remoteid, uav_tracked_remoteid, remoteid, remoteid_id);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -385,6 +677,9 @@ protected:
 
         matched_rule_id =
             register_dynamic_field("uav.type", "Matching rules for Wi-Fi devices", &matched_rule);
+
+        remoteid_id =
+            register_dynamic_field("uav.remoteid", "Open Drone ID / Remote ID broadcast", &remoteid);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -419,6 +714,9 @@ protected:
 
     std::shared_ptr<tracker_element_alias> matched_rule;
     uint16_t matched_rule_id;
+
+    std::shared_ptr<uav_tracked_remoteid> remoteid;
+    uint16_t remoteid_id;
 };
 
 /* Frankenphy which absorbs other phys */
@@ -445,6 +743,10 @@ public:
 protected:
     bool parse_manuf_definition(std::string def);
 
+    // Called with the device locked
+    void handle_remoteid(const std::shared_ptr<kis_tracked_device_base>& basedev,
+            const std::shared_ptr<uav_remoteid_packinfo>& rid, kis_packet *in_pack);
+
     kis_mutex uav_mutex;
 
     std::shared_ptr<packet_chain> packetchain;
@@ -452,7 +754,7 @@ protected:
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
     int pack_comp_80211, pack_comp_device, pack_comp_json,
-        pack_comp_meta;
+        pack_comp_meta, pack_comp_remoteid;
 
     int uav_device_id;
 

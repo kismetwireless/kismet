@@ -194,6 +194,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     pack_comp_basicdata =
         packetchain->register_packet_component("BASICDATA");
 
+    pack_comp_remoteid =
+        packetchain->register_packet_component("UAVREMOTEID");
+
     pack_comp_mangleframe =
         packetchain->register_packet_component("MANGLEDATA");
 

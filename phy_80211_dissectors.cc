@@ -75,6 +75,7 @@
 #include "dot11_parsers/dot11_ie_232_s1g_operation.h"
 #include "dot11_parsers/dot11_p2p_ie.h"
 #include "dot11_parsers/dot11_s1g.h"
+#include "phy_uav_drone.h"
 
 #include "crc32.h"
 
@@ -1259,7 +1260,28 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                         return 0;
                     }
 
-                    // We only care about RMM for wids purposes right now
+                    // NAN service discovery frames (public action, vendor specific, WFA
+                    // OUI type 0x13) can carry Remote ID
+                    if (action.category_code() == dot11_action::category_code_public &&
+                            chunk->length() > packinfo->header_offset + 6) {
+                        const auto act =
+                            reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset;
+
+                        if (act[1] == 0x09 && act[2] == 0x50 && act[3] == 0x6F && act[4] == 0x9A &&
+                                act[5] == 0x13) {
+                            auto rid = packetchain->new_packet_component<uav_remoteid_packinfo>();
+
+                            if (odid::decode_nan_attributes(act + 6,
+                                        chunk->length() - packinfo->header_offset - 6,
+                                        rid->counter, rid->messages)) {
+                                rid->transport = "Wi-Fi NAN";
+                                rid->device_mac = packinfo->source_mac;
+                                in_pack->insert(pack_comp_remoteid, rid);
+                            }
+                        }
+                    }
+
+                    // RMM for wids purposes
                     if (action.category_code() == dot11_action::category_code_radio_measurement) {
                         // Scan the action IE tags
                         dot11_ie rmm_tags;
@@ -2408,6 +2430,23 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
                                 packinfo->droneid = droneid;
                             } catch (...) { }
+
+                            break;
+
+                        // Remote ID beacons; Parrot used its own OUI before ASD-STAN
+                        case odid::wifi_oui:
+                        case 0x903AE6:
+                            if (vendor.vendor_oui_type() == odid::wifi_oui_type) {
+                                auto rid = packetchain->new_packet_component<uav_remoteid_packinfo>();
+                                const auto& vt = vendor.vendor_tag();
+
+                                if (odid::decode_wifi_vendor_ie((const uint8_t *) vt.data(), vt.length(),
+                                            rid->counter, rid->messages)) {
+                                    rid->transport = "Wi-Fi beacon";
+                                    rid->device_mac = packinfo->bssid_mac;
+                                    in_pack->insert(pack_comp_remoteid, rid);
+                                }
+                            }
 
                             break;
 

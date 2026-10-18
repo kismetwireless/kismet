@@ -230,7 +230,7 @@ protected:
 
 	// Packet components
 	int pack_comp_btdevice, pack_comp_meta, pack_comp_json,
-        pack_comp_linkframe;
+        pack_comp_linkframe, pack_comp_remoteid;
 
     std::shared_ptr<tracker_element_string> btdev_bredr;
     std::shared_ptr<tracker_element_string> btdev_btle;
