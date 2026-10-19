@@ -253,7 +253,9 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 }
 
 /* Probing only matches USB enumeration; loading firmware would outlast the probe timeout,
- * so channels and the MAC-derived UUID come from opening */
+ * so channels and the MAC-derived UUID come from opening.  As a remote capture the probe
+ * runs locally with no timeout and the server needs the UUID to match reconnects, so the
+ * adapter is opened here and kept for the open callback */
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
@@ -277,6 +279,25 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         (*ret_interface)->hardware = strdup(hw);
         *uuid = flag_dup(definition, "uuid");
         ret = 1;
+
+        if (*uuid == NULL && caph->remote_host != NULL) {
+            char errstr[STATUS_MAX];
+            char *fw_dir = flag_dup(definition, "firmware");
+
+            if (fw_dir != NULL)
+                usbwifi_init(local, fw_dir);
+            free(fw_dir);
+
+            if (local->dev == NULL)
+                local->dev = uwifi_kis_open(ifname, errstr, sizeof(errstr));
+
+            if (local->dev != NULL) {
+                *uuid = usbwifi_uuid(local->dev);
+            } else {
+                snprintf(msg, STATUS_MAX, "%s: %s", ifname, errstr);
+                ret = 0;
+            }
+        }
     } else {
         snprintf(msg, STATUS_MAX, "%s is not a supported USB Wi-Fi adapter", ifname);
     }
@@ -323,7 +344,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
     free(fw_dir);
 
-    if ((local->dev = uwifi_kis_open(local->interface, errstr, sizeof(errstr))) == NULL) {
+    /* A remote capture already opened the adapter while probing */
+    if (local->dev == NULL &&
+            (local->dev = uwifi_kis_open(local->interface, errstr, sizeof(errstr))) == NULL) {
         snprintf(msg, STATUS_MAX, "%s: %s", local->name, errstr);
         return -1;
     }
