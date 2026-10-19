@@ -30,7 +30,9 @@
  *   firmware=FILE    firmware file name to load instead of the one chosen by chip revision;
  *                    found in the firmware directories, not a path
  *   boardfile=FILE   board config (BCF) file name to load instead of the one chosen by the
- *                    board type in OTP; found in the firmware directories, not a path
+ *                    board type in OTP; found in the firmware directories, not a path.
+ *                    Without a board type, bcf_default.bin is used if present, then the
+ *                    MM8108 reference module's bcf_mf15457.bin
  *   verbose=true     driver logging
  *
  * Firmware and board config files from https://github.com/MorseMicro/morse-firmware are
@@ -459,16 +461,40 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         goto out;
     }
 
-    if (bcf_name != NULL)
-        snprintf(fname, sizeof(fname), "%s", bcf_name);
-    else
-        snprintf(fname, sizeof(fname), "bcf_boardtype_%04x.bin", dev->board_type);
+    if (bcf_name != NULL) {
+        if (!find_firmware(fw_dir, bcf_name, bcf_path, sizeof(bcf_path))) {
+            snprintf(msg, STATUS_MAX, "%s could not find board config %s; download it from "
+                    "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
+                    local->name, bcf_name);
+            goto out;
+        }
+    } else {
+        char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN];
+        size_t num_names = mm_bcf_default_names(dev, names), i;
 
-    if (!find_firmware(fw_dir, fname, bcf_path, sizeof(bcf_path))) {
-        snprintf(msg, STATUS_MAX, "%s could not find board config %s; download it from "
-                "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
-                local->name, fname);
-        goto out;
+        for (i = 0; i < num_names; i++)
+            if (find_firmware(fw_dir, names[i], bcf_path, sizeof(bcf_path)))
+                break;
+
+        if (i == num_names) {
+            snprintf(msg, STATUS_MAX, "%s could not find a board config for board type 0x%04x; "
+                    "download them from https://github.com/MorseMicro/morse-firmware and use the "
+                    "firmwaredir= option, or choose one with boardfile=", local->name,
+                    dev->board_type);
+            goto out;
+        }
+
+        /* Only the board type's own config is known to match the adapter */
+        if (dev->board_type == 0 || i > 0) {
+            if (dev->board_type == 0)
+                snprintf(fname, sizeof(fname), "has no board type in OTP");
+            else
+                snprintf(fname, sizeof(fname), "board type 0x%04x is unknown", dev->board_type);
+
+            snprintf(buf, sizeof(buf), "%s %s; using board config %s.  If the adapter needs a "
+                    "different one, choose it with boardfile=", local->name, fname, names[i]);
+            cf_send_warning(caph, buf);
+        }
     }
 
     boot.firmware_path = fw_path;
@@ -515,8 +541,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         goto out;
     }
 
-    snprintf(buf, sizeof(buf), "%s (board 0x%04x, firmware %s)", mm_chip_name(dev->chip_id),
-            dev->board_type, version);
+    if (dev->bcf_module[0] != 0)
+        snprintf(buf, sizeof(buf), "%s (board 0x%04x %s, firmware %s)", mm_chip_name(dev->chip_id),
+                dev->board_type, dev->bcf_module, version);
+    else
+        snprintf(buf, sizeof(buf), "%s (board 0x%04x, firmware %s)", mm_chip_name(dev->chip_id),
+                dev->board_type, version);
     (*ret_interface)->hardware = strdup(buf);
     (*ret_interface)->capif = strdup(local->interface);
 
@@ -532,9 +562,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     {
         const char *fw_base = strrchr(fw_path, '/'), *bcf_base = strrchr(bcf_path, '/');
 
-        snprintf(buf, sizeof(buf), "%s %s firmware %s (%s), board config %s, regulatory domain "
-                "%s, %zu channels", local->name, mm_chip_name(dev->chip_id), version,
+        snprintf(buf, sizeof(buf), "%s %s firmware %s (%s), board config %s%s%s%s, regulatory "
+                "domain %s, %zu channels", local->name, mm_chip_name(dev->chip_id), version,
                 fw_base ? fw_base + 1 : fw_path, bcf_base ? bcf_base + 1 : bcf_path,
+                dev->bcf_module[0] ? " (" : "", dev->bcf_module, dev->bcf_module[0] ? ")" : "",
                 local->region->country, (*ret_interface)->channels_len);
     }
     cf_send_message(caph, buf, MSGFLAG_INFO);

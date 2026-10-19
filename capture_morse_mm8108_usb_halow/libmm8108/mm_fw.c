@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "mm8108.h"
 #include "mm_util.h"
@@ -338,6 +339,108 @@ static int mm_bcf_find_regdom(const struct mm_elf *elf, const char *country,
     return mm_elf_find_section(elf, name, shdr);
 }
 
+/* Board configs list the chip families they support in .chips */
+#define MM_BCF_CHIP_FAMILY      "mm810x"
+#define MM_BCF_REFERENCE        "bcf_mf15457.bin"
+
+size_t mm_bcf_default_names(const struct mm8108_dev *dev,
+        char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN]) {
+    size_t n = 0;
+
+    if (dev->board_type != 0)
+        snprintf(names[n++], MM_BCF_NAME_LEN, "bcf_boardtype_%04x.bin", dev->board_type);
+
+    snprintf(names[n++], MM_BCF_NAME_LEN, "bcf_default.bin");
+    snprintf(names[n++], MM_BCF_NAME_LEN, "%s", MM_BCF_REFERENCE);
+
+    return n;
+}
+
+/* Copies printable ascii from a section, stopping at a NUL; -ENOENT if there's no such
+ * section, -EINVAL if it holds anything else */
+static int mm_bcf_section_string(const struct mm_elf *elf, const char *name, char *out,
+        size_t out_len) {
+    struct mm_elf_shdr shdr;
+    size_t n = 0;
+    int r;
+
+    out[0] = 0;
+
+    if ((r = mm_elf_find_section(elf, name, &shdr)) < 0)
+        return r;
+
+    for (uint32_t i = 0; i < shdr.size; i++) {
+        const char c = (char) elf->file->data[shdr.offset + i];
+
+        if (c == 0)
+            break;
+
+        if (c < 0x20 || c > 0x7E) {
+            out[0] = 0;
+            return -EINVAL;
+        }
+
+        if (n + 1 < out_len)
+            out[n++] = c;
+    }
+
+    out[n] = 0;
+    return 0;
+}
+
+/* The board description is JSON naming the module, or in older files the bare name */
+static void mm_bcf_module_name(const struct mm_elf *elf, char *out, size_t out_len) {
+    char desc[512];
+    const char *p;
+    size_t n = 0;
+
+    out[0] = 0;
+
+    if (mm_bcf_section_string(elf, ".board_desc", desc, sizeof(desc)) < 0 || desc[0] == 0)
+        return;
+
+    if (desc[0] != '{') {
+        snprintf(out, out_len, "%s", desc);
+        return;
+    }
+
+    if ((p = strstr(desc, "\"module\"")) == NULL)
+        return;
+
+    p += strlen("\"module\"");
+    while (*p == ' ' || *p == ':')
+        p++;
+
+    if (*p++ != '"')
+        return;
+
+    while (*p != 0 && *p != '"' && *p != '\\' && n + 1 < out_len)
+        out[n++] = *p++;
+
+    out[n] = 0;
+}
+
+/* A board config for another chip family would program the wrong radio settings */
+static int mm_bcf_check(struct mm8108_dev *dev, const struct mm_elf *elf) {
+    char chips[64];
+    int r;
+
+    /* Older board configs have no chip list */
+    if ((r = mm_bcf_section_string(elf, ".chips", chips, sizeof(chips))) == -EINVAL ||
+            (r == 0 && chips[0] == 0))
+        return mm_error(dev, -EINVAL, "board config has an invalid chip list");
+
+    if (r == 0 && strcasecmp(chips, MM_BCF_CHIP_FAMILY) != 0)
+        return mm_error(dev, -EINVAL, "board config is for %s chips, not MM8108", chips);
+
+    mm_bcf_module_name(elf, dev->bcf_module, sizeof(dev->bcf_module));
+
+    if (dev->bcf_module[0] != 0)
+        mm_log(dev, 1, "board config for module %s", dev->bcf_module);
+
+    return 0;
+}
+
 /* The board config is followed by the regulatory section for the country */
 static int mm_bcf_load(struct mm8108_dev *dev, const struct mm_elf *elf, const char *country) {
     struct mm_elf_shdr board, regdom;
@@ -542,6 +645,8 @@ int mm_boot(struct mm8108_dev *dev, const struct mm8108_boot_config *cfg) {
     bool have_bcf = false;
     int r, tries;
 
+    dev->bcf_module[0] = 0;
+
     if ((r = mm_file_load(dev, cfg->firmware_path, &fw_file)) < 0)
         return r;
 
@@ -551,7 +656,8 @@ int mm_boot(struct mm8108_dev *dev, const struct mm8108_boot_config *cfg) {
 
     if (cfg->bcf_path != NULL) {
         if ((r = mm_file_load(dev, cfg->bcf_path, &bcf_file)) < 0 ||
-                (r = mm_elf_parse(dev, &bcf_file, &bcf_elf, "BCF")) < 0)
+                (r = mm_elf_parse(dev, &bcf_file, &bcf_elf, "BCF")) < 0 ||
+                (r = mm_bcf_check(dev, &bcf_elf)) < 0)
             goto out;
         have_bcf = true;
     } else {
