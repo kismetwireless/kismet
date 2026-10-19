@@ -408,7 +408,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             in_pack->common_info.dest = short_addr(dest_pan, dest);
         }
 
-        if (src_pan_p != nullptr) {
+        // A sender on the broadcast PAN (associating, rejoining, orphaned) keeps the PAN it was
+        // last seen in
+        if (src_pan_p != nullptr && !(src_pan_p[0] == 0xFF && src_pan_p[1] == 0xFF)) {
             auto pi = mphy->packetchain->new_packet_component<kis_802154_packinfo>();
             pi->src_pan = (src_pan_p[0] << 8) | src_pan_p[1];
             in_pack->insert(mphy->pack_comp_802154, pi);
