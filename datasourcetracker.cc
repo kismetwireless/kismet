@@ -1678,8 +1678,11 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
 
     kis_unique_lock<kis_mutex> lock(dst_lock, "dst open_remote_datasource");
 
-    // Look for an existing datasource with the same UUID
+    // Look for an existing datasource with the same UUID, if the remote announced one
     for (auto p : *datasource_vec) {
+        if (in_uuid.error)
+            break;
+
         shared_datasource d = std::static_pointer_cast<kis_datasource>(p);
 
         if (d->get_source_uuid() == in_uuid) {
@@ -1758,13 +1761,14 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
             ds->connect_remote(in_definition, incoming, in_uuid, connect_tcp,
-                [this, ds, in_uuid](unsigned int, bool success, std::string msg) {
+                [this, ds](unsigned int, bool success, std::string msg) {
                     if (success) {
-                        _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(), in_uuid);
+                        _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(),
+                                ds->get_source_uuid());
                         merge_source(ds);
                     } else {
                         _MSG_ERROR("Error connecting new remote source {} ({}) - {}",
-                                ds->get_source_name(), in_uuid, msg);
+                                ds->get_source_name(), ds->get_source_uuid(), msg);
                         broken_source_vec.push_back(ds);
                     }
                 });
@@ -2048,9 +2052,17 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     auto type_s = mpack_node_str(type_n);
     auto type_sz = mpack_node_data_len(type_n);
 
-    auto uuid_n = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID);
-    auto uuid_s = mpack_node_str(uuid_n);
-    auto uuid_sz = mpack_node_data_len(uuid_n);
+    // The UUID is optional; sources which only learn it when opening report it then
+    auto uuid_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID);
+    uuid u;
+
+    if (!mpack_node_is_missing(uuid_n)) {
+        auto uuid_s = mpack_node_str(uuid_n);
+        auto uuid_sz = mpack_node_data_len(uuid_n);
+
+        if (mpack_tree_error(&tree) == mpack_ok)
+            u = uuid(std::string(uuid_s, uuid_sz));
+    }
 
     if (mpack_tree_error(&tree)) {
         _MSG_ERROR("Could not process incoming remote datasource announcement");
@@ -2060,7 +2072,6 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
 
     auto definition = std::string(definition_s, definition_sz);
     auto srctype = std::string(type_s, type_sz);
-    auto u = uuid(std::string(uuid_s, uuid_sz));
 
     if (cb != NULL) {
         cb(this, srctype, definition, u);
