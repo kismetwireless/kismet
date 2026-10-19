@@ -26,7 +26,8 @@
  * Source options:
  *   country=XX       regulatory domain (default: the adapter OTP, else US)
  *   widths=1,2,...   only use channels of these widths in MHz
- *   firmwaredir=DIR  directory searched first for firmware and board config files
+ *   firmwaredir=DIR  directory searched first for firmware and board config files; then
+ *                    Kismet's, and on Linux the system firmware directories
  *   firmware=FILE    firmware file name to load instead of the one chosen by chip revision;
  *                    found in the firmware directories, not a path
  *   boardfile=FILE   board config (BCF) file name to load instead of the one chosen by the
@@ -43,8 +44,10 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <string.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
@@ -174,23 +177,76 @@ static bool file_exists(const char *path) {
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
-/* Finds name in a directory, or in the layout of a morse-firmware checkout */
+/* A truncated path could name some other file, so it never matches */
+static bool try_path(char *out, size_t out_len, const char *fmt, ...) {
+    va_list ap;
+    int n;
+
+    va_start(ap, fmt);
+    n = vsnprintf(out, out_len, fmt, ap);
+    va_end(ap);
+
+    return n > 0 && (size_t) n < out_len && file_exists(out);
+}
+
+/* Finds name in the firmwaredir= directory and Kismet's, as installed or in the layout of a
+ * morse-firmware checkout, then on Linux in the system firmware directories, in the
+ * linux-firmware layout (morsemicro/mm81x/v<firmware interface version>) and morse_driver's
+ * (morse) */
 static bool find_firmware(const char *fw_dir, const char *name, char *out, size_t out_len) {
-    static const char *dirs[] = { NULL, FIRMWAREDIR "/morse", "/lib/firmware/morse",
-        "/usr/lib/firmware/morse" };
     static const char *subdirs[] = { "", "/firmware", "/bcf/morsemicro" };
+    const char *dirs[] = { fw_dir, FIRMWAREDIR "/morse" };
+    char sys_dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN];
+    size_t num_sys;
 
     for (size_t d = 0; d < sizeof(dirs) / sizeof(dirs[0]); d++) {
-        const char *dir = d == 0 ? fw_dir : dirs[d];
-
-        if (dir == NULL)
+        if (dirs[d] == NULL)
             continue;
 
         for (size_t s = 0; s < sizeof(subdirs) / sizeof(subdirs[0]); s++) {
-            snprintf(out, out_len, "%s%s/%s", dir, subdirs[s], name);
-            if (file_exists(out))
+            if (try_path(out, out_len, "%s%s/%s", dirs[d], subdirs[s], name))
                 return true;
         }
+    }
+
+    num_sys = cf_system_firmware_dirs(sys_dirs);
+
+    for (size_t d = 0; d < num_sys; d++) {
+        if (try_path(out, out_len, "%s/morsemicro/mm81x/v%u/%s", sys_dirs[d],
+                    (unsigned int) MM8108_FW_SEMVER_MAJOR, name) ||
+                try_path(out, out_len, "%s/morse/%s", sys_dirs[d], name))
+            return true;
+    }
+
+    return false;
+}
+
+/* linux-firmware firmware for an interface version this driver can't use, as a hint */
+static bool find_other_fw_version(char *out, size_t out_len) {
+    char sys_dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN];
+    char path[CF_FIRMWARE_PATH_LEN + 32];
+    size_t num_sys = cf_system_firmware_dirs(sys_dirs);
+
+    for (size_t d = 0; d < num_sys; d++) {
+        struct dirent *de;
+        DIR *dir;
+
+        snprintf(path, sizeof(path), "%s/morsemicro/mm81x", sys_dirs[d]);
+        if ((dir = opendir(path)) == NULL)
+            continue;
+
+        while ((de = readdir(dir)) != NULL) {
+            unsigned int v;
+            char tail;
+
+            if (sscanf(de->d_name, "v%u%c", &v, &tail) == 1 && v != MM8108_FW_SEMVER_MAJOR) {
+                snprintf(out, out_len, "%s/%s", path, de->d_name);
+                closedir(dir);
+                return true;
+            }
+        }
+
+        closedir(dir);
     }
 
     return false;
@@ -454,10 +510,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     else
         snprintf(fname, sizeof(fname), "mm8108%s-rl.bin", mm_chip_rev_string(dev->chip_id));
 
-    if (!find_firmware(fw_dir, fname, fw_path, sizeof(fw_path))) {
-        snprintf(msg, STATUS_MAX, "%s could not find firmware %s; download it from "
-                "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
-                local->name, fname);
+    /* linux-firmware names the firmware without the chip revision */
+    if (!find_firmware(fw_dir, fname, fw_path, sizeof(fw_path)) &&
+            (fw_name != NULL || !find_firmware(fw_dir, "mm8108.bin", fw_path, sizeof(fw_path)))) {
+        if (find_other_fw_version(fw_path, sizeof(fw_path)))
+            snprintf(msg, STATUS_MAX, "%s could not find firmware %s; %s is for another firmware "
+                    "interface version, this driver needs v%u.  Download the firmware from "
+                    "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
+                    local->name, fname, fw_path, MM8108_FW_SEMVER_MAJOR);
+        else
+            snprintf(msg, STATUS_MAX, "%s could not find firmware %s; download it from "
+                    "https://github.com/MorseMicro/morse-firmware and use the firmwaredir= option",
+                    local->name, fname);
         goto out;
     }
 

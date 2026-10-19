@@ -142,13 +142,23 @@ static void usbwifi_log(void *ctx, int level, const char *msg) {
     usbwifi_enqueue(local, level <= KLOG_ERR ? MSGFLAG_ERROR : MSGFLAG_INFO, (uint8_t *) buf, len + 1);
 }
 
-/* Firmware directories: the source option, Kismet's share directory, then the system */
+/* Firmware directories: the source option, Kismet's share directory, then on Linux the
+ * system firmware directories in the kernel's search order */
 static int usbwifi_init(local_usbwifi_t *local, const char *fw_dir) {
-    const char *paths[] = { fw_dir, FIRMWAREDIR, "/usr/share/kismet/firmware", "/lib/firmware" };
-    const size_t skip = fw_dir ? 0 : 1;
+    char sys_dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN];
+    const char *paths[3 + CF_FIRMWARE_MAX_DIRS];
+    size_t n = 0, num_sys = cf_system_firmware_dirs(sys_dirs);
 
-    return uwifi_kis_init(paths + skip, sizeof(paths) / sizeof(paths[0]) - skip, usbwifi_log, local,
-            local->verbose ? KLOG_INFO : KLOG_ERR);
+    if (fw_dir != NULL)
+        paths[n++] = fw_dir;
+
+    paths[n++] = FIRMWAREDIR;
+    paths[n++] = "/usr/share/kismet/firmware";
+
+    for (size_t i = 0; i < num_sys; i++)
+        paths[n++] = sys_dirs[i];
+
+    return uwifi_kis_init(paths, n, usbwifi_log, local, local->verbose ? KLOG_INFO : KLOG_ERR);
 }
 
 static bool flag_true(char *definition, const char *flag, bool dfl) {

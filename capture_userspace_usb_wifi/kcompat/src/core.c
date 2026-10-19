@@ -306,7 +306,7 @@ void *idr_get_next(const struct idr *idr, int *nextid) {
 }
 
 /* Firmware: name is a relative path such as "mediatek/WIFI_RAM_CODE_MT7961_1.bin" */
-#define KC_FW_MAX_PATHS 8
+#define KC_FW_MAX_PATHS 16
 #define KC_FW_MAX_SIZE (16 * 1024 * 1024)
 static char *kc_fw_paths[KC_FW_MAX_PATHS];
 static size_t kc_fw_npaths;
@@ -317,8 +317,8 @@ void kc_firmware_set_paths(const char *const *paths, size_t n) {
     kc_fw_npaths = 0;
 
     for (size_t i = 0; i < n && kc_fw_npaths < KC_FW_MAX_PATHS; i++)
-        if (paths[i] != NULL)
-            kc_fw_paths[kc_fw_npaths++] = strdup(paths[i]);
+        if (paths[i] != NULL && (kc_fw_paths[kc_fw_npaths] = strdup(paths[i])) != NULL)
+            kc_fw_npaths++;
 }
 
 static int kc_firmware_read(const char *path, struct firmware *fw) {

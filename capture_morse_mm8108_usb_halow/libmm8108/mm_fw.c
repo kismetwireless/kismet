@@ -342,6 +342,7 @@ static int mm_bcf_find_regdom(const struct mm_elf *elf, const char *country,
 /* Board configs list the chip families they support in .chips */
 #define MM_BCF_CHIP_FAMILY      "mm810x"
 #define MM_BCF_REFERENCE        "bcf_mf15457.bin"
+#define MM_BCF_REFERENCE_LINUX  "bcf_mm8108_mf15457.bin"
 
 size_t mm_bcf_default_names(const struct mm8108_dev *dev,
         char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN]) {
@@ -352,6 +353,7 @@ size_t mm_bcf_default_names(const struct mm8108_dev *dev,
 
     snprintf(names[n++], MM_BCF_NAME_LEN, "bcf_default.bin");
     snprintf(names[n++], MM_BCF_NAME_LEN, "%s", MM_BCF_REFERENCE);
+    snprintf(names[n++], MM_BCF_NAME_LEN, "%s", MM_BCF_REFERENCE_LINUX);
 
     return n;
 }
