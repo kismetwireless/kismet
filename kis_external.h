@@ -388,7 +388,7 @@ protected:
     unsigned int send_packet_v3(unsigned int command, uint32_t in_seqno,
             unsigned int code, const char *content, size_t content_sz) {
 
-        if ((io_ != nullptr && io_->stopped()) || cancelled) {
+        if (io_ == nullptr || io_->stopped() || cancelled) {
             _MSG_DEBUG("Attempt to send {} on closed external interface", command);
             return 0;
         }
@@ -438,7 +438,7 @@ protected:
     // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
     template<class T>
     unsigned int send_packet_v2(const std::string& command, uint32_t in_seqno, const T& content) {
-        if ((io_ != nullptr && io_->stopped()) || cancelled) {
+        if (io_ == nullptr || io_->stopped() || cancelled) {
             _MSG_DEBUG("Attempt to send {} on closed external interface", command);
             return 0;
         }
