@@ -974,7 +974,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 break;
 
             case 1:
-                if (chunk->length() < 36) {
+            case 3:
+                // Capability, status code, association ID; a rejected association may
+                // carry no IE tags at all
+                if (chunk->length() < 30) {
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
@@ -984,11 +987,13 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                // Capability, status code, association ID
                 capability = &chunk->data()[24];
                 packinfo->header_offset = 24 + 6;
 
-                packinfo->subtype = packet_sub_association_resp;
+                if (fc->subtype == 1)
+                    packinfo->subtype = packet_sub_association_resp;
+                else
+                    packinfo->subtype = packet_sub_reassociation_resp;
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1025,14 +1030,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     crc32_fast(chunk->data() + packinfo->header_offset,
                             chunk->length() - packinfo->header_offset);
 
-                break;
-
-            case 3:
-                packinfo->subtype = packet_sub_reassociation_resp;
-
-                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
                 break;
 
             case 4:
