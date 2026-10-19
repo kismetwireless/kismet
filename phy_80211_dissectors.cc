@@ -974,7 +974,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 break;
 
             case 1:
-                if (chunk->length() < 36) {
+            case 3:
+                // Capability, status code, association ID; a rejected association may
+                // carry no IE tags at all
+                if (chunk->length() < 30) {
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
@@ -984,11 +987,13 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                // Capability, status code, association ID
                 capability = &chunk->data()[24];
                 packinfo->header_offset = 24 + 6;
 
-                packinfo->subtype = packet_sub_association_resp;
+                if (fc->subtype == 1)
+                    packinfo->subtype = packet_sub_association_resp;
+                else
+                    packinfo->subtype = packet_sub_reassociation_resp;
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1025,14 +1030,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     crc32_fast(chunk->data() + packinfo->header_offset,
                             chunk->length() - packinfo->header_offset);
 
-                break;
-
-            case 3:
-                packinfo->subtype = packet_sub_reassociation_resp;
-
-                packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-                packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-                packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
                 break;
 
             case 4:
@@ -2414,7 +2411,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     // Count wmmtspec frames; per
                     // CVE-2017-11013
                     // https://web.archive.org/web/20171107101629/https://pleasestopnamingvulnerabilities.com/
-                    if (packinfo->subtype == packet_sub_association_resp &&
+                    if ((packinfo->subtype == packet_sub_association_resp ||
+                                packinfo->subtype == packet_sub_reassociation_resp) &&
                             vendor.vendor_oui_int() == 0x0050f2 &&
                             vendor.vendor_oui_type() == 2) {
                         dot11_ie_221_ms_wmm wmm;
@@ -2424,20 +2422,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                             wmmtspec_responses++;
                         }
 
-                    }
-
-                    // Overflow of responses
-                    if (wmmtspec_responses > 4) {
-                        std::string al = "IEEE80211 Access Point BSSID " +
-                            packinfo->bssid_mac.mac_to_string() + " sent association "
-                            "response with more than 4 WMM-TSPEC responses; this "
-                            "may be attempt to exploit embedded Atheros drivers using "
-                            "CVE-2017-11013";
-
-                        alertracker->raise_alert(alert_atheros_wmmtspec_ref, in_pack,
-                                packinfo->bssid_mac, packinfo->source_mac,
-                                packinfo->dest_mac, packinfo->other_mac,
-                                packinfo->channel, al);
                     }
 
                     switch (vendor.vendor_oui_int()) {
@@ -2817,6 +2801,20 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             default:
                 break;
         }
+    }
+
+    // Overflow of responses
+    if (wmmtspec_responses > 4) {
+        std::string al = "IEEE80211 Access Point BSSID " +
+            packinfo->bssid_mac.mac_to_string() + " sent association "
+            "response with more than 4 WMM-TSPEC responses; this "
+            "may be attempt to exploit embedded Atheros drivers using "
+            "CVE-2017-11013";
+
+        alertracker->raise_alert(alert_atheros_wmmtspec_ref, in_pack,
+                packinfo->bssid_mac, packinfo->source_mac,
+                packinfo->dest_mac, packinfo->other_mac,
+                packinfo->channel, al);
     }
 
     return 1;

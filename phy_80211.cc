@@ -508,7 +508,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     alert_atheros_wmmtspec_ref =
         alertracker->activate_configured_alert("WMMTSPEC",
                 "EXPLOIT", kis_alert_severity::high,
-                "Too many WMMTSPEC options were seen in a probe response; this "
+                "Too many WMMTSPEC options were seen in an association response; this "
                 "may be triggered by CVE-2017-11013 as described at "
                 "https://web.archive.org/web/20171107101629/https://pleasestopnamingvulnerabilities.com/",
                 phyid);
@@ -1772,6 +1772,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (handle_probed_ssid)
             d11phy->handle_probed_ssid(dot11info->source_dev, dot11info->source_dot11,
                     in_pack, dot11info);
+
+        // Association responses carry no SSID, but their IE tags are parsed by the client
+        // and can carry exploits
+        if (dot11info->subtype == packet_sub_association_resp ||
+                dot11info->subtype == packet_sub_reassociation_resp)
+            d11phy->packet_dot11_ie_dissector(in_pack.get(), dot11info.get());
 
     } else if (dot11info->type == packet_phy) {
         // Phy packets are so often bogus that we just ignore them for now; if we enable
