@@ -2411,7 +2411,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     // Count wmmtspec frames; per
                     // CVE-2017-11013
                     // https://web.archive.org/web/20171107101629/https://pleasestopnamingvulnerabilities.com/
-                    if (packinfo->subtype == packet_sub_association_resp &&
+                    if ((packinfo->subtype == packet_sub_association_resp ||
+                                packinfo->subtype == packet_sub_reassociation_resp) &&
                             vendor.vendor_oui_int() == 0x0050f2 &&
                             vendor.vendor_oui_type() == 2) {
                         dot11_ie_221_ms_wmm wmm;
@@ -2421,20 +2422,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                             wmmtspec_responses++;
                         }
 
-                    }
-
-                    // Overflow of responses
-                    if (wmmtspec_responses > 4) {
-                        std::string al = "IEEE80211 Access Point BSSID " +
-                            packinfo->bssid_mac.mac_to_string() + " sent association "
-                            "response with more than 4 WMM-TSPEC responses; this "
-                            "may be attempt to exploit embedded Atheros drivers using "
-                            "CVE-2017-11013";
-
-                        alertracker->raise_alert(alert_atheros_wmmtspec_ref, in_pack,
-                                packinfo->bssid_mac, packinfo->source_mac,
-                                packinfo->dest_mac, packinfo->other_mac,
-                                packinfo->channel, al);
                     }
 
                     switch (vendor.vendor_oui_int()) {
@@ -2814,6 +2801,20 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             default:
                 break;
         }
+    }
+
+    // Overflow of responses
+    if (wmmtspec_responses > 4) {
+        std::string al = "IEEE80211 Access Point BSSID " +
+            packinfo->bssid_mac.mac_to_string() + " sent association "
+            "response with more than 4 WMM-TSPEC responses; this "
+            "may be attempt to exploit embedded Atheros drivers using "
+            "CVE-2017-11013";
+
+        alertracker->raise_alert(alert_atheros_wmmtspec_ref, in_pack,
+                packinfo->bssid_mac, packinfo->source_mac,
+                packinfo->dest_mac, packinfo->other_mac,
+                packinfo->channel, al);
     }
 
     return 1;
