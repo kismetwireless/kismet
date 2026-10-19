@@ -252,6 +252,9 @@ struct mm8108_dev {
     uint32_t bcf_addr;
     uint32_t bcf_size;
 
+    /* Module named by the loaded board config, if it has one */
+    char bcf_module[64];
+
     /* From the running firmware */
     uint32_t host_table_ptr;
     uint32_t fw_version;
@@ -342,6 +345,15 @@ int mm_irq_enable(struct mm8108_dev *dev, uint32_t mask);
 
 /* Firmware and boot (mm_fw.c) */
 int mm_boot(struct mm8108_dev *dev, const struct mm8108_boot_config *cfg);
+
+/* Board config file names to try, in order, when none is chosen: the one for the board type
+ * in OTP, the system default bcf_default.bin (as morse_driver uses), then the MM8108
+ * reference module's, which the MM8108 board types in morse-firmware all use.  Returns the
+ * number of names; the board type name is only first when OTP has a board type. */
+#define MM_BCF_NAME_LEN 32
+#define MM_BCF_MAX_NAMES 3
+size_t mm_bcf_default_names(const struct mm8108_dev *dev,
+        char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN]);
 
 /* YAPS (mm_yaps.c) */
 int mm_yaps_parse_table(struct mm8108_dev *dev, const uint8_t *tbl, size_t len);

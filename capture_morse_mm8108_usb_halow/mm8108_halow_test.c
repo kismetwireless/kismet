@@ -71,7 +71,9 @@ static void usage(const char *argv0) {
             "  -d, --fw-dir DIR      firmware directory (default " DEFAULT_FW_DIR ");\n"
             "                        a morse-firmware checkout also works\n"
             "  -f, --firmware FILE   firmware image (default: by chip revision)\n"
-            "  -b, --bcf FILE        board config (default: by board type in OTP)\n"
+            "  -b, --bcf FILE        board config path, or a name in the firmware directory\n"
+            "                        (default: by board type in OTP, else bcf_default.bin,\n"
+            "                        else bcf_mf15457.bin)\n"
             "  -c, --country CC      regulatory domain (default: OTP, else US)\n"
             "  -C, --channels LIST   comma-separated 802.11ah channels (default: all)\n"
             "  -W, --widths LIST     only hop channels of these widths in MHz, e.g. 1,2\n"
@@ -411,13 +413,32 @@ int main(int argc, char *argv[]) {
         fw_path = fw_buf;
     }
 
-    if (bcf_path == NULL) {
-        snprintf(name, sizeof(name), "bcf_boardtype_%04x.bin", dev.board_type);
-        if (!find_file(fw_dir, name, bcf_buf, sizeof(bcf_buf))) {
-            fprintf(stderr, "could not find %s in %s; use --bcf to choose a board config\n",
-                    name, fw_dir);
+    if (bcf_path != NULL && strchr(bcf_path, '/') == NULL) {
+        if (!find_file(fw_dir, bcf_path, bcf_buf, sizeof(bcf_buf))) {
+            fprintf(stderr, "could not find %s in %s\n", bcf_path, fw_dir);
             goto out;
         }
+        bcf_path = bcf_buf;
+    } else if (bcf_path == NULL) {
+        char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN];
+        size_t num_names = mm_bcf_default_names(&dev, names), i;
+
+        for (i = 0; i < num_names; i++)
+            if (find_file(fw_dir, names[i], bcf_buf, sizeof(bcf_buf)))
+                break;
+
+        if (i == num_names) {
+            fprintf(stderr, "could not find a board config for board type 0x%04x in %s; use "
+                    "--bcf to choose one\n", dev.board_type, fw_dir);
+            goto out;
+        }
+
+        /* Only the board type's own config is known to match the adapter */
+        if (dev.board_type == 0 || i > 0)
+            fprintf(stderr, "warning: %s; using board config %s, use --bcf if the adapter "
+                    "needs a different one\n", dev.board_type == 0 ?
+                    "no board type in OTP" : "no board config for this board type", names[i]);
+
         bcf_path = bcf_buf;
     }
 
@@ -441,6 +462,9 @@ int main(int argc, char *argv[]) {
 
     printf("firmware version %s, MAC %02x:%02x:%02x:%02x:%02x:%02x\n", version,
             dev.mac[0], dev.mac[1], dev.mac[2], dev.mac[3], dev.mac[4], dev.mac[5]);
+
+    if (dev.bcf_module[0] != 0)
+        printf("board config module %s\n", dev.bcf_module);
 
     if (info_only) {
         ret = 0;
