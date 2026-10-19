@@ -255,7 +255,9 @@ public:
 
         enum eapol_type_e {
             eapol_type_request = 0x1,
-            eapol_type_response = 0x2
+            eapol_type_response = 0x2,
+            eapol_type_success = 0x3,
+            eapol_type_failure = 0x4
         };
 
         enum eapol_expanded_type_e {
@@ -299,10 +301,10 @@ public:
         }
 
     protected:
-        uint8_t m_eapol_type;
-        uint8_t m_eapol_id;
-        uint16_t m_eapol_len;
-        uint8_t m_eapol_expanded_type;
+        uint8_t m_eapol_type = 0;
+        uint8_t m_eapol_id = 0;
+        uint16_t m_eapol_len = 0;
+        uint8_t m_eapol_expanded_type = 0;
         std::string m_eapol_content_data;
         std::shared_ptr<eapol_content_common> m_eapol_content;
 
@@ -323,8 +325,17 @@ public:
             };
 
             enum eapol_wpa_field_opcode_e {
-                eapol_wpa_field_opcode_wsc_msg = 0x04
+                eapol_wpa_field_opcode_wsc_start = 0x01,
+                eapol_wpa_field_opcode_wsc_ack = 0x02,
+                eapol_wpa_field_opcode_wsc_nack = 0x03,
+                eapol_wpa_field_opcode_wsc_msg = 0x04,
+                eapol_wpa_field_opcode_wsc_done = 0x05,
+                eapol_wpa_field_opcode_wsc_frag_ack = 0x06
             };
+
+            // WSC flags: more fragments follow, and a 2-byte total message length is present
+            static constexpr uint8_t flag_more_fragments = 0x01;
+            static constexpr uint8_t flag_length_field = 0x02;
 
             eapol_extended_wpa_wps() {}
             virtual ~eapol_extended_wpa_wps() { }
@@ -348,15 +359,35 @@ public:
                 return m_flags;
             }
 
+            constexpr17 bool more_fragments() const {
+                return m_flags & flag_more_fragments;
+            }
+
+            constexpr17 bool has_message_length() const {
+                return m_flags & flag_length_field;
+            }
+
+            // Total length of the fragmented message, if has_message_length()
+            constexpr17 uint16_t message_length() const {
+                return m_message_length;
+            }
+
+            // Bytes of message data carried in this frame
+            constexpr17 size_t fragment_length() const {
+                return m_fragment_length;
+            }
+
             std::shared_ptr<shared_eapol_wpa_field_vector> fields() const {
                 return m_fields;
             }
 
         protected:
             std::string m_vendor_id;
-            uint32_t m_vendor_type;
-            uint8_t m_opcode;
-            uint8_t m_flags;
+            uint32_t m_vendor_type = 0;
+            uint8_t m_opcode = 0;
+            uint8_t m_flags = 0;
+            uint16_t m_message_length = 0;
+            size_t m_fragment_length = 0;
             std::shared_ptr<shared_eapol_wpa_field_vector> m_fields;
 
         public:

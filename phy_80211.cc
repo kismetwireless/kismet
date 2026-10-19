@@ -1756,6 +1756,39 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     } else if (dot11info->type == packet_data) {
         in_pack->common_info.type = packet_basic_data;
 
+        // WPS M3 floods; the AP sends M3 as the enrollee, so this runs for the sender
+        // whether it is a station or the BSSID itself
+        auto wps_flood = [&](const std::shared_ptr<dot11_tracked_device>& sender) {
+            if (!d11phy->packet_dot11_wps_m3(in_pack.get()))
+                return;
+
+            // if we're w/in time of the last one, update, otherwise clear
+            uint64_t now = Globalreg::globalreg->last_tv_sec;
+
+            if (now - sender->get_wps_m3_last() > (60 * 5))
+                sender->set_wps_m3_count(1);
+            else
+                sender->inc_wps_m3_count(1);
+
+            sender->set_wps_m3_last(now);
+
+            if (sender->get_wps_m3_count() > 5) {
+                if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
+                    std::string al = "IEEE80211 AP " + dot11info->bssid_mac.mac_to_string() +
+                        " sending excessive number of WPS messages which may "
+                        "indicate a WPS brute force attack such as Reaver";
+
+                    d11phy->alertracker->raise_alert(d11phy->alert_wpsbrute_ref,
+                            in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
+                }
+
+                sender->set_wps_m3_count(1);
+            }
+        };
+
         unsigned int update_flags = 0;
 
         // Don't create devices from null/qosnull packets, they seem to often be
@@ -1859,6 +1892,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->bssid_dot11->inc_datasize_retry(dot11info->datasize);
             }
 
+            if (dot11info->source_mac == dot11info->bssid_mac)
+                wps_flood(dot11info->bssid_dot11);
         }
 
         dev_held.unlock();
@@ -1960,36 +1995,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dot11->inc_datasize_retry(dot11info->datasize);
             }
 
-            // Look for WPS floods
-            int wps = d11phy->packet_dot11_wps_m3(in_pack.get());
-
-            if (wps) {
-                // if we're w/in time of the last one, update, otherwise clear
-                uint64_t now = Globalreg::globalreg->last_tv_sec;
-
-                if (now - dot11info->source_dot11->get_wps_m3_last() > (60 * 5))
-                    dot11info->source_dot11->set_wps_m3_count(1);
-                else
-                    dot11info->source_dot11->inc_wps_m3_count(1);
-
-                dot11info->source_dot11->set_wps_m3_last(now);
-
-                if (dot11info->source_dot11->get_wps_m3_count() > 5) {
-                    if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
-                        std::string al = "IEEE80211 AP " + dot11info->bssid_mac.mac_to_string() +
-                            " sending excessive number of WPS messages which may "
-                            "indicate a WPS brute force attack such as Reaver";
-
-                        d11phy->alertracker->raise_alert(d11phy->alert_wpsbrute_ref,
-                                in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel, al);
-                    }
-
-                    dot11info->source_dot11->set_wps_m3_count(1);
-                }
-            }
+            wps_flood(dot11info->source_dot11);
         }
 
         dev_held.unlock();

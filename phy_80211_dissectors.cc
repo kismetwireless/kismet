@@ -3039,6 +3039,7 @@ int kis_80211_phy::packet_dot11_wps_m3(const kis_packet* in_pack) {
 
         // Assign the eapol packet parser
         auto eapol_packet = eap.dot1x_content_eap_packet();
+        eapol_packet->parse(eap.dot1x_data());
 
         // We only catch M3 in this test so we only care about requests
         if (eapol_packet->eapol_type() != dot11_wpa_eap::dot1x_eap_packet::eapol_type_request) {
@@ -3053,6 +3054,8 @@ int kis_80211_phy::packet_dot11_wps_m3(const kis_packet* in_pack) {
 
         // Assign the expanded WFA WPS subframe
         auto wfa_wps = eapol_packet->eapol_content_wpa_wps();
+        if (wfa_wps == nullptr)
+            return 0;
 
         // Go through the fields until we find the MESSAGE_TYPE field
         for (auto i : *(wfa_wps->fields())) {
