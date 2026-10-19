@@ -285,3 +285,24 @@ div.resizable {
 #devices {
     overflow: hidden !important;
 }
+
+/* Highlighted device rows pick black or white text for the highlight colour
+ * (--k-row-highlight, set by the row formatter), whatever the theme text colour is.
+ * Black is the fallback for browsers without relative colours; most highlights are
+ * light.  The oklch switch point (L 0.57) is where black and white text have equal
+ * contrast. */
+.tabulator-row.k-row-highlight {
+    color: #000;
+}
+
+@supports (color: oklch(from red l c h)) {
+    .tabulator-row.k-row-highlight {
+        color: oklch(from var(--k-row-highlight) clamp(0, (0.57 - l) * 1000, 1) 0 0);
+    }
+}
+
+@supports (color: contrast-color(red)) {
+    .tabulator-row.k-row-highlight {
+        color: contrast-color(var(--k-row-highlight));
+    }
+}

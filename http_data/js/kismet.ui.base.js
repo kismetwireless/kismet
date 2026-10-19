@@ -330,13 +330,20 @@ kismet_ui.AddDeviceColumn("packet_rrd", {
             });
 
         onrender(() => {
+            // Highlighted rows pick their own text colour; draw the graph to match
+            var color = kismet_theme.sparkline_main;
+            var rowel = cell.getRow().getElement();
+
+            if (rowel.classList.contains('k-row-highlight'))
+                color = getComputedStyle(rowel).color;
+
             $(cell.getElement()).sparkline(simple_rrd,
                 { type: "bar",
                     width: "100px",
                     height: 12,
-                    barColor: kismet_theme.sparkline_main,
-                    nullColor: kismet_theme.sparkline_main,
-                    zeroColor: kismet_theme.sparkline_main,
+                    barColor: color,
+                    nullColor: color,
+                    zeroColor: color,
                 });
         });
 

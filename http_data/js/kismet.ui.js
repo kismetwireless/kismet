@@ -1567,17 +1567,32 @@ exports.InitializeDeviceTable = function(element) {
         },
 
         rowFormatter: function(row) {
+            var color = null;
+
             for (const ri of DeviceRowHighlights) {
                 if (!ri['enable'])
                     continue;
 
                 try {
                     if (ri['selector'](row.getData()['original_data'])) {
-                        row.getElement().style.backgroundColor = ri['color'];
+                        color = ri['color'];
                     }
                 } catch (e) {
                     ;
                 }
+            }
+
+            // The highlight colour drives the row text colour in CSS (k-row-highlight)
+            var el = row.getElement();
+
+            if (color != null) {
+                el.style.backgroundColor = color;
+                el.style.setProperty('--k-row-highlight', color);
+                el.classList.add('k-row-highlight');
+            } else {
+                el.style.removeProperty('background-color');
+                el.style.removeProperty('--k-row-highlight');
+                el.classList.remove('k-row-highlight');
             }
         },
 
