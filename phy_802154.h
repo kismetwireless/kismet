@@ -52,6 +52,20 @@
 #define KDLT_IEEE802_15_4_NOFCS           230
 #endif
 
+// Per-packet 802.15.4 info the classifier needs beyond the common info
+class kis_802154_packinfo : public packet_component {
+public:
+    kis_802154_packinfo() { }
+
+    void reset() {
+        src_pan = 0;
+    }
+
+    // PAN ID of the sender; only present if the frame carries one (directly, or as the
+    // destination PAN when the PAN ID is compressed)
+    uint16_t src_pan = 0;
+};
+
 /* Largely a placeholder for future possible data; right now we can't decode
  * much of anything */
 class kis_802154_tracked_device : public tracker_component {
@@ -86,11 +100,23 @@ public:
         return r;
     }
 
+    __Proxy(pan_id, uint16_t, uint16_t, uint16_t, pan_id);
+
 protected:
 
     virtual void register_fields() override {
-
+        register_field("802154.device.pan_id", "PAN ID (0xFFFF if not seen)", &pan_id);
     }
+
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
+        tracker_component::reserve_fields(e);
+
+        // 0xFFFF is the broadcast PAN, which a sender's own PAN never is
+        if (e == nullptr)
+            set_pan_id(0xFFFF);
+    }
+
+    std::shared_ptr<tracker_element_uint16> pan_id;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -121,6 +147,7 @@ protected:
     int kis_802154_device_entry_id;
     int dev_comp_common;
     int pack_comp_linkframe;
+    int pack_comp_802154;
 
     int dlt;
 

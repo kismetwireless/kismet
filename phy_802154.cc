@@ -78,6 +78,7 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
                 "802.15.4 device");
 
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_802154 = packetchain->register_packet_component("802154");
 
     // Extract the dynamic DLT
     auto dltt =
@@ -106,11 +107,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     _802_15_4_tap *tap_header = nullptr;
 
     // Per-packet parse state; the dissector runs in all packet threads at once, so this must
-    // not be shared between calls.  The PANs, channel and signal are parsed but not used yet.
+    // not be shared between calls.  The channel and signal are parsed but not used yet.
     uint8_t dest[2] = {0x00, 0x00};
-    [[maybe_unused]] uint8_t dest_pan[2] = {0x00, 0x00};
+    uint8_t dest_pan[2] = {0x00, 0x00};
     uint8_t src[2] = {0x00, 0x00};
-    [[maybe_unused]] uint8_t src_pan[2] = {0x00, 0x00};
+    uint8_t src_pan[2] = {0x00, 0x00};
     uint8_t ext_dest[8] = {0};
     uint8_t ext_source[8] = {0};
     [[maybe_unused]] uint8_t chan = 0;
@@ -376,19 +377,41 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             in_pack->common_info.basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L2;
         }
 
+        // The sender's PAN: its own, or with PAN ID compression the destination PAN
+        static const uint8_t no_pan[2] = {0xFF, 0xFF};
+        const uint8_t *src_pan_p = nullptr;
+
+        if (hdr_802_15_4_fcf->src_addr_mode >= 0x02) {
+            if (!hdr_802_15_4_fcf->pan_id_comp)
+                src_pan_p = src_pan;
+            else if (hdr_802_15_4_fcf->dest_addr_mode >= 0x02)
+                src_pan_p = dest_pan;
+        }
+
+        // Short addresses are only unique within a PAN, so a short address is tracked as
+        // PAN + short address (4 bytes, PAN first); without a PAN in the frame, under the
+        // broadcast PAN 0xFFFF.  Extended addresses are globally unique.
+        auto short_addr = [](const uint8_t *pan, const uint8_t *addr) {
+            const uint8_t pan_addr[4] = {pan[0], pan[1], addr[0], addr[1]};
+            return mac_addr(pan_addr, 4);
+        };
+
         if (hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             in_pack->common_info.source = mac_addr(ext_source, 8);
-        } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02 &&
-            hdr_802_15_4_fcf->pan_id_comp) {
-            in_pack->common_info.source = mac_addr(src, 2);
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02) {
-            in_pack->common_info.source = mac_addr(src, 2);
+            in_pack->common_info.source = short_addr(src_pan_p != nullptr ? src_pan_p : no_pan, src);
         }
 
         if (hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
             in_pack->common_info.dest = mac_addr(ext_dest, 8);
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
-            in_pack->common_info.dest = mac_addr(dest, 2);
+            in_pack->common_info.dest = short_addr(dest_pan, dest);
+        }
+
+        if (src_pan_p != nullptr) {
+            auto pi = mphy->packetchain->new_packet_component<kis_802154_packinfo>();
+            pi->src_pan = (src_pan_p[0] << 8) | src_pan_p[1];
+            in_pack->insert(mphy->pack_comp_802154, pi);
         }
     }
 
@@ -415,10 +438,10 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         return 0;
     }
 
-    // The dissector only fills in addresses the frame carries, as 2-byte short or 8-byte
+    // The dissector only fills in addresses the frame carries, as 4-byte PAN + short or 8-byte
     // extended addresses; a missing one is left at the 6-byte default
     auto addr_present = [](const mac_addr& m) {
-        return m.length() == 2 || m.length() == 8;
+        return m.length() == 4 || m.length() == 8;
     };
 
     const auto& source = in_pack->common_info.source;
@@ -453,17 +476,21 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
             source_dev->insert(source_kis_802154);
         }
+
+        auto pi = in_pack->fetch<kis_802154_packinfo>(mphy->pack_comp_802154);
+        if (pi != nullptr)
+            source_kis_802154->set_pan_id(pi->src_pan);
     }
 
     // as destination
     // The destination didn't transmit this frame, so it must not get the signal and location
     // of the sender, and a destination alone is not enough to create a device (like the 802.11
-    // destination handling).  Skip the 0xFFFF broadcast address entirely.
-    static const uint8_t bcast_short[2] = {0xFF, 0xFF};
-    static const mac_addr broadcast_short(bcast_short, 2);
+    // destination handling).  Skip the 0xFFFF broadcast short address entirely, in any PAN.
+    auto broadcast_short = [](const mac_addr& m) {
+        return m.length() == 4 && m[2] == 0xFF && m[3] == 0xFF;
+    };
 
-    if (addr_present(dest) &&
-            !(dest.length() == 2 && dest == broadcast_short)) {
+    if (addr_present(dest) && !broadcast_short(dest)) {
         mphy->devicetracker->update_common_device(dest,
                 mphy, in_pack,
                 (UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
