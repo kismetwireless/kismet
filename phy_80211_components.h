@@ -1243,6 +1243,7 @@ public:
 
 		csa_count = 0;
 		last_csa_time = 0;
+		last_adv_csa = false;
 
         register_fields();
         reserve_fields(NULL);
@@ -1258,6 +1259,7 @@ public:
 
 		csa_count = 0;
 		last_csa_time = 0;
+		last_adv_csa = false;
 
         register_fields();
         reserve_fields(NULL);
@@ -1273,6 +1275,7 @@ public:
 
 		csa_count = 0;
 		last_csa_time = 0;
+		last_adv_csa = false;
 
         register_fields();
         reserve_fields(e);
@@ -1288,6 +1291,7 @@ public:
 
 			csa_count = 0;
 			last_csa_time = 0;
+			last_adv_csa = false;
 
             __ImportField(type_set, p);
 
@@ -1465,6 +1469,9 @@ public:
 
     uint32_t get_last_adv_ie_csum() { return last_adv_ie_csum; }
     void set_last_adv_ie_csum(uint32_t csum) { last_adv_ie_csum = csum; }
+    // Whether the last parsed advertised IE tags carried a channel switch announcement
+    bool get_last_adv_csa() const { return last_adv_csa; }
+    void set_last_adv_csa(bool csa) { last_adv_csa = csa; }
     std::shared_ptr<dot11_advertised_ssid> get_last_adv_ssid() {
         return last_adv_ssid;
     }
@@ -1785,6 +1792,7 @@ protected:
 
 	uint16_t csa_count;
 	time_t last_csa_time;
+	bool last_adv_csa;
 
     // std::shared_ptr<tracker_element_uint64> last_sequence;
     std::shared_ptr<tracker_element_uint64> bss_timestamp;
