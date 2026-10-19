@@ -942,6 +942,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
         const fixed_parameters *fixparm = NULL;
 
+        // Association and reassociation frames have no timestamp or beacon interval; their
+        // body starts directly with the capability field
+        const char *capability = nullptr;
+
         switch (fc->subtype) {
             case 0:
                 if (chunk->length() < 36) {
@@ -954,7 +958,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                capability = &chunk->data()[24];
                 packinfo->header_offset = 24 + 4;
 
                 packinfo->subtype = packet_sub_association_req;
@@ -980,8 +984,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
-                packinfo->header_offset = 24 + 12;
+                // Capability, status code, association ID
+                capability = &chunk->data()[24];
+                packinfo->header_offset = 24 + 6;
 
                 packinfo->subtype = packet_sub_association_resp;
 
@@ -1007,7 +1012,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 }
 
 
-                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                capability = &chunk->data()[24];
                 packinfo->header_offset = 24 + 10;
 
                 packinfo->subtype = packet_sub_reassociation_req;
@@ -1344,6 +1349,19 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             default:
                 packinfo->subtype = packet_sub_unknown;
                 break;
+        }
+
+        if (capability != nullptr) {
+            uint16_t cap;
+            memcpy(&cap, capability, sizeof(cap));
+            cap = kis_letoh16(cap);
+
+            packinfo->ess = cap & 0x01;
+            packinfo->ibss = (cap >> 1) & 0x01;
+
+            if (packinfo->ess == 0 && packinfo->ibss == 1) {
+                packinfo->distrib = distrib_adhoc;
+            }
         }
 
         if (fixparm != nullptr) {
