@@ -23,6 +23,9 @@ volatile int STOP=FALSE;
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
+/* A full size frame is 254 hex characters plus the labels and values */
+#define NRF_LINE_MAX 512
+
 /* Unique instance data passed around by capframework */
 typedef struct {
 
@@ -42,6 +45,15 @@ typedef struct {
 
     volatile uint16_t error_ctr;
     kis_capture_handler_t *caph;
+
+    /* serial bytes not yet processed, and the record being assembled */
+    unsigned char rbuf[256];
+    size_t rbuf_len, rbuf_pos;
+
+    char line[NRF_LINE_MAX];
+    size_t line_len;
+    bool line_overflow;
+    char window[3];
 } local_nrf_t;
 
 /* Most basic of channel definitions */
@@ -85,88 +97,112 @@ int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     localnrf->ready = false;
     // nrf_exit_promisc_mode(caph);
-    char ch[16];
-    sprintf(ch, "channel %u\r\n\r\n", channel);
+    char ch[32];
+    snprintf(ch, sizeof(ch), "channel %u\r\n\r\n", channel);
 	nrf_write_cmd(caph, ch, strlen(ch));
     // nrf_enter_promisc_mode(caph);
     localnrf->ready = true;
     return 1;
 }
 
+/* Return one 'received: ... time:' record, 0 if none arrived, or -1 on a serial error */
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
-    
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    unsigned char buf[256];memset(buf,0x00,256);
-    unsigned char pkt[256];memset(pkt,0x00,256);
-    int actual_len = 0;
-    bool endofpkt=false;
-        int pkt_ctr = 0;
-    int res = 0;
     unsigned int loop_ctr = 0;
     char errstr[STATUS_MAX];
+    ssize_t res;
 
-    while(1) {
-        memset(buf,0x00,256);
-        pthread_mutex_lock(&(localnrf->serial_mutex));
-	    res = read(localnrf->fd,buf,255);
-        pthread_mutex_unlock(&(localnrf->serial_mutex));
-        
-	    if(res > 0)
-	    {
-            if (buf[0] == 0xAB && buf[res-1] == 0xBC) {
-                if(localnrf->error_ctr == 0)
-                {
+    while (1) {
+        if (localnrf->rbuf_pos >= localnrf->rbuf_len) {
+            pthread_mutex_lock(&(localnrf->serial_mutex));
+            res = read(localnrf->fd, localnrf->rbuf, sizeof(localnrf->rbuf));
+            pthread_mutex_unlock(&(localnrf->serial_mutex));
+
+            if (res < 0) {
+                if (errno == EINTR)
+                    continue;
+                if (errno != EAGAIN && errno != EWOULDBLOCK)
+                    return -1;
+                res = 0;
+            }
+
+            if (res == 0) {
+                /* to keep us from looking for a packet when we only got a partial */
+                if (++loop_ctr > 1)
+                    return 0;
+                continue;
+            }
+
+            loop_ctr = 0;
+            localnrf->rbuf_len = res;
+            localnrf->rbuf_pos = 0;
+
+            if (localnrf->rbuf[0] == 0xAB && localnrf->rbuf[res - 1] == 0xBC) {
+                if (localnrf->error_ctr == 0) {
                     snprintf(errstr, STATUS_MAX, "nRF52840 with BTLE firmware detected please use the nRF51822 capture source instead");
                     cf_send_message(caph, errstr, MSGFLAG_INFO);
                 }
                 localnrf->error_ctr++;
-                if(localnrf->error_ctr >= 1000)
-                    localnrf->error_ctr=0;
-            }
-            else
-            {
-                loop_ctr = 0;
-                for(int xp = 0;xp < res;xp++)
-                {
-                    if(buf[xp] == 'r' && buf[xp+1] == 'e' && buf[xp+2] == 'c') {
-                        memset(pkt,0x00,256);
-                        pkt_ctr = 0;//start over
-                    }
+                if (localnrf->error_ctr >= 1000)
+                    localnrf->error_ctr = 0;
 
-                    pkt[pkt_ctr] = buf[xp];
-                    pkt_ctr++;
-                    if(pkt_ctr > 254)
-                            break;
-                    if(strstr((char*)pkt,"received:") > 0
-                    && strstr((char*)pkt,"power:") > 0
-                    && strstr((char*)pkt,"lqi:") > 0
-                    && strstr((char*)pkt,"time:") > 0
-                    )
-                    {
-                        endofpkt = true;
-                        break;
-                    }
-                }
-                if(pkt_ctr > 0 && endofpkt)
-                {
-                    memcpy(rx_buf,pkt,pkt_ctr);
-                    actual_len = pkt_ctr;
-                    break;
-                }
+                localnrf->rbuf_pos = localnrf->rbuf_len;
+                continue;
             }
-	    }
-	    else
-	    {
-            // to keep us from looking for a packet when we only got a partial
-		    loop_ctr++;
-		    if(loop_ctr > 1)
-            {
-                break;
+        }
+
+        while (localnrf->rbuf_pos < localnrf->rbuf_len) {
+            char c = (char) localnrf->rbuf[localnrf->rbuf_pos++];
+
+            localnrf->window[0] = localnrf->window[1];
+            localnrf->window[1] = localnrf->window[2];
+            localnrf->window[2] = c;
+
+            /* every record starts with 'rec'eived, even split across reads */
+            if (memcmp(localnrf->window, "rec", 3) == 0) {
+                memcpy(localnrf->line, "rec", 3);
+                localnrf->line_len = 3;
+                localnrf->line[3] = 0;
+                localnrf->line_overflow = false;
+                continue;
             }
-	    }
+
+            /* drop an oversized record until the next one starts */
+            if (localnrf->line_overflow)
+                continue;
+
+            if (localnrf->line_len >= sizeof(localnrf->line) - 1) {
+                localnrf->line_overflow = true;
+                localnrf->line_len = 0;
+                localnrf->line[0] = 0;
+                continue;
+            }
+
+            localnrf->line[localnrf->line_len++] = c;
+            localnrf->line[localnrf->line_len] = 0;
+
+            if (c != ':')
+                continue;
+
+            if (strstr(localnrf->line, "received:") != NULL &&
+                    strstr(localnrf->line, "power:") != NULL &&
+                    strstr(localnrf->line, "lqi:") != NULL &&
+                    strstr(localnrf->line, "time:") != NULL) {
+                size_t len = localnrf->line_len;
+
+                if (len <= rx_max)
+                    memcpy(rx_buf, localnrf->line, len);
+
+                localnrf->line_len = 0;
+                localnrf->line[0] = 0;
+
+                if (len > rx_max)
+                    continue;
+
+                return (int) len;
+            }
+        }
     }
-
-    return actual_len;
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -199,6 +235,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
+    free(interface);
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
     } else {
@@ -220,6 +258,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
                     strlen(device)));
         *uuid = strdup(errstr);
     }
+
+    free(device);
 
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nrf52840");
@@ -258,6 +298,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return -1;
     }
+
+    free(localnrf->interface);
+    free(localnrf->name);
 
     localnrf->interface = strndup(placeholder, placeholder_len);
 
@@ -311,6 +354,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
                 localnrf->name, strerror(errno));
 		pthread_mutex_unlock(&localnrf->serial_mutex);
+        free(device);
         return -1;
     }
 
@@ -335,7 +379,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 	if (tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio) < 0) {
 		snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
 				localnrf->name, strerror(errno));
+		close(localnrf->fd);
+		localnrf->fd = -1;
 		pthread_mutex_unlock(&(localnrf->serial_mutex));
+		free(device);
 		return -1;
 	}
 
@@ -349,7 +396,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     pthread_mutex_unlock(&(localnrf->serial_mutex));
 
+    free(device);
+
     nrf_set_channel(caph, 11);
+    localnrf->channel = 11;
 
 	nrf_enter_promisc_mode(caph);
 
@@ -403,7 +453,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
     char errstr[STATUS_MAX];
-    uint8_t buf[256];
+    uint8_t buf[NRF_LINE_MAX];
     int buf_rx_len = 0;
     int r = 0;
 
@@ -418,8 +468,10 @@ void capture_thread(kis_capture_handler_t *caph) {
 	    }
         if(localnrf->ready)
         {
-            buf_rx_len = nrf_receive_payload(caph, buf, 256);
+            buf_rx_len = nrf_receive_payload(caph, buf, sizeof(buf));
             if (buf_rx_len < 0) {
+                snprintf(errstr, STATUS_MAX, "%s serial read failed - %s",
+                        localnrf->name, strerror(errno));
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
                 break;
@@ -439,6 +491,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                                     buf_rx_len, buf_rx_len, buf)) < 0) {
                         cf_send_error(caph, 0, "unable to send DATA frame");
                         cf_handler_spindown(caph);
+                        break;
                     } else if (r == 0) {
                         cf_handler_wait_ringbuffer(caph);
                         continue;
