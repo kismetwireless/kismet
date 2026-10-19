@@ -469,6 +469,10 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                      UCD_UPDATE_LOCATION | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "802.15.4");
 
+        // This phy doesn't lock devices individually; its devices change under the list lock
+        kis_lock_guard<kis_mutex> lk(mphy->devicetracker->get_devicelist_mutex(),
+                "802154_common_classifier");
+
         auto source_kis_802154 = source_dev->get_sub_as<kis_802154_tracked_device>(
             mphy->kis_802154_device_entry_id);
 
