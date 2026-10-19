@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <stdexcept>
+
 #include "util.h"
 
 #include "dot11_wpa_eap.h"
@@ -93,8 +95,18 @@ void dot11_wpa_eap::dot1x_eap_packet::parse(const std::string& data) {
     m_eapol_type = p_io.read_u1();
     m_eapol_id = p_io.read_u1();
     m_eapol_len = p_io.read_u2be();
+
+    // Success and failure are only the 4-byte header
+    if (m_eapol_type != eapol_type_request && m_eapol_type != eapol_type_response)
+        return;
+
+    if (m_eapol_len < 5)
+        throw std::runtime_error("eap packet too short for a type");
+
     m_eapol_expanded_type = p_io.read_u1();
-    m_eapol_content_data = p_io.read_bytes_full();
+
+    // The EAP length bounds the content; the frame may be padded
+    m_eapol_content_data = p_io.read_bytes(m_eapol_len - 5);
 
     if (eapol_expanded_type() == eapol_expanded_wfa_wps) {
         std::shared_ptr<eapol_extended_wpa_wps> e(new eapol_extended_wpa_wps());
@@ -112,11 +124,27 @@ void dot11_wpa_eap::dot1x_eap_packet::eapol_extended_wpa_wps::parse(const std::s
     m_vendor_type = p_io.read_u4be();
     m_opcode = p_io.read_u1();
     m_flags = p_io.read_u1();
+
+    if (has_message_length())
+        m_message_length = p_io.read_u2be();
+
+    m_fragment_length = p_io.size() - p_io.pos();
+
     m_fields.reset(new shared_eapol_wpa_field_vector);
-    while (!p_io.is_eof()) {
-        std::shared_ptr<eapol_wpa_field> f(new eapol_wpa_field);
-        f->parse(p_io);
-        m_fields->push_back(f);
+
+    // A fragment carries only part of the attributes
+    if (more_fragments())
+        return;
+
+    // Keep the attributes parsed before a truncated one
+    try {
+        while (!p_io.is_eof()) {
+            std::shared_ptr<eapol_wpa_field> f(new eapol_wpa_field);
+            f->parse(p_io);
+            m_fields->push_back(f);
+        }
+    } catch (const std::exception&) {
+        ;
     }
 }
 

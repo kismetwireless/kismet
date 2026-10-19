@@ -351,6 +351,9 @@ void dot11_advertised_ssid::register_fields() {
                 "wps serial number");
     wps_uuid_e_id =
         register_dynamic_field<tracker_element_byte_array>("dot11.advertisedssid.wps_uuid_e", "wps euuid");
+    wps_broadcom_id =
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.wps_broadcom",
+                "Broadcom SDK WPS (wps_monitor) assessment: 1 possible, 2 likely, 3 confirmed");
 
     location_id =
         register_dynamic_field<kis_tracked_location>("dot11.advertisedssid.location", "location");

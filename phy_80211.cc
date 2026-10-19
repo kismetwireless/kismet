@@ -449,6 +449,32 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "Excessive WPS events may indicate a malformed client, or an "
                 "attack on the WPS system by a tool such as Reaver.",
                 phyid);
+    alert_bcmwps_ref =
+        alertracker->activate_configured_alert("BCMWPSMONITOR",
+                "EXPLOIT", kis_alert_severity::medium,
+                "Access points running the WPS daemon (wps_monitor) from Broadcom's SDK may "
+                "be vulnerable to memory corruption when reassembling fragmented WPS "
+                "messages, which an attacker in range can send without credentials.  The AP "
+                "is identified by the SDK's default WPS identity or UUID, or by how it "
+                "answers a zero length WPS fragment.  See "
+                "https://github.com/qkaiser/broadcom-wps",
+                phyid);
+    alert_wpsfraglen_ref =
+        alertracker->activate_configured_alert("WPSFRAGLEN",
+                "EXPLOIT", kis_alert_severity::high,
+                "A station sent fragmented WPS (EAP-WSC) messages whose fragments are longer "
+                "than the total message length they declare.  This is not valid WPS, and may "
+                "be an attempt to exploit fragment reassembly in the access point's WPS "
+                "daemon, such as Broadcom's wps_monitor.",
+                phyid);
+    alert_wpsfragprobe_ref =
+        alertracker->activate_configured_alert("WPSFRAGPROBE",
+                "PROBE", kis_alert_severity::medium,
+                "A station sent a WPS (EAP-WSC) first fragment declaring a zero length "
+                "message.  This is used to tell Broadcom's wps_monitor, which may be "
+                "vulnerable to fragment reassembly attacks, from hostapd, and indicates "
+                "scanning for vulnerable access points.",
+                phyid);
     alert_l33t_ref =
         alertracker->activate_configured_alert("KARMAOUI",
                 "PROBE", kis_alert_severity::medium,
@@ -1692,6 +1718,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->channel, al);
             }
 
+            if (dot11info->subtype == packet_sub_deauthentication)
+                d11phy->handle_wsc_deauth(in_pack.get(), dot11info.get());
         }
 
         // BSSTS relationship worker
@@ -1755,6 +1783,39 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         in_pack->common_info.type = packet_basic_phy;
     } else if (dot11info->type == packet_data) {
         in_pack->common_info.type = packet_basic_data;
+
+        // WPS M3 floods; the AP sends M3 as the enrollee, so this runs for the sender
+        // whether it is a station or the BSSID itself
+        auto wps_flood = [&](const std::shared_ptr<dot11_tracked_device>& sender) {
+            if (!d11phy->packet_dot11_wps_m3(in_pack.get()))
+                return;
+
+            // if we're w/in time of the last one, update, otherwise clear
+            uint64_t now = Globalreg::globalreg->last_tv_sec;
+
+            if (now - sender->get_wps_m3_last() > (60 * 5))
+                sender->set_wps_m3_count(1);
+            else
+                sender->inc_wps_m3_count(1);
+
+            sender->set_wps_m3_last(now);
+
+            if (sender->get_wps_m3_count() > 5) {
+                if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
+                    std::string al = "IEEE80211 AP " + dot11info->bssid_mac.mac_to_string() +
+                        " sending excessive number of WPS messages which may "
+                        "indicate a WPS brute force attack such as Reaver";
+
+                    d11phy->alertracker->raise_alert(d11phy->alert_wpsbrute_ref,
+                            in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
+                }
+
+                sender->set_wps_m3_count(1);
+            }
+        };
 
         unsigned int update_flags = 0;
 
@@ -1859,6 +1920,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->bssid_dot11->inc_datasize_retry(dot11info->datasize);
             }
 
+            if (dot11info->source_mac == dot11info->bssid_mac)
+                wps_flood(dot11info->bssid_dot11);
         }
 
         dev_held.unlock();
@@ -1960,36 +2023,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dot11->inc_datasize_retry(dot11info->datasize);
             }
 
-            // Look for WPS floods
-            int wps = d11phy->packet_dot11_wps_m3(in_pack.get());
-
-            if (wps) {
-                // if we're w/in time of the last one, update, otherwise clear
-                uint64_t now = Globalreg::globalreg->last_tv_sec;
-
-                if (now - dot11info->source_dot11->get_wps_m3_last() > (60 * 5))
-                    dot11info->source_dot11->set_wps_m3_count(1);
-                else
-                    dot11info->source_dot11->inc_wps_m3_count(1);
-
-                dot11info->source_dot11->set_wps_m3_last(now);
-
-                if (dot11info->source_dot11->get_wps_m3_count() > 5) {
-                    if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
-                        std::string al = "IEEE80211 AP " + dot11info->bssid_mac.mac_to_string() +
-                            " sending excessive number of WPS messages which may "
-                            "indicate a WPS brute force attack such as Reaver";
-
-                        d11phy->alertracker->raise_alert(d11phy->alert_wpsbrute_ref,
-                                in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel, al);
-                    }
-
-                    dot11info->source_dot11->set_wps_m3_count(1);
-                }
-            }
+            wps_flood(dot11info->source_dot11);
         }
 
         dev_held.unlock();
@@ -2055,6 +2089,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         dev_held.unlock();
+
+        d11phy->handle_wsc_fragments(in_pack.get(), dot11info.get());
 
         // WDS transmitter acts like a BSSID, update its signal and location
         if (dot11info->transmit_mac != dot11info->source_mac &&
@@ -3283,6 +3319,206 @@ static void set_airmax_devicename(const std::shared_ptr<kis_tracked_device_base>
         basedev->set_devicename(radioname);
 }
 
+void kis_80211_phy::handle_wsc_fragments(kis_packet *in_pack, dot11_packinfo *dot11info) {
+    wsc_frame_info wsc;
+
+    if (!packet_dot11_wsc(in_pack, wsc))
+        return;
+
+    const bool from_ap = dot11info->source_mac == dot11info->bssid_mac;
+    const auto& sta = from_ap ? dot11info->dest_mac : dot11info->source_mac;
+    const auto key = std::make_pair(dot11info->bssid_mac, sta);
+    const time_t now = Globalreg::globalreg->last_tv_sec;
+
+    // Fragmented WSC messages are a few KB at most and finish in seconds
+    constexpr time_t frag_timeout = 30;
+    constexpr size_t max_tracked = 1024;
+
+    std::string fraglen_alert, probe_alert;
+    bool confirm = false;
+
+    {
+        kis_lock_guard<kis_mutex> lk(wsc_frag_mutex, "wsc_frag");
+
+        if (from_ap) {
+            // A zero length first fragment answered by EAP-Failure instead of a fragment
+            // ACK is Broadcom's wps_monitor; hostapd ACKs it
+            auto s = wsc_frag_map.find(key);
+
+            if (s == wsc_frag_map.end() || !s->second.probe_pending)
+                return;
+
+            if (wsc.eap_code == 0x04)
+                confirm = true;
+
+            if (confirm || (wsc.wsc && wsc.opcode == 0x06))
+                wsc_frag_map.erase(s);
+        } else {
+            if (!wsc.wsc || wsc.eap_code != 0x02 || wsc.opcode != 0x04)
+                return;
+
+            if (wsc.has_message_length) {
+                // First fragment, or a whole message carrying its length
+                if (wsc.message_length == 0 && wsc.more_fragments) {
+                    probe_alert = fmt::format("IEEE80211 station {} sent a zero length WPS first "
+                            "fragment to Access Point BSSID {}, which may indicate scanning for "
+                            "access points running Broadcom's vulnerable wps_monitor",
+                            sta, dot11info->bssid_mac);
+                } else if (wsc.fragment_length > wsc.message_length) {
+                    fraglen_alert = fmt::format("IEEE80211 station {} sent a {} byte WPS fragment "
+                            "declaring a {} byte message to Access Point BSSID {}, which may be "
+                            "an attempt to exploit WPS fragment reassembly",
+                            sta, wsc.fragment_length, wsc.message_length, dot11info->bssid_mac);
+                }
+
+                if (wsc.more_fragments) {
+                    if (wsc_frag_map.size() >= max_tracked) {
+                        for (auto i = wsc_frag_map.begin(); i != wsc_frag_map.end(); ) {
+                            if (now - i->second.last > frag_timeout)
+                                i = wsc_frag_map.erase(i);
+                            else
+                                ++i;
+                        }
+                    }
+
+                    if (wsc_frag_map.size() < max_tracked) {
+                        auto& st = wsc_frag_map[key];
+                        st.declared = wsc.message_length;
+                        st.seen = wsc.fragment_length;
+                        st.last = now;
+                        st.probe_pending = !probe_alert.empty();
+                    }
+                } else {
+                    wsc_frag_map.erase(key);
+                }
+            } else {
+                // Continuation of a message we saw start
+                auto s = wsc_frag_map.find(key);
+
+                if (s != wsc_frag_map.end()) {
+                    if (now - s->second.last > frag_timeout) {
+                        wsc_frag_map.erase(s);
+                    } else {
+                        s->second.seen += wsc.fragment_length;
+                        s->second.last = now;
+
+                        if (s->second.seen > s->second.declared) {
+                            fraglen_alert = fmt::format("IEEE80211 station {} sent WPS fragments "
+                                    "totalling {} bytes for a {} byte message to Access Point "
+                                    "BSSID {}, which may be an attempt to exploit WPS fragment "
+                                    "reassembly",
+                                    sta, s->second.seen, s->second.declared, dot11info->bssid_mac);
+                            wsc_frag_map.erase(s);
+                        } else if (!wsc.more_fragments) {
+                            wsc_frag_map.erase(s);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!probe_alert.empty() && alertracker->potential_alert(alert_wpsfragprobe_ref))
+        alertracker->raise_alert(alert_wpsfragprobe_ref, in_pack,
+                dot11info->bssid_mac, dot11info->source_mac,
+                dot11info->dest_mac, dot11info->other_mac,
+                dot11info->channel, probe_alert);
+
+    if (!fraglen_alert.empty() && alertracker->potential_alert(alert_wpsfraglen_ref))
+        alertracker->raise_alert(alert_wpsfraglen_ref, in_pack,
+                dot11info->bssid_mac, dot11info->source_mac,
+                dot11info->dest_mac, dot11info->other_mac,
+                dot11info->channel, fraglen_alert);
+
+    if (confirm)
+        confirm_broadcom_wps(in_pack, dot11info);
+}
+
+void kis_80211_phy::handle_wsc_deauth(kis_packet *in_pack, dot11_packinfo *dot11info) {
+    // wps_monitor may also reject the zero length fragment with reason 0 (reserved)
+    if (dot11info->mgt_reason_code != 0 || dot11info->source_mac != dot11info->bssid_mac)
+        return;
+
+    {
+        kis_lock_guard<kis_mutex> lk(wsc_frag_mutex, "wsc_frag");
+
+        auto s = wsc_frag_map.find(std::make_pair(dot11info->bssid_mac, dot11info->dest_mac));
+
+        if (s == wsc_frag_map.end() || !s->second.probe_pending)
+            return;
+
+        wsc_frag_map.erase(s);
+    }
+
+    confirm_broadcom_wps(in_pack, dot11info);
+}
+
+void kis_80211_phy::confirm_broadcom_wps(kis_packet *in_pack, dot11_packinfo *dot11info) {
+    if (dot11info->bssid_dev == nullptr || dot11info->bssid_dot11 == nullptr)
+        return;
+
+    bool alert = true;
+
+    {
+        kis_device_lock lg(dot11info->bssid_dev, false);
+
+        auto ssids = dot11info->bssid_dot11->get_advertised_ssid_map();
+
+        for (const auto& i : *ssids) {
+            auto ssid = std::static_pointer_cast<dot11_advertised_ssid>(i.second);
+            ssid->set_wps_broadcom(3);
+        }
+
+        // Alert once per AP; without advertised SSIDs there's nowhere to remember it
+        if (!ssids->empty()) {
+            alert = false;
+
+            for (const auto& i : *ssids)
+                if (std::static_pointer_cast<dot11_advertised_ssid>(i.second)->wps_broadcom_alerted < 3)
+                    alert = true;
+        }
+
+        if (alert && alertracker->potential_alert(alert_bcmwps_ref)) {
+            for (const auto& i : *ssids)
+                std::static_pointer_cast<dot11_advertised_ssid>(i.second)->wps_broadcom_alerted = 3;
+        } else {
+            alert = false;
+        }
+    }
+
+    if (alert) {
+        auto al = fmt::format("IEEE80211 Access Point BSSID {} rejected a zero length WPS "
+                "fragment the way Broadcom's wps_monitor does, and is very likely vulnerable "
+                "to WPS fragment reassembly attacks", dot11info->bssid_mac);
+
+        alertracker->raise_alert(alert_bcmwps_ref, in_pack,
+                dot11info->bssid_mac, dot11info->source_mac,
+                dot11info->dest_mac, dot11info->other_mac,
+                dot11info->channel, al);
+    }
+}
+
+// Broadcom's SDK ships WPS with a default identity which many vendors never change; two
+// or more of these fields matching identify it
+static bool broadcom_wps_defaults(const dot11_packinfo *dot11info) {
+    const auto manuf = str_lower(dot11info->wps_manuf);
+    const auto model = str_lower(dot11info->wps_model_name);
+    const auto device = str_lower(dot11info->wps_device_name);
+
+    int n = 0;
+
+    if (manuf == "broadcom")
+        n++;
+    if (model == "broadcom" || model == "broadcomap")
+        n++;
+    if (dot11info->wps_model_number == "1234" || dot11info->wps_model_number == "123456")
+        n++;
+    if (device == "broadcomap")
+        n++;
+
+    return n >= 2;
+}
+
 void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
@@ -3963,6 +4199,35 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         if (dot11info->wps_uuid_e != "")
             ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
 
+        // Broadcom SDK wps_monitor assessment; it only goes up.  The Broadcom element alone
+        // is only 'possible', since Broadcom's driver adds it under hostapd as well; the
+        // SDK's default identity or UUID makes it 'likely', and the zero length fragment
+        // differential (handle_wsc_fragments) 'confirmed'
+        uint8_t bcm_level = 0;
+
+        if (dot11info->wps_broadcom_uuid || broadcom_wps_defaults(dot11info.get()))
+            bcm_level = 2;
+        else if (dot11info->broadcom_ie)
+            bcm_level = 1;
+
+        if (bcm_level > ssid->get_only_wps_broadcom())
+            ssid->set_wps_broadcom(bcm_level);
+
+        if (bcm_level >= 2 && ssid->wps_broadcom_alerted < bcm_level &&
+                alertracker->potential_alert(alert_bcmwps_ref)) {
+            ssid->wps_broadcom_alerted = bcm_level;
+
+            auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" advertises "
+                    "WPS with the Broadcom SDK's default {} and likely runs Broadcom's "
+                    "wps_monitor, which may be vulnerable to WPS fragment reassembly attacks",
+                    basedev->get_macaddr(), ssid->get_ssid(),
+                    dot11info->wps_broadcom_uuid ? "UUID" : "identity");
+
+            alertracker->raise_alert(alert_bcmwps_ref, in_pack,
+                    dot11info->bssid_mac, dot11info->source_mac,
+                    dot11info->dest_mac, dot11info->other_mac,
+                    dot11info->channel, al);
+        }
     }
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() !=

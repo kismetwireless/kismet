@@ -328,20 +328,21 @@ public:
             return m_sub_string;
         }
 
+        // Every string element shares m_sub_string; each accessor only matches its own type
         const wps_de_sub_string& sub_element_name() const {
-            return m_sub_string;
+            return sub_string_if(wps_de_device_name);
         }
 
         const wps_de_sub_string& sub_element_manuf() const {
-            return m_sub_string;
+            return sub_string_if(wps_de_manuf);
         }
 
         const wps_de_sub_string& sub_element_model() const {
-            return m_sub_string;
+            return sub_string_if(wps_de_model);
         }
 
         const wps_de_sub_string& sub_element_model_num() const {
-            return m_sub_string;
+            return sub_string_if(wps_de_model_num);
         }
 
         const wps_de_sub_rfband& sub_element_rfbands() const {
@@ -349,7 +350,12 @@ public:
         }
 
         const wps_de_sub_string& sub_element_serial() const {
-            return m_sub_string;
+            return sub_string_if(wps_de_serial);
+        }
+
+        const wps_de_sub_string& sub_string_if(wps_de_type_e t) const {
+            static const wps_de_sub_string unparsed;
+            return wps_de_type() == t ? m_sub_string : unparsed;
         }
 
         const wps_de_sub_version& sub_element_version() const {
