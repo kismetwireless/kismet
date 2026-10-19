@@ -1698,6 +1698,24 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
                 },
                 {
+                    field: "dot11.advertisedssid.wps_broadcom",
+                    liveupdate: true,
+                    title: "Broadcom WPS",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        switch (opts['value']) {
+                            case 1:
+                                return "Possible (Broadcom element)";
+                            case 2:
+                                return "Likely (Broadcom SDK default WPS identity or UUID)";
+                            case 3:
+                                return "Confirmed (answers like Broadcom's wps_monitor)";
+                        }
+                        return "Unknown (" + opts['value'] + ")";
+                    },
+                    help: "Access points running the WPS daemon (wps_monitor) from Broadcom's SDK may be vulnerable to WPS fragment reassembly attacks.  <b>Possible</b>: the AP advertises WPS and Broadcom's proprietary element, which Broadcom's driver adds under other WPS daemons too.  <b>Likely</b>: the AP advertises the SDK's default WPS identity or UUID.  <b>Confirmed</b>: the AP rejected a zero length WPS fragment the way wps_monitor does.  See https://github.com/qkaiser/broadcom-wps",
+                },
+                {
                     field: "dot11.advertisedssid.airmax_variant",
                     liveupdate: true,
                     title: "AirMAX",
@@ -2132,6 +2150,24 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         return kismet.censorString(opts['value']);
                     },
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_broadcom",
+                    liveupdate: true,
+                    title: "Broadcom WPS",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        switch (opts['value']) {
+                            case 1:
+                                return "Possible (Broadcom element)";
+                            case 2:
+                                return "Likely (Broadcom SDK default WPS identity or UUID)";
+                            case 3:
+                                return "Confirmed (answers like Broadcom's wps_monitor)";
+                        }
+                        return "Unknown (" + opts['value'] + ")";
+                    },
+                    help: "Access points running the WPS daemon (wps_monitor) from Broadcom's SDK may be vulnerable to WPS fragment reassembly attacks.  <b>Possible</b>: the AP advertises WPS and Broadcom's proprietary element, which Broadcom's driver adds under other WPS daemons too.  <b>Likely</b>: the AP advertises the SDK's default WPS identity or UUID.  <b>Confirmed</b>: the AP rejected a zero length WPS fragment the way wps_monitor does.  See https://github.com/qkaiser/broadcom-wps",
                 },
                 {
                     field: "dot11.advertisedssid.airmax_variant",

@@ -181,6 +181,8 @@ class dot11_packinfo : public packet_component {
             wps_model_number = "";
             wps_serial_number = "";
             wps_uuid_e = "";
+            broadcom_ie = false;
+            wps_broadcom_uuid = false;
 
             mgt_reason_code = 0;
 
@@ -325,6 +327,11 @@ class dot11_packinfo : public packet_component {
         std::string wps_serial_number;
         std::string wps_uuid_e;
 
+        // Broadcom SDK evidence for the BCMWPSMONITOR assessment: Broadcom's 9 byte
+        // proprietary element, and the fixed UUID-E the SDK ships with
+        bool broadcom_ie;
+        bool wps_broadcom_uuid;
+
         // Direct kaitai structs pulled from the beacon
         dot11_ie_11_qbss qbss;
         dot11_ie_33_power tx_power;
@@ -467,6 +474,25 @@ public:
 
     // Is packet a WPS M3 message?  Used to detect Reaver, etc
     int packet_dot11_wps_m3(const kis_packet* in_pack);
+
+    // EAP-WSC (WPS) header of an unencrypted EAPOL data frame, for the fragment alerts
+    struct wsc_frame_info {
+        uint8_t eap_code = 0;
+        bool wsc = false;
+        uint8_t opcode = 0;
+        bool more_fragments = false;
+        bool has_message_length = false;
+        uint16_t message_length = 0;
+        size_t fragment_length = 0;
+    };
+
+    bool packet_dot11_wsc(const kis_packet* in_pack, wsc_frame_info& info);
+
+    // Track WSC fragment reassembly per AP and station and look for attacks on it, and
+    // for the zero length fragment that tells Broadcom's wps_monitor from hostapd
+    void handle_wsc_fragments(kis_packet* in_pack, dot11_packinfo* dot11info);
+    void handle_wsc_deauth(kis_packet* in_pack, dot11_packinfo* dot11info);
+    void confirm_broadcom_wps(kis_packet* in_pack, dot11_packinfo* dot11info);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
     std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet* in_pack,
@@ -647,7 +673,21 @@ protected:
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
-        alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref;
+        alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref,
+        alert_bcmwps_ref, alert_wpsfraglen_ref, alert_wpsfragprobe_ref;
+
+    // EAP-WSC fragment reassembly per AP and station; only WSC frames touch it, and it is
+    // bounded in size and age
+    struct wsc_frag_state {
+        uint16_t declared = 0;
+        size_t seen = 0;
+        time_t last = 0;
+        // A zero length first fragment was sent and the AP hasn't answered yet
+        bool probe_pending = false;
+    };
+
+    kis_mutex wsc_frag_mutex;
+    std::map<std::pair<mac_addr, mac_addr>, wsc_frag_state> wsc_frag_map;
 
     int signal_too_loud_threshold;
 

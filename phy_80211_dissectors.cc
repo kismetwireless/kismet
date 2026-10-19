@@ -2450,6 +2450,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
                             break;
 
+                        // Broadcom's proprietary element (9 bytes with the OUI), added by both the
+                        // Broadcom SDK and Broadcom's kernel driver under hostapd
+                        case 0x001018:
+                            if (vendor.vendor_oui_type() == 0x02 && vendor.vendor_tag().length() == 6)
+                                packinfo->broadcom_ie = true;
+                            break;
+
                         case dot11_ie_221_wfa_wpa::ms_wps_oui():
                             try {
                                 if (vendor.vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
@@ -2545,6 +2552,15 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                                         const auto& serial_num = wpselem.sub_element_serial();
                                         if (serial_num.parsed()) {
                                             packinfo->wps_serial_number = munge_to_printable(serial_num.str());
+                                            continue;
+                                        }
+
+                                        // Broadcom's SDK ships every device with the same UUID-E
+                                        const auto& uuid_e = wpselem.sub_element_uuid_e();
+                                        if (uuid_e.parsed()) {
+                                            static const std::string bcm_uuid("\x00\x01\x02\x03\x04\x05\x06\x07"
+                                                    "\x08\x09\x0a\x0b\x0c\x0d\x0e\xbb", 16);
+                                            packinfo->wps_broadcom_uuid = (uuid_e.str() == bcm_uuid);
                                             continue;
                                         }
 
@@ -3075,6 +3091,88 @@ int kis_80211_phy::packet_dot11_wps_m3(const kis_packet* in_pack) {
 
 
     return 0;
+}
+
+bool kis_80211_phy::packet_dot11_wsc(const kis_packet* in_pack, wsc_frame_info& info) {
+    if (in_pack->error)
+        return false;
+
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+    if (packinfo == nullptr || packinfo->corrupt || packinfo->cryptset)
+        return false;
+
+    if (packinfo->type != packet_data ||
+        (packinfo->subtype != packet_sub_data &&
+         packinfo->subtype != packet_sub_data_qos_data))
+        return false;
+
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+    if (chunk == nullptr || chunk->dlt != KDLT_IEEE802_11)
+        return false;
+
+    static const uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
+
+    unsigned int pos = packinfo->header_offset;
+
+    if (pos >= chunk->length() || chunk->length() - pos <= sizeof(eapol_llc))
+        return false;
+
+    if (memcmp(&(chunk->data()[pos]), eapol_llc, sizeof(eapol_llc)))
+        return false;
+
+    pos += sizeof(eapol_llc);
+
+    // Parse the headers directly: a large WSC fragment may itself be split into 802.11
+    // fragments, so only the start of the EAP packet is here, and its declared EAP length
+    // is what gives the WSC fragment size.
+    //
+    // EAPOL: version, type, length.  EAP: code, id, length, then for a request or
+    // response the expanded type, vendor id 00:37:2a, vendor type 1 (WSC), opcode, flags
+    // and, with the length flag, the total message length.
+    const auto *d = reinterpret_cast<const uint8_t *>(chunk->data()) + pos;
+    const size_t len = chunk->length() - pos;
+
+    if (len < 8 || d[1] != 0x00)
+        return false;
+
+    const uint8_t code = d[4];
+    const uint16_t eap_len = (d[6] << 8) | d[7];
+
+    info.eap_code = code;
+
+    // EAP-Failure ends a WPS exchange; the caller decides if it answers a probe
+    if (code == 0x04)
+        return true;
+
+    if (code != 0x01 && code != 0x02)
+        return false;
+
+    static const uint8_t wsc_expanded[] = { 0xfe, 0x00, 0x37, 0x2a, 0x00, 0x00, 0x00, 0x01 };
+    const size_t wsc_hdr = 4 + sizeof(wsc_expanded) + 2;
+
+    if (len < 4 + wsc_hdr || memcmp(d + 8, wsc_expanded, sizeof(wsc_expanded)))
+        return false;
+
+    info.wsc = true;
+    info.opcode = d[16];
+
+    const uint8_t flags = d[17];
+    info.more_fragments = flags & 0x01;
+    info.has_message_length = flags & 0x02;
+
+    size_t data_start = wsc_hdr;
+
+    if (info.has_message_length) {
+        if (len < 4 + wsc_hdr + 2)
+            return false;
+
+        info.message_length = (d[18] << 8) | d[19];
+        data_start += 2;
+    }
+
+    info.fragment_length = eap_len > data_start ? eap_len - data_start : 0;
+
+    return true;
 }
 
 std::shared_ptr<dot11_tracked_eapol>

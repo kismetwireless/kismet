@@ -711,6 +711,7 @@ public:
             __ImportId(wps_model_number_id, p);
             __ImportId(wps_serial_number_id, p);
             __ImportId(wps_uuid_e_id, p);
+            __ImportId(wps_broadcom_id, p);
 
             __ImportId(location_id, p);
 
@@ -864,6 +865,11 @@ public:
             wps_serial_number_id);
     __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_string,
             wps_uuid_e_id);
+    __ProxyFullyDynamic(wps_broadcom, uint8_t, uint8_t, uint8_t, tracker_element_uint8, wps_broadcom_id);
+
+    // Highest wps_broadcom level BCMWPSMONITOR has been raised for, so a rate limited
+    // alert is retried; not serialized
+    uint8_t wps_broadcom_alerted = 0;
 
     __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
@@ -984,6 +990,7 @@ protected:
     uint16_t wps_model_number_id;
     uint16_t wps_serial_number_id;
     uint16_t wps_uuid_e_id;
+    uint16_t wps_broadcom_id;
 
     uint16_t location_id;
 
