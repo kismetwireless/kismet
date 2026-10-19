@@ -1897,6 +1897,10 @@ protected:
 };
 
 void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
+    // Failed sources are merged so they can be re-opened, but there's nothing to configure
+    if (!in_ds->get_source_running())
+        return;
+
     if (!in_ds->get_definition_opt_bool("channel_hop", true)) {
         // Source doesn't hop regardless of defaults
         return;
