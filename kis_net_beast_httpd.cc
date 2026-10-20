@@ -90,6 +90,10 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
 
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
+
+    // Reported by fetch_port() and fetch_using_ssl(), for the server announcement and the console
+    port = endpoint.port();
+    use_ssl = false;
 }
 
 void kis_net_beast_httpd::trigger_deferred_startup() {
