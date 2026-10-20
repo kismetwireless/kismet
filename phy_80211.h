@@ -122,6 +122,23 @@ class dot11_packinfo_dot11d_entry {
 #define DOT11_SSID_PROBEREQ         (1 << 2)
 #define DOT11_SSID_FILE             (1 << 3)
 
+// A channel switch announcement carried by a frame: a CSA or ECSA element in a beacon or
+// probe response, or a spectrum management / public action frame
+struct dot11_chan_switch {
+    enum class source : uint8_t { none, csa_ie, ecsa_ie, action_csa, action_ecsa };
+
+    source src = source::none;
+    uint8_t mode = 0;
+    // ECSA only
+    uint8_t op_class = 0;
+    uint8_t new_channel = 0;
+    uint8_t count = 0;
+    // The channel a beacon or probe response advertises (DS or HT primary channel), 0 if none
+    uint8_t cur_channel = 0;
+
+    bool present() const { return src != source::none; }
+};
+
 // Packet info decoded by the dot11 phy decoder
 // 
 // Injected into the packet chain and processed later into the device records
@@ -209,6 +226,7 @@ class dot11_packinfo : public packet_component {
             qbss.reset();
             tx_power.reset();
             supported_channels.reset();
+            chan_switch = dot11_chan_switch{};
             dot11r_mobility.reset();
             dot11vht.reset();
             dot11ht.reset();
@@ -337,6 +355,9 @@ class dot11_packinfo : public packet_component {
         dot11_ie_33_power tx_power;
         dot11_ie_37_csa csa;
         dot11_ie_36_supported_channels supported_channels;
+
+        // Parsed for every frame by the dissector, unlike the IE tags above
+        dot11_chan_switch chan_switch;
         dot11_ie_54_mobility dot11r_mobility;
         dot11_ie_61_ht_op dot11ht;
         dot11_ie_192_vht_op dot11vht;
@@ -586,6 +607,13 @@ protected:
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
+    // Check the channel switch announcement of a beacon, probe response or action frame
+    // for floods and spoofing; called for every frame, since handle_ssid skips identical IE tags
+    void handle_chan_switch(const std::shared_ptr<kis_tracked_device_base>& bssid_dev,
+            const std::shared_ptr<dot11_tracked_device>& bssid_dot11,
+            const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<dot11_packinfo>& dot11info);
+
     // Handle probed SSIDs
     void handle_probed_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
@@ -674,6 +702,7 @@ protected:
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
         alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref,
+        alert_dot11_csa_spoof_ref,
         alert_bcmwps_ref, alert_wpsfraglen_ref, alert_wpsfragprobe_ref;
 
     // EAP-WSC fragment reassembly per AP and station; only WSC frames touch it, and it is

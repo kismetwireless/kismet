@@ -672,6 +672,44 @@ int kis_80211_phy::packet_dot11_assign_thread(kis_packet *in_pack) {
     return 1;
 }
 
+// Find a channel switch announcement (CSA 37 or ECSA 60) and the advertised channel (DS 3, or
+// the HT operation primary channel 61) in the IE tags of a beacon or probe response.  ECSA wins
+// over CSA since it carries the operating class.
+static void find_chan_switch(const uint8_t *ies, size_t len, dot11_chan_switch& cs) {
+    uint8_t ds_channel = 0, ht_channel = 0;
+    size_t pos = 0;
+
+    while (pos + 2 <= len) {
+        const uint8_t tag = ies[pos];
+        const uint8_t tag_len = ies[pos + 1];
+        const uint8_t *d = ies + pos + 2;
+
+        if (pos + 2 + tag_len > len)
+            break;
+
+        if (tag == 3 && tag_len >= 1) {
+            ds_channel = d[0];
+        } else if (tag == 61 && tag_len >= 1) {
+            ht_channel = d[0];
+        } else if (tag == 37 && tag_len >= 3 && cs.src != dot11_chan_switch::source::ecsa_ie) {
+            cs.src = dot11_chan_switch::source::csa_ie;
+            cs.mode = d[0];
+            cs.new_channel = d[1];
+            cs.count = d[2];
+        } else if (tag == 60 && tag_len >= 4) {
+            cs.src = dot11_chan_switch::source::ecsa_ie;
+            cs.mode = d[0];
+            cs.op_class = d[1];
+            cs.new_channel = d[2];
+            cs.count = d[3];
+        }
+
+        pos += 2 + tag_len;
+    }
+
+    cs.cur_channel = ht_channel != 0 ? ht_channel : ds_channel;
+}
+
 int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     if (in_pack->error) {
         return 0;
@@ -1077,6 +1115,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     crc32_fast(chunk->data() + packinfo->header_offset,
                                            chunk->length() - packinfo->header_offset);
 
+                find_chan_switch(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
+                        chunk->length() - packinfo->header_offset, packinfo->chan_switch);
+
                 break;
 
             case 8:
@@ -1125,6 +1166,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->ietag_csum =
                     crc32_fast(chunk->data() + packinfo->header_offset,
                             chunk->length() - packinfo->header_offset);
+
+                find_chan_switch(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
+                        chunk->length() - packinfo->header_offset, packinfo->chan_switch);
 
                 break;
 
@@ -1260,6 +1304,30 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                         packinfo->corrupt = 1;
                         in_pack->insert(pack_comp_80211, packinfo);
                         return 0;
+                    }
+
+                    // Channel switch announcements, action 4 of spectrum management (a CSA
+                    // element follows) and public (mode, operating class, channel, count)
+                    {
+                        const auto act =
+                            reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset;
+                        const auto act_len = chunk->length() - packinfo->header_offset;
+                        auto& cs = packinfo->chan_switch;
+
+                        if (action.category_code() == dot11_action::category_code_spectrum_management &&
+                                act_len >= 7 && act[1] == 4 && act[2] == 37 && act[3] >= 3) {
+                            cs.src = dot11_chan_switch::source::action_csa;
+                            cs.mode = act[4];
+                            cs.new_channel = act[5];
+                            cs.count = act[6];
+                        } else if (action.category_code() == dot11_action::category_code_public &&
+                                act_len >= 6 && act[1] == 4) {
+                            cs.src = dot11_chan_switch::source::action_ecsa;
+                            cs.mode = act[2];
+                            cs.op_class = act[3];
+                            cs.new_channel = act[4];
+                            cs.count = act[5];
+                        }
                     }
 
                     // NAN service discovery frames (public action, vendor specific, WFA

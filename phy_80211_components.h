@@ -24,8 +24,10 @@
 #include <time.h>
 
 #include <algorithm>
+#include <array>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -1227,6 +1229,33 @@ protected:
 // Device has responded to probes, looking like an AP
 #define DOT11_DEVICE_TYPE_PROBE_AP          (1 << 8)
 
+// The last beacon or probe response of a BSSID without a channel switch announcement, to
+// compare the TSF of announcements with
+struct dot11_beacon_ref {
+    uint64_t tsf = 0;
+    int seq = -1;
+    uint64_t time_us = 0;
+    int interval = 0;
+    // The AP repeats its TSF in its own beacons, so the TSF checks don't apply
+    bool tsf_unreliable = false;
+};
+
+// Channel switch state of a BSSID for spotting spoofed announcements; fixed size
+struct dot11_csa_state {
+    // The newest announcement by TSF from a beacon or probe response
+    bool valid = false;
+    uint64_t tsf = 0;
+    uint8_t count = 0;
+    uint8_t new_channel = 0;
+    uint8_t op_class = 0;
+    uint8_t cur_channel = 0;
+
+    // The last announcing frames (TSF, sequence number), for exact TSF repeats
+    static constexpr size_t recent_max = 4;
+    std::array<std::pair<uint64_t, int>, recent_max> recent{};
+    size_t recent_pos = 0;
+};
+
 // Dot11 device
 //
 // Device-level data, additional data stored in the client and ssid arrays
@@ -1243,7 +1272,6 @@ public:
 
 		csa_count = 0;
 		last_csa_time = 0;
-		last_adv_csa = false;
 
         register_fields();
         reserve_fields(NULL);
@@ -1259,7 +1287,6 @@ public:
 
 		csa_count = 0;
 		last_csa_time = 0;
-		last_adv_csa = false;
 
         register_fields();
         reserve_fields(NULL);
@@ -1275,7 +1302,6 @@ public:
 
 		csa_count = 0;
 		last_csa_time = 0;
-		last_adv_csa = false;
 
         register_fields();
         reserve_fields(e);
@@ -1291,7 +1317,6 @@ public:
 
 			csa_count = 0;
 			last_csa_time = 0;
-			last_adv_csa = false;
 
             __ImportField(type_set, p);
 
@@ -1469,9 +1494,15 @@ public:
 
     uint32_t get_last_adv_ie_csum() { return last_adv_ie_csum; }
     void set_last_adv_ie_csum(uint32_t csum) { last_adv_ie_csum = csum; }
-    // Whether the last parsed advertised IE tags carried a channel switch announcement
-    bool get_last_adv_csa() const { return last_adv_csa; }
-    void set_last_adv_csa(bool csa) { last_adv_csa = csa; }
+    dot11_beacon_ref& beacon_ref() { return beacon_ref_; }
+
+    // Allocated with the first channel switch announcement of the BSSID
+    dot11_csa_state& csa_state() {
+        if (csa_state_ == nullptr)
+            csa_state_ = std::make_unique<dot11_csa_state>();
+        return *csa_state_;
+    }
+    dot11_csa_state *csa_state_if_any() { return csa_state_.get(); }
     std::shared_ptr<dot11_advertised_ssid> get_last_adv_ssid() {
         return last_adv_ssid;
     }
@@ -1792,7 +1823,9 @@ protected:
 
 	uint16_t csa_count;
 	time_t last_csa_time;
-	bool last_adv_csa;
+
+    dot11_beacon_ref beacon_ref_;
+    std::unique_ptr<dot11_csa_state> csa_state_;
 
     // std::shared_ptr<tracker_element_uint64> last_sequence;
     std::shared_ptr<tracker_element_uint64> bss_timestamp;
