@@ -109,7 +109,7 @@ typedef struct {
      * between the channel control and capture threads. */
     pthread_mutex_t chan_mutex;
     unsigned int pending_responses;
-    struct timeval pending_deadline;
+    uint64_t pending_deadline_ms;
 
     kis_capture_handler_t *caph;
 } local_catsniffer_t;
@@ -250,6 +250,13 @@ uint8_t get_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer)
     return r;
 }
 
+/* Monotonic, so a wall clock change can't stretch or end the wait */
+static uint64_t monotonic_ms(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (uint64_t) t.tv_sec * 1000 + (uint64_t) t.tv_nsec / 1000000;
+}
+
 /* Account for the responses to n commands about to be sent, optionally with the channel they
  * tune to.  Data frames are dropped until all responses are in, for at most 500ms from the
  * first command still waiting for one; later commands don't extend that, so a lost response
@@ -258,14 +265,8 @@ void expect_responses(local_catsniffer_t *catsniffer, unsigned int n, int channe
     pthread_mutex_lock(&catsniffer->chan_mutex);
     if (channel >= 0)
         catsniffer->channel = channel;
-    if (catsniffer->pending_responses == 0) {
-        gettimeofday(&catsniffer->pending_deadline, NULL);
-        catsniffer->pending_deadline.tv_usec += 500000;
-        if (catsniffer->pending_deadline.tv_usec >= 1000000) {
-            catsniffer->pending_deadline.tv_sec++;
-            catsniffer->pending_deadline.tv_usec -= 1000000;
-        }
-    }
+    if (catsniffer->pending_responses == 0)
+        catsniffer->pending_deadline_ms = monotonic_ms() + 500;
     catsniffer->pending_responses += n;
     pthread_mutex_unlock(&catsniffer->chan_mutex);
 }
@@ -727,7 +728,7 @@ static int handle_data_frame(kis_capture_handler_t *caph, local_catsniffer_t *lo
 
     pthread_mutex_lock(&localcatsniffer->chan_mutex);
     if (localcatsniffer->pending_responses > 0) {
-        if (timercmp(&ts, &localcatsniffer->pending_deadline, <))
+        if (monotonic_ms() < localcatsniffer->pending_deadline_ms)
             drop = 1;
         else
             localcatsniffer->pending_responses = 0;
