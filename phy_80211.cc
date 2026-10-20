@@ -1501,8 +1501,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 // sends at most one beacon per beacon interval; alert on twice that many.
                 if (dot11info->bssid_dot11->get_last_adv_csa()) {
                     const unsigned int csa_window = 2;
+                    // The interval comes from the frame, so a spoofer could forge a tiny one to raise
+                    // the threshold; real APs don't beacon faster than every 20 TU
                     auto beacons_sec =
-                        Ieee80211Interval2NSecs(dot11info->beacon_interval > 0 ? dot11info->beacon_interval : 100);
+                        Ieee80211Interval2NSecs(dot11info->beacon_interval > 0 ?
+                                std::max(dot11info->beacon_interval, 20) : 100);
 
                     dot11info->bssid_dot11->inc_csa_event(1, in_pack->ts.tv_sec, csa_window);
 
