@@ -1,0 +1,62 @@
+# Standalone build for the AIS rtlsdr test tools; independent of Kismet and of
+# configure.  Requires a C compiler and librtlsdr (located via pkg-config when
+# available).
+#
+# In the Kismet tree:
+#   make -f Makefile.ais_rtl_test            build ais_rtl_test and ais_demod_test
+#   make -f Makefile.ais_rtl_test bundle     create a self-contained tarball
+#
+# In an extracted bundle this file is the Makefile, so plain 'make' works.
+#
+# Targets:
+#   ais_rtl_test    rtlsdr AIS receiver; prints decoded AIS to the terminal and
+#                   a log file (see ais_rtl_test -h)
+#   ais_demod_test  demodulator-only harness; reads cu8 IQ at 288k centered on
+#                   162MHz from stdin, no librtlsdr needed
+#   bundle          ais_rtl_test-YYYYMMDD.tar.gz with the sources and this
+#                   Makefile
+#
+# Overrides:
+#   make CC=clang RTLSDR_CFLAGS=-I/opt/rtlsdr/include RTLSDR_LIBS="-L/opt/rtlsdr/lib -lrtlsdr"
+
+CC ?= cc
+CFLAGS ?= -O2 -g
+CFLAGS += -Wall -Wextra -Wno-unused-parameter
+
+PKG_CONFIG ?= pkg-config
+
+RTLSDR_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags librtlsdr 2>/dev/null)
+RTLSDR_LIBS ?= $(shell $(PKG_CONFIG) --libs librtlsdr 2>/dev/null || echo -lrtlsdr)
+
+# Older librtlsdr releases lack bias-tee control; probe for it
+BIAST_CFLAGS := $(shell printf '\#include <rtl-sdr.h>\nint main(void) { return rtlsdr_set_bias_tee(0, 1); }\n' | \
+	$(CC) $(RTLSDR_CFLAGS) -x c - -o /dev/null $(RTLSDR_LIBS) >/dev/null 2>&1 && \
+	echo -DHAVE_LIBRTLSDR_BIAS_T)
+
+SOURCES = ais_rtl_test.c ais_demod.c ais_demod.h
+MAKEFILE_NAME := $(lastword $(MAKEFILE_LIST))
+
+BUNDLE_NAME ?= ais_rtl_test-$(shell date +%Y%m%d)
+
+.PHONY: all clean bundle
+
+all: ais_rtl_test ais_demod_test
+
+ais_rtl_test: ais_rtl_test.c ais_demod.c ais_demod.h
+	$(CC) $(CFLAGS) $(RTLSDR_CFLAGS) $(BIAST_CFLAGS) -o $@ ais_rtl_test.c ais_demod.c \
+		$(LDFLAGS) $(RTLSDR_LIBS) -lm
+
+ais_demod_test: ais_demod.c ais_demod.h
+	$(CC) $(CFLAGS) -DAIS_DEMOD_MAIN -o $@ ais_demod.c $(LDFLAGS) -lm
+
+bundle: $(SOURCES) $(MAKEFILE_NAME)
+	rm -rf $(BUNDLE_NAME) $(BUNDLE_NAME).tar.gz
+	mkdir $(BUNDLE_NAME)
+	cp $(SOURCES) $(BUNDLE_NAME)/
+	cp $(MAKEFILE_NAME) $(BUNDLE_NAME)/Makefile
+	tar -czf $(BUNDLE_NAME).tar.gz $(BUNDLE_NAME)
+	rm -rf $(BUNDLE_NAME)
+	@echo "created $(BUNDLE_NAME).tar.gz"
+
+clean:
+	rm -rf ais_rtl_test ais_demod_test *.dSYM
