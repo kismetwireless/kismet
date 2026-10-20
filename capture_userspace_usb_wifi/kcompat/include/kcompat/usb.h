@@ -334,6 +334,8 @@ struct kc_usb_probe_entry {
     struct libusb_device *dev;
     const struct usb_driver *driver;
     const struct usb_device_id *id;
+    /* Index of the matched interface in the active config; combo adapters put Bluetooth first */
+    int intf_index;
     u16 vid;
     u16 pid;
     int bus;

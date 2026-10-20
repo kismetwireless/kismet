@@ -143,6 +143,21 @@ static enum usb_device_speed kc_usb_speed(int s) {
     }
 }
 
+/* The first registered driver with an ID matching the device and interface */
+static const struct usb_device_id *kc_usb_match_driver(const struct libusb_device_descriptor *d,
+        const struct libusb_interface_descriptor *intf, const struct usb_driver **drvp) {
+    for (const struct usb_driver *drv = kc_usb_drivers; drv != NULL; drv = drv->kc_next) {
+        for (const struct usb_device_id *id = drv->id_table; id->match_flags != 0; id++) {
+            if (kc_usb_id_match(id, d, intf)) {
+                *drvp = drv;
+                return id;
+            }
+        }
+    }
+
+    return NULL;
+}
+
 int kc_usb_find_devices(struct kc_usb_probe_entry **list) {
     libusb_device **devs;
     ssize_t n;
@@ -159,51 +174,55 @@ int kc_usb_find_devices(struct kc_usb_probe_entry **list) {
     for (ssize_t i = 0; i < n; i++) {
         struct libusb_device_descriptor d;
         struct libusb_config_descriptor *cfg = NULL;
-        const struct libusb_interface_descriptor *intf = NULL;
+        const struct usb_driver *drv = NULL;
+        const struct usb_device_id *id = NULL;
+        int nintf = 0, k = 0;
 
         if (libusb_get_device_descriptor(devs[i], &d) < 0)
             continue;
 
-        if (libusb_get_active_config_descriptor(devs[i], &cfg) == 0 && cfg->bNumInterfaces > 0 &&
-                cfg->interface[0].num_altsetting > 0)
-            intf = &cfg->interface[0].altsetting[0];
+        if (libusb_get_active_config_descriptor(devs[i], &cfg) == 0)
+            nintf = cfg->bNumInterfaces;
 
-        for (const struct usb_driver *drv = kc_usb_drivers; drv != NULL; drv = drv->kc_next) {
-            const struct usb_device_id *id;
-
-            for (id = drv->id_table; id->match_flags != 0; id++)
-                if (kc_usb_id_match(id, &d, intf))
-                    break;
-
-            if (id->match_flags == 0)
-                continue;
-
-            struct kc_usb_probe_entry *e = calloc(1, sizeof(*e));
-            if (e == NULL)
-                break;
-
-            uint8_t ports[8];
-            int np = libusb_get_port_numbers(devs[i], ports, sizeof(ports));
-            int off = snprintf(e->path, sizeof(e->path), "%d", libusb_get_bus_number(devs[i]));
-            for (int p = 0; p < np && off < (int) sizeof(e->path); p++)
-                off += snprintf(e->path + off, sizeof(e->path) - (size_t) off, "%s%d", p ? "." : "-", ports[p]);
-
-            e->dev = libusb_ref_device(devs[i]);
-            e->driver = drv;
-            e->id = id;
-            e->vid = d.idVendor;
-            e->pid = d.idProduct;
-            e->bus = libusb_get_bus_number(devs[i]);
-            e->address = libusb_get_device_address(devs[i]);
-            e->speed = kc_usb_speed(libusb_get_device_speed(devs[i]));
-            e->next = *list;
-            *list = e;
-            found++;
-            break;
+        /* Like the kernel, match each interface, so a Wi-Fi interface after Bluetooth ones is
+         * found; the first match claims the device.  Without a config, match the device IDs. */
+        if (nintf == 0) {
+            id = kc_usb_match_driver(&d, NULL, &drv);
+        } else {
+            for (k = 0; k < nintf && id == NULL; k++)
+                if (cfg->interface[k].num_altsetting > 0)
+                    id = kc_usb_match_driver(&d, &cfg->interface[k].altsetting[0], &drv);
+            k--;
         }
 
         if (cfg)
             libusb_free_config_descriptor(cfg);
+
+        if (id == NULL)
+            continue;
+
+        struct kc_usb_probe_entry *e = calloc(1, sizeof(*e));
+        if (e == NULL)
+            break;
+
+        uint8_t ports[8];
+        int np = libusb_get_port_numbers(devs[i], ports, sizeof(ports));
+        int off = snprintf(e->path, sizeof(e->path), "%d", libusb_get_bus_number(devs[i]));
+        for (int p = 0; p < np && off < (int) sizeof(e->path); p++)
+            off += snprintf(e->path + off, sizeof(e->path) - (size_t) off, "%s%d", p ? "." : "-", ports[p]);
+
+        e->dev = libusb_ref_device(devs[i]);
+        e->driver = drv;
+        e->id = id;
+        e->intf_index = k;
+        e->vid = d.idVendor;
+        e->pid = d.idProduct;
+        e->bus = libusb_get_bus_number(devs[i]);
+        e->address = libusb_get_device_address(devs[i]);
+        e->speed = kc_usb_speed(libusb_get_device_speed(devs[i]));
+        e->next = *list;
+        *list = e;
+        found++;
     }
 
     libusb_free_device_list(devs, 1);
@@ -332,12 +351,15 @@ int kc_usb_probe_device(const struct kc_usb_probe_entry *entry, struct usb_inter
     udev->ep0.desc.wMaxPacketSize = cpu_to_le16(udev->speed >= USB_SPEED_SUPER ?
             (1u << d.bMaxPacketSize0) : d.bMaxPacketSize0);
 
-    if (cfg->bNumInterfaces < 1 || cfg->interface[0].num_altsetting < 1) {
+    /* The config may have changed since the device was listed */
+    if (entry->intf_index < 0 || entry->intf_index >= cfg->bNumInterfaces ||
+            cfg->interface[entry->intf_index].num_altsetting < 1 ||
+            !kc_usb_id_match(entry->id, &d, &cfg->interface[entry->intf_index].altsetting[0])) {
         r = -ENODEV;
         goto fail;
     }
 
-    const struct libusb_interface_descriptor *lid = &cfg->interface[0].altsetting[0];
+    const struct libusb_interface_descriptor *lid = &cfg->interface[entry->intf_index].altsetting[0];
 
     if ((intf = calloc(1, sizeof(*intf))) == NULL ||
             (intf->altsetting = calloc(1, sizeof(*intf->altsetting))) == NULL ||
