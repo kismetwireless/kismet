@@ -32,8 +32,9 @@
  *                    found in the firmware directories, not a path
  *   boardfile=FILE   board config (BCF) file name to load instead of the one chosen by the
  *                    board type in OTP; found in the firmware directories, not a path.
- *                    Without a board type, bcf_default.bin is used if present, then the
- *                    MM8108 reference module's bcf_mf15457.bin
+ *                    Without a known board type, the MM8108 reference module's
+ *                    bcf_mf15457.bin shipped with Kismet is used, and only if it's missing,
+ *                    on Linux, the system's bcf_default.bin
  *   verbose=true     driver logging
  *
  * Firmware and board config files from https://github.com/MorseMicro/morse-firmware are
@@ -191,15 +192,11 @@ static bool try_path(char *out, size_t out_len, const char *fmt, ...) {
 }
 
 /* Finds name in the firmwaredir= directory and Kismet's, as installed or in the layout of a
- * morse-firmware checkout, then on Linux in the system firmware directories, in the
- * linux-firmware layout (morsemicro/mm81x/v<firmware interface version>) and morse_driver's
- * (morse); in each, as named and then in each compressed form. */
-static bool find_firmware(const char *fw_dir, const char *name, char *out, size_t out_len) {
+ * morse-firmware checkout; in each, as named and then in each compressed form. */
+static bool find_firmware_kismet(const char *fw_dir, const char *name, char *out, size_t out_len) {
     static const char *subdirs[] = { "", "/firmware", "/bcf/morsemicro" };
     const char *dirs[] = { fw_dir, FIRMWAREDIR "/morse" };
-    char sys_dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN];
     const char *suffixes[FW_FILE_MAX_SUFFIXES];
-    size_t num_sys = cf_system_firmware_dirs(sys_dirs);
     size_t num_suffixes = fw_file_suffixes(suffixes);
 
     for (size_t d = 0; d < sizeof(dirs) / sizeof(dirs[0]); d++) {
@@ -211,6 +208,17 @@ static bool find_firmware(const char *fw_dir, const char *name, char *out, size_
                 if (try_path(out, out_len, "%s%s/%s%s", dirs[d], subdirs[s], name, suffixes[x]))
                     return true;
     }
+
+    return false;
+}
+
+/* Finds name on Linux in the system firmware directories, in the linux-firmware layout
+ * (morsemicro/mm81x/v<firmware interface version>) and morse_driver's (morse) */
+static bool find_firmware_system(const char *name, char *out, size_t out_len) {
+    char sys_dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN];
+    const char *suffixes[FW_FILE_MAX_SUFFIXES];
+    size_t num_sys = cf_system_firmware_dirs(sys_dirs);
+    size_t num_suffixes = fw_file_suffixes(suffixes);
 
     for (size_t d = 0; d < num_sys; d++) {
         for (size_t x = 0; x < num_suffixes; x++)
@@ -224,6 +232,11 @@ static bool find_firmware(const char *fw_dir, const char *name, char *out, size_
     }
 
     return false;
+}
+
+static bool find_firmware(const char *fw_dir, const char *name, char *out, size_t out_len) {
+    return find_firmware_kismet(fw_dir, name, out, out_len) ||
+        find_firmware_system(name, out, out_len);
 }
 
 /* linux-firmware firmware for an interface version this driver can't use, as a hint */
@@ -538,14 +551,27 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             goto out;
         }
     } else {
+        /* The board type's own config, then the MM8108 reference module's that Kismet ships
+         * (which the MM8108 board types in morse-firmware all use), and only then, on Linux,
+         * the system's choice, as morse_driver would make it */
+        static const char *reference[] = { "bcf_mf15457.bin", "bcf_mm8108_mf15457.bin" };
         char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN];
         size_t num_names = mm_bcf_default_names(dev, names), i;
+        const char *chosen = NULL;
 
-        for (i = 0; i < num_names; i++)
-            if (find_firmware(fw_dir, names[i], bcf_path, sizeof(bcf_path)))
-                break;
+        if (dev->board_type != 0 && find_firmware(fw_dir, names[0], bcf_path, sizeof(bcf_path))) {
+            chosen = names[0];
+        } else {
+            for (i = 0; i < sizeof(reference) / sizeof(reference[0]) && chosen == NULL; i++)
+                if (find_firmware_kismet(fw_dir, reference[i], bcf_path, sizeof(bcf_path)))
+                    chosen = reference[i];
 
-        if (i == num_names) {
+            for (i = dev->board_type != 0 ? 1 : 0; i < num_names && chosen == NULL; i++)
+                if (find_firmware_system(names[i], bcf_path, sizeof(bcf_path)))
+                    chosen = names[i];
+        }
+
+        if (chosen == NULL) {
             snprintf(msg, STATUS_MAX, "%s could not find a board config for board type 0x%04x; "
                     "download them from https://github.com/MorseMicro/morse-firmware and use the "
                     "firmwaredir= option, or choose one with boardfile=", local->name,
@@ -554,14 +580,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         /* Only the board type's own config is known to match the adapter */
-        if (dev->board_type == 0 || i > 0) {
+        if (dev->board_type == 0 || chosen != names[0]) {
             if (dev->board_type == 0)
                 snprintf(fname, sizeof(fname), "has no board type in OTP");
             else
                 snprintf(fname, sizeof(fname), "board type 0x%04x is unknown", dev->board_type);
 
             snprintf(buf, sizeof(buf), "%s %s; using board config %s.  If the adapter needs a "
-                    "different one, choose it with boardfile=", local->name, fname, names[i]);
+                    "different one, choose it with boardfile=", local->name, fname, chosen);
             cf_send_warning(caph, buf);
         }
     }
