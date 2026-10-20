@@ -81,6 +81,7 @@ static void usage(const char *argv0) {
             "  -t, --dwell MS        time per channel (default %d)\n"
             "  -w, --pcap FILE       write a radiotap pcap\n"
             "  -T, --duration SEC    stop after SEC seconds\n"
+            "  -D, --device N        adapter N in USB port order, as the Kismet source's mm8108-N\n"
             "  -i, --info            boot, print device information and exit\n"
             "  -v, --verbose         more logging; repeat for USB-level detail\n"
             "Countries: %s\n"
@@ -333,6 +334,7 @@ int main(int argc, char *argv[]) {
         { "pcap", required_argument, NULL, 'w' },
         { "duration", required_argument, NULL, 'T' },
         { "info", no_argument, NULL, 'i' },
+        { "device", required_argument, NULL, 'D' },
         { "verbose", no_argument, NULL, 'v' },
         { "help", no_argument, NULL, 'h' },
         { NULL, 0, NULL, 0 },
@@ -343,7 +345,7 @@ int main(int argc, char *argv[]) {
     const char *channels = NULL, *widths = NULL, *pcap_path = NULL;
     unsigned long dwell_ms = DEFAULT_DWELL_MS, duration_s = 0;
     bool info_only = false;
-    int verbose = 0, opt, ret = 1;
+    int verbose = 0, opt, ret = 1, dev_index = -1, bus = -1, address = -1;
     char fw_buf[1024], bcf_buf[1024], name[64], version[129];
     struct mm8108_dev dev;
     struct mm8108_boot_config boot;
@@ -352,7 +354,7 @@ int main(int argc, char *argv[]) {
 
     memset(&ts, 0, sizeof(ts));
 
-    while ((opt = getopt_long(argc, argv, "d:f:b:c:C:W:t:w:T:ivh", longopts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "d:f:b:c:C:W:t:w:T:iD:vh", longopts, NULL)) != -1) {
         switch (opt) {
             case 'd': fw_dir = optarg; break;
             case 'f': fw_path = optarg; break;
@@ -364,6 +366,7 @@ int main(int argc, char *argv[]) {
             case 'w': pcap_path = optarg; break;
             case 'T': duration_s = strtoul(optarg, NULL, 10); break;
             case 'i': info_only = true; break;
+            case 'D': dev_index = (int) strtol(optarg, NULL, 10); break;
             case 'v': verbose++; break;
             default:
                 usage(argv[0]);
@@ -386,7 +389,28 @@ int main(int argc, char *argv[]) {
 
     mm8108_set_rx_cb(&dev, rx_frame, &ts);
 
-    if (mm_usb_open(&dev, -1, -1) < 0 || mm_read_chip_id(&dev) < 0 || mm_read_otp(&dev) < 0) {
+    /* Adapters are numbered in port order, as the Kismet source names them mm8108-N */
+    if (dev_index >= 0) {
+        struct mm_usb_devinfo devs[16];
+        libusb_context *ctx;
+        int n;
+
+        if (libusb_init(&ctx) < 0) {
+            fprintf(stderr, "could not initialize libusb\n");
+            goto out;
+        }
+        n = mm_usb_list(ctx, devs, sizeof(devs) / sizeof(devs[0]));
+        libusb_exit(ctx);
+
+        if (n <= dev_index) {
+            fprintf(stderr, "no MM8108 adapter %d (%d found)\n", dev_index, n < 0 ? 0 : n);
+            goto out;
+        }
+        bus = devs[dev_index].bus;
+        address = devs[dev_index].address;
+    }
+
+    if (mm_usb_open(&dev, bus, address) < 0 || mm_read_chip_id(&dev) < 0 || mm_read_otp(&dev) < 0) {
         fprintf(stderr, "%s\n", dev.errstr);
         goto out;
     }
