@@ -300,6 +300,24 @@ static bool channel_disabled(const struct mm_s1g_channel *ch,
     return false;
 }
 
+/* 27ah, or a bare channel number, in the region's channel plan */
+static const struct mm_s1g_channel *parse_channel(const struct mm_s1g_region *region,
+        const char *chanstr) {
+    unsigned long c;
+    char *end;
+
+    if (region == NULL || chanstr == NULL)
+        return NULL;
+
+    errno = 0;
+    c = strtoul(chanstr, &end, 10);
+
+    if (errno != 0 || end == chanstr || (*end != 0 && strcasecmp(end, "ah") != 0) || c > UINT16_MAX)
+        return NULL;
+
+    return mm_s1g_channel_lookup(region, (unsigned int) c);
+}
+
 /* The primary is the lowest 1MHz (or 2MHz) sub-channel, as the Linux driver defaults */
 static int mm8108_tune(struct mm8108_dev *dev, const struct mm_s1g_channel *ch) {
     const uint8_t pri_bw = ch->bw_mhz == 1 ? 1 : 2;
@@ -435,7 +453,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     struct mm8108_boot_config boot;
     struct mm_usb_devinfo info;
     char *placeholder = NULL, *country = NULL, *fw_dir = NULL, *fw_name = NULL, *bcf_name = NULL;
-    char *widths = NULL;
+    char *widths = NULL, *chan_def = NULL;
+    const struct mm_s1g_channel *start = NULL;
     char fw_path[1024], bcf_path[1024], fname[64], version[129], buf[256];
     struct mm8108_dev *dev = &local->dev;
     size_t num_dis = 0;
@@ -486,6 +505,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     country = flag_dup(definition, "country");
     fw_dir = flag_dup(definition, "firmwaredir");
     widths = flag_dup(definition, "widths");
+    chan_def = flag_dup(definition, "channel");
 
     pthread_mutex_lock(&local->dev_lock);
 
@@ -627,11 +647,34 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         goto out;
     }
 
-    (*ret_interface)->chanset = strdup((*ret_interface)->channels[0]);
+    /* channel= sets the starting channel, which is where a source that doesn't hop stays */
+    if (chan_def != NULL) {
+        size_t c;
 
-    if (mm8108_start_monitor(dev) < 0 ||
-            mm8108_tune(dev, mm_s1g_channel_lookup(local->region,
-                    (unsigned int) strtoul((*ret_interface)->channels[0], NULL, 10))) < 0) {
+        if ((start = parse_channel(local->region, chan_def)) != NULL) {
+            snprintf(buf, sizeof(buf), "%uah", start->channel);
+            for (c = 0; c < (*ret_interface)->channels_len; c++)
+                if (strcmp((*ret_interface)->channels[c], buf) == 0)
+                    break;
+            if (c == (*ret_interface)->channels_len)
+                start = NULL;
+        }
+
+        if (start == NULL) {
+            snprintf(msg, STATUS_MAX, "%s channel=%s is not a usable 802.11ah channel in %s",
+                    local->name, chan_def, local->region->country);
+            goto out;
+        }
+    } else if ((start = parse_channel(local->region, (*ret_interface)->channels[0])) == NULL) {
+        snprintf(msg, STATUS_MAX, "%s has no usable channels in %s", local->name,
+                local->region->country);
+        goto out;
+    }
+
+    snprintf(buf, sizeof(buf), "%uah", start->channel);
+    (*ret_interface)->chanset = strdup(buf);
+
+    if (mm8108_start_monitor(dev) < 0 || mm8108_tune(dev, start) < 0) {
         snprintf(msg, STATUS_MAX, "%s could not enter monitor mode: %s", local->name, dev->errstr);
         goto out;
     }
@@ -676,6 +719,7 @@ out:
     free(fw_name);
     free(bcf_name);
     free(widths);
+    free(chan_def);
 
     return ret;
 }
@@ -685,18 +729,11 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     const struct mm_s1g_channel *ch;
     struct mm_s1g_channel *ret;
     char errstr[STATUS_MAX];
-    unsigned long c;
-    char *end;
 
     if (local->region == NULL || chanstr == NULL)
         return NULL;
 
-    /* 27ah, or a bare channel number */
-    errno = 0;
-    c = strtoul(chanstr, &end, 10);
-
-    if (errno != 0 || end == chanstr || (*end != 0 && strcasecmp(end, "ah") != 0) ||
-            c > UINT16_MAX || (ch = mm_s1g_channel_lookup(local->region, (unsigned int) c)) == NULL) {
+    if ((ch = parse_channel(local->region, chanstr)) == NULL) {
         snprintf(errstr, STATUS_MAX, "%s - '%s' is not an 802.11ah channel in %s", local->name,
                 chanstr, local->region->country);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
