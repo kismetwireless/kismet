@@ -625,6 +625,14 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 				"from the current AP.  A CSA packet can be normal, but an excessive number "
 				"of them can indicate a denial of service for some devices, "
 				"especially Linux based clients", phyid);
+	alert_dot11_csa_spoof_ref =
+		alertracker->activate_configured_alert("DOT11CSASPOOF",
+				"SPOOF", kis_alert_severity::high,
+				"A Channel Switch Announcement does not fit the access point it claims to come "
+				"from: it repeats the TSF of a copied beacon, its TSF is far off the AP's own "
+				"beacons, its count holds or rises, or it points to a channel clients can't "
+				"use.  Spoofed announcements disconnect clients even on networks with "
+				"management frame protection, such as WPA3.", phyid);
 
     // Threshold
     signal_too_loud_threshold =
@@ -1495,37 +1503,17 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 						in_pack, dot11info);
                 dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
-
-                // Count beacons with a CSA.  handle_ssid keeps the CSA state of the last parsed IE
-                // tags, so repeated identical beacons, which are not parsed again, count too.  An AP
-                // sends at most one beacon per beacon interval; alert on twice that many.
-                if (dot11info->bssid_dot11->get_last_adv_csa()) {
-                    const unsigned int csa_window = 2;
-                    // The interval comes from the frame, so a spoofer could forge a tiny one to raise
-                    // the threshold; real APs don't beacon faster than every 20 TU
-                    auto beacons_sec =
-                        Ieee80211Interval2NSecs(dot11info->beacon_interval > 0 ?
-                                std::max(dot11info->beacon_interval, 20) : 100);
-
-                    dot11info->bssid_dot11->inc_csa_event(1, in_pack->ts.tv_sec, csa_window);
-
-                    if (dot11info->bssid_dot11->csa_event_count() > 2 * csa_window * beacons_sec) {
-                        d11phy->alertracker->raise_alert(d11phy->alert_dot11_csa_flood_ref,
-                                in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel,
-                                fmt::format("BSSID {} is sending an unusual number of Channel Switch "
-                                    "Announcement beacons, more than its beacon interval allows.  CSA "
-                                    "beacons are a normal part of network operation, but this many in a "
-                                    "short period of time may indicate a denial of service attack.",
-                                    dot11info->bssid_dev->get_macaddr()));
-                    }
-                }
             } else if (dot11info->subtype == packet_sub_probe_resp) {
                 d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11,
 						in_pack, dot11info);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_PROBE_AP);
+            }
+
+            if (dot11info->subtype == packet_sub_beacon ||
+                    dot11info->subtype == packet_sub_probe_resp ||
+                    dot11info->subtype == packet_sub_action) {
+                d11phy->handle_chan_switch(dot11info->bssid_dev, dot11info->bssid_dot11,
+                        in_pack, dot11info);
             }
 
             d11phy->devicetracker->update_view_device(dot11info->bssid_dev);
@@ -2817,6 +2805,282 @@ void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
     wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
+// Bands for channel switch checks
+enum class dot11_csa_band { unknown, band_24, band_5, band_6 };
+
+static dot11_csa_band csa_band_from_khz(double khz) {
+    if (khz >= 2400000 && khz < 2500000)
+        return dot11_csa_band::band_24;
+    if (khz >= 4900000 && khz < 5925000)
+        return dot11_csa_band::band_5;
+    if (khz >= 5925000 && khz < 7125000)
+        return dot11_csa_band::band_6;
+    return dot11_csa_band::unknown;
+}
+
+// Channel numbers alone are ambiguous in 6 GHz, so this only gives 2.4 and 5 GHz
+static dot11_csa_band csa_band_from_channel(unsigned int channel) {
+    if (channel >= 1 && channel <= 14)
+        return dot11_csa_band::band_24;
+    if (channel >= 32 && channel <= 196)
+        return dot11_csa_band::band_5;
+    return dot11_csa_band::unknown;
+}
+
+// Global operating classes, 802.11 Annex E table E-4; country classes are left unknown
+static dot11_csa_band csa_band_from_op_class(unsigned int op_class) {
+    if (op_class >= 81 && op_class <= 84)
+        return dot11_csa_band::band_24;
+    if (op_class >= 115 && op_class <= 130)
+        return dot11_csa_band::band_5;
+    if (op_class >= 131 && op_class <= 137)
+        return dot11_csa_band::band_6;
+    return dot11_csa_band::unknown;
+}
+
+static bool csa_channel_in_band(dot11_csa_band band, unsigned int channel) {
+    switch (band) {
+        case dot11_csa_band::band_24:
+            return channel >= 1 && channel <= 14;
+        case dot11_csa_band::band_5:
+            return channel >= 32 && channel <= 196;
+        case dot11_csa_band::band_6:
+            return (channel >= 1 && channel <= 233 && channel % 4 == 1) || channel == 2;
+        default:
+            return true;
+    }
+}
+
+static const char *csa_band_name(dot11_csa_band band) {
+    switch (band) {
+        case dot11_csa_band::band_24:
+            return "2.4 GHz";
+        case dot11_csa_band::band_5:
+            return "5 GHz";
+        case dot11_csa_band::band_6:
+            return "6 GHz";
+        default:
+            return "unknown";
+    }
+}
+
+static const char *csa_source_name(dot11_chan_switch::source src, ieee_80211_subtype subtype) {
+    switch (src) {
+        case dot11_chan_switch::source::csa_ie:
+            return subtype == packet_sub_beacon ? "CSA in a beacon" : "CSA in a probe response";
+        case dot11_chan_switch::source::ecsa_ie:
+            return subtype == packet_sub_beacon ? "ECSA in a beacon" : "ECSA in a probe response";
+        case dot11_chan_switch::source::action_csa:
+            return "spectrum management CSA action frame";
+        case dot11_chan_switch::source::action_ecsa:
+            return "public extended CSA action frame";
+        default:
+            return "unknown";
+    }
+}
+
+void kis_80211_phy::handle_chan_switch(const std::shared_ptr<kis_tracked_device_base>& bssid_dev,
+        const std::shared_ptr<dot11_tracked_device>& bssid_dot11,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
+
+    if (bssid_dev == nullptr || bssid_dot11 == nullptr)
+        return;
+
+    const auto& cs = dot11info->chan_switch;
+    const bool tsf_frame = dot11info->subtype == packet_sub_beacon ||
+        dot11info->subtype == packet_sub_probe_resp;
+    const uint64_t now_us = (uint64_t) in_pack->ts.tv_sec * 1000000 + in_pack->ts.tv_usec;
+
+    // Ad-hoc peers share a BSSID and all send beacons, so only frames from an AP are judged
+    const bool from_ap = dot11info->source_mac == dot11info->bssid_mac &&
+        dot11info->distrib != distrib_adhoc && !dot11info->ibss;
+
+    auto& ref = bssid_dot11->beacon_ref();
+
+    if (from_ap && dot11info->subtype == packet_sub_beacon && dot11info->beacon_interval > 0)
+        ref.interval = dot11info->beacon_interval;
+
+    if (!cs.present()) {
+        if (from_ap && tsf_frame && dot11info->timestamp != 0) {
+            // Beacons with the same TSF and another sequence number mean the AP's TSF can't be
+            // trusted; copies from several sources have the same sequence number
+            if (dot11info->timestamp == ref.tsf && dot11info->sequence_number != ref.seq)
+                ref.tsf_unreliable = true;
+
+            // Frames from a lagging source don't move the reference back
+            if (now_us >= ref.time_us) {
+                ref.tsf = dot11info->timestamp;
+                ref.seq = dot11info->sequence_number;
+                ref.time_us = now_us;
+            }
+
+            // A later frame without an announcement ends it, whether cancelled or switched
+            auto st = bssid_dot11->csa_state_if_any();
+            if (st != nullptr && st->valid && dot11info->timestamp > st->tsf)
+                st->valid = false;
+        }
+
+        return;
+    }
+
+    // Real APs don't beacon faster than every 20 TU; the interval comes from the frame, so a
+    // spoofer could forge a tiny one
+    const int interval = std::max(ref.interval > 0 ? ref.interval : 100, 20);
+
+    // Flood: an AP sends at most one beacon per beacon interval; alert on twice that many
+    // announcements from beacons and action frames
+    if (dot11info->subtype == packet_sub_beacon || dot11info->subtype == packet_sub_action) {
+        const unsigned int csa_window = 2;
+        auto beacons_sec = Ieee80211Interval2NSecs(interval);
+
+        bssid_dot11->inc_csa_event(1, in_pack->ts.tv_sec, csa_window);
+
+        if (bssid_dot11->csa_event_count() > 2 * csa_window * beacons_sec) {
+            alertracker->raise_alert(alert_dot11_csa_flood_ref,
+                    in_pack,
+                    dot11info->bssid_mac, dot11info->source_mac,
+                    dot11info->dest_mac, dot11info->other_mac,
+                    dot11info->channel,
+                    fmt::format("BSSID {} is sending an unusual number of Channel Switch "
+                        "Announcements, more than its beacon interval allows.  Channel switch "
+                        "announcements are a normal part of network operation, but this many in a "
+                        "short period of time may indicate a denial of service attack.",
+                        bssid_dev->get_macaddr()));
+        }
+    }
+
+    if (!from_ap)
+        return;
+
+    // The channel the AP is on: from the frame, else what we know of the AP (a plain number;
+    // other channel strings are left alone)
+    unsigned int cur_channel = cs.cur_channel;
+    const auto& dev_channel = bssid_dev->get_channel();
+    if (cur_channel == 0 && !dev_channel.empty() && dev_channel.length() <= 3 &&
+            std::all_of(dev_channel.begin(), dev_channel.end(), ::isdigit))
+        cur_channel = std::stoul(dev_channel);
+
+    // The band from the radio if we know it, else from the channel number
+    auto band = csa_band_from_khz(in_pack->signal_info.freq_khz);
+    if (band == dot11_csa_band::unknown)
+        band = csa_band_from_khz(bssid_dev->get_frequency());
+    if (band == dot11_csa_band::unknown)
+        band = csa_band_from_channel(cur_channel);
+
+    auto target_band = band;
+    const auto op_band = csa_band_from_op_class(cs.op_class);
+    if (op_band != dot11_csa_band::unknown)
+        target_band = op_band;
+
+    // An announcement for the channel the AP is already on is what APs keep sending right after
+    // a switch
+    const bool to_own_channel = target_band == band && cs.new_channel == cur_channel;
+
+    std::string reason;
+
+    if (to_own_channel) {
+        ;
+    } else if (band != dot11_csa_band::unknown && target_band != band) {
+        reason = fmt::format("points to channel {} in the {} band (operating class {}) while the AP "
+                "is in the {} band; clients disconnect instead of switching bands",
+                cs.new_channel, csa_band_name(target_band), cs.op_class, csa_band_name(band));
+    } else if (target_band != dot11_csa_band::unknown && !csa_channel_in_band(target_band, cs.new_channel)) {
+        reason = fmt::format("points to channel {}, which doesn't exist in the {} band; clients "
+                "disconnect", cs.new_channel, csa_band_name(target_band));
+    }
+
+    if (tsf_frame && dot11info->timestamp != 0 && !ref.tsf_unreliable) {
+        auto& st = bssid_dot11->csa_state();
+        const auto tsf = dot11info->timestamp;
+        const auto seq = dot11info->sequence_number;
+
+        // A copy of an earlier frame keeps its TSF; the AP's TSF never repeats, and copies of
+        // one frame from several sources keep its sequence number
+        if (reason.empty()) {
+            for (const auto& r : st.recent) {
+                if (r.first == tsf && r.second != seq) {
+                    reason = fmt::format("repeats the TSF {} of an earlier announcement with another "
+                            "sequence number, so the frame is a copy", tsf);
+                    break;
+                }
+            }
+        }
+
+        st.recent[st.recent_pos] = std::make_pair(tsf, seq);
+        st.recent_pos = (st.recent_pos + 1) % dot11_csa_state::recent_max;
+
+        // The TSF of an announcement should follow the AP's own beacons; allow the same slack as
+        // the BSS timestamp check, for clock differences between sources
+        const int64_t tsf_slack_us = 10 * 1000000LL;
+        if (reason.empty() && ref.tsf != 0 && ref.time_us != 0) {
+            const int64_t since_ref = (int64_t) (now_us - ref.time_us);
+
+            if (since_ref > -tsf_slack_us && since_ref < 60 * 1000000LL) {
+                const int64_t off = (int64_t) (tsf - ref.tsf) - since_ref;
+
+                if (off > tsf_slack_us || off < -tsf_slack_us)
+                    reason = fmt::format("has a TSF {:.1f} seconds off the AP's own beacons",
+                            (double) off / 1000000.0);
+            }
+        }
+
+        // The count follows the TSF: lost beacons skip it and frames from several sources arrive
+        // out of order, but it never holds or rises within one countdown
+        if (!to_own_channel) {
+            if (st.valid && (cs.new_channel != st.new_channel || cs.op_class != st.op_class ||
+                        cur_channel != st.cur_channel || tsf + 5 * 1000000ULL < st.tsf)) {
+                // A different announcement, or the AP restarted and its TSF started over
+                st.valid = false;
+            }
+
+            // st.tsf is the first TSF seen with st.count, so a count that holds adds up
+            bool update = !st.valid;
+
+            if (st.valid && tsf > st.tsf) {
+                const uint64_t elapsed = (tsf - st.tsf) / ((uint64_t) interval * 1024);
+
+                if (elapsed > (uint64_t) st.count + 2) {
+                    // The old countdown is long over; this is a new one
+                    update = true;
+                } else if (cs.count < st.count) {
+                    update = true;
+                } else if (cs.count > st.count + 1) {
+                    if (reason.empty())
+                        reason = fmt::format("raises the count from {} to {} within one countdown",
+                                st.count, cs.count);
+                    update = true;
+                } else if (elapsed >= 3 && reason.empty()) {
+                    reason = fmt::format("keeps the count at {} over {} beacon intervals",
+                            st.count, elapsed);
+                }
+            }
+
+            if (update) {
+                st.valid = true;
+                st.tsf = tsf;
+                st.count = cs.count;
+                st.new_channel = cs.new_channel;
+                st.op_class = cs.op_class;
+                st.cur_channel = cur_channel;
+            }
+        }
+    }
+
+    if (reason.empty())
+        return;
+
+    alertracker->raise_alert(alert_dot11_csa_spoof_ref,
+            in_pack,
+            dot11info->bssid_mac, dot11info->source_mac,
+            dot11info->dest_mac, dot11info->other_mac,
+            cur_channel != 0 ? fmt::format("{}", cur_channel) : dot11info->channel,
+            fmt::format("IEEE80211 Access Point BSSID {} sent a channel switch announcement ({}, "
+                "channel {}, count {}) that {}.  This may be a spoofed announcement to disconnect "
+                "clients.", bssid_dev->get_macaddr(), csa_source_name(cs.src, dot11info->subtype),
+                cs.new_channel, cs.count, reason));
+}
+
 void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<dot11_tracked_device>& dot11dev,
         const std::shared_ptr<kis_packet>& in_pack,
@@ -3564,12 +3828,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
     // Parse the new set of IE tags
-    auto ie_ret = packet_dot11_ie_dissector(in_pack.get(), dot11info.get());
-
-    // Remember whether these tags carry a CSA, for later frames with the same tags
-    dot11dev->set_last_adv_csa(dot11info->csa.parsed());
-
-    if (ie_ret < 0) {
+    if (packet_dot11_ie_dissector(in_pack.get(), dot11info.get()) < 0) {
         return;
     }
 
