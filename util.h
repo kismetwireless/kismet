@@ -666,7 +666,9 @@ void string_vector_merge(S& source, D *destination,
     return string_vector_merge<S, D>(&source, destination, merge_fn);
 }
 
-// highly inefficient inline filtering without recreating the object
+// highly inefficient inline filtering without recreating the object; for each filter entry,
+// removes the first destination element for which match_fn(filter entry, element) is true.
+// Unlike the merge_fn of string_vector_merge, true means "this is the one to remove".
 template <class D, class S>
 void string_vector_inline_filter(D *destination, S *filter,
         std::function<bool (const std::string& a, const std::string& b)> match_fn) {
