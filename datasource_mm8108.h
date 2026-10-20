@@ -81,6 +81,10 @@ public:
         set_passive_capable(false);
         set_tune_capable(true);
         set_hop_capable(true);
+
+        // HaLow APs beacon slowly, and can go nearly 2 seconds between beacons; a 2 second
+        // dwell catches one on every channel
+        set_max_hop_rate(1.0 / 2);
     }
 };
 
