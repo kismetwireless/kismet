@@ -3541,8 +3541,6 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         const std::shared_ptr<dot11_packinfo>& dot11info) {
     std::shared_ptr<dot11_advertised_ssid> ssid;
 
-    bool channel_from_ht = false;
-
     if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_resp) {
         return;
     }
@@ -3657,6 +3655,13 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
     }
+
+    // The channel this frame advertises, the HT primary channel if there is one, and the channel
+    // the SSID advertised before this frame; the HT tags below update the SSID channel directly
+    auto adv_channel = dot11info->channel;
+    if (dot11info->dot11ht.parsed())
+        adv_channel = n_to_string<int>(dot11info->dot11ht.primary_channel());
+    auto prev_channel = ssid->get_channel();
 
     if (new_ssid) {
         packet_dot11_parse_ie_list(in_pack.get(), dot11info.get());
@@ -3977,8 +3982,6 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         // Set the HT and VHT info.  If we have VHT, we assume we must have HT; I've never
         // seen VHT without HT.  We handle HT only later on.
         if (dot11info->dot11vht.parsed() && dot11info->dot11ht.parsed()) {
-            channel_from_ht = true;
-
             // Grab the primary channel from the HT data
             ssid->set_channel(n_to_string<int>(dot11info->dot11ht.primary_channel()));
 
@@ -4016,8 +4019,6 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             } else if (dot11info->dot11ht.ht_info_chan_offset_below()) {
                 ssid->set_ht_mode("HT40-");
             }
-
-            channel_from_ht = true;
 
             ssid->set_ht_center_1(0);
             ssid->set_ht_center_2(0);
@@ -4115,34 +4116,45 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         basedev->set_crypt_string(crypt_s);
     }
 
-    if (!channel_from_ht && ssid->get_channel().length() > 0 &&
-            ssid->get_channel() != dot11info->channel && dot11info->channel != "0") {
-
+    if (adv_channel.length() > 0 && adv_channel != "0") {
         if (dot11info->subtype == packet_sub_beacon) {
-            auto al =
-                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
-                        "from {} to {}, which may indicate spoofing or impersonation.  This may also be a "
-                        "normal event where the AP seeks a less congested channel.",
-                        basedev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(),
-                        dot11info->channel);
+            if (prev_channel.length() > 0 && prev_channel != adv_channel) {
+                auto al =
+                    fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
+                            "from {} to {}, which may indicate spoofing or impersonation.  This may also be a "
+                            "normal event where the AP seeks a less congested channel.",
+                            basedev->get_macaddr(), ssid->get_ssid(), prev_channel, adv_channel);
 
-            alertracker->raise_alert(alert_chan_ref, in_pack,
-                    dot11info->bssid_mac, dot11info->source_mac,
-                    dot11info->dest_mac, dot11info->other_mac,
-                    dot11info->channel, al);
+                alertracker->raise_alert(alert_chan_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
+            }
 
-            ssid->set_channel(dot11info->channel);
+            ssid->set_channel(adv_channel);
         } else if (dot11info->subtype == packet_sub_probe_resp) {
-            auto al =
-                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
-                        "channel {} while advertising channel {}.  This may indicate spoofing or "
-                        "impersonation, or may indicate a misconfigured or misbehaving access "
-                        "point or repeater.",
-                        basedev->get_macaddr(), ssid->get_ssid(), dot11info->channel, ssid->get_channel());
-            alertracker->raise_alert(alert_probechan_ref, in_pack,
-                    dot11info->bssid_mac, dot11info->source_mac,
-                    dot11info->dest_mac, dot11info->other_mac,
-                    dot11info->channel, al);
+            // Compare with the channel the same SSID advertises in beacons
+            std::shared_ptr<dot11_advertised_ssid> adv_ssid;
+            auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
+            if (adv_ssid_map != nullptr) {
+                auto adv_itr = adv_ssid_map->find(dot11info->ssid_csum);
+                if (adv_itr != adv_ssid_map->end())
+                    adv_ssid = std::static_pointer_cast<dot11_advertised_ssid>(adv_itr->second);
+            }
+
+            if (adv_ssid != nullptr && adv_ssid->get_channel().length() > 0 &&
+                    adv_ssid->get_channel() != adv_channel) {
+                auto al =
+                    fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
+                            "channel {} while advertising channel {}.  This may indicate spoofing or "
+                            "impersonation, or may indicate a misconfigured or misbehaving access "
+                            "point or repeater.",
+                            basedev->get_macaddr(), ssid->get_ssid(), adv_channel, adv_ssid->get_channel());
+                alertracker->raise_alert(alert_probechan_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
+            }
         }
     }
 
