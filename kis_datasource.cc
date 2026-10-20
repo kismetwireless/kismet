@@ -1959,7 +1959,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         string_vector_inline_filter<tracker_element_vector_string, std::vector<std::string>>(source_channels_vec.get(),
                 block_vec,
                 [](const std::string& a, const std::string& b) -> bool {
-                    return strcasecmp(a.c_str(), b.c_str()) != 0;
+                    return strcasecmp(a.c_str(), b.c_str()) == 0;
                 });
 
         string_vector_merge<std::vector<std::string>, tracker_element_vector_string>(add_vec, source_channels_vec.get(),
