@@ -1471,23 +1471,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                                     "is being spoofed.", dot11info->bssid_dev->get_macaddr()));
                     }
                 }
-
-				// check for CSA spam
-				if (dot11info->csa.parsed()) {
-					dot11info->bssid_dot11->inc_csa_event(1, in_pack->ts.tv_sec, 5);
-					if (dot11info->bssid_dot11->csa_event_count() >= 32) {
-                        d11phy->alertracker->raise_alert(d11phy->alert_dot11_csa_flood_ref,
-                                in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel,
-                                fmt::format("BSSID {} is sending an usual number of Channel Switch "
-									"Announcement packets.  CSA packets can be a normal part of network "
-									"operation, but an excessive number in a short period of time "
-									"may indicate a denial of service attack.",
-                                    dot11info->bssid_dev->get_macaddr()));
-					}
-				}
             }
 
             // Detect if we're an adhoc bssid
@@ -1512,6 +1495,30 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 						in_pack, dot11info);
                 dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+
+                // Count beacons with a CSA.  handle_ssid keeps the CSA state of the last parsed IE
+                // tags, so repeated identical beacons, which are not parsed again, count too.  An AP
+                // sends at most one beacon per beacon interval; alert on twice that many.
+                if (dot11info->bssid_dot11->get_last_adv_csa()) {
+                    const unsigned int csa_window = 2;
+                    auto beacons_sec =
+                        Ieee80211Interval2NSecs(dot11info->beacon_interval > 0 ? dot11info->beacon_interval : 100);
+
+                    dot11info->bssid_dot11->inc_csa_event(1, in_pack->ts.tv_sec, csa_window);
+
+                    if (dot11info->bssid_dot11->csa_event_count() > 2 * csa_window * beacons_sec) {
+                        d11phy->alertracker->raise_alert(d11phy->alert_dot11_csa_flood_ref,
+                                in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel,
+                                fmt::format("BSSID {} is sending an unusual number of Channel Switch "
+                                    "Announcement beacons, more than its beacon interval allows.  CSA "
+                                    "beacons are a normal part of network operation, but this many in a "
+                                    "short period of time may indicate a denial of service attack.",
+                                    dot11info->bssid_dev->get_macaddr()));
+                    }
+                }
             } else if (dot11info->subtype == packet_sub_probe_resp) {
                 d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11,
 						in_pack, dot11info);
@@ -3556,7 +3563,12 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
     // Parse the new set of IE tags
-    if (packet_dot11_ie_dissector(in_pack.get(), dot11info.get()) < 0) {
+    auto ie_ret = packet_dot11_ie_dissector(in_pack.get(), dot11info.get());
+
+    // Remember whether these tags carry a CSA, for later frames with the same tags
+    dot11dev->set_last_adv_csa(dot11info->csa.parsed());
+
+    if (ie_ret < 0) {
         return;
     }
 
