@@ -611,25 +611,19 @@ uint64_t human_to_freq_khz(const std::string&);
 template <class S, class D>
 void string_vector_merge(S *source, D *destination,
         std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
-    bool dest_empty = destination->size() == 0;
-
+    // checked against everything merged so far, so duplicates in the source are dropped too
     for (const auto& si : *source) {
-        if (dest_empty) {
+        bool merge = true;
+        for (const auto& sd : *destination) {
+            merge = merge_fn(si, sd);
+
+            if (!merge) {
+                break;
+            }
+        }
+
+        if (merge) {
             destination->push_back(si);
-            continue;
-        } else {
-            bool merge = true;
-            for (const auto& sd : *destination) {
-                merge = merge_fn(si, sd);
-
-                if (!merge) {
-                    break;
-                }
-            }
-
-            if (merge) {
-                destination->push_back(si);
-            }
         }
     }
 }
@@ -637,25 +631,18 @@ void string_vector_merge(S *source, D *destination,
 template <class S, class D>
 void string_vector_merge(const S& source, D *destination,
         std::function<bool (const std::string& a, const std::string& b)> merge_fn) {
-    bool dest_empty = destination->size() == 0;
-
     for (const auto& si : source) {
-        if (dest_empty) {
+        bool merge = true;
+        for (const auto& sd : *destination) {
+            merge = merge_fn(si, sd);
+
+            if (!merge) {
+                break;
+            }
+        }
+
+        if (merge) {
             destination->push_back(si);
-            continue;
-        } else {
-            bool merge = true;
-            for (const auto& sd : *destination) {
-                merge = merge_fn(si, sd);
-
-                if (!merge) {
-                    break;
-                }
-            }
-
-            if (merge) {
-                destination->push_back(si);
-            }
         }
     }
 }
