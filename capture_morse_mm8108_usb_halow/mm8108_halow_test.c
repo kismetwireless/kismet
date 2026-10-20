@@ -30,6 +30,7 @@
 #include <unistd.h>
 
 #include "libmm8108/mm8108.h"
+#include "../firmware_file.h"
 #include "libmm8108/mm_channels.h"
 #include "libmm8108/mm_radiotap.h"
 #include "libmm8108/mm_util.h"
@@ -92,14 +93,18 @@ static bool file_exists(const char *path) {
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
-/* Finds name in dir or in a morse-firmware checkout layout under dir */
+/* Finds name in dir or in a morse-firmware checkout layout under dir, as named or compressed */
 static bool find_file(const char *dir, const char *name, char *out, size_t out_len) {
     static const char *subdirs[] = { "", "/firmware", "/bcf/morsemicro" };
+    const char *suffixes[FW_FILE_MAX_SUFFIXES];
+    size_t num_suffixes = fw_file_suffixes(suffixes);
 
     for (size_t i = 0; i < sizeof(subdirs) / sizeof(subdirs[0]); i++) {
-        snprintf(out, out_len, "%s%s/%s", dir, subdirs[i], name);
-        if (file_exists(out))
-            return true;
+        for (size_t x = 0; x < num_suffixes; x++) {
+            int n = snprintf(out, out_len, "%s%s/%s%s", dir, subdirs[i], name, suffixes[x]);
+            if (n > 0 && (size_t) n < out_len && file_exists(out))
+                return true;
+        }
     }
 
     return false;

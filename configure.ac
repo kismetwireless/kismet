@@ -1644,6 +1644,41 @@ if test x"$want_coconut" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HAK5_COCONUT)"
 fi
 
+# Compressed firmware for the userspace drivers; many distributions install linux-firmware
+# compressed with zstd or xz
+want_fwcompress="yes"
+AC_ARG_ENABLE([firmware-compression],
+    AS_HELP_STRING([--disable-firmware-compression], [Disable loading zstd and xz compressed firmware in the userspace USB drivers]),
+	[case "${enableval}" in
+          no) want_fwcompress=no ;;
+           *) want_fwcompress=yes ;;
+	 esac],
+         [want_fwcompress=yes]
+)
+
+FIRMWARELIBS=""
+FIRMWARECFLAGS=""
+fw_compression=""
+if test x"$want_fwcompress" = x"yes"; then
+    PKG_CHECK_MODULES([libzstd], [libzstd], [have_libzstd=yes], [have_libzstd=no])
+    if test x"$have_libzstd" = x"yes"; then
+        AC_DEFINE(HAVE_LIBZSTD, 1, [zstd compressed firmware support])
+        FIRMWARELIBS="$FIRMWARELIBS $libzstd_LIBS"
+        FIRMWARECFLAGS="$FIRMWARECFLAGS $libzstd_CFLAGS"
+        fw_compression="zstd"
+    fi
+
+    PKG_CHECK_MODULES([liblzma], [liblzma], [have_liblzma=yes], [have_liblzma=no])
+    if test x"$have_liblzma" = x"yes"; then
+        AC_DEFINE(HAVE_LIBLZMA, 1, [xz compressed firmware support])
+        FIRMWARELIBS="$FIRMWARELIBS $liblzma_LIBS"
+        FIRMWARECFLAGS="$FIRMWARECFLAGS $liblzma_CFLAGS"
+        fw_compression="$fw_compression xz"
+    fi
+fi
+AC_SUBST(FIRMWARELIBS)
+AC_SUBST(FIRMWARECFLAGS)
+
 # Built by default on Linux and macOS when libusb is available
 want_usbwifi="auto"
 AC_ARG_ENABLE([usbwifi],
@@ -2419,6 +2454,14 @@ if test "$BUILD_CAPTURE_MM8108" = 1; then
 	echo "yes";
 else
 	echo "no ($mm8108_reason)";
+fi
+printf "   Compressed firmware: "
+if test x"$want_fwcompress" != x"yes"; then
+	echo "no (disabled)";
+elif test x"$fw_compression" = x""; then
+	echo "no (libzstd and liblzma not found)";
+else
+	echo "yes ($fw_compression )" | sed -e 's/( /(/' -e 's/ )/)/';
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then

@@ -23,10 +23,11 @@ CFLAGS += $(LIBUSBCFLAGS) -DFIRMWAREDIR=\"$(SHARE)/firmware\"
 all: $(MONITOR_BIN) $(TEST_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBUSBLIBS) $(DATASOURCE_LIBS)
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBUSBLIBS) $(FIRMWARELIBS) $(DATASOURCE_LIBS)
 
-$(TEST_BIN):	$(TEST_OBJS) $(patsubst %c.o,%c.d,$(TEST_OBJS))
-		$(CCLD) $(LDFLAGS) -o $(TEST_BIN) $(TEST_OBJS) $(LIBUSBLIBS)
+# Only the firmware file reader comes from the datasource library
+$(TEST_BIN):	$(TEST_OBJS) $(patsubst %c.o,%c.d,$(TEST_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(TEST_BIN) $(TEST_OBJS) ../libkismetdatasource.a $(LIBUSBLIBS) $(FIRMWARELIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN) $(TEST_BIN)

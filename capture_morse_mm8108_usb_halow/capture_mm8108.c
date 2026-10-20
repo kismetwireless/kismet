@@ -55,6 +55,7 @@
 
 #include "../config.h"
 #include "../capture_framework.h"
+#include "../firmware_file.h"
 
 #include "libmm8108/mm8108.h"
 #include "libmm8108/mm_channels.h"
@@ -192,30 +193,34 @@ static bool try_path(char *out, size_t out_len, const char *fmt, ...) {
 /* Finds name in the firmwaredir= directory and Kismet's, as installed or in the layout of a
  * morse-firmware checkout, then on Linux in the system firmware directories, in the
  * linux-firmware layout (morsemicro/mm81x/v<firmware interface version>) and morse_driver's
- * (morse) */
+ * (morse); in each, as named and then in each compressed form. */
 static bool find_firmware(const char *fw_dir, const char *name, char *out, size_t out_len) {
     static const char *subdirs[] = { "", "/firmware", "/bcf/morsemicro" };
     const char *dirs[] = { fw_dir, FIRMWAREDIR "/morse" };
     char sys_dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN];
-    size_t num_sys;
+    const char *suffixes[FW_FILE_MAX_SUFFIXES];
+    size_t num_sys = cf_system_firmware_dirs(sys_dirs);
+    size_t num_suffixes = fw_file_suffixes(suffixes);
 
     for (size_t d = 0; d < sizeof(dirs) / sizeof(dirs[0]); d++) {
         if (dirs[d] == NULL)
             continue;
 
-        for (size_t s = 0; s < sizeof(subdirs) / sizeof(subdirs[0]); s++) {
-            if (try_path(out, out_len, "%s%s/%s", dirs[d], subdirs[s], name))
-                return true;
-        }
+        for (size_t s = 0; s < sizeof(subdirs) / sizeof(subdirs[0]); s++)
+            for (size_t x = 0; x < num_suffixes; x++)
+                if (try_path(out, out_len, "%s%s/%s%s", dirs[d], subdirs[s], name, suffixes[x]))
+                    return true;
     }
 
-    num_sys = cf_system_firmware_dirs(sys_dirs);
-
     for (size_t d = 0; d < num_sys; d++) {
-        if (try_path(out, out_len, "%s/morsemicro/mm81x/v%u/%s", sys_dirs[d],
-                    (unsigned int) MM8108_FW_SEMVER_MAJOR, name) ||
-                try_path(out, out_len, "%s/morse/%s", sys_dirs[d], name))
-            return true;
+        for (size_t x = 0; x < num_suffixes; x++)
+            if (try_path(out, out_len, "%s/morsemicro/mm81x/v%u/%s%s", sys_dirs[d],
+                        (unsigned int) MM8108_FW_SEMVER_MAJOR, name, suffixes[x]))
+                return true;
+
+        for (size_t x = 0; x < num_suffixes; x++)
+            if (try_path(out, out_len, "%s/morse/%s%s", sys_dirs[d], name, suffixes[x]))
+                return true;
     }
 
     return false;

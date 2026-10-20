@@ -673,6 +673,12 @@ LIBBTBBCFLAGS
 LIBBTBBLIBS
 LIBUBERTOOTHCFLAGS
 LIBUBERTOOTHLIBS
+FIRMWARECFLAGS
+FIRMWARELIBS
+liblzma_LIBS
+liblzma_CFLAGS
+libzstd_LIBS
+libzstd_CFLAGS
 LIBUSBCFLAGS
 LIBUSBLIBS
 libusb_LIBS
@@ -831,6 +837,7 @@ enable_libnm
 with_netlink_tiny
 enable_libusb
 enable_wifi_coconut
+enable_firmware_compression
 enable_usbwifi
 enable_mm8108
 enable_ubertooth
@@ -879,6 +886,10 @@ libnl1_CFLAGS
 libnl1_LIBS
 libusb_CFLAGS
 libusb_LIBS
+libzstd_CFLAGS
+libzstd_LIBS
+liblzma_CFLAGS
+liblzma_LIBS
 librtlsdr_CFLAGS
 librtlsdr_LIBS
 libmosquitto_CFLAGS
@@ -1534,6 +1545,9 @@ Optional Features:
   --disable-libusb        Disable libUSB support and any libUSB based data
                           sources
   --enable-wifi-coconut   Enable Hak5 WiFi Coconut userspace
+  --disable-firmware-compression
+                          Disable loading zstd and xz compressed firmware in
+                          the userspace USB drivers
   --disable-usbwifi       Disable userspace USB Wi-Fi (Linux drivers on
                           libusb); built by default on Linux and macOS when
                           libusb is available
@@ -1617,6 +1631,14 @@ Some influential environment variables:
   libusb_CFLAGS
               C compiler flags for libusb, overriding pkg-config
   libusb_LIBS linker flags for libusb, overriding pkg-config
+  libzstd_CFLAGS
+              C compiler flags for libzstd, overriding pkg-config
+  libzstd_LIBS
+              linker flags for libzstd, overriding pkg-config
+  liblzma_CFLAGS
+              C compiler flags for liblzma, overriding pkg-config
+  liblzma_LIBS
+              linker flags for liblzma, overriding pkg-config
   librtlsdr_CFLAGS
               C compiler flags for librtlsdr, overriding pkg-config
   librtlsdr_LIBS
@@ -14837,6 +14859,190 @@ if test x"$want_coconut" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HAK5_COCONUT)"
 fi
 
+# Compressed firmware for the userspace drivers; many distributions install linux-firmware
+# compressed with zstd or xz
+want_fwcompress="yes"
+# Check whether --enable-firmware-compression was given.
+if test ${enable_firmware_compression+y}
+then :
+  enableval=$enable_firmware_compression; case "${enableval}" in
+          no) want_fwcompress=no ;;
+           *) want_fwcompress=yes ;;
+	 esac
+else case e in #(
+  e) want_fwcompress=yes
+ ;;
+esac
+fi
+
+
+FIRMWARELIBS=""
+FIRMWARECFLAGS=""
+fw_compression=""
+if test x"$want_fwcompress" = x"yes"; then
+
+pkg_failed=no
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for libzstd" >&5
+printf %s "checking for libzstd... " >&6; }
+
+if test -n "$libzstd_CFLAGS"; then
+    pkg_cv_libzstd_CFLAGS="$libzstd_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libzstd\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libzstd") 2>&5
+  ac_status=$?
+  printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libzstd_CFLAGS=`$PKG_CONFIG --cflags "libzstd" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libzstd_LIBS"; then
+    pkg_cv_libzstd_LIBS="$libzstd_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libzstd\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libzstd") 2>&5
+  ac_status=$?
+  printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libzstd_LIBS=`$PKG_CONFIG --libs "libzstd" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+                libzstd_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libzstd" 2>&1`
+        else
+                libzstd_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libzstd" 2>&1`
+        fi
+        # Put the nasty error message in config.log where it belongs
+        echo "$libzstd_PKG_ERRORS" >&5
+
+        have_libzstd=no
+elif test $pkg_failed = untried; then
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
+        have_libzstd=no
+else
+        libzstd_CFLAGS=$pkg_cv_libzstd_CFLAGS
+        libzstd_LIBS=$pkg_cv_libzstd_LIBS
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf '%s\n' "yes" >&6; }
+        have_libzstd=yes
+fi
+    if test x"$have_libzstd" = x"yes"; then
+
+printf '%s\n' "#define HAVE_LIBZSTD 1" >>confdefs.h
+
+        FIRMWARELIBS="$FIRMWARELIBS $libzstd_LIBS"
+        FIRMWARECFLAGS="$FIRMWARECFLAGS $libzstd_CFLAGS"
+        fw_compression="zstd"
+    fi
+
+
+pkg_failed=no
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for liblzma" >&5
+printf %s "checking for liblzma... " >&6; }
+
+if test -n "$liblzma_CFLAGS"; then
+    pkg_cv_liblzma_CFLAGS="$liblzma_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"liblzma\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "liblzma") 2>&5
+  ac_status=$?
+  printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_liblzma_CFLAGS=`$PKG_CONFIG --cflags "liblzma" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$liblzma_LIBS"; then
+    pkg_cv_liblzma_LIBS="$liblzma_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"liblzma\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "liblzma") 2>&5
+  ac_status=$?
+  printf '%s\n' "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_liblzma_LIBS=`$PKG_CONFIG --libs "liblzma" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+                liblzma_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "liblzma" 2>&1`
+        else
+                liblzma_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "liblzma" 2>&1`
+        fi
+        # Put the nasty error message in config.log where it belongs
+        echo "$liblzma_PKG_ERRORS" >&5
+
+        have_liblzma=no
+elif test $pkg_failed = untried; then
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
+        have_liblzma=no
+else
+        liblzma_CFLAGS=$pkg_cv_liblzma_CFLAGS
+        liblzma_LIBS=$pkg_cv_liblzma_LIBS
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf '%s\n' "yes" >&6; }
+        have_liblzma=yes
+fi
+    if test x"$have_liblzma" = x"yes"; then
+
+printf '%s\n' "#define HAVE_LIBLZMA 1" >>confdefs.h
+
+        FIRMWARELIBS="$FIRMWARELIBS $liblzma_LIBS"
+        FIRMWARECFLAGS="$FIRMWARECFLAGS $liblzma_CFLAGS"
+        fw_compression="$fw_compression xz"
+    fi
+fi
+
+
+
 # Built by default on Linux and macOS when libusb is available
 want_usbwifi="auto"
 # Check whether --enable-usbwifi was given.
@@ -17396,6 +17602,14 @@ if test "$BUILD_CAPTURE_MM8108" = 1; then
 	echo "yes";
 else
 	echo "no ($mm8108_reason)";
+fi
+printf "   Compressed firmware: "
+if test x"$want_fwcompress" != x"yes"; then
+	echo "no (disabled)";
+elif test x"$fw_compression" = x""; then
+	echo "no (libzstd and liblzma not found)";
+else
+	echo "yes ($fw_compression )" | sed -e 's/( /(/' -e 's/ )/)/';
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
