@@ -82,7 +82,7 @@ PROTOBUF_CPP_H = \
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
     mpack/mpack.c.o \
-	simple_ringbuf_c.c.o version.c.o capture_framework.c.o
+	simple_ringbuf_c.c.o version.c.o capture_framework.c.o firmware_file.c.o
 DATASOURCE_COMMON_A = libkismetdatasource.a
 
 CAPTURE_PCAPFILE_O = \
@@ -994,6 +994,9 @@ protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+
+# Decompression libraries for firmware files
+firmware_file.c.o firmware_file.c.d: CFLAGS += $(FIRMWARECFLAGS)
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

@@ -348,10 +348,11 @@ int mm_boot(struct mm8108_dev *dev, const struct mm8108_boot_config *cfg);
 
 /* Board config file names to try, in order, when none is chosen: the one for the board type
  * in OTP, the system default bcf_default.bin (as morse_driver uses), then the MM8108
- * reference module's, which the MM8108 board types in morse-firmware all use.  Returns the
- * number of names; the board type name is only first when OTP has a board type. */
+ * reference module's, which the MM8108 board types in morse-firmware all use, under its
+ * morse-firmware and linux-firmware names.  Returns the number of names; the board type
+ * name is only first when OTP has a board type. */
 #define MM_BCF_NAME_LEN 32
-#define MM_BCF_MAX_NAMES 3
+#define MM_BCF_MAX_NAMES 4
 size_t mm_bcf_default_names(const struct mm8108_dev *dev,
         char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN]);
 

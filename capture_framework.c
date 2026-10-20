@@ -56,6 +56,10 @@
 #endif
 
 #include "capture_framework.h"
+
+#ifdef SYS_LINUX
+#include <sys/utsname.h>
+#endif
 #include "kis_external_packet.h"
 #include "kis_endian.h"
 #include "remote_announcement.h"
@@ -134,6 +138,46 @@ uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
 
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
     return adler32_append_csum(in_buf, in_len, 0);
+}
+
+size_t cf_system_firmware_dirs(char dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN]) {
+#ifdef SYS_LINUX
+    struct utsname un;
+    char custom[CF_FIRMWARE_PATH_LEN * 2];
+    bool release = false;
+    size_t n = 0;
+    FILE *f;
+
+    /* A release with a path separator can't be part of a directory name */
+    if (uname(&un) == 0 && un.release[0] != 0 && strchr(un.release, '/') == NULL &&
+            strcmp(un.release, "..") != 0 && strcmp(un.release, ".") != 0)
+        release = true;
+
+    /* Set on the kernel command line or by the distribution; empty if unset */
+    if ((f = fopen("/sys/module/firmware_class/parameters/path", "r")) != NULL) {
+        if (fgets(custom, sizeof(custom), f) != NULL) {
+            custom[strcspn(custom, "\n")] = 0;
+
+            if (custom[0] == '/' && strlen(custom) < CF_FIRMWARE_PATH_LEN &&
+                    strstr(custom, "..") == NULL)
+                snprintf(dirs[n++], CF_FIRMWARE_PATH_LEN, "%s", custom);
+        }
+
+        fclose(f);
+    }
+
+    if (release)
+        snprintf(dirs[n++], CF_FIRMWARE_PATH_LEN, "/lib/firmware/updates/%s", un.release);
+    snprintf(dirs[n++], CF_FIRMWARE_PATH_LEN, "/lib/firmware/updates");
+    if (release)
+        snprintf(dirs[n++], CF_FIRMWARE_PATH_LEN, "/lib/firmware/%s", un.release);
+    snprintf(dirs[n++], CF_FIRMWARE_PATH_LEN, "/lib/firmware");
+
+    return n;
+#else
+    (void) dirs;
+    return 0;
+#endif
 }
 
 int cf_parse_interface(char **ret_interface, char *definition) {

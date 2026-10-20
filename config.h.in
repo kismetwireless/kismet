@@ -144,6 +144,12 @@
 /* libwebsockets */
 #undef HAVE_LIBWEBSOCKETS
 
+/* xz compressed firmware support */
+#undef HAVE_LIBLZMA
+
+/* zstd compressed firmware support */
+#undef HAVE_LIBZSTD
+
 /* Linux wireless iwfreq.flag */
 #undef HAVE_LINUX_IWFREQFLAG
 

@@ -1045,6 +1045,16 @@ void cf_set_verbose(kis_capture_handler_t *caph, int verbosity);
 uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs);
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len);
 
+/* The system firmware directories, in the order the Linux kernel's firmware loader searches
+ * them: the firmware_class.path parameter, /lib/firmware/updates/<release>,
+ * /lib/firmware/updates, /lib/firmware/<release>, then /lib/firmware.  Files are laid out
+ * as in linux-firmware (https://gitlab.com/kernel-firmware/linux-firmware), by the name
+ * drivers request, such as mediatek/WIFI_RAM_CODE_MT7961_1.bin.  Returns the number of
+ * directories filled in; none on other platforms. */
+#define CF_FIRMWARE_PATH_LEN    256
+#define CF_FIRMWARE_MAX_DIRS    5
+size_t cf_system_firmware_dirs(char dirs[CF_FIRMWARE_MAX_DIRS][CF_FIRMWARE_PATH_LEN]);
+
 /* Wait for an announcement from a Kismet server, populate the connection info */
 int cf_wait_announcement(kis_capture_handler_t *caph);
 

@@ -117,10 +117,12 @@ $(LIB): $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(GLUE_OBJS) $(COMMON_OBJS
 
 $(MONITOR_BIN): capture_usbwifi.o $(LIB) ../libkismetdatasource.a
 	$(CC) $(LDFLAGS) -pthread -o $@ capture_usbwifi.o $(WHOLE_ARCHIVE) ../libkismetdatasource.a \
-		$(LIBUSBLIBS) $(DATASOURCE_LIBS)
+		$(LIBUSBLIBS) $(FIRMWARELIBS) $(DATASOURCE_LIBS)
 
-$(TOOL): tools/uwifi_test.o $(LIB)
-	$(CC) $(LDFLAGS) -pthread -o $@ tools/uwifi_test.o $(WHOLE_ARCHIVE) $(LIBUSBLIBS)
+# Only the firmware file reader comes from the datasource library
+$(TOOL): tools/uwifi_test.o $(LIB) ../libkismetdatasource.a
+	$(CC) $(LDFLAGS) -pthread -o $@ tools/uwifi_test.o $(WHOLE_ARCHIVE) ../libkismetdatasource.a \
+		$(LIBUSBLIBS) $(FIRMWARELIBS)
 
 capture_usbwifi.o: capture_usbwifi.c
 	$(CC) $(CAP_CFLAGS) -c $< -o $@

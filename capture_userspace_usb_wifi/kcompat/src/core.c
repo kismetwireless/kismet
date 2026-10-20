@@ -26,6 +26,7 @@
 #include <unistd.h>
 
 #include <kcompat/kcompat.h>
+#include "../../../firmware_file.h"
 #include <kcompat/host.h>
 
 /* Logging */
@@ -306,7 +307,7 @@ void *idr_get_next(const struct idr *idr, int *nextid) {
 }
 
 /* Firmware: name is a relative path such as "mediatek/WIFI_RAM_CODE_MT7961_1.bin" */
-#define KC_FW_MAX_PATHS 8
+#define KC_FW_MAX_PATHS 16
 #define KC_FW_MAX_SIZE (16 * 1024 * 1024)
 static char *kc_fw_paths[KC_FW_MAX_PATHS];
 static size_t kc_fw_npaths;
@@ -317,46 +318,14 @@ void kc_firmware_set_paths(const char *const *paths, size_t n) {
     kc_fw_npaths = 0;
 
     for (size_t i = 0; i < n && kc_fw_npaths < KC_FW_MAX_PATHS; i++)
-        if (paths[i] != NULL)
-            kc_fw_paths[kc_fw_npaths++] = strdup(paths[i]);
+        if (paths[i] != NULL && (kc_fw_paths[kc_fw_npaths] = strdup(paths[i])) != NULL)
+            kc_fw_npaths++;
 }
 
-static int kc_firmware_read(const char *path, struct firmware *fw) {
-    struct stat st;
-    u8 *buf;
-    int fd;
-
-    if ((fd = open(path, O_RDONLY)) < 0)
-        return -errno;
-
-    if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode) || st.st_size <= 0 || st.st_size > KC_FW_MAX_SIZE) {
-        close(fd);
-        return -EINVAL;
-    }
-
-    if ((buf = malloc((size_t) st.st_size)) == NULL) {
-        close(fd);
-        return -ENOMEM;
-    }
-
-    size_t got = 0;
-    while (got < (size_t) st.st_size) {
-        ssize_t r = read(fd, buf + got, (size_t) st.st_size - got);
-        if (r <= 0) {
-            free(buf);
-            close(fd);
-            return -EIO;
-        }
-        got += (size_t) r;
-    }
-
-    close(fd);
-    fw->data = buf;
-    fw->size = got;
-    return 0;
-}
-
+/* Each directory in turn, as named and then in each compressed form */
 int request_firmware(const struct firmware **fwp, const char *name, struct device *dev) {
+    const char *suffixes[FW_FILE_MAX_SUFFIXES];
+    size_t num_suffixes = fw_file_suffixes(suffixes);
     struct firmware *fw;
     char path[1024];
 
@@ -370,11 +339,25 @@ int request_firmware(const struct firmware **fwp, const char *name, struct devic
         return -ENOMEM;
 
     for (size_t i = 0; i < kc_fw_npaths; i++) {
-        snprintf(path, sizeof(path), "%s/%s", kc_fw_paths[i], name);
-        if (kc_firmware_read(path, fw) == 0) {
-            dev_dbg(dev, "loaded firmware %s (%zu bytes)", path, fw->size);
-            *fwp = fw;
-            return 0;
+        for (size_t s = 0; s < num_suffixes; s++) {
+            uint8_t *data;
+            size_t len;
+            int n, r;
+
+            n = snprintf(path, sizeof(path), "%s/%s%s", kc_fw_paths[i], name, suffixes[s]);
+            if (n < 0 || (size_t) n >= sizeof(path))
+                continue;
+
+            if ((r = fw_file_read(path, KC_FW_MAX_SIZE, &data, &len)) == 0) {
+                fw->data = data;
+                fw->size = len;
+                dev_dbg(dev, "loaded firmware %s (%zu bytes)", path, fw->size);
+                *fwp = fw;
+                return 0;
+            }
+
+            if (r != -ENOENT)
+                dev_err(dev, "could not load firmware %s: %s", path, strerror(-r));
         }
     }
 

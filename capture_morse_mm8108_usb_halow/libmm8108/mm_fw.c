@@ -30,6 +30,7 @@
 
 #include "mm8108.h"
 #include "mm_util.h"
+#include "../../firmware_file.h"
 
 #define MM_FW_MAX_FILE_SIZE     (4 * 1024 * 1024)
 #define MM_BCF_DEFAULT_SIZE     2048
@@ -81,40 +82,21 @@ struct mm_elf_shdr {
     uint32_t size;
 };
 
+/* Firmware files may be installed compressed */
 static int mm_file_load(struct mm8108_dev *dev, const char *path, struct mm_file *file) {
-    FILE *f;
-    long sz;
+    int r;
 
     file->data = NULL;
     file->len = 0;
 
-    if ((f = fopen(path, "rb")) == NULL)
-        return mm_error(dev, -errno, "could not open %s: %s", path, strerror(errno));
-
-    if (fseek(f, 0, SEEK_END) != 0 || (sz = ftell(f)) < 0 || fseek(f, 0, SEEK_SET) != 0) {
-        fclose(f);
-        return mm_error(dev, -EIO, "could not size %s", path);
+    if ((r = fw_file_read(path, MM_FW_MAX_FILE_SIZE, &file->data, &file->len)) < 0) {
+        if (r == -EFBIG)
+            return mm_error(dev, r, "%s is larger than %u bytes", path,
+                    (unsigned int) MM_FW_MAX_FILE_SIZE);
+        if (r == -ENOTSUP)
+            return mm_error(dev, r, "%s is compressed, and this build can't decompress it", path);
+        return mm_error(dev, r, "could not load %s: %s", path, strerror(-r));
     }
-
-    if (sz == 0 || sz > MM_FW_MAX_FILE_SIZE) {
-        fclose(f);
-        return mm_error(dev, -EFBIG, "%s has an invalid size (%ld)", path, sz);
-    }
-
-    if ((file->data = malloc((size_t) sz)) == NULL) {
-        fclose(f);
-        return mm_error(dev, -ENOMEM, "could not allocate %ld bytes for %s", sz, path);
-    }
-
-    if (fread(file->data, 1, (size_t) sz, f) != (size_t) sz) {
-        fclose(f);
-        free(file->data);
-        file->data = NULL;
-        return mm_error(dev, -EIO, "could not read %s", path);
-    }
-
-    fclose(f);
-    file->len = (size_t) sz;
 
     return 0;
 }
@@ -342,6 +324,7 @@ static int mm_bcf_find_regdom(const struct mm_elf *elf, const char *country,
 /* Board configs list the chip families they support in .chips */
 #define MM_BCF_CHIP_FAMILY      "mm810x"
 #define MM_BCF_REFERENCE        "bcf_mf15457.bin"
+#define MM_BCF_REFERENCE_LINUX  "bcf_mm8108_mf15457.bin"
 
 size_t mm_bcf_default_names(const struct mm8108_dev *dev,
         char names[MM_BCF_MAX_NAMES][MM_BCF_NAME_LEN]) {
@@ -352,6 +335,7 @@ size_t mm_bcf_default_names(const struct mm8108_dev *dev,
 
     snprintf(names[n++], MM_BCF_NAME_LEN, "bcf_default.bin");
     snprintf(names[n++], MM_BCF_NAME_LEN, "%s", MM_BCF_REFERENCE);
+    snprintf(names[n++], MM_BCF_NAME_LEN, "%s", MM_BCF_REFERENCE_LINUX);
 
     return n;
 }
