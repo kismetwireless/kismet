@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,6 +103,13 @@ typedef struct {
     int band;
 
     uint8_t channel;
+
+    /* Every command gets a response; data frames read before the responses to a channel
+     * change (STOP, PING, CFG_FREQUENCY, START) were received on the old channel.  Shared
+     * between the channel control and capture threads. */
+    pthread_mutex_t chan_mutex;
+    unsigned int pending_responses;
+    struct timeval pending_deadline;
 
     kis_capture_handler_t *caph;
 } local_catsniffer_t;
@@ -242,8 +250,30 @@ uint8_t get_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer)
     return r;
 }
 
+/* Account for the responses to n commands about to be sent, optionally with the channel they
+ * tune to.  Data frames are dropped until all responses are in, for at most 500ms from the
+ * first command still waiting for one; later commands don't extend that, so a lost response
+ * doesn't block the capture while hopping. */
+void expect_responses(local_catsniffer_t *catsniffer, unsigned int n, int channel) {
+    pthread_mutex_lock(&catsniffer->chan_mutex);
+    if (channel >= 0)
+        catsniffer->channel = channel;
+    if (catsniffer->pending_responses == 0) {
+        gettimeofday(&catsniffer->pending_deadline, NULL);
+        catsniffer->pending_deadline.tv_usec += 500000;
+        if (catsniffer->pending_deadline.tv_usec >= 1000000) {
+            catsniffer->pending_deadline.tv_sec++;
+            catsniffer->pending_deadline.tv_usec -= 1000000;
+        }
+    }
+    catsniffer->pending_responses += n;
+    pthread_mutex_unlock(&catsniffer->chan_mutex);
+}
+
 int init_interface(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer) {
     int r;
+
+    expect_responses(catsniffer, 3, -1);
 
     // Print the file descriptor to the console
     //printf("init_interface: TTY file descriptor is %d.\n", catsniffer->fd);
@@ -369,13 +399,14 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 1;
     }
 
+    /* STOP, PING, CFG_FREQUENCY, START */
+    expect_responses(localcatsniffer, 4, channel->channel);
+
     if (set_channel(caph, localcatsniffer, channel->channel) < 0) {
         snprintf(errstr, STATUS_MAX, "failed to set channel %u", channel->channel);
         cf_send_warning(caph, errstr);
         return 1;
     }
-
-    localcatsniffer->channel = channel->channel;
 
     return 1;
 }
@@ -635,26 +666,153 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return result;
     }
 
+    /* Tune to channel= (or the first channel) and start capturing.  The firmware only sniffs
+     * after START, which set_channel sends; with hopping Kismet changes the channel right
+     * after, without it nothing else would. */
+    if (band == 2) {
+        unsigned int open_chan = START_CHANNEL;
+        char chstr[4];
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+            char *chanstr = strndup(placeholder, placeholder_len);
+            int parsed = sscanf(chanstr, "%u", &open_chan);
+            free(chanstr);
+
+            if (parsed != 1 || open_chan < 11 || open_chan > 26) {
+                snprintf(msg, STATUS_MAX, "%s invalid channel= in source definition, expected 11-26",
+                        localcatsniffer->name);
+                return -1;
+            }
+        }
+
+        /* STOP, PING, CFG_FREQUENCY, START */
+        expect_responses(localcatsniffer, 4, open_chan);
+
+        if (set_channel(caph, localcatsniffer, open_chan) < 0) {
+            snprintf(msg, STATUS_MAX, "%s failed to set channel %u", localcatsniffer->name, open_chan);
+            return -1;
+        }
+
+        snprintf(chstr, sizeof(chstr), "%u", open_chan);
+        (*ret_interface)->chanset = strdup(chstr);
+    }
+
     return 1;
 }
 
-/* Work around serial port oddness and keep spinning reading from the serial
- * device until we get the amount of data we want or until it errors out. */
-int spin_read(int fd, uint8_t *buf, size_t len) {
-    size_t read_so_far = 0;
-    int r;
+/* TI Packet Sniffer 2 frames: SOF (0x40 0x53), packet info, 16 bit length (LE), payload,
+ * FCS (commands and responses only), EOF (0x40 0x45) */
+#define TI_INFO_DATA        0xC0
+#define TI_INFO_RESPONSE    0x80
+#define TI_MAX_FRAME        512
+#define TI_READ_BUF         (TI_MAX_FRAME * 2)
 
-    while (read_so_far < len) {
-        r = read(fd, buf + read_so_far, len - read_so_far);
+/* A response to one of our commands; count it against a pending channel change */
+static void response_received(local_catsniffer_t *localcatsniffer) {
+    pthread_mutex_lock(&localcatsniffer->chan_mutex);
+    if (localcatsniffer->pending_responses > 0)
+        localcatsniffer->pending_responses--;
+    pthread_mutex_unlock(&localcatsniffer->chan_mutex);
+}
 
-        if (r < 0) {
-            return r;
-        }
+/* Data frame payload: timestamp (6), PHR (1), MAC frame (PHR bytes), RSSI (1), status (1).
+ * Returns -1 when the capture has to stop. */
+static int handle_data_frame(kis_capture_handler_t *caph, local_catsniffer_t *localcatsniffer,
+        const uint8_t *data, uint16_t data_len) {
+    uint8_t chan;
+    int drop = 0;
+    struct timeval ts;
 
-        read_so_far += r;
+    gettimeofday(&ts, NULL);
+
+    pthread_mutex_lock(&localcatsniffer->chan_mutex);
+    if (localcatsniffer->pending_responses > 0) {
+        if (timercmp(&ts, &localcatsniffer->pending_deadline, <))
+            drop = 1;
+        else
+            localcatsniffer->pending_responses = 0;
+    }
+    chan = localcatsniffer->channel;
+    pthread_mutex_unlock(&localcatsniffer->chan_mutex);
+
+    /* Received before the channel change completed, so the channel is unknown */
+    if (drop)
+        return 0;
+
+    if (data_len < 6 + 1 + 2)
+        return 0;
+
+    const uint8_t mac_len = data[6];
+
+    if (6 + 1 + mac_len + 2 > data_len)
+        return 0;
+
+    const uint8_t *mac_payload = &data[7];
+    const int8_t rssi_dbm = (int8_t) data[data_len - 2];
+    const uint8_t crc_ok = data[data_len - 1];
+
+    // Skip CRC-bad frames
+    if (crc_ok == 0)
+        return 0;
+
+    // Allocate TAP header + 802.15.4 MAC payload (no FCS)
+    const uint32_t tap_sz = sizeof(_802_15_4_tap) + mac_len;
+    uint8_t *tap_pack = (uint8_t *) malloc(tap_sz);
+    if (tap_pack == NULL) {
+        char errstr[BUFFER_SIZE];
+        snprintf(errstr, sizeof(errstr), "%s - out of memory building TAP packet", localcatsniffer->name);
+        cf_send_error(caph, 0, errstr);
+        cf_handler_spindown(caph);
+        return -1;
     }
 
-    return read_so_far;
+    _802_15_4_tap *tap = (_802_15_4_tap *) tap_pack;
+    memset(tap, 0, sizeof(*tap));
+
+    // Header
+    tap->version  = kis_htole16(0);
+    tap->reserved = kis_htole16(0);
+    tap->length   = kis_htole16(sizeof(_802_15_4_tap));
+
+    // TLV 0: FCS present? => 0 (payload has no FCS)
+    tap->tlv[0].type   = kis_htole16(0);
+    tap->tlv[0].length = kis_htole16(1);
+    tap->tlv[0].value  = kis_htole32(0);
+
+    // TLV 1: RSSI (signed 8-bit in low byte; Kismet reads low byte)
+    tap->tlv[1].type   = kis_htole16(10);
+    tap->tlv[1].length = kis_htole16(1);
+    tap->tlv[1].value  = kis_htole32((uint8_t) rssi_dbm);
+
+    // TLV 2: Channel (use length 3 to match other drivers)
+    tap->tlv[2].type   = kis_htole16(3);
+    tap->tlv[2].length = kis_htole16(3);
+    uint32_t ch_val = (0u)                     /* page in byte0 */
+                    | (((uint32_t)chan) << 8)  /* channel in byte1 */
+                    | (0u << 16);              /* reserved in byte2 */
+    tap->tlv[2].value  = kis_htole32(ch_val);
+
+    // Copy MAC payload (no FCS) after the TAP header
+    memcpy(tap->payload, mac_payload, mac_len);
+
+    // Send via TAP DLT
+    int sr = cf_send_data(caph, NULL, 0, NULL, NULL, ts, KDLT_IEEE802_15_4_TAP,
+            mac_len, tap_sz, tap_pack);
+
+    free(tap_pack);
+
+    if (sr < 0) {
+        char err2[BUFFER_SIZE];
+        snprintf(err2, sizeof(err2), "%s - unable to send packet to Kismet server", localcatsniffer->name);
+        cf_send_error(caph, 0, err2);
+        cf_handler_spindown(caph);
+        return -1;
+    } else if (sr == 0) {
+        // ring full; this frame is dropped, wait before the next one
+        cf_handler_wait_ringbuffer(caph);
+    }
+
+    return 0;
 }
 
 void capture_thread(kis_capture_handler_t *caph) {
@@ -662,308 +820,104 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     char errstr[STATUS_MAX];
 
-    typedef struct {
-        uint8_t magic[2];
-        uint8_t type;
-        uint8_t pkt_len;
-    } __attribute__((packed)) fz_hdr;
-
-    uint8_t buf[BUFFER_SIZE];
-    uint8_t fragment_buf[BUFFER_SIZE];
-    int fragment_len = 0;
-    fz_hdr *hdr = (fz_hdr *) buf;
+    uint8_t buf[TI_READ_BUF];
+    size_t buf_len = 0;
 
     ssize_t r = 0;
 
     while (1) {
         if (caph->spindown) {
-            printf("capture_thread loop spindown detected.\n");
             break;
         }
 
-        // Read the header
-        r = spin_read(localcatsniffer->fd, buf, sizeof(fz_hdr));
+        /* Wait for data with a timeout so spindown is noticed; a read of 0 bytes after poll
+         * reported data, or a hangup, means the device is gone */
+        struct pollfd pfd = { .fd = localcatsniffer->fd, .events = POLLIN };
+        int pr = poll(&pfd, 1, 1000);
 
-        if (r < 0) {
-            snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
+        if (pr < 0) {
+            if (errno == EINTR)
+                continue;
+
+            snprintf(errstr, STATUS_MAX, "%s - error waiting for serial: %s",
                      localcatsniffer->name, strerror(errno));
             cf_send_error(caph, 0, errstr);
-            printf("capture_thread error error reading from serial A - setting spindown\n");
+            cf_handler_spindown(caph);
+            break;
+        }
+
+        if (pr == 0)
+            continue;
+
+        r = read(localcatsniffer->fd, buf + buf_len, sizeof(buf) - buf_len);
+
+        if (r < 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+
+            snprintf(errstr, STATUS_MAX, "%s - error reading from serial: %s",
+                     localcatsniffer->name, strerror(errno));
+            cf_send_error(caph, 0, errstr);
             cf_handler_spindown(caph);
             break;
         }
 
         if (r == 0) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localcatsniffer->name);
+            snprintf(errstr, STATUS_MAX, "%s - serial connection closed", localcatsniffer->name);
             cf_send_error(caph, 0, errstr);
-            printf("capture_thread error serial connection closed A - setting spindown\n");
             cf_handler_spindown(caph);
             break;
         }
 
-        if (r < sizeof(fz_hdr)) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full header", localcatsniffer->name);
-            cf_send_error(caph, 0, errstr);
-            printf("capture_thread error reading serial header - setting spindown\n");
-            cf_handler_spindown(caph);
-            break;
-        }
+        buf_len += r;
 
-        // Check the magic bytes
-        if (memcmp(hdr->magic, magic, 2) != 0) {
-            continue;  // Skip if magic bytes don't match
-        }
+        /* Frames don't line up with reads: command responses and data frames of any length
+         * come in between, so look for the SOF byte by byte */
+        size_t pos = 0;
+        int failed = 0;
 
-        // Check if the frame type is 0xC0 (frame packet)
-        if (hdr->type != 0xC0) {
-            continue;  // Skip if not a data frame - IE the frame doesn't bear radio traffic (could be a command response)
-        }
+        while (1) {
+            while (pos + 1 < buf_len && !(buf[pos] == 0x40 && buf[pos + 1] == 0x53))
+                pos++;
 
-        // Use pkt_len to determine the length of the packet and add 3 bytes for FCS and end-of-frame
-        uint8_t pkt_len = hdr->pkt_len + 3;
+            if (buf_len - pos < 5)
+                break;
 
-        if (pkt_len == 0 || pkt_len > BUFFER_SIZE - sizeof(fz_hdr)) {
-            continue;  // Skip if packet length is zero or exceeds buffer size
-        }
+            const uint8_t info = buf[pos + 2];
+            const uint16_t data_len = buf[pos + 3] | (buf[pos + 4] << 8);
+            const size_t frame_len = 5 + data_len + (info == TI_INFO_DATA ? 0 : 1) + 2;
 
-        // Read the remainder of the packet
-        r = spin_read(localcatsniffer->fd, buf + sizeof(fz_hdr), pkt_len);
+            if (frame_len > TI_MAX_FRAME) {
+                /* Not a frame start after all */
+                pos++;
+                continue;
+            }
 
-        if (r < 0) {
-            snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
-                     localcatsniffer->name, strerror(errno));
-            cf_send_error(caph, 0, errstr);
-            printf("capture_thread error reading from serial connection - setting spindown\n");
-            cf_handler_spindown(caph);
-            break;
-        }
+            if (buf_len - pos < frame_len)
+                break;
 
-        if (r == 0) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localcatsniffer->name);
-            cf_send_error(caph, 0, errstr);
-            printf("capture_thread error serial connection closed - setting spindown\n");
-            cf_handler_spindown(caph);
-            break;
-        }
+            if (buf[pos + frame_len - 2] != 0x40 || buf[pos + frame_len - 1] != 0x45) {
+                pos++;
+                continue;
+            }
 
-        if (r < pkt_len) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full packet", localcatsniffer->name);
-            cf_send_error(caph, 0, errstr);
-            printf("capture_thread error failed to read full packet - setting spindown\n");
-            cf_handler_spindown(caph);
-            break;
-        }
-
-        // Validate the end of frame bytes
-        if (buf[sizeof(fz_hdr) + pkt_len - 2] != 0x40 || buf[sizeof(fz_hdr) + pkt_len - 1] != 0x45) {
-            // If the last two bytes are not 0x40 0x45, search for a new frame starting with 0x40 0x53
-            for (int i = 0; i < pkt_len - 1; i++) {
-                if (buf[sizeof(fz_hdr) + i] == 0x40 && buf[sizeof(fz_hdr) + i + 1] == 0x53) {
-                    // Found the start of a new fragment
-                    fragment_len = pkt_len - i;
-                    if (fragment_len > BUFFER_SIZE) {
-                        fragment_len = BUFFER_SIZE;  // Prevent overflow
-                    }
-                    memcpy(fragment_buf, buf + sizeof(fz_hdr) + i, fragment_len);
-
-                    // Continue reading from the TTY until 0x40 0x45 is detected
-                    while (fragment_len < BUFFER_SIZE) {
-                        r = spin_read(localcatsniffer->fd, buf, BUFFER_SIZE);
-                        if (r <= 0) break;  // Handle errors or EOF
-
-                        int copy_len = BUFFER_SIZE - fragment_len;
-                        if (r < copy_len) {
-                            copy_len = r;  // Copy only as much as was read
-                        }
-                        memcpy(fragment_buf + fragment_len, buf, copy_len);
-                        fragment_len += copy_len;
-
-                        if (fragment_buf[fragment_len - 2] == 0x40 && fragment_buf[fragment_len - 1] == 0x45) {
-                            // Full packet received
-                            break;
-                        }
-                    }
-
-                    // Validate the reconstructed packet length
-                    uint8_t new_pkt_len = fragment_buf[2];
-                    if (new_pkt_len != fragment_len - 4) {
-                        fragment_len = 0;  // Discard invalid packet
-                        continue;
-                    }
-
-                    // Process the valid packet
-                    //printf("Reassembled frame (%d bytes): ", fragment_len); //Debug
-                    for (int j = 0; j < fragment_len; j++) {
-                        printf("%02X ", fragment_buf[j]);
-                    }
-                    printf("\n");
+            if (info == TI_INFO_DATA) {
+                if (handle_data_frame(caph, localcatsniffer, &buf[pos + 5], data_len) < 0) {
+                    failed = 1;
                     break;
                 }
+            } else if ((info & 0xC0) == TI_INFO_RESPONSE) {
+                response_received(localcatsniffer);
             }
-            continue;
+
+            pos += frame_len;
         }
 
+        if (failed)
+            break;
 
-        // Process the received data packet (send to Kismet, etc.)
-        while (1) {
-            struct timeval ts;
-            gettimeofday(&ts, NULL);
-
-            /* --------------------------------------------------------------
-             * We read:
-             *   - header: sizeof(fz_hdr) bytes already in buf[0..sizeof(fz_hdr)-1]
-             *   - body  : pkt_len bytes in buf[sizeof(fz_hdr) .. sizeof(fz_hdr)+pkt_len-1]
-             *
-             * Device frame layout inside `buf` (NOT send_buf):
-             *   buf[0..1]   : SOF        (0x40 0x53)
-             *   buf[2]      : type       (0xC0)
-             *   buf[3..4]   : length (LE)  <we currently treat hdr->pkt_len as 1B +3 trailer>
-             *   buf[5..10]  : device fields (6B)
-             *   buf[11]     : mac_len (payload length, no FCS)
-             *   buf[12..]   : MAC payload (mac_len bytes)
-             *   buf[sizeof(fz_hdr)+pkt_len-4] : RSSI (int8_t)
-             *   buf[sizeof(fz_hdr)+pkt_len-3] : CRC OK (nonzero good)
-             *   buf[sizeof(fz_hdr)+pkt_len-2..-1] : EOF (0x40 0x45)
-             * -------------------------------------------------------------- */
-
-            const size_t dev_total = sizeof(fz_hdr) + pkt_len;
-
-            // Channel comes from the *current tuned channel*
-            const uint8_t  chan        = localcatsniffer->channel;
-
-            // MAC payload length and pointer inside `buf`
-            const uint8_t  mac_len     = buf[11];
-            const uint8_t *mac_payload = &buf[12];
-
-            // Trailer fields (relative to whole frame we read into `buf`)
-            const int8_t   rssi_dbm    = (int8_t) buf[dev_total - 4];
-            const uint8_t  crc_ok      =           buf[dev_total - 3];     /* optional drop */
-
-            // Optional: skip CRC-bad frames
-            if (crc_ok == 0) {
-                // Ring wasn’t written to; just bail out of the inner loop to read next frame
-                break;
-            }
-
-            // Allocate TAP header + 802.15.4 MAC payload (no FCS)
-            const uint32_t tap_sz = sizeof(_802_15_4_tap) + mac_len;
-            uint8_t *tap_pack = (uint8_t *) malloc(tap_sz);
-            if (tap_pack == NULL) {
-                char errstr[BUFFER_SIZE];
-                snprintf(errstr, sizeof(errstr), "%s - out of memory building TAP packet", localcatsniffer->name);
-                cf_send_error(caph, 0, errstr);
-                cf_handler_spindown(caph);
-                break;
-            }
-
-            _802_15_4_tap *tap = (_802_15_4_tap *) tap_pack;
-            memset(tap, 0, sizeof(*tap));
-
-            // Header
-            tap->version  = kis_htole16(0);
-            tap->reserved = kis_htole16(0);
-            tap->length   = kis_htole16(sizeof(_802_15_4_tap));
-
-            // TLV 0: FCS present? => 0 (payload has no FCS)
-            tap->tlv[0].type   = kis_htole16(0);
-            tap->tlv[0].length = kis_htole16(1);
-            tap->tlv[0].value  = kis_htole32(0);
-
-            // TLV 1: RSSI (signed 8-bit in low byte; Kismet reads low byte)
-            tap->tlv[1].type   = kis_htole16(10);
-            tap->tlv[1].length = kis_htole16(1);
-            tap->tlv[1].value  = kis_htole32((uint8_t) rssi_dbm);
-
-            // TLV 2: Channel (use length 3 to match other drivers)
-            tap->tlv[2].type   = kis_htole16(3);
-            tap->tlv[2].length = kis_htole16(3);
-            uint32_t ch_val = (0u)                     /* page in byte0 */
-                            | (((uint32_t)chan) << 8)  /* channel in byte1 */
-                            | (0u << 16);              /* reserved in byte2 */
-            tap->tlv[2].value  = kis_htole32(ch_val);
-
-            // Copy MAC payload (no FCS) after the TAP header
-            memcpy(tap->payload, mac_payload, mac_len);
-
-            /* // ============================ DEBUG (BEGIN) ============================
-            do {
-                // Read back fields from the TAP struct in host order for printing
-                uint16_t tap_version = le16toh(tap->version);
-                uint16_t tap_len     = le16toh(tap->length);
-
-                uint32_t fcs_raw     = le32toh(tap->tlv[0].value);
-                uint8_t  fcs_flag    = (uint8_t)(fcs_raw & 0xFF);
-
-                uint32_t rssi_raw    = le32toh(tap->tlv[1].value);
-                int8_t   rssi_print  = (int8_t)(rssi_raw & 0xFF);
-
-                uint32_t ch_raw      = le32toh(tap->tlv[2].value);
-                uint8_t  page_print  = (uint8_t)(ch_raw & 0xFF);
-                uint8_t  chan_print  = (uint8_t)((ch_raw >> 8) & 0xFF);
-
-                fprintf(stderr,
-                    "[catsniffer->kismet] TAP ver=%u len=%u | FCS=%u | RSSI=%d dBm | page=%u channel=%u | mac_len=%u | crc_ok=%u\n",
-                    (unsigned) tap_version,
-                    (unsigned) tap_len,
-                    (unsigned) fcs_flag,
-                    (int)      rssi_print,
-                    (unsigned) page_print,
-                    (unsigned) chan_print,
-                    (unsigned) mac_len,
-                    (unsigned) crc_ok);
-
-                // Hex dump the MAC payload (no FCS)
-                fputs("  payload: ", stderr);
-                for (uint32_t i = 0; i < mac_len; i++) {
-                    fprintf(stderr, "%02X", tap->payload[i]);
-                    if (i + 1 < mac_len) fputc(' ', stderr);
-                    if ((i + 1) % 16 == 0 && i + 1 < mac_len) {
-                        fputc('\n', stderr);
-                        fputs("           ", stderr);
-                    }
-                }
-                fputc('\n', stderr);
-                fflush(stderr);
-            } while (0);
-            // ============================= DEBUG (END) ============================= */
-
-            // Send via TAP DLT
-            const uint32_t dlt        = KDLT_IEEE802_15_4_TAP;
-            const uint32_t wire_len   = mac_len;    // original MAC payload bytes on-air
-            const uint32_t packet_sz  = tap_sz;     // bytes we’re sending in this buffer
-
-            int sr = cf_send_data(
-                caph,
-                /* msg        */ NULL,
-                /* msg_type   */ 0,
-                /* signal     */ NULL,
-                /* gps        */ NULL,
-                /* ts         */ ts,
-                /* dlt        */ dlt,
-                /* original_sz*/ wire_len,
-                /* packet_sz  */ packet_sz,
-                /* pack       */ tap_pack
-            );
-
-            if (sr < 0) {
-                char err2[BUFFER_SIZE];
-                snprintf(err2, sizeof(err2), "%s - unable to send packet to Kismet server", localcatsniffer->name);
-                cf_send_error(caph, 0, err2);
-                cf_handler_spindown(caph);
-                free(tap_pack);
-                break;
-            } else if (sr == 0) {
-                // ring full; wait and retry on next frame
-                cf_handler_wait_ringbuffer(caph);
-                free(tap_pack);
-                break;
-            } else {
-                // queued/sent
-                free(tap_pack);
-                break;
-            }
-            /* -------------------------------------------------------------- */
-        }
+        memmove(buf, buf + pos, buf_len - pos);
+        buf_len -= pos;
     }
 
     // Reset the TTY to its original settings
@@ -979,6 +933,8 @@ int main(int argc, char *argv[]) {
         .interface = NULL,
         .fd = -1,
         .channel = 0,
+        .chan_mutex = PTHREAD_MUTEX_INITIALIZER,
+        .pending_responses = 0,
     };
 
     kis_capture_handler_t *caph = cf_handler_init("catsniffer_zigbee");
