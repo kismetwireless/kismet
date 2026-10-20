@@ -23,6 +23,7 @@
 #include "version.h"
 
 #include "backward_wrapper.h"
+#include "console_tui.h"
 
 #include <cstdlib>
 #include <exception>
@@ -189,6 +190,9 @@ int packnum = 0, localdropnum = 0;
 global_registry *globalregistry = NULL;
 
 void SpindownKismet() {
+    // Give the terminal back before the shutdown messages
+    console_tui::stop();
+
 	// Spin down streams
 	auto streamtracker = Globalreg::fetch_global_as<stream_tracker>();
 	if (streamtracker != nullptr)
@@ -242,12 +246,6 @@ void SpindownKismet() {
                 "\n");
 
         fprintf(stderr, "Kismet exiting.\n");
-
-        if (wrapper) {
-            // save cursor position, delete banner and restore cursor position
-            std::string clear_banner = "\u001b[s\u001b[H\u001b[2K\u001b[u";
-            printf("%s\n", clear_banner.c_str());
-        }
     }
 
     globalregistry->delete_lifetime_globals();
@@ -664,7 +662,10 @@ int main(int argc, char *argv[], char *envp[]) {
                         fatal_msg_queue.pop_front();
                     }
 
-                if (glob_silent)
+                // The console display shows messages itself once it's running
+                console_tui::add_message(msg->get_flags(), msg->get_message());
+
+                if (glob_silent || console_tui::active())
                     return;
 
                 if ((msg->get_flags() & MSGFLAG_DEBUG)) {
@@ -778,17 +779,9 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
     }
 
-    // Set a terminal margin via raw ncurses code
-    if (wrapper) {
-        // Direct ansi calls to set the top margin and invert colors
-        std::string banner_ansi = "\u001b[2J\u001b[2;r\u001b[1m\u001b[7m";
-        std::string banner = "KISMET - Point your browser to http://localhost:2501 (or the address of this system) "
-            "for the Kismet UI";
-        std::string banner_tail_ansi = "\u001b[0m";
-
-        // Print the banner and ascii tail to set a top margin
-        printf("%s%s%s\n", banner_ansi.c_str(), banner.c_str(), banner_tail_ansi.c_str());
-    }
+    // The console status display, on a terminal
+    if (wrapper && !daemonize)
+        console_tui::start();
 
     Load_Kismet_UUID(globalregistry);
 
