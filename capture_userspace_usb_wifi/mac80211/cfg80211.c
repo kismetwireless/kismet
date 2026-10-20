@@ -18,7 +18,8 @@
 
 /* cfg80211 utilities and regulatory hooks.
  *
- * Frequency conversion and header length are from Linux net/wireless/util.c (GPL-2.0,
+ * Frequency conversion, header length and the HT/VHT bitrates are from Linux
+ * net/wireless/util.c (GPL-2.0,
  * Copyright 2007-2009 Johannes Berg, 2013 Intel Mobile Communications GmbH, 2017 Intel
  * Deutschland GmbH, 2018-2023 Intel Corporation).  There is no regulatory database: the
  * firmware enforces its own limits and every channel the driver lists is usable. */
@@ -271,6 +272,163 @@ void wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
 
 void wiphy_rfkill_start_polling(struct wiphy *wiphy) {
     (void) wiphy;
+}
+
+static u32 cfg80211_calculate_bitrate_ht(struct rate_info *rate)
+{
+	int modulation, streams, bitrate;
+
+	/* the formula below does only work for MCS values smaller than 32 */
+	if (WARN_ON_ONCE(rate->mcs >= 32))
+		return 0;
+
+	modulation = rate->mcs & 7;
+	streams = (rate->mcs >> 3) + 1;
+
+	bitrate = (rate->bw == RATE_INFO_BW_40) ? 13500000 : 6500000;
+
+	if (modulation < 4)
+		bitrate *= (modulation + 1);
+	else if (modulation == 4)
+		bitrate *= (modulation + 2);
+	else
+		bitrate *= (modulation + 3);
+
+	bitrate *= streams;
+
+	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
+		bitrate = (bitrate / 9) * 10;
+
+	/* do NOT round down here */
+	return (bitrate + 50000) / 100000;
+}
+
+static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
+{
+	static const u32 base[4][12] = {
+		{   6500000,
+		   13000000,
+		   19500000,
+		   26000000,
+		   39000000,
+		   52000000,
+		   58500000,
+		   65000000,
+		   78000000,
+		/* not in the spec, but some devices use this: */
+		   86700000,
+		   97500000,
+		  108300000,
+		},
+		{  13500000,
+		   27000000,
+		   40500000,
+		   54000000,
+		   81000000,
+		  108000000,
+		  121500000,
+		  135000000,
+		  162000000,
+		  180000000,
+		  202500000,
+		  225000000,
+		},
+		{  29300000,
+		   58500000,
+		   87800000,
+		  117000000,
+		  175500000,
+		  234000000,
+		  263300000,
+		  292500000,
+		  351000000,
+		  390000000,
+		  438800000,
+		  487500000,
+		},
+		{  58500000,
+		  117000000,
+		  175500000,
+		  234000000,
+		  351000000,
+		  468000000,
+		  526500000,
+		  585000000,
+		  702000000,
+		  780000000,
+		  877500000,
+		  975000000,
+		},
+	};
+	u32 bitrate;
+	int idx;
+
+	if (rate->mcs > 11)
+		goto warn;
+
+	switch (rate->bw) {
+	case RATE_INFO_BW_160:
+		idx = 3;
+		break;
+	case RATE_INFO_BW_80:
+		idx = 2;
+		break;
+	case RATE_INFO_BW_40:
+		idx = 1;
+		break;
+	case RATE_INFO_BW_5:
+	case RATE_INFO_BW_10:
+	default:
+		goto warn;
+	case RATE_INFO_BW_20:
+		idx = 0;
+	}
+
+	bitrate = base[idx][rate->mcs];
+	bitrate *= rate->nss;
+
+	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
+		bitrate = (bitrate / 9) * 10;
+
+	/* do NOT round down here */
+	return (bitrate + 50000) / 100000;
+ warn:
+	WARN_ONCE(1, "invalid rate bw=%d, mcs=%d, nss=%d\n",
+		  rate->bw, rate->mcs, rate->nss);
+	return 0;
+}
+
+/* Legacy, HT and VHT, which is all the drivers report; other encodings give 0 */
+u32 cfg80211_calculate_bitrate(struct rate_info *rate)
+{
+	if (rate->flags & RATE_INFO_FLAGS_MCS)
+		return cfg80211_calculate_bitrate_ht(rate);
+	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
+		return cfg80211_calculate_bitrate_vht(rate);
+	if (rate->flags & (RATE_INFO_FLAGS_DMG | RATE_INFO_FLAGS_EXTENDED_SC_DMG | RATE_INFO_FLAGS_EDMG |
+				RATE_INFO_FLAGS_HE_MCS | RATE_INFO_FLAGS_EHT_MCS | RATE_INFO_FLAGS_UHR_MCS |
+				RATE_INFO_FLAGS_S1G_MCS))
+		return 0;
+
+	return rate->legacy;
+}
+
+/* The DS parameter set, then the HT operation primary channel; -1 if neither */
+int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen, enum nl80211_band band) {
+    const struct element *elem;
+
+    if (band == NL80211_BAND_S1GHZ)
+        return -1;
+
+    for_each_element_id(elem, WLAN_EID_DS_PARAMS, ie, ielen)
+        if (elem->datalen == 1)
+            return elem->data[0];
+
+    for_each_element_id(elem, WLAN_EID_HT_OPERATION, ie, ielen)
+        if (elem->datalen >= sizeof(struct ieee80211_ht_operation))
+            return ((const struct ieee80211_ht_operation *) elem->data)->primary_chan;
+
+    return -1;
 }
 
 /* NAN interfaces are never created */

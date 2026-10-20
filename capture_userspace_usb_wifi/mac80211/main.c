@@ -27,6 +27,8 @@ static pthread_cond_t kc_locals_cond = PTHREAD_COND_INITIALIZER;
 static LIST_HEAD(kc_locals);
 static int kc_phy_idx;
 
+static void kc_restart_work(struct work_struct *work);
+
 struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len, const struct ieee80211_ops *ops,
         const char *requested_name) {
     struct ieee80211_local *local;
@@ -78,6 +80,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len, const struct ie
         return NULL;
     }
 
+    INIT_WORK(&local->restart_work, kc_restart_work);
     INIT_LIST_HEAD(&local->list);
     return &local->hw;
 }
@@ -86,6 +89,7 @@ void ieee80211_free_hw(struct ieee80211_hw *hw) {
     struct ieee80211_local *local = hw_to_local(hw);
     struct wiphy *wiphy = hw->wiphy;
 
+    cancel_work_sync(&local->restart_work);
     destroy_workqueue(local->workqueue);
     kc_device_release(&wiphy->dev);
     free(wiphy);
@@ -217,12 +221,14 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw, struct delayed_work *
     queue_delayed_work(hw_to_local(hw)->workqueue, dwork, delay);
 }
 
+/* Only an interface the driver was given, as mac80211 skips the virtual monitor */
 void ieee80211_iterate_interfaces(struct ieee80211_hw *hw, u32 iter_flags,
         void (*iterator)(void *data, u8 *mac, struct ieee80211_vif *vif), void *data) {
-    struct ieee80211_vif *vif = hw_to_local(hw)->monitor_vif;
+    struct ieee80211_local *local = hw_to_local(hw);
+    struct ieee80211_vif *vif = local->monitor_vif;
     (void) iter_flags;
 
-    if (vif)
+    if (vif && local->monitor_in_driver)
         iterator(data, vif->addr, vif);
 }
 
@@ -276,6 +282,9 @@ int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw, struct ieee802
     hw->conf.radar_enabled = vifs[0].new_ctx->radar_enabled;
     return kc_hw_conf_chan(hw_to_local(hw), vifs[0].new_ctx);
 }
+
+#define KC_MONITOR_FIF (FIF_ALLMULTI | FIF_FCSFAIL | FIF_PLCPFAIL | FIF_CONTROL | FIF_OTHER_BSS | \
+        FIF_PSPOLL | FIF_PROBE_REQ | FIF_BCN_PRBRESP_PROMISC)
 
 /* Monitor interface bring-up, in the order mac80211's ieee80211_do_open() uses */
 int kc_mac80211_start_monitor(struct ieee80211_hw *hw, kc_mac80211_rx_cb_t cb, void *ctx) {
@@ -332,7 +341,10 @@ int kc_mac80211_start_monitor(struct ieee80211_hw *hw, kc_mac80211_rx_cb_t cb, v
     vif->txq->tid = IEEE80211_NUM_TIDS;
     vif->txq->ac = IEEE80211_AC_BE;
 
-    if ((r = local->ops->add_interface(hw, vif)) < 0) {
+    local->monitor_in_driver = ieee80211_hw_check(hw, WANT_MONITOR_VIF) ||
+        ieee80211_hw_check(hw, NO_VIRTUAL_MONITOR);
+
+    if (local->monitor_in_driver && (r = local->ops->add_interface(hw, vif)) < 0) {
         dev_err(&hw->wiphy->dev, "add monitor interface failed: %d", r);
         free(vif->txq);
         free(vif);
@@ -358,7 +370,7 @@ int kc_mac80211_start_monitor(struct ieee80211_hw *hw, kc_mac80211_rx_cb_t cb, v
     }
     local->chanctx = chanctx;
 
-    if (local->ops->assign_vif_chanctx &&
+    if (local->monitor_in_driver && local->ops->assign_vif_chanctx &&
             (r = local->ops->assign_vif_chanctx(hw, vif, &vif->bss_conf, chanctx)) < 0) {
         dev_err(&hw->wiphy->dev, "assign channel context failed: %d", r);
         return r;
@@ -366,8 +378,7 @@ int kc_mac80211_start_monitor(struct ieee80211_hw *hw, kc_mac80211_rx_cb_t cb, v
     rcu_assign_pointer(vif->bss_conf.chanctx_conf, chanctx);
 
     /* ieee80211_configure_filter() for a monitor interface */
-    total_flags = FIF_ALLMULTI | FIF_FCSFAIL | FIF_PLCPFAIL | FIF_CONTROL | FIF_OTHER_BSS |
-        FIF_PSPOLL | FIF_PROBE_REQ | FIF_BCN_PRBRESP_PROMISC;
+    total_flags = KC_MONITOR_FIF;
     local->ops->configure_filter(hw, total_flags, &total_flags, 0);
 
     hw->conf.flags |= IEEE80211_CONF_MONITOR;
@@ -375,6 +386,59 @@ int kc_mac80211_start_monitor(struct ieee80211_hw *hw, kc_mac80211_rx_cb_t cb, v
         dev_warn(&hw->wiphy->dev, "monitor config failed: %d", r);
 
     return 0;
+}
+
+/* ieee80211_reconfig() after ieee80211_restart_hw(): the driver lost its state, so the
+ * monitor interface is brought up again on the current channel */
+static void kc_restart_work(struct work_struct *work) {
+    struct ieee80211_local *local = container_of(work, struct ieee80211_local, restart_work);
+    struct ieee80211_hw *hw = &local->hw;
+    struct ieee80211_vif *vif = local->monitor_vif;
+    unsigned int total_flags = KC_MONITOR_FIF;
+    int r;
+
+    guard(mutex)(&hw->wiphy->mtx);
+
+    if (!local->started)
+        return;
+
+    dev_info(&hw->wiphy->dev, "restarting hardware");
+
+    if ((r = local->ops->start(hw)) < 0) {
+        dev_err(&hw->wiphy->dev, "driver restart failed: %d", r);
+        return;
+    }
+
+    hw->conf.chandef = local->chanctx ? local->chanctx->def : local->default_chandef;
+    if ((r = local->ops->config(hw, -1, ~0)) < 0)
+        dev_warn(&hw->wiphy->dev, "config after restart failed: %d", r);
+
+    if (vif && local->monitor_in_driver && (r = local->ops->add_interface(hw, vif)) < 0) {
+        dev_err(&hw->wiphy->dev, "add monitor interface after restart failed: %d", r);
+        return;
+    }
+
+    if (local->chanctx) {
+        if (local->ops->add_chanctx && (r = local->ops->add_chanctx(hw, local->chanctx)) < 0) {
+            dev_err(&hw->wiphy->dev, "add channel context after restart failed: %d", r);
+            return;
+        }
+        if (vif && local->monitor_in_driver && local->ops->assign_vif_chanctx &&
+                (r = local->ops->assign_vif_chanctx(hw, vif, &vif->bss_conf, local->chanctx)) < 0) {
+            dev_err(&hw->wiphy->dev, "assign channel context after restart failed: %d", r);
+            return;
+        }
+    }
+
+    local->ops->configure_filter(hw, total_flags, &total_flags, 0);
+
+    if (local->ops->reconfig_complete)
+        local->ops->reconfig_complete(hw, IEEE80211_RECONFIG_TYPE_RESTART);
+}
+
+void ieee80211_restart_hw(struct ieee80211_hw *hw) {
+    struct ieee80211_local *local = hw_to_local(hw);
+    queue_work(local->workqueue, &local->restart_work);
 }
 
 int kc_mac80211_set_chandef(struct ieee80211_hw *hw, const struct cfg80211_chan_def *def) {
@@ -417,7 +481,7 @@ void kc_mac80211_stop(struct ieee80211_hw *hw) {
 
     if (vif) {
         if (local->chanctx) {
-            if (local->ops->unassign_vif_chanctx)
+            if (local->monitor_in_driver && local->ops->unassign_vif_chanctx)
                 local->ops->unassign_vif_chanctx(hw, vif, &vif->bss_conf, local->chanctx);
             rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
             if (local->ops->remove_chanctx)
@@ -426,8 +490,10 @@ void kc_mac80211_stop(struct ieee80211_hw *hw) {
             local->chanctx = NULL;
         }
 
-        local->ops->remove_interface(hw, vif);
+        if (local->monitor_in_driver)
+            local->ops->remove_interface(hw, vif);
         local->monitor_vif = NULL;
+        local->monitor_in_driver = false;
         synchronize_rcu();
         free(vif->txq);
         free(vif);
@@ -479,6 +545,22 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw, struct ieee80211_vif *vif
     (void) hw; (void) vif; (void) skb; (void) band; (void) sta; return false;
 }
 void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb) { (void) hw; kfree_skb(skb); }
+void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb) {
+    ieee80211_free_txskb(hw, skb);
+}
+void ieee80211_purge_tx_queue(struct ieee80211_hw *hw, struct sk_buff_head *skbs) {
+    struct sk_buff *skb;
+
+    while ((skb = __skb_dequeue(skbs)) != NULL)
+        ieee80211_free_txskb(hw, skb);
+}
+void ieee80211_txq_get_depth(struct ieee80211_txq *txq, unsigned long *frame_cnt, unsigned long *byte_cnt) {
+    (void) txq;
+    if (frame_cnt)
+        *frame_cnt = 0;
+    if (byte_cnt)
+        *byte_cnt = 0;
+}
 void ieee80211_tx_status_ext(struct ieee80211_hw *hw, struct ieee80211_tx_status *status) {
     (void) hw;
     if (status->skb)
@@ -495,6 +577,21 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta
 struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif, int link_id,
         bool qos_ok) {
     (void) hw; (void) vif; (void) link_id; (void) qos_ok; return NULL;
+}
+struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif) {
+    (void) hw; (void) vif; return NULL;
+}
+struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif) {
+    (void) hw; (void) vif; return NULL;
+}
+void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id, enum ieee80211_smps_mode smps_mode) {
+    (void) vif; (void) link_id; (void) smps_mode;
+}
+/* No keys are ever installed */
+void ieee80211_iter_keys_rcu(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+        void (*iter)(struct ieee80211_hw *hw, struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+            struct ieee80211_key_conf *key, void *data), void *iter_data) {
+    (void) hw; (void) vif; (void) iter; (void) iter_data;
 }
 struct sk_buff *ieee80211_beacon_get_template(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
         struct ieee80211_mutable_offsets *offs, unsigned int link_id) {

@@ -54,6 +54,7 @@ void kc_free(const void *p);
 #define kzalloc_flex(obj, member, count, ...) \
     kzalloc(struct_size_t(typeof(obj), member, count), GFP_KERNEL)
 #define kzalloc_obj(obj, ...) kzalloc(sizeof(obj), GFP_KERNEL)
+#define kmalloc_obj(obj, ...) kmalloc(sizeof(obj), GFP_KERNEL)
 #define NUMA_NO_NODE (-1)
 void *krealloc(const void *p, size_t size, gfp_t flags);
 void *kmemdup(const void *src, size_t len, gfp_t flags);
@@ -149,6 +150,7 @@ void *devm_kmalloc(struct device *dev, size_t size, gfp_t flags);
 #define devm_kcalloc(d, n, s, f) devm_kmalloc(d, size_mul(n, s), (f) | __GFP_ZERO)
 #define devm_kmalloc_array(d, n, s, f) devm_kmalloc(d, size_mul(n, s), f)
 void *devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t flags);
+#define devm_kmemdup_array(d, src, n, s, f) devm_kmemdup(d, src, size_mul(n, s), f)
 char *devm_kstrdup(struct device *dev, const char *s, gfp_t flags);
 char *devm_kasprintf(struct device *dev, gfp_t flags, const char *fmt, ...) __printf(3, 4);
 void devm_kfree(struct device *dev, const void *p);

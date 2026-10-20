@@ -36,6 +36,9 @@ struct ieee80211_local {
 
     /* The single monitor interface and its channel context */
     struct ieee80211_vif *monitor_vif;
+    /* The driver was given the monitor interface (WANT_MONITOR_VIF or NO_VIRTUAL_MONITOR);
+     * otherwise it only sees the monitor flag and filters, as with mac80211 */
+    bool monitor_in_driver;
     struct ieee80211_chanctx_conf *chanctx;
     struct cfg80211_chan_def default_chandef;
 
@@ -43,6 +46,9 @@ struct ieee80211_local {
 
     kc_mac80211_rx_cb_t rx_cb;
     void *rx_ctx;
+
+    /* ieee80211_restart_hw() */
+    struct work_struct restart_work;
 
     struct list_head list;
 };
