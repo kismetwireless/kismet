@@ -1666,6 +1666,8 @@ if test x"$want_fwcompress" = x"yes"; then
         FIRMWARELIBS="$FIRMWARELIBS $libzstd_LIBS"
         FIRMWARECFLAGS="$FIRMWARECFLAGS $libzstd_CFLAGS"
         fw_compression="zstd"
+    else
+        AC_MSG_WARN([libzstd not found; zstd compressed (.zst) firmware will not be supported by the userspace USB drivers])
     fi
 
     PKG_CHECK_MODULES([liblzma], [liblzma], [have_liblzma=yes], [have_liblzma=no])
@@ -1674,6 +1676,8 @@ if test x"$want_fwcompress" = x"yes"; then
         FIRMWARELIBS="$FIRMWARELIBS $liblzma_LIBS"
         FIRMWARECFLAGS="$FIRMWARECFLAGS $liblzma_CFLAGS"
         fw_compression="$fw_compression xz"
+    else
+        AC_MSG_WARN([liblzma not found; xz compressed (.xz) firmware will not be supported by the userspace USB drivers])
     fi
 fi
 AC_SUBST(FIRMWARELIBS)
@@ -2460,8 +2464,12 @@ if test x"$want_fwcompress" != x"yes"; then
 	echo "no (disabled)";
 elif test x"$fw_compression" = x""; then
 	echo "no (libzstd and liblzma not found)";
+elif test x"$have_libzstd" != x"yes"; then
+	echo "xz only (libzstd not found)";
+elif test x"$have_liblzma" != x"yes"; then
+	echo "zstd only (liblzma not found)";
 else
-	echo "yes ($fw_compression )" | sed -e 's/( /(/' -e 's/ )/)/';
+	echo "yes (zstd xz)";
 fi
 printf "              Lorapipe: "
 if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
