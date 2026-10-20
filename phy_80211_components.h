@@ -1236,7 +1236,11 @@ struct dot11_beacon_ref {
     int seq = -1;
     uint64_t time_us = 0;
     int interval = 0;
-    // The AP repeats its TSF in its own beacons, so the TSF checks don't apply
+    // The AP repeats its TSF in its own beacons, so the TSF checks don't apply.  It takes
+    // several repeats in a row, and an advancing TSF clears it, so one copied beacon from a
+    // spoofer can't turn the checks off.
+    static constexpr unsigned int tsf_repeats_unreliable = 3;
+    unsigned int tsf_repeats = 0;
     bool tsf_unreliable = false;
 };
 

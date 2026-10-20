@@ -149,6 +149,21 @@ def build(name):
         return [real + [(at + i * 1000, action_csa(3000 + i, 11, 1)) for i in range(3)]]
     if name == "actflood":
         return [real + [(at + i * 20000, action_ecsa(3000 + i, 81, 11, 1)) for i in range(50)]]
+    # a copied beacon without an announcement, repeating the AP's latest TSF with another
+    # sequence number, must not turn the TSF checks off for the attacks that follow
+    poison = [(9 * BI + 1000, beacon(50_000_000 + 9 * BI, 2999, 6))]
+    if name == "poison_owntsf":
+        return [real + poison + [(at + i * 1000, beacon(99_000_000 + i, 3000 + i, 6, csa(11, 1))) for i in range(3)]]
+    if name == "poison_air11":
+        tsf, out, t = 50_000_000 + 9 * BI, [], at
+        for burst in range(5):
+            t += 180_000
+            for i in range(64):
+                out.append((t, beacon(tsf, 3000 + burst * 64 + i, 6, csa(11, 0)))); t += 2000
+        return [real + poison + out]
+    if name == "poison_hold":
+        pre = [(at - 2 * BI, beacon(59_000_000, 2990, 6)), (at - BI, beacon(59_000_000, 2991, 6))]
+        return [pre + [(at + i * BI, beacon(60_000_000 + i * BI, 3000 + i, 6, csa(11, 3))) for i in range(10)]]
     raise SystemExit("unknown scenario " + name)
 
 name, outdir = sys.argv[1], sys.argv[2]

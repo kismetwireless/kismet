@@ -2905,8 +2905,15 @@ void kis_80211_phy::handle_chan_switch(const std::shared_ptr<kis_tracked_device_
         if (from_ap && tsf_frame && dot11info->timestamp != 0) {
             // Beacons with the same TSF and another sequence number mean the AP's TSF can't be
             // trusted; copies from several sources have the same sequence number
-            if (dot11info->timestamp == ref.tsf && dot11info->sequence_number != ref.seq)
-                ref.tsf_unreliable = true;
+            if (dot11info->timestamp == ref.tsf && dot11info->sequence_number != ref.seq) {
+                if (ref.tsf_repeats < dot11_beacon_ref::tsf_repeats_unreliable)
+                    ref.tsf_repeats++;
+                if (ref.tsf_repeats >= dot11_beacon_ref::tsf_repeats_unreliable)
+                    ref.tsf_unreliable = true;
+            } else if (dot11info->timestamp > ref.tsf) {
+                ref.tsf_repeats = 0;
+                ref.tsf_unreliable = false;
+            }
 
             // Frames from a lagging source don't move the reference back
             if (now_us >= ref.time_us) {
@@ -3017,11 +3024,15 @@ void kis_80211_phy::handle_chan_switch(const std::shared_ptr<kis_tracked_device_
             const int64_t since_ref = (int64_t) (now_us - ref.time_us);
 
             if (since_ref > -tsf_slack_us && since_ref < 60 * 1000000LL) {
-                const int64_t off = (int64_t) (tsf - ref.tsf) - since_ref;
+                // The TSF is from the frame and can be anything, so the distance is taken in
+                // unsigned arithmetic, which wraps instead of overflowing
+                const uint64_t expect = ref.tsf + (uint64_t) since_ref;
+                const uint64_t ahead = tsf - expect;
+                const uint64_t behind = expect - tsf;
 
-                if (off > tsf_slack_us || off < -tsf_slack_us)
+                if (std::min(ahead, behind) > (uint64_t) tsf_slack_us)
                     reason = fmt::format("has a TSF {:.1f} seconds off the AP's own beacons",
-                            (double) off / 1000000.0);
+                            (ahead <= behind ? (double) ahead : -(double) behind) / 1000000.0);
             }
         }
 

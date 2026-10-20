@@ -11,3 +11,6 @@ the alerts with the expected ones:
     ./configure && make
     test/dot11_csa/run.sh            # all scenarios, from the build in the source tree
     test/dot11_csa/run.sh . hold     # one scenario
+
+It uses port 2599 on 127.0.0.1, or `CSA_TEST_PORT`, with remote capture off, so it can run
+next to a Kismet server.
