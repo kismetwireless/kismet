@@ -174,7 +174,8 @@ namespace {
         d.msg_type = br.get_uint(0, 6);
         d.mmsi = br.get_uint(8, 30);
 
-        if (d.mmsi == 0)
+        // ITU-R M.1371 defines message types 1 to 27; anything else isn't AIS
+        if (d.msg_type == 0 || d.msg_type > 27 || d.mmsi == 0)
             return false;
 
         switch (d.msg_type) {
@@ -426,6 +427,9 @@ namespace {
         return "Vessel";
     }
 
+    // The longest AIS message is 5 slots, 1008 bits
+    constexpr size_t ais_max_payload_bytes = 126;
+
     bool is_hex_string(const std::string& s) {
         if (s.length() == 0 || s.length() % 2 != 0)
             return false;
@@ -655,7 +659,7 @@ bool kis_ais_phy::extract_ais_json(const nlohmann::json& json, std::string& payl
 
     auto hex = hex_j->get<std::string>();
 
-    if (!is_hex_string(hex))
+    if (hex.length() > ais_max_payload_bytes * 2 || !is_hex_string(hex))
         return false;
 
     payload = hex_to_bytes(hex);

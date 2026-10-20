@@ -98,6 +98,9 @@ int nearest_gain(rtlsdr_dev_t *dev, int target_gain) {
     }
 
     gains = malloc(sizeof(int) * count);
+    if (gains == NULL)
+        return 0;
+
     count = rtlsdr_get_tuner_gains(dev, gains);
     nearest = gains[0];
     for (i = 0; i < count; i++) {
@@ -437,6 +440,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     r = rtlsdr_open(&ais->dev, num_device);
     if (r < 0) {
         snprintf(msg, STATUS_MAX, "failed to open device %s", (*ret_interface)->capif);
+        ais->dev = NULL;
         return -1;
     }
 
@@ -472,7 +476,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if (r < 0) {
             snprintf(msg, STATUS_MAX, "could not set ppm correction on %s",
                     (*ret_interface)->capif);
-            return -1;
+            goto fail;
         }
     }
 
@@ -480,13 +484,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     r = rtlsdr_set_center_freq(ais->dev, AIS_DEMOD_CENTER_FREQ);
     if (r < 0) {
         snprintf(msg, STATUS_MAX, "could not set tuning on %s", (*ret_interface)->capif);
-        return -1;
+        goto fail;
     }
 
     r = rtlsdr_set_sample_rate(ais->dev, AIS_DEMOD_SAMPLE_RATE);
     if (r < 0) {
         snprintf(msg, STATUS_MAX, "could not set sample rate on %s", (*ret_interface)->capif);
-        return -1;
+        goto fail;
     }
 
 #ifdef HAVE_LIBRTLSDR_BIAS_T
@@ -495,7 +499,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if (r < 0) {
             snprintf(msg, STATUS_MAX, "could not enable bias-tee power on %s",
                     (*ret_interface)->capif);
-            return -1;
+            goto fail;
         }
     }
 #endif
@@ -506,7 +510,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if (r < 0) {
             snprintf(msg, STATUS_MAX, "could not enable bias-tee power for "
                     "gpio %d on %s", ais->bias_tee_gpio, (*ret_interface)->capif);
-            return -1;
+            goto fail;
         }
     }
 #endif
@@ -514,21 +518,37 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     r = rtlsdr_reset_buffer(ais->dev);
     if (r < 0) {
         snprintf(msg, STATUS_MAX, "could not reset buffer on %s", (*ret_interface)->capif);
-        return -1;
+        goto fail;
     }
 
     ais->demod = ais_demod_new(ais_frame_cb, ais);
     if (ais->demod == NULL) {
         snprintf(msg, STATUS_MAX, "could not allocate AIS demodulator for %s",
                 (*ret_interface)->capif);
-        return -1;
+        goto fail;
     }
 
-    pthread_create(&ais->demod_thread, NULL, rtlsdr_demod_thread, (void *) caph);
+    if (pthread_create(&ais->demod_thread, NULL, rtlsdr_demod_thread, (void *) caph) != 0) {
+        snprintf(msg, STATUS_MAX, "could not start the AIS demodulator for %s",
+                (*ret_interface)->capif);
+        goto fail;
+    }
 
     /* Defer launching async to the service thread */
 
     return 1;
+
+fail:
+    /* Release the device so a later re-open can claim it */
+    if (ais->demod != NULL) {
+        ais_demod_free(ais->demod);
+        ais->demod = NULL;
+    }
+
+    rtlsdr_close(ais->dev);
+    ais->dev = NULL;
+
+    return -1;
 }
 
 void capture_thread(kis_capture_handler_t *caph) {
