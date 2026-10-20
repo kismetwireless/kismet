@@ -666,6 +666,37 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return result;
     }
 
+    /* Tune to channel= (or the first channel) and start capturing.  The firmware only sniffs
+     * after START, which set_channel sends; with hopping Kismet changes the channel right
+     * after, without it nothing else would. */
+    if (band == 2) {
+        unsigned int open_chan = START_CHANNEL;
+        char chstr[4];
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+            char *chanstr = strndup(placeholder, placeholder_len);
+            int parsed = sscanf(chanstr, "%u", &open_chan);
+            free(chanstr);
+
+            if (parsed != 1 || open_chan < 11 || open_chan > 26) {
+                snprintf(msg, STATUS_MAX, "%s invalid channel= in source definition, expected 11-26",
+                        localcatsniffer->name);
+                return -1;
+            }
+        }
+
+        /* STOP, PING, CFG_FREQUENCY, START */
+        expect_responses(localcatsniffer, 4, open_chan);
+
+        if (set_channel(caph, localcatsniffer, open_chan) < 0) {
+            snprintf(msg, STATUS_MAX, "%s failed to set channel %u", localcatsniffer->name, open_chan);
+            return -1;
+        }
+
+        snprintf(chstr, sizeof(chstr), "%u", open_chan);
+        (*ret_interface)->chanset = strdup(chstr);
+    }
+
     return 1;
 }
 
