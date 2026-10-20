@@ -28,6 +28,11 @@ static pthread_t kc_usb_thread;
 static volatile bool kc_usb_running;
 static struct usb_driver *kc_usb_drivers;
 
+static void kc_usb_mark_gone(struct usb_device *dev) {
+    dev->kc_gone = true;
+    dev->state = USB_STATE_NOTATTACHED;
+}
+
 static int kc_usb_errno(int r) {
     switch (r) {
         case LIBUSB_ERROR_TIMEOUT:
@@ -324,6 +329,7 @@ int kc_usb_probe_device(const struct kc_usb_probe_entry *entry, struct usb_inter
     udev->kc_dev = libusb_ref_device(entry->dev);
     udev->devnum = entry->address;
     udev->speed = (enum usb_device_speed) entry->speed;
+    udev->state = USB_STATE_CONFIGURED;
     snprintf(udev->devpath, sizeof(udev->devpath), "%s", entry->path);
     udev->bus = &udev->kc_bus;
     /* No scatter-gather; drivers use linear buffers */
@@ -487,7 +493,7 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, u8 request, u8 re
             (unsigned int) timeout);
 
     if (r == LIBUSB_ERROR_NO_DEVICE)
-        dev->kc_gone = true;
+        kc_usb_mark_gone(dev);
 
     return r < 0 ? kc_usb_errno(r) : r;
 }
@@ -509,7 +515,7 @@ int usb_bulk_msg(struct usb_device *dev, unsigned int pipe, void *data, int len,
         *actual = got;
 
     if (r == LIBUSB_ERROR_NO_DEVICE)
-        dev->kc_gone = true;
+        kc_usb_mark_gone(dev);
 
     return r < 0 ? kc_usb_errno(r) : 0;
 }
@@ -525,7 +531,7 @@ int usb_reset_device(struct usb_device *dev) {
 
     if (r == LIBUSB_ERROR_NOT_FOUND || r == LIBUSB_ERROR_NO_DEVICE) {
         dev_err(&dev->dev, "device re-enumerated after reset");
-        dev->kc_gone = true;
+        kc_usb_mark_gone(dev);
         return -ENODEV;
     }
 
@@ -565,6 +571,7 @@ void usb_init_urb(struct urb *urb) {
     memset(urb, 0, sizeof(*urb));
     pthread_mutex_init(&urb->kc_lock, NULL);
     pthread_cond_init(&urb->kc_cond, NULL);
+    urb->kc_refs = 1;
 }
 
 struct urb *usb_alloc_urb(int iso_packets, gfp_t flags) {
@@ -580,20 +587,51 @@ struct urb *usb_alloc_urb(int iso_packets, gfp_t flags) {
     return urb;
 }
 
-void usb_free_urb(struct urb *urb) {
-    if (urb == NULL)
-        return;
-
-    usb_kill_urb(urb);
-
+static void kc_urb_release(struct urb *urb) {
     if (urb->kc_xfer)
         libusb_free_transfer(urb->kc_xfer);
 
     if (urb->transfer_flags & URB_FREE_BUFFER)
         free(urb->transfer_buffer);
 
-    if (urb->kc_allocated)
+    if (urb->kc_allocated) {
+        pthread_mutex_destroy(&urb->kc_lock);
+        pthread_cond_destroy(&urb->kc_cond);
         free(urb);
+    }
+}
+
+/* Drops a reference with kc_lock held; true when it was the last */
+static bool kc_urb_put_locked(struct urb *urb) {
+    if (WARN_ON(urb->kc_refs <= 0))
+        return false;
+    return --urb->kc_refs == 0;
+}
+
+struct urb *usb_get_urb(struct urb *urb) {
+    if (urb) {
+        pthread_mutex_lock(&urb->kc_lock);
+        urb->kc_refs++;
+        pthread_mutex_unlock(&urb->kc_lock);
+    }
+    return urb;
+}
+
+/* As in the kernel, a submitted URB holds its own reference, so freeing it doesn't cancel
+ * the transfer; it's released after its completion handler runs.  Drivers kill or poison
+ * URBs whose buffers they're about to free. */
+void usb_free_urb(struct urb *urb) {
+    bool last;
+
+    if (urb == NULL)
+        return;
+
+    pthread_mutex_lock(&urb->kc_lock);
+    last = kc_urb_put_locked(urb);
+    pthread_mutex_unlock(&urb->kc_lock);
+
+    if (last)
+        kc_urb_release(urb);
 }
 
 static int kc_urb_status(const struct libusb_transfer *x, const struct urb *urb) {
@@ -624,7 +662,7 @@ static void LIBUSB_CALL kc_urb_complete(struct libusb_transfer *x) {
     urb->status = kc_urb_status(x, urb);
 
     if (x->status == LIBUSB_TRANSFER_NO_DEVICE)
-        urb->dev->kc_gone = true;
+        kc_usb_mark_gone(urb->dev);
 
     pthread_mutex_lock(&urb->kc_lock);
     urb->kc_active = false;
@@ -634,10 +672,16 @@ static void LIBUSB_CALL kc_urb_complete(struct libusb_transfer *x) {
     if (urb->complete)
         urb->complete(urb);
 
+    /* The handler may have freed the URB or submitted it again; the reference taken when
+     * this submission started keeps it valid until here */
     pthread_mutex_lock(&urb->kc_lock);
     urb->kc_in_cb = false;
     pthread_cond_broadcast(&urb->kc_cond);
+    bool last = kc_urb_put_locked(urb);
     pthread_mutex_unlock(&urb->kc_lock);
+
+    if (last)
+        kc_urb_release(urb);
 }
 
 int usb_submit_urb(struct urb *urb, gfp_t flags) {
@@ -684,11 +728,12 @@ int usb_submit_urb(struct urb *urb, gfp_t flags) {
     if ((r = libusb_submit_transfer(urb->kc_xfer)) < 0) {
         pthread_mutex_unlock(&urb->kc_lock);
         if (r == LIBUSB_ERROR_NO_DEVICE)
-            dev->kc_gone = true;
+            kc_usb_mark_gone(dev);
         return kc_usb_errno(r);
     }
 
     urb->kc_active = true;
+    urb->kc_refs++;
     pthread_mutex_unlock(&urb->kc_lock);
 
     return 0;

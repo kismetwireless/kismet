@@ -1,0 +1,6 @@
+Realtek rtw88 Wi-Fi firmware (RTL8812A, RTL8814A, RTL8821A, RTL8822B, RTL8822C, RTL8821C,
+RTL8723D) from linux-firmware
+https://gitlab.com/kernel-firmware/linux-firmware
+Commit: 9a80a04181713da7f8187ec928c15160137f3262
+Redistributable under LICENCE.rtlwifi_firmware.txt; distributed as separate files, not
+linked into any program.

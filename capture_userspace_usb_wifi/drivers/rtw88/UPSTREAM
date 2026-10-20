@@ -1,0 +1,14 @@
+Source: Linux kernel drivers/net/wireless/realtek/rtw88
+Tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+Commit: 0fcb05b72344f40806cbe810de8872f1698bf053 (v7.3-rc7)
+License: GPL-2.0 OR BSD-3-Clause (see SPDX headers)
+
+Only the core, USB and chip files are copied; PCI and SDIO code isn't, but main.c
+and mac.c include pci.h and sdio.h.
+
+Applied from https://github.com/lwfinger/rtw88 (the out-of-tree rtw88 that
+aircrack-ng points to), not yet in the kernel:
+  8ed6332 wifi: rtw88: 8812a: Add missing coex functions
+  a56bcd2 8821a/8812a: Clear BIT_BT_PTA_EN only for USB
+
+Local changes are marked "kismet:".

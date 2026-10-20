@@ -83,6 +83,38 @@ void kc_dev_printk(const char *level, const struct device *dev, const char *fmt,
     kc_printk("%s%s: %s", level, dev_name(dev), buf);
 }
 
+/* Bytes only; groupsize is ignored */
+void print_hex_dump(const char *level, const char *prefix_str, int prefix_type, int rowsize,
+        int groupsize, const void *buf, size_t len, bool ascii) {
+    const u8 *p = buf;
+    (void) groupsize;
+
+    if (rowsize != 16 && rowsize != 32)
+        rowsize = 16;
+
+    for (size_t off = 0; off < len; off += (size_t) rowsize) {
+        size_t n = len - off < (size_t) rowsize ? len - off : (size_t) rowsize;
+        char line[32 * 4 + 8];
+        size_t l = 0;
+
+        for (size_t i = 0; i < n; i++)
+            l += (size_t) snprintf(line + l, sizeof(line) - l, "%02x ", p[off + i]);
+        if (ascii) {
+            line[l++] = ' ';
+            for (size_t i = 0; i < n; i++)
+                line[l++] = (p[off + i] >= 0x20 && p[off + i] < 0x7f) ? (char) p[off + i] : '.';
+        }
+        line[l] = '\0';
+
+        if (prefix_type == DUMP_PREFIX_OFFSET)
+            kc_printk("%s%s%.8zx: %s", level, prefix_str, off, line);
+        else if (prefix_type == DUMP_PREFIX_ADDRESS)
+            kc_printk("%s%s%p: %s", level, prefix_str, (const void *) (p + off), line);
+        else
+            kc_printk("%s%s%s", level, prefix_str, line);
+    }
+}
+
 int kc_scnprintf(char *buf, size_t size, const char *fmt, ...) {
     va_list ap;
     int r;
@@ -364,6 +396,21 @@ int request_firmware(const struct firmware **fwp, const char *name, struct devic
     dev_err(dev, "firmware %s not found", name);
     free(fw);
     return -ENOENT;
+}
+
+int request_firmware_nowait(struct module *module, bool uevent, const char *name, struct device *dev,
+        gfp_t gfp, void *context, void (*cont)(const struct firmware *fw, void *context)) {
+    const struct firmware *fw = NULL;
+    (void) module;
+    (void) uevent;
+    (void) gfp;
+
+    /* A missing file is reported to cont as a NULL firmware, as the kernel does */
+    if (request_firmware(&fw, name, dev) < 0)
+        fw = NULL;
+
+    cont(fw, context);
+    return 0;
 }
 
 void release_firmware(const struct firmware *fw) {

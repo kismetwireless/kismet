@@ -323,6 +323,7 @@ static inline u16 skb_get_queue_mapping(const struct sk_buff *skb) { return skb-
 static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 q) { skb->queue_mapping = q; }
 static inline void skb_mark_for_recycle(struct sk_buff *skb) { (void) skb; }
 static inline void skb_reset_mac_header(struct sk_buff *skb) { (void) skb; }
+static inline void skb_reset_tail_pointer(struct sk_buff *skb) { skb->tail = skb->data; }
 static inline void skb_set_mac_header(struct sk_buff *skb, int o) { (void) skb; (void) o; }
 static inline void skb_reset_network_header(struct sk_buff *skb) { (void) skb; }
 static inline void skb_reset_transport_header(struct sk_buff *skb) { (void) skb; }

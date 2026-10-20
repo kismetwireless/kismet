@@ -231,6 +231,12 @@ typedef unsigned long kernel_ulong_t;
 #define clamp_val(v, lo, hi) clamp_t(typeof(v), v, lo, hi)
 #define swap(a, b) do { typeof(a) _t = (a); (a) = (b); (b) = _t; } while (0)
 #define abs(x) ({ typeof(x) _x = (x); _x < 0 ? -_x : _x; })
+#define abs_diff(a, b) ({ typeof(a) _a = (a); typeof(b) _b = (b); _a > _b ? _a - _b : _b - _a; })
+static inline s32 sign_extend32(u32 value, int index) {
+    u8 shift = (u8) (31 - index);
+    return (s32) (value << shift) >> shift;
+}
+#define bcd2bin(x) ((unsigned int) (((x) & 0x0f) + (((x) >> 4) & 0x0f) * 10))
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #define DIV_ROUND_UP_ULL(n, d) DIV_ROUND_UP((unsigned long long) (n), (d))
@@ -424,6 +430,9 @@ static inline unsigned int bitmap_weight(const unsigned long *src, unsigned int 
 #define ENOIOCTLCMD 515
 #define EPROBE_DEFER 517
 #define ENOTSUPP 524
+#ifndef ECOMM
+#define ECOMM 70
+#endif
 #define MAX_ERRNO 4095
 #define IS_ERR_VALUE(x) unlikely((unsigned long) (void *) (x) >= (unsigned long) -MAX_ERRNO)
 static inline void *ERR_PTR(long error) { return (void *) error; }
@@ -447,6 +456,9 @@ static inline int PTR_ERR_OR_ZERO(const void *ptr) { return IS_ERR(ptr) ? (int) 
 void kc_printk(const char *fmt, ...) __printf(1, 2);
 #define printk(fmt, ...) kc_printk(fmt, ##__VA_ARGS__)
 #define printk_once(fmt, ...) printk(fmt, ##__VA_ARGS__)
+enum { DUMP_PREFIX_NONE, DUMP_PREFIX_ADDRESS, DUMP_PREFIX_OFFSET };
+void print_hex_dump(const char *level, const char *prefix_str, int prefix_type, int rowsize,
+        int groupsize, const void *buf, size_t len, bool ascii);
 #define pr_fmt(fmt) fmt
 #define pr_emerg(fmt, ...) printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...) printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)

@@ -20,6 +20,7 @@ OWN_CFLAGS = $(KC_CFLAGS) -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare 
 # Vendored kernel code, built as-is; kernel style trips warnings that aren't ours to fix
 MODNAME = mt76
 DRV_CFLAGS = $(KC_CFLAGS) -w -Idrivers/mt76 -DKBUILD_MODNAME='"$(MODNAME)"'
+RTW88_CFLAGS = $(KC_CFLAGS) -w -Idrivers/rtw88 -DKBUILD_MODNAME='"$(MODNAME)"'
 
 # The capture binary uses Kismet's headers, not kcompat's
 CAP_CFLAGS = $(CFLAGS) -MMD -MP -I.. -DFIRMWAREDIR=\"$(FIRMWAREDIR)\"
@@ -86,6 +87,49 @@ MT76_OBJS = \
 	drivers/mt76/mt76x2/usb_mcu.o \
 	drivers/mt76/mt76x2/usb_phy.o
 
+# rtw88 USB: core, USB transport and every chip with a USB part; no PCI, SDIO or LEDs
+RTW88_OBJS = \
+	drivers/rtw88/main.o \
+	drivers/rtw88/mac80211.o \
+	drivers/rtw88/util.o \
+	drivers/rtw88/debug.o \
+	drivers/rtw88/tx.o \
+	drivers/rtw88/rx.o \
+	drivers/rtw88/mac.o \
+	drivers/rtw88/phy.o \
+	drivers/rtw88/coex.o \
+	drivers/rtw88/efuse.o \
+	drivers/rtw88/fw.o \
+	drivers/rtw88/ps.o \
+	drivers/rtw88/sec.o \
+	drivers/rtw88/bf.o \
+	drivers/rtw88/sar.o \
+	drivers/rtw88/regd.o \
+	drivers/rtw88/usb.o \
+	drivers/rtw88/rtw88xxa.o \
+	drivers/rtw88/rtw8812a.o \
+	drivers/rtw88/rtw8812a_table.o \
+	drivers/rtw88/rtw8812au.o \
+	drivers/rtw88/rtw8821a.o \
+	drivers/rtw88/rtw8821a_table.o \
+	drivers/rtw88/rtw8821au.o \
+	drivers/rtw88/rtw8814a.o \
+	drivers/rtw88/rtw8814a_table.o \
+	drivers/rtw88/rtw8814au.o \
+	drivers/rtw88/rtw8822b.o \
+	drivers/rtw88/rtw8822b_table.o \
+	drivers/rtw88/rtw8822bu.o \
+	drivers/rtw88/rtw8822c.o \
+	drivers/rtw88/rtw8822c_table.o \
+	drivers/rtw88/rtw8822cu.o \
+	drivers/rtw88/rtw8821c.o \
+	drivers/rtw88/rtw8821c_table.o \
+	drivers/rtw88/rtw8821cu.o \
+	drivers/rtw88/rtw8723x.o \
+	drivers/rtw88/rtw8723d.o \
+	drivers/rtw88/rtw8723d_table.o \
+	drivers/rtw88/rtw8723du.o
+
 GLUE_OBJS = \
 	drivers/mt76_glue.o
 
@@ -99,7 +143,7 @@ LIB = libuwifi.a
 MONITOR_BIN = kismet_cap_usbwifi
 TOOL = uwifi_test
 
-ALL_OBJS = $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(GLUE_OBJS) $(COMMON_OBJS) \
+ALL_OBJS = $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(RTW88_OBJS) $(GLUE_OBJS) $(COMMON_OBJS) \
 	capture_usbwifi.o tools/uwifi_test.o
 
 # Drivers register from constructors, so the whole archive is linked
@@ -111,7 +155,7 @@ endif
 
 all: $(MONITOR_BIN) $(TOOL)
 
-$(LIB): $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(GLUE_OBJS) $(COMMON_OBJS)
+$(LIB): $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(RTW88_OBJS) $(GLUE_OBJS) $(COMMON_OBJS)
 	rm -f $@
 	$(AR) rcs $@ $^
 
@@ -137,9 +181,21 @@ tools/uwifi_test.o: tools/uwifi_test.c
 drivers/mt76/mt7921/usb.o: MODNAME = mt7921u
 drivers/mt76/mt7925/usb.o: MODNAME = mt7925u
 drivers/mt76/mt76x2/usb.o: MODNAME = mt76x2u
+# Short names (rtw8814au rather than rtw88_8814au), so adapters are rtw8814a-0
+drivers/rtw88/%.o: MODNAME = rtw88
+drivers/rtw88/rtw8812au.o: MODNAME = rtw8812au
+drivers/rtw88/rtw8821au.o: MODNAME = rtw8821au
+drivers/rtw88/rtw8814au.o: MODNAME = rtw8814au
+drivers/rtw88/rtw8822bu.o: MODNAME = rtw8822bu
+drivers/rtw88/rtw8822cu.o: MODNAME = rtw8822cu
+drivers/rtw88/rtw8821cu.o: MODNAME = rtw8821cu
+drivers/rtw88/rtw8723du.o: MODNAME = rtw8723du
 
 drivers/mt76/%.o: drivers/mt76/%.c
 	$(CC) $(DRV_CFLAGS) -c $< -o $@
+
+drivers/rtw88/%.o: drivers/rtw88/%.c
+	$(CC) $(RTW88_CFLAGS) -c $< -o $@
 
 %.o: %.c
 	$(CC) $(OWN_CFLAGS) -c $< -o $@

@@ -44,6 +44,7 @@ extern volatile unsigned long jiffies;
 #define jiffies_64 ((u64) jiffies)
 static inline u64 get_jiffies_64(void) { return kc_jiffies_now(); }
 static inline unsigned long msecs_to_jiffies(unsigned int m) { return m; }
+#define round_jiffies_relative(j) (j)
 static inline unsigned long usecs_to_jiffies(unsigned int u) { return DIV_ROUND_UP(u, 1000); }
 static inline unsigned int jiffies_to_msecs(unsigned long j) { return (unsigned int) j; }
 static inline unsigned int jiffies_to_usecs(unsigned long j) { return (unsigned int) (j * 1000); }
@@ -222,6 +223,8 @@ struct delayed_work {
 #define WQ_MEM_RECLAIM 0x8
 #define WQ_HIGHPRI 0x10
 #define WQ_PERCPU 0x0
+/* Bottom-half workqueues run as ordinary ones */
+#define WQ_BH 0x0
 void __kc_init_work(struct work_struct *w, work_func_t fn);
 void __kc_init_delayed_work(struct delayed_work *w, work_func_t fn);
 #define INIT_WORK(w, fn) __kc_init_work(w, fn)

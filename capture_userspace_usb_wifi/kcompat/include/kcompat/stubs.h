@@ -308,6 +308,9 @@ struct firmware {
 int request_firmware(const struct firmware **fw, const char *name, struct device *dev);
 #define request_firmware_direct request_firmware
 #define firmware_request_nowarn request_firmware
+/* Loads synchronously, then calls cont from the caller's context */
+int request_firmware_nowait(struct module *module, bool uevent, const char *name, struct device *dev,
+        gfp_t gfp, void *context, void (*cont)(const struct firmware *fw, void *context));
 void release_firmware(const struct firmware *fw);
 /* Directories searched in order; set by the host program */
 void kc_firmware_set_paths(const char *const *paths, size_t n);

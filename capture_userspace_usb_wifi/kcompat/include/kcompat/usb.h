@@ -67,6 +67,12 @@ enum usb_device_speed {
     USB_SPEED_SUPER_PLUS,
 };
 
+/* Only attached (configured) and gone are tracked */
+enum usb_device_state {
+    USB_STATE_NOTATTACHED = 0,
+    USB_STATE_CONFIGURED = 7,
+};
+
 struct usb_device_descriptor {
     u8 bLength;
     u8 bDescriptorType;
@@ -134,6 +140,7 @@ struct usb_device {
     int devnum;
     char devpath[16];
     enum usb_device_speed speed;
+    enum usb_device_state state;
     struct usb_bus *bus;
     struct device dev;
     struct usb_device_descriptor descriptor;
@@ -182,6 +189,8 @@ struct urb {
     bool kc_in_cb;
     /* Submissions fail while non-zero (kill or poison in progress) */
     int kc_reject;
+    /* References, as the kernel's kref: the caller's, plus one while submitted */
+    int kc_refs;
     bool kc_allocated;
 };
 
@@ -250,12 +259,12 @@ void kc_usb_register_driver(struct usb_driver *drv);
 static inline unsigned int __create_pipe(struct usb_device *dev, unsigned int endpoint) {
     return ((unsigned int) dev->devnum << 8) | (endpoint << 15);
 }
-#define usb_sndctrlpipe(dev, ep) ((PIPE_CONTROL << 30) | __create_pipe(dev, ep))
-#define usb_rcvctrlpipe(dev, ep) ((PIPE_CONTROL << 30) | __create_pipe(dev, ep) | USB_DIR_IN)
-#define usb_sndbulkpipe(dev, ep) ((PIPE_BULK << 30) | __create_pipe(dev, ep))
-#define usb_rcvbulkpipe(dev, ep) ((PIPE_BULK << 30) | __create_pipe(dev, ep) | USB_DIR_IN)
-#define usb_sndintpipe(dev, ep) ((PIPE_INTERRUPT << 30) | __create_pipe(dev, ep))
-#define usb_rcvintpipe(dev, ep) ((PIPE_INTERRUPT << 30) | __create_pipe(dev, ep) | USB_DIR_IN)
+#define usb_sndctrlpipe(dev, ep) (((unsigned int) PIPE_CONTROL << 30) | __create_pipe(dev, ep))
+#define usb_rcvctrlpipe(dev, ep) (((unsigned int) PIPE_CONTROL << 30) | __create_pipe(dev, ep) | USB_DIR_IN)
+#define usb_sndbulkpipe(dev, ep) (((unsigned int) PIPE_BULK << 30) | __create_pipe(dev, ep))
+#define usb_rcvbulkpipe(dev, ep) (((unsigned int) PIPE_BULK << 30) | __create_pipe(dev, ep) | USB_DIR_IN)
+#define usb_sndintpipe(dev, ep) (((unsigned int) PIPE_INTERRUPT << 30) | __create_pipe(dev, ep))
+#define usb_rcvintpipe(dev, ep) (((unsigned int) PIPE_INTERRUPT << 30) | __create_pipe(dev, ep) | USB_DIR_IN)
 #define usb_pipein(pipe) ((pipe) & USB_DIR_IN)
 #define usb_pipeout(pipe) (!usb_pipein(pipe))
 #define usb_pipeendpoint(pipe) (((pipe) >> 15) & 0xf)
@@ -316,6 +325,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size);
 struct urb *usb_alloc_urb(int iso_packets, gfp_t flags);
 void usb_init_urb(struct urb *urb);
 void usb_free_urb(struct urb *urb);
+struct urb *usb_get_urb(struct urb *urb);
 int usb_submit_urb(struct urb *urb, gfp_t flags);
 int usb_unlink_urb(struct urb *urb);
 void usb_kill_urb(struct urb *urb);
