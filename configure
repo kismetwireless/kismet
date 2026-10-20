@@ -646,6 +646,7 @@ BUILD_CAPTURE_TI_CC_2531
 BUILD_CAPTURE_TI_CC_2540
 BUILD_CAPTURE_NRF_MOUSEJACK
 BUILD_CAPTURE_FREAKLABS_ZIGBEEV2
+BUILD_CAPTURE_SDR_RTLAIS
 BUILD_CAPTURE_SDR_RTLADSBV2
 BUILD_CAPTURE_SDR_RTL433V2
 BUILD_CAPTURE_BT_GEIGER
@@ -4754,6 +4755,7 @@ BUILD_CAPTURE_TI_CC_2531=1
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_SDR_RTL433V2=0
 BUILD_CAPTURE_SDR_RTLADSBV2=0
+BUILD_CAPTURE_SDR_RTLAIS=0
 BUILD_CATPURE_FREAKLABS_ZIGBEEV2=1
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
@@ -15628,6 +15630,12 @@ if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTLADSBV2)"
 fi
 
+BUILD_CAPTURE_SDR_RTLAIS=0
+if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
+    BUILD_CAPTURE_SDR_RTLAIS=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTLAIS)"
+fi
+
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
     BUILD_CAPTURE_LINUX_BLUETOOTH=1
@@ -16071,11 +16079,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_rtlais/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16749,6 +16758,7 @@ do
     "capture_rz_killerbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_rz_killerbee/Makefile" ;;
     "capture_sdr_rtl433_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtl433_v2/Makefile" ;;
     "capture_sdr_rtladsb_v2/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtladsb_v2/Makefile" ;;
+    "capture_sdr_rtlais/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtlais/Makefile" ;;
     "capture_sdr_zigbee900/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_zigbee900/Makefile" ;;
     "capture_serial_radview/Makefile") CONFIG_FILES="$CONFIG_FILES capture_serial_radview/Makefile" ;;
     "capture_sniffle_ble/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sniffle_ble/Makefile" ;;
@@ -17549,6 +17559,19 @@ fi
 
 printf "       RTL-SDR ADSB V2: "
 if test "$BUILD_CAPTURE_SDR_RTLADSBV2" = 1; then
+	echo "yes";
+else
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
+fi
+
+printf "           RTL-SDR AIS: "
+if test "$BUILD_CAPTURE_SDR_RTLAIS" = 1; then
 	echo "yes";
 else
     if test "$have_usb" != "yes"; then

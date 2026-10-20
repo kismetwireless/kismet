@@ -1,0 +1,36 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	capture_sdr_rtlais.c.o \
+	ais_demod.c.o
+MONITOR_BIN = kismet_cap_sdr_rtlais
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
+		    $(DATASOURCE_LIBS) $(LIBUSBLIBS) $(LIBRTLLIBS) -lm
+
+# Standalone demodulator test harness; reads cu8 IQ at 288k from stdin
+ais_demod_test: ais_demod.c ais_demod.h
+	$(CC) $(CFLAGS) -DAIS_DEMOD_MAIN -o ais_demod_test ais_demod.c -lm
+
+# The standalone rtlsdr AIS receiver (ais_rtl_test) is built independently of
+# Kismet with Makefile.ais_rtl_test
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f ais_demod_test
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBRTLCFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBRTLCFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
