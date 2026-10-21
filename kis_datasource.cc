@@ -3643,7 +3643,7 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.num_packets",
             "Number of valid packets from source processed by the packet chain", &source_num_packets);
     register_field("kismet.datasource.num_error_packets",
-            "Number of invalid/error packets seen by source",
+            "Number of invalid packets from source",
             &source_num_error_packets);
     register_field("kismet.datasource.num_filtered_packets",
             "Number of packets filtered from source", &source_num_filtered_packets);
