@@ -86,6 +86,7 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
 
         // Otherwise flag that we know the CRC is good
         in_pack->crc_ok = 1;
+        in_pack->checksum_valid = true;
     }
 
 	in_pack->signal_info.data_ok = true;
