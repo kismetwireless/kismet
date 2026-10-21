@@ -3,9 +3,9 @@
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === '802.15.4') {
         if (kismet_theme.theme === 'dark') {
-            return '<img src="images/zigbee-icon-dark.svg" height="20px" width="20px">';
+            return '<img src="images/zigbee-icon-dark.svg" style="height: 1em; width: 1em; vertical-align: -0.125em;">';
         } else {
-            return '<img src="images/zigbee-icon.svg" height="20px" width="20px">';
+            return '<img src="images/zigbee-icon.svg" style="height: 1em; width: 1em; vertical-align: -0.125em;">';
         }
     }
 });

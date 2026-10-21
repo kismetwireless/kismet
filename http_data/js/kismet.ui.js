@@ -1235,6 +1235,7 @@ var deviceTableRefreshBlock = false;
 var deviceTableRefreshing = false;
 var deviceTablePageSize = 0;
 var deviceTableShownPage = -1;
+var deviceTableRowHeight = 0;
 
 /* Rows per page: as many device rows as fit in the table body.  Tabulator sizes
  * pages from a plain text test row, which is shorter than a device row, so once
@@ -1242,16 +1243,18 @@ var deviceTableShownPage = -1;
  * follows the window height. */
 function DeviceTablePageSize() {
     var holder = $('#devices-table2 .tabulator-tableholder');
-    var rowh = 0;
 
+    // Rows differ in height (some device icons are taller), so size pages from the
+    // tallest row seen; sizing from the rows on screen grows the page whenever a page
+    // happens to hold only short rows, and moves the view each time it changes back
     $('#devices-table2 .tabulator-row').each(function() {
-        rowh = Math.max(rowh, this.offsetHeight);
+        deviceTableRowHeight = Math.max(deviceTableRowHeight, this.offsetHeight);
     });
 
-    if (holder.length == 0 || rowh == 0)
+    if (holder.length == 0 || deviceTableRowHeight == 0)
         return deviceTabulator.getPageSize();
 
-    return Math.max(1, Math.floor(holder[0].clientHeight / rowh));
+    return Math.max(1, Math.floor(holder[0].clientHeight / deviceTableRowHeight));
 }
 
 function ScheduleDeviceSummary() {
