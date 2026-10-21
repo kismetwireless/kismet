@@ -317,6 +317,9 @@ struct kis_capture_handler {
     struct lws_context_creation_info lwsinfo;
 
     char *lwsuuid;
+
+    /* Numeric address of the remote host which answered */
+    char lwsaddress[64];
 #endif
 
 

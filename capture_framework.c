@@ -28,6 +28,7 @@
 #include <string.h>
 #include <strings.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <string.h>
@@ -2406,11 +2407,82 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     return cbret;
 }
 
+/* Connect to the first of the remote host's addresses which answers, in resolver order,
+ * so a name with both IPv6 and IPv4 addresses reaches a server listening on only one.
+ * Returns a connected non-blocking socket and, if addr is set, the numeric address used */
+static int cf_connect_remote_host(kis_capture_handler_t *caph, char *addr, size_t addr_len,
+        char *errstr, size_t errstr_len) {
+    struct addrinfo hints, *res, *ai;
+    char port[8];
+    int fd = -1;
+    int err = ECONNREFUSED;
+    int r;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    snprintf(port, sizeof(port), "%u", caph->remote_port);
+
+    if ((r = getaddrinfo(caph->remote_host, port, &hints, &res)) != 0) {
+        snprintf(errstr, errstr_len, "could not resolve hostname: %s", gai_strerror(r));
+        return -1;
+    }
+
+    for (ai = res; ai != NULL; ai = ai->ai_next) {
+        struct pollfd pfd;
+        socklen_t err_len = sizeof(err);
+
+        if ((fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol)) < 0) {
+            err = errno;
+            continue;
+        }
+
+        fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+        fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+
+        if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0)
+            break;
+
+        if (errno == EINPROGRESS) {
+            pfd.fd = fd;
+            pfd.events = POLLOUT;
+            pfd.revents = 0;
+
+            r = poll(&pfd, 1, 5000);
+
+            if (r == 1) {
+                if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &err_len) < 0)
+                    err = errno;
+                else if (err == 0)
+                    break;
+            } else {
+                err = r == 0 ? ETIMEDOUT : errno;
+            }
+        } else {
+            err = errno;
+        }
+
+        close(fd);
+        fd = -1;
+    }
+
+    if (fd < 0) {
+        snprintf(errstr, errstr_len, "%s", strerror(err));
+    } else if (addr != NULL &&
+            getnameinfo(ai->ai_addr, ai->ai_addrlen, addr, addr_len, NULL, 0, NI_NUMERICHOST) != 0) {
+        snprintf(errstr, errstr_len, "could not format the address of '%s'", caph->remote_host);
+        close(fd);
+        fd = -1;
+    }
+
+    freeaddrinfo(res);
+
+    return fd;
+}
+
 int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
-    struct hostent *connect_host;
-    struct sockaddr_in client_sock, local_sock;
     int client_fd;
-    int sock_flags;
 
     char msgstr[STATUS_MAX];
 
@@ -2483,66 +2555,14 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
         return -1;
     }
 
-    if ((connect_host = gethostbyname(caph->remote_host)) == NULL) {
-        fprintf(stderr, "FATAL: Could not resolve hostname for remote connection to '%s'\n",
-                caph->remote_host);
-
-        if (uuid)
-            free(uuid);
-
-        return -1;
-    }
-
-    memset(&client_sock, 0, sizeof(client_sock));
-    client_sock.sin_family = connect_host->h_addrtype;
-    memcpy((char *) &(client_sock.sin_addr.s_addr), connect_host->h_addr_list[0],
-            connect_host->h_length);
-    client_sock.sin_port = htons(caph->remote_port);
-
-    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((client_fd = cf_connect_remote_host(caph, NULL, 0, msgstr, sizeof(msgstr))) < 0) {
         fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
-                caph->remote_host, caph->remote_port, strerror(errno));
+                caph->remote_host, caph->remote_port, msgstr);
 
         if (uuid)
             free(uuid);
 
         return -1;
-    }
-
-    sock_flags = fcntl(client_fd, F_GETFL, 0);
-    fcntl(client_fd, F_SETFL, sock_flags | O_NONBLOCK);
-
-    sock_flags = fcntl(client_fd, F_GETFD, 0);
-    fcntl(client_fd, F_SETFD, sock_flags | FD_CLOEXEC);
-
-    memset(&local_sock, 0, sizeof(local_sock));
-    local_sock.sin_family = AF_INET;
-    local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
-    local_sock.sin_port = htons(0);
-
-    if (bind(client_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
-        fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
-                caph->remote_host, caph->remote_port, strerror(errno));
-        close(client_fd);
-
-        if (uuid)
-            free(uuid);
-
-        return -1;
-    }
-
-    if (connect(client_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
-        if (errno != EINPROGRESS) {
-            fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
-                    caph->remote_host, caph->remote_port, strerror(errno));
-
-            close(client_fd);
-
-            if (uuid)
-                free(uuid);
-
-            return -1;
-        }
     }
 
     caph->tcp_fd = client_fd;
@@ -2574,6 +2594,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 void ws_connect_attempt(kis_capture_handler_t *caph) {
     char msgstr[STATUS_MAX];
     int cbret;
+    int fd;
     cf_params_interface_t *cpi;
     cf_params_spectrum_t *cps;
 
@@ -2614,13 +2635,24 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
         return;
     }
 
+    /* libwebsockets only tries the first address of a name, so find the one which answers */
+    if ((fd = cf_connect_remote_host(caph, caph->lwsaddress, sizeof(caph->lwsaddress),
+                    msgstr, sizeof(msgstr))) < 0) {
+        fprintf(stderr, "FATAL: Could not connect to remote host '%s:%u': %s\n",
+                caph->remote_host, caph->remote_port, msgstr);
+        caph->spindown = 1;
+        return;
+    }
+
+    close(fd);
+
     memset(&caph->lwsci, 0, sizeof(struct lws_client_connect_info));
     caph->lwsci.context = caph->lwscontext;
     caph->lwsci.port = caph->remote_port;
-    caph->lwsci.address = caph->remote_host;
+    caph->lwsci.address = caph->lwsaddress;
     caph->lwsci.path = caph->lwsuri;
-    caph->lwsci.host = caph->lwsci.address;
-    caph->lwsci.origin  = caph->lwsci.address;
+    caph->lwsci.host = caph->remote_host;
+    caph->lwsci.origin  = caph->remote_host;
     caph->lwsci.ssl_connection = 0;
 
     if (caph->lwsusessl) {
