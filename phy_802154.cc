@@ -222,6 +222,8 @@ static bool is_gpd_mac(const mac_addr& m) {
         m[2] == gpd_addr_prefix[2] && m[3] == gpd_addr_prefix[3];
 }
 
+using net_kind = kis_802154_packinfo::network_kind;
+
 static std::string ext_pan_string(const uint8_t *le8) {
     return fmt::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             le8[7], le8[6], le8[5], le8[4], le8[3], le8[2], le8[1], le8[0]);
@@ -264,12 +266,12 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
 
         if (p[o] == 0x00 && o + 3 + 8 <= n) {
             // Zigbee: protocol ID, stack profile and protocol version, capabilities, extended PAN ID
-            pi->network = kis_802154_packinfo::network_zigbee;
+            pi->network = net_kind::zigbee;
             pi->stack_profile = p[o + 1] & 0x0f;
             pi->ext_pan_id = ext_pan_string(p + o + 3);
         } else if (p[o] == 0x03 && o + 2 + 16 + 8 <= n) {
             // Thread 1.1: protocol ID, version and flags, network name (16), extended PAN ID (8)
-            pi->network = kis_802154_packinfo::network_thread;
+            pi->network = net_kind::thread;
             const char *name = reinterpret_cast<const char *>(p + o + 2);
             pi->network_name = std::string(name, strnlen(name, 16));
             pi->ext_pan_id = ext_pan_string(p + o + 18);
@@ -284,7 +286,7 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
     // 6LoWPAN, by its whole header; MLE (UDP port 19788) is Thread
     if (lowpan_frame(p, n)) {
         pi->network = lowpan_udp_dport(p, n) == 19788 ?
-            kis_802154_packinfo::network_thread : kis_802154_packinfo::network_6lowpan;
+            net_kind::thread : net_kind::lowpan;
         return true;
     }
 
@@ -313,7 +315,7 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
         if (app_id != (has_mac_src ? 2u : 0u))
             return false;
 
-        pi->network = kis_802154_packinfo::network_zigbee_gp;
+        pi->network = net_kind::zigbee_gp;
 
         // the source ID names the GPD; in a frame to it (from a proxy) it is the destination
         if (app_id == 0 && (ftype == 0 || (p[0] & 0x80)) && o + 4 <= n && !from_gpp) {
@@ -332,7 +334,7 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
     if (version != 2 || ftype == 2 || discover > 1 || n < 8)
         return false;
 
-    pi->network = kis_802154_packinfo::network_zigbee;
+    pi->network = net_kind::zigbee;
     pi->nwk_secured = (fc >> 9) & 0x01;
     pi->nwk_src = p[4] | (p[5] << 8);
 
@@ -883,10 +885,10 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             static const char *names[] = {"", "6LoWPAN", "Zigbee Green Power", "Zigbee", "Thread"};
 
             // network_type only becomes more certain: 6LoWPAN gives way to Thread, never back
-            if (pi->network != kis_802154_packinfo::network_unknown &&
-                    (uint8_t) pi->network >= source_kis_802154->get_network_rank()) {
-                source_kis_802154->set_network_rank((uint8_t) pi->network);
-                source_kis_802154->set_network_type(names[pi->network]);
+            if (pi->network != net_kind::unknown &&
+                    static_cast<uint8_t>(pi->network) >= source_kis_802154->get_network_rank()) {
+                source_kis_802154->set_network_rank(static_cast<uint8_t>(pi->network));
+                source_kis_802154->set_network_type(names[static_cast<size_t>(pi->network)]);
             }
 
             if (!pi->ext_pan_id.empty())

@@ -63,7 +63,7 @@ public:
     void reset() {
         src_pan = 0;
         has_src_pan = false;
-        network = network_unknown;
+        network = network_kind::unknown;
         pan_coordinator = false;
         beacon = false;
         stack_profile = 0;
@@ -82,8 +82,8 @@ public:
     bool has_src_pan = false;
 
     // What the payload says about the network, in rising order of certainty
-    enum network_kind { network_unknown = 0, network_6lowpan, network_zigbee_gp, network_zigbee, network_thread };
-    network_kind network = network_unknown;
+    enum class network_kind : uint8_t { unknown = 0, lowpan, zigbee_gp, zigbee, thread };
+    network_kind network = network_kind::unknown;
 
     bool beacon = false;                // a beacon frame
     bool pan_coordinator = false;       // its superframe specification's PAN coordinator bit
