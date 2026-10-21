@@ -53,11 +53,25 @@ exports.AddDeviceView = function(name, view, priority, group = 'none') {
     DeviceViews.push({name: name, view: view, priority: priority, group: group});
 }
 
+// Views in the selector when it was last built, and whether a rebuild waits for the menu to close
+var view_selector_count = 0;
+var view_selector_pending = false;
+
 exports.BuildDeviceViewSelector = function(element) {
     // Avoid creating orphaned selectmenu elements when the target is missing
     if (element.length === 0)
         return;
-  
+
+    // Rebuilding the menu closes it; while the user has it open, rebuild when it closes
+    var open_menu = $('#devices_views_select', element).selectmenu('instance');
+    if (open_menu !== undefined && open_menu.isOpen) {
+        view_selector_pending = true;
+        return;
+    }
+
+    view_selector_pending = false;
+    view_selector_count = DeviceViews.length;
+
     var grouped_views = [];
 
     // Pre-sort the array so that as we build our nested stuff we do it in order
@@ -151,6 +165,11 @@ exports.BuildDeviceViewSelector = function(element) {
             kismet.putStorage('kismet.ui.deviceview.selected', elem.item.value);
             ScheduleDeviceSummary();
         });
+
+        selector.on("selectmenuclose", function() {
+            if (view_selector_pending)
+                setTimeout(() => exports.BuildDeviceViewSelector(element), 0);
+        });
     }
 
 }
@@ -216,16 +235,13 @@ function ScheduleDeviceViewListUpdate() {
             }
 
             // Complete all the DS queries
-            $.when(ds_promises).then(function(pi) {
+            $.when.apply($, ds_promises).then(function(pi) {
                 ;
             })
             .done(function() {
-                // Skip generating this round if the menu is open
-                if ($("div.viewselector > .ui-selectmenu-button").hasClass("ui-selectmenu-button-open")) {
-                    ;
-                } else {
+                // Only rebuild when views were added
+                if (DeviceViews.length != view_selector_count)
                     exports.BuildDeviceViewSelector($('span#device_view_holder'));
-                }
             });
         });
 }
@@ -1217,6 +1233,26 @@ var deviceTableTotal = 0;
 var deviceTableTotalPages = 0;
 var deviceTableRefreshBlock = false;
 var deviceTableRefreshing = false;
+var deviceTablePageSize = 0;
+var deviceTableShownPage = -1;
+
+/* Rows per page: as many device rows as fit in the table body.  Tabulator sizes
+ * pages from a plain text test row, which is shorter than a device row, so once
+ * rows are drawn measure those instead.  Checked on every refresh, so the page
+ * follows the window height. */
+function DeviceTablePageSize() {
+    var holder = $('#devices-table2 .tabulator-tableholder');
+    var rowh = 0;
+
+    $('#devices-table2 .tabulator-row').each(function() {
+        rowh = Math.max(rowh, this.offsetHeight);
+    });
+
+    if (holder.length == 0 || rowh == 0)
+        return deviceTabulator.getPageSize();
+
+    return Math.max(1, Math.floor(holder[0].clientHeight / rowh));
+}
 
 function ScheduleDeviceSummary() {
     if (deviceTid2 != -1)
@@ -1229,7 +1265,7 @@ function ScheduleDeviceSummary() {
 
             deviceTableRefreshing = true;
 
-            var pageSize = deviceTabulator.getPageSize();
+            var pageSize = DeviceTablePageSize();
             if (pageSize == 0) {
                 throw new Error("Page size 0");
             }
@@ -1238,11 +1274,19 @@ function ScheduleDeviceSummary() {
                 throw new Error("refresh blocked");
             }
 
+            // Keep the first row in view when the page size changes
+            if (deviceTablePageSize != 0 && pageSize != deviceTablePageSize) {
+                deviceTablePage = Math.floor(deviceTablePage * deviceTablePageSize / pageSize);
+            }
+            deviceTablePageSize = pageSize;
+
+            var page = deviceTablePage;
+
             var colparams = JSON.stringify({'fields': GenerateDeviceFieldList2()});
 
             var postdata = {
                 "json": colparams,
-                "page": deviceTablePage,
+                "page": page,
                 "length": pageSize,
             }
 
@@ -1328,8 +1372,17 @@ function ScheduleDeviceSummary() {
                         procdata.push(md);
                     }
 
+                    // A paginated Tabulator redraws from the top whenever its data is
+                    // replaced, which would throw the user back to the first row every
+                    // refresh; put the scroll position back unless the page changed.
+                    var holder = $('#devices-table2 .tabulator-tableholder');
+                    var scrollTop = page == deviceTableShownPage ? holder.scrollTop() : 0;
+                    deviceTableShownPage = page;
+
                     // deviceTabulator.replaceData(data["data"]);
-                    deviceTabulator.replaceData(procdata);
+                    deviceTabulator.replaceData(procdata).then(() => {
+                        holder.scrollTop(scrollTop);
+                    });
 
                     var paginator = $('#devices-table2 .tabulator-paginator');
                     paginator.empty();
@@ -1555,11 +1608,12 @@ exports.InitializeDeviceTable = function(element) {
                 return "Loading..."
             }
 
-            var frow = pageSize * deviceTablePage;
-            if (frow == 0)
-                frow = 1;
+            if (deviceTablePageSize != 0)
+                pageSize = deviceTablePageSize;
 
-            var lrow = frow + pageSize;
+            var frow = pageSize * deviceTablePage + 1;
+
+            var lrow = frow + pageSize - 1;
             if (lrow > deviceTableTotal)
                 lrow = deviceTableTotal;
 
