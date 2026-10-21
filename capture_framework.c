@@ -2670,7 +2670,8 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
             caph->shutdown = 1;
             pthread_mutex_unlock(&caph->handler_lock);
 
-            fprintf(stderr, "FATAL: Datasource could not connect websocket client\n");
+            fprintf(stderr, "FATAL: Datasource could not connect websocket client: %s\n",
+                    in != NULL ? (const char *) in : "unknown error");
             lws_cancel_service(caph->lwscontext);
             break;
         case LWS_CALLBACK_CLIENT_ESTABLISHED:
