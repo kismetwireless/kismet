@@ -1,5 +1,32 @@
 "use strict";
 
+/* A keyboard for keyboards and unidentified input devices, a mouse for mice */
+kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'NrfMousejack') {
+        var type = row['original_data']['kismet.device.base.type'] || '';
+
+        if (type.indexOf('mouse') >= 0 && type.indexOf('keyboard') < 0)
+            return '<i class="fa fa-computer-mouse"></i>';
+
+        return '<i class="fa fa-keyboard"></i>';
+    }
+});
+
+/* Highlight nRF24 keyboards and mice */
+kismet_ui.AddDeviceRowHighlight({
+    name: "nRF24 Keyboards and Mice",
+    description: "Nordic Enhanced ShockBurst (MouseJack) wireless keyboards, mice and receivers",
+    priority: 100,
+    defaultcolor: "#f2d9f7",
+    defaultenable: true,
+    fields: [
+        'kismet.device.base.phyname'
+    ],
+    selector: function(data) {
+        return data['kismet.device.base.phyname'] === 'NrfMousejack';
+    }
+});
+
 kismet_ui.AddDeviceDetail("nrfmousejack", "nRF24 (Enhanced ShockBurst)", 0, {
     filter: function(data) {
         return data['kismet.device.base.phyname'] === "NrfMousejack";
