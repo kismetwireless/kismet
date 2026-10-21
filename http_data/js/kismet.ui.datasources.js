@@ -612,6 +612,12 @@ function update_datasource2(data) {
         }
 
         $('td:eq(0)', r).replaceWith($('<td>').append(title));
+
+        // Controls are kept between refreshes; moving them would close an open menu
+        // and lose focus, so leave them alone once they're in place
+        if (content instanceof jQuery && content.parent().is($('td:eq(1)', r)))
+            return;
+
         $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
 
@@ -1499,7 +1505,7 @@ function update_datasource2(data) {
                     rate = maxrate;
                     var capped = hop_rate_to_input(rate);
                     valinput.val(capped[0]);
-                    unitinput.val(capped[1]);
+                    unitinput.val(capped[1]).selectmenu('refresh');
                 }
 
                 ds_state['defer_source_update'] = true;
@@ -1558,6 +1564,16 @@ function update_datasource2(data) {
               id: "hoprate"
               }).html("")
             );
+
+          // Themed like the other menus; it needs its container to put its button in.  The
+          // menu itself is on the body, so lift it above the datasource panel when it opens
+          $('#hoprateunit', quickopts).selectmenu({
+              width: "9em",
+              open: function() {
+                  var z = parseInt($(this).closest('.jsPanel').css('z-index')) || 0;
+                  $(this).selectmenu('menuWidget').parent().css('z-index', z + 1);
+              },
+          });
         }
 
         var max_hop_rate = source['kismet.datasource.type_driver']['kismet.datasource.driver.max_hop_rate'];
