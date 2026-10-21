@@ -770,28 +770,8 @@ static int handle_data_frame(kis_capture_handler_t *caph, local_catsniffer_t *lo
     _802_15_4_tap *tap = (_802_15_4_tap *) tap_pack;
     memset(tap, 0, sizeof(*tap));
 
-    // Header
-    tap->version  = kis_htole16(0);
-    tap->reserved = kis_htole16(0);
-    tap->length   = kis_htole16(sizeof(_802_15_4_tap));
-
-    // TLV 0: FCS present? => 0 (payload has no FCS)
-    tap->tlv[0].type   = kis_htole16(0);
-    tap->tlv[0].length = kis_htole16(1);
-    tap->tlv[0].value  = kis_htole32(0);
-
-    // TLV 1: RSSI (signed 8-bit in low byte; Kismet reads low byte)
-    tap->tlv[1].type   = kis_htole16(10);
-    tap->tlv[1].length = kis_htole16(1);
-    tap->tlv[1].value  = kis_htole32((uint8_t) rssi_dbm);
-
-    // TLV 2: Channel (use length 3 to match other drivers)
-    tap->tlv[2].type   = kis_htole16(3);
-    tap->tlv[2].length = kis_htole16(3);
-    uint32_t ch_val = (0u)                     /* page in byte0 */
-                    | (((uint32_t)chan) << 8)  /* channel in byte1 */
-                    | (0u << 16);              /* reserved in byte2 */
-    tap->tlv[2].value  = kis_htole32(ch_val);
+    // no FCS (the payload has none), the RSSI in dBm, the channel (page 0)
+    tap_802_15_4_fill(tap, 0, 1, (float) rssi_dbm, 0, chan);
 
     // Copy MAC payload (no FCS) after the TAP header
     memcpy(tap->payload, mac_payload, mac_len);

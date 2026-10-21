@@ -214,6 +214,23 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
         return 0;
 
+    // Only advertising channel PDUs, which all use the advertising access address 0x8E89BED6
+    // (Core Vol 6 Part B 2.1.2), describe a device.  A data channel PDU (of a connection, or of a
+    // connected isochronous stream) parsed as one turns its payload into an advertiser address and
+    // advertising data: a device per packet.  The CRC check below rejected them only by accident,
+    // with the advertising CRC init, and not when the capture source had checked the CRC already.
+    if (packdata->length() < 4)
+        return 0;
+
+    const uint32_t access_address =
+        (uint32_t) ((uint8_t) packdata->data()[0]) |
+        (uint32_t) ((uint8_t) packdata->data()[1]) << 8 |
+        (uint32_t) ((uint8_t) packdata->data()[2]) << 16 |
+        (uint32_t) ((uint8_t) packdata->data()[3]) << 24;
+
+    if (access_address != 0x8E89BED6)
+        return 0;
+
     // If this packet hasn't been checksummed already at the capture layer,
     // do a checksum now.  We assume the last 3 bytes are the checksum.
     // ticc and nrf don't provide an in-packet checksum, and we rely on the

@@ -79,26 +79,8 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &content[11], nxp_payload_len);
 
-        conv_header->version = kis_htole16(0);// currently only one version
-        conv_header->reserved = kis_htole16(0);// must be set to 0
-
-         // fcs setting
-        conv_header->tlv[0].type = kis_htole16(0);
-        conv_header->tlv[0].length = kis_htole16(1);
-        conv_header->tlv[0].value = kis_htole32(0);
-
-        // rssi
-        conv_header->tlv[1].type = kis_htole16(10);
-        conv_header->tlv[1].length = kis_htole16(1);
-        conv_header->tlv[1].value = kis_htole32(rssi);
-
-        // channel
-        conv_header->tlv[2].type = kis_htole16(3);
-        conv_header->tlv[2].length = kis_htole16(3);
-        conv_header->tlv[2].value = kis_htole32(channel);
-
-        // size
-        conv_header->length = sizeof(_802_15_4_tap); 
+        // no FCS; the radio's level is a raw RSSI, not dBm, so it goes in the LQI TLV; the channel
+        tap_802_15_4_fill(conv_header, 0, 0, 0.0f, (uint8_t) (rssi > 255 ? 255 : rssi), channel);
 
         datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 

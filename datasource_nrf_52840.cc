@@ -101,26 +101,8 @@ kis_datasource_nrf52840::rx_content kis_datasource_nrf52840::handle_rx_data_cont
 
     uint8_t channel = content[2];
 
-    conv_header->version = kis_htole16(0);// currently only one version
-    conv_header->reserved = kis_htole16(0);// must be set to 0
-
-    // fcs setting
-    conv_header->tlv[0].type = kis_htole16(0);
-    conv_header->tlv[0].length = kis_htole16(1);
-    conv_header->tlv[0].value = kis_htole32(0);
-
-    // rssi
-    conv_header->tlv[1].type = kis_htole16(10);
-    conv_header->tlv[1].length = kis_htole16(1);
-    conv_header->tlv[1].value = kis_htole32(rssi);
-
-    // channel
-    conv_header->tlv[2].type = kis_htole16(3);
-    conv_header->tlv[2].length = kis_htole16(3);
-    conv_header->tlv[2].value = kis_htole32(channel);
-
-    // size
-    conv_header->length = kis_htole16(sizeof(_802_15_4_tap));
+    // no FCS, the RSSI in dBm, the channel
+    tap_802_15_4_fill(conv_header, 0, 1, (float) rssi, 0, channel);
 
     datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
