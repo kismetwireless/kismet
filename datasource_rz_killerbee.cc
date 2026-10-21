@@ -53,26 +53,8 @@ kis_datasource_rzkillerbee::rx_content kis_datasource_rzkillerbee::handle_rx_dat
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &content[9], rz_payload_len);
 
-        conv_header->version = kis_htole16(0);// currently only one version
-        conv_header->reserved = kis_htole16(0);// must be set to 0
-
-        // Killerbee does include the FCS setting
-        conv_header->tlv[0].type = kis_htole16(0);
-        conv_header->tlv[0].length = kis_htole16(1);
-        conv_header->tlv[0].value = kis_htole32(1);
-
-        // rssi
-        conv_header->tlv[1].type = kis_htole16(10);
-        conv_header->tlv[1].length = kis_htole16(1);
-        conv_header->tlv[1].value = kis_htole32(rssi);
-
-        // channel
-        conv_header->tlv[2].type = kis_htole16(3);
-        conv_header->tlv[2].length = kis_htole16(3);
-        conv_header->tlv[2].value = kis_htole32(channel);
-
-        //size
-        conv_header->length = sizeof(_802_15_4_tap);
+        // the KillerBee frame includes its FCS; the RSSI in dBm, the channel
+        tap_802_15_4_fill(conv_header, 1, 1, (float) rssi, 0, channel);
 
         packet->original_len = conv_buf_len;
 

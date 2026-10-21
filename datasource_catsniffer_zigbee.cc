@@ -54,63 +54,37 @@ kis_datasource_catsniffer_zigbee::rx_content kis_datasource_catsniffer_zigbee::h
         return rx_content::error;
     }
 
-    // --- Treat incoming bytes as 802.15.4 TAP frame ---
-    const _802_15_4_tap *tap = reinterpret_cast<const _802_15_4_tap *>(content);
-    const uint16_t tap_len = le16toh(tap->length);
+    // --- Treat incoming bytes as 802.15.4 TAP frame: its TLVs by type and length ---
+    struct tap_802_15_4_meta tap;
 
-    if (tap_len < 28 || tap_len > content_sz) {
+    if (!tap_802_15_4_parse(reinterpret_cast<const uint8_t *>(content), content_sz, &tap) ||
+            tap.header_len < sizeof(_802_15_4_tap)) {
         return rx_content::error;
     }
 
-    const size_t mac_len = content_sz - tap_len;
+    const size_t mac_len = content_sz - tap.header_len;
     packet->original_len = mac_len;
-
-    const uint16_t t1_type = le16toh(tap->tlv[1].type);
-    const uint16_t t1_len  = le16toh(tap->tlv[1].length);
-    const uint32_t t1_val  = le32toh(tap->tlv[1].value);
-
-    const uint16_t t2_type = le16toh(tap->tlv[2].type);
-    const uint16_t t2_len  = le16toh(tap->tlv[2].length);
-    const uint32_t t2_val  = le32toh(tap->tlv[2].value);
 
     // --- The datachunk becomes the LINKFRAME so 802.15.4 decoders can run ---
     packet->set_data(reinterpret_cast<const char*>(content), content_sz);
     datachunk->set_data(packet->data);
 
     // --- Build radiodata (RSSI / Channel) for UI ---
-	packet->signal_info.data_ok = true;
+    packet->signal_info.data_ok = true;
     packet->signal_info.signal_type = kis_l1_signal_type_none;
 
-    // RSSI (TLV 10)
-    if (t1_type == 10 && t1_len >= 1) {
-        const int8_t rssi = static_cast<int8_t>(t1_val & 0xFF);
+    if (tap.have_rss) {
         packet->signal_info.signal_type = kis_l1_signal_type_dbm;
-        packet->signal_info.signal_dbm  = rssi;
-        //_MSG(fmt::format("Catsniffer DS: RSSI (dbm) parsed={}", (int)rssi), MSGFLAG_INFO); //Debug
-    } else {
-        //_MSG("Catsniffer DS: RSSI TLV missing or len<1; leaving signal_type=none", MSGFLAG_INFO); //Debug
+        packet->signal_info.signal_dbm = (int) tap.rss_dbm;
+    } else if (tap.have_lqi) {
+        // An older catsniffer capture tool: its RSSI as a signed octet in the LQI TLV
+        packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+        packet->signal_info.signal_dbm = (int8_t) tap.lqi;
     }
 
-    // Channel (TLV 3)
-    if (t2_type == 3) {
-        uint8_t page = 0, chan = 0;
-        if (t2_len == 1) {
-            chan = static_cast<uint8_t>(t2_val & 0xFF);
-        } else if (t2_len == 3) {
-            page = static_cast<uint8_t>(t2_val & 0xFF);
-            chan = static_cast<uint8_t>((t2_val >> 8) & 0xFF);
-        } else {
-            chan = static_cast<uint8_t>(t2_val & 0xFF);
-        }
-
-        packet->signal_info.channel = fmt::format("{}", chan);
-        if (page == 0 && chan >= 11 && chan <= 26)
-            packet->signal_info.freq_khz = (2405 + ((chan - 11) * 5)) * 1000;
-
-        /*_MSG(fmt::format("Catsniffer DS: channel parsed={} page={} freq_khz={}",
-                         (int)chan, (int)page, (uint64_t)radioheader->freq_khz), MSGFLAG_INFO); */ //Debug
-    } else {
-        //_MSG(fmt::format("Catsniffer DS: Channel TLV not present (type={})", (int)t2_type), MSGFLAG_INFO); //Debug
+    if (tap.have_channel) {
+        packet->signal_info.channel = fmt::format("{}", tap.channel);
+        packet->signal_info.freq_khz = tap_802_15_4_channel_khz(tap.channel, tap.page);
     }
 
     return rx_content::frame;

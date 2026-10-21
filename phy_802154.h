@@ -44,6 +44,8 @@
 
 #include "tap_802_15_4.h"
 
+#include <unordered_map>
+
 #ifndef KDLT_IEEE802_15_4_TAP
 #define KDLT_IEEE802_15_4_TAP             283
 #endif
@@ -59,11 +61,39 @@ public:
 
     void reset() {
         src_pan = 0;
+        has_src_pan = false;
+        network = network_unknown;
+        pan_coordinator = false;
+        beacon = false;
+        stack_profile = 0;
+        ext_pan_id.clear();
+        network_name.clear();
+        nwk_src = 0xFFFF;
+        has_nwk_ieee = false;
+        nwk_secured = false;
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
     // destination PAN when the PAN ID is compressed)
     uint16_t src_pan = 0;
+    bool has_src_pan = false;
+
+    // What the payload says about the network, in rising order of certainty
+    enum network_kind { network_unknown = 0, network_6lowpan, network_zigbee_gp, network_zigbee, network_thread };
+    network_kind network = network_unknown;
+
+    bool beacon = false;                // a beacon frame
+    bool pan_coordinator = false;       // its superframe specification's PAN coordinator bit
+    uint8_t stack_profile = 0;          // Zigbee beacon: 1 Zigbee, 2 Zigbee PRO
+    std::string ext_pan_id;             // the extended PAN ID of a Zigbee or Thread beacon
+    std::string network_name;           // a Thread 1.1 beacon's network name
+
+    // The Zigbee NWK header: its source short address and, when it carries it, the source's IEEE
+    // address (most significant octet first), and whether the NWK payload is secured
+    uint16_t nwk_src = 0xFFFF;
+    bool has_nwk_ieee = false;
+    uint8_t nwk_ieee[8] = {0};
+    bool nwk_secured = false;
 };
 
 /* Largely a placeholder for future possible data; right now we can't decode
@@ -101,22 +131,48 @@ public:
     }
 
     __Proxy(pan_id, uint16_t, uint16_t, uint16_t, pan_id);
+    __Proxy(network_type, std::string, std::string, std::string, network_type);
+    __Proxy(role, std::string, std::string, std::string, role);
+    __Proxy(short_addr, uint16_t, uint16_t, uint16_t, short_addr);
+    __Proxy(ieee_addr, mac_addr, mac_addr, mac_addr, ieee_addr);
+    __Proxy(ext_pan_id, std::string, std::string, std::string, ext_pan_id);
+    __Proxy(network_name, std::string, std::string, std::string, network_name);
+    __Proxy(stack_profile, uint8_t, uint8_t, uint8_t, stack_profile);
+    __Proxy(network_rank, uint8_t, uint8_t, uint8_t, network_rank);
 
 protected:
 
     virtual void register_fields() override {
         register_field("802154.device.pan_id", "PAN ID (0xFFFF if not seen)", &pan_id);
+        register_field("802154.device.network_type", "Network: Zigbee, Zigbee Green Power, Thread, 6LoWPAN", &network_type);
+        register_field("802154.device.role", "Role: PAN coordinator, router", &role);
+        register_field("802154.device.short_addr", "Short address (0xFFFF if not seen)", &short_addr);
+        register_field("802154.device.ieee_addr", "IEEE (EUI-64) address learned for a short address", &ieee_addr);
+        register_field("802154.device.ext_pan_id", "Extended PAN ID", &ext_pan_id);
+        register_field("802154.device.network_name", "Network name (Thread)", &network_name);
+        register_field("802154.device.stack_profile", "Zigbee stack profile (1 Zigbee, 2 Zigbee PRO)", &stack_profile);
+        register_field("802154.device.network_rank", "Certainty of network_type (internal)", &network_rank);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         // 0xFFFF is the broadcast PAN, which a sender's own PAN never is
-        if (e == nullptr)
+        if (e == nullptr) {
             set_pan_id(0xFFFF);
+            set_short_addr(0xFFFF);
+        }
     }
 
     std::shared_ptr<tracker_element_uint16> pan_id;
+    std::shared_ptr<tracker_element_string> network_type;
+    std::shared_ptr<tracker_element_string> role;
+    std::shared_ptr<tracker_element_uint16> short_addr;
+    std::shared_ptr<tracker_element_mac_addr> ieee_addr;
+    std::shared_ptr<tracker_element_string> ext_pan_id;
+    std::shared_ptr<tracker_element_string> network_name;
+    std::shared_ptr<tracker_element_uint8> stack_profile;
+    std::shared_ptr<tracker_element_uint8> network_rank;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -151,6 +207,10 @@ protected:
 
     int dlt;
 
+    // PAN + short address -> the IEEE address a Zigbee NWK header gave for it, so a device seen
+    // only by its short address gets its EUI-64 (and manufacturer)
+    kis_mutex ieee_map_mutex;
+    std::unordered_map<uint32_t, mac_addr> ieee_by_short;
 };
 
 #endif
