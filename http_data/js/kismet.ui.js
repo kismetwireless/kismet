@@ -53,11 +53,25 @@ exports.AddDeviceView = function(name, view, priority, group = 'none') {
     DeviceViews.push({name: name, view: view, priority: priority, group: group});
 }
 
+// Views in the selector when it was last built, and whether a rebuild waits for the menu to close
+var view_selector_count = 0;
+var view_selector_pending = false;
+
 exports.BuildDeviceViewSelector = function(element) {
     // Avoid creating orphaned selectmenu elements when the target is missing
     if (element.length === 0)
         return;
-  
+
+    // Rebuilding the menu closes it; while the user has it open, rebuild when it closes
+    var open_menu = $('#devices_views_select', element).selectmenu('instance');
+    if (open_menu !== undefined && open_menu.isOpen) {
+        view_selector_pending = true;
+        return;
+    }
+
+    view_selector_pending = false;
+    view_selector_count = DeviceViews.length;
+
     var grouped_views = [];
 
     // Pre-sort the array so that as we build our nested stuff we do it in order
@@ -151,6 +165,11 @@ exports.BuildDeviceViewSelector = function(element) {
             kismet.putStorage('kismet.ui.deviceview.selected', elem.item.value);
             ScheduleDeviceSummary();
         });
+
+        selector.on("selectmenuclose", function() {
+            if (view_selector_pending)
+                setTimeout(() => exports.BuildDeviceViewSelector(element), 0);
+        });
     }
 
 }
@@ -216,16 +235,13 @@ function ScheduleDeviceViewListUpdate() {
             }
 
             // Complete all the DS queries
-            $.when(ds_promises).then(function(pi) {
+            $.when.apply($, ds_promises).then(function(pi) {
                 ;
             })
             .done(function() {
-                // Skip generating this round if the menu is open
-                if ($("div.viewselector > .ui-selectmenu-button").hasClass("ui-selectmenu-button-open")) {
-                    ;
-                } else {
+                // Only rebuild when views were added
+                if (DeviceViews.length != view_selector_count)
                     exports.BuildDeviceViewSelector($('span#device_view_holder'));
-                }
             });
         });
 }
