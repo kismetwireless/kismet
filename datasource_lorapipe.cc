@@ -79,7 +79,7 @@ namespace {
     }
 }
 
-int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
+kis_datasource_lorapipe::rx_content kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     // Raw lorapipe
@@ -87,12 +87,12 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
     // Kismet prepended raw radio data:
     // 906.875,250,11,5,2b,1715770553,RXLOG,-31.00,5.75,FFFFFFFF084A3C43A25D0C2800080008FC383FF6194371FE2B6C
 
-    // Errors and frames both return 1; errors keep the raw line for logging
+    // Errors and frames both return rx_content::frame; errors keep the raw line for logging
     auto fail = [&]() {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     };
 
     // raw line includes the payload hex
@@ -199,6 +199,6 @@ int kis_datasource_lorapipe::handle_rx_data_content(kis_packet *packet,
 
     packet->insert(pack_comp_decap, decapchunk);
 
-    return 1;
+    return rx_content::frame;
 }
 

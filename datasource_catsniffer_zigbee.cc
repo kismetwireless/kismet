@@ -29,7 +29,7 @@
 #include "globalregistry.h"
 #include "kis_endian.h"         //le16toh / le32toh for TAP TLVs
 
-int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
+kis_datasource_catsniffer_zigbee::rx_content kis_datasource_catsniffer_zigbee::handle_rx_data_content(
         kis_packet *packet, kis_datachunk *datachunk,
         const uint8_t *content, size_t content_sz) {
 
@@ -39,19 +39,19 @@ int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
 
     // Basic guards
     if (packet == nullptr) {
-        return 0;
+        return rx_content::error;
     }
 
     if (datachunk == nullptr) {
-        return 0;
+        return rx_content::error;
     }
 
     if (content == nullptr || content_sz < sizeof(_802_15_4_tap)) {
-        return 0;
+        return rx_content::error;
     }
 
     if (datachunk->dlt != KDLT_IEEE802_15_4_TAP) {
-        return 0;
+        return rx_content::error;
     }
 
     // --- Treat incoming bytes as 802.15.4 TAP frame ---
@@ -59,7 +59,7 @@ int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
     const uint16_t tap_len = le16toh(tap->length);
 
     if (tap_len < 28 || tap_len > content_sz) {
-        return 0;
+        return rx_content::error;
     }
 
     const size_t mac_len = content_sz - tap_len;
@@ -73,13 +73,9 @@ int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
     const uint16_t t2_len  = le16toh(tap->tlv[2].length);
     const uint32_t t2_val  = le32toh(tap->tlv[2].value);
 
-    // --- Attach LINKFRAME so 802.15.4 decoders can run ---
-    // Copy capture buffer into packet->data and create a LINKFRAME component
+    // --- The datachunk becomes the LINKFRAME so 802.15.4 decoders can run ---
     packet->set_data(reinterpret_cast<const char*>(content), content_sz);
-    auto linkframe = packetchain->new_packet_component<kis_datachunk>();
-    linkframe->dlt = datachunk->dlt;              // KDLT_IEEE802_15_4_TAP
-    linkframe->set_data(packet->data);
-    packet->insert(pack_comp_linkframe, linkframe);
+    datachunk->set_data(packet->data);
 
     // --- Build radiodata (RSSI / Channel) for UI ---
 	packet->signal_info.data_ok = true;
@@ -117,6 +113,6 @@ int kis_datasource_catsniffer_zigbee::handle_rx_data_content(
         //_MSG(fmt::format("Catsniffer DS: Channel TLV not present (type={})", (int)t2_type), MSGFLAG_INFO); //Debug
     }
 
-    return 0;
+    return rx_content::frame;
 }
 

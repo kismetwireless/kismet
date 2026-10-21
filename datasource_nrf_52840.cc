@@ -21,7 +21,7 @@
 #include <charconv>
 #include <string_view>
 
-int kis_datasource_nrf52840::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+kis_datasource_nrf52840::rx_content kis_datasource_nrf52840::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
             const uint8_t *content, size_t content_sz) {
 
     // The largest 802.15.4 frame
@@ -29,19 +29,19 @@ int kis_datasource_nrf52840::handle_rx_data_content(kis_packet *packet, kis_data
 
     if (content_sz == 0) {
         packet->error = 1;
-        return 1;
+        return rx_content::frame;
     }
 
-    // nRF52840 BTLE firmware frames are reported by the capture tool
+    // Frames from the nRF52840 BTLE firmware can't be decoded by this source
     if (content[0] == 0xAB && content[content_sz - 1] == 0xBC)
-        return 1;
+        return rx_content::error;
 
     // error, but preserve the packet for logging
     auto corrupt = [&]() {
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     };
 
     // Records are ascii 'received: <hex> power: <rssi> lqi: <lqi> time:', with the channel
@@ -134,5 +134,5 @@ int kis_datasource_nrf52840::handle_rx_data_content(kis_packet *packet, kis_data
         packet->signal_info.freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
     packet->signal_info.channel = fmt::format("{}", (channel));
 
-    return 1;
+    return rx_content::frame;
 }

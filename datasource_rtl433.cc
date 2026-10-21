@@ -71,7 +71,6 @@ int kis_datasource_rtl433::httpd_post_complete(kis_net_httpd_connection *concls)
         datasrcinfo->ref_source = this;
         packet->insert(pack_comp_datasrc, datasrcinfo);
 
-        inc_source_num_packets(1);
         get_source_packet_rrd()->add_sample(1, time(0));
 
         packetchain->process_packet(packet);

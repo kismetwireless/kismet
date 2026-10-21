@@ -122,7 +122,6 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
 
     packet->insert(pack_comp_datasrc, datasrcinfo);
 
-    inc_source_num_packets(1);
     get_source_packet_rrd()->add_sample(1, time(0));
 
     // Inject the packet into the packetchain if we have one

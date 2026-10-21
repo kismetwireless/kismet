@@ -399,7 +399,6 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
             packet->insert(ds->pack_comp_datasrc, datasrcinfo);
 
-            ds->inc_source_num_packets(1);
             ds->get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
             // Insert GPS data as soon as possible in the chain if there's no data

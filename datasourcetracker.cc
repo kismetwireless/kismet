@@ -566,21 +566,24 @@ void datasource_tracker::trigger_deferred_startup() {
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
 
-    // Run after everything else so any stage can have flagged the packet
+    // Run after everything else so any stage can have flagged the packet; this is where each
+    // packet from a source is counted as valid, error or filtered
     packet_stats_handler_id =
         packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) -> int {
-                // A failed FCS check counts as an error even if nothing flagged it
-                const bool error = packet->error || (packet->crc_ok && !packet->checksum_valid);
-
-                if (!error && !packet->filtered)
-                    return 1;
-
                 auto dst = reinterpret_cast<datasource_tracker *>(auxdata);
                 const auto datasrcinfo =
                     packet->fetch<packetchain_comp_datasource>(dst->pack_comp_datasrc);
 
                 if (datasrcinfo == nullptr || datasrcinfo->ref_source == nullptr)
                     return 1;
+
+                // A failed FCS check counts as an error even if nothing flagged it
+                const bool error = packet->error || (packet->crc_ok && !packet->checksum_valid);
+
+                if (!error && !packet->filtered) {
+                    datasrcinfo->ref_source->inc_source_num_packets(1);
+                    return 1;
+                }
 
                 if (error)
                     datasrcinfo->ref_source->inc_source_num_error_packets(1);

@@ -18,7 +18,7 @@
 
 #include "datasource_ti_cc_2531.h"
 
-int kis_datasource_ticc2531::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+kis_datasource_ticc2531::rx_content kis_datasource_ticc2531::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
         const uint8_t *content, size_t content_sz) {
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
@@ -28,7 +28,7 @@ int kis_datasource_ticc2531::handle_rx_data_content(kis_packet *packet, kis_data
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     unsigned int cc_len = content[1];
@@ -37,15 +37,16 @@ int kis_datasource_ticc2531::handle_rx_data_content(kis_packet *packet, kis_data
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     unsigned int cc_payload_len = content[7] - 0x02;
     if ((cc_payload_len + 8 != content_sz - 2) || (cc_payload_len > 104)) {
+        packet->error = 1;
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     uint8_t fcs1 = content[content_sz - 2];
@@ -101,13 +102,13 @@ int kis_datasource_ticc2531::handle_rx_data_content(kis_packet *packet, kis_data
         packet->signal_info.freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
         packet->signal_info.channel = fmt::format("{}", (channel));
 
-        return 1;
+        return rx_content::frame;
     } else {
         packet->error = 1;
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 }
 

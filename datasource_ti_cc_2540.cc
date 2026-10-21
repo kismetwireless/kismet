@@ -20,7 +20,7 @@
 
 #include "datasource_ti_cc_2540.h"
 
-int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+kis_datasource_ticc2540::rx_content kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
         const uint8_t *content, size_t content_sz) {
 
     typedef struct {
@@ -49,7 +49,7 @@ int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_data
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     unsigned int cc_len = content[1];
@@ -58,7 +58,7 @@ int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_data
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     unsigned int cc_payload_len = content[7] - 0x02;
@@ -67,7 +67,7 @@ int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_data
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     uint8_t fcs1 = content[content_sz - 2];
@@ -139,5 +139,5 @@ int kis_datasource_ticc2540::handle_rx_data_content(kis_packet *packet, kis_data
     decapchunk->set_data(packet->data.substr(sizeof(btle_rf), cc_payload_len));
     packet->insert(pack_comp_decap, decapchunk);
 
-    return 1;
+    return rx_content::frame;
 }

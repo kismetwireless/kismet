@@ -20,7 +20,7 @@
 
 #include "endian_magic.h"
 
-int kis_datasource_nrf51822::handle_rx_data_content(kis_packet *packet,
+kis_datasource_nrf51822::rx_content kis_datasource_nrf51822::handle_rx_data_content(kis_packet *packet,
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     typedef struct {
@@ -48,7 +48,7 @@ int kis_datasource_nrf51822::handle_rx_data_content(kis_packet *packet,
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     // apparently we can get multiple packets in one read; this should be addressed
@@ -156,6 +156,6 @@ int kis_datasource_nrf51822::handle_rx_data_content(kis_packet *packet,
         datachunk->set_data(packet->data);
     }
 
-    return 1;
+    return rx_content::frame;
 }
 
