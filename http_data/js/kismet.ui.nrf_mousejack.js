@@ -1,14 +1,28 @@
 "use strict";
 
-/* A keyboard for keyboards and unidentified input devices, a mouse for mice */
+/*
+ * A keyboard for keyboards, a mouse for mice, and for a keyboard and mouse together or an input
+ * device not yet identified, a keyboard with a smaller mouse over its lower right corner (outlined
+ * in the row's highlight colour, so the two stay apart where they overlap)
+ */
+var nrfKeyboardAndMouse =
+    '<span style="position: relative; display: inline-block; width: 1.4em; height: 1em; vertical-align: -0.125em;">' +
+    '<i class="fa fa-keyboard" style="position: absolute; left: 0; top: 0;"></i>' +
+    '<i class="fa fa-computer-mouse" style="position: absolute; left: 1.45em; top: 0.62em; font-size: 0.62em; ' +
+    'paint-order: stroke fill; -webkit-text-stroke: 0.22em var(--k-row-highlight, transparent);"></i></span>';
+
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'NrfMousejack') {
         var type = row['original_data']['kismet.device.base.type'] || '';
+        var mouse = type.indexOf('mouse') >= 0, keyboard = type.indexOf('keyboard') >= 0;
 
-        if (type.indexOf('mouse') >= 0 && type.indexOf('keyboard') < 0)
+        if (mouse && !keyboard)
             return '<i class="fa fa-computer-mouse"></i>';
 
-        return '<i class="fa fa-keyboard"></i>';
+        if (keyboard && !mouse)
+            return '<i class="fa fa-keyboard"></i>';
+
+        return nrfKeyboardAndMouse;
     }
 });
 
