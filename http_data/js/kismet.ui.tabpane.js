@@ -301,9 +301,11 @@ exports.MakeTabPane = function(div, group) {
     populateList(div, group);
 
     // Fill-height tabs only size themselves when refreshed; refit them to the
-    // window, which also resizes the tables inside them
-    $(window).on("resize", $.debounce(100, () => {
-        div.tabs("refresh");
+    // window, which also resizes the tables inside them.  One handler per group, since
+    // popups make their pane again each time they open, and none once the pane is gone.
+    $(window).off(`resize.tabpane-${group}`).on(`resize.tabpane-${group}`, $.debounce(100, () => {
+        if (div.data('ui-tabs'))
+            div.tabs("refresh");
     }));
 };
 
