@@ -674,6 +674,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
 
         /* Ignore events not for us */
         if (rindex != localbt->devid) {
+            free(evt);
             continue;
         }
 
@@ -734,21 +735,25 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
         } else {
             switch (ropcode) {
                 case MGMT_EV_DISCOVERING:
-                    evt_controller_discovering(localbt,
-                            rlength - sizeof(bluez_mgmt_command_t),
-                            evt->param);
+                    evt_controller_discovering(localbt, rlength, evt->param);
                     break;
                 case MGMT_EV_DEVICE_FOUND:
-                    evt_device_found(localbt,
-                            rlength - sizeof(bluez_mgmt_command_t),
-                            evt->param);
+                    evt_device_found(localbt, rlength, evt->param);
                     break;
                 case MGMT_EV_INDEX_REMOVED:
                     /* we only get here if rindex matches, so we know our own
-                     * device got removed */
+                     * device got removed; a USB reset removes and re-adds it */
                     snprintf(errstr, STATUS_MAX,
-                            "Bluetooth interface hci%u was removed", rindex);
-                    cf_send_error(localbt->caph, 0, errstr);
+                            "Bluetooth interface hci%u was removed, waiting for it to "
+                            "return", rindex);
+                    cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
+                    break;
+                case MGMT_EV_INDEX_ADDED:
+                    snprintf(errstr, STATUS_MAX,
+                            "Bluetooth interface hci%u returned, restarting discovery",
+                            rindex);
+                    cf_send_message(localbt->caph, errstr, MSGFLAG_INFO);
+                    cmd_get_controller_info(localbt);
                     break;
 
                 default:
