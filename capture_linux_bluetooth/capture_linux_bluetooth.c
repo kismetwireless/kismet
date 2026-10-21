@@ -48,6 +48,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <dirent.h>
+#include <time.h>
 
 #include "mgmtlib/bluetooth.h"
 #include "mgmtlib/hci.h"
@@ -76,6 +77,10 @@ typedef struct {
 
     /* Scanning type */
     uint8_t scan_type;
+
+    /* Controller is discovering, and when we last tried to set it up */
+    int discovering;
+    time_t last_setup;
 
     kis_capture_handler_t *caph;
 } local_bluetooth_t;
@@ -374,6 +379,8 @@ void evt_controller_discovering(local_bluetooth_t *localbt, uint16_t len, const 
     if (len < sizeof(struct mgmt_ev_discovering)) {
         return;
     }
+
+    localbt->discovering = dsc->discovering;
 
     if (!dsc->discovering) {
         cmd_start_discovery(localbt);
@@ -747,6 +754,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                             "Bluetooth interface hci%u was removed, waiting for it to "
                             "return", rindex);
                     cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
+                    localbt->discovering = 0;
                     break;
                 case MGMT_EV_INDEX_ADDED:
                     snprintf(errstr, STATUS_MAX,
@@ -1036,6 +1044,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    localbt->discovering = 0;
+    localbt->last_setup = time(0);
     cmd_get_controller_info(localbt);
 
     return 1;
@@ -1077,6 +1087,13 @@ void capture_thread(kis_capture_handler_t *caph) {
             continue;
         }
 
+        /* Setup can lose a race with bluetoothd after a controller reset (a busy
+         * power or discovery command), so redo it until the controller is discovering */
+        if (!localbt->discovering && time(0) - localbt->last_setup >= 2) {
+            localbt->last_setup = time(0);
+            cmd_get_controller_info(localbt);
+        }
+
         if (FD_ISSET(localbt->mgmt_fd, &rset)) {
             while (kis_simple_ringbuf_available(localbt->read_rbuf)) {
                 ssize_t amt_read;
@@ -1116,6 +1133,8 @@ int main(int argc, char *argv[]) {
         .mgmt_fd = 0,
         .read_rbuf = NULL,
         .scan_type = SCAN_TYPE_DUAL,
+        .discovering = 0,
+        .last_setup = 0,
         .caph = NULL,
     };
 
