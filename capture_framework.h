@@ -281,6 +281,9 @@ struct kis_capture_handler {
     /* Use legacy tcp mode */
     int use_tcp;
 
+    /* Set once a valid frame arrives from the server */
+    int remote_rx_valid;
+
     /* Use IPC mode */
     int use_ipc;
 
