@@ -161,8 +161,9 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		skb_pull(skb, sizeof(lsig));
 	}
 
+	/* kismet: has_fcs is decided per frame by kc_mac80211_deliver() */
 	mpdulen = skb->len;
-	if (!(has_fcs && ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS)))
+	if (!has_fcs)
 		mpdulen += FCS_LEN;
 
 	rthdr = skb_push(skb, rtap_len);
@@ -208,7 +209,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	}
 
 	/* IEEE80211_RADIOTAP_FLAGS */
-	if (has_fcs && ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS))
+	if (has_fcs)
 		*pos |= IEEE80211_RADIOTAP_F_FCS;
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
 		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
@@ -496,6 +497,36 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	}
 }
 
+/* Reflected CRC-32, as used for the 802.11 FCS */
+static u32 kc_fcs_table[256];
+static pthread_once_t kc_fcs_once = PTHREAD_ONCE_INIT;
+
+static void kc_fcs_init(void) {
+    for (u32 i = 0; i < 256; i++) {
+        u32 c = i;
+
+        for (int k = 0; k < 8; k++)
+            c = (c >> 1) ^ (0xedb88320 & -(c & 1));
+
+        kc_fcs_table[i] = c;
+    }
+}
+
+static u32 kc_fcs(const u8 *data, size_t len) {
+    u32 c = 0xffffffff;
+
+    pthread_once(&kc_fcs_once, kc_fcs_init);
+
+    while (len--)
+        c = kc_fcs_table[(c ^ *data++) & 0xff] ^ (c >> 8);
+
+    return ~c;
+}
+
+void kc_mac80211_set_rx_fcs_past_end(struct ieee80211_hw *hw) {
+    hw_to_local(hw)->rx_fcs_past_end = true;
+}
+
 /* Builds radiotap in front of the frame and hands it to the monitor callback */
 void kc_mac80211_deliver(struct ieee80211_local *local, struct sk_buff *skb) {
     struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
@@ -531,12 +562,24 @@ void kc_mac80211_deliver(struct ieee80211_local *local, struct sk_buff *skb) {
     if ((unsigned int) driver_rtap > skb->len)
         goto out;
 
+    bool has_fcs = ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS);
+
+    /* Take the FCS from past the end of the frame before the head is expanded, which only
+     * copies up to the tail */
+    if (!has_fcs && local->rx_fcs_past_end && skb_tailroom(skb) >= FCS_LEN &&
+            kc_fcs(skb->data + driver_rtap, skb->len - driver_rtap) ==
+            get_unaligned_le32(skb_tail_pointer(skb))) {
+        skb_put(skb, FCS_LEN);
+        has_fcs = true;
+    }
+
     int need = rtap_len - driver_rtap;
     if (need > 0 && (int) skb_headroom(skb) < need &&
             pskb_expand_head(skb, need - (int) skb_headroom(skb), 0, GFP_ATOMIC) < 0)
         goto out;
 
-    ieee80211_add_rx_radiotap_header(local, skb, rate, rtap_len, false);
+    /* Keep the FCS on the frame and flag it, so Kismet can validate it */
+    ieee80211_add_rx_radiotap_header(local, skb, rate, rtap_len, has_fcs);
 
     local->rx_cb(local->rx_ctx, &local->hw, status, skb->data, skb->len);
 

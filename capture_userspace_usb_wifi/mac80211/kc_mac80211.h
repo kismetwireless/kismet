@@ -42,6 +42,10 @@ int kc_mac80211_start_monitor(struct ieee80211_hw *hw, kc_mac80211_rx_cb_t cb, v
 int kc_mac80211_set_chandef(struct ieee80211_hw *hw, const struct cfg80211_chan_def *def);
 void kc_mac80211_stop(struct ieee80211_hw *hw);
 
+/* For chips which DMA the FCS after some frames but report a length without it; a valid
+ * FCS found there is kept on the frame and flagged in radiotap */
+void kc_mac80211_set_rx_fcs_past_end(struct ieee80211_hw *hw);
+
 /* Builds a chandef for a control channel, width and centre frequency (0 for 20 MHz) */
 int kc_mac80211_chandef(struct ieee80211_hw *hw, enum nl80211_band band, int channel,
         enum nl80211_chan_width width, u32 center_freq1, struct cfg80211_chan_def *def);

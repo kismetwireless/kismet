@@ -47,6 +47,9 @@ struct ieee80211_local {
     kc_mac80211_rx_cb_t rx_cb;
     void *rx_ctx;
 
+    /* The chip leaves the FCS just past some frames; see kc_mac80211_set_rx_fcs_past_end() */
+    bool rx_fcs_past_end;
+
     /* ieee80211_restart_hw() */
     struct work_struct restart_work;
 

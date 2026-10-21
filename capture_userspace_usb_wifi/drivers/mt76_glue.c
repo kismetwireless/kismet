@@ -24,6 +24,8 @@
 #include "mt76/mt792x.h"
 #include "mt76/mt7921/mt7921.h"
 
+#include <kc_mac80211.h>
+
 /* From mt7925/mt7925.h and mt76x02.h, which can't be included alongside mt7921.h */
 int mt7925_init_debugfs(struct mt792x_dev *dev);
 struct mt76x02_dev;
@@ -64,8 +66,10 @@ int mt7921_init_debugfs(struct mt792x_dev *dev) {
     return 0;
 }
 
+/* Called once the mt7925 hw is registered, so it also marks the hw: the chip DMAs the FCS
+ * after many frames without counting it in the frame length */
 int mt7925_init_debugfs(struct mt792x_dev *dev) {
-    (void) dev;
+    kc_mac80211_set_rx_fcs_past_end(dev->mt76.hw);
     return 0;
 }
 
