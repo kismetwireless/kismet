@@ -44,6 +44,7 @@
 
 #include "tap_802_15_4.h"
 
+#include <deque>
 #include <unordered_map>
 
 #ifndef KDLT_IEEE802_15_4_TAP
@@ -71,6 +72,8 @@ public:
         nwk_src = 0xFFFF;
         has_nwk_ieee = false;
         nwk_secured = false;
+        has_gpd_srcid = false;
+        gpd_srcid = 0;
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -94,6 +97,11 @@ public:
     bool has_nwk_ieee = false;
     uint8_t nwk_ieee[8] = {0};
     bool nwk_secured = false;
+
+    // A Zigbee Green Power frame's GPD source ID, which names its sender when the frame has no
+    // MAC source address
+    bool has_gpd_srcid = false;
+    uint32_t gpd_srcid = 0;
 };
 
 /* Largely a placeholder for future possible data; right now we can't decode
@@ -139,6 +147,7 @@ public:
     __Proxy(network_name, std::string, std::string, std::string, network_name);
     __Proxy(stack_profile, uint8_t, uint8_t, uint8_t, stack_profile);
     __Proxy(network_rank, uint8_t, uint8_t, uint8_t, network_rank);
+    __Proxy(gpd_srcid, uint32_t, uint32_t, uint32_t, gpd_srcid);
 
 protected:
 
@@ -152,6 +161,7 @@ protected:
         register_field("802154.device.network_name", "Network name (Thread)", &network_name);
         register_field("802154.device.stack_profile", "Zigbee stack profile (1 Zigbee, 2 Zigbee PRO)", &stack_profile);
         register_field("802154.device.network_rank", "Certainty of network_type (internal)", &network_rank);
+        register_field("802154.device.gpd_srcid", "Zigbee Green Power source ID (0 if not seen)", &gpd_srcid);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -173,6 +183,7 @@ protected:
     std::shared_ptr<tracker_element_string> network_name;
     std::shared_ptr<tracker_element_uint8> stack_profile;
     std::shared_ptr<tracker_element_uint8> network_rank;
+    std::shared_ptr<tracker_element_uint32> gpd_srcid;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -208,9 +219,14 @@ protected:
     int dlt;
 
     // PAN + short address -> the IEEE address a Zigbee NWK header gave for it, so a device seen
-    // only by its short address gets its EUI-64 (and manufacturer)
+    // only by its short address gets its EUI-64 (and manufacturer).  Bounded, oldest entry first
+    // out, so spoofed NWK headers can't grow it without limit.
+    static constexpr size_t ieee_map_max = 4096;
     kis_mutex ieee_map_mutex;
     std::unordered_map<uint32_t, mac_addr> ieee_by_short;
+    std::deque<uint32_t> ieee_by_short_order;
+
+    void learn_ieee(uint32_t pan_short, const mac_addr& ieee);
 };
 
 #endif

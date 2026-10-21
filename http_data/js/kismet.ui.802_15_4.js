@@ -73,6 +73,17 @@ kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
                 help: "The EUI-64 a Zigbee NWK header gave for this short address.",
             },
             {
+                field: "802154.device/802154.device.gpd_srcid",
+                title: "GPD source ID",
+                filter: function(opts) {
+                    return kismet.ObjectByString(opts['data'], "802154.device/802154.device.gpd_srcid") != 0;
+                },
+                draw: function(opts) {
+                    return "0x" + opts['value'].toString(16).padStart(8, '0');
+                },
+                help: "The Zigbee Green Power source ID that names this device; it has no MAC address of its own, so Kismet tracks it under an address made from this ID.",
+            },
+            {
                 field: "802154.device/802154.device.ext_pan_id",
                 title: "Extended PAN ID",
                 empty: "Unknown",

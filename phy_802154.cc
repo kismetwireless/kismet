@@ -36,6 +36,7 @@
 #include "dlttracker.h"
 #include "manuf.h"
 #include "messagebus.h"
+#include "crc32.h"
 
 #include "phy_802154.h"
 
@@ -205,6 +206,22 @@ static bool lowpan_frame(const uint8_t *p, size_t n, int depth = 0) {
     return false;
 }
 
+// A Green Power device known only by its source ID is tracked under a synthetic 8-byte address:
+// a locally administered prefix, then the source ID.  Source ID 0 is unspecified, and
+// 0xFFFFFFF9 and up are reserved or broadcast, so those never make one.
+constexpr uint8_t gpd_addr_prefix[4] = {0x02, 0x47, 0x50, 0x00};
+
+static mac_addr gpd_mac(uint32_t srcid) {
+    const uint8_t a[8] = {gpd_addr_prefix[0], gpd_addr_prefix[1], gpd_addr_prefix[2], gpd_addr_prefix[3],
+        (uint8_t) (srcid >> 24), (uint8_t) (srcid >> 16), (uint8_t) (srcid >> 8), (uint8_t) srcid};
+    return mac_addr(a, 8);
+}
+
+static bool is_gpd_mac(const mac_addr& m) {
+    return m.length() == 8 && m[0] == gpd_addr_prefix[0] && m[1] == gpd_addr_prefix[1] &&
+        m[2] == gpd_addr_prefix[2] && m[3] == gpd_addr_prefix[3];
+}
+
 static std::string ext_pan_string(const uint8_t *le8) {
     return fmt::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             le8[7], le8[6], le8[5], le8[4], le8[3], le8[2], le8[1], le8[0]);
@@ -276,8 +293,39 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
     const unsigned int fc = p[0] | (p[1] << 8);
     const unsigned int ftype = fc & 0x03, version = (fc >> 2) & 0x0f, discover = (fc >> 6) & 0x03;
 
-    if (version == 3 && !has_mac_src && ftype != 2) {
+    // Green Power: a one-octet NWK frame control (data or maintenance, protocol version 3), the
+    // extended frame control when bit 7 is set (application ID, direction), then for
+    // application ID 0 the GPD source ID.  Application ID 0 has no MAC source; ID 2 has the
+    // GPD's IEEE address as the MAC source.
+    if (version == 3) {
+        if (ftype > 1)
+            return false;
+
+        unsigned int app_id = 0, from_gpp = 0;
+        size_t o = 1;
+
+        if (p[0] & 0x80) {
+            app_id = p[1] & 0x07;
+            from_gpp = (p[1] >> 7) & 0x01;
+            o = 2;
+        }
+
+        if (app_id != (has_mac_src ? 2u : 0u))
+            return false;
+
         pi->network = kis_802154_packinfo::network_zigbee_gp;
+
+        // the source ID names the GPD; in a frame to it (from a proxy) it is the destination
+        if (app_id == 0 && (ftype == 0 || (p[0] & 0x80)) && o + 4 <= n && !from_gpp) {
+            const uint32_t srcid = (uint32_t) p[o] | ((uint32_t) p[o + 1] << 8) |
+                ((uint32_t) p[o + 2] << 16) | ((uint32_t) p[o + 3] << 24);
+
+            if (srcid != 0 && srcid < 0xFFFFFFF9) {
+                pi->gpd_srcid = srcid;
+                pi->has_gpd_srcid = true;
+            }
+        }
+
         return true;
     }
 
@@ -388,20 +436,31 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         pkt_ctr = tap.header_len;
 
-        // An MPDU is 3 to 127 octets with its FCS
-        if (packdata->length() < pkt_ctr + 3 + fcs_len || packdata->length() - pkt_ctr > 127) {
+        // An MPDU is 3 to 127 octets with its FCS, or up to 2047 on the SUN PHYs, which use
+        // the 32-bit FCS
+        const size_t max_mpdu = fcs_len == 4 ? 2047 : 127;
+
+        if (packdata->length() < pkt_ctr + 3 + fcs_len || packdata->length() - pkt_ctr > max_mpdu) {
             in_pack->error = 1;
             return 0;
         }
 
         frame_end = packdata->length() - fcs_len;
 
-        // A frame whose 16-bit FCS does not check is not attributed to anyone.  (A 32-bit FCS,
-        // of the SUN PHYs, is left unchecked.)
+        // A frame whose FCS does not check is not attributed to anyone
         if (fcs_len == 2) {
             const uint16_t fcs = (uint16_t) (raw[frame_end] | (raw[frame_end + 1] << 8));
 
             if (crc16_802154(raw + pkt_ctr, frame_end - pkt_ctr) != fcs) {
+                in_pack->error = 1;
+                return 0;
+            }
+        } else if (fcs_len == 4) {
+            // the 32-bit FCS is the 802.3 CRC-32, sent low byte first
+            const uint32_t fcs = (uint32_t) raw[frame_end] | ((uint32_t) raw[frame_end + 1] << 8) |
+                ((uint32_t) raw[frame_end + 2] << 16) | ((uint32_t) raw[frame_end + 3] << 24);
+
+            if (crc32_fast(raw + pkt_ctr, frame_end - pkt_ctr, 0) != fcs) {
                 in_pack->error = 1;
                 return 0;
             }
@@ -728,6 +787,10 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 in_pack->common_info.basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED | KIS_DEVICE_BASICCRYPT_L3;
         }
 
+        // A Green Power frame with no MAC source is from the GPD its source ID names
+        if (pi->has_gpd_srcid && hdr_802_15_4_fcf->src_addr_mode == 0x00)
+            in_pack->common_info.source = gpd_mac(pi->gpd_srcid);
+
         if (keep)
             in_pack->insert(mphy->pack_comp_802154, pi);
     }
@@ -797,7 +860,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
             source_dev->insert(source_kis_802154);
 
-            if (source.length() == 8 && (source[0] & 0x02))
+            if (source.length() == 8 && (source[0] & 0x02) && !is_gpd_mac(source))
                 source_dev->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
         }
 
@@ -812,6 +875,9 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         // A short address is tracked with its PAN (4 bytes, PAN first)
         if (source.length() == 4)
             source_kis_802154->set_short_addr((source[2] << 8) | source[3]);
+
+        if (pi != nullptr && pi->has_gpd_srcid && is_gpd_mac(source))
+            source_kis_802154->set_gpd_srcid(pi->gpd_srcid);
 
         if (pi != nullptr) {
             static const char *names[] = {"", "6LoWPAN", "Zigbee Green Power", "Zigbee", "Thread"};
@@ -847,10 +913,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                 const mac_addr ieee(pi->nwk_ieee, 8);
                 const uint32_t key = ((uint32_t) src_pan << 16) | pi->nwk_src;
 
-                {
-                    kis_lock_guard<kis_mutex> mlk(mphy->ieee_map_mutex, "802154_ieee_map");
-                    mphy->ieee_by_short[key] = ieee;
-                }
+                mphy->learn_ieee(key, ieee);
 
                 if (source.length() == 8 && source == ieee)
                     source_kis_802154->set_short_addr(pi->nwk_src);
@@ -923,6 +986,24 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     }
 
     return 1;
+}
+
+void kis_802154_phy::learn_ieee(uint32_t pan_short, const mac_addr& ieee) {
+    kis_lock_guard<kis_mutex> lk(ieee_map_mutex, "802154_learn_ieee");
+
+    auto mi = ieee_by_short.find(pan_short);
+    if (mi != ieee_by_short.end()) {
+        mi->second = ieee;
+        return;
+    }
+
+    if (ieee_by_short.size() >= ieee_map_max) {
+        ieee_by_short.erase(ieee_by_short_order.front());
+        ieee_by_short_order.pop_front();
+    }
+
+    ieee_by_short.emplace(pan_short, ieee);
+    ieee_by_short_order.push_back(pan_short);
 }
 
 void kis_802154_phy::load_phy_storage(
