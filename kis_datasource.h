@@ -416,6 +416,9 @@ public:
     __ProxyM(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets, data_mutex);
     __ProxyIncDecAtomic(source_num_error_packets, uint64_t, uint64_t, source_num_error_packets);
 
+    __ProxyM(source_num_filtered_packets, uint64_t, uint64_t, uint64_t, source_num_filtered_packets, data_mutex);
+    __ProxyIncDecAtomic(source_num_filtered_packets, uint64_t, uint64_t, source_num_filtered_packets);
+
     __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_rrd<>,
             packet_rate_rrd, packet_rate_rrd_id, data_mutex);
 
@@ -820,6 +823,7 @@ protected:
 
     std::shared_ptr<tracker_element_atomic_uint64> source_num_packets;
     std::shared_ptr<tracker_element_atomic_uint64> source_num_error_packets;
+    std::shared_ptr<tracker_element_atomic_uint64> source_num_filtered_packets;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;

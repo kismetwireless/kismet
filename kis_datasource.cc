@@ -3618,6 +3618,8 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.num_error_packets",
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
+    register_field("kismet.datasource.num_filtered_packets",
+            "Number of packets filtered from source", &source_num_filtered_packets);
 
     packet_rate_rrd_id =
         register_dynamic_field("kismet.datasource.packets_rrd",

@@ -421,6 +421,9 @@ protected:
 
     int pack_comp_datasrc;
 
+    // Late packetchain handler counting error and filtered packets per source
+    int packet_stats_handler_id;
+
     int proto_id;
     int source_id;
 

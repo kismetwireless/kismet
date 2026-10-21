@@ -343,7 +343,8 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
 datasource_tracker::datasource_tracker() :
     remotecap_enabled{false},
-    remotecap_port{0} {
+    remotecap_port{0},
+    packet_stats_handler_id{-1} {
 
     dst_lock.set_name("datasourcetracker");
 
@@ -385,6 +386,12 @@ datasource_tracker::~datasource_tracker() {
     if (database_log_timer >= 0) {
         timetracker->remove_timer(database_log_timer);
         databaselog_write_datasources();
+    }
+
+    if (packet_stats_handler_id >= 0) {
+        auto packetchain = Globalreg::fetch_global_as<packet_chain>();
+        if (packetchain != nullptr)
+            packetchain->remove_handler(packet_stats_handler_id, CHAINPOS_LOGGING);
     }
 
     for (auto i : probing_map)
@@ -558,6 +565,31 @@ void datasource_tracker::trigger_deferred_startup() {
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+
+    // Run after everything else so any stage can have flagged the packet
+    packet_stats_handler_id =
+        packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) -> int {
+                // A failed FCS check counts as an error even if nothing flagged it
+                const bool error = packet->error || (packet->crc_ok && !packet->checksum_valid);
+
+                if (!error && !packet->filtered)
+                    return 1;
+
+                auto dst = reinterpret_cast<datasource_tracker *>(auxdata);
+                const auto datasrcinfo =
+                    packet->fetch<packetchain_comp_datasource>(dst->pack_comp_datasrc);
+
+                if (datasrcinfo == nullptr || datasrcinfo->ref_source == nullptr)
+                    return 1;
+
+                if (error)
+                    datasrcinfo->ref_source->inc_source_num_error_packets(1);
+
+                if (packet->filtered)
+                    datasrcinfo->ref_source->inc_source_num_filtered_packets(1);
+
+                return 1;
+            }, this, CHAINPOS_LOGGING, 10000);
 
     std::vector<std::string> src_vec;
 
