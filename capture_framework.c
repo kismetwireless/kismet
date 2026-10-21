@@ -450,6 +450,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->remote_port = 0;
 
     ch->use_tcp = 0;
+    ch->remote_rx_valid = 0;
     ch->use_ipc = 0;
     ch->use_ws = 0;
 
@@ -2186,6 +2187,21 @@ finish:
     return cbret;
 }
 
+/* A --tcp connection which never got a valid frame most likely reached the web server
+ * port instead of the remote capture port */
+static int cf_tcp_wrong_port(kis_capture_handler_t *caph) {
+    if (!caph->use_tcp || caph->remote_host == NULL || caph->remote_rx_valid)
+        return 0;
+
+    fprintf(stderr,
+            "FATAL: %s:%u did not answer as a Kismet remote capture server.  With --tcp,\n"
+            "connect to the server's remote capture port (remote_capture_port, default\n"
+            "3501), not the web server port (default 2501).\n",
+            caph->remote_host, caph->remote_port);
+
+    return 1;
+}
+
 int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len) {
     kismet_external_frame_t *external_frame;
     kismet_external_frame_v2_t *external_frame_v2;
@@ -2206,6 +2222,9 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        if (cf_tcp_wrong_port(caph))
+            return -1;
+
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "Capture source got an unknown protocol signature, please upgrade the\n"
@@ -2250,6 +2269,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
+    caph->remote_rx_valid = 1;
+
     return cf_dispatch_rx_content(caph, ntohs(external_frame_v3->pkt_type),
             ntohl(external_frame_v3->seqno), external_frame_v3->data, packet_sz);
 }
@@ -2291,6 +2312,9 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        if (cf_tcp_wrong_port(caph))
+            return -1;
+
         fprintf(stderr, "FATAL: Capture source (%s) invalid frame header received\n",
 				caph->capsource_type);
         return -1;
@@ -2522,6 +2546,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     }
 
     caph->tcp_fd = client_fd;
+    caph->remote_rx_valid = 0;
 
     fprintf(stderr, "INFO: Connected to '%s:%u'...\n", caph->remote_host, caph->remote_port);
 
@@ -3035,7 +3060,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     }
 
                     if (amt_read == 0) {
-                        fprintf(stderr, "FATAL: Remote side closed read pipe\n");
+                        if (!cf_tcp_wrong_port(caph))
+                            fprintf(stderr, "FATAL: Remote side closed read pipe\n");
                         rv = -1;
                         goto cap_loop_fail;
                     } else if (amt_read < 0) {
