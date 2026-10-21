@@ -299,6 +299,12 @@ function MoveToExpanded(tab, group) {
 // Populate the sidebar content in the supplied div
 exports.MakeTabPane = function(div, group) {
     populateList(div, group);
+
+    // Fill-height tabs only size themselves when refreshed; refit them to the
+    // window, which also resizes the tables inside them
+    $(window).on("resize", $.debounce(100, () => {
+        div.tabs("refresh");
+    }));
 };
 
 // We're done loading
