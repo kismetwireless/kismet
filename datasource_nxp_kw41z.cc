@@ -20,7 +20,7 @@
 
 #include "datasource_nxp_kw41z.h"
 
-int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet, 
+kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet, 
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     typedef struct {
@@ -45,7 +45,7 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
 //we may have to redo the checksum...
@@ -73,7 +73,7 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
             // error, but preserve the packet for logging
             packet->set_data((const char *) content, content_sz);
             datachunk->set_data(packet->data);
-            return 1;
+            return rx_content::frame;
         }
 
         // Copy the actual packet payload into the header
@@ -111,7 +111,7 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
         //radioheader->freq_khz = (2400 + (channel)) * 1000;
         packet->signal_info.channel = fmt::format("{}", (channel));
 
-        return 1;
+        return rx_content::frame;
     } else if (content[0] == 0x02 && content[1] == 0x4E && content[2] == 0x7F) {
         // Convert the channel for the btlell header
         auto bt_channel = content[5];
@@ -136,7 +136,7 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
             // error, but preserve the packet for logging
             packet->set_data((const char *) content, content_sz);
             datachunk->set_data(packet->data);
-            return 1;
+            return rx_content::frame;
         }
 
         unsigned int nxp_payload_len = content_sz - 13;  // minus header and checksum
@@ -197,12 +197,12 @@ int kis_datasource_nxpkw41z::handle_rx_data_content(kis_packet *packet,
         decapchunk->set_data(packet->data.substr(sizeof(btle_rf), nxp_payload_len));
         packet->insert(pack_comp_decap, decapchunk);
 
-        return 1;
+        return rx_content::frame;
     } else {
         packet->error = 1;
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 }

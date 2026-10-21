@@ -1658,6 +1658,7 @@ function update_datasource2(data) {
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
         set_row(sdiv, 'errorpackets', '<b>Error Packets</b>', source['kismet.datasource.num_error_packets']);
         set_row(sdiv, 'filteredpackets', '<b>Filtered Packets</b>', source['kismet.datasource.num_filtered_packets']);
+        set_row(sdiv, 'droppedpackets', '<b>Dropped Packets</b>', source['kismet.datasource.num_dropped_packets']);
 
         var rts = "";
         if (source['kismet.datasource.remote']) {

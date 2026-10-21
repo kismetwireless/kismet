@@ -82,6 +82,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
         if (!reports_j.is_array()) {
             con->set_status(500);
             stream << "{\"status\": \"expected 'reports' array\", \"success\": false}\n";
+            return;
         }
 
         // Look up the source by either the uuid provided or the uuid we made based on the name
@@ -108,6 +109,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
         for (auto r : reports_j) {
             if (!validate_report(r)) {
+                virtual_source->inc_source_num_error_packets(1);
                 throw std::runtime_error("invalid report");
             }
 
@@ -192,8 +194,6 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             // Null out our local packet, it's destroyed by packetchain
             packet = nullptr;
-
-            virtual_source->inc_source_num_packets(1);
         }
 
         stream << "{\"status\": \"Scan report accepted\", \"success\": true}\n";

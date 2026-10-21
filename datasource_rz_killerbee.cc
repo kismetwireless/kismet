@@ -18,7 +18,7 @@
 
 #include "datasource_rz_killerbee.h"
 
-int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
+kis_datasource_rzkillerbee::rx_content kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     if (content_sz < 9) {
@@ -26,7 +26,7 @@ int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     if (content[7]) {
@@ -37,7 +37,7 @@ int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
             // error, but preserve the packet for logging
             packet->set_data((const char *) content, content_sz);
             datachunk->set_data(packet->data);
-            return 1;
+            return rx_content::frame;
         }
 
 
@@ -87,11 +87,12 @@ int kis_datasource_rzkillerbee::handle_rx_data_content(kis_packet *packet,
         packet->signal_info.freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
         packet->signal_info.channel = fmt::format("{}", (channel));
 
-        return 1;
+        return rx_content::frame;
     } else {
+        packet->error = 1;
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 }

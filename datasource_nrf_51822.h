@@ -57,7 +57,7 @@ public:
     virtual ~kis_datasource_nrf51822() { };
 
 protected:
-    virtual int handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+    virtual rx_content handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
             const uint8_t *content, size_t content_sz) override;
 
     int pack_comp_decap;

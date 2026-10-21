@@ -419,6 +419,9 @@ public:
     __ProxyM(source_num_filtered_packets, uint64_t, uint64_t, uint64_t, source_num_filtered_packets, data_mutex);
     __ProxyIncDecAtomic(source_num_filtered_packets, uint64_t, uint64_t, source_num_filtered_packets);
 
+    __ProxyM(source_num_dropped_packets, uint64_t, uint64_t, uint64_t, source_num_dropped_packets, data_mutex);
+    __ProxyIncDecAtomic(source_num_dropped_packets, uint64_t, uint64_t, source_num_dropped_packets);
+
     __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_rrd<>,
             packet_rate_rrd, packet_rate_rrd_id, data_mutex);
 
@@ -486,12 +489,19 @@ public:
     static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
     static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
 
+    // What the data layer of a report held
+    enum class rx_content : uint8_t {
+        frame,
+        error,
+        ignore,
+    };
+
 #ifdef HAVE_PROTOBUF_CPP
     // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
     // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
     // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
     // base function.
-    virtual void handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
+    virtual rx_content handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
             const KismetDatasource::SubPacket& report);
 
     // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
@@ -504,7 +514,7 @@ public:
     // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
     // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
     // base function.
-    virtual void handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
+    virtual rx_content handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
             mpack_node_t& root, mpack_tree_t *tree);
 
     // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
@@ -512,8 +522,10 @@ public:
     virtual void handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
             mpack_node_t& root, mpack_tree_t *tree);
 
-    // Manipulate and insert the decapsulated data into a packet
-    virtual int handle_rx_data_content(kis_packet *packet,
+    // Manipulate and insert the decapsulated data into a packet.  Return frame when the datachunk
+    // holds the frame (set packet->error as well to keep a bad frame for logging), error when the
+    // content is malformed and is only counted, and ignore when the content isn't a frame at all
+    virtual rx_content handle_rx_data_content(kis_packet *packet,
             kis_datachunk *datachunk, const uint8_t *content, size_t content_sz);
 
     // Handle injecting packets into the packet chain after the data report has been received
@@ -824,6 +836,7 @@ protected:
     std::shared_ptr<tracker_element_atomic_uint64> source_num_packets;
     std::shared_ptr<tracker_element_atomic_uint64> source_num_error_packets;
     std::shared_ptr<tracker_element_atomic_uint64> source_num_filtered_packets;
+    std::shared_ptr<tracker_element_atomic_uint64> source_num_dropped_packets;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;

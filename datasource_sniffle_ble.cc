@@ -32,7 +32,7 @@
 //   offset 9:   chan   (uint8)      -- bits7-6 = PHY, bits5-0 = BLE channel (0-39)
 //   offset 10+: body                -- the actual PDU, no access address or CRC (Sniffle's firmware
 //                                       already validated/stripped both; crc_err above reports the result)
-int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
+kis_datasource_sniffle_ble::rx_content kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
         kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
 
     typedef struct {
@@ -70,7 +70,7 @@ int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     const sniffle_hdr *hdr = reinterpret_cast<const sniffle_hdr *>(content);
@@ -84,7 +84,7 @@ int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
         packet->error = 1;
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     int8_t rssi = hdr->rssi;
@@ -115,7 +115,7 @@ int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
                 packet->error = 1;
                 packet->set_data((const char *) content, content_sz);
                 datachunk->set_data(packet->data);
-                return 1;
+                return rx_content::frame;
             }
 
             monitor_channel = chan <= 10 ? chan + 1 : chan + 2;
@@ -170,5 +170,5 @@ int kis_datasource_sniffle_ble::handle_rx_data_content(kis_packet *packet,
     decapchunk->set_data(packet->data.substr(sizeof(btle_rf), decap_len));
     packet->insert(pack_comp_decap, decapchunk);
 
-    return 1;
+    return rx_content::frame;
 }

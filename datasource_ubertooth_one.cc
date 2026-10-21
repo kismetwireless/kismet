@@ -20,7 +20,7 @@
 
 #include "datasource_ubertooth_one.h"
 
-int kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
+kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
             const uint8_t *content, size_t content_sz) {
     typedef struct {
         uint8_t monitor_channel;
@@ -62,7 +62,7 @@ int kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
     const auto usb_rx = reinterpret_cast<const usb_pkt_rx *>(content);
@@ -74,7 +74,7 @@ int kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis
         // error, but preserve the packet for logging
         packet->set_data((const char *) content, content_sz);
         datachunk->set_data(packet->data);
-        return 1;
+        return rx_content::frame;
     }
 
 
@@ -133,6 +133,6 @@ int kis_datasource_ubertooth_one::handle_rx_data_content(kis_packet *packet, kis
     decapchunk->set_data(packet->data.substr(sizeof(btle_rf), payload_len));
     packet->insert(pack_comp_decap, decapchunk);
 
-    return 1;
+    return rx_content::frame;
 }
 

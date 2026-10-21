@@ -1019,7 +1019,7 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
     packet->insert(pack_comp_datasrc, datasrcinfo);
 
-    inc_source_num_packets(1);
+    // Counted as valid, error, filtered or dropped by the packet chain
     get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
     // Insert GPS data as soon as possible in the chain if there's no data
@@ -2127,11 +2127,11 @@ bool kis_datasource::handle_sub_signal(mpack_node_t& root, mpack_tree_t *tree,
     return true;
 }
 
-void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
+kis_datasource::rx_content kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
         mpack_node_t& root, mpack_tree_t *tree) {
 
     if (!mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_PACKETBLOCK)) {
-        return;
+        return rx_content::ignore;
     }
 
     auto datamap = mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_DATAREPORT_FIELD_PACKETBLOCK);
@@ -2139,14 +2139,13 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
         trigger_error("invalid v3 DATAREPORT");
-        return;
+        return rx_content::error;
     }
 
-    // If we have a packet report, but somehow we don't have data in the
-    // packet report, get out.
+    // A packet report with no data in it is broken
     auto content_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT);
     if (mpack_node_is_missing(content_n)) {
-        return;
+        return rx_content::error;
     }
 
     auto datachunk = packetchain->new_packet_component<kis_datachunk>();
@@ -2185,7 +2184,7 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
         trigger_error("invalid v3 DATAREPORT");
-        return;
+        return rx_content::error;
     }
 
     if (!mpack_node_is_missing(olen_n)) {
@@ -2197,21 +2196,25 @@ void kis_datasource::handle_rx_datalayer_v3(std::shared_ptr<kis_packet> packet,
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
         trigger_error("invalid v3 DATAREPORT");
-        return;
+        return rx_content::error;
     }
 
-    if (!handle_rx_data_content(packet.get(), datachunk.get(),
-                (const uint8_t *) content_data, content_sz)) {
-        return;
+    const auto r = handle_rx_data_content(packet.get(), datachunk.get(),
+            (const uint8_t *) content_data, content_sz);
+
+    if (r != rx_content::frame) {
+        return r;
     }
 
     packet->insert(pack_comp_linkframe, datachunk);
 
     get_source_packet_size_rrd()->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
+
+    return rx_content::frame;
 }
 
-int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
-        const uint8_t *content, size_t content_sz) {
+kis_datasource::rx_content kis_datasource::handle_rx_data_content(kis_packet *packet,
+        kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
     // basic assignment of packet data to the data chunk, sufficient for datasources returning
     // real DLTs or other already-formatted data.  The content buffer here
     // is a portion of the stream buffer associated with the packet, so
@@ -2220,7 +2223,7 @@ int kis_datasource::handle_rx_data_content(kis_packet *packet, kis_datachunk *da
     packet->set_data(std::string_view((const char *) content, content_sz));
     datachunk->set_data(packet->data);
 
-    return 1;
+    return rx_content::frame;
 }
 
 void kis_datasource::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
@@ -2292,8 +2295,9 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
     mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
 
     if (!mpack_tree_try_parse(&tree)) {
-        _MSG_ERROR("Kismet external interface got unparseable v3 OPENREPORT");
-        trigger_error("invalid v3 OPENREPORT");
+        _MSG_ERROR("Kismet external interface got unparseable v3 DATAREPORT");
+        trigger_error("invalid v3 DATAREPORT");
+        inc_source_num_error_packets(1);
         return;
     }
 
@@ -2340,8 +2344,18 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
         return;
     }
 
-    handle_rx_datalayer_v3(packet, root, &tree);
+    const auto data = handle_rx_datalayer_v3(packet, root, &tree);
     if (cancelled) {
+        return;
+    }
+
+    if (data == rx_content::error) {
+        inc_source_num_error_packets(1);
+        return;
+    }
+
+    // Reports carrying no frame and no json (or a record which isn't a frame) aren't packets
+    if (data == rx_content::ignore && !packet->has(pack_comp_json)) {
         return;
     }
 
@@ -3138,6 +3152,7 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
                 std::string(" could not parse the data report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
         trigger_error("Invalid KDSDATAREPORT");
+        inc_source_num_error_packets(1);
         return;
     }
 
@@ -3150,8 +3165,14 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
     auto packet = packetchain->generate_packet();
 
     // Process the data chunk
+    auto data = rx_content::ignore;
     if (report->has_packet()) {
-        handle_rx_datalayer_v2(packet, report->packet());
+        data = handle_rx_datalayer_v2(packet, report->packet());
+    }
+
+    if (data == rx_content::error) {
+        inc_source_num_error_packets(1);
+        return;
     }
 
     // Process JSON
@@ -3195,17 +3216,21 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
 
     // TODO handle spectrum
 
+    // Reports carrying no frame, json or buffer (such as only a message) aren't packets
+    if (data == rx_content::ignore && !report->has_json() && !report->has_buffer()) {
+        return;
+    }
+
     handle_rx_packet(packet);
 
 }
 
-void kis_datasource::handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
+kis_datasource::rx_content kis_datasource::handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
         const KismetDatasource::SubPacket& report) {
 
-    // If we have a packet report, but somehow we don't have data in the
-    // packet report, get out.
+    // A packet report with no data in it is broken
     if (!report.has_data())
-        return;
+        return rx_content::error;
 
     auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
@@ -3238,6 +3263,8 @@ void kis_datasource::handle_rx_datalayer_v2(std::shared_ptr<kis_packet> packet,
     get_source_packet_size_rrd()->add_sample(report.data().length(), Globalreg::globalreg->last_tv_sec);
 
     packet->insert(pack_comp_linkframe, datachunk);
+
+    return rx_content::frame;
 }
 
 void kis_datasource::handle_rx_jsonlayer_v2(std::shared_ptr<kis_packet> packet,
@@ -3614,12 +3641,15 @@ void kis_datasource::register_fields() {
             "Last known reason for error state", &source_error_reason);
 
     register_field("kismet.datasource.num_packets",
-            "Number of packets seen by source", &source_num_packets);
+            "Number of valid packets from source processed by the packet chain", &source_num_packets);
     register_field("kismet.datasource.num_error_packets",
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
     register_field("kismet.datasource.num_filtered_packets",
             "Number of packets filtered from source", &source_num_filtered_packets);
+    register_field("kismet.datasource.num_dropped_packets",
+            "Number of packets from source dropped because the packet queue was full",
+            &source_num_dropped_packets);
 
     packet_rate_rrd_id =
         register_dynamic_field("kismet.datasource.packets_rrd",

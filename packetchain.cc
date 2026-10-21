@@ -619,6 +619,10 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
         packet_drop_rrd->add_sample(1, now);
 
+        const auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+        if (datasrc != nullptr && datasrc->ref_source != nullptr)
+            datasrc->ref_source->inc_source_num_dropped_packets(1);
+
         return 1;
     }
 
