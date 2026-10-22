@@ -1877,7 +1877,7 @@ public:
 
     virtual void finalize() {
         if (target_sources.size() <= 1) {
-            initial_ds->set_channel_hop(defaults->get_hop_rate(),
+            initial_ds->set_channel_hop(dst->definition_hop_rate(initial_ds),
                     initial_ds->get_source_hop_vec(),
                     defaults->get_random_channel_order(),
                     0, 0, NULL);
@@ -1895,23 +1895,7 @@ public:
 
             int ds_offt = (ds_hopchans->size() / offt_count) * nintf;
 
-            double rate = defaults->get_hop_rate();
-
-            if (ds->get_definition_opt("channel_hoprate") != "") {
-                try {
-                    rate = dst->string_to_rate(ds->get_definition_opt("channel_hoprate"), -1);
-                } catch (const std::exception& e) {
-                    _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
-                            "channel rate.", ds->get_source_name(), e.what());
-                    rate = -1;
-                }
-            }
-
-            if (rate < 0) {
-                rate = defaults->get_hop_rate();
-            }
-
-            ds->set_channel_hop(rate, ds_hopchans, defaults->get_random_channel_order(),
+            ds->set_channel_hop(dst->definition_hop_rate(ds), ds_hopchans, defaults->get_random_channel_order(),
                     ds_offt, 0, NULL);
 
             nintf++;
@@ -1949,12 +1933,31 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
             dst_chansplit_worker worker(this, config_defaults, in_ds);
             iterate_datasources(&worker);
         } else {
-            in_ds->set_channel_hop(config_defaults->get_hop_rate(),
+            in_ds->set_channel_hop(definition_hop_rate(in_ds),
                     in_ds->get_source_hop_vec(),
                     config_defaults->get_random_channel_order(),
                     0, 0, NULL);
         }
     }
+}
+
+double datasource_tracker::definition_hop_rate(shared_datasource in_ds) {
+    double rate = -1;
+
+    if (in_ds->get_definition_opt("channel_hoprate") != "") {
+        try {
+            rate = string_to_rate(in_ds->get_definition_opt("channel_hoprate"), -1);
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
+                    "channel rate.", in_ds->get_source_name(), e.what());
+            rate = -1;
+        }
+    }
+
+    if (rate < 0)
+        rate = config_defaults->get_hop_rate();
+
+    return rate;
 }
 
 double datasource_tracker::string_to_rate(std::string in_str, double in_default) {

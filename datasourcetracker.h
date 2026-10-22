@@ -383,6 +383,9 @@ public:
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);
 
+    // The hop rate for a source: its channel_hoprate= option, else the configured default
+    double definition_hop_rate(shared_datasource in_ds);
+
     // Access the defaults
     std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
