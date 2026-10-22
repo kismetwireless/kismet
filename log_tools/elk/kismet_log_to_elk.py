@@ -18,6 +18,8 @@ def strip_old_empty_trees(obj):
         "kismet.device.base.location",
         "kismet.device.base.datasize.rrd",
         "kismet.device.base.location_cloud",
+        "kismet.device.base.reported_location",
+        "kismet.device.base.reported_location_cloud",
         "kismet.device.base.packet.bin.250",
         "kismet.device.base.packet.bin.500",
         "kismet.device.base.packet.bin.1000",

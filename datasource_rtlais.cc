@@ -33,7 +33,6 @@ kis_datasource_rtlais::kis_datasource_rtlais(shared_datasource_builder in_builde
 
     set_int_source_hardware("rtlsdr");
     set_int_source_ipc_binary("kismet_cap_sdr_rtlais");
-    suppress_gps = true;
 }
 
 kis_datasource_rtlais::~kis_datasource_rtlais() {

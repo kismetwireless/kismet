@@ -57,7 +57,7 @@
 
 // Kismetdb version
 
-#define KISMETDB_LOG_VERSION            10
+#define KISMETDB_LOG_VERSION            11
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
@@ -110,12 +110,14 @@ public:
 
     // Log data that isn't a packet; this is a slightly more clunky API because we
     // can't derive the data from the simple packet interface.  GPS may be null,
-    // and other attributes may be empty, if that data is not available
+    // and other attributes may be empty, if that data is not available.  gps is
+    // where kismet was; reported_gps, if any, is where the device said it was.
     virtual int log_data(const kis_gps_packinfo *gps,
             const kis_layer1_packinfo *l1info,
             const struct timeval& tv,
             const std::string& phystring, const mac_addr& devmac, const uuid& datasource_uuid,
-            const std::string& type, const std::string& json);
+            const std::string& type, const std::string& json,
+            const kis_gps_packinfo *reported_gps = nullptr);
 
     // Log datasources
     virtual int log_datasources(const shared_tracker_element& in_datasource_vec);

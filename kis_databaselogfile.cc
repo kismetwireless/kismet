@@ -521,6 +521,16 @@ void kis_database_logfile::close_log() {
     database_close();
 }
 
+// Bind a gps record's position, or zeros if there's no usable one
+static void bind_gps(sqlite3_stmt *stmt, int& pos, const kis_gps_packinfo *gps) {
+    bool ok = gps != nullptr && gps->gps_info_ok;
+    sqlite3_bind_double(stmt, pos++, ok ? gps->lat : 0);
+    sqlite3_bind_double(stmt, pos++, ok ? gps->lon : 0);
+    sqlite3_bind_double(stmt, pos++, ok ? gps->alt : 0);
+    sqlite3_bind_double(stmt, pos++, ok ? gps->speed : 0);
+    sqlite3_bind_double(stmt, pos++, ok ? gps->heading : 0);
+}
+
 int kis_database_logfile::database_upgrade_db() {
     // kis_lock_guard<kis_mutex> lk(ds_mutex, "kismetdb upgrade_db");
 
@@ -551,6 +561,13 @@ int kis_database_logfile::database_upgrade_db() {
 
         "avg_lat REAL, " // Average location
         "avg_lon REAL, "
+
+        "reported_min_lat REAL, " // Bounds and average of the location the device reports
+        "reported_min_lon REAL, " // for itself (adsb, ais, remote id...), 0 if it doesn't
+        "reported_max_lat REAL, "
+        "reported_max_lon REAL, "
+        "reported_avg_lat REAL, "
+        "reported_avg_lon REAL, "
 
         "bytes_data INT, " // Amount of data seen on device
 
@@ -586,11 +603,17 @@ int kis_database_logfile::database_upgrade_db() {
 
         "devkey TEXT, " // Device key
 
-        "lat REAL, " // location
+        "lat REAL, " // location of kismet when the packet was seen
         "lon REAL, "
         "alt REAL, "
         "speed REAL, "
         "heading REAL, "
+
+        "reported_lat REAL, " // location the device reported in the packet, 0 if none
+        "reported_lon REAL, "
+        "reported_alt REAL, "
+        "reported_speed REAL, "
+        "reported_heading REAL, "
 
         "packet_len INT, " // Packet length
 
@@ -632,11 +655,17 @@ int kis_database_logfile::database_upgrade_db() {
         "phyname TEXT, " // Packet name and phy
         "devmac TEXT, "
 
-        "lat REAL, " // Location
+        "lat REAL, " // Location of kismet
         "lon REAL, "
         "alt REAL, "
         "speed REAL, "
         "heading REAL, "
+
+        "reported_lat REAL, " // Location the device reported, 0 if none
+        "reported_lon REAL, "
+        "reported_alt REAL, "
+        "reported_speed REAL, "
+        "reported_heading REAL, "
 
         "datasource TEXT, " // UUID of data source
 
@@ -900,8 +929,10 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
         "(first_time, last_time, devkey, phyname, devmac, strongest_signal, "
         "min_lat, min_lon, max_lat, max_lon, "
         "avg_lat, avg_lon, "
+        "reported_min_lat, reported_min_lon, reported_max_lat, reported_max_lon, "
+        "reported_avg_lat, reported_avg_lon, "
         "bytes_data, type, device) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
 
@@ -922,30 +953,24 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
             macstring.length(), SQLITE_TRANSIENT);
     sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
 
-    if (d->has_location() && (d->get_location()->has_min_loc() &&
-                              d->get_location()->has_max_loc() &&
-                              d->get_location()->has_avg_loc())) {
-        sqlite3_bind_double(device_stmt, spos++,
-                            d->get_location()->get_min_loc()->get_lat());
-        sqlite3_bind_double(device_stmt, spos++,
-                            d->get_location()->get_min_loc()->get_lon());
-        sqlite3_bind_double(device_stmt, spos++,
-                            d->get_location()->get_max_loc()->get_lat());
-        sqlite3_bind_double(device_stmt, spos++,
-                            d->get_location()->get_max_loc()->get_lon());
-        sqlite3_bind_double(device_stmt, spos++,
-                            d->get_location()->get_avg_loc()->get_lat());
-        sqlite3_bind_double(device_stmt, spos++,
-                            d->get_location()->get_avg_loc()->get_lon());
-    } else {
-        // Empty location
-        sqlite3_bind_double(device_stmt, spos++, 0);
-        sqlite3_bind_double(device_stmt, spos++, 0);
-        sqlite3_bind_double(device_stmt, spos++, 0);
-        sqlite3_bind_double(device_stmt, spos++, 0);
-        sqlite3_bind_double(device_stmt, spos++, 0);
-        sqlite3_bind_double(device_stmt, spos++, 0);
-    }
+    // Bounds and average of a location set, or zeros if there isn't one
+    auto bind_location = [&device_stmt, &spos](const std::shared_ptr<kis_tracked_location>& loc) {
+        if (loc != nullptr && loc->has_min_loc() && loc->has_max_loc() && loc->has_avg_loc()) {
+            sqlite3_bind_double(device_stmt, spos++, loc->get_min_loc()->get_lat());
+            sqlite3_bind_double(device_stmt, spos++, loc->get_min_loc()->get_lon());
+            sqlite3_bind_double(device_stmt, spos++, loc->get_max_loc()->get_lat());
+            sqlite3_bind_double(device_stmt, spos++, loc->get_max_loc()->get_lon());
+            sqlite3_bind_double(device_stmt, spos++, loc->get_avg_loc()->get_lat());
+            sqlite3_bind_double(device_stmt, spos++, loc->get_avg_loc()->get_lon());
+        } else {
+            for (int i = 0; i < 6; i++)
+                sqlite3_bind_double(device_stmt, spos++, 0);
+        }
+    };
+
+    // Where kismet heard the device, then where the device says it is
+    bind_location(d->has_location() ? d->get_location() : nullptr);
+    bind_location(d->has_reported_location() ? d->get_reported_location() : nullptr);
 
     sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
     sqlite3_bind_text(device_stmt, spos++, typestring.c_str(),
@@ -1048,11 +1073,12 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
             "(ts_sec, ts_usec, phyname, "
             "sourcemac, destmac, transmac, devkey, frequency, "
             "lat, lon, alt, speed, heading, "
+            "reported_lat, reported_lon, reported_alt, reported_speed, reported_heading, "
             "packet_len, packet_full_len, signal, "
             "datasource, "
             "dlt, packet, "
             "error, tags, datarate, hash, packetid) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
@@ -1075,19 +1101,9 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         sqlite3_bind_text(packet_stmt, sql_pos++, keystring.c_str(), keystring.length(), SQLITE_TRANSIENT);
         sqlite3_bind_double(packet_stmt, sql_pos++, frequency);
 
-        if (in_pack->gps_info.gps_info_ok) {
-            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.lat);
-            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.lon);
-            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.alt);
-            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.speed);
-            sqlite3_bind_double(packet_stmt, sql_pos++, in_pack->gps_info.heading);
-        } else {
-            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
-            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
-            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
-            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
-            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
-        }
+        // Where kismet was, then where the device said it was
+        bind_gps(packet_stmt, sql_pos, &in_pack->gps_info);
+        bind_gps(packet_stmt, sql_pos, &in_pack->reported_gps);
 
         sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length());
         sqlite3_bind_int64(packet_stmt, sql_pos++, in_pack->original_len);
@@ -1155,7 +1171,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
             puuid = datasrc->ref_source->get_source_uuid();
 
         log_data(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
-                metablob->meta_type, metablob->meta_data);
+                metablob->meta_type, metablob->meta_data, &in_pack->reported_gps);
     } else if (jsonblob != nullptr) {
         mac_addr smac("00:00:00:00:00:00");
         uuid puuid;
@@ -1167,7 +1183,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
             puuid = datasrc->ref_source->get_source_uuid();
 
         log_data(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
-                jsonblob->type, jsonblob->json_string);
+                jsonblob->type, jsonblob->json_string, &in_pack->reported_gps);
     }
 
     return 1;
@@ -1176,7 +1192,8 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
 int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
         const kis_layer1_packinfo *l1info,
         const struct timeval& tv, const std::string& phystring, const mac_addr& devmac,
-        const uuid& datasource_uuid, const std::string& type, const std::string& json) {
+        const uuid& datasource_uuid, const std::string& type, const std::string& json,
+        const kis_gps_packinfo *reported_gps) {
 
     if (!db_enabled)
         return 0;
@@ -1198,9 +1215,10 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
         "(ts_sec, ts_usec, "
         "phyname, devmac, "
         "lat, lon, alt, speed, heading, "
+        "reported_lat, reported_lon, reported_alt, reported_speed, reported_heading, "
         "datasource, "
         "type, json, signal) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
@@ -1222,19 +1240,8 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
     sqlite3_bind_text(data_stmt, sql_pos++, phystring.c_str(), phystring.length(), SQLITE_TRANSIENT);
     sqlite3_bind_text(data_stmt, sql_pos++, macstring.c_str(), macstring.length(), SQLITE_TRANSIENT);
 
-    if (gps != NULL) {
-        sqlite3_bind_double(data_stmt, sql_pos++, gps->lat);
-        sqlite3_bind_double(data_stmt, sql_pos++, gps->lon);
-        sqlite3_bind_double(data_stmt, sql_pos++, gps->alt);
-        sqlite3_bind_double(data_stmt, sql_pos++, gps->speed);
-        sqlite3_bind_double(data_stmt, sql_pos++, gps->heading);
-    } else {
-        sqlite3_bind_double(data_stmt, sql_pos++, 0);
-        sqlite3_bind_double(data_stmt, sql_pos++, 0);
-        sqlite3_bind_double(data_stmt, sql_pos++, 0);
-        sqlite3_bind_double(data_stmt, sql_pos++, 0);
-        sqlite3_bind_double(data_stmt, sql_pos++, 0);
-    }
+    bind_gps(data_stmt, sql_pos, gps);
+    bind_gps(data_stmt, sql_pos, reported_gps);
 
     sqlite3_bind_text(data_stmt, sql_pos++, uuidstring.c_str(), uuidstring.length(), SQLITE_TRANSIENT);
 

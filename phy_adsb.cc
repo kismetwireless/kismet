@@ -668,13 +668,13 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_raw");
 
-    // Update the base dev without setting location, because we want to
-    // override that location ourselves later once we've gotten our
-    // adsb device and possibly merged packets
+    // The base device's location is where kismet was when it heard the
+    // aircraft; the aircraft's own position goes into its reported location
+    // once the adsb device has merged it
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                 UCD_UPDATE_SEENBY), "ADSB");
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_LOCATION), "ADSB");
 
     if (basedev == nullptr) {
         return 0;
@@ -814,21 +814,10 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
 
-		packet->gps_info.gps_info_ok = true;
-        packet->gps_info.lat = adsbdev->lat;
-        packet->gps_info.lon = adsbdev->lon;
-        packet->gps_info.speed = adsbdev->speed;
-        packet->gps_info.alt = adsbdev->alt;
-        packet->gps_info.heading = adsbdev->heading;
+        packet->reported_gps.set_reported(adsbdev->lat, adsbdev->lon, adsbdev->alt,
+                adsbdev->speed, adsbdev->heading, 0, packet->ts);
 
-		if (adsbdev->alt != 0)
-			packet->gps_info.fix = 3;
-		else
-			packet->gps_info.fix = 2;
-
-        packet->gps_info.tv = packet->ts;
-
-        devicetracker->update_common_device(mac, this, packet, (UCD_UPDATE_LOCATION), "ADSB Transmitter");
+        devicetracker->update_common_device(mac, this, packet, (UCD_UPDATE_REPORTED_LOCATION), "ADSB Transmitter");
     }
 
     return true;
@@ -867,14 +856,14 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     packet->common_info.source = rtlmac;
     packet->common_info.transmitter = rtlmac;
 
-    // Update the base dev without setting location, because we want to
-    // override that location ourselves later once we've gotten our
-    // adsb device and possibly merged packets
+    // The base device's location is where kismet was when it heard the
+    // aircraft; the aircraft's own position goes into its reported location
+    // once the adsb device has merged it
     bool new_device;
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                 UCD_UPDATE_SEENBY), "ADSB", new_device);
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_LOCATION), "ADSB", new_device);
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");
 
@@ -951,22 +940,13 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
 
-		packet->gps_info.gps_info_ok = true;
-
-        packet->gps_info.lat = adsbdev->lat;
-        packet->gps_info.lon = adsbdev->lon;
-        packet->gps_info.speed = adsbdev->speed;
-        packet->gps_info.alt = adsbdev->alt;
-        packet->gps_info.heading = adsbdev->heading;
-
-        if (adsbdev->alt != 0)
-            packet->gps_info.fix = 3;
-
-        gettimeofday(&packet->gps_info.tv, NULL);
-
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        packet->reported_gps.set_reported(adsbdev->lat, adsbdev->lon, adsbdev->alt,
+                adsbdev->speed, adsbdev->heading, 0, now);
 
         devicetracker->update_common_device(rtlmac, this, packet,
-                (UCD_UPDATE_LOCATION), "ADSB Transmitter");
+                (UCD_UPDATE_REPORTED_LOCATION), "ADSB Transmitter");
     }
 
     return true;
@@ -1335,7 +1315,12 @@ kis_adsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connecti
 
             recent_devs->push_back(dev);
 
-            auto loc = dev->get_tracker_location();
+            // The map shows where aircraft say they are, so only their
+            // reported positions count toward its bounds.  Only look:
+            // get_reported_location() would create one.
+            std::shared_ptr<kis_tracked_location> loc;
+            if (dev->has_reported_location())
+                loc = dev->get_reported_location();
 
             if (loc != nullptr) {
                 auto last_loc = loc->get_last_loc();

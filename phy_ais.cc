@@ -709,34 +709,23 @@ bool kis_ais_phy::process_ais_json(nlohmann::json& json, const std::shared_ptr<k
     packet->common_info.source = mac;
     packet->common_info.transmitter = mac;
 
+    // The device location is where kismet was when it heard the station
     unsigned int flags = UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_SEENBY |
-        UCD_UPDATE_SIGNAL;
+        UCD_UPDATE_SIGNAL | UCD_UPDATE_LOCATION;
 
-    // AIS stations report their own location; use it as the device location
+    // AIS stations report their own position; it's their reported location
     if (d.lat.has_value() && d.lon.has_value()) {
-        packet->gps_info.reset();
-        packet->gps_info.gps_info_ok = true;
-        packet->gps_info.lat = *d.lat;
-        packet->gps_info.lon = *d.lon;
-
-        if (d.sog.has_value())
-            packet->gps_info.speed = *d.sog * 1.852;
-
+        double heading = 0;
         if (d.heading.has_value())
-            packet->gps_info.heading = *d.heading;
+            heading = *d.heading;
         else if (d.cog.has_value())
-            packet->gps_info.heading = *d.cog;
+            heading = *d.cog;
 
-        if (d.altitude.has_value()) {
-            packet->gps_info.alt = *d.altitude;
-            packet->gps_info.fix = 3;
-        } else {
-            packet->gps_info.fix = 2;
-        }
+        packet->reported_gps.set_reported(*d.lat, *d.lon,
+                d.altitude.value_or(0), d.sog.has_value() ? *d.sog * 1.852 : 0,
+                heading, d.altitude.has_value() ? 3 : 2, packet->ts);
 
-        packet->gps_info.tv = packet->ts;
-
-        flags |= UCD_UPDATE_LOCATION;
+        flags |= UCD_UPDATE_REPORTED_LOCATION;
     }
 
     bool new_device = false;
@@ -966,7 +955,13 @@ kis_ais_phy::ais_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection
 
             recent_devs->push_back(dev);
 
-            auto loc = dev->get_tracker_location();
+            // Where the device says it is, if it has said; otherwise where
+            // kismet heard it.  Only look: get_location() would create one.
+            std::shared_ptr<kis_tracked_location> loc;
+            if (dev->has_reported_location())
+                loc = dev->get_reported_location();
+            else if (dev->has_location())
+                loc = dev->get_location();
 
             if (loc != nullptr) {
                 auto last_loc = loc->get_last_loc();

@@ -1239,6 +1239,46 @@ int device_tracker::common_tracker(const std::shared_ptr<kis_packet>& in_pack) {
 // Because a phy can create multiple devices from a single packet (such as WiFi creating
 // the access point, source, and destination devices), only the specific common device
 // being passed will be updated.
+// Add a position to one of a device's location sets (where kismet heard it,
+// or where it reports itself): the full average once a second, and the
+// history cloud at the same rate, the bounds and last location on every packet
+void device_tracker::update_location_set(const std::shared_ptr<kis_tracked_location>& loc,
+        const kis_gps_packinfo& gps, const std::shared_ptr<kis_packet>& in_pack,
+        const std::function<std::shared_ptr<kis_location_rrd> ()>& get_cloud) {
+
+    if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
+        loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
+
+        loc->add_loc_with_avg(gps.lat, gps.lon, gps.alt, gps.fix, gps.speed, gps.heading);
+
+        // Throttle history cloud to one update per second to prevent floods of
+        // data from swamping the cloud
+        if (track_history_cloud && gps.fix >= 2) {
+            auto histloc = Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>();
+
+            histloc->set_lat(gps.lat);
+            histloc->set_lon(gps.lon);
+            histloc->set_alt(gps.alt);
+            histloc->set_speed(gps.speed);
+            histloc->set_heading(gps.heading);
+
+            histloc->set_time_sec(in_pack->ts.tv_sec);
+
+            if (in_pack->signal_info.data_ok) {
+                histloc->set_frequency(in_pack->signal_info.freq_khz);
+                if (in_pack->signal_info.signal_dbm != 0)
+                    histloc->set_signal(in_pack->signal_info.signal_dbm);
+                else
+                    histloc->set_signal(in_pack->signal_info.signal_rssi);
+            }
+
+            get_cloud()->add_sample(histloc);
+        }
+    } else {
+        loc->add_loc(gps.lat, gps.lon, gps.alt, gps.fix, gps.speed, gps.heading);
+    }
+}
+
 std::shared_ptr<kis_tracked_device_base>
     device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
             const std::shared_ptr<kis_packet>& in_pack,
@@ -1532,49 +1572,19 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
 	}
 
     if (((in_flags & UCD_UPDATE_LOCATION) ||
-         ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
+         ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location())) &&
             in_pack->gps_info.gps_info_ok && (device_location_signal_threshold == 0 ||
                 ( device_location_signal_threshold != 0 && in_pack->signal_info.data_ok &&
                   in_pack->signal_info.signal_dbm >= device_location_signal_threshold))) {
+        update_location_set(device->get_location(), in_pack->gps_info, in_pack,
+                [&device]() { return device->get_location_cloud(); });
+    }
 
-        auto devloc = device->get_location();
-
-        if ((devloc->get_last_location_time() != Globalreg::globalreg->last_tv_sec)) {
-            devloc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
-
-            devloc->add_loc_with_avg(in_pack->gps_info.lat, in_pack->gps_info.lon,
-                    in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
-                    in_pack->gps_info.heading);
-
-            // Throttle history cloud to one update per second to prevent floods of
-            // data from swamping the cloud
-            if (track_history_cloud && in_pack->gps_info.fix >= 2) {
-                auto histloc = Globalreg::globalreg->entrytracker->new_from_pool<kis_historic_location>();
-
-                histloc->set_lat(in_pack->gps_info.lat);
-                histloc->set_lon(in_pack->gps_info.lon);
-                histloc->set_alt(in_pack->gps_info.alt);
-                histloc->set_speed(in_pack->gps_info.speed);
-                histloc->set_heading(in_pack->gps_info.heading);
-
-                histloc->set_time_sec(in_pack->ts.tv_sec);
-
-                if (in_pack->signal_info.data_ok) {
-                    histloc->set_frequency(in_pack->signal_info.freq_khz);
-                    if (in_pack->signal_info.signal_dbm != 0)
-                        histloc->set_signal(in_pack->signal_info.signal_dbm);
-                    else
-                        histloc->set_signal(in_pack->signal_info.signal_rssi);
-                }
-
-                device->get_location_cloud()->add_sample(histloc);
-            }
-        } else {
-            devloc->add_loc(in_pack->gps_info.lat, in_pack->gps_info.lon,
-                            in_pack->gps_info.alt, in_pack->gps_info.fix, in_pack->gps_info.speed,
-                            in_pack->gps_info.heading);
-        }
-
+    // The device's own position is good however weakly it was heard, so the
+    // signal threshold doesn't apply
+    if ((in_flags & UCD_UPDATE_REPORTED_LOCATION) && in_pack->reported_gps.gps_info_ok) {
+        update_location_set(device->get_reported_location(), in_pack->reported_gps, in_pack,
+                [&device]() { return device->get_reported_location_cloud(); });
     }
 
 	// Update seenby records for time, frequency, packets

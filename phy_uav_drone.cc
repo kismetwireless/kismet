@@ -246,7 +246,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                 continue;
 
             kis_device_lock dlk(basedev, false);
-            uavphy->handle_remoteid(basedev, remoteid, in_pack.get());
+            uavphy->handle_remoteid(basedev, remoteid, in_pack);
             break;
         }
     }
@@ -298,38 +298,29 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             in_pack->common_info.source = dronemac;
             in_pack->common_info.transmitter = dronemac;
 
+            // The device location is where kismet was when it heard the drone
             auto flags =
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                 UCD_UPDATE_SEENBY);
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_LOCATION);
 
+            // The drone's own position is its reported location
             if (drone_lat != 0 && drone_lon != 0) {
-				in_pack->gps_info.gps_info_ok = true;
-                in_pack->gps_info.lat = drone_lat;
-                in_pack->gps_info.lon = drone_lon;
-
-                // Absolute altitude of drone, not height from takeoff
-                in_pack->gps_info.alt = drone_alt;
-              
                 // velocity vector to radians to degrees
-                auto heading_r = std::atan2(speed_e, speed_n);
-                in_pack->gps_info.heading = heading_r * (180.0f / M_PI);
-                if (in_pack->gps_info.heading < 0) {
-                    in_pack->gps_info.heading += 360;
-                }
+                double heading = std::atan2(speed_e, speed_n) * (180.0f / M_PI);
+                if (heading < 0)
+                    heading += 360;
 
                 // speed is the magnitude of the ENU velocity vector,
                 // because we generally don't track the vertical speed
                 // in other situations (adsb, wifi) we only take the EN
                 // vector for 2d speed over ground here
-                in_pack->gps_info.speed =
-                    std::sqrt((speed_e * speed_e) + (speed_n * speed_n));
+                double speed = std::sqrt((speed_e * speed_e) + (speed_n * speed_n));
 
-                if (drone_alt != 0)
-                    in_pack->gps_info.fix = 3;
+                // Absolute altitude of drone, not height from takeoff
+                in_pack->reported_gps.set_reported(drone_lat, drone_lon, drone_alt,
+                        speed, heading, 0, in_pack->ts);
 
-                in_pack->gps_info.tv = in_pack->ts;
-
-                flags |= UCD_UPDATE_LOCATION;
+                flags |= UCD_UPDATE_REPORTED_LOCATION;
             }
 
             auto basedev = 
@@ -551,7 +542,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
 }
 
 void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>& basedev,
-        const std::shared_ptr<uav_remoteid_packinfo>& rid, kis_packet *in_pack) {
+        const std::shared_ptr<uav_remoteid_packinfo>& rid, const std::shared_ptr<kis_packet>& in_pack) {
     auto uavdev = basedev->get_sub_as<uav_tracked_device>(uav_device_id);
 
     if (uavdev == nullptr) {
@@ -700,6 +691,14 @@ void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>
                 telem->set_telem_timestamp(ts_to_double(in_pack->ts));
 
                 uavdev->get_last_telem_loc()->set(telem);
+
+                // The drone's position is also its reported location (speed
+                // in km/h, like every gps record); the caller holds the device lock
+                in_pack->reported_gps.set_reported(l.lat, l.lon, l.alt_geo_valid ? l.alt_geo : 0,
+                        l.speed_valid ? l.speed_h * 3.6 : 0, l.direction_valid ? l.direction : 0,
+                        l.alt_geo_valid ? 3 : 2, in_pack->ts);
+                devicetracker->update_location_set(basedev->get_reported_location(), in_pack->reported_gps,
+                        in_pack, [&basedev]() { return basedev->get_reported_location_cloud(); });
 
                 auto tvec = uavdev->get_uav_telem_history();
                 tvec->push_back(telem);

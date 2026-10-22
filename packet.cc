@@ -56,6 +56,7 @@ kis_packet::kis_packet() {
 
     suppress_gps = false;
     gps_info.reset();
+    reported_gps.reset();
 
     signal_info.reset();
 }
@@ -82,6 +83,7 @@ void kis_packet::reset() {
 
     suppress_gps = false;
     gps_info.reset();
+    reported_gps.reset();
 
     signal_info.reset();
 
