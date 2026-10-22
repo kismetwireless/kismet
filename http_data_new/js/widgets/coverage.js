@@ -7,6 +7,8 @@
 //              smoothly as time passes
 //   Sources    a lane per data source: ticks for the channels it hops
 //              through, and a marker that moves to the channel it's on
+//   Heat map   every frequency as a row and time across, over the last
+//              minute, hour, or day, colored by how busy it was
 //
 // Bars sit at their real frequency, so channel spacing and overlap look the
 // way they are on the air.  The server keeps a minute of per-second history
@@ -27,13 +29,19 @@ import { dialog } from './dialog.js';
 const channelSeconds = 2;
 const sourceSeconds = 1;
 
-// What the bars and history show.  The server counts packets per frequency
-// with an RRD that averages its samples, so until that's fixed the packet
-// counts read as about 1 per busy second; device counts are right.
+// What the bars, history, and heat map show.  Servers older than 2026-10
+// averaged packet and data counts per frequency, so on those they read low.
 const metrics = {
-    devices: { title: 'Devices', unit: 'Devices', note: '' },
-    packets: { title: 'Packets', unit: 'Packets/s',
-        note: 'Packet counts per frequency are averaged by the server for now, so they show busy seconds rather than rates.' },
+    devices: { title: 'Devices', unit: 'Devices', note: '', fmt: (v) => num(v) },
+    packets: { title: 'Packets', unit: 'Packets/s', note: '', fmt: (v) => num(v) },
+    data: { title: 'Data', unit: 'Data/s', note: '', fmt: (v) => format.size(v) },
+};
+
+// Heat map time spans: the RRD vector, its columns, and how often to reload
+const spans = {
+    minute: { title: 'Last minute', seconds: 1, columns: 60, reload: 2 },
+    hour: { title: 'Last hour', seconds: 60, columns: 60, reload: 15 },
+    day: { title: 'Last day', seconds: 3600, columns: 24, reload: 60 },
 };
 
 // Small numbers keep a decimal, the rest are rounded
@@ -53,6 +61,20 @@ export function channelsAt(khz) {
         }
     }
     return out;
+}
+
+// A frequency's short name: the server's channel name, else the phys'
+// channel numbering (the first phy plainly, others with their name, like
+// 'BLE 37'), else the frequency
+export function frequencyLabel(khz, channel = null) {
+    if (channel && channel !== 'unknown' && channel !== '0')
+        return String(channel);
+    const at = channelsAt(khz);
+    if (at.length) {
+        const first = channelNames.list()[0];
+        return at[0].phy === (first?.title ?? first?.id) ? at[0].channel : `${at[0].phy} ${at[0].channel}`;
+    }
+    return format.frequency(khz).replace(' ', '');
 }
 
 // A channel name with no frequency: placed only if every phy that knows the
@@ -120,8 +142,21 @@ export function sourceFrequency(source, channel) {
     return null;
 }
 
-export function openCoverage() {
+// One coverage window at a time; opening it again brings it to the front
+let openWindow = null;
+
+export function openCoverage({ view: startView = null } = {}) {
+    if (openWindow) {
+        if (startView)
+            openWindow.setView(startView);
+        openWindow.dialog.node.dispatchEvent(new PointerEvent('pointerdown'));
+        return openWindow.dialog;
+    }
     const canvas = el('canvas', { class: 'coverage-canvas' });
+    // The heat map gets its own canvas, which scrolls when there are more
+    // rows than fit
+    const heatCanvas = el('canvas', { class: 'coverage-heat-canvas' });
+    const heatScroll = el('div', { class: 'coverage-heat' }, heatCanvas);
     const tip = el('div', { class: 'coverage-tip', hidden: true });
     const tabs = el('div', { class: 'coverage-tabs', role: 'tablist' });
     const status = el('span', { class: 'muted coverage-status' });
@@ -133,14 +168,34 @@ export function openCoverage() {
             metricButtons.forEach((b, i) => b.classList.toggle('active', Object.keys(metrics)[i] === id));
             note.textContent = metrics[id].note;
             shown.clear();
+            tip.hidden = true;
+            if (view === 'heat')
+                draw();
         } }, m.title));
     const note = el('span', { class: 'muted coverage-note' }, metrics[metric].note);
-    const stage = el('div', { class: 'coverage-stage' }, canvas, tip);
+
+    let view = startView ?? settings.get('coverage.view', 'live');
+    let span = spans[settings.get('coverage.span', 'hour')] ? settings.get('coverage.span', 'hour') : 'hour';
+    const viewButtons = [['live', 'Live'], ['heat', 'Heat map']].map(([id, title]) => el('button', { type: 'button',
+        onclick: () => setView(id) }, title));
+    const spanButtons = Object.entries(spans).map(([id, sp]) => el('button', { type: 'button',
+        onclick: () => {
+            span = id;
+            settings.set('coverage.span', id);
+            tip.hidden = true;
+            showButtons();
+            reloadSoon();
+            draw();
+        } }, sp.title));
+    const spanBar = el('div', { class: 'graph-tabs coverage-span' }, spanButtons);
+
+    const stage = el('div', { class: 'coverage-stage' }, canvas, heatScroll, tip);
     // The sources get their own strip, which scrolls when there are many
     const srcCanvas = el('canvas', { class: 'coverage-sources-canvas' });
     const srcScroll = el('div', { class: 'coverage-sources' }, srcCanvas);
     const body = el('div', { class: 'coverage' },
-        el('div', { class: 'coverage-bar' }, tabs, el('div', { class: 'graph-tabs coverage-metric' }, metricButtons), status),
+        el('div', { class: 'coverage-bar' }, el('div', { class: 'graph-tabs coverage-view' }, viewButtons), tabs,
+            el('div', { class: 'graph-tabs coverage-metric' }, metricButtons), spanBar, status),
         note, stage, srcScroll);
 
     const w = Math.round(window.innerWidth * 0.8);
@@ -153,6 +208,7 @@ export function openCoverage() {
         position: { left: Math.round((window.innerWidth - w) / 2), top: Math.round((window.innerHeight - h) / 2), width: w, height: h },
         onClose: () => {
             closed = true;
+            openWindow = null;
             clearTimeout(channelTimer);
             clearTimeout(sourceTimer);
             cancelAnimationFrame(frame);
@@ -168,11 +224,38 @@ export function openCoverage() {
     let frame = null;
     let idle = null;
     let band = settings.get('coverage.band', 'all');
+    // A frequency picked in the heat map, highlighted in the live view
+    let pinned = null;
+
+    function showButtons() {
+        viewButtons.forEach((b, i) => b.classList.toggle('active', ['live', 'heat'][i] === view));
+        spanButtons.forEach((b, i) => b.classList.toggle('active', Object.keys(spans)[i] === span));
+        spanBar.hidden = view !== 'heat';
+        canvas.hidden = view === 'heat';
+        heatScroll.hidden = view !== 'heat';
+        srcScroll.hidden = view === 'heat';
+    }
+
+    function setView(id) {
+        view = id;
+        settings.set('coverage.view', id);
+        tip.hidden = true;
+        showButtons();
+        reloadSoon();
+        draw();
+    }
+
+    // A span or view change can want fresher data than the next reload
+    function reloadSoon() {
+        clearTimeout(channelTimer);
+        channelTimer = setTimeout(loadChannels, 50);
+    }
 
     // Data from the server
     let freqs = new Map();      // kHz -> { channel, packets, devices (per second, oldest first), data, signal }
     let sources = [];
-    let fetchedAt = 0;          // server time of the channel data
+    let fetchedAt = 0;          // when the channel data arrived (performance.now)
+    let serverNow;              // server time of the channel data
 
     // What's drawn, eased toward the data so changes slide instead of jump
     const shown = new Map();    // kHz -> bar height (packets/s)
@@ -211,23 +294,33 @@ export function openCoverage() {
                     const khz = rec['kismet.channelrec.frequency'];
                     if (!khz)
                         continue;
+                    const rrds = {
+                        packets: rec['kismet.channelrec.packets_rrd'],
+                        devices: rec['kismet.channelrec.device_rrd'],
+                        data: rec['kismet.channelrec.data_rrd'],
+                    };
                     next.set(khz, {
                         channel: named.get(khz) ?? rec['kismet.channelrec.channel'],
-                        packets: rrd.history(rec['kismet.channelrec.packets_rrd'], now),
-                        devices: rrd.history(rec['kismet.channelrec.device_rrd'], now),
-                        data: rrd.latest(rec['kismet.channelrec.data_rrd'], now),
+                        packets: rrd.history(rrds.packets, now),
+                        devices: rrd.history(rrds.devices, now),
+                        data: rrd.history(rrds.data, now),
+                        rrds,
                         signal: rec['kismet.channelrec.signal']?.['kismet.common.signal.last_signal'] ?? 0,
                     });
                 }
                 freqs = next;
                 fetchedAt = performance.now();
+                serverNow = now;
+                if (view === 'heat')
+                    draw();
                 status.textContent = '';
                 buildTabs();
             } catch (err) {
                 status.textContent = `Could not load channels: ${err.message}`;
             }
         }
-        channelTimer = setTimeout(loadChannels, channelSeconds * 1000);
+        const every = view === 'heat' ? spans[span].reload : channelSeconds;
+        channelTimer = setTimeout(loadChannels, every * 1000);
     }
 
     async function loadSources() {
@@ -341,17 +434,7 @@ export function openCoverage() {
     // A frequency's label: the server's channel name, else the phys' channel
     // numbering (the first phy plainly, others with their name, like
     // 'BLE 37'), else the frequency
-    function label(khz) {
-        const c = freqs.get(khz)?.channel;
-        if (c && c !== 'unknown' && c !== '0')
-            return String(c);
-        const at = channelsAt(khz);
-        if (at.length) {
-            const first = channelNames.list()[0];
-            return at[0].phy === (first?.title ?? first?.id) ? at[0].channel : `${at[0].phy} ${at[0].channel}`;
-        }
-        return format.frequency(khz).replace(' ', '');
-    }
+    const label = (khz) => frequencyLabel(khz, freqs.get(khz)?.channel);
 
     // The chosen measure's last minute for a frequency, oldest first
     const history = (f, which = metric) => freqs.get(f)?.[which] ?? [];
@@ -368,6 +451,8 @@ export function openCoverage() {
         frame = null;
         if (closed)
             return;
+        if (view === 'heat')
+            return drawHeat();
         // Nothing to see in a hidden tab; look again in a second
         if (document.visibilityState === 'hidden') {
             idle = setTimeout(draw, 1000);
@@ -476,7 +561,7 @@ export function openCoverage() {
 
             const cx = x(f);
             const top = Math.min(yAct(next), actBottom - 1.5 * ratio);
-            ctx.globalAlpha = hover === f ? 1 : 0.85;
+            ctx.globalAlpha = hover === f || pinned === f ? 1 : 0.85;
             ctx.fillStyle = accent;
             ctx.fillRect(cx - barW / 2, top, barW, actBottom - top);
             ctx.globalAlpha = 1;
@@ -545,6 +630,234 @@ export function openCoverage() {
         else
             idle = setTimeout(() => { frame = requestAnimationFrame(draw); }, 66);
     }
+
+    // The heat map: a row per frequency, grouped by band, and a column per
+    // second, minute, or hour.  Cells are shaded on a log scale up to the
+    // busiest cell shown; the last column is still filling.
+    let heatLayout = null;
+
+    function heatRows() {
+        const shownBands = band === 'all' ? bands : bands.filter((b) => b.id === band);
+        const rows = [];
+        for (const b of shownBands) {
+            const fs = [...freqs.keys()].filter((f) => bandOf(f) === b).sort((a, z) => a - z);
+            if (!fs.length)
+                continue;
+            if (shownBands.length > 1)
+                rows.push({ band: b });
+            for (const f of fs)
+                rows.push({ f });
+        }
+        return rows;
+    }
+
+    function heatColumns(f) {
+        const sp = spans[span];
+        const r = freqs.get(f)?.rrds?.[metric];
+        const h = rrd.history(r, serverNow, span);
+        return h.length ? h : new Array(sp.columns).fill(0);
+    }
+
+    // Labels under the columns: seconds ago, or the clock time of the minute or hour
+    function columnLabel(i, n) {
+        const sp = spans[span];
+        const ago = (n - 1 - i) * sp.seconds;
+        if (span === 'minute')
+            return ago ? `-${ago}s` : 'now';
+        const t = new Date(((serverNow ?? Date.now() / 1000) - ago) * 1000);
+        const hh = String(t.getHours()).padStart(2, '0');
+        return span === 'day' ? `${hh}:00` : `${hh}:${String(t.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function drawHeat() {
+        const ratio = window.devicePixelRatio || 1;
+        const rows = heatRows();
+        const font = 11 * ratio;
+        const rowMin = 9;
+        const top = 34;
+        const bottom = 26;
+        const cssW = Math.max(1, heatScroll.clientWidth);
+        const cssH = Math.max(heatScroll.clientHeight, top + bottom + rows.length * rowMin);
+        if (heatCanvas.style.height !== `${cssH}px`)
+            heatCanvas.style.height = `${cssH}px`;
+        const W = Math.round(cssW * ratio);
+        const H = Math.round(cssH * ratio);
+        if (heatCanvas.width !== W || heatCanvas.height !== H) {
+            heatCanvas.width = W;
+            heatCanvas.height = H;
+        }
+        const ctx = heatCanvas.getContext('2d');
+        ctx.clearRect(0, 0, W, H);
+        ctx.font = `${font}px system-ui, sans-serif`;
+
+        const accent = themeColor('--accent') || '#4b9fe8';
+        const text = themeColor('--text') || '#ddd';
+        const muted = themeColor('--muted') || '#888';
+        const grid = themeColor('--border') || '#444';
+        const surface = themeColor('--surface-2') || themeColor('--surface') || '#111';
+
+        const m = metrics[metric];
+        const sp = spans[span];
+        const left = 150 * ratio;
+        const right = 14 * ratio;
+        const plotW = Math.max(1, W - left - right);
+        const y0 = top * ratio;
+        const rowH = rows.length ? (H - y0 - bottom * ratio) / rows.length : 0;
+        const colW = plotW / sp.columns;
+        heatLayout = { rows, left, y0, rowH, colW, columns: sp.columns, ratio };
+
+        if (!rows.length) {
+            ctx.fillStyle = muted;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Nothing seen in this band yet', W / 2, H / 2);
+            return;
+        }
+
+        const data = rows.map((r) => (r.f ? heatColumns(r.f) : null));
+        const peak = Math.max(0, ...data.filter(Boolean).flat());
+        const logPeak = Math.log1p(peak) || 1;
+
+        // Legend: the scale from nothing to the busiest cell
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = muted;
+        ctx.fillText(`${m.unit}, ${sp.title.toLowerCase()}`, 8 * ratio, 12 * ratio);
+        const peakText = m.fmt(peak);
+        const lw = 160 * ratio;
+        const lx = W - right - ctx.measureText(peakText).width - 6 * ratio - lw;
+        const grad = ctx.createLinearGradient(lx, 0, lx + lw, 0);
+        grad.addColorStop(0, surface);
+        grad.addColorStop(1, accent);
+        ctx.fillStyle = grad;
+        ctx.fillRect(lx, 7 * ratio, lw, 10 * ratio);
+        ctx.fillStyle = muted;
+        ctx.textAlign = 'right';
+        ctx.fillText('0', lx - 6 * ratio, 12 * ratio);
+        ctx.fillText(peakText, W - right, 12 * ratio);
+
+        rows.forEach((r, i) => {
+            const y = y0 + i * rowH;
+            if (r.band) {
+                ctx.fillStyle = muted;
+                ctx.textAlign = 'left';
+                ctx.fillText(r.band.title, 8 * ratio, y + rowH / 2);
+                ctx.strokeStyle = grid;
+                ctx.beginPath();
+                ctx.moveTo(left, Math.round(y + rowH / 2) + 0.5);
+                ctx.lineTo(W - right, Math.round(y + rowH / 2) + 0.5);
+                ctx.stroke();
+                return;
+            }
+            ctx.fillStyle = surface;
+            ctx.fillRect(left, y, plotW, Math.max(1, rowH - ratio));
+            const vals = data[i];
+            for (let c = 0; c < vals.length; c++) {
+                const v = vals[c];
+                if (!(v > 0))
+                    continue;
+                ctx.globalAlpha = 0.15 + 0.85 * (Math.log1p(v) / logPeak);
+                ctx.fillStyle = accent;
+                ctx.fillRect(left + c * colW, y, Math.ceil(colW), Math.max(1, rowH - ratio));
+            }
+            ctx.globalAlpha = 1;
+            // Row labels, when there's room for them
+            if (rowH >= font * 0.9 || i % Math.ceil((font * 0.9) / rowH) === 0) {
+                ctx.fillStyle = r.f === heatHover?.f ? accent : text;
+                ctx.textAlign = 'right';
+                ctx.fillText(label(r.f), left - 8 * ratio, y + rowH / 2);
+            }
+        });
+
+        // The column still filling, and the hovered cell
+        const nowX = left + (sp.columns - 1) * colW;
+        ctx.strokeStyle = muted;
+        ctx.setLineDash([3 * ratio, 3 * ratio]);
+        ctx.strokeRect(Math.round(nowX) + 0.5, y0, Math.round(colW), rows.length * rowH);
+        ctx.setLineDash([]);
+        if (heatHover?.f !== undefined && heatHover.col !== undefined) {
+            const ri = rows.findIndex((r) => r.f === heatHover.f);
+            if (ri >= 0) {
+                ctx.strokeStyle = text;
+                ctx.strokeRect(left + heatHover.col * colW + 0.5, y0 + ri * rowH + 0.5, Math.max(1, colW - 1), Math.max(1, rowH - 1));
+            }
+        }
+
+        // Time labels, spaced so they don't run together
+        ctx.fillStyle = muted;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const every = span === 'day' ? 4 : 10;
+        const ly = y0 + rows.length * rowH + 6 * ratio;
+        for (let c = sp.columns - 1; c >= 0; c -= every)
+            ctx.fillText(columnLabel(c, sp.columns), left + (c + 0.5) * colW, ly);
+
+        // The minute view moves every second; the others only when data arrives
+        if (span === 'minute' && !closed)
+            idle = setTimeout(draw, 1000);
+    }
+
+    let heatHover = null;
+
+    function heatCell(e) {
+        if (!heatLayout)
+            return null;
+        const { rows, left, y0, rowH, colW, columns, ratio } = heatLayout;
+        const r = heatCanvas.getBoundingClientRect();
+        const px = (e.clientX - r.left) * ratio;
+        const py = (e.clientY - r.top) * ratio;
+        const ri = Math.floor((py - y0) / rowH);
+        if (ri < 0 || ri >= rows.length || !rows[ri].f)
+            return null;
+        const col = px >= left ? Math.min(columns - 1, Math.floor((px - left) / colW)) : undefined;
+        return { f: rows[ri].f, col };
+    }
+
+    heatCanvas.addEventListener('pointermove', (e) => {
+        const cell = heatCell(e);
+        heatHover = cell;
+        draw();
+        if (!cell) {
+            tip.hidden = true;
+            return;
+        }
+        const named = channelsAt(cell.f).map((c) => `${c.phy} ${c.channel}`);
+        const rec = freqs.get(cell.f);
+        const server = rec?.channel && rec.channel !== 'unknown' && rec.channel !== '0' ? `Channel ${rec.channel}` : null;
+        const title = [server, ...named, format.frequency(cell.f)].filter(Boolean)
+            .filter((v, i, a) => a.indexOf(v) === i).join(' · ');
+        const lines = [el('b', {}, title)];
+        if (cell.col === undefined) {
+            lines.push(el('div', { class: 'muted' }, 'Click to see it in the live view'));
+        } else {
+            const sp = spans[span];
+            const v = heatColumns(cell.f)[cell.col] ?? 0;
+            const when = span === 'minute' ? columnLabel(cell.col, sp.columns) :
+                `${span === 'hour' ? 'the minute' : 'the hour'} from ${columnLabel(cell.col, sp.columns)}`;
+            lines.push(el('div', {}, `${metrics[metric].fmt(v)} ${metrics[metric].unit.toLowerCase()}`,
+                span === 'minute' ? '' : ' on average', `, ${when}`));
+            if (cell.col === sp.columns - 1)
+                lines.push(el('div', { class: 'muted' }, 'Still being counted'));
+        }
+        tip.replaceChildren(...lines);
+        tip.hidden = false;
+        const sr = stage.getBoundingClientRect();
+        tip.style.left = `${Math.min(Math.max(0, e.clientX - sr.left + 14), sr.width - tip.offsetWidth - 4)}px`;
+        tip.style.top = `${Math.max(0, e.clientY - sr.top - tip.offsetHeight - 10)}px`;
+    });
+    heatCanvas.addEventListener('pointerleave', () => {
+        heatHover = null;
+        tip.hidden = true;
+        draw();
+    });
+    // A row's label opens that frequency in the live view
+    heatCanvas.addEventListener('click', (e) => {
+        const cell = heatCell(e);
+        if (!cell || cell.col !== undefined)
+            return;
+        pinned = cell.f;
+        setView('live');
+    });
 
     // The source lanes, in their own canvas under the graphs, using the same
     // layout so ticks and markers line up with the bars.  Returns true while a
@@ -643,6 +956,8 @@ export function openCoverage() {
 
     // Hovering over a frequency shows what's on it
     stage.addEventListener('pointermove', (e) => {
+        if (view === 'heat')
+            return;
         const ratio = window.devicePixelRatio || 1;
         const r = stage.getBoundingClientRect();
         const { x, list } = layout(stage.clientWidth * ratio, ratio);
@@ -677,12 +992,16 @@ export function openCoverage() {
         tip.style.top = `${Math.max(0, e.clientY - r.top - tip.offsetHeight - 10)}px`;
     });
     stage.addEventListener('pointerleave', () => {
+        if (view === 'heat')
+            return;
         hover = null;
         tip.hidden = true;
     });
 
+    showButtons();
     loadChannels();
     loadSources();
     draw();
+    openWindow = { dialog: d, setView };
     return d;
 }

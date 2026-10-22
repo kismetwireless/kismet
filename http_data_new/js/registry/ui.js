@@ -50,6 +50,19 @@ export const mapSources = createRegistry('mapSources', {
     defaults: { view: 'all', icon: 'gps', maxAge: 600, heard: false, defaultVisible: true },
 });
 
+// Cards on the Overview tab.
+//   id, title, priority,
+//   w, h: the card's starting size on the 12-column grid, in columns and
+//     rows of 40 px (3 × 5 if not given; size: 'wide' starts it 6 wide),
+//   needs: the shared data it reads ('status', 'packets', 'phys', 'channels',
+//     'alerts', 'sources', 'devices'; see js/widgets/overview.js),
+//   create(body, { actions }) -> { update(data), destroy() }
+//     actions.showTab(id), actions.showDevices(viewId)
+export const dashboardCards = createRegistry('dashboardCards', {
+    required: ['title', 'create'],
+    defaults: { size: 'small', needs: [] },
+});
+
 // Sections of the settings dialog.
 //   id, title, priority, create(el) -> optional cleanup function
 // Settings take effect as they change; there is no save button.

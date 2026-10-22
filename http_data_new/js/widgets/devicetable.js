@@ -96,6 +96,18 @@ export function createDeviceTable(container) {
 
     loadViews();
     onLogin(loadViews);
+    // Another part of the UI can pick the view (the Overview's phy counts)
+    settings.watch('devicelist.view', (v) => {
+        if (!v || v === view)
+            return;
+        view = v;
+        viewSelect.value = v;
+        if (viewSelect.value !== v) {
+            lastViews = null;
+            loadViews();
+        }
+        table.restart(true);
+    });
     // Views come and go with datasources and phys
     setInterval(() => {
         if (document.visibilityState !== 'hidden')

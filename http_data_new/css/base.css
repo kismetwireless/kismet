@@ -755,6 +755,11 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .coverage-status { font-size: 0.9em; }
 .coverage-stage { position: relative; flex: 1; min-height: 0; }
 .coverage-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.coverage-canvas[hidden], .coverage-heat[hidden], .coverage-sources[hidden], .coverage-span[hidden] { display: none; }
+.coverage-heat { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+.coverage-heat-canvas { display: block; width: 100%; cursor: crosshair; }
+.coverage-view { margin: 0; }
+.coverage-span { margin: 0; }
 .coverage-tip {
     position: absolute;
     pointer-events: none;
@@ -921,3 +926,128 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-tile-policy p { margin: 0.3rem 0 0; }
 .link-button { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
 .link-button[hidden] { display: none; }
+
+/* Overview tab (js/widgets/overview.js, js/base/overview.js) */
+.overview { flex: 1; min-height: 0; overflow-y: auto; padding: 0.75rem; overscroll-behavior: contain; background: var(--bg); }
+.overview-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.75rem; font-size: 0.9rem; }
+.overview-bar label { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4em; }
+.overview-status { color: var(--warn); }
+.overview-editbar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem; border: 1px dashed var(--accent); border-radius: 8px; background: var(--accent-soft);
+}
+.overview-editbar > .muted { flex: 1; min-width: 12rem; }
+.overview-editbar[hidden] { display: none; }
+
+/* 12 columns, rows of 30px with 10px gaps; cards are placed by the script */
+.overview-grid {
+    position: relative;
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 30px; gap: 10px;
+}
+.ov-card {
+    position: relative; min-width: 0; min-height: 0; overflow: hidden;
+    display: flex; flex-direction: column; gap: 0.35rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+}
+.ov-card-title {
+    display: flex; align-items: center; gap: 0.4rem; flex: none;
+    margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.ov-card-title > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; overflow: auto; overscroll-behavior: contain; }
+.ov-card .graph-tabs { margin: 0; flex: none; }
+.ov-card .history-graph { flex: 1 1 3rem; min-height: 3rem; margin: 0; }
+.ov-card .graph-tabs button { padding: 0 0.5em; }
+.ov-note { font-size: 0.78rem; flex: none; }
+.ov-note:empty { display: none; }
+.ov-hide, .ov-resize { display: none; }
+
+/* Arranging the cards */
+.overview.editing .overview-grid {
+    background-image: repeating-linear-gradient(90deg,
+        color-mix(in srgb, var(--accent) 6%, transparent) 0 calc((100% - 110px) / 12),
+        transparent calc((100% - 110px) / 12) calc((100% - 110px) / 12 + 10px));
+    border-radius: 8px;
+}
+.overview.editing .ov-card { border-style: dashed; border-color: var(--accent); user-select: none; }
+.overview.editing .ov-card-title { cursor: grab; color: var(--text); }
+.overview.editing .ov-card-body { pointer-events: none; }
+.overview.editing .ov-hide { display: inline-flex; flex: none; }
+.overview.editing .ov-resize {
+    display: block; position: absolute; right: 2px; bottom: 2px; width: 16px; height: 16px; cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, var(--accent) 50%, var(--accent) 60%, transparent 60%,
+        transparent 70%, var(--accent) 70%, var(--accent) 80%, transparent 80%);
+    touch-action: none;
+}
+.overview.editing .ov-card-title { touch-action: none; }
+.ov-card.dragging { z-index: 5; cursor: grabbing; box-shadow: var(--shadow); opacity: 0.92; }
+.ov-card.dragging .ov-card-title { cursor: grabbing; }
+.ov-card.resizing { z-index: 5; box-shadow: var(--shadow); }
+.ov-placeholder { border: 2px dashed var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); z-index: 0; }
+.ov-placeholder[hidden] { display: none; }
+
+/* Narrower screens: the same cards in order, at their natural height, in
+   two columns or one */
+.overview.stacked .overview-grid { display: block; column-count: 1; column-gap: 10px; }
+.overview.stacked.two-up .overview-grid { column-count: 2; }
+.overview.stacked .ov-card { break-inside: avoid; margin-bottom: 10px; overflow: visible; }
+.overview.stacked .ov-card-body { overflow: visible; }
+.overview.stacked .ov-card .history-graph { flex: none; height: 5rem; }
+@media (max-width: 640px) {
+    .overview { padding: 0.5rem; }
+    .overview.stacked .ov-card { padding: 0.6rem 0.65rem; margin-bottom: 10px; }
+    .overview .big-stat-value { font-size: 1.45rem; }
+    .donut-chart { gap: 0.75rem; }
+    .tab-bar .tabs { overflow-x: auto; scrollbar-width: none; }
+    .tab-bar .tab { flex: none; }
+    /* Leave phones more room for the tabs above; a height the user dragged still wins */
+    .bottom { height: 20vh; }
+}
+
+.big-stat { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.5rem; flex: none; }
+.big-stat-value { font-size: 1.55rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.big-stat-caption { font-size: 0.8rem; }
+
+.bar-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.bar-row {
+    position: relative; display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: center;
+    padding: 0.1em 0.45em; border-radius: 4px; overflow: hidden; font-size: 0.85rem;
+}
+.bar-track { position: absolute; inset: 0; pointer-events: none; }
+.bar-fill { display: block; height: 100%; opacity: 0.28; border-radius: 5px; transition: width 0.4s; }
+.bar-label { position: relative; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-value { position: relative; font-variant-numeric: tabular-nums; color: var(--muted); }
+.bar-list.pickable .bar-row { cursor: pointer; }
+.bar-list.pickable .bar-row:hover, .bar-list.pickable .bar-row:focus-visible { background: var(--row-hover); }
+.bar-empty { padding: 0.3em 0; font-size: 0.9rem; }
+
+.donut-chart { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.donut { flex: none; transform: rotate(0deg); }
+.donut circle { transition: stroke-dasharray 0.4s; }
+.donut-total { fill: var(--text); font-size: 7px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+.donut-caption { fill: var(--muted); font-size: 3.4px; text-anchor: middle; dominant-baseline: middle; }
+.donut-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.8rem; min-width: 0; flex: 1; }
+.donut-legend li { display: grid; grid-template-columns: auto 1fr auto; gap: 0.45em; align-items: center; }
+.donut-value { font-variant-numeric: tabular-nums; }
+.swatch-dot { width: 0.7em; height: 0.7em; border-radius: 50%; display: inline-block; }
+
+/* Data sources: tiles, three across when there's room, then two, then one */
+.ov-sources {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; gap: 0.4rem;
+    grid-template-columns: repeat(auto-fill, minmax(max(12rem, calc((100% - 0.8rem) / 3)), 1fr));
+}
+.ov-source {
+    display: flex; flex-direction: column; gap: 0.1rem; min-width: 0;
+    padding: 0.35rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2);
+    font-size: 0.85rem;
+}
+.ov-source.error { border-color: var(--error); }
+.ov-source.error .ov-source-name, .ov-source.error .ov-source-state { color: var(--error); }
+.ov-source-head { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.ov-source-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-source-rate { font-variant-numeric: tabular-nums; }
+.ov-source-state, .ov-source-count { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
+.ov-source-count { font-variant-numeric: tabular-nums; }
+.ov-source-graph .bar-graph { height: 1.4rem; margin: 0.1rem 0; }

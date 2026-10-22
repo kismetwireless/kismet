@@ -3,7 +3,8 @@
 //
 // A pane's create(body, area) can return tools: nodes shown at the right of
 // the tab bar while its tab is showing.  area.setExpanded(true) makes the
-// whole area fill the window, until the user switches to another tab.
+// whole area fill the window, until the user switches to another tab;
+// area.activate(id) switches to another of the area's tabs.
 
 import { el } from '../core/dom.js';
 import * as settings from '../core/settings.js';
@@ -24,6 +25,7 @@ export function createPaneArea(container, area) {
                 fn(on);
         },
         isExpanded: () => container.classList.contains('expanded'),
+        activate: (id) => activate(id),
         onExpand(fn) {
             expandListeners.add(fn);
             return () => expandListeners.delete(fn);
