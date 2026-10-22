@@ -68,20 +68,24 @@ void channel_tracker_v3_channel::filtered_as_json(std::ostream& os, json_adapter
                 json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, frequency);
                 break;
             case json_adapter_v2::consthash("kismet.channelrec.packets_rrd"):
+                subgroup.clear();
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                json_adapter_v2::json_encode_keyed<decltype(packets_rrd)>{}(os, f.first, opts, packets_rrd, subgroup);
+                json_adapter_v2::json_encode_keyed<decltype(packets_rrd)>{}(os, f.second.rename, opts, packets_rrd, subgroup);
                 break;
             case json_adapter_v2::consthash("kismet.channelrec.data_rrd"):
+                subgroup.clear();
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                json_adapter_v2::json_encode_keyed<decltype(data_rrd)>{}(os, f.first, opts, data_rrd, subgroup);
+                json_adapter_v2::json_encode_keyed<decltype(data_rrd)>{}(os, f.second.rename, opts, data_rrd, subgroup);
                 break;
             case json_adapter_v2::consthash("kismet.channelrec.device_rrd"):
+                subgroup.clear();
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                json_adapter_v2::json_encode_keyed<decltype(device_rrd)>{}(os, f.first, opts, device_rrd, subgroup);
+                json_adapter_v2::json_encode_keyed<decltype(device_rrd)>{}(os, f.second.rename, opts, device_rrd, subgroup);
                 break;
             case json_adapter_v2::consthash("kismet.channelrec.signal"):
+                subgroup.clear();
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, f.first, opts, signal_data, subgroup);
+                json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, f.second.rename, opts, signal_data, subgroup);
                 break;
             default:
                 json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
@@ -296,11 +300,13 @@ void channel_tracker_v3::filtered_as_json(std::ostream& os, json_adapter_v2::opt
     for (const auto& f : fields) {
         switch (json_adapter_v2::consthash(f.first)) {
             case json_adapter_v2::consthash("kismet.channeltracker.channel_map"):
+                subgroup.clear();
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
                 json_adapter_v2::json_encode_keyed_map<channel_map_iter_t>{}(os, f.second.rename, opts,
                         channel_map.begin(), channel_map.end(), subgroup);
                 break;
             case json_adapter_v2::consthash("kismet.channeltracker.frequency_map"):
+                subgroup.clear();
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
                 json_adapter_v2::json_encode_keyed_map<frequency_map_iter_t>{}(os, f.second.rename, opts,
                         frequency_map.begin(), frequency_map.end(), subgroup);

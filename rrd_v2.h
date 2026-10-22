@@ -60,6 +60,60 @@ public:
     }
 };
 
+// Samples in the same second add up (packets or bytes per second); the
+// minutes and hours are the mean of their seconds and minutes, so every
+// level reads as a per-second rate
+class kis_rrd_v2_sum_aggregator {
+public:
+    template<class InputIt>
+    static double combine(InputIt first, InputIt last) {
+        return kis_rrd_v2_default_aggregator::combine(first, last);
+    }
+
+    static double combine(double v, size_t sz) {
+        return v / sz;
+    }
+
+    static double combine(double v1, double v2) {
+        return v1 + v2;
+    }
+
+    static double default_value() {
+        return (double) 0;
+    }
+
+    static std::string name() {
+        return "sum";
+    }
+};
+
+// Samples in the same second keep the largest (a count taken once a second,
+// which an empty sample at serialization must not reduce); minutes and hours
+// are the mean
+class kis_rrd_v2_peak_aggregator {
+public:
+    template<class InputIt>
+    static double combine(InputIt first, InputIt last) {
+        return kis_rrd_v2_default_aggregator::combine(first, last);
+    }
+
+    static double combine(double v, size_t sz) {
+        return v / sz;
+    }
+
+    static double combine(double v1, double v2) {
+        return v1 > v2 ? v1 : v2;
+    }
+
+    static double default_value() {
+        return (double) 0;
+    }
+
+    static std::string name() {
+        return "peak";
+    }
+};
+
 template <class M_Aggregator = kis_rrd_v2_default_aggregator,
          class H_Aggregator = M_Aggregator,
          class D_Aggregator = M_Aggregator>
@@ -187,7 +241,7 @@ public:
                     d_array[(last_hour_bucket + 1 + h) % 24] = M_Aggregator::default_value();
                 }
 
-                d_array[hour_bucket] = min_val;
+                d_array[hour_bucket] = D_Aggregator::combine(min_val, h_array.size());
             } else if (in_time - ltime > 60) {
                 // - Calculate the average seconds
                 // - Wipe the seconds

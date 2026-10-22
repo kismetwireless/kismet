@@ -47,9 +47,10 @@ public:
 protected:
     std::string channel;
     double frequency;
-    kis_rrd_v2<> packets_rrd;
-    kis_rrd_v2<> data_rrd;
-    kis_rrd_v2<> device_rrd;
+    // Packets and bytes per second, and devices active on the frequency
+    kis_rrd_v2<kis_rrd_v2_sum_aggregator> packets_rrd;
+    kis_rrd_v2<kis_rrd_v2_sum_aggregator> data_rrd;
+    kis_rrd_v2<kis_rrd_v2_peak_aggregator> device_rrd;
     kis_tracked_signal_data_v2 signal_data;
 
 };
