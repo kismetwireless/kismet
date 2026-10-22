@@ -5,6 +5,7 @@
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
+import { onLogin } from '../core/auth.js';
 import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields } from '../registry/columns.js';
 import { deviceViews } from '../registry/devices.js';
 import { openDevice } from './detailpanel.js';
@@ -94,6 +95,7 @@ export function createDeviceTable(container) {
     });
 
     loadViews();
+    onLogin(loadViews);
     // Views come and go with datasources and phys
     setInterval(() => {
         if (document.visibilityState !== 'hidden')

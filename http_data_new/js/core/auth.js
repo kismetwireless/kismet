@@ -36,6 +36,14 @@ export async function ensureSession() {
 }
 
 let pending = null;
+const loginListeners = new Set();
+
+// Called after the user logs in again, so anything that failed while the
+// session was gone can reload
+export function onLogin(fn) {
+    loginListeners.add(fn);
+    return () => loginListeners.delete(fn);
+}
 
 // Show the login dialog (once, however many requests got a 401)
 export function askLogin(message = '') {
@@ -64,6 +72,8 @@ export function askLogin(message = '') {
                     d.close();
                     pending = null;
                     resolve();
+                    for (const fn of loginListeners)
+                        fn();
                 } else {
                     error.textContent = 'Wrong username or password';
                     password.select();
