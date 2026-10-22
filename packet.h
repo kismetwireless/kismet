@@ -375,6 +375,10 @@ public:
     // What hash has been calculated, if any?
     uint32_t hash;
 
+    // The frame the hash covers, as it was before the chain ran.  Later stages can shorten
+    // the frame components (hidedata); this stays a view into the packet's own data.
+    std::string_view hash_frame;
+
     // if packet is based on raw data, this contains the data backing and data is a
     // view into it that other components should slice
     std::string raw_data;

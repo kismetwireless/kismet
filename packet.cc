@@ -46,6 +46,7 @@ kis_packet::kis_packet() {
 	filtered = 0;
     duplicate = 0;
     hash = 0;
+    hash_frame = std::string_view();
 
     assignment_id = 0;
 
@@ -88,6 +89,7 @@ void kis_packet::reset() {
     signal_info.reset();
 
     hash = 0;
+    hash_frame = std::string_view();
 
     // reset raw data if in use
     raw_data.clear();

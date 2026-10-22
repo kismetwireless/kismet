@@ -355,7 +355,8 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
 
             if (chunk != nullptr && chunk->data() != nullptr && chunk->length() != 0) {
                 packet->hash = crc32_fast(chunk->data(), chunk->length(), 0);
-                dedupe_packet(packet, chunk);
+                packet->hash_frame = std::string_view(chunk->data(), chunk->length());
+                dedupe_packet(packet);
             }
 
             // run the rest of the packet chain
@@ -410,8 +411,7 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
     }
 }
 
-void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet,
-        const std::shared_ptr<kis_datachunk>& chunk) {
+void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
     // Earlier packets sharing this hash; per thread so we don't allocate per packet
     thread_local std::vector<std::shared_ptr<kis_packet>> candidates;
     candidates.clear();
@@ -458,10 +458,9 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet,
     for (const auto& c : candidates) {
         kis_lock_guard<kis_mutex> lg(c->mutex, "packetchain dedupe candidate");
 
-        const auto& c_chunk = c->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
-
-        if (c_chunk == nullptr || c_chunk->length() != chunk->length() ||
-                memcmp(c_chunk->data(), chunk->data(), chunk->length()) != 0)
+        // Compare the frames as they were hashed; the candidate's own frame components may
+        // have been cut since (hidedata)
+        if (c->hash_frame != packet->hash_frame)
             continue;
 
         const auto& orig = (c->duplicate && c->original != nullptr) ? c->original : c;

@@ -406,8 +406,7 @@ protected:
     std::unique_ptr<dedupe_window[]> dedupe_windows;
 
     // Number the packet or alias it to an identical earlier packet
-    void dedupe_packet(const std::shared_ptr<kis_packet>& packet,
-            const std::shared_ptr<kis_datachunk>& chunk);
+    void dedupe_packet(const std::shared_ptr<kis_packet>& packet);
 
     // Add an original to the window; caller holds the window lock.  Returns the evicted
     // packet so it can be released after the lock is dropped.

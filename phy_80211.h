@@ -481,6 +481,8 @@ public:
     int packet_wep_decryptor(kis_packet* in_pack);
     // Top-level dissector; decodes basic type and populates the dot11 packet
     int packet_dot11_dissector(kis_packet* in_pack);
+    void hidedata_truncate(kis_packet* in_pack, const std::shared_ptr<kis_datachunk>& chunk,
+            const std::shared_ptr<dot11_packinfo>& packinfo);
 
     // Thread assignment from the raw header, run before the packet is queued
     int packet_dot11_assign_thread(kis_packet *in_pack);

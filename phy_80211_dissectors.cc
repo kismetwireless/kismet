@@ -710,6 +710,48 @@ static void find_chan_switch(const uint8_t *ies, size_t len, dot11_chan_switch& 
     cs.cur_channel = ht_channel != 0 ? ht_channel : ds_channel;
 }
 
+// hidedata: cut a data frame and the link frame it came from to the capture headers and the
+// 802.11 header.  Only unencrypted EAPOL-Key frames are kept, so handshakes stay usable; every
+// other EAPOL frame is cut too, since EAP-Identity responses carry user names.
+void kis_80211_phy::hidedata_truncate(kis_packet* in_pack, const std::shared_ptr<kis_datachunk>& chunk,
+        const std::shared_ptr<dot11_packinfo>& packinfo) {
+    // LLC/SNAP for 802.1X, the EAPOL version, then the EAPOL-Key packet type
+    static const uint8_t eapol_llc[] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8E};
+    constexpr size_t eapol_type_pos = sizeof(eapol_llc) + 1;
+    constexpr uint8_t eapol_type_key = 3;
+
+    // Only what was captured; the data size can include bytes cut off by the capture
+    if (chunk->length() <= packinfo->header_offset)
+        return;
+
+    const auto payload = chunk->substr(packinfo->header_offset);
+
+    if (packinfo->cryptset == 0 && payload.length() > eapol_type_pos &&
+            memcmp(payload.data(), eapol_llc, sizeof(eapol_llc)) == 0 &&
+            (uint8_t) payload[eapol_type_pos] == eapol_type_key)
+        return;
+
+    auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+
+    if (linkchunk != nullptr && linkchunk != chunk) {
+        const char *link_start = linkchunk->data();
+
+        if (chunk->data() >= link_start &&
+                chunk->data() + chunk->length() <= link_start + linkchunk->length()) {
+            // The decapsulated frame is a view into the link frame; keep the capture headers
+            // in front of it
+            linkchunk->set_data(linkchunk->substr(0,
+                        (chunk->data() - link_start) + packinfo->header_offset));
+        } else {
+            // Not a view; log the truncated 802.11 frame instead
+            linkchunk->copy_raw_data(std::string(chunk->data(), packinfo->header_offset));
+            linkchunk->dlt = chunk->dlt;
+        }
+    }
+
+    chunk->set_data(chunk->substr(0, packinfo->header_offset));
+}
+
 int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     if (in_pack->error) {
         return 0;
@@ -754,6 +796,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
         if (in_pack->signal_info.data_ok)
             ci.freq_khz = in_pack->signal_info.freq_khz;
+
+        // The duplicate's own frame is logged too, so hidedata has to cut it as well
+        auto dpackinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+        if (!dissect_data && dpackinfo != nullptr && dpackinfo->type == packet_data &&
+                !dpackinfo->corrupt)
+            hidedata_truncate(in_pack, chunk, dpackinfo);
 
         return 1;
     }
@@ -1620,37 +1668,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         }
 
         // hidedata: cut data frames to the 802.11 header right after the type is known, so
-        // neither later stages nor the logs and streams see their contents.  Unencrypted EAPOL
-        // frames are kept; they carry no user data.
-        if (!dissect_data && datasize > 0) {
-            static const uint8_t eapol_llc[] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8E};
-
-            const bool eapol = packinfo->cryptset == 0 &&
-                (size_t) datasize >= sizeof(eapol_llc) &&
-                memcmp(&chunk->data()[packinfo->header_offset], eapol_llc, sizeof(eapol_llc)) == 0;
-
-            if (!eapol) {
-                auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
-
-                if (linkchunk != nullptr && linkchunk != chunk) {
-                    const char *link_start = linkchunk->data();
-
-                    if (chunk->data() >= link_start &&
-                            chunk->data() + chunk->length() <= link_start + linkchunk->length()) {
-                        // The decapsulated frame is a view into the link frame; keep the
-                        // capture headers in front of it
-                        linkchunk->set_data(linkchunk->substr(0,
-                                    (chunk->data() - link_start) + packinfo->header_offset));
-                    } else {
-                        // Not a view; log the truncated 802.11 frame instead
-                        linkchunk->copy_raw_data(std::string(chunk->data(), packinfo->header_offset));
-                        linkchunk->dlt = chunk->dlt;
-                    }
-                }
-
-                chunk->set_data(chunk->substr(0, packinfo->header_offset));
-            }
-        }
+        // neither later stages nor the logs and streams see their contents
+        if (!dissect_data)
+            hidedata_truncate(in_pack, chunk, packinfo);
 
         if (packinfo->cryptset == 0 && dissect_data && datasize > 0) {
             // Keep whatever datachunk we already found

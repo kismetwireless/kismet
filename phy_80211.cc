@@ -642,7 +642,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("hidedata", 0) ||
             Globalreg::globalreg->kismet_config->fetch_opt_bool("dontbeevil", 0)) {
         _MSG("hidedata= set in Kismet config.  Kismet will cut data frames to their 802.11 "
-                "headers (EAPOL frames excepted) and will not decode or log their contents", MSGFLAG_INFO);
+                "headers (EAPOL-Key frames excepted) and will not decode or log their contents", MSGFLAG_INFO);
         dissect_data = 0;
     } else {
         dissect_data = 1;
