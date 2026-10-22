@@ -108,7 +108,7 @@ export function register(kismet) {
                 format: (v) => `${v} m` },
             { title: 'Station UTC time', field: `${ais}/${ais}.utc_time`, hideEmpty: true },
             {
-                title: 'Reported location', field: `${base}.location/kismet.common.location.last/kismet.common.location.geopoint`,
+                title: 'Reported location', field: `${base}.reported_location/kismet.common.location.last/kismet.common.location.geopoint`,
                 show: (v) => Array.isArray(v) && (v[0] !== 0 || v[1] !== 0),
                 format: (v) => el('span', {}, `${v[1].toFixed(5)}, ${v[0].toFixed(5)} `,
                     link(`https://www.openstreetmap.org/?mlat=${v[1]}&mlon=${v[0]}`, 'View on OpenStreetMap')),

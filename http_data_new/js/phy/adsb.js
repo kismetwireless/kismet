@@ -5,9 +5,9 @@ const adsb = 'adsb.device';
 // The aircraft record from the ICAO database Kismet loads, kept in the device
 // under the record's own name
 const icao = `${adsb}/kismet.adsb.icao_record`;
-// The server puts each aircraft's reported position, altitude, speed, and
-// heading into the device's last location
-const pos = `${base}.location/kismet.common.location.last/kismet.common.location`;
+// The aircraft's own position, altitude, speed, and heading; the device's
+// location is where Kismet heard it
+const pos = `${base}.reported_location/kismet.common.location.last/kismet.common.location`;
 
 // Owners that mark government and related aircraft, and words that rule a match out again
 const governmentWords = ['department', 'police', 'agency', 'dep', 'gov', 'federal', 'royal', 'force',

@@ -4,6 +4,8 @@
 const base = 'kismet.device.base';
 const sig = `${base}.signal/kismet.common.signal`;
 const loc = `${base}.location/kismet.common.location`;
+// Only on devices that report their own position (ADS-B, AIS, Remote ID...)
+const rloc = `${base}.reported_location/kismet.common.location`;
 
 export function register(kismet) {
     const { ui, format, dom, api, rrd, clock, icons } = kismet;
@@ -200,10 +202,28 @@ export function register(kismet) {
                 show: (dev) => api.field(dev, `${loc}.avg_loc/kismet.common.location.fix`, 0) >= 2,
                 fields: [
                     { title: 'Location', field: `${loc}.avg_loc/kismet.common.location.geopoint`,
-                        format: (v) => point(v) ?? muted('Unknown') },
+                        format: (v) => point(v) ?? muted('Unknown'),
+                        help: 'Where Kismet was, on average, when it heard the device, from Kismet\'s GPS.' },
                     { title: 'Altitude', field: `${loc}.avg_loc/kismet.common.location.alt`,
                         show: (_v, dev) => api.field(dev, `${loc}.avg_loc/kismet.common.location.fix`, 0) >= 3,
                         format: (v) => `${v.toFixed(1)} m` },
+                ],
+            },
+
+            {
+                group: 'Reported location',
+                show: (dev) => api.field(dev, `${rloc}.last/kismet.common.location.fix`, 0) >= 2,
+                fields: [
+                    { title: 'Last reported', field: `${rloc}.last/kismet.common.location.geopoint`,
+                        format: (v) => point(v) ?? muted('Unknown'),
+                        help: 'The last position the device reported for itself.  This is where the device says it is, not where Kismet heard it.' },
+                    { title: 'Altitude', field: `${rloc}.last/kismet.common.location.alt`,
+                        show: (_v, dev) => api.field(dev, `${rloc}.last/kismet.common.location.fix`, 0) >= 3,
+                        format: (v) => `${v.toFixed(1)} m` },
+                    { title: 'Average', field: `${rloc}.avg_loc/kismet.common.location.geopoint`,
+                        show: (_v, dev) => api.field(dev, `${rloc}.avg_loc/kismet.common.location.fix`, 0) >= 2,
+                        format: (v) => point(v) ?? muted('Unknown'),
+                        help: 'The average of the positions the device reported.' },
                 ],
             },
         ],
