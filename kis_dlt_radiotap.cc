@@ -524,6 +524,11 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
     auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
 
+    // A frame captured shorter than it was (snap length, truncate_data) doesn't have its FCS,
+    // whatever the flags say
+    if (fcs_cut && in_pack->original_len > linkchunk->length())
+        fcs_cut = 0;
+
     if (fcs_cut && offset + fcs_cut > (int) linkchunk->length()) {
         return 0;
     }

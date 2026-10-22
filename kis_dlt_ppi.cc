@@ -240,6 +240,11 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
         }
     }
 
+    // A frame captured shorter than it was (snap length, truncation) doesn't have its FCS,
+    // whatever the flags say; a known bad FCS still counts
+    if (applyfcs && !fcsknownbad && in_pack->original_len > linkchunk->length())
+        applyfcs = 0;
+
     if (applyfcs)
         applyfcs = 4;
 
