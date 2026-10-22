@@ -707,7 +707,9 @@ int kis_meshcore_phy::packet_handler(CHAINCALL_PARMS) {
 
     if (transmitter_key) {
         auto txdev = mphy->update_node(*transmitter_key, in_pack,
-                UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_SEENBY,
+                // The transmitter is the node kismet heard, so it's located where kismet was
+                UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_SEENBY |
+                UCD_UPDATE_LOCATION,
                 new_device);
 
         if (txdev != nullptr && transmitter_key != source_key) {
@@ -760,15 +762,11 @@ int kis_meshcore_phy::packet_handler(CHAINCALL_PARMS) {
         node->set_lat(advert->lat);
         node->set_lon(advert->lon);
 
-        in_pack->gps_info.gps_info_ok = true;
-        in_pack->gps_info.lat = advert->lat;
-        in_pack->gps_info.lon = advert->lon;
-        in_pack->gps_info.alt = 0;
-        in_pack->gps_info.fix = 2;
-        in_pack->gps_info.tv = in_pack->ts;
+        // The node's advertised position is its reported location
+        in_pack->reported_gps.set_reported(advert->lat, advert->lon, 0, 0, 0, 2, in_pack->ts);
 
         mphy->devicetracker->update_common_device(source_dev->get_macaddr(), mphy, in_pack,
-                UCD_UPDATE_LOCATION, "MeshCore");
+                UCD_UPDATE_REPORTED_LOCATION, "MeshCore");
     }
 
     if (new_node_info) {

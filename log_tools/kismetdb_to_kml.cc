@@ -201,6 +201,9 @@ void print_help(char *argv) {
            "                              your home, or other sensitive locations.\n"
            " --basic-location             Use basic average location information instead of computing a\n"
            "                              high-precision location; faster, but less accurate\n"
+           " -H, --heard-at               Place devices that report their own position (ADS-B, AIS,\n"
+           "                              Remote ID...) where kismet heard them, not where they said\n"
+           "                              they were\n"
            " -g, --group                  Group by type into folders\n"
           );
 }
@@ -249,6 +252,7 @@ int main(int argc, char *argv[]) {
         { "skip-clean", no_argument, 0, 's' },
         { "exclude", required_argument, 0, 'e'},
         { "basic-location", no_argument, 0, 'B'},
+        { "heard-at", no_argument, 0, 'H'},
         { "group", no_argument, 0, 'g' },
         { 0, 0, 0, 0 }
     };
@@ -263,6 +267,7 @@ int main(int argc, char *argv[]) {
     bool force = false;
     bool skipclean = false;
     bool basiclocation = false;
+    bool heard_at = false;
     bool group_in_folder = false;
 
     std::vector<std::tuple<double, double, double>> exclusion_zones;
@@ -277,7 +282,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:e:vfs", 
+                            "-hi:o:r:c:e:vfsH", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -305,6 +310,8 @@ int main(int argc, char *argv[]) {
             exclusion_zones.push_back(std::make_tuple(lat, lon, distance));
         } else if (r == 'B') {
             basiclocation = true;
+        } else if (r == 'H') {
+            heard_at = true;
         } else if (r == 'g') {
             group_in_folder = true;
         }
@@ -421,10 +428,10 @@ int main(int argc, char *argv[]) {
         n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
 
         auto ndevices_gps_q = _SELECT(db, "devices", {"count(*)"}, 
-                _WHERE("avglat", NEQ, 0,
+                _WHERE("avg_lat", NEQ, 0,
                     AND,
-                    "avglon", NEQ, 0));
-        auto ndevices_gps_ret = ndevices_q.begin();
+                    "avg_lon", NEQ, 0));
+        auto ndevices_gps_ret = ndevices_gps_q.begin();
         if (ndevices_gps_ret == ndevices_gps_q.end()) {
             fmt::print(stderr, "ERROR: Unable to fetch device-with-gps count.\n");
             sqlite3_close(db);
@@ -436,7 +443,7 @@ int main(int argc, char *argv[]) {
             fmt::print(stderr, "* Found {} devices, {} devices with gps, {} usable packets, {} total packets\n", 
                     n_devices_db, n_devices_gps_db, n_packets_db, n_total_packets_db);
 
-        if (n_devices_gps_db && basiclocation) {
+        if (n_devices_gps_db == 0 && basiclocation) {
             fmt::print(stderr, "ERROR:  No usable devices in the log file; devices must have GPS information\n"
                                "        to be usable with KML.  You can try without --basic-location to use the\n"
                                "        packets to derive a more precise location, but you may have no GPS data\n"
@@ -479,10 +486,15 @@ int main(int argc, char *argv[]) {
     std::vector<kml_placemark> bluetooth_placemark_vec;
 
     if (basiclocation) {
-        auto basic_q = 
-            _SELECT(db, "devices", 
-                    {"min_lat", "min_lon", "max_lat", "max_lon", "avg_lat", "avg_lon", "device"}, 
-                    _WHERE("avglat", NEQ, 0, AND, "avglon", NEQ, 0));
+        // Since version 11, devices that report their own position (ADS-B,
+        // AIS, Remote ID...) have its average too; place them there unless
+        // asked for where kismet heard them
+        std::list<std::string> device_fields{"min_lat", "min_lon", "max_lat", "max_lon",
+            "avg_lat", "avg_lon", "device"};
+        if (db_version >= 11)
+            device_fields.insert(device_fields.end(), {"reported_avg_lat", "reported_avg_lon"});
+
+        auto basic_q = _SELECT(db, "devices", device_fields);
 
         for (auto d : basic_q) {
             double avg_lat, avg_lon;
@@ -495,6 +507,19 @@ int main(int argc, char *argv[]) {
                 avg_lat = sqlite3_column_as<double>(d, 4);
                 avg_lon = sqlite3_column_as<double>(d, 5);
             }
+
+            if (db_version >= 11 && !heard_at) {
+                double reported_lat = sqlite3_column_as<double>(d, 7);
+                double reported_lon = sqlite3_column_as<double>(d, 8);
+
+                if (reported_lat != 0 && reported_lon != 0) {
+                    avg_lat = reported_lat;
+                    avg_lon = reported_lon;
+                }
+            }
+
+            if (avg_lat == 0 && avg_lon == 0)
+                continue;
 
             // Check to see if we lie in any exclusion zones
             bool violates_exclusion = false;
@@ -567,6 +592,10 @@ int main(int argc, char *argv[]) {
             // Prep the packet list for different kismetdb versions
             std::list<std::string> packet_fields;
 
+            // Where kismet heard it, unless the device reports its own
+            // position (since version 11) and we weren't asked for heard-at
+            std::string lat_col = "lat", lon_col = "lon", alt_col = "alt";
+
             if (db_version < 5) {
                 packet_fields = std::list<std::string>{"lat", "lon" };
             } else {
@@ -592,6 +621,13 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
+            if (db_version >= 11 && !heard_at && json.contains("kismet.device.base.reported_location")) {
+                lat_col = "reported_lat";
+                lon_col = "reported_lon";
+                alt_col = "reported_alt";
+                packet_fields = std::list<std::string>{lat_col, lon_col, alt_col};
+            }
+
             pl.avg_alt = 0;
             pl.avg_lat = 0;
             pl.avg_lon = 0;
@@ -599,7 +635,7 @@ int main(int argc, char *argv[]) {
             pl.avg_alt = 0;
 
             auto packet_q = _SELECT(db, "packets", packet_fields,
-                    _WHERE("sourcemac", EQ, devmac, AND, "phyname", EQ, phyname, AND, "lat", NEQ, 0, AND, "lon", NEQ, 0));
+                    _WHERE("sourcemac", EQ, devmac, AND, "phyname", EQ, phyname, AND, lat_col, NEQ, 0, AND, lon_col, NEQ, 0));
 
             for (auto p : packet_q) {
                 double lat, lon, alt;
@@ -639,7 +675,7 @@ int main(int argc, char *argv[]) {
             }
 
             auto data_q = _SELECT(db, "data", packet_fields,
-                    _WHERE("devmac", EQ, devmac, AND, "phyname", EQ, phyname, AND, "lat", NEQ, 0, AND, "lon", NEQ, 0));
+                    _WHERE("devmac", EQ, devmac, AND, "phyname", EQ, phyname, AND, lat_col, NEQ, 0, AND, lon_col, NEQ, 0));
 
             for (auto p : data_q) {
                 double lat, lon, alt;

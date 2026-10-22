@@ -557,13 +557,13 @@ void kis_meshtastic_phy::handle_position_pb(const std::string_view& pbuf,
         }
     }
 
+    // The node's own position is its reported location (speed in km/h, like
+    // every gps record).  Packets can be relayed over several hops, so the
+    // node gets no location from where kismet heard it.
     if (lat != 0 && lon != 0) {
-        packet->gps_info.gps_info_ok = true;
-        packet->gps_info.lat = lat;
-        packet->gps_info.lon = lon;
-        packet->gps_info.alt = alt;
-        packet->gps_info.speed = speed;
-        packet->gps_info.fix = alt == 0 ? 2 : 3;
+        packet->reported_gps.set_reported(lat, lon, alt, speed * 3.6, 0, 0, packet->ts);
+        devicetracker->update_common_device(base->get_macaddr(), this, packet,
+                UCD_UPDATE_REPORTED_LOCATION, "Meshtastic");
     }
 }
 

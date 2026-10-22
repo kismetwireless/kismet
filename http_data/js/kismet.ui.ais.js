@@ -237,7 +237,7 @@ kismet_ui.AddDeviceDetail("ais", "AIS (SDR)", 0, {
                 filterOnEmpty: true,
             },
             {
-                field: "kismet.device.base.location/kismet.common.location.last/kismet.common.location.geopoint",
+                field: "kismet.device.base.reported_location/kismet.common.location.last/kismet.common.location.geopoint",
                 liveupdate: true,
                 title: "Reported location",
                 filterOnZero: true,

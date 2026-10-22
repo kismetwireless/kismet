@@ -449,6 +449,8 @@ public:
 
             __ImportId(location_cloud_id, p);
 
+            __ImportId(reported_location_id, p);
+            __ImportId(reported_location_cloud_id, p);
 
             reserve_fields(nullptr);
         }
@@ -691,6 +693,16 @@ public:
     // Optional location cloud
     __ProxyFullyDynamicTrackable(location_cloud, kis_location_rrd, location_cloud_id);
 
+    // Where the device says it is, for devices that report their own position
+    // (ADS-B, AIS, Remote ID...); only present on those devices.  location and
+    // location_cloud always hold where kismet was when it heard the device.
+    //
+    // Major change to the location data (2026-10-R1, kismetdb v11): those phys
+    // previously wrote the reported position into location / location_cloud.
+    // Consumers that want the device's own position must read these fields.
+    __ProxyFullyDynamicTrackable(reported_location, kis_tracked_location, reported_location_id);
+    __ProxyFullyDynamicTrackable(reported_location_cloud, kis_location_rrd, reported_location_cloud_id);
+
     kis_shared_mutex device_mutex;
 
     static constexpr unsigned int view_membership_capacity = 128;
@@ -918,6 +930,10 @@ protected:
     uint16_t related_device_group_id;
 
     uint16_t location_cloud_id;
+
+    // Device-reported position; see the proxies above, major change in 2026-10-R1
+    uint16_t reported_location_id;
+    uint16_t reported_location_cloud_id;
 };
 
 // Scoped device lock that tolerates nesting within the same thread

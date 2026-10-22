@@ -547,6 +547,16 @@ void kis_tracked_device_base::register_fields() {
 
     location_cloud_id = register_dynamic_field<kis_location_rrd>(
         "kismet.device.base.location_cloud", "RRD-like location history");
+
+    // Major change to the location data in 2026-10-R1 (kismetdb v11): devices
+    // that report their own position keep it here instead of in location /
+    // location_cloud, which now always mean where kismet heard the device
+    reported_location_id =
+        register_dynamic_field<kis_tracked_location>("kismet.device.base.reported_location",
+                "location the device reports for itself");
+
+    reported_location_cloud_id = register_dynamic_field<kis_location_rrd>(
+        "kismet.device.base.reported_location_cloud", "RRD-like history of the location the device reports");
 }
 
 void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map> e) {

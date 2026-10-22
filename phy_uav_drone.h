@@ -745,7 +745,7 @@ protected:
 
     // Called with the device locked
     void handle_remoteid(const std::shared_ptr<kis_tracked_device_base>& basedev,
-            const std::shared_ptr<uav_remoteid_packinfo>& rid, kis_packet *in_pack);
+            const std::shared_ptr<uav_remoteid_packinfo>& rid, const std::shared_ptr<kis_packet>& in_pack);
 
     kis_mutex uav_mutex;
 

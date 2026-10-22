@@ -206,6 +206,24 @@ public:
         gps_id = 0;
     }
 
+    // A position reported by the device itself (ADS-B, AIS, Remote ID...),
+    // starting clean so nothing from an earlier fix is left over.  A fix of
+    // 0 means 3d if there's an altitude, else 2d.
+    void set_reported(double in_lat, double in_lon, double in_alt, double in_speed,
+            double in_heading, int in_fix, const struct timeval& in_tv) {
+        reset();
+        lat = in_lat;
+        lon = in_lon;
+        alt = in_alt;
+        speed = in_speed;
+        heading = in_heading;
+        fix = in_fix != 0 ? in_fix : (in_alt != 0 ? 3 : 2);
+        tv = in_tv;
+        // Altitude or speed with no position yet (adsb sends them separately)
+        // isn't a location
+        gps_info_ok = in_lat != 0 || in_lon != 0;
+    }
+
     bool gps_info_ok;
 
     double lat;
@@ -381,9 +399,13 @@ public:
     // Signal info
     kis_layer1_packinfo signal_info;
 
-    // gps info
+    // gps info: where kismet was when the packet was seen
     bool suppress_gps;
     kis_gps_packinfo gps_info;
+
+    // Where the device itself says it is, for devices that report their own
+    // position; phys fill this, never gps_info
+    kis_gps_packinfo reported_gps;
 
     // Did this packet trigger creation of a new device?  Since a 
     // single packet can create multiple devices in some phys, maintain

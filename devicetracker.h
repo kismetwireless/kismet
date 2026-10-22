@@ -34,6 +34,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <functional>
 #include <stdexcept>
 #include <utility>
 
@@ -183,11 +184,19 @@ public:
 #define UCD_UPDATE_EMPTY_SIGNAL     (1 << 7)
 // Only update location if we have no existing location
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
+// Update the location the device reports for itself, from the packet's
+// reported_gps, into the device's reported_location
+#define UCD_UPDATE_REPORTED_LOCATION    (1 << 9)
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             const mac_addr& in_mac, kis_phy_handler *phy,
             const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
             const std::string& in_basic_type);
+
+    // Add a packet's position to one of a device's location sets
+    void update_location_set(const std::shared_ptr<kis_tracked_location>& loc,
+            const kis_gps_packinfo& gps, const std::shared_ptr<kis_packet>& in_pack,
+            const std::function<std::shared_ptr<kis_location_rrd> ()>& get_cloud);
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             const mac_addr& in_mac, kis_phy_handler *phy,
