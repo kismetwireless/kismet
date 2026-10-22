@@ -34,6 +34,16 @@ export function register(kismet) {
         match: (row) => (isMeshtastic(row) ? icons.icon('mesh', 'Meshtastic node') : null),
     });
 
+    // Nodes that share their position.  Meshtastic packets are relayed, so
+    // there's no point to say where Kismet heard a node.
+    ui.mapSources.add({
+        id: 'meshtastic', title: 'Meshtastic nodes', priority: 30, icon: 'mesh', view: 'phy-Meshtastic', maxAge: 3600,
+        fields: [[`${n}/${n}.longname`, 'longname'], [`${n}/${n}.shortname`, 'shortname']],
+        label: (d) => String(d.longname ?? '').trim() || String(d.shortname ?? '').trim() || d.name,
+        detail: (d) => (d.rep_alt ? `${Math.round(d.rep_alt)} m` : ''),
+        color: () => 'var(--accent)',
+    });
+
     ui.rowHighlights.add({
         id: 'meshtastic_all', name: 'Meshtastic node', priority: 100,
         description: 'Meshtastic LoRa mesh nodes',

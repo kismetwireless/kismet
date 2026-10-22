@@ -19,7 +19,7 @@ import * as dom from './core/dom.js';
 import * as icons from './core/icons.js';
 import { createRegistry } from './registry/registry.js';
 import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields, fieldName } from './registry/columns.js';
-import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes } from './registry/ui.js';
+import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes, mapSources } from './registry/ui.js';
 import { deviceViews, deviceDetails, deviceDetailFields, channelNames, sourceChannels } from './registry/devices.js';
 import * as modules from './core/modules.js';
 import { detailFields, muted } from './widgets/detailfields.js';
@@ -36,6 +36,7 @@ import * as ribbon from './widgets/ribbon.js';
 import * as settingsdialog from './widgets/settingsdialog.js';
 import { sparkline } from './widgets/sparkline.js';
 import * as cellgraphs from './widgets/cellgraphs.js';
+import * as map from './widgets/map.js';
 
 export const kismet = {
     api,
@@ -62,6 +63,7 @@ export const kismet = {
         listTable,
         coverage,
         datatable,
+        map,
     },
 
     ui: {
@@ -79,6 +81,7 @@ export const kismet = {
         panes,
         settingsPanes,
         colorSchemes,
+        mapSources,
 
         alwaysFields,
         fieldName,

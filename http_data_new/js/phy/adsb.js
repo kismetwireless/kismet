@@ -48,6 +48,22 @@ export function register(kismet) {
         match: (row) => (isAdsb(row) ? icons.icon('plane', 'Aircraft') : null),
     });
 
+    // Aircraft on the map, colored by altitude as on the classic ADS-B map
+    const altColor = (m) => `hsl(${Math.round(40 + 310 * Math.min(Math.max(m ?? 0, 0), 12000) / 12000)} 90% 50%)`;
+    ui.mapSources.add({
+        id: 'adsb', title: 'Aircraft', priority: 0, icon: 'plane', view: 'phy-ADSB', maxAge: 600, legacy: true,
+        fields: [[`${adsb}/${adsb}.callsign`, 'callsign']],
+        label: (d) => String(d.callsign ?? '').trim() || d.name,
+        detail: (d) => [d.rep_alt ? `${Math.round(d.rep_alt).toLocaleString()} m` : null,
+            d.rep_speed ? `${Math.round(d.rep_speed)} km/h` : null].filter(Boolean).join(', '),
+        color: (d) => altColor(d.rep_alt),
+        heading: (d) => d.rep_heading || 0,
+        legend: () => el('div', { class: 'map-legend' }, el('span', {}, 'Altitude'),
+            el('span', { class: 'map-legend-bar', style: { background:
+                `linear-gradient(to right, ${[0, 3000, 6000, 9000, 12000].map(altColor).join(', ')})` } }),
+            el('span', { class: 'map-legend-scale' }, el('span', {}, '0 m'), el('span', {}, '12,000 m'))),
+    });
+
     ui.rowHighlights.add({
         id: 'adsb_government', name: 'ADS-B government', priority: 50,
         description: 'Government and related aircraft',

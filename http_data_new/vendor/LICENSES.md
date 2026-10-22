@@ -6,6 +6,7 @@ and free of commercial-use restrictions.  List each one here:
 
 | Library | Version | License | Files | Used for |
 |---|---|---|---|---|
+| [Leaflet](https://leafletjs.com) | 1.9.4 | BSD-2-Clause (leaflet/LICENSE) | leaflet/leaflet.js, leaflet/leaflet.css | The map tab (js/widgets/map.js), loaded when the tab is first opened |
 
-None yet: the UI is plain JavaScript, and its icons (js/core/icons.js) and
+The rest of the UI is plain JavaScript; its icons (js/core/icons.js) and
 graphs (js/widgets/sparkline.js) are its own.

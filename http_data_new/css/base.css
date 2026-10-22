@@ -434,6 +434,13 @@ tr.highlighted .bar-graph { fill: currentColor; }
     color: var(--muted);
 }
 .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tab-bar { display: flex; align-items: center; border-bottom: 1px solid var(--border); flex: none; }
+.tab-bar .tabs { flex: 1; min-width: 0; border-bottom: none; }
+.tab-tools { display: flex; align-items: center; gap: 0.2rem; padding: 0.2rem 0.5rem 0; }
+.tab-tools:empty { display: none; }
+.tab-tool[aria-pressed="true"] { color: var(--accent); }
+/* A tab can fill the window with its area (the map's expand button) */
+.main-area.expanded, .bottom.expanded { position: fixed; inset: 0; z-index: 9; height: auto; }
 .tab-bodies { flex: 1; min-height: 0; position: relative; }
 .tab-body { position: absolute; inset: 0; overflow: auto; }
 
@@ -776,3 +783,141 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .main-area .tab-body, .bottom .tab-body { display: flex; flex-direction: column; }
 .main-area .tab-body { overflow: hidden; }
 .data-table tbody tr.clickable { cursor: pointer; }
+
+/* Map tab */
+
+.map-pane { flex: 1; min-height: 0; display: flex; background: var(--bg); }
+.map-pane.expanded { position: fixed; inset: 0; z-index: 9; }
+.map-view { position: relative; flex: 1; min-width: 0; isolation: isolate; }
+.map-canvas { position: absolute; inset: 0; }
+.map-pane .leaflet-container { background: var(--bg); font: inherit; color: var(--text); }
+.map-pane.no-tiles .leaflet-container {
+    background-color: var(--bg);
+    background-image: linear-gradient(color-mix(in srgb, var(--border) 45%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--border) 45%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+.map-pane.dark-tiles .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(195deg) brightness(0.8) contrast(0.9) saturate(0.55);
+}
+.map-pane .leaflet-bar { border: 1px solid var(--border); box-shadow: var(--shadow); }
+.map-pane .leaflet-bar a { background: var(--surface); color: var(--text); border-bottom-color: var(--border); }
+.map-pane .leaflet-bar a:hover { background: var(--surface-2); }
+.map-pane .leaflet-bar a.leaflet-disabled { background: var(--surface); color: var(--muted); }
+.map-pane .leaflet-control-attribution, .map-pane .leaflet-control-scale-line {
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    color: var(--muted);
+}
+.map-pane .leaflet-control-scale-line { border-color: var(--muted); }
+.map-pane .leaflet-control-attribution a { color: var(--accent); }
+
+.map-tools { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 1000; display: flex; gap: 0.35rem; }
+.map-tool {
+    display: inline-flex; align-items: center; gap: 0.3em;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 0.3em 0.55em;
+    box-shadow: var(--shadow);
+}
+.map-tool:hover { background: var(--surface-2); }
+.map-tool[hidden] { display: none; }
+
+.map-legends { position: absolute; left: 0.6rem; bottom: 2.4rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.35rem; }
+.map-legend {
+    display: grid; grid-template-columns: auto 10rem; column-gap: 0.5rem; align-items: center;
+    padding: 0.35em 0.55em; font-size: 0.8rem;
+    background: color-mix(in srgb, var(--surface) 90%, transparent); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+}
+.map-legend-bar { height: 0.55rem; border-radius: 3px; }
+.map-legend-scale { grid-column: 2; display: flex; justify-content: space-between; color: var(--muted); font-size: 0.75rem; }
+
+.map-status, .map-overlay { position: absolute; z-index: 1001; }
+.map-status { top: 0.6rem; left: 50%; transform: translateX(-50%); padding: 0.4em 0.8em;
+    background: var(--surface); border: 1px solid var(--error); border-radius: 6px; color: var(--error); }
+.map-overlay { inset: 0; display: grid; place-items: center; padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.map-overlay[hidden], .map-status[hidden] { display: none; }
+.map-consent {
+    max-width: 34rem; padding: 1rem 1.2rem;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+}
+.map-consent h3 { margin: 0 0 0.6rem; }
+.map-consent p { margin: 0 0 0.7rem; line-height: 1.45; }
+.map-consent-remember { display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.8rem; }
+
+/* Device markers: an icon in a disc of the device's color */
+.map-marker-box { background: none; border: none; }
+.map-marker {
+    --marker-color: var(--accent);
+    width: 26px; height: 26px; box-sizing: border-box;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--marker-color) 30%, var(--surface));
+    border: 2px solid var(--marker-color);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+    transition: transform 0.15s;
+}
+.map-marker-glyph { display: grid; place-items: center; font-size: 15px; line-height: 1; }
+.map-marker.heard-only { border-style: dashed; background: var(--surface); }
+.map-marker.hover, .map-marker.selected { transform: scale(1.3); }
+.map-marker.selected { outline: 2px solid var(--text); outline-offset: 2px; }
+.leaflet-marker-icon.filtered { opacity: 0.2; }
+.map-self { background: none; border: none; }
+.map-self-glyph { display: grid; place-items: center; font-size: 24px; color: var(--accent);
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5)); }
+
+.map-pane path.map-link { stroke: var(--muted); stroke-opacity: 0.85; }
+.map-pane path.map-heard { stroke: var(--muted); fill: var(--surface); fill-opacity: 1; }
+.map-pane path.map-trail { stroke: var(--accent); stroke-opacity: 0.8; fill: none; }
+
+.leaflet-tooltip.map-tip {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
+    font: inherit; font-size: 0.85rem;
+}
+.leaflet-tooltip-top.map-tip::before { border-top-color: var(--border); }
+
+/* The device list beside the map */
+.map-side {
+    width: 20rem; flex: none; min-height: 0;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    padding: 0.6rem; border-left: 1px solid var(--border); background: var(--surface);
+}
+.map-search { width: 100%; box-sizing: border-box; }
+.map-layers { display: flex; flex-direction: column; gap: 0.2rem; }
+.map-layer { display: grid; grid-template-columns: auto auto 1fr auto; gap: 0.4em; align-items: center; }
+.map-layer-count { font-variant-numeric: tabular-nums; }
+.map-age, .map-inview { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
+.map-age select { flex: 1; min-width: 0; }
+.map-summary { font-size: 0.85rem; }
+.map-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; min-height: 0;
+    border-top: 1px solid var(--border); overscroll-behavior: contain; }
+.map-row {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 0.5em; align-items: center;
+    padding: 0.3em 0.4em; border-bottom: 1px solid var(--border);
+    cursor: pointer; opacity: 0.5;
+}
+.map-row.in-view { opacity: 1; }
+.map-row.in-view .map-row-icon { opacity: 1; }
+.map-row:hover { background: var(--row-hover); }
+.map-row.selected { background: var(--accent-soft); opacity: 1; }
+.map-row-icon { font-size: 1.1rem; display: grid; }
+.map-row-text { display: flex; flex-direction: column; min-width: 0; }
+.map-row-label, .map-row-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-row-detail { font-size: 0.8rem; }
+.map-row .icon-button { opacity: 0.6; }
+.map-row:hover .icon-button { opacity: 1; }
+
+@media (max-width: 760px) {
+    .map-pane { flex-direction: column; }
+    .map-side { width: auto; height: 40%; border-left: none; border-top: 1px solid var(--border); }
+}
+
+/* Settings > Map */
+.field { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.4rem 0; }
+.field input.wide { width: 100%; box-sizing: border-box; }
+.map-tile-policy p { margin: 0.3rem 0 0; }
+.link-button { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
+.link-button[hidden] { display: none; }

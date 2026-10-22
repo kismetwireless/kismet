@@ -40,6 +40,29 @@ export function register(kismet) {
         },
     });
 
+    // Stations on the map; moving vessels point where they're heading
+    const underway = (d) => (d.sog ?? 0) > 0.5 && !['Base Station', 'AtoN'].includes(d.ais_class);
+    ui.mapSources.add({
+        id: 'ais', title: 'Vessels (AIS)', priority: 10, view: 'phy-AIS', maxAge: 1800, legacy: true, layerIcon: 'ship',
+        fields: [[`${ais}/${ais}.name`, 'shipname'], [`${ais}/${ais}.class`, 'ais_class'], [`${ais}/${ais}.sog`, 'sog']],
+        icon: (d) => {
+            const c = d.ais_class;
+            if (c === 'Base Station')
+                return 'tower';
+            if (c === 'AtoN')
+                return 'anchor';
+            if (c === 'SAR Aircraft')
+                return 'plane';
+            if (emergency.includes(c))
+                return 'lifebuoy';
+            return underway(d) ? 'vessel' : 'ship';
+        },
+        label: (d) => String(d.shipname ?? '').trim() || d.name,
+        detail: (d) => [d.ais_class, underway(d) ? `${d.sog.toFixed(1)} kn` : null].filter(Boolean).join(', '),
+        color: (d) => (emergency.includes(d.ais_class) ? 'var(--error)' : 'var(--ok)'),
+        heading: (d) => (underway(d) || d.ais_class === 'SAR Aircraft' ? d.rep_heading || 0 : null),
+    });
+
     ui.rowHighlights.add({
         id: 'ais_emergency', name: 'AIS emergency', priority: 10,
         description: 'AIS SART, MOB, and EPIRB emergency beacons',

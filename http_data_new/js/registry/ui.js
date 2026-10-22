@@ -28,6 +28,28 @@ export const panes = createRegistry('panes', {
     defaults: { area: 'bottom' },
 });
 
+// Kinds of device drawn on the map tab.  Each is read from a device view,
+// optionally narrowed by a Kismet regex, every couple of seconds while the
+// map is showing.
+//   id, title, priority, icon (icon name, or fn(dev) -> name),
+//   view: device view id (default 'all'), regex: optional [[field, regex], ...],
+//   fields: extra [path, name] pairs the functions below read from dev,
+//   label(dev), detail(dev) -> short text, color(dev) -> CSS color,
+//   heading(dev) -> degrees to point the icon, or null,
+//   maxAge: seconds a device stays on the map after it's last heard,
+//   interval: optional ms between reads, for sources that are slow to query,
+//   layerIcon: icon for the source's checkbox when icon is a function,
+//   heard: also draw devices with no reported position where Kismet heard them,
+//   legacy: on servers older than 2026-10, the device location is the position
+//     the device reported (ADS-B, AIS),
+//   legend() -> optional node shown on the map while the kind is visible
+// dev has key, name, phy, type, last_time, heard and rep ([lon, lat] or
+// null), rep_alt, rep_speed, rep_heading, plus the source's own fields.
+export const mapSources = createRegistry('mapSources', {
+    required: ['title'],
+    defaults: { view: 'all', icon: 'gps', maxAge: 600, heard: false, defaultVisible: true },
+});
+
 // Sections of the settings dialog.
 //   id, title, priority, create(el) -> optional cleanup function
 // Settings take effect as they change; there is no save button.
