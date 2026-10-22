@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Where the Kismet server's API is, relative to this page -->
+    <meta name="kismet-root" content="./">
+    <title>Kismet</title>
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/base.css">
+    <script type="module" src="js/main.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div id="menu" class="menu"></div>
+        <div class="brand">
+            <span id="connection" class="connection" title="Connecting"></span>
+            <span class="brand-name">Kismet</span>
+            <span id="server-name" class="server-name"></span>
+        </div>
+        <div id="ribbon" class="ribbon"></div>
+    </header>
+
+    <main class="dashboard">
+        <section id="main" class="main-area" aria-label="Devices, SSIDs, and alerts"></section>
+        <div id="split" class="split" role="separator" aria-orientation="horizontal" title="Drag to resize"></div>
+        <section id="bottom" class="bottom" aria-label="Messages"></section>
+    </main>
+</body>
+</html>
