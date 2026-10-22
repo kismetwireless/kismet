@@ -329,6 +329,9 @@ public:
     // the main select loop in kismet
     virtual void trigger_deferred_startup() override;
 
+    // Open the sources from -c or source=, once plugins are active
+    void launch_configured_sources();
+
     // Shut down all sources, this happens as kismet is terminating
     virtual void trigger_deferred_shutdown() override;
 
