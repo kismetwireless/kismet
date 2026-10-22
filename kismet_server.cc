@@ -1026,11 +1026,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
-    // finalize any plugins which were waiting for other code to load
-    if (plugintracker != nullptr) {
-        plugintracker->finalize_plugins();
-    }
-
     // Load alerts from the config
     auto config_alerts = Globalreg::globalreg->kismet_config->fetch_opt_vec("load_alert");
 
@@ -1097,7 +1092,13 @@ int main(int argc, char *argv[], char *envp[]) {
                     "are built against the same version of Kismet.");
             SpindownKismet();
         }
+
+        // finalize any plugins which were waiting for other code to load
+        plugintracker->finalize_plugins();
     }
+
+    // Open the configured sources only now, so a source can use a type a plugin registered
+    Globalreg::fetch_mandatory_global_as<datasource_tracker>()->launch_configured_sources();
 
 
     while (true) {

@@ -427,8 +427,6 @@ std::shared_ptr<datasource_tracker_defaults> datasource_tracker::get_config_defa
 }
 
 void datasource_tracker::trigger_deferred_startup() {
-    bool used_args = false;
-
     completion_cleanup_id = -1;
     next_probe_id = 0;
     next_list_id = 0;
@@ -593,17 +591,6 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 return 1;
             }, this, CHAINPOS_LOGGING, 10000);
-
-    std::vector<std::string> src_vec;
-
-    int option_idx = 0;
-
-	static struct option packetsource_long_options[] = {
-		{ "capture-source", required_argument, 0, 'c' },
-		{ 0, 0, 0, 0 }
-	};
-
-    optind = 0;
 
     // Activate remote capture
     if (config_defaults->get_remote_cap_listen().length() != 0 &&
@@ -1126,7 +1113,23 @@ void datasource_tracker::trigger_deferred_startup() {
                     }
                 }
                 }));
+}
 
+// Open the sources from -c or source=.  Called by main() once plugins are active, so sources of a
+// type a plugin registers can be opened too.
+void datasource_tracker::launch_configured_sources() {
+    bool used_args = false;
+
+    std::vector<std::string> src_vec;
+
+    int option_idx = 0;
+
+	static struct option packetsource_long_options[] = {
+		{ "capture-source", required_argument, 0, 'c' },
+		{ 0, 0, 0, 0 }
+	};
+
+    optind = 0;
 
     while (1) {
         int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-c:",
