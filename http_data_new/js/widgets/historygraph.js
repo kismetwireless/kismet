@@ -12,6 +12,10 @@
 // packets), so quiet times read as a baseline rather than gaps.
 // joinGaps: true carries a line graph straight across missing values (NaN)
 // between readings, for values like signal that are only heard now and then.
+//
+// A line graph can also draw several lines, with a legend: pass
+// [{ label, color, values }, ...] instead of values.  Colors are CSS values,
+// such as charts.series(i).
 
 import { el } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
@@ -19,14 +23,46 @@ import { themeColor, onChange } from '../core/theme.js';
 export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = null, title = '', minBar = false,
     joinGaps = false } = {}) {
     const canvas = el('canvas', { class: 'history-graph-canvas' });
+    const legend = el('div', { class: 'graph-legend', hidden: true });
     const node = el('figure', { class: 'history-graph', style: { height } },
-        title ? el('figcaption', {}, title) : null, canvas);
+        title ? el('figcaption', {}, title) : null, canvas, legend);
     let values = [];
     let labels = [];
+    let lines = null;
+    let legendKey = '';
+
+    // Canvas needs a resolved color, not var() or color-mix()
+    const probe = el('span', { hidden: true });
+    function resolve(css) {
+        node.append(probe);
+        probe.style.color = css;
+        const c = getComputedStyle(probe).color;
+        probe.remove();
+        return c;
+    }
+
+    function showLegend() {
+        const key = lines ? lines.map((l) => `${l.label}\u0000${l.color}`).join('\u0001') : '';
+        if (key === legendKey)
+            return;
+        legendKey = key;
+        legend.hidden = !lines;
+        // The legend goes under the plot, which keeps the graph's height
+        node.style.height = lines ? 'auto' : height;
+        canvas.style.height = lines ? height : '';
+        canvas.style.flex = lines ? 'none' : '';
+        legend.replaceChildren(...(lines ?? []).map((l) =>
+            el('span', { class: 'graph-legend-item' }, el('span', { class: 'graph-swatch', style: { background: l.color } }), l.label)));
+    }
 
     function draw(newValues = values, newLabels = labels) {
-        values = newValues;
         labels = newLabels;
+        // Several lines: scale over all of them, draw each in its color
+        lines = type === 'line' && newValues.length && Array.isArray(newValues[0]?.values) ? newValues : null;
+        values = newValues;
+        showLegend();
+        const all = lines ? lines.flatMap((l) => l.values) : values;
+        const count = lines ? Math.max(...lines.map((l) => l.values.length)) : values.length;
 
         const ratio = window.devicePixelRatio || 1;
         const w = Math.max(1, Math.round(canvas.clientWidth * ratio));
@@ -38,7 +74,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, w, h);
-        if (!values.length)
+        if (!count)
             return;
 
         const font = 11 * ratio;
@@ -49,7 +85,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
 
         // Line graphs (signal levels) are scaled between their own min and
         // max; bars start from zero
-        const finite = values.filter((v) => Number.isFinite(v));
+        const finite = all.filter((v) => Number.isFinite(v));
         if (!finite.length) {
             ctx.fillStyle = themeColor('--muted') || '#888';
             ctx.font = `${12 * (window.devicePixelRatio || 1)}px system-ui, sans-serif`;
@@ -87,7 +123,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             ctx.stroke();
         }
 
-        const step = plotW / values.length;
+        const step = plotW / count;
         ctx.fillStyle = color;
         ctx.strokeStyle = color;
 
@@ -102,47 +138,60 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
                 ctx.fillRect(left + i * step + step * 0.1, barTop, Math.max(ratio, step * 0.8), y(bottom) - barTop);
             });
         } else {
-            ctx.lineWidth = 1.5 * ratio;
-            ctx.beginPath();
-            let started = false;
             const px = (i) => left + i * step + step / 2;
-            values.forEach((v, i) => {
-                if (!Number.isFinite(v)) {
-                    if (!joinGaps)
-                        started = false;
-                    return;
-                }
-                if (started)
-                    ctx.lineTo(px(i), y(v));
-                else
-                    ctx.moveTo(px(i), y(v));
-                started = true;
-            });
-            ctx.stroke();
+            const drawLine = (vals) => {
+                ctx.lineWidth = 1.5 * ratio;
+                ctx.beginPath();
+                let started = false;
+                vals.forEach((v, i) => {
+                    if (!Number.isFinite(v)) {
+                        if (!joinGaps)
+                            started = false;
+                        return;
+                    }
+                    if (started)
+                        ctx.lineTo(px(i), y(v));
+                    else
+                        ctx.moveTo(px(i), y(v));
+                    started = true;
+                });
+                ctx.stroke();
 
-            // A reading with no neighbour to join to would otherwise not show at all
-            values.forEach((v, i) => {
-                if (!Number.isFinite(v))
-                    return;
-                const prev = joinGaps ? values.slice(0, i).some(Number.isFinite) : Number.isFinite(values[i - 1]);
-                const next = joinGaps ? values.slice(i + 1).some(Number.isFinite) : Number.isFinite(values[i + 1]);
-                if (!prev && !next) {
-                    ctx.beginPath();
-                    ctx.arc(px(i), y(v), 2 * ratio, 0, Math.PI * 2);
-                    ctx.fill();
+                // A reading with no neighbour to join to would otherwise not show at all
+                vals.forEach((v, i) => {
+                    if (!Number.isFinite(v))
+                        return;
+                    const prev = joinGaps ? vals.slice(0, i).some(Number.isFinite) : Number.isFinite(vals[i - 1]);
+                    const next = joinGaps ? vals.slice(i + 1).some(Number.isFinite) : Number.isFinite(vals[i + 1]);
+                    if (!prev && !next) {
+                        ctx.beginPath();
+                        ctx.arc(px(i), y(v), 2 * ratio, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            };
+
+            if (lines) {
+                for (const l of lines) {
+                    const c = resolve(l.color) || color;
+                    ctx.strokeStyle = c;
+                    ctx.fillStyle = c;
+                    drawLine(l.values);
                 }
-            });
+            } else {
+                drawLine(values);
+            }
         }
 
         // Labels under the graph: either [left, right] or one per value
         ctx.fillStyle = text;
         ctx.textBaseline = 'bottom';
-        if (labels.length === 2 && values.length !== 2) {
+        if (labels.length === 2 && count !== 2) {
             ctx.textAlign = 'left';
             ctx.fillText(labels[0], left, h);
             ctx.textAlign = 'right';
             ctx.fillText(labels[1], w, h);
-        } else if (labels.length === values.length) {
+        } else if (labels.length === count) {
             ctx.textAlign = 'center';
             // Skip labels that would overlap
             let lastRight = -Infinity;

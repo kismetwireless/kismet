@@ -1,6 +1,7 @@
 // Small charts for summaries, in the theme's colors: a list of labelled
-// bars, a donut, and a big number.  Each returns { node, update(...) }; keep
-// it and call update() with new data instead of building a new one.
+// bars, a donut, a big number, a presence strip, and a timeline.  Each
+// returns { node, update(...) }; keep it and call update() with new data
+// instead of building a new one.
 //
 //   const bars = barList({ onPick: (item) => ... });
 //   bars.update([{ id: 'ap', label: 'Wi-Fi AP', value: 12 }, ...]);
@@ -147,4 +148,76 @@ export function stat(caption = '') {
                 sub.textContent = c;
         },
     };
+}
+
+// A strip of blocks, one per time slot, darker the more there was in it: a
+// glance at when something was around.  Cells are { value, title }; labels
+// are { at, text } under the strip, at cell indexes.
+export function presenceStrip({ caption = '' } = {}) {
+    const cells = el('div', { class: 'presence-cells' });
+    const axis = el('div', { class: 'presence-axis muted' });
+    const node = el('figure', { class: 'presence' },
+        caption ? el('figcaption', {}, caption) : null, cells, axis);
+    let blocks = [];
+
+    function update(items, labels = []) {
+        if (blocks.length !== items.length) {
+            blocks = items.map(() => el('span', { class: 'presence-cell' }));
+            cells.replaceChildren(...blocks);
+        }
+        // Log scale, so a few packets still show next to a busy hour
+        const max = Math.log1p(Math.max(0, ...items.map((i) => i.value)));
+        items.forEach((item, i) => {
+            const b = blocks[i];
+            const pct = item.value > 0 && max > 0 ? Math.round(20 + 80 * (Math.log1p(item.value) / max)) : 0;
+            b.style.background = pct ? `color-mix(in srgb, var(--accent) ${pct}%, var(--surface-2))` : '';
+            b.classList.toggle('empty', !pct);
+            b.title = item.title ?? '';
+        });
+        // Centered under their block, except at the ends, where they'd be cut off
+        axis.replaceChildren(...labels.map((l) => {
+            const pct = (100 * (l.at + 0.5)) / Math.max(1, items.length);
+            return el('span', { class: pct > 92 ? 'end' : pct < 8 ? 'start' : null, style: { left: `${pct}%` } }, l.text);
+        }));
+    }
+
+    return { node, update };
+}
+
+// Horizontal bars on a shared time axis, one row per item: when each was
+// around.  Items are { id, label, start, end, title?, color? } in seconds;
+// update(items, from, to) draws them between from and to.  onPick(item)
+// makes the rows clickable.
+export function timeline({ onPick = null, empty = 'Nothing yet' } = {}) {
+    const rows = el('div', { class: 'timeline-rows' });
+    const axis = el('div', { class: 'timeline-axis muted' });
+    const node = el('div', { class: ['timeline', onPick && 'pickable'] }, rows, axis);
+
+    function update(items, from, to, axisLabels = null) {
+        const span = Math.max(1, to - from);
+        const pos = (t) => Math.min(100, Math.max(0, (100 * (t - from)) / span));
+        rows.replaceChildren(...items.map((item) => {
+            const left = pos(item.start);
+            const width = Math.max(0.6, pos(item.end) - left);
+            const row = el('div', { class: 'timeline-row', title: item.title ?? '', tabindex: onPick ? 0 : null },
+                el('span', { class: 'timeline-label' }, item.label),
+                el('span', { class: 'timeline-track' },
+                    el('span', { class: 'timeline-bar', style: { left: `${left}%`, width: `${width}%`,
+                        background: item.color ?? 'var(--accent)' } })));
+            if (onPick) {
+                row.addEventListener('click', () => onPick(item));
+                row.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter')
+                        onPick(item);
+                });
+            }
+            return row;
+        }));
+        if (!items.length)
+            rows.replaceChildren(el('div', { class: 'muted' }, empty));
+        const [l, r] = axisLabels ?? [format.time(from), format.time(to)];
+        axis.replaceChildren(el('span'), el('span', { class: 'timeline-axis-ends' }, el('span', {}, l), el('span', {}, r)));
+    }
+
+    return { node, update };
 }

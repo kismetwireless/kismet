@@ -46,6 +46,12 @@ export function time(sec) {
         `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
 }
 
+// Unix seconds to a local clock time, e.g. "13:57"
+export function clock(sec) {
+    const d = new Date(sec * 1000);
+    return `${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
 // How long ago, e.g. "4s", "12m", "3h", "2d"
 export function ago(sec, now = Date.now() / 1000) {
     if (!sec)

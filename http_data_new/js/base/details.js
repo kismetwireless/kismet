@@ -10,7 +10,7 @@ const rloc = `${base}.reported_location/kismet.common.location`;
 export function register(kismet) {
     const { ui, format, dom, api, rrd, clock, icons } = kismet;
     const { el } = dom;
-    const { historyGraph } = kismet.widgets;
+    const { historyGraph, charts } = kismet.widgets;
     const muted = ui.muted;
 
     const now = () => (clock.isKnown() ? clock.now() : undefined);
@@ -72,6 +72,47 @@ export function register(kismet) {
         return state.graph;
     }
 
+    // Each datasource's signal over the last minute, in name order.  The index
+    // is the place in that order, so a source keeps its color as others come and go.
+    function sourceSignals(seenby) {
+        return Object.values(seenby ?? {})
+            .map((s) => ({
+                label: s['kismet.common.seenby.source']?.['kismet.datasource.name'] ?? s['kismet.common.seenby.uuid'],
+                rrd: api.field(s, 'kismet.common.seenby.signal/kismet.common.signal.signal_rrd'),
+            }))
+            .filter((s) => Array.isArray(s.rrd?.['kismet.common.rrd.minute_vec']))
+            .sort((a, b) => String(a.label).localeCompare(String(b.label)))
+            .map((s, index) => {
+                // Seconds with no packets have no signal, rather than a signal of 0
+                const values = rrd.history(s.rrd, now()).map((v) => (v === 0 ? NaN : v));
+                return { label: s.label, index, values, heard: values.some(Number.isFinite) };
+            });
+    }
+
+    // When the device was around: packets per hour over the past day, and per
+    // minute over the past hour.  The RRD keeps those as packets per second
+    // averaged over each slot.
+    function presence(state, r) {
+        const t = now() ?? r['kismet.common.rrd.last_time'];
+        const strip = (span, slot, every) => {
+            const values = rrd.history(r, t, span);
+            const start = (Math.floor(t / slot) - (values.length - 1)) * slot;
+            const cells = values.map((v, i) => {
+                const from = start + i * slot;
+                const n = Math.round(v * slot);
+                return { value: n, title: `${format.clock(from)}–${format.clock(from + slot)}: ` +
+                    (n ? `${format.count(n)} packet${n === 1 ? '' : 's'}` : 'not heard') };
+            });
+            // Labels on round local times: every 6 hours, or every 15 minutes
+            const unit = (sec) => (slot === 3600 ? new Date(sec * 1000).getHours() : new Date(sec * 1000).getMinutes());
+            const labels = values.map((_v, i) => i).filter((i) => unit(start + i * slot) % every === 0)
+                .map((i) => ({ at: i, text: format.clock(start + i * slot) }));
+            return [cells, labels];
+        };
+        state.day.update(...strip('day', 3600, 6));
+        state.hour.update(...strip('hour', 60, 15));
+    }
+
     ui.deviceDetails.add({
         id: 'base', title: 'Device info', priority: 0,
         match: () => true,
@@ -109,6 +150,26 @@ export function register(kismet) {
             { title: 'Last seen', field: `${base}.last_time`, format: (v) => `${format.time(v)} (${format.ago(v, now())} ago)` },
 
             {
+                group: 'Activity',
+                help: 'When Kismet heard the device.  Each block is an hour (top) or a minute (bottom); the darker it is, the more packets.  Hover over a block for the count.',
+                show: (dev) => Array.isArray(api.field(dev, `${base}.packets.rrd/kismet.common.rrd.day_vec`)),
+                fields: [
+                    {
+                        id: 'presence', wide: true,
+                        field: `${base}.packets.rrd`,
+                        draw: (cell, r, _d, state) => {
+                            if (!state.day) {
+                                state.day = charts.presenceStrip({ caption: 'Past 24 hours' });
+                                state.hour = charts.presenceStrip({ caption: 'Past hour' });
+                                cell.replaceChildren(state.day.node, state.hour.node);
+                            }
+                            presence(state, r);
+                        },
+                    },
+                ],
+            },
+
+            {
                 group: 'Frequencies',
                 fields: [
                     { title: 'Channel', field: `${base}.channel`, hideEmpty: true, empty: muted('None advertised'),
@@ -131,6 +192,7 @@ export function register(kismet) {
             {
                 group: 'Signal',
                 show: (dev) => api.field(dev, `${sig}.last_signal`, 0) !== 0,
+                help: 'Signal strength in dBm; closer to 0 is stronger.  When more than one datasource heard the device, each gets its own line: the loudest is usually the closest to it, or has the best antenna for it.  The server only keeps each datasource\'s signal when keep_per_datasource_stats=true is set in kismet_memory.conf.',
                 fields: [
                     {
                         id: 'signal_graph', wide: true,
@@ -142,6 +204,19 @@ export function register(kismet) {
                                 .draw(values, ['-60s', 'now']);
                         },
                         show: (r) => r && Array.isArray(r['kismet.common.rrd.minute_vec']),
+                    },
+                    {
+                        // One line per datasource that heard the device in the last minute; only
+                        // worth it with two or more
+                        id: 'signal_by_source', wide: true,
+                        field: `${base}.seenby`,
+                        show: (m) => sourceSignals(m).filter((s) => s.heard).length > 1,
+                        draw: (cell, m, _d, state) => {
+                            const lines = sourceSignals(m).filter((s) => s.heard)
+                                .map((s) => ({ label: s.label, color: charts.series(s.index), values: s.values }));
+                            graphIn(cell, state, { type: 'line', unit: 'dBm', title: 'Signal by datasource, last minute', joinGaps: true })
+                                .draw(lines, ['-60s', 'now']);
+                        },
                     },
                     { title: 'Last signal', field: `${sig}.last_signal`, hideZero: true, format: format.signal },
                     { title: 'Last noise', field: `${sig}.last_noise`, hideZero: true, format: format.signal },

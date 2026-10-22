@@ -318,7 +318,7 @@ function createLookup(api) {
 }
 
 function registerDetails(kismet) {
-    const { ui, format, dom, api, icons } = kismet;
+    const { ui, format, dom, api, icons, clock } = kismet;
     const { el } = dom;
     const muted = ui.muted;
     const lookup = createLookup(api);
@@ -382,6 +382,92 @@ function registerDetails(kismet) {
                     render: (r) => (r[`${base}.datasize`] ? format.size(r[`${base}.datasize`]) : '') },
             ],
         });
+    }
+
+    // When each client was seen with an access point: one bar per client, from
+    // the first to the last time it was seen with it.  The most recently seen
+    // clients are shown, at most timelineMax of them.
+    const timelineMax = 40;
+    const timelineSpans = [['all', 'All'], ['day', 'Past day'], ['hour', 'Past hour']];
+    const timelineFields = [
+        `${base}.key`, `${base}.macaddr`, `${base}.commonname`,
+        [`${d}/${d}.client_map`, 'client_map'],
+    ];
+
+    function clientTimeline(apKey) {
+        const chart = kismet.widgets.charts.timeline({ onPick: (item) => ui.openDevice(item.id), empty: 'No clients in this period.' });
+        const note = el('div', { class: 'muted timeline-note' });
+        let span = 'all';
+        let clients = [];
+        let timer = null;
+        let everConnected = false;
+
+        const buttons = timelineSpans.map(([id, label]) => el('button', { type: 'button',
+            class: id === span ? 'active' : null,
+            onclick: () => {
+                span = id;
+                buttons.forEach((b, i) => b.classList.toggle('active', timelineSpans[i][0] === id));
+                draw();
+            } }, label));
+        const node = el('div', {}, el('div', { class: 'graph-tabs' }, buttons), chart.node, note);
+
+        function draw() {
+            const t = clock.isKnown() ? clock.now() : Date.now() / 1000;
+            const from = span === 'hour' ? t - 3600 : span === 'day' ? t - 86400 :
+                Math.min(t - 60, ...clients.map((c) => c.start));
+            const shown = clients.filter((c) => c.end >= from)
+                .sort((a, b) => b.end - a.end)
+                .slice(0, timelineMax)
+                .sort((a, b) => a.start - b.start);
+            // The start of "All": a clock time if it's within the day, else the date too
+            const start = t - from < 86400 ? format.clock(from) : format.time(from);
+            chart.update(shown, from, t, [span === 'all' ? start : `-${span === 'hour' ? '60m' : '24h'}`, 'now']);
+            const inSpan = clients.filter((c) => c.end >= from).length;
+            note.textContent = inSpan > shown.length ? `The ${shown.length} most recently seen of ${inSpan.toLocaleString()} clients.` : '';
+        }
+
+        async function refresh() {
+            clearTimeout(timer);
+            if (node.isConnected)
+                everConnected = true;
+            else if (everConnected)
+                return;
+            const onScreen = node.checkVisibility ? node.checkVisibility() : node.offsetParent !== null;
+            if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
+                try {
+                    const rows = await api.post(`phy/phy80211/clients-of/${encodeURIComponent(apKey)}/clients.json`,
+                        { fields: timelineFields });
+                    const t = clock.isKnown() ? clock.now() : Date.now() / 1000;
+                    clients = (rows ?? []).map((r) => {
+                        // The client's record for this access point
+                        const rec = Object.values(r.client_map ?? {}).find((c) => c['dot11.client.bssid_key'] === apKey);
+                        if (!rec)
+                            return null;
+                        const mac = r[`${base}.macaddr`];
+                        const name = r[`${base}.commonname`] !== mac ? r[`${base}.commonname`] : '';
+                        const start = rec['dot11.client.first_time'];
+                        const end = rec['dot11.client.last_time'];
+                        const data = rec['dot11.client.datasize'];
+                        return {
+                            id: r[`${base}.key`], start, end,
+                            label: name || mac,
+                            // Seen in the last minute
+                            color: t - end < 60 ? 'var(--ok)' : 'var(--accent)',
+                            title: `${name ? `${name} (${mac})` : mac}\n${format.time(start)} – ${format.time(end)}` +
+                                (data ? `\n${format.size(data)} of data` : ''),
+                        };
+                    }).filter(Boolean);
+                    draw();
+                } catch {
+                    // Keep what's drawn; the next refresh tries again
+                }
+            }
+            timer = setTimeout(refresh, (everConnected ? 10 : 0.5) * 1000);
+        }
+
+        draw();
+        refresh();
+        return { node };
     }
 
     // An SSID: cloaked SSIDs are blanks or spaces
@@ -1001,8 +1087,18 @@ function registerDetails(kismet) {
             {
                 group: 'Associated clients',
                 show: (dev) => hasKeys(api.field(dev, `${d}/${d}.associated_client_map`)),
-                help: 'Devices seen talking through this access point: wireless clients connected to it, or wired devices on the network behind it.',
+                help: 'Devices seen talking through this access point: wireless clients connected to it, or wired devices on the network behind it.  The timeline shows when each one was seen with it: each bar runs from the first to the last time, so a long bar doesn\'t mean it was there the whole time.  Green bars were seen in the last minute.',
                 fields: [
+                    {
+                        id: 'client_timeline', wide: true,
+                        value: (dev) => dev[`${base}.key`],
+                        draw: (cell, apKey, _rec, state) => {
+                            if (state.timeline)
+                                return;
+                            state.timeline = clientTimeline(apKey);
+                            cell.replaceChildren(state.timeline.node);
+                        },
+                    },
                     {
                         // A table rather than a list: access points can have thousands of clients
                         id: 'client_table', wide: true,

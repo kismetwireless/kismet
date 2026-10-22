@@ -594,6 +594,31 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .graph-tabs { display: flex; gap: 0.2rem; margin-bottom: 0.2rem; }
 .graph-tabs button { padding: 0.1em 0.6em; font-size: 0.85em; }
 .graph-tabs button.active { background: var(--accent-soft); border-color: var(--accent); }
+.graph-legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-size: 0.82em; color: var(--muted); margin-top: 0.2rem; }
+.graph-legend-item { display: inline-flex; align-items: center; gap: 0.3rem; min-width: 0; }
+.graph-swatch { width: 0.8em; height: 0.25em; border-radius: 2px; flex: none; }
+
+.presence { margin: 0.2rem 0 0.5rem; width: 100%; }
+.presence figcaption { font-size: 0.85em; color: var(--muted); margin-bottom: 0.2rem; }
+.presence-cells { display: flex; gap: 1px; height: 1.1rem; }
+.presence-cell { flex: 1 1 0; min-width: 0; border-radius: 2px; }
+.presence-cell.empty { background: var(--surface-2); }
+.presence-axis { position: relative; height: 1.1em; font-size: 0.78em; }
+.presence-axis span { position: absolute; top: 0.1em; transform: translateX(-50%); white-space: nowrap; }
+.presence-axis span.start { transform: none; }
+.presence-axis span.end { transform: translateX(-100%); }
+
+.timeline { width: 100%; margin: 0.2rem 0 0.6rem; }
+.timeline-rows { display: flex; flex-direction: column; gap: 2px; max-height: 18rem; overflow-y: auto; }
+.timeline-row { display: grid; grid-template-columns: minmax(0, 11rem) minmax(50%, 1fr); gap: 0.5rem; align-items: center; font-size: 0.85em; }
+.timeline.pickable .timeline-row { cursor: pointer; }
+.timeline.pickable .timeline-row:hover, .timeline.pickable .timeline-row:focus-visible { background: var(--row-hover); outline: none; }
+.timeline-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timeline-track { position: relative; height: 0.75rem; background: var(--surface-2); border-radius: 2px; }
+.timeline-bar { position: absolute; top: 0; bottom: 0; border-radius: 2px; min-width: 2px; }
+.timeline-axis { display: grid; grid-template-columns: minmax(0, 11rem) minmax(50%, 1fr); gap: 0.5rem; font-size: 0.78em; margin-top: 0.15rem; }
+.timeline-axis-ends { display: flex; justify-content: space-between; gap: 0.5rem; white-space: nowrap; }
+.timeline-note { font-size: 0.82em; }
 
 .mini-table { width: 100%; border-collapse: collapse; }
 .mini-table th { text-align: left; color: var(--muted); font-weight: 500; font-size: 0.9em; }
