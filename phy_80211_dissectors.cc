@@ -1607,6 +1607,13 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         // Calculate the data size based on the original capture length, but use chunk length for
         // all other operations since that's the size of the buffer
         ssize_t datasize = chunk->length() - packinfo->header_offset;
+
+        // A frame captured short (snap length, truncate_data) still had its full size on the
+        // air; count what's missing from the capture too, which includes any FCS
+        auto linkframe = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+        if (linkframe != nullptr && in_pack->original_len > linkframe->length())
+            datasize += in_pack->original_len - linkframe->length();
+
         if (datasize > 0) {
             packinfo->datasize = datasize;
             in_pack->common_info.datasize = datasize;
