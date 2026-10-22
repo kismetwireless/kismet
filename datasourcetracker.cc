@@ -21,6 +21,8 @@
 #include <string.h>
 #include <getopt.h>
 
+#include <cmath>
+
 #include <string_view>
 
 #include "alertracker.h"
@@ -1945,20 +1947,27 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
 }
 
 double datasource_tracker::definition_hop_rate(shared_datasource in_ds) {
-    double rate = -1;
+    auto opt = in_ds->get_definition_opt("channel_hoprate");
 
-    if (in_ds->get_definition_opt("channel_hoprate") != "") {
-        try {
-            rate = string_to_rate(in_ds->get_definition_opt("channel_hoprate"), -1);
-        } catch (const std::exception& e) {
-            _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
-                    "channel rate.", in_ds->get_source_name(), e.what());
-            rate = -1;
-        }
+    if (opt == "")
+        return config_defaults->get_hop_rate();
+
+    double rate;
+
+    try {
+        rate = string_to_rate(opt, -1);
+    } catch (const std::exception& e) {
+        _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
+                "channel rate.", in_ds->get_source_name(), e.what());
+        return config_defaults->get_hop_rate();
     }
 
-    if (rate < 0)
-        rate = config_defaults->get_hop_rate();
+    // 0/sec or 0/dwell (infinite) would leave the source not hopping at all
+    if (!std::isfinite(rate) || rate <= 0) {
+        _MSG_ERROR("Source '{}' channel_hoprate={} is not a usable hop rate, using default "
+                "channel rate.", in_ds->get_source_name(), opt);
+        return config_defaults->get_hop_rate();
+    }
 
     return rate;
 }
