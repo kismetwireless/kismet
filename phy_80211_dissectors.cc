@@ -1619,6 +1619,39 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             in_pack->common_info.datasize = datasize;
         }
 
+        // hidedata: cut data frames to the 802.11 header right after the type is known, so
+        // neither later stages nor the logs and streams see their contents.  Unencrypted EAPOL
+        // frames are kept; they carry no user data.
+        if (!dissect_data && datasize > 0) {
+            static const uint8_t eapol_llc[] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8E};
+
+            const bool eapol = packinfo->cryptset == 0 &&
+                (size_t) datasize >= sizeof(eapol_llc) &&
+                memcmp(&chunk->data()[packinfo->header_offset], eapol_llc, sizeof(eapol_llc)) == 0;
+
+            if (!eapol) {
+                auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+
+                if (linkchunk != nullptr && linkchunk != chunk) {
+                    const char *link_start = linkchunk->data();
+
+                    if (chunk->data() >= link_start &&
+                            chunk->data() + chunk->length() <= link_start + linkchunk->length()) {
+                        // The decapsulated frame is a view into the link frame; keep the
+                        // capture headers in front of it
+                        linkchunk->set_data(linkchunk->substr(0,
+                                    (chunk->data() - link_start) + packinfo->header_offset));
+                    } else {
+                        // Not a view; log the truncated 802.11 frame instead
+                        linkchunk->copy_raw_data(std::string(chunk->data(), packinfo->header_offset));
+                        linkchunk->dlt = chunk->dlt;
+                    }
+                }
+
+                chunk->set_data(chunk->substr(0, packinfo->header_offset));
+            }
+        }
+
         if (packinfo->cryptset == 0 && dissect_data && datasize > 0) {
             // Keep whatever datachunk we already found
             auto datachunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
