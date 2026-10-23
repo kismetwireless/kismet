@@ -323,6 +323,8 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
     const uint8_t *const aux_src[3] = {q + o + 5, nullptr, nullptr};
     const uint8_t *const *cand = ext_nonce ? aux_src : srcs;
 
+    pi->key_checked = true;
+
     for (unsigned int i = 0; i < 3; i++) {
         if (cand[i] == nullptr)
             continue;
@@ -338,6 +340,7 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
                 continue;
 
             pi->weak_keys |= kis_802154_packinfo::weak_key_aps;
+            pi->key_matched = true;
             pi->aps_key_name = zigbee_crypto::known_keys[k].name;
             if (ftype == 1)
                 read_transport_key(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), pi);
@@ -516,6 +519,8 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
     uint8_t nonce[13];
     zigbee_crypto::make_nonce(p + o + 5, p + o + 1, a[o], nonce);
 
+    pi->key_checked = true;
+
     for (size_t k = 0; k < zigbee_crypto::n_known_keys; k++) {
         std::string plain;
 
@@ -524,6 +529,7 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
             continue;
 
         pi->weak_keys |= kis_802154_packinfo::weak_key_nwk;
+        pi->key_matched = true;
         pi->nwk_key_name = zigbee_crypto::known_keys[k].name;
         pi->nwk_key = key_string(zigbee_crypto::known_keys[k].key);
 
@@ -1127,6 +1133,12 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                     source_kis_802154->set_short_addr(pi->nwk_src);
             }
 
+            // Secured frames checked against the publicly known keys, and how many of them matched
+            if (pi->key_checked)
+                source_kis_802154->inc_key_frames(1);
+            if (pi->key_matched)
+                source_kis_802154->inc_key_frames_matched(1);
+
             // Keys anyone can know, seen in use: kept with the sender, and an alert the first time
             // a PAN shows each kind
             if (pi->weak_keys) {
@@ -1234,19 +1246,51 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                         role == "PAN coordinator" ? "802.15.4 coordinator" : "802.15.4 router"));
         }
 
-        // The encryption, with the weakest known key it was seen to use
+        // The key check's outcome: a publicly known or exposed key seen in use, or secured frames
+        // checked that no known key matched, or nothing checked yet
         const uint8_t weak = source_kis_802154->get_weak_keys();
+        const uint64_t checked = source_kis_802154->get_key_frames();
+        const uint64_t matched = source_kis_802154->get_key_frames_matched();
 
+        if (weak) {
+            if (source_kis_802154->get_key_state() != kis_802154_tracked_device::key_known) {
+                source_kis_802154->set_key_state(kis_802154_tracked_device::key_known);
+                source_kis_802154->set_key_first_time(Globalreg::globalreg->last_tv_sec);
+            }
+
+            source_kis_802154->set_key_status(checked == 0 ?
+                    "Known key in use: " + source_kis_802154->get_weak_key() :
+                    fmt::format("Known key in use: {} ({} of {} secured frames matched a publicly "
+                        "known key)", source_kis_802154->get_weak_key(), matched, checked));
+        } else if (checked > 0) {
+            source_kis_802154->set_key_state(kis_802154_tracked_device::key_not_known);
+            source_kis_802154->set_key_status(fmt::format("No known key: {} secured frames checked "
+                        "against the {} publicly known keys, none matched; the network uses a key "
+                        "of its own", checked, zigbee_crypto::n_known_keys));
+        } else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3) {
+            source_kis_802154->set_key_status("Not checked yet: its encrypted frames so far could "
+                    "not be checked against the publicly known keys (no complete NWK auxiliary "
+                    "security header); it will be when one can");
+        } else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2) {
+            source_kis_802154->set_key_status("Not checked: 802.15.4 MAC-layer security is not "
+                    "checked against the publicly known keys");
+        }
+
+        // The encryption, with the weakest known key it was seen to use
         if (weak & kis_802154_packinfo::weak_key_nwk)
-            source_dev->set_crypt_string("Zigbee NWK, known key (" + source_kis_802154->get_known_network_key() + ")");
+            source_dev->set_crypt_string("Zigbee NWK: publicly known key (" + source_kis_802154->get_known_network_key() + ")");
         else if (weak & kis_802154_packinfo::weak_key_clear_transport)
-            source_dev->set_crypt_string("Zigbee, key sent in the clear");
+            source_dev->set_crypt_string("Zigbee: key sent in the clear");
         else if (weak & kis_802154_packinfo::weak_key_aps)
-            source_dev->set_crypt_string("Zigbee, known link key (" + source_kis_802154->get_known_link_key() + ")");
-        else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3)
+            source_dev->set_crypt_string("Zigbee APS: publicly known link key (" + source_kis_802154->get_known_link_key() + ")");
+        else if ((source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3) && checked > 0)
             source_dev->set_crypt_string("Zigbee NWK");
+        else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3)
+            source_dev->set_crypt_string("Zigbee NWK: not checked yet");
+        else if (checked > 0)
+            source_dev->set_crypt_string("Zigbee APS");
         else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2)
-            source_dev->set_crypt_string("802.15.4 MAC");
+            source_dev->set_crypt_string("802.15.4 MAC: not checked");
     }
 
     // Alerts held back by the rate limit first, in order, as far as it lets them through (they

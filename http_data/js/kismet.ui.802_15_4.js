@@ -24,6 +24,25 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
+/* Zigbee devices seen using a publicly known key, or exposing one */
+kismet_ui.AddDeviceRowHighlight({
+    name: "Zigbee Known Key",
+    description: "Zigbee devices using a publicly known key, or sending a key in the clear",
+    priority: 10,
+    defaultcolor: "#ff6666",
+    defaultenable: true,
+    fields: [
+        'kismet.device.base.phyname',
+        '802154.device'
+    ],
+    selector: function(data) {
+        if (data['kismet.device.base.phyname'] !== '802.15.4')
+            return false;
+
+        return kismet.ObjectByString(data, '802154.device/802154.device.key_state') === 2;
+    }
+});
+
 
 kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
     filter: function(data) {
@@ -108,6 +127,27 @@ kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
                         return "Zigbee";
                     return "Profile " + opts['value'];
                 },
+            },
+            {
+                field: "802154.device/802154.device.key_status",
+                title: "Key check",
+                filter: function(opts) {
+                    return kismet.ObjectByString(opts['data'], "802154.device/802154.device.key_status") !== "";
+                },
+                draw: function(opts) {
+                    var state = kismet.ObjectByString(opts['data'], "802154.device/802154.device.key_state");
+                    var first = kismet.ObjectByString(opts['data'], "802154.device/802154.device.key_first_time");
+                    var text = kismet.censorString(opts['value']);
+
+                    if (state === 2) {
+                        if (first > 0)
+                            text += ", first seen " + new Date(first * 1000).toLocaleString();
+                        return '<b style="color: #c00000;">' + text + '</b>';
+                    }
+
+                    return text;
+                },
+                help: "What Kismet checked: each secured NWK or APS frame is checked against a table of publicly known Zigbee keys (a match needs the frame's MIC to verify, so it is never a guess), and Transport Key commands sent without APS security are looked for. \"Known key in use\" means anyone can read this network's traffic; \"No known key\" means every secured frame was checked and none matched, so the network uses a key of its own; \"Not checked yet\" means it sent encrypted frames but none that could be checked so far.",
             },
             {
                 field: "802154.device/802154.device.weak_key",

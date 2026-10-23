@@ -83,6 +83,8 @@ public:
         nwk_key.clear();
         exposed_key.clear();
         exposed_key_type.clear();
+        key_checked = false;
+        key_matched = false;
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -125,6 +127,11 @@ public:
     // The key a Transport Key command carried, readable because of one of these, and its type
     std::string exposed_key;
     std::string exposed_key_type;
+
+    // A secured NWK or APS frame was checked against the publicly known keys, and one of them
+    // matched (its MIC verified)
+    bool key_checked = false;
+    bool key_matched = false;
 };
 
 /* Largely a placeholder for future possible data; right now we can't decode
@@ -176,6 +183,18 @@ public:
     __Proxy(exposed_key, std::string, std::string, std::string, exposed_key);
     __Proxy(known_link_key, std::string, std::string, std::string, known_link_key);
     __Proxy(known_network_key, std::string, std::string, std::string, known_network_key);
+    __Proxy(key_state, uint8_t, uint8_t, uint8_t, key_state);
+    __Proxy(key_status, std::string, std::string, std::string, key_status);
+    __Proxy(key_first_time, uint64_t, uint64_t, uint64_t, key_first_time);
+    __Proxy(key_frames, uint64_t, uint64_t, uint64_t, key_frames);
+    __ProxyIncDec(key_frames, uint64_t, uint64_t, key_frames);
+    __Proxy(key_frames_matched, uint64_t, uint64_t, uint64_t, key_frames_matched);
+    __ProxyIncDec(key_frames_matched, uint64_t, uint64_t, key_frames_matched);
+
+    // key_state
+    static constexpr uint8_t key_none = 0;          // no secured frame checked, no key seen
+    static constexpr uint8_t key_not_known = 1;     // secured frames checked, no known key matched
+    static constexpr uint8_t key_known = 2;         // a publicly known or exposed key seen in use
 
 protected:
 
@@ -195,6 +214,11 @@ protected:
         register_field("802154.device.exposed_key", "A key its Transport Key command exposed", &exposed_key);
         register_field("802154.device.known_link_key", "The publicly known link key its APS security uses", &known_link_key);
         register_field("802154.device.known_network_key", "The publicly known network key its NWK security uses", &known_network_key);
+        register_field("802154.device.key_state", "Key check: 0 nothing checked, 1 no known key, 2 a known or exposed key in use", &key_state);
+        register_field("802154.device.key_status", "Key check, in words", &key_status);
+        register_field("802154.device.key_first_time", "When a known or exposed key was first seen in use (0 if not)", &key_first_time);
+        register_field("802154.device.key_frames", "Secured NWK and APS frames checked against the publicly known keys", &key_frames);
+        register_field("802154.device.key_frames_matched", "Secured frames a publicly known key matched", &key_frames_matched);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -222,6 +246,11 @@ protected:
     std::shared_ptr<tracker_element_string> exposed_key;
     std::shared_ptr<tracker_element_string> known_link_key;
     std::shared_ptr<tracker_element_string> known_network_key;
+    std::shared_ptr<tracker_element_uint8> key_state;
+    std::shared_ptr<tracker_element_string> key_status;
+    std::shared_ptr<tracker_element_uint64> key_first_time;
+    std::shared_ptr<tracker_element_uint64> key_frames;
+    std::shared_ptr<tracker_element_uint64> key_frames_matched;
 };
 
 class kis_802154_phy : public kis_phy_handler {
