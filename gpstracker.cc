@@ -55,6 +55,7 @@ gps_tracker::~gps_tracker() {
     // Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
 
     timetracker->remove_timer(log_snapshot_timer);
+    timetracker->remove_timer(log_satellites_timer);
     timetracker->remove_timer(event_timer_id);
 }
 
@@ -69,6 +70,7 @@ void gps_tracker::trigger_deferred_startup() {
 
     // Manage logging
     log_snapshot_timer = -1;
+    log_satellites_timer = -1;
 
     database_logging = 
         Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_gps_track", true);
@@ -81,6 +83,16 @@ void gps_tracker::trigger_deferred_startup() {
                     [this](int) -> int { log_snapshot_gps(); return 1; });
     } else {
         _MSG("GPS track logging disabled", MSGFLAG_INFO);
+    }
+
+    // The satellites in view change slowly, and are much larger than a location
+    const auto sat_rate =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_gps_satellites_rate", 30);
+
+    if (database_logging && sat_rate > 0) {
+        log_satellites_timer =
+            timetracker->register_timer(std::chrono::seconds(sat_rate), 1,
+                    [this](int) -> int { log_snapshot_satellites(); return 1; });
     }
 
     // Register the built-in GPS drivers
@@ -287,13 +299,40 @@ void gps_tracker::log_snapshot_gps() {
         struct timeval tv;
         gettimeofday(&tv, NULL);
 
+        // The satellite list goes in its own, less frequent, snapshot
         std::stringstream ss;
-        Globalreg::globalreg->entrytracker->serialize("json", ss, d, NULL);
+        Globalreg::globalreg->entrytracker->serialize("json", ss, dg->track_snapshot(), NULL);
 
         dbf->log_snapshot(dg->get_location(), tv, "GPS", ss.str());
     }
 
     return;
+}
+
+void gps_tracker::log_snapshot_satellites() {
+    std::shared_ptr<kis_database_logfile> dbf =
+        Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
+
+    if (dbf == NULL)
+        return;
+
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker log_snapshot_satellites");
+
+    for (auto d : *gps_instances_vec) {
+        auto dg = static_cast<kis_gps *>(d.get());
+        auto snap = dg->satellite_snapshot();
+
+        if (snap == nullptr)
+            continue;
+
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+
+        std::stringstream ss;
+        Globalreg::globalreg->entrytracker->serialize("json", ss, snap, NULL);
+
+        dbf->log_snapshot(dg->get_location(), tv, "GPSSATS", ss.str());
+    }
 }
 
 void gps_tracker::register_gps_builder(shared_gps_builder in_builder) {

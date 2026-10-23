@@ -24,6 +24,86 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
+
+enum class gps_constellation : uint8_t {
+    unknown,
+    gps,
+    sbas,
+    galileo,
+    beidou,
+    qzss,
+    glonass,
+    navic,
+    imes,
+};
+
+constexpr const char *gps_constellation_name(gps_constellation c) {
+    switch (c) {
+        case gps_constellation::gps: return "GPS";
+        case gps_constellation::sbas: return "SBAS";
+        case gps_constellation::galileo: return "Galileo";
+        case gps_constellation::beidou: return "BeiDou";
+        case gps_constellation::qzss: return "QZSS";
+        case gps_constellation::glonass: return "GLONASS";
+        case gps_constellation::navic: return "NavIC";
+        case gps_constellation::imes: return "IMES";
+        default: return "Unknown";
+    }
+}
+
+// The u-blox / gpsd GNSS id (gnssId, gnssid)
+constexpr gps_constellation gps_constellation_from_gnss_id(unsigned int id) {
+    switch (id) {
+        case 0: return gps_constellation::gps;
+        case 1: return gps_constellation::sbas;
+        case 2: return gps_constellation::galileo;
+        case 3: return gps_constellation::beidou;
+        case 4: return gps_constellation::imes;
+        case 5: return gps_constellation::qzss;
+        case 6: return gps_constellation::glonass;
+        case 7: return gps_constellation::navic;
+        default: return gps_constellation::unknown;
+    }
+}
+
+// A satellite numbered across all constellations, as NMEA 4.0, gpsd and older u-blox
+// reports do; ranges per the gpsd and u-blox satellite numbering
+constexpr gps_constellation gps_constellation_from_prn(unsigned int prn) {
+    if (prn >= 1 && prn <= 32)
+        return gps_constellation::gps;
+    if (prn >= 33 && prn <= 64)
+        return gps_constellation::sbas;
+    if (prn >= 65 && prn <= 96)
+        return gps_constellation::glonass;
+    if (prn >= 120 && prn <= 158)
+        return gps_constellation::sbas;
+    if (prn >= 159 && prn <= 163)
+        return gps_constellation::beidou;
+    if (prn >= 193 && prn <= 202)
+        return gps_constellation::qzss;
+    if (prn >= 201 && prn <= 263)
+        return gps_constellation::beidou;
+    if (prn >= 301 && prn <= 336)
+        return gps_constellation::galileo;
+    if (prn >= 401 && prn <= 437)
+        return gps_constellation::beidou;
+    return gps_constellation::unknown;
+}
+
+// One satellite in view
+struct gps_satellite {
+    gps_constellation constellation = gps_constellation::unknown;
+    // Satellite number, as the receiver reports it
+    uint16_t id = 0;
+    // Degrees; -1 when not known
+    int16_t elevation = -1;
+    int16_t azimuth = -1;
+    // dB-Hz; 0 when not tracked
+    double cn0 = 0;
+    // In the fix: 1 yes, 0 no, -1 not known
+    int8_t used = -1;
+};
 
 // Signal quality from one report; only the fields marked present are merged.  Binary
 // protocols outrank NMEA, so a receiver sending both is reported from the binary values
@@ -59,9 +139,13 @@ struct gps_quality_update {
     bool has_cn0 = false;
     double cn0 = 0;
 
+    // Every satellite in view, when the report lists them
+    bool has_satellites = false;
+    std::vector<gps_satellite> satellites;
+
     bool empty() const {
         return !(has_sats_used || has_sats_visible || has_hdop || has_vdop || has_error_h ||
-                has_error_v || has_cn0);
+                has_error_v || has_cn0 || has_satellites);
     }
 
     // Satellites averaged for the C/N0

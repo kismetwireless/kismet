@@ -105,6 +105,62 @@ protected:
     std::shared_ptr<tracker_element_uint8> singleton;
 };
 
+// One satellite in view, as the GPS reports it
+class kis_gps_satellite : public tracker_component {
+public:
+    kis_gps_satellite() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_gps_satellite(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("kis_gps_satellite");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    void set(const gps_satellite& s) {
+        constellation->set(gps_constellation_name(s.constellation));
+        id->set(s.id);
+        elevation->set(s.elevation);
+        azimuth->set(s.azimuth);
+        cn0->set(s.cn0);
+        used->set(s.used);
+    }
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("kismet.gps.satellite.constellation", "Constellation (GPS, GLONASS, Galileo, ...)",
+                &constellation);
+        register_field("kismet.gps.satellite.id", "Satellite number, as the GPS reports it", &id);
+        register_field("kismet.gps.satellite.elevation", "Elevation in degrees, -1 if not known", &elevation);
+        register_field("kismet.gps.satellite.azimuth", "Azimuth in degrees, -1 if not known", &azimuth);
+        register_field("kismet.gps.satellite.cn0", "Signal (C/N0) in dB-Hz, 0 if not tracked", &cn0);
+        register_field("kismet.gps.satellite.used", "Used in the fix: 1 yes, 0 no, -1 not known", &used);
+    }
+
+    std::shared_ptr<tracker_element_string> constellation;
+    std::shared_ptr<tracker_element_uint16> id;
+    std::shared_ptr<tracker_element_int16> elevation;
+    std::shared_ptr<tracker_element_int16> azimuth;
+    std::shared_ptr<tracker_element_double> cn0;
+    std::shared_ptr<tracker_element_int8> used;
+};
+
 // GPS superclass; built by a GPS builder; GPS drivers implement the low-level GPS 
 // interaction (such as serial port, network, etc)
 class kis_gps : public tracker_component {
@@ -231,6 +287,11 @@ protected:
                 "Average signal strength (C/N0) of the strongest satellites, in dB-Hz");
         signal_quality_id = register_dynamic_field<tracker_element_uint8>("kismet.gps.signal_quality",
                 "Estimated GPS signal quality, 0 (no fix) to 100");
+        satellites_id = register_dynamic_field<tracker_element_vector>("kismet.gps.satellites",
+                "Satellites in view, when the GPS lists them");
+        satellite_entry_id =
+            Globalreg::globalreg->entrytracker->register_field("kismet.gps.satellite",
+                    tracker_element_factory<kis_gps_satellite>(), "Satellite in view");
     }
 
     // Push the locations into the tracked locations and swap
@@ -244,6 +305,16 @@ protected:
 
     // Forget the signal quality, such as when the device disconnects
     void clear_quality();
+
+public:
+    // The satellites and the signal summary, for the periodic satellite log; nullptr when
+    // the GPS lists no satellites
+    std::shared_ptr<tracker_element_map> satellite_snapshot();
+
+    // The GPS record without its satellite list, for the per-second track log
+    std::shared_ptr<tracker_element_map> track_snapshot();
+
+protected:
 
     // Quality values are dropped when no report has refreshed them for this long; slow
     // reports such as UBX NAV-SAT at low baud rates arrive every 10 seconds
@@ -272,6 +343,10 @@ protected:
 
     // Under data_mutex
     std::array<quality_value, static_cast<size_t>(quality_field::count)> quality_state;
+
+    // The satellite list, merged and expired like the other quality values; under data_mutex
+    std::vector<gps_satellite> satellites_state;
+    quality_value satellites_meta;
 
     quality_value& quality_at(quality_field f) {
         return quality_state[static_cast<size_t>(f)];
@@ -306,7 +381,8 @@ protected:
     }
 
     uint16_t sats_used_id, sats_visible_id, hdop_id, vdop_id, precision_h_id, precision_v_id,
-             precision_source_id, signal_cn0_id, signal_quality_id;
+             precision_source_id, signal_cn0_id, signal_quality_id, satellites_id;
+    int satellite_entry_id;
 
     // Last time heading was set or calculated; calculating it more often than every few
     // seconds is mostly noise

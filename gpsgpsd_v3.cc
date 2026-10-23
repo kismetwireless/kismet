@@ -426,14 +426,40 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                         listed++;
 
-                        if (json_number(sat, "ss", v) && v > 0)
+                        gps_satellite gs;
+
+                        if (json_number(sat, "ss", v) && v > 0) {
                             cn0[ncn0++] = v;
+                            gs.cn0 = v;
+                        }
 
                         const auto u = sat.find("used");
-                        if (u != sat.end() && u->is_boolean() && u->get<bool>())
-                            used++;
+                        if (u != sat.end() && u->is_boolean()) {
+                            gs.used = u->get<bool>() ? 1 : 0;
+                            if (gs.used)
+                                used++;
+                        }
+
+                        // Newer gpsd names the constellation; older numbers satellites across them
+                        double gnss, svid, prn;
+                        if (json_number(sat, "gnssid", gnss) && json_number(sat, "svid", svid) &&
+                                gnss >= 0 && gnss < 256 && svid >= 0 && svid < 65536) {
+                            gs.constellation = gps_constellation_from_gnss_id(static_cast<unsigned int>(gnss));
+                            gs.id = static_cast<uint16_t>(svid);
+                        } else if (json_number(sat, "PRN", prn) && prn >= 0 && prn < 65536) {
+                            gs.constellation = gps_constellation_from_prn(static_cast<unsigned int>(prn));
+                            gs.id = static_cast<uint16_t>(prn);
+                        }
+
+                        if (json_number(sat, "el", v) && v >= -90 && v <= 90)
+                            gs.elevation = static_cast<int16_t>(std::max(0.0, v));
+                        if (json_number(sat, "az", v) && v >= 0 && v < 360)
+                            gs.azimuth = static_cast<int16_t>(v);
+
+                        quality.satellites.push_back(gs);
                     }
 
+                    quality.has_satellites = true;
                     quality.has_sats_visible = true;
                     quality.sats_visible = listed;
                     quality.has_sats_used = true;

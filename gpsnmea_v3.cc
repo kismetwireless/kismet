@@ -167,6 +167,84 @@ bool gps_nmea::has_valid_checksum(std::string_view sentence) {
     return sum == static_cast<unsigned int>((hi << 4) | lo);
 }
 
+namespace {
+    // A satellite's constellation in GSV and GSA: the talker names it, except for the
+    // combined talker (GN) and GPS talkers listing SBAS or QZSS, numbered across them
+    gps_constellation nmea_constellation(std::string_view talker, unsigned int prn) {
+        if (talker == "GL")
+            return gps_constellation::glonass;
+        if (talker == "GA")
+            return gps_constellation::galileo;
+        if (talker == "GB" || talker == "BD")
+            return gps_constellation::beidou;
+        if (talker == "GQ")
+            return gps_constellation::qzss;
+        if (talker == "GI")
+            return gps_constellation::navic;
+        return gps_constellation_from_prn(prn);
+    }
+
+    // The NMEA 4.1 GSA system id
+    gps_constellation nmea_system(unsigned int id) {
+        switch (id) {
+            case 1: return gps_constellation::gps;
+            case 2: return gps_constellation::glonass;
+            case 3: return gps_constellation::galileo;
+            case 4: return gps_constellation::beidou;
+            case 5: return gps_constellation::qzss;
+            case 6: return gps_constellation::navic;
+            default: return gps_constellation::unknown;
+        }
+    }
+}
+
+void gps_nmea::gsv_collector::add_used(std::string_view talker, const std::string_view *f, size_t nf,
+        time_t now) {
+    if (talker.size() != 2 || nf < 15)
+        return;
+
+    gps_constellation system = gps_constellation::unknown;
+    unsigned int sysid;
+    if (nf >= 19 && parse_count(f[18], 15, sysid))
+        system = nmea_system(sysid);
+
+    // One GSA lists one constellation; replace each listed constellation's set
+    std::array<bool, constellations> replaced{};
+
+    for (size_t i = 3; i < 15; i++) {
+        unsigned int prn;
+
+        if (f[i].empty() || !parse_count(f[i], 999, prn))
+            continue;
+
+        const auto c = system != gps_constellation::unknown ? system : nmea_constellation(talker, prn);
+        auto& u = used[static_cast<size_t>(c)];
+
+        if (!replaced[static_cast<size_t>(c)]) {
+            replaced[static_cast<size_t>(c)] = true;
+            u = used_set{};
+            u.time = now;
+        }
+
+        if (u.count < used_max)
+            u.prn[u.count++] = static_cast<uint16_t>(prn);
+    }
+}
+
+int8_t gps_nmea::gsv_collector::is_used(gps_constellation c, uint16_t prn, time_t now) const {
+    const auto& u = used[static_cast<size_t>(c)];
+
+    if (u.time == 0 || now - u.time > group_expire || now < u.time)
+        return -1;
+
+    for (size_t i = 0; i < u.count; i++) {
+        if (u.prn[i] == prn)
+            return 1;
+    }
+
+    return 0;
+}
+
 bool gps_nmea::gsv_collector::add(std::string_view talker, const std::string_view *f, size_t nf,
         time_t now, gps_quality_update& quality) {
     unsigned int total, msg, in_view;
@@ -238,8 +316,13 @@ bool gps_nmea::gsv_collector::add(std::string_view talker, const std::string_vie
         if (g->building.count >= max_sats)
             continue;
 
+        unsigned int elev, azim;
+        const bool placed = parse_count(sat[1], 90, elev) && parse_count(sat[2], 359, azim);
+
         g->building.prn[g->building.count] = static_cast<uint16_t>(prn);
         g->building.snr[g->building.count] = static_cast<uint8_t>(snr);
+        g->building.elevation[g->building.count] = placed ? static_cast<int16_t>(elev) : -1;
+        g->building.azimuth[g->building.count] = placed ? static_cast<int16_t>(azim) : -1;
         g->building.count++;
     }
 
@@ -317,6 +400,43 @@ bool gps_nmea::gsv_collector::add(std::string_view talker, const std::string_vie
     quality.has_sats_visible = true;
     quality.sats_visible = visible;
     quality.has_cn0 = gps_quality_update::strongest_cn0(snrs.data(), nsnr, quality.cn0);
+
+    // Each satellite once, with its strongest signal over the signals it's listed for
+    for (const auto& a : groups) {
+        if (!a.used || !a.complete || now - a.time > group_expire || now < a.time)
+            continue;
+
+        const std::string_view tk(a.talker, 2);
+
+        for (size_t s = 0; s < a.done.count; s++) {
+            const auto c = nmea_constellation(tk, a.done.prn[s]);
+            gps_satellite *have = nullptr;
+
+            for (auto& q : quality.satellites) {
+                if (q.constellation == c && q.id == a.done.prn[s]) {
+                    have = &q;
+                    break;
+                }
+            }
+
+            if (have == nullptr) {
+                quality.satellites.push_back(gps_satellite{});
+                have = &quality.satellites.back();
+                have->constellation = c;
+                have->id = a.done.prn[s];
+                have->used = is_used(c, a.done.prn[s], now);
+            }
+
+            have->cn0 = std::max(have->cn0, static_cast<double>(a.done.snr[s]));
+
+            if (have->azimuth < 0 && a.done.azimuth[s] >= 0) {
+                have->elevation = a.done.elevation[s];
+                have->azimuth = a.done.azimuth[s];
+            }
+        }
+    }
+
+    quality.has_satellites = true;
 
     return true;
 }
@@ -583,6 +703,9 @@ gps_nmea::result gps_nmea::parse(std::string_view sentence, gps_fix_update& upda
             q.has_hdop = parse_dop(f[16], q.hdop);
             q.has_vdop = parse_dop(f[17], q.vdop);
         }
+
+        if (gsv != nullptr)
+            gsv->add_used(f[0].substr(0, 2), f.data(), nf, time(nullptr));
 
         // No fix overrides the fix implied by GGA and RMC
         if (f[2] != "1" && f[2] != "2" && f[2] != "3")
