@@ -106,7 +106,7 @@ int kis_ant_phy::dissector_ant(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(aphy->pack_comp_linkframe);
 
-    if (packdata == nullptr || packdata->dlt != KDLT_USER1)
+    if (packdata == nullptr || packdata->dlt != ant_dlt)
         return 0;
 
     if (in_pack->common_info.common_info_ok)
@@ -115,13 +115,13 @@ int kis_ant_phy::dissector_ant(CHAINCALL_PARMS) {
     const auto *d = reinterpret_cast<const uint8_t *>(packdata->data());
     const size_t len = packdata->length();
 
-    if (len < ANT_HDR_LEN || d[0] != 'A' || d[1] != 'N' || d[2] != 'T' || d[3] != 1)
+    if (len < ant_hdr_len || d[0] != 'A' || d[1] != 'N' || d[2] != 'T' || d[3] != 1)
         return 0;
 
     const unsigned int alen = d[8], plen = d[9];
 
     if (alen != 2 || (plen != 8 && plen != 16 && plen != 24) ||
-            len != ANT_HDR_LEN + ANT_PKT_HDR_LEN + plen + 2 || d[4] > 124)
+            len != ant_hdr_len + ant_pkt_hdr_len + plen + 2 || d[4] > 124)
         return 0;
 
     if (!(d[5] & 0x02)) {
@@ -129,7 +129,7 @@ int kis_ant_phy::dissector_ant(CHAINCALL_PARMS) {
         return 0;
     }
 
-    const uint8_t *p = d + ANT_HDR_LEN;
+    const uint8_t *p = d + ant_hdr_len;
 
     // The length octet names the payload and CRC (10 for the usual 8-octet message): one that does
     // not is another protocol's packet whose bits passed the 16-bit CRC by chance
@@ -145,7 +145,7 @@ int kis_ant_phy::dissector_ant(CHAINCALL_PARMS) {
     pi->pairing = (p[4] & 0x80) != 0;
     pi->trans_type = p[5];
     pi->rf_channel = d[4];
-    pi->payload.assign(reinterpret_cast<const char *>(p + ANT_PKT_HDR_LEN), plen);
+    pi->payload.assign(reinterpret_cast<const char *>(p + ant_pkt_hdr_len), plen);
 
     if (!in_pack->signal_info.data_ok) {
         auto& si = in_pack->signal_info;
@@ -175,7 +175,7 @@ int kis_ant_phy::classifier_ant(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(aphy->pack_comp_linkframe);
 
-    if (packdata == nullptr || packdata->dlt != KDLT_USER1 || !in_pack->common_info.common_info_ok)
+    if (packdata == nullptr || packdata->dlt != ant_dlt || !in_pack->common_info.common_info_ok)
         return 0;
 
     auto pi = in_pack->fetch<kis_ant_packinfo>(aphy->pack_comp_ant);
@@ -211,9 +211,12 @@ int kis_ant_phy::classifier_ant(CHAINCALL_PARMS) {
         ant->set_ant_plus(pi->ant_plus);
         ant->set_device_number((uint16_t) pi->device_number);
         ant->set_device_type((uint8_t) pi->device_type);
-        ant->set_device_type_name(type_name);
+        // Device types only name an ANT+ device profile on the ANT+ network
+        if (pi->ant_plus)
+            ant->set_device_type_name(type_name);
         ant->set_trans_type((uint8_t) pi->trans_type);
-        device->set_devicename(fmt::format("{} {}", type_name.empty() ? "ANT device" : type_name, pi->device_number));
+        device->set_devicename(fmt::format("{} {}",
+                    pi->ant_plus && !type_name.empty() ? type_name : "ANT device", pi->device_number));
     }
 
     ant->set_rf_channel((int16_t) pi->rf_channel);

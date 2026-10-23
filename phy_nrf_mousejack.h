@@ -61,11 +61,8 @@
 // (MHz - 2400), flags (bit 0 2 Mbps, bit 1 CRC ok, bit 2 NO_ACK, bit 3 bits repaired to make the
 // CRC check), the PID, the signal in dBm (int8), the address length (3-5), the payload length
 // (0-32), two reserved octets; then the address, the payload and the 2-byte CRC as sent.
-#ifndef KDLT_USER0
-#define KDLT_USER0              147
-#endif
-
-#define NRF_ESB_HDR_LEN         12
+constexpr int nrf_esb_dlt = 147;
+constexpr size_t nrf_esb_hdr_len = 12;
 
 // Per-packet ESB info the classifier needs beyond the common info
 class kis_nrf_packinfo : public packet_component {

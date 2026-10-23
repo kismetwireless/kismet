@@ -105,6 +105,10 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
     if (in_pack->common_info.common_info_ok)
         return 0;
 
+    // Every phy's packets pass through here; check the link type before making anything
+    if (packdata->dlt != mphy->dlt && packdata->dlt != nrf_esb_dlt)
+        return 0;
+
     const auto *d = reinterpret_cast<const uint8_t *>(packdata->data());
     const size_t len = packdata->length();
     auto pi = mphy->packetchain->new_packet_component<kis_nrf_packinfo>();
@@ -118,13 +122,13 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
         addr = d;
         pi->addr_len = 5;
         pi->payload.assign(reinterpret_cast<const char *>(d + 5), len - 5);
-    } else if (packdata->dlt == KDLT_USER0) {
-        if (len < NRF_ESB_HDR_LEN || d[0] != 'E' || d[1] != 'S' || d[2] != 'B' || d[3] != 1)
+    } else if (packdata->dlt == nrf_esb_dlt) {
+        if (len < nrf_esb_hdr_len || d[0] != 'E' || d[1] != 'S' || d[2] != 'B' || d[3] != 1)
             return 0;
 
         const unsigned int alen = d[8], plen = d[9];
 
-        if (alen < 3 || alen > 5 || plen > 32 || len != NRF_ESB_HDR_LEN + alen + plen + 2 || d[4] > 125)
+        if (alen < 3 || alen > 5 || plen > 32 || len != nrf_esb_hdr_len + alen + plen + 2 || d[4] > 125)
             return 0;
 
         if (!(d[5] & 0x02)) {
@@ -133,7 +137,7 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
             return 0;
         }
 
-        addr = d + NRF_ESB_HDR_LEN;
+        addr = d + nrf_esb_hdr_len;
         pi->addr_len = (int) alen;
         pi->payload.assign(reinterpret_cast<const char *>(addr + alen), plen);
         pi->rf_channel = d[4];
@@ -191,7 +195,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
         return 0;
 
     // Is it a packet we care about?
-    if (packdata->dlt != mphy->dlt && packdata->dlt != KDLT_USER0)
+    if (packdata->dlt != mphy->dlt && packdata->dlt != nrf_esb_dlt)
         return 0;
 
     if (!in_pack->common_info.common_info_ok)

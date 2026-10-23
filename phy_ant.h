@@ -48,12 +48,9 @@
 // network), a reserved octet, the signal in dBm (int8), the address length (2), the payload length
 // (8, 16 or 24), two reserved octets; then the network address, device number, device type,
 // transmission type, length, payload and CRC as sent.
-#ifndef KDLT_USER1
-#define KDLT_USER1              148
-#endif
-
-#define ANT_HDR_LEN             12
-#define ANT_PKT_HDR_LEN         7
+constexpr int ant_dlt = 148;
+constexpr size_t ant_hdr_len = 12;
+constexpr size_t ant_pkt_hdr_len = 7;
 
 class kis_ant_packinfo : public packet_component {
 public:

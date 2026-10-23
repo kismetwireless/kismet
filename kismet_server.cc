@@ -929,7 +929,6 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_bluetooth_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_uav_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new Kis_Mousejack_Phy()));
-    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_ant_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_btle_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meter_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_adsb_phy()));
@@ -938,6 +937,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_radiation_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshtastic_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshcore_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_ant_phy()));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
