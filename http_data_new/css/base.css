@@ -1076,3 +1076,22 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .ov-source-state, .ov-source-count { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
 .ov-source-count { font-variant-numeric: tabular-nums; }
 .ov-source-graph .bar-graph { height: 1.4rem; margin: 0.1rem 0; }
+
+/* Signal strength: the two counts side by side */
+.ov-signal-counts { display: flex; flex-wrap: wrap; gap: 0 1.2rem; flex: none; }
+
+/* Top talkers: name, type, the last minute as bars, and the rate */
+.ov-talkers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; min-height: 0; overflow-y: auto; flex: 1 1 auto; }
+.ov-talker {
+    display: grid; grid-template-columns: minmax(6rem, 1.2fr) minmax(4rem, 0.8fr) minmax(5rem, 1.5fr) 4.5rem;
+    gap: 0.5rem; align-items: center; font-size: 0.85rem; min-width: 0;
+}
+.ov-talker-name, .ov-talker-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-talker-name { color: var(--text); text-decoration: none; }
+.ov-talker-name:hover, .ov-talker-name:focus-visible { color: var(--accent); text-decoration: underline; }
+.ov-talker-rate { text-align: right; font-variant-numeric: tabular-nums; }
+.ov-talker-graph .bar-graph { height: 1.1rem; display: block; width: 100%; }
+@media (max-width: 640px) {
+    .ov-talker { grid-template-columns: minmax(0, 1fr) minmax(4rem, 1fr) 4rem; }
+    .ov-talker-type { display: none; }
+}

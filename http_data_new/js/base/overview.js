@@ -1,6 +1,9 @@
 // The Overview tab and its standard cards: device counts, activity, packet
 // rates, what kinds of device are around, Wi-Fi security, manufacturers,
-// new arrivals, the busiest channels, alerts, and the data sources.
+// new arrivals, signal strength, the busiest channels, alerts, the top
+// talkers, and the data sources.
+
+const base = 'kismet.device.base';
 
 export function register(kismet) {
     const { ui, dom, rrd, format, widgets } = kismet;
@@ -339,6 +342,104 @@ export function register(kismet) {
                     }
                     bars.update(severities.filter((s) => counts.get(s.id)).map((s) => ({ ...s, value: counts.get(s.id) })));
                     graph.draw(bins, ['-60m', 'now']);
+                },
+            };
+        },
+    });
+
+    // Signal strength across the devices in the window: who's close, who's at
+    // the edge of range.  Only dBm readings; some phys report RSSI instead.
+    const signalBins = { low: -100, high: -20, step: 5 };
+    const nearby = -60, edge = -85;
+
+    ui.dashboardCards.add({
+        id: 'signal', title: 'Signal strength', priority: 72, w: 3, h: 5, needs: ['devices'],
+        create(body) {
+            const counts = el('div', { class: 'ov-signal-counts' });
+            const near = stat(`nearby (stronger than ${nearby} dBm)`);
+            const far = stat(`at the edge (weaker than ${edge} dBm)`);
+            counts.append(near.node, far.node);
+            const graph = historyGraph({ type: 'bar', unit: '', height: null, minBar: true });
+            const note = el('div', { class: 'muted ov-note' }, 'Devices by their last signal, in 5 dBm steps');
+            body.append(counts, graph.node, note);
+            return {
+                update(data) {
+                    if (!data.devices)
+                        return;
+                    const n = (signalBins.high - signalBins.low) / signalBins.step;
+                    const bins = new Array(n).fill(0);
+                    let close = 0, weak = 0;
+                    for (const d of data.devices) {
+                        const s = d.signal;
+                        if (d.sigtype !== 'dbm' || !s || s >= 0)
+                            continue;
+                        const i = Math.min(n - 1, Math.max(0, Math.floor((s - signalBins.low) / signalBins.step)));
+                        bins[i]++;
+                        if (s > nearby)
+                            close++;
+                        else if (s < edge)
+                            weak++;
+                    }
+                    near.update(format.count(close));
+                    far.update(format.count(weak));
+                    graph.draw(bins, bins.map((_v, i) => (i % 4 === 0 ? `${signalBins.low + i * signalBins.step}` : '')));
+                },
+            };
+        },
+    });
+
+    // The devices sending the most right now: packets per second over the
+    // last 10 seconds, with the last minute as bars
+    const talkersShown = 10;
+
+    ui.dashboardCards.add({
+        id: 'talkers', title: 'Top talkers', priority: 85, w: 6, h: 6, needs: ['talkers'],
+        create(body) {
+            const list = el('ol', { class: 'ov-talkers' });
+            const note = el('div', { class: 'muted ov-note' }, 'Packets per second over the last 10 seconds');
+            body.append(list, note);
+            const rows = new Map();
+            return {
+                update(data) {
+                    const ranked = (data.talkers ?? []).map((d) => {
+                        const minute = rrd.history({ 'kismet.common.rrd.minute_vec': d.pps,
+                            'kismet.common.rrd.last_time': d.ppst }, data.now);
+                        // The current second is still filling; rate over the 10 before it
+                        const recent = minute.slice(-11, -1);
+                        const rate = recent.reduce((a, b) => a + b, 0) / Math.max(1, recent.length);
+                        return { d, minute, rate };
+                    }).filter((t) => t.rate > 0)
+                        .sort((a, b) => b.rate - a.rate)
+                        .slice(0, talkersShown);
+
+                    const order = ranked.map(({ d, minute, rate }) => {
+                        const key = d[`${base}.key`];
+                        let r = rows.get(key);
+                        if (!r) {
+                            r = { name: el('a', { href: '#', class: 'ov-talker-name',
+                                onclick: (e) => { e.preventDefault(); ui.openDevice(key); } }),
+                            type: el('span', { class: 'ov-talker-type muted' }), graph: el('span', { class: 'ov-talker-graph' }),
+                            rate: el('span', { class: 'ov-talker-rate' }) };
+                            r.node = el('li', { class: 'ov-talker' }, r.name, r.type, r.graph, r.rate);
+                            rows.set(key, r);
+                        }
+                        const mac = d[`${base}.macaddr`];
+                        const name = d[`${base}.commonname`];
+                        r.name.textContent = name && name !== mac ? name : mac;
+                        r.name.title = `${name && name !== mac ? `${name} (${mac})` : mac}: open this device`;
+                        r.type.textContent = d[`${base}.type`] || d[`${base}.phyname`] || '';
+                        r.rate.textContent = `${rate >= 10 ? format.count(Math.round(rate)) : rate.toFixed(1)}/s`;
+                        r.graph.replaceChildren(barGraph(minute.length ? minute : new Array(60).fill(0),
+                            { title: 'Packets per second over the last minute' }));
+                        return r.node;
+                    });
+                    const shown = new Set(ranked.map((t) => t.d[`${base}.key`]));
+                    for (const [key, r] of rows)
+                        if (!shown.has(key))
+                            rows.delete(key);
+                    list.replaceChildren(...order);
+                    if (!order.length)
+                        list.replaceChildren(el('li', { class: 'muted' }, 'Nothing heard in the last 10 seconds'));
                 },
             };
         },

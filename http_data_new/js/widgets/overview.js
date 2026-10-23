@@ -10,6 +10,8 @@
 //   channels   /channels/channels: the frequency map with its RRDs
 //   alerts     the last hour of alerts
 //   sources    the data sources
+//   talkers    devices heard in the last 15 seconds, with their packets per
+//              second over the last minute (pps, ending at ppst)
 //   devices    every device heard in the chosen time window, with the
 //              fields in deviceFields (renamed short), for counting
 // plus `now` (server time) and `window` (seconds, or 0 for all devices).
@@ -54,6 +56,14 @@ export const windows = [
 export const deviceFields = [
     [`${base}.phyname`, 'phy'], [`${base}.type`, 'type'], [`${base}.crypt`, 'crypt'],
     [`${base}.manuf`, 'manuf'], [`${base}.first_time`, 'first'], [`${base}.last_time`, 'last'],
+    [`${base}.signal/kismet.common.signal.last_signal`, 'signal'],
+    [`${base}.signal/kismet.common.signal.type`, 'sigtype'],
+];
+
+const talkerFields = [
+    `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.phyname`, `${base}.type`,
+    [`${base}.packets.rrd/kismet.common.rrd.minute_vec`, 'pps'],
+    [`${base}.packets.rrd/kismet.common.rrd.last_time`, 'ppst'],
 ];
 
 const sourceFields = [
@@ -70,6 +80,7 @@ const loaders = {
     channels: () => api.get('channels/channels.json'),
     alerts: () => api.get('alerts/last-time/-3600/alerts.json'),
     sources: () => api.post('datasource/all_sources.json', { fields: sourceFields }),
+    talkers: () => api.post('devices/views/all/last-time/-15/devices.json', { fields: talkerFields }),
 };
 
 // Grid layout, in cells.  An item is { id, x, y, w, h }.
