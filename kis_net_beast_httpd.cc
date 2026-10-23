@@ -26,6 +26,7 @@
 #include <sstream>
 
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "globalregistry.h"
 
@@ -1093,6 +1094,14 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
                 free(modified_realpath);
             if (base_realpath)
                 free(base_realpath);
+            continue;
+        }
+
+        // Only regular files; a directory opens, but reading it fails and the request hangs
+        struct stat st;
+        if (stat(modified_realpath, &st) != 0 || !S_ISREG(st.st_mode)) {
+            free(modified_realpath);
+            free(base_realpath);
             continue;
         }
 
