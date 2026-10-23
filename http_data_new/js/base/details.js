@@ -210,35 +210,31 @@ export function register(kismet) {
             {
                 group: 'Signal',
                 show: (dev) => api.field(dev, `${sig}.last_signal`, 0) !== 0,
-                help: 'Signal strength in dBm; closer to 0 is stronger.  The signal range runs from the weakest to the strongest reading in each second, minute, or hour: a narrow band means a device that stays put, a wide one a device that moves or is blocked now and then.  When more than one datasource heard the device, each gets its own line: the loudest is usually the closest to it, or has the best antenna for it.  The server only keeps each datasource\'s signal when keep_per_datasource_stats=true is set in kismet_memory.conf.',
+                help: 'Signal strength in dBm; closer to 0 is stronger.  The graph shows the strongest reading in each second, minute, or hour, joined across the times the device wasn\'t heard.  When more than one datasource heard the device, each gets its own line: the loudest is usually the closest to it, or has the best antenna for it.  The server only keeps each datasource\'s signal when keep_per_datasource_stats=true is set in kismet_memory.conf.',
                 fields: [
                     {
-                        // Servers before the signal range only have the past minute
+                        // Servers without the longer signal history only have the past minute
                         id: 'signal_graph', wide: true,
                         field: `${sig}.signal_rrd`,
                         draw: (cell, r, _d, state) => {
-                            graphIn(cell, state, { type: 'line', unit: 'dBm', title: 'Signal, last minute', joinGaps: true })
+                            graphIn(cell, state, { type: 'line', unit: 'dBm', title: 'Signal, last minute', joinGaps: true, fill: true })
                                 .draw(signalHistory(r), ['-60s', 'now']);
                         },
                         show: (r, dev) => r && Array.isArray(r['kismet.common.rrd.minute_vec']) &&
-                            !api.field(dev, `${sig}.min_signal_rrd`),
+                            !Array.isArray(api.field(dev, `${sig}.max_signal_rrd/kismet.common.rrd.minute_vec`)),
                     },
                     {
-                        id: 'signal_range', wide: true,
-                        field: `${sig}.min_signal_rrd`,
-                        show: (r, dev) => r && Array.isArray(r['kismet.common.rrd.minute_vec']) &&
-                            Array.isArray(api.field(dev, `${sig}.max_signal_rrd/kismet.common.rrd.minute_vec`)),
-                        draw: (cell, low, dev, state) => {
+                        // The strongest reading per second, minute, or hour
+                        id: 'signal_history', wide: true,
+                        field: `${sig}.max_signal_rrd`,
+                        show: (r) => r && Array.isArray(r['kismet.common.rrd.minute_vec']),
+                        draw: (cell, r, _d, state) => {
                             if (!state.graph) {
-                                state.graph = historyGraph({ type: 'line', unit: 'dBm', title: 'Signal range' });
+                                state.graph = historyGraph({ type: 'line', unit: 'dBm', joinGaps: true, fill: true });
                                 cell.replaceChildren(spanTabs(state, () => state.redraw()), state.graph.node);
                             }
-                            state.redraw = () => state.graph.draw([{
-                                label: 'Weakest to strongest', color: 'var(--accent)',
-                                low: signalHistory(state.low, state.span), high: signalHistory(state.high, state.span),
-                            }], spanLabels[state.span]);
-                            state.low = low;
-                            state.high = api.field(dev, `${sig}.max_signal_rrd`);
+                            state.redraw = () => state.graph.draw(signalHistory(state.rrd, state.span), spanLabels[state.span]);
+                            state.rrd = r;
                             state.redraw();
                         },
                     },

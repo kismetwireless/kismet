@@ -12,11 +12,12 @@
 // packets), so quiet times read as a baseline rather than gaps.
 // joinGaps: true carries a line graph straight across missing values (NaN)
 // between readings, for values like signal that are only heard now and then.
+// fill: true shades a line graph from the line down to the bottom of the
+// plot, following the line across joined gaps.
 //
 // A line graph can also draw several lines, with a legend: pass
 // [{ label, color, values }, ...] instead of values.  Colors are CSS values,
-// such as charts.series(i).  A line given as { label, color, low, high }
-// is drawn as a band between the two, such as weakest to strongest signal.
+// such as charts.series(i).
 //
 // type: 'mirror' draws two bar series back to back, the first above the
 // axis and the second below it, such as packets sent and received:
@@ -26,7 +27,7 @@ import { el } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
 
 export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = null, title = '', minBar = false,
-    joinGaps = false } = {}) {
+    joinGaps = false, fill = false } = {}) {
     const canvas = el('canvas', { class: 'history-graph-canvas' });
     const legend = el('div', { class: 'graph-legend', hidden: true });
     const node = el('figure', { class: 'history-graph', style: { height } },
@@ -62,16 +63,16 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
 
     function draw(newValues = values, newLabels = labels) {
         labels = newLabels;
-        // Several lines (or bands, or the two halves of a mirror): scale over
-        // all of them, draw each in its color
+        // Several lines (or the two halves of a mirror): scale over all of
+        // them, draw each in its color
         lines = (type === 'line' || type === 'mirror') && newValues.length &&
-            Array.isArray(newValues[0]?.values ?? newValues[0]?.low) ? newValues : null;
+            Array.isArray(newValues[0]?.values) ? newValues : null;
         values = newValues;
         showLegend();
         const mirror = type === 'mirror' && lines;
         const all = mirror ? [...lines[0].values, ...(lines[1]?.values ?? []).map((v) => -v)] :
-            lines ? lines.flatMap((l) => l.values ?? [...l.low, ...l.high]) : values;
-        const count = lines ? Math.max(...lines.map((l) => (l.values ?? l.low).length)) : values.length;
+            lines ? lines.flatMap((l) => l.values) : values;
+        const count = lines ? Math.max(...lines.map((l) => l.values.length)) : values.length;
 
         const ratio = window.devicePixelRatio || 1;
         const w = Math.max(1, Math.round(canvas.clientWidth * ratio));
@@ -167,69 +168,52 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             });
         } else {
             const px = (i) => left + i * step + step / 2;
-            const drawLine = (vals) => {
-                ctx.lineWidth = 1.5 * ratio;
-                ctx.beginPath();
-                let started = false;
+            // The line's pieces: one between readings with joinGaps, else one per
+            // run of neighbouring readings
+            const segments = (vals) => {
+                const out = [];
+                let cur = null;
                 vals.forEach((v, i) => {
                     if (!Number.isFinite(v)) {
                         if (!joinGaps)
-                            started = false;
+                            cur = null;
                         return;
                     }
-                    if (started)
-                        ctx.lineTo(px(i), y(v));
-                    else
-                        ctx.moveTo(px(i), y(v));
-                    started = true;
+                    if (!cur)
+                        out.push(cur = []);
+                    cur.push([px(i), y(v)]);
                 });
-                ctx.stroke();
-
-                // A reading with no neighbour to join to would otherwise not show at all
-                vals.forEach((v, i) => {
-                    if (!Number.isFinite(v))
-                        return;
-                    const prev = joinGaps ? vals.slice(0, i).some(Number.isFinite) : Number.isFinite(vals[i - 1]);
-                    const next = joinGaps ? vals.slice(i + 1).some(Number.isFinite) : Number.isFinite(vals[i + 1]);
-                    if (!prev && !next) {
-                        ctx.beginPath();
-                        ctx.arc(px(i), y(v), 2 * ratio, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                });
+                return out;
             };
 
-            // A band from low to high, in runs of slots that have both; a slot
-            // on its own is a short upright bar
-            const drawBand = (low, high) => {
-                const ok = (i) => Number.isFinite(low[i]) && Number.isFinite(high[i]);
-                for (let i = 0; i < low.length; i++) {
-                    if (!ok(i))
-                        continue;
-                    let j = i;
-                    while (j + 1 < low.length && ok(j + 1))
-                        j++;
-                    if (i === j) {
-                        ctx.fillRect(px(i) - ratio, y(high[i]), 2 * ratio, Math.max(ratio, y(low[i]) - y(high[i])));
-                    } else {
-                        ctx.globalAlpha = 0.35;
+            const drawLine = (vals) => {
+                const segs = segments(vals);
+                if (fill) {
+                    const floor = y(bottom);
+                    ctx.globalAlpha = 0.2;
+                    for (const seg of segs.filter((g) => g.length > 1)) {
                         ctx.beginPath();
-                        for (let k = i; k <= j; k++)
-                            ctx.lineTo(px(k), y(high[k]));
-                        for (let k = j; k >= i; k--)
-                            ctx.lineTo(px(k), y(low[k]));
+                        ctx.moveTo(seg[0][0], floor);
+                        for (const [x, yy] of seg)
+                            ctx.lineTo(x, yy);
+                        ctx.lineTo(seg[seg.length - 1][0], floor);
                         ctx.closePath();
                         ctx.fill();
-                        ctx.globalAlpha = 1;
-                        ctx.lineWidth = ratio;
-                        for (const edge of [high, low]) {
-                            ctx.beginPath();
-                            for (let k = i; k <= j; k++)
-                                ctx.lineTo(px(k), y(edge[k]));
-                            ctx.stroke();
-                        }
                     }
-                    i = j;
+                    ctx.globalAlpha = 1;
+                }
+                ctx.lineWidth = 1.5 * ratio;
+                for (const seg of segs) {
+                    if (seg.length === 1) {
+                        // A reading with no neighbour to join to would otherwise not show at all
+                        ctx.beginPath();
+                        ctx.arc(seg[0][0], seg[0][1], 2 * ratio, 0, Math.PI * 2);
+                        ctx.fill();
+                        continue;
+                    }
+                    ctx.beginPath();
+                    seg.forEach(([x, yy], i) => (i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy)));
+                    ctx.stroke();
                 }
             };
 
@@ -238,10 +222,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
                     const c = resolve(l.color) || color;
                     ctx.strokeStyle = c;
                     ctx.fillStyle = c;
-                    if (l.low)
-                        drawBand(l.low, l.high);
-                    else
-                        drawLine(l.values);
+                    drawLine(l.values);
                 }
             } else {
                 drawLine(values);
