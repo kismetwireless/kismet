@@ -107,8 +107,10 @@ public:
     void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts);
     void append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts);
 
+    // update_range also records the weakest and strongest signal over time; only the
+    // device's own signal keeps that, not the per-datasource records
     void append_signal(const kis_layer1_packinfo *lay1, const kis_gps_packinfo *gps,
-            bool update_rrd, time_t rrd_ts);
+            bool update_rrd, time_t rrd_ts, bool update_range = false);
 
     __ProxyGet(signal_type, std::string, std::string, signal_type);
 
@@ -126,6 +128,11 @@ public:
 
     __ProxyFullyDynamicTrackable(signal_min_rrd, kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>,
                                  signal_min_rrd_id);
+
+    __ProxyFullyDynamicTrackable(range_min_rrd, kis_tracked_rrd<kis_tracked_rrd_min_signal_aggregator>,
+                                 range_min_rrd_id);
+    __ProxyFullyDynamicTrackable(range_max_rrd, kis_tracked_rrd<kis_tracked_rrd_max_signal_aggregator>,
+                                 range_max_rrd_id);
 
     __ProxyFullyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc_id);
 
@@ -152,6 +159,12 @@ protected:
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
     uint16_t signal_min_rrd_id;
+
+    // Weakest and strongest signal per second, minute, and hour, over the past day
+    uint16_t range_min_rrd_id;
+    uint16_t range_max_rrd_id;
+
+    void add_range_sample(double signal, time_t rrd_ts);
 
     int sig_type;
 };
