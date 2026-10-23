@@ -619,6 +619,13 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .timeline-axis { display: grid; grid-template-columns: minmax(0, 11rem) minmax(50%, 1fr); gap: 0.5rem; font-size: 0.78em; margin-top: 0.15rem; }
 .timeline-axis-ends { display: flex; justify-content: space-between; gap: 0.5rem; white-space: nowrap; }
 .timeline-note { font-size: 0.82em; }
+.timeline-mark {
+    position: absolute; top: 50%; width: 0.55rem; height: 0.55rem; border-radius: 50%;
+    transform: translate(-50%, -50%); box-shadow: 0 0 0 1px var(--surface);
+}
+.timeline.events .timeline-track { overflow: visible; }
+.timeline-legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.82em; color: var(--muted); margin: 0.1rem 0 0.4rem; }
+.timeline-legend .timeline-mark { position: static; display: inline-block; transform: none; margin-right: 0.3rem; vertical-align: -0.05em; }
 
 .mini-table { width: 100%; border-collapse: collapse; }
 .mini-table th { text-align: left; color: var(--muted); font-weight: 500; font-size: 0.9em; }

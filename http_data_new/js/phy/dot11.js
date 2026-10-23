@@ -470,6 +470,115 @@ function registerDetails(kismet) {
         return { node };
     }
 
+    // When things happened to a device: each client's handshake messages, the
+    // PMKID, the last WPS M3 and disconnect (the server keeps their count and
+    // last time), and the alerts that name it.  The alerts come from the
+    // server's recent alerts, fetched while the section is on screen.
+    const eventHandshakes = 8;
+    const severityColor = (sev) => (sev >= 15 ? 'var(--error)' :
+        sev >= 10 ? 'color-mix(in srgb, var(--error) 50%, var(--warn))' : sev >= 5 ? 'var(--warn)' : 'var(--muted)');
+    // Handshake messages in blues and greens, apart from the PMKID (warn) and
+    // WPS / disconnect (error) colours
+    const handshakeColors = ['var(--accent)', 'var(--ok)', 'color-mix(in srgb, var(--accent) 50%, var(--text))',
+        'color-mix(in srgb, var(--ok) 50%, var(--text))'];
+    const handshakeColor = (n) => handshakeColors[Math.min(3, Math.max(0, n - 1))];
+
+    function eventRows(dev, alerts) {
+        const rows = [];
+        const handshakes = Object.entries(api.field(dev, `${d}/${d}.wpa_handshake_list`) ?? {});
+        for (const [mac, packets] of handshakes.slice(0, eventHandshakes)) {
+            rows.push({ label: mac, title: `Handshake with ${mac}`, events: (packets ?? []).map((p) => {
+                const t = p['dot11.eapol.timestamp'] ?? 0;
+                const n = p['dot11.eapol.message_num'] ?? 0;
+                return { t, color: handshakeColor(n), title: `Handshake message ${n} of 4 with ${mac}\n${format.time(t)}` };
+            }) });
+        }
+        const pmkid = api.field(dev, `${d}/${d}.pmkid_packet`);
+        if (pmkid?.['kismet.packet.ts_sec'])
+            rows.push({ label: 'RSN PMKID', events: [{ t: pmkid['kismet.packet.ts_sec'], color: 'var(--warn)',
+                title: `RSN PMKID captured\n${format.time(pmkid['kismet.packet.ts_sec'])}` }] });
+        const counted = (label, count, last, what) => {
+            const n = api.field(dev, `${d}/${d}.${count}`, 0);
+            const t = api.field(dev, `${d}/${d}.${last}`, 0);
+            if (n && t)
+                rows.push({ label, events: [{ t, color: 'var(--error)',
+                    title: `${n.toLocaleString()} ${what}${n === 1 ? '' : 's'}; the last at ${format.time(t)}` }] });
+        };
+        counted('WPS M3', 'wps_m3_count', 'wps_m3_last', 'WPS M3 message');
+        counted('Disconnects', 'client_disconnects', 'client_disconnects_last', 'disconnect or deauthentication message');
+        if (alerts.length)
+            rows.push({ label: 'Alerts', events: alerts.map((a) => ({ t: a['kismet.alert.timestamp'] ?? 0,
+                color: severityColor(a['kismet.alert.severity'] ?? 0),
+                title: `${a['kismet.alert.header']}\n${format.time(a['kismet.alert.timestamp'])}\n${a['kismet.alert.text'] ?? ''}` })) });
+        return rows;
+    }
+
+    function deviceEvents(dev) {
+        const chart = kismet.widgets.charts.eventTimeline({ empty: 'Nothing in this period.' });
+        const swatch = (color, label) => el('span', {}, el('span', { class: 'timeline-mark', style: { background: color } }), label);
+        const legend = el('div', { class: 'timeline-legend' },
+            el('span', {}, 'Handshakes, by client:'),
+            [1, 2, 3, 4].map((n) => swatch(handshakeColor(n), `message ${n}`)),
+            swatch('var(--warn)', 'PMKID'), swatch('var(--error)', 'WPS M3, disconnect, critical alert'));
+        let span = 'all';
+        let device = dev;
+        let alerts = [];
+        let timer = null;
+        let everConnected = false;
+        const mac = dev[`${base}.macaddr`];
+        const key = dev[`${base}.key`];
+
+        const buttons = timelineSpans.map(([id, label]) => el('button', { type: 'button',
+            class: id === span ? 'active' : null,
+            onclick: () => {
+                span = id;
+                buttons.forEach((b, i) => b.classList.toggle('active', timelineSpans[i][0] === id));
+                draw();
+            } }, label));
+        const node = el('div', {}, el('div', { class: 'graph-tabs' }, buttons), chart.node, legend);
+
+        function draw() {
+            const t = clock.isKnown() ? clock.now() : Date.now() / 1000;
+            const rows = eventRows(device, alerts);
+            const times = rows.flatMap((r) => r.events.map((e) => e.t)).filter((v) => v > 0);
+            const from = span === 'hour' ? t - 3600 : span === 'day' ? t - 86400 : Math.min(t - 60, ...times);
+            const start = t - from < 86400 ? format.clock(from) : format.time(from);
+            chart.update(rows, from, t, [span === 'all' ? start : `-${span === 'hour' ? '60m' : '24h'}`, 'now']);
+        }
+
+        // The alerts naming this device, by any of its addresses or its key
+        const names = (a) => a['kismet.alert.device_key'] === key || ['source_mac', 'dest_mac', 'transmitter_mac', 'other_mac']
+            .some((f) => a[`kismet.alert.${f}`] === mac);
+
+        async function refresh() {
+            clearTimeout(timer);
+            if (node.isConnected)
+                everConnected = true;
+            else if (everConnected)
+                return;
+            const onScreen = node.checkVisibility ? node.checkVisibility() : node.offsetParent !== null;
+            if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
+                try {
+                    alerts = ((await api.get('alerts/all_alerts.json')) ?? []).filter(names);
+                    draw();
+                } catch {
+                    // Keep what's drawn; the next refresh tries again
+                }
+            }
+            timer = setTimeout(refresh, (everConnected ? 10 : 0.5) * 1000);
+        }
+
+        draw();
+        refresh();
+        return {
+            node,
+            update(dev2) {
+                device = dev2;
+                draw();
+            },
+        };
+    }
+
     // An SSID: cloaked SSIDs are blanks or spaces
     function ssidText(v, rec) {
         if (typeof v !== 'string')
@@ -942,6 +1051,28 @@ function registerDetails(kismet) {
                         format: (v, dev) => `TX 0x${v.toString(16)}, RX 0x${api.field(dev, `${probeRec}/${ps}.airmax_rx_chainmask`, 0).toString(16)}`,
                         help: 'The transmit and receive antenna chains in the AirMAX tag.' },
                     { title: 'MikroTik device (client)', field: `${probeRec}/${ps}.mikrotik_device_name`, hideEmpty: true },
+                ],
+            },
+
+            {
+                group: 'Wi-Fi events',
+                show: (dev) => hasKeys(api.field(dev, `${d}/${d}.wpa_handshake_list`)) ||
+                    !!api.field(dev, `${d}/${d}.pmkid_packet`) || api.field(dev, `${d}/${d}.wps_m3_count`, 0) > 0 ||
+                    api.field(dev, `${d}/${d}.client_disconnects`, 0) > 0,
+                help: 'When things happened to this device: handshake messages with each client, the RSN PMKID, WPS M3 messages and disconnects (Kismet keeps how many and the last one), and alerts that name the device.  A burst of disconnects or alerts usually means a deauthentication attack; a full set of handshake messages means the handshake was captured.  Hover over a mark for details.',
+                fields: [
+                    {
+                        id: 'wifi_events', wide: true,
+                        value: (dev) => dev,
+                        draw: (cell, dev, _rec, state) => {
+                            if (!state.events) {
+                                state.events = deviceEvents(dev);
+                                cell.replaceChildren(state.events.node);
+                            } else {
+                                state.events.update(dev);
+                            }
+                        },
+                    },
                 ],
             },
 

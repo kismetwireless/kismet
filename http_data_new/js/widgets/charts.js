@@ -1,7 +1,7 @@
 // Small charts for summaries, in the theme's colors: a list of labelled
-// bars, a donut, a big number, a presence strip, and a timeline.  Each
-// returns { node, update(...) }; keep it and call update() with new data
-// instead of building a new one.
+// bars, a donut, a big number, a presence strip, a timeline, and an event
+// timeline.  Each returns { node, update(...) }; keep it and call update()
+// with new data instead of building a new one.
 //
 //   const bars = barList({ onPick: (item) => ... });
 //   bars.update([{ id: 'ap', label: 'Wi-Fi AP', value: 12 }, ...]);
@@ -214,6 +214,56 @@ export function timeline({ onPick = null, empty = 'Nothing yet' } = {}) {
             return row;
         }));
         if (!items.length)
+            rows.replaceChildren(el('div', { class: 'muted' }, empty));
+        const [l, r] = axisLabels ?? [format.time(from), format.time(to)];
+        axis.replaceChildren(el('span'), el('span', { class: 'timeline-axis-ends' }, el('span', {}, l), el('span', {}, r)));
+    }
+
+    return { node, update };
+}
+
+// Markers on a shared time axis, a row of them per kind of event: when things
+// happened.  Rows are { label, title?, events: [{ t, color?, title? }] } with t
+// in seconds; update(rows, from, to, axisLabels) draws them between from and
+// to.  Events too close together to tell apart share one marker, whose title
+// lists them all.
+const eventMerge = 0.6;       // percent of the width
+const eventTitleLines = 6;
+
+function mergeEvents(events, pos) {
+    const out = [];
+    for (const e of [...events].sort((a, b) => a.t - b.t)) {
+        const last = out[out.length - 1];
+        if (last && pos(e.t) - pos(last.t) < eventMerge)
+            last.all.push(e);
+        else
+            out.push({ t: e.t, color: e.color, all: [e] });
+    }
+    return out.map((m) => {
+        const titles = m.all.map((e) => e.title ?? '');
+        const more = titles.length - eventTitleLines;
+        return { t: m.t, color: m.color, title: titles.slice(0, eventTitleLines).join('\n\n') +
+            (more > 0 ? `\n\nand ${more} more` : '') };
+    });
+}
+
+export function eventTimeline({ empty = 'Nothing yet' } = {}) {
+    const rows = el('div', { class: 'timeline-rows' });
+    const axis = el('div', { class: 'timeline-axis muted' });
+    const node = el('div', { class: 'timeline events' }, rows, axis);
+
+    function update(items, from, to, axisLabels = null) {
+        const span = Math.max(1, to - from);
+        const pos = (t) => (100 * (t - from)) / span;
+        const shown = items.map((row) => ({ ...row, events: mergeEvents(row.events.filter((e) => e.t >= from && e.t <= to), pos) }))
+            .filter((row) => row.events.length);
+        rows.replaceChildren(...shown.map((row) => el('div', { class: 'timeline-row' },
+            el('span', { class: 'timeline-label', title: row.title ?? row.label }, row.label),
+            el('span', { class: 'timeline-track' }, ...row.events.map((e) => el('span', {
+                class: 'timeline-mark', title: e.title ?? '',
+                style: { left: `${pos(e.t)}%`, background: e.color ?? 'var(--accent)' },
+            }))))));
+        if (!shown.length)
             rows.replaceChildren(el('div', { class: 'muted' }, empty));
         const [l, r] = axisLabels ?? [format.time(from), format.time(to)];
         axis.replaceChildren(el('span'), el('span', { class: 'timeline-axis-ends' }, el('span', {}, l), el('span', {}, r)));
