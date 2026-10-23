@@ -145,9 +145,12 @@ kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
                         return '<b style="color: #c00000;">' + text + '</b>';
                     }
 
+                    if (state === 3)
+                        return '<b style="color: #007000;">' + text + '</b>';
+
                     return text;
                 },
-                help: "What Kismet checked: each secured NWK or APS frame is checked against a table of publicly known Zigbee keys (a match needs the frame's MIC to verify, so it is never a guess), and Transport Key commands sent without APS security are looked for. \"Known key in use\" means anyone can read this network's traffic; \"No known key\" means every secured frame was checked and none matched, so the network uses a key of its own; \"Not checked yet\" means it sent encrypted frames but none that could be checked so far.",
+                help: "What Kismet checked: each secured NWK or APS frame is checked against a table of publicly known Zigbee keys (a match needs the frame's MIC to verify, so it is never a guess), and Transport Key commands sent without APS security are looked for. \"Known key in use\" means anyone can read this network's traffic; \"No known key\" means every secured frame was checked and none matched, so the network uses a key of its own; \"Not checked yet\" means it sent encrypted frames but none that could be checked so far. \"Your key in use\" means its frames matched a key you gave Kismet (zigbee_key= in kismet_zigbee.conf or kismet_site.conf); that is no weakness, so it raises no alert.",
             },
             {
                 field: "802154.device/802154.device.weak_key",

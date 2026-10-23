@@ -37,6 +37,7 @@
 #include "manuf.h"
 #include "messagebus.h"
 #include "crc32.h"
+#include "configfile.h"
 
 #include "phy_802154.h"
 #include "zigbee_crypto.h"
@@ -265,7 +266,7 @@ static void read_transport_key(const uint8_t *c, size_t n, kis_802154_packinfo *
  * NWK or MAC header (srcs, each as sent or null).
  */
 static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
-        kis_802154_packinfo *pi) {
+        const std::vector<zigbee_user_key>& user_keys, kis_802154_packinfo *pi) {
     if (n < 2)
         return;
 
@@ -346,6 +347,19 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
                 read_transport_key(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), pi);
             return;
         }
+
+        // then the user's own keys, as link keys
+        for (const auto& u : user_keys) {
+            std::string plain;
+
+            if (!zigbee_crypto::ccm_star_decrypt(u.aps[key_id], nonce, a.data(), a.size(),
+                        q + aux_end, n - aux_end, plain))
+                continue;
+
+            pi->key_matched = true;
+            pi->user_key_name = u.name;
+            return;
+        }
     }
 }
 
@@ -360,7 +374,8 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
  * nothing.
  */
 static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_t *mac_src,
-        const uint8_t *p, size_t n, kis_802154_packinfo *pi) {
+        const uint8_t *p, size_t n, const std::vector<zigbee_user_key>& user_keys,
+        kis_802154_packinfo *pi) {
     if (frame_type == BEACON_802154) {
         if (n < 4)
             return false;
@@ -496,7 +511,7 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
         const uint8_t *const srcs[3] = {nwk_src_ieee, mac_src, nullptr};
 
         if (ftype == 0)
-            read_aps(p + o, n - o, srcs, pi);
+            read_aps(p + o, n - o, srcs, user_keys, pi);
         return true;
     }
 
@@ -536,7 +551,25 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
         const uint8_t *const srcs[3] = {nwk_src_ieee, p + o + 5, mac_src};
 
         if (ftype == 0)
-            read_aps(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), srcs, pi);
+            read_aps(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), srcs, user_keys, pi);
+        return true;
+    }
+
+    // then the user's own keys, as the network key
+    for (const auto& u : user_keys) {
+        std::string plain;
+
+        if (!zigbee_crypto::ccm_star_decrypt(u.key, nonce, a.data(), a.size(), p + aux_end,
+                    n - aux_end, plain))
+            continue;
+
+        pi->key_matched = true;
+        pi->user_key_name = u.name;
+
+        const uint8_t *const srcs[3] = {nwk_src_ieee, p + o + 5, mac_src};
+
+        if (ftype == 0)
+            read_aps(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), srcs, user_keys, pi);
         break;
     }
 
@@ -566,6 +599,60 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
                 "to joining devices), or secured NWK frames with a publicly known network key such "
                 "as the TI Z-Stack default.  Anyone who receives these frames can decrypt the "
                 "network's traffic.", phyid);
+
+    // The user's own keys, zigbee_key=name,key (16 octets in hex, colons and spaces allowed)
+    auto sv_trim = [](std::string_view s) {
+        while (!s.empty() && isspace((unsigned char) s.front()))
+            s.remove_prefix(1);
+        while (!s.empty() && isspace((unsigned char) s.back()))
+            s.remove_suffix(1);
+        return s;
+    };
+
+    for (const auto& k : Globalreg::globalreg->kismet_config->fetch_opt_vec("zigbee_key")) {
+        auto toks = base_sv_tokenize(k, ",", "");
+        if (toks.size() != 2) {
+            _MSG_ERROR("Invalid zigbee_key '{}', expected name,key", k);
+            continue;
+        }
+
+        auto name = sv_trim(toks[0]);
+        if (name.length() == 0) {
+            _MSG_ERROR("Invalid zigbee_key '{}', the name is empty", k);
+            continue;
+        }
+
+        std::string hex;
+        for (const char c : sv_trim(toks[1]))
+            if (c != ':' && c != ' ' && c != '-')
+                hex += c;
+
+        zigbee_user_key u;
+        u.name = std::string{name};
+
+        bool ok = hex.length() == 32;
+        for (unsigned int i = 0; ok && i < 16; i++) {
+            if (!isxdigit((unsigned char) hex[2 * i]) || !isxdigit((unsigned char) hex[2 * i + 1]))
+                ok = false;
+            else
+                u.key[i] = (uint8_t) std::stoul(hex.substr(2 * i, 2), nullptr, 16);
+        }
+
+        if (!ok) {
+            _MSG_ERROR("Invalid zigbee_key for '{}', the key must be 16 octets in hex", name);
+            continue;
+        }
+
+        memcpy(u.aps[0], u.key, 16);
+        memcpy(u.aps[1], u.key, 16);
+        zigbee_crypto::hmac_mmo_octet(u.key, 0x00, u.aps[2]);
+        zigbee_crypto::hmac_mmo_octet(u.key, 0x02, u.aps[3]);
+
+        user_keys.push_back(std::move(u));
+    }
+
+    if (!user_keys.empty())
+        _MSG_INFO("Loaded {} Zigbee key(s) from zigbee_key", user_keys.size());
 
     kis_802154_device_entry_id =
         entrytracker->register_field("802154.device",
@@ -990,7 +1077,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 read_payload(hdr_802_15_4_fcf->type, hdr_802_15_4_fcf->src_addr_mode >= 0x02,
                     hdr_802_15_4_fcf->src_addr_mode == 0x03 ? mac_src_as_sent : nullptr,
                     reinterpret_cast<const uint8_t *>(packdata->data()) + payload_off,
-                    frame_end - payload_off, pi.get())) {
+                    frame_end - payload_off, mphy->user_keys, pi.get())) {
             keep = true;
 
             // Zigbee secures at the NWK layer with the MAC unsecured
@@ -1138,6 +1225,8 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                 source_kis_802154->inc_key_frames(1);
             if (pi->key_matched)
                 source_kis_802154->inc_key_frames_matched(1);
+            if (!pi->user_key_name.empty())
+                source_kis_802154->set_user_key(pi->user_key_name);
 
             // Keys anyone can know, seen in use: kept with the sender, and an alert the first time
             // a PAN shows each kind
@@ -1262,11 +1351,19 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                     "Known key in use: " + source_kis_802154->get_weak_key() :
                     fmt::format("Known key in use: {} ({} of {} secured frames matched a publicly "
                         "known key)", source_kis_802154->get_weak_key(), matched, checked));
+        } else if (!source_kis_802154->get_user_key().empty()) {
+            source_kis_802154->set_key_state(kis_802154_tracked_device::key_user);
+            source_kis_802154->set_key_status(fmt::format("Your key in use: {} ({} of {} secured "
+                        "frames matched; no publicly known key)", source_kis_802154->get_user_key(),
+                        matched, checked));
         } else if (checked > 0) {
             source_kis_802154->set_key_state(kis_802154_tracked_device::key_not_known);
+            const auto n_user = mphy->user_keys.size();
+
             source_kis_802154->set_key_status(fmt::format("No known key: {} secured frames checked "
-                        "against the {} publicly known keys, none matched; the network uses a key "
-                        "of its own", checked, zigbee_crypto::n_known_keys));
+                        "against the {} publicly known keys{}, none matched; the network uses a key "
+                        "of its own", checked, zigbee_crypto::n_known_keys,
+                        n_user == 0 ? "" : fmt::format(" and your {} key{}", n_user, n_user == 1 ? "" : "s")));
         } else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3) {
             source_kis_802154->set_key_status("Not checked yet: its encrypted frames so far could "
                     "not be checked against the publicly known keys (no complete NWK auxiliary "
@@ -1283,6 +1380,8 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             source_dev->set_crypt_string("Zigbee: key sent in the clear");
         else if (weak & kis_802154_packinfo::weak_key_aps)
             source_dev->set_crypt_string("Zigbee APS: publicly known link key (" + source_kis_802154->get_known_link_key() + ")");
+        else if (!source_kis_802154->get_user_key().empty())
+            source_dev->set_crypt_string("Zigbee: your key (" + source_kis_802154->get_user_key() + ")");
         else if ((source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3) && checked > 0)
             source_dev->set_crypt_string("Zigbee NWK");
         else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3)

@@ -85,6 +85,7 @@ public:
         exposed_key_type.clear();
         key_checked = false;
         key_matched = false;
+        user_key_name.clear();
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -132,6 +133,17 @@ public:
     // matched (its MIC verified)
     bool key_checked = false;
     bool key_matched = false;
+
+    // The name of the user's key (zigbee_key=) that matched, when one did
+    std::string user_key_name;
+};
+
+// A key the user gave (zigbee_key=name,key): tried after the publicly known keys, as the network
+// key and as a link key (by key identifier: the key itself, its key-transport and key-load keys)
+struct zigbee_user_key {
+    std::string name;
+    uint8_t key[16];
+    uint8_t aps[4][16];
 };
 
 /* Largely a placeholder for future possible data; right now we can't decode
@@ -190,11 +202,13 @@ public:
     __ProxyIncDec(key_frames, uint64_t, uint64_t, key_frames);
     __Proxy(key_frames_matched, uint64_t, uint64_t, uint64_t, key_frames_matched);
     __ProxyIncDec(key_frames_matched, uint64_t, uint64_t, key_frames_matched);
+    __Proxy(user_key, std::string, std::string, std::string, user_key);
 
     // key_state
     static constexpr uint8_t key_none = 0;          // no secured frame checked, no key seen
     static constexpr uint8_t key_not_known = 1;     // secured frames checked, no known key matched
     static constexpr uint8_t key_known = 2;         // a publicly known or exposed key seen in use
+    static constexpr uint8_t key_user = 3;          // one of the user's keys (zigbee_key=) in use
 
 protected:
 
@@ -214,7 +228,8 @@ protected:
         register_field("802154.device.exposed_key", "A key its Transport Key command exposed", &exposed_key);
         register_field("802154.device.known_link_key", "The publicly known link key its APS security uses", &known_link_key);
         register_field("802154.device.known_network_key", "The publicly known network key its NWK security uses", &known_network_key);
-        register_field("802154.device.key_state", "Key check: 0 nothing checked, 1 no known key, 2 a known or exposed key in use", &key_state);
+        register_field("802154.device.key_state", "Key check: 0 nothing checked, 1 no known key, 2 a known or exposed key in use, 3 a key of the user's (zigbee_key) in use", &key_state);
+        register_field("802154.device.user_key", "The name of the user's key (zigbee_key) its frames matched", &user_key);
         register_field("802154.device.key_status", "Key check, in words", &key_status);
         register_field("802154.device.key_first_time", "When a known or exposed key was first seen in use (0 if not)", &key_first_time);
         register_field("802154.device.key_frames", "Secured NWK and APS frames checked against the publicly known keys", &key_frames);
@@ -251,6 +266,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> key_first_time;
     std::shared_ptr<tracker_element_uint64> key_frames;
     std::shared_ptr<tracker_element_uint64> key_frames_matched;
+    std::shared_ptr<tracker_element_string> user_key;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -309,6 +325,9 @@ protected:
     std::set<uint32_t> weak_key_alerted;
     std::deque<weak_key_alert> weak_key_backlog;
     std::atomic<bool> weak_key_backlogged{false};
+
+    // The user's keys, from zigbee_key= in kismet_zigbee.conf; read once at startup
+    std::vector<zigbee_user_key> user_keys;
 };
 
 #endif
