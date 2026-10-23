@@ -491,6 +491,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     /* Packet data */
     unsigned int packet_len, packet_fulllen;
+    int packet_bytes;
+    const char *col_type, *col_json;
     const void *packet_data;
     uint64_t packet_frequency;
     int dlt;
@@ -621,7 +623,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             dlt = sqlite3_column_int(packet_stmt, colno++);
 
-            packet_data = sqlite3_column_blob(packet_stmt, colno++);
+            packet_data = sqlite3_column_blob(packet_stmt, colno);
+            packet_bytes = sqlite3_column_bytes(packet_stmt, colno++);
 
             packet_len = sqlite3_column_int64(packet_stmt, colno++);
 
@@ -631,9 +634,21 @@ void capture_thread(kis_capture_handler_t *caph) {
                 packet_fulllen = packet_len;
             }
 
-            kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
-                    packet_fulllen, packet_len, (const u_char *) packet_data,
-                    lat, lon, alt, speed, heading);
+            /* The blob holds what there is; a packet_len column larger than it (a damaged or
+             * crafted log) would read past it */
+            if (packet_data == NULL || packet_bytes < 0)
+                packet_bytes = 0;
+
+            if (packet_len > (unsigned int) packet_bytes)
+                packet_len = (unsigned int) packet_bytes;
+
+            if (packet_fulllen < packet_len)
+                packet_fulllen = packet_len;
+
+            if (packet_len > 0)
+                kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
+                        packet_fulllen, packet_len, (const u_char *) packet_data,
+                        lat, lon, alt, speed, heading);
 
             packet_r = sqlite3_step(packet_stmt);
         } else {
@@ -648,15 +663,21 @@ void capture_thread(kis_capture_handler_t *caph) {
                 heading = sqlite3_column_double(data_stmt, colno++);
             }
 
-            data_type = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
-            data_json = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
+            /* A NULL column (a damaged or crafted log) has no text to copy */
+            col_type = (const char *) sqlite3_column_text(data_stmt, colno++);
+            col_json = (const char *) sqlite3_column_text(data_stmt, colno++);
 
-            kismetdb_dispatch_data_cb((u_char *) caph, data_ts_sec, data_ts_usec,
-                    data_type, data_json,
-                    lat, lon, alt, speed, heading);
+            if (col_type != NULL && col_json != NULL) {
+                data_type = strdup(col_type);
+                data_json = strdup(col_json);
 
-            free(data_type);
-            free(data_json);
+                kismetdb_dispatch_data_cb((u_char *) caph, data_ts_sec, data_ts_usec,
+                        data_type, data_json,
+                        lat, lon, alt, speed, heading);
+
+                free(data_type);
+                free(data_json);
+            }
 
             data_r = sqlite3_step(data_stmt);
         }
