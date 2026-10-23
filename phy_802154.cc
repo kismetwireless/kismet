@@ -39,6 +39,7 @@
 #include "crc32.h"
 
 #include "phy_802154.h"
+#include "zigbee_crypto.h"
 
 #include <cmath>
 
@@ -229,16 +230,140 @@ static std::string ext_pan_string(const uint8_t *le8) {
             le8[7], le8[6], le8[5], le8[4], le8[3], le8[2], le8[1], le8[0]);
 }
 
+static std::string key_string(const uint8_t *k) {
+    std::string s;
+
+    for (unsigned int i = 0; i < 16; i++) {
+        if (i)
+            s += ':';
+        s += fmt::format("{:02x}", k[i]);
+    }
+
+    return s;
+}
+
+// A Transport Key command (APS command 0x05) at c: the key it carries, and its type
+static void read_transport_key(const uint8_t *c, size_t n, kis_802154_packinfo *pi) {
+    static const char *key_types[] = {"Trust Center master", "network", "application master",
+        "application link", "Trust Center link", "high-security network"};
+
+    if (n < 18 || c[0] != 0x05)
+        return;
+
+    pi->exposed_key = key_string(c + 2);
+    pi->exposed_key_type = c[1] < 6 ? key_types[c[1]] : fmt::format("type {}", c[1]);
+}
+
+/*
+ * The APS frame of a Zigbee NWK data frame, for keys anyone can know (Zigbee 2.2.5, 4.4): a
+ * Transport Key command sent without APS security, whose key is then in the clear, or APS security
+ * under the well-known link key ZigBeeAlliance09: the data key is the link key itself (key
+ * identifier 0), the key-transport and key-load keys are hashed from it (2 and 3).  A frame that
+ * decrypts and whose MIC verifies under one of these is secured with it.  The CCM* nonce takes the
+ * source's extended address from the auxiliary header, or, without the extended nonce, from the
+ * NWK or MAC header (srcs, each as sent or null).
+ */
+static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
+        kis_802154_packinfo *pi) {
+    if (n < 2)
+        return;
+
+    const unsigned int fc = q[0], ftype = fc & 0x03, delivery = (fc >> 2) & 0x03;
+    const bool secured = (fc >> 5) & 0x01, ext_hdr = (fc >> 7) & 0x01;
+    size_t o = 1;
+
+    if (ftype == 0) {
+        // the destination endpoint (unicast, broadcast) or group address, cluster, profile,
+        // source endpoint
+        o += (delivery == 0 || delivery == 2) ? 1 : delivery == 3 ? 2 : 0;
+        o += 5;
+    } else if (ftype != 1) {
+        // acknowledgements carry no key
+        return;
+    }
+
+    // the APS counter, then the extended header (fragmentation: a block number)
+    o += 1;
+
+    if (ext_hdr) {
+        if (o + 1 > n)
+            return;
+        o += 1 + ((q[o] & 0x03) ? 1 : 0);
+    }
+
+    if (o >= n)
+        return;
+
+    if (!secured) {
+        if (ftype == 1 && q[o] == 0x05 && o + 18 <= n) {
+            pi->weak_keys |= kis_802154_packinfo::weak_key_clear_transport;
+            read_transport_key(q + o, n - o, pi);
+        }
+        return;
+    }
+
+    // The auxiliary security header: security control, frame counter, the source address with
+    // the extended nonce, the key sequence number with the network key (identifier 1)
+    if (o + 5 > n)
+        return;
+
+    const uint8_t sc = q[o];
+    const unsigned int key_id = (sc >> 3) & 0x03;
+    const bool ext_nonce = (sc >> 5) & 0x01;
+    const size_t aux_end = o + 5 + (ext_nonce ? 8 : 0) + (key_id == 1 ? 1 : 0);
+
+    if (aux_end + 4 > n)
+        return;
+
+    uint8_t key[16];
+
+    if (key_id == 0)
+        memcpy(key, zigbee_crypto::za09_link_key, 16);
+    else if (key_id == 2)
+        zigbee_crypto::hmac_mmo_octet(zigbee_crypto::za09_link_key, 0x00, key);
+    else if (key_id == 3)
+        zigbee_crypto::hmac_mmo_octet(zigbee_crypto::za09_link_key, 0x02, key);
+    else
+        return;
+
+    // The security level is not sent; the nonce and the authenticated header have level 5
+    std::vector<uint8_t> a(q, q + aux_end);
+    a[o] = (uint8_t) ((sc & 0xf8) | 0x05);
+
+    const uint8_t *const aux_src[3] = {q + o + 5, nullptr, nullptr};
+    const uint8_t *const *cand = ext_nonce ? aux_src : srcs;
+
+    for (unsigned int i = 0; i < 3; i++) {
+        if (cand[i] == nullptr)
+            continue;
+
+        uint8_t nonce[13];
+        std::string plain;
+
+        zigbee_crypto::make_nonce(cand[i], q + o + 1, a[o], nonce);
+
+        if (zigbee_crypto::ccm_star_decrypt(key, nonce, a.data(), a.size(), q + aux_end,
+                    n - aux_end, plain)) {
+            pi->weak_keys |= kis_802154_packinfo::weak_key_za09;
+            if (ftype == 1)
+                read_transport_key(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), pi);
+            return;
+        }
+    }
+}
+
 /*
  * What a frame's payload says about its network.  Beacons: the superframe specification (the PAN
  * coordinator bit), the GTS and pending-address fields skipped, then the beacon payload's protocol
  * ID: 0 a Zigbee beacon (stack profile, extended PAN ID), 3 a Thread beacon (network name, extended
  * PAN ID).  Data: 6LoWPAN by its dispatch (MLE, UDP port 19788, is Thread), or a Zigbee NWK header
  * (protocol version 2; 3 with no MAC source is Green Power), whose source short and IEEE addresses
- * and security bit are kept.  Returns false when it says nothing.
+ * and security bit are kept, and whose security or APS frame may show a key anyone can know.
+ * mac_src is the MAC source's extended address as sent, or null.  Returns false when it says
+ * nothing.
  */
-static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_t *p, size_t n,
-        kis_802154_packinfo *pi) {
+static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_t *mac_src,
+        const uint8_t *p, size_t n, kis_802154_packinfo *pi) {
     if (frame_type == BEACON_802154) {
         if (n < 4)
             return false;
@@ -340,13 +465,73 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
 
     // after destination, source, radius and sequence: the destination IEEE address, then the source's
     size_t o = 8;
+    const uint8_t *nwk_src_ieee = nullptr;
+
     if ((fc >> 11) & 0x01)
         o += 8;
 
-    if (((fc >> 12) & 0x01) && o + 8 <= n) {
+    if ((fc >> 12) & 0x01) {
+        if (o + 8 > n)
+            return true;
+
         for (unsigned int i = 0; i < 8; i++)
             pi->nwk_ieee[7 - i] = p[o + i];
         pi->has_nwk_ieee = true;
+        nwk_src_ieee = p + o;
+        o += 8;
+    }
+
+    // the multicast control field, then the source route subframe (relay count, relay index,
+    // the relays)
+    if ((fc >> 8) & 0x01)
+        o += 1;
+
+    if ((fc >> 10) & 0x01) {
+        if (o + 2 > n)
+            return true;
+        o += 2 + 2 * p[o];
+    }
+
+    if (o >= n)
+        return true;
+
+    if (!pi->nwk_secured) {
+        const uint8_t *const srcs[3] = {nwk_src_ieee, mac_src, nullptr};
+
+        if (ftype == 0)
+            read_aps(p + o, n - o, srcs, pi);
+        return true;
+    }
+
+    // NWK security (4.3.1): the auxiliary header (security control, frame counter, source
+    // address, key sequence number; always the extended nonce and the network key), the encrypted
+    // NWK payload, a 4-octet MIC.  A frame whose MIC verifies under the Z-Stack default network key
+    // is secured with it, and its APS frame can be read in turn.
+    if (o + 14 + 4 > n)
+        return true;
+
+    const uint8_t sc = p[o];
+
+    if (!((sc >> 5) & 0x01) || ((sc >> 3) & 0x03) != 1)
+        return true;
+
+    const size_t aux_end = o + 14;
+    std::vector<uint8_t> a(p, p + aux_end);
+    a[o] = (uint8_t) ((sc & 0xf8) | 0x05);
+
+    uint8_t nonce[13];
+    std::string plain;
+
+    zigbee_crypto::make_nonce(p + o + 5, p + o + 1, a[o], nonce);
+
+    if (zigbee_crypto::ccm_star_decrypt(zigbee_crypto::zstack_network_key, nonce, a.data(),
+                a.size(), p + aux_end, n - aux_end, plain)) {
+        pi->weak_keys |= kis_802154_packinfo::weak_key_zstack;
+
+        const uint8_t *const srcs[3] = {nwk_src_ieee, p + o + 5, mac_src};
+
+        if (ftype == 0)
+            read_aps(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), srcs, pi);
     }
 
     return true;
@@ -363,6 +548,17 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    alertracker =
+        Globalreg::fetch_mandatory_global_as<alert_tracker>();
+
+    alert_weakkey_ref =
+        alertracker->activate_configured_alert("ZIGBEEWEAKKEY",
+                "EXPLOIT", kis_alert_severity::high,
+                "A Zigbee network uses a key anyone can know: its Trust Center sent a key in a "
+                "Transport Key command without APS security, secured APS frames with the "
+                "well-known link key ZigBeeAlliance09 (with which it also sends the network key "
+                "to joining devices), or secured NWK frames with the TI Z-Stack default network "
+                "key.  Anyone who receives these frames can decrypt the network's traffic.", phyid);
 
     kis_802154_device_entry_id =
         entrytracker->register_field("802154.device",
@@ -778,8 +974,14 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             keep = true;
         }
 
+        // the MAC source's extended address as sent (ext_source holds it most significant first)
+        uint8_t mac_src_as_sent[8];
+        for (unsigned int i = 0; i < 8; i++)
+            mac_src_as_sent[i] = ext_source[7 - i];
+
         if (payload_off != 0 && payload_off < frame_end &&
                 read_payload(hdr_802_15_4_fcf->type, hdr_802_15_4_fcf->src_addr_mode >= 0x02,
+                    hdr_802_15_4_fcf->src_addr_mode == 0x03 ? mac_src_as_sent : nullptr,
                     reinterpret_cast<const uint8_t *>(packdata->data()) + payload_off,
                     frame_end - payload_off, pi.get())) {
             keep = true;
@@ -828,6 +1030,9 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
     const auto& source = in_pack->common_info.source;
     const auto& dest = in_pack->common_info.dest;
+
+    // ZIGBEEWEAKKEY alerts to raise once the device list is unlocked
+    std::vector<std::string> weak_key_alerts;
 
     if (in_pack->duplicate && addr_present(source)) {
         auto source_dev =
@@ -920,6 +1125,61 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                 if (source.length() == 8 && source == ieee)
                     source_kis_802154->set_short_addr(pi->nwk_src);
             }
+
+            // Keys anyone can know, seen in use: kept with the sender, and an alert the first time
+            // a PAN shows each kind
+            if (pi->weak_keys) {
+                using pk = kis_802154_packinfo;
+                const uint8_t all = source_kis_802154->get_weak_keys() | pi->weak_keys;
+                std::string desc;
+
+                if (all & pk::weak_key_clear_transport)
+                    desc += "Key sent in the clear";
+                if (all & pk::weak_key_za09)
+                    desc += std::string(desc.empty() ? "" : "; ") + "ZigBeeAlliance09 link key";
+                if (all & pk::weak_key_zstack)
+                    desc += std::string(desc.empty() ? "" : "; ") + "Z-Stack default network key";
+
+                source_kis_802154->set_weak_keys(all);
+                source_kis_802154->set_weak_key(desc);
+
+                if (!pi->exposed_key.empty())
+                    source_kis_802154->set_exposed_key(pi->exposed_key_type + " key " + pi->exposed_key);
+
+                const std::string exposed = pi->exposed_key.empty() ? "" :
+                    fmt::format("; its Transport Key command gives the {} key {}",
+                            pi->exposed_key_type, pi->exposed_key);
+
+                for (const uint8_t bit : {pk::weak_key_clear_transport, pk::weak_key_za09, pk::weak_key_zstack}) {
+                    if (!(pi->weak_keys & bit))
+                        continue;
+
+                    const uint32_t once = ((uint32_t) src_pan << 8) | bit;
+
+                    {
+                        kis_lock_guard<kis_mutex> wlk(mphy->weak_key_mutex, "802154_weak_key");
+                        if (!mphy->weak_key_alerted.insert(once).second)
+                            continue;
+                    }
+
+                    if (bit == pk::weak_key_clear_transport)
+                        weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} sent "
+                                    "a Transport Key command without APS security: the {} key {} "
+                                    "is in the clear to anyone who received it",
+                                    source.mac_to_string(), src_pan, pi->exposed_key_type,
+                                    pi->exposed_key));
+                    else if (bit == pk::weak_key_za09)
+                        weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} "
+                                    "secures APS frames with the well-known link key "
+                                    "ZigBeeAlliance09{}", source.mac_to_string(), src_pan, exposed));
+                    else
+                        weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} "
+                                    "secures NWK frames with the TI Z-Stack default network key "
+                                    "{}; anyone can decrypt the network's traffic",
+                                    source.mac_to_string(), src_pan,
+                                    key_string(zigbee_crypto::zstack_network_key)));
+                }
+            }
         }
 
         // A short-address device whose IEEE address a NWK header gave: its EUI-64, and the
@@ -966,10 +1226,46 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                         role == "PAN coordinator" ? "802.15.4 coordinator" : "802.15.4 router"));
         }
 
-        if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3)
+        // The encryption, with the weakest known key it was seen to use
+        const uint8_t weak = source_kis_802154->get_weak_keys();
+
+        if (weak & kis_802154_packinfo::weak_key_zstack)
+            source_dev->set_crypt_string("Zigbee NWK, default key (Z-Stack)");
+        else if (weak & kis_802154_packinfo::weak_key_clear_transport)
+            source_dev->set_crypt_string("Zigbee, key sent in the clear");
+        else if (weak & kis_802154_packinfo::weak_key_za09)
+            source_dev->set_crypt_string("Zigbee, default link key (ZigBeeAlliance09)");
+        else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3)
             source_dev->set_crypt_string("Zigbee NWK");
         else if (source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L2)
             source_dev->set_crypt_string("802.15.4 MAC");
+    }
+
+    // Alerts held back by the rate limit first, in order, as far as it lets them through (they
+    // are no longer this frame's, so no packet goes with them); then this frame's, which wait in
+    // turn when they cannot go now
+    if (!weak_key_alerts.empty() || mphy->weak_key_backlogged.load()) {
+        kis_lock_guard<kis_mutex> wlk(mphy->weak_key_mutex, "802154_weak_key");
+        auto& backlog = mphy->weak_key_backlog;
+
+        while (!backlog.empty()) {
+            const auto& a = backlog.front();
+
+            if (mphy->alertracker->raise_alert(mphy->alert_weakkey_ref, nullptr, mac_addr{},
+                        a.source, a.dest, mac_addr{}, a.channel, a.text) != 1)
+                break;
+
+            backlog.pop_front();
+        }
+
+        for (const auto& text : weak_key_alerts) {
+            if (!backlog.empty() ||
+                    mphy->alertracker->raise_alert(mphy->alert_weakkey_ref, in_pack.get(), mac_addr{},
+                        source, dest, mac_addr{}, in_pack->common_info.channel, text) != 1)
+                backlog.push_back({source, dest, in_pack->common_info.channel, text});
+        }
+
+        mphy->weak_key_backlogged.store(!backlog.empty());
     }
 
     // as destination

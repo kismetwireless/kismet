@@ -39,12 +39,15 @@
 #include "gpstracker.h"
 #include "uuid.h"
 
+#include "alertracker.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 
 #include "tap_802_15_4.h"
 
+#include <atomic>
 #include <deque>
+#include <set>
 #include <unordered_map>
 
 #ifndef KDLT_IEEE802_15_4_TAP
@@ -74,6 +77,9 @@ public:
         nwk_secured = false;
         has_gpd_srcid = false;
         gpd_srcid = 0;
+        weak_keys = 0;
+        exposed_key.clear();
+        exposed_key_type.clear();
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -102,6 +108,17 @@ public:
     // MAC source address
     bool has_gpd_srcid = false;
     uint32_t gpd_srcid = 0;
+    // Keys anyone can know that the frame shows in use: a Transport Key command sent without APS
+    // security, APS security under the well-known link key ZigBeeAlliance09 (or the keys hashed
+    // from it), NWK security under the Z-Stack default network key
+    static constexpr uint8_t weak_key_clear_transport = 0x01;
+    static constexpr uint8_t weak_key_za09 = 0x02;
+    static constexpr uint8_t weak_key_zstack = 0x04;
+    uint8_t weak_keys = 0;
+
+    // The key a Transport Key command carried, readable because of one of these, and its type
+    std::string exposed_key;
+    std::string exposed_key_type;
 };
 
 /* Largely a placeholder for future possible data; right now we can't decode
@@ -148,6 +165,9 @@ public:
     __Proxy(stack_profile, uint8_t, uint8_t, uint8_t, stack_profile);
     __Proxy(network_rank, uint8_t, uint8_t, uint8_t, network_rank);
     __Proxy(gpd_srcid, uint32_t, uint32_t, uint32_t, gpd_srcid);
+    __Proxy(weak_keys, uint8_t, uint8_t, uint8_t, weak_keys);
+    __Proxy(weak_key, std::string, std::string, std::string, weak_key);
+    __Proxy(exposed_key, std::string, std::string, std::string, exposed_key);
 
 protected:
 
@@ -162,6 +182,9 @@ protected:
         register_field("802154.device.stack_profile", "Zigbee stack profile (1 Zigbee, 2 Zigbee PRO)", &stack_profile);
         register_field("802154.device.network_rank", "Certainty of network_type (internal)", &network_rank);
         register_field("802154.device.gpd_srcid", "Zigbee Green Power source ID (0 if not seen)", &gpd_srcid);
+        register_field("802154.device.weak_keys", "Publicly known keys seen in use (bitmask, internal)", &weak_keys);
+        register_field("802154.device.weak_key", "Publicly known keys seen in use", &weak_key);
+        register_field("802154.device.exposed_key", "A key its Transport Key command exposed", &exposed_key);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -184,6 +207,9 @@ protected:
     std::shared_ptr<tracker_element_uint8> stack_profile;
     std::shared_ptr<tracker_element_uint8> network_rank;
     std::shared_ptr<tracker_element_uint32> gpd_srcid;
+    std::shared_ptr<tracker_element_uint8> weak_keys;
+    std::shared_ptr<tracker_element_string> weak_key;
+    std::shared_ptr<tracker_element_string> exposed_key;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -210,6 +236,7 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<alert_tracker> alertracker;
 
     int kis_802154_device_entry_id;
     int dev_comp_common;
@@ -227,6 +254,20 @@ protected:
     std::deque<uint32_t> ieee_by_short_order;
 
     void learn_ieee(uint32_t pan_short, const mac_addr& ieee);
+
+    // The ZIGBEEWEAKKEY alert, raised once per PAN and kind of weak key (PAN << 8 | weak_key_* bit).
+    // Alerts the rate limit holds back wait in a queue that later frames raise, as a Transport Key
+    // command may be the only frame that shows its key.
+    struct weak_key_alert {
+        mac_addr source, dest;
+        std::string channel, text;
+    };
+
+    int alert_weakkey_ref;
+    kis_mutex weak_key_mutex;
+    std::set<uint32_t> weak_key_alerted;
+    std::deque<weak_key_alert> weak_key_backlog;
+    std::atomic<bool> weak_key_backlogged{false};
 };
 
 #endif
