@@ -107,21 +107,42 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'gps', title: 'GPS', priority: 50,
+        description: 'GPS fix and satellites; click for the GPS window',
         create(body) {
+            const gps = kismet.widgets.gps;
             const v = valueStat('gps');
-            body.append(v.node);
-            return eventbus.subscribe('GPS_LOCATION',
-                ['kismet.common.location.fix', 'kismet.common.location.geopoint'], (e) => {
-                    const fix = e['kismet.common.location.fix'] ?? 0;
-                    const point = e['kismet.common.location.geopoint'];
-                    if (fix < 2 || !Array.isArray(point)) {
-                        v.value.textContent = 'No fix';
-                        v.value.title = '';
-                    } else {
-                        v.value.textContent = `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`;
-                        v.value.title = fix >= 3 ? '3D fix' : '2D fix';
-                    }
-                });
+            const bars = el('span', { class: 'stat-graph gps-mini' });
+            body.append(v.node, bars);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            const open = () => gps.openGps();
+            stat.addEventListener('click', open);
+            const stop = gps.subscribe((gpses) => {
+                const best = gps.bestGps(gpses);
+                if (!best) {
+                    v.value.textContent = 'None';
+                    stat.title = 'No GPS is configured';
+                    bars.replaceChildren();
+                    return;
+                }
+                const fix = gps.fixName(best);
+                const used = best['kismet.gps.satellites_used'];
+                const visible = best['kismet.gps.satellites_visible'];
+                const sats = gps.satellites(best);
+                dom.replace(v.value,
+                    el('span', { class: ['badge', fix === 'No fix' ? 'error' : 'ok'] }, fix),
+                    visible === undefined ? null : ` ${used ?? '?'}/${visible}`);
+                bars.replaceChildren(...(sats.length ? [gps.signalBars(sats)] : []));
+                const point = best['kismet.gps.location']?.['kismet.common.location.geopoint'];
+                stat.title = [
+                    `${best['kismet.gps.name'] || 'GPS'}: ${fix}`,
+                    fix !== 'No fix' && Array.isArray(point) ? `${point[1].toFixed(5)}, ${point[0].toFixed(5)}` : null,
+                    visible === undefined ? null : `${used ?? '?'} satellites used of ${visible} in view`,
+                    gpses.length > 1 ? `${gpses.length} GPS devices` : null,
+                    'Click for the GPS window',
+                ].filter(Boolean).join('\n');
+            });
+            return () => { stop(); stat.removeEventListener('click', open); };
         },
     });
 

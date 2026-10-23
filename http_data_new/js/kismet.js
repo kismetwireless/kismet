@@ -39,6 +39,7 @@ import * as cellgraphs from './widgets/cellgraphs.js';
 import * as map from './widgets/map.js';
 import * as charts from './widgets/charts.js';
 import * as overview from './widgets/overview.js';
+import * as gps from './widgets/gps.js';
 
 export const kismet = {
     api,
@@ -68,6 +69,7 @@ export const kismet = {
         map,
         charts,
         overview,
+        gps,
     },
 
     ui: {
