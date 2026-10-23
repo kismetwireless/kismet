@@ -115,7 +115,7 @@ kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
                 filter: function(opts) {
                     return kismet.ObjectByString(opts['data'], "802154.device/802154.device.weak_key") !== "";
                 },
-                help: "Keys anyone can know, seen in use: a Transport Key command sent without APS security (its key in the clear), APS security with the well-known link key ZigBeeAlliance09, or NWK security with the TI Z-Stack default network key. Anyone who receives these frames can decrypt the network's traffic.",
+                help: "Keys anyone can know, seen in use: a Transport Key command sent without APS security (its key in the clear), APS security with a publicly known link key (ZigBeeAlliance09, the ZLL link key, the Zigbee 3.0 distributed link key and others), or NWK security with a publicly known network key (the TI Z-Stack default and others), named here. Anyone who receives these frames can decrypt the network's traffic.",
             },
             {
                 field: "802154.device/802154.device.exposed_key",
@@ -123,7 +123,7 @@ kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
                 filter: function(opts) {
                     return kismet.ObjectByString(opts['data'], "802154.device/802154.device.exposed_key") !== "";
                 },
-                help: "The key a Transport Key command from this device carried, readable because it was sent in the clear or under ZigBeeAlliance09.",
+                help: "The key a Transport Key command from this device carried, readable because it was sent in the clear or under a publicly known link key.",
             },
             ],
         });

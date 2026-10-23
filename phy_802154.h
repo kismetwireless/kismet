@@ -78,6 +78,9 @@ public:
         has_gpd_srcid = false;
         gpd_srcid = 0;
         weak_keys = 0;
+        aps_key_name.clear();
+        nwk_key_name.clear();
+        nwk_key.clear();
         exposed_key.clear();
         exposed_key_type.clear();
     }
@@ -109,12 +112,15 @@ public:
     bool has_gpd_srcid = false;
     uint32_t gpd_srcid = 0;
     // Keys anyone can know that the frame shows in use: a Transport Key command sent without APS
-    // security, APS security under the well-known link key ZigBeeAlliance09 (or the keys hashed
-    // from it), NWK security under the Z-Stack default network key
+    // security, APS security under a known link key (or the keys hashed from it), NWK security
+    // under a known network key; the known key's name (and the network key)
     static constexpr uint8_t weak_key_clear_transport = 0x01;
-    static constexpr uint8_t weak_key_za09 = 0x02;
-    static constexpr uint8_t weak_key_zstack = 0x04;
+    static constexpr uint8_t weak_key_aps = 0x02;
+    static constexpr uint8_t weak_key_nwk = 0x04;
     uint8_t weak_keys = 0;
+    std::string aps_key_name;
+    std::string nwk_key_name;
+    std::string nwk_key;
 
     // The key a Transport Key command carried, readable because of one of these, and its type
     std::string exposed_key;
@@ -168,6 +174,8 @@ public:
     __Proxy(weak_keys, uint8_t, uint8_t, uint8_t, weak_keys);
     __Proxy(weak_key, std::string, std::string, std::string, weak_key);
     __Proxy(exposed_key, std::string, std::string, std::string, exposed_key);
+    __Proxy(known_link_key, std::string, std::string, std::string, known_link_key);
+    __Proxy(known_network_key, std::string, std::string, std::string, known_network_key);
 
 protected:
 
@@ -185,6 +193,8 @@ protected:
         register_field("802154.device.weak_keys", "Publicly known keys seen in use (bitmask, internal)", &weak_keys);
         register_field("802154.device.weak_key", "Publicly known keys seen in use", &weak_key);
         register_field("802154.device.exposed_key", "A key its Transport Key command exposed", &exposed_key);
+        register_field("802154.device.known_link_key", "The publicly known link key its APS security uses", &known_link_key);
+        register_field("802154.device.known_network_key", "The publicly known network key its NWK security uses", &known_network_key);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -210,6 +220,8 @@ protected:
     std::shared_ptr<tracker_element_uint8> weak_keys;
     std::shared_ptr<tracker_element_string> weak_key;
     std::shared_ptr<tracker_element_string> exposed_key;
+    std::shared_ptr<tracker_element_string> known_link_key;
+    std::shared_ptr<tracker_element_string> known_network_key;
 };
 
 class kis_802154_phy : public kis_phy_handler {

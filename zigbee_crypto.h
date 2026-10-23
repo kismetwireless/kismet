@@ -34,16 +34,34 @@
 
 namespace zigbee_crypto {
 
-// The well-known Trust Center link key of Zigbee Home Automation 1.2 and Zigbee 3.0 joining
-inline constexpr uint8_t za09_link_key[16] = {
-    'Z', 'i', 'g', 'B', 'e', 'e', 'A', 'l', 'l', 'i', 'a', 'n', 'c', 'e', '0', '9'
+// Keys anyone can know.  Each is tried as a network key (NWK security) and as a link key (APS
+// security: the key itself, and the key-transport and key-load keys hashed from it); a frame only
+// counts as secured with one when its MIC verifies, so a key that no product uses costs time but
+// never makes a false finding.
+struct known_key {
+    const char *name;
+    uint8_t key[16];
 };
 
-// The default network key of TI Z-Stack (DEFAULT_KEY), which Zigbee2MQTT also used by default
-// before it generated a key per network
-inline constexpr uint8_t zstack_network_key[16] = {
-    0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F, 0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D
+inline constexpr known_key known_keys[] = {
+    // the Trust Center link key of Zigbee Home Automation 1.2, and of Zigbee 3.0 joining without
+    // an install code
+    {"ZigBeeAlliance09", {'Z', 'i', 'g', 'B', 'e', 'e', 'A', 'l', 'l', 'i', 'a', 'n', 'c', 'e', '0', '9'}},
+    // the Trust Center link key of Zigbee Light Link devices joining a centralized network
+    {"ZLL link key", {0x81, 0x42, 0x86, 0x86, 0x5D, 0xC1, 0xC8, 0xB2, 0xC8, 0xCB, 0xC5, 0x2E, 0x5D, 0x65, 0xD1, 0xB8}},
+    // the Zigbee 3.0 distributed security global link key (networks without a Trust Center)
+    {"Zigbee 3.0 distributed link key", {0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF}},
+    // the default network key of TI Z-Stack (DEFAULT_KEY), which Zigbee2MQTT also used by default
+    // before it generated a key per network
+    {"TI Z-Stack default key", {0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F, 0x00, 0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0D}},
+    // keys published as product or example defaults
+    {"Nordic example key", {0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+    {"Legrand key", {'L', 'E', 'G', 'R', 'A', 'N', 'D', ' ', 'B', 'A', 'N', 'D', ' ', 'K', 'E', 'Y'}},
+    // a key never set
+    {"all-zero key", {0}},
 };
+
+inline constexpr size_t n_known_keys = sizeof(known_keys) / sizeof(known_keys[0]);
 
 // AES-128 encryption of one block in place
 class aes_block : public kis_aes::aes128 {
@@ -96,6 +114,29 @@ inline void hmac_mmo_octet(const uint8_t key[16], uint8_t octet, uint8_t out[16]
     mmo_hash(inner_in, sizeof(inner_in), inner);
     memcpy(outer_in + 16, inner, 16);
     mmo_hash(outer_in, sizeof(outer_in), out);
+}
+
+// The APS keys of a known key by key identifier: 0 the link key itself (the data key), 2 its
+// key-transport key, 3 its key-load key; hashed once
+struct known_aps_keys {
+    uint8_t by_id[4][16];
+};
+
+inline const known_aps_keys& aps_keys(size_t i) {
+    static const std::vector<known_aps_keys> table = [] {
+        std::vector<known_aps_keys> t(n_known_keys);
+
+        for (size_t k = 0; k < n_known_keys; k++) {
+            memcpy(t[k].by_id[0], known_keys[k].key, 16);
+            memcpy(t[k].by_id[1], known_keys[k].key, 16);
+            hmac_mmo_octet(known_keys[k].key, 0x00, t[k].by_id[2]);
+            hmac_mmo_octet(known_keys[k].key, 0x02, t[k].by_id[3]);
+        }
+
+        return t;
+    }();
+
+    return table[i];
 }
 
 // CCM* decryption with a 4-octet MIC (security level 5) and L = 2: c, the ciphertext followed by
