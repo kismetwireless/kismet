@@ -1567,7 +1567,7 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
             // auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
             // device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
             device->get_signal_data()->append_signal(&in_pack->signal_info, &in_pack->gps_info,
-                    !ram_no_rrd, in_pack->ts.tv_sec);
+                    !ram_no_rrd, in_pack->ts.tv_sec, true);
         }
 	}
 

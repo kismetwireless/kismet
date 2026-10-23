@@ -735,6 +735,48 @@ public:
     }
 };
 
+// Signal level RRDs of the weakest or strongest reading.  Samples in the same slot,
+// and the rollup of each level into the next, keep the weakest (or strongest) signal,
+// skipping empty slots; the pair gives the range of signal heard in each second,
+// minute, and hour.
+template <bool Strongest>
+class kis_tracked_rrd_signal_range_aggregator {
+public:
+    static double combine_element(const double a, const double b) {
+        if (a == 0)
+            return b;
+        if (b == 0)
+            return a;
+
+        return Strongest ? std::max(a, b) : std::min(a, b);
+    }
+
+    static double combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
+        return combine_vector(e->get());
+    }
+
+    static double combine_vector(const std::vector<double>& e) {
+        double r = default_val();
+
+        for (const auto& v : e)
+            r = combine_element(r, v);
+
+        return r;
+    }
+
+    // No legit signal would be 0
+    static constexpr double default_val() {
+        return 0;
+    }
+
+    static std::string name() {
+        return Strongest ? "max_signal" : "min_signal";
+    }
+};
+
+using kis_tracked_rrd_min_signal_aggregator = kis_tracked_rrd_signal_range_aggregator<false>;
+using kis_tracked_rrd_max_signal_aggregator = kis_tracked_rrd_signal_range_aggregator<true>;
+
 // Generic RRD, extreme selector.  If both values are > 0, selects the highest.
 // If both values are below zero, selects the lowest.  If values are mixed,
 // selects the lowest.  The same logic is applied when promoting to the next
