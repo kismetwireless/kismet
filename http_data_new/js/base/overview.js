@@ -480,7 +480,7 @@ export function register(kismet) {
                         r.state.textContent = err ? `Error: ${s['kismet.datasource.error_reason'] || 'failed'}` :
                             !running ? 'Not running' :
                                 s['kismet.datasource.hopping'] ? `Hopping ${(s['kismet.datasource.hop_channels'] ?? []).length} channels` :
-                                    `On ${s['kismet.datasource.channel'] || 'no channel'}`;
+                                    s['kismet.datasource.channel'] ? `On ${s['kismet.datasource.channel']}` : '--';
                         r.node.classList.toggle('error', !!err);
                         const minute = rrd.history(s['kismet.datasource.packets_rrd'], data.now);
                         const now = rrd.latest(s['kismet.datasource.packets_rrd'], data.now);
