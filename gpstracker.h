@@ -124,11 +124,14 @@ protected:
 
     // Logging function
     void log_snapshot_gps();
+    void log_snapshot_satellites();
 
     // Do we log to the Kismet log?
     bool database_logging;
     // Timer for logging GPS path as a snapshot
     int log_snapshot_timer;
+    // Timer for logging each GPS's satellites in view
+    int log_satellites_timer;
 
     std::shared_ptr<time_tracker> timetracker;
     int event_timer_id;

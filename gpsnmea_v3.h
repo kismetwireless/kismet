@@ -64,8 +64,13 @@ namespace gps_nmea {
         bool add(std::string_view talker, const std::string_view *fields, size_t nf,
                 time_t now, gps_quality_update& quality);
 
+        // The satellites one GSA sentence lists as used in the fix; marks them in the
+        // satellite list
+        void add_used(std::string_view talker, const std::string_view *fields, size_t nf, time_t now);
+
         void reset() {
             groups = {};
+            used = {};
         }
 
     protected:
@@ -80,7 +85,25 @@ namespace gps_nmea {
             size_t count = 0;
             std::array<uint16_t, max_sats> prn{};
             std::array<uint8_t, max_sats> snr{};
+            // -1 when not known
+            std::array<int16_t, max_sats> elevation{};
+            std::array<int16_t, max_sats> azimuth{};
         };
+
+        // Satellites used in the fix, per constellation, from GSA
+        static constexpr size_t used_max = 12;
+        static constexpr size_t constellations = 9;
+
+        struct used_set {
+            time_t time = 0;
+            size_t count = 0;
+            std::array<uint16_t, used_max> prn{};
+        };
+
+        std::array<used_set, constellations> used;
+
+        // 1 used, 0 not used, -1 no current GSA for its constellation
+        int8_t is_used(gps_constellation c, uint16_t prn, time_t now) const;
 
         struct group {
             bool used = false;

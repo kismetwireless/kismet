@@ -267,9 +267,31 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
             std::array<double, 255> cn0;
             const size_t n = p[5];
 
-            for (size_t i = 0; i < n; i++)
-                cn0[i] = p[8 + 12 * i + 2];
+            q.satellites.reserve(n);
 
+            for (size_t i = 0; i < n; i++) {
+                const auto *sv = p + 8 + 12 * i;
+                cn0[i] = sv[2];
+
+                gps_satellite gs;
+                gs.constellation = gps_constellation_from_gnss_id(sv[0]);
+                gs.id = sv[1];
+                gs.cn0 = sv[2];
+
+                // Elevation and azimuth are only valid when the orbit is known
+                const auto elev = static_cast<int8_t>(sv[3]);
+                const auto azim = static_cast<int16_t>(get_u16(sv + 4));
+                if (elev >= -90 && elev <= 90 && azim >= 0 && azim < 360) {
+                    gs.elevation = static_cast<int16_t>(std::max<int>(0, elev));
+                    gs.azimuth = azim;
+                }
+
+                // flags bit 3: svUsed
+                gs.used = (get_u32(sv + 8) & 0x08) ? 1 : 0;
+                q.satellites.push_back(gs);
+            }
+
+            q.has_satellites = true;
             q.has_sats_visible = true;
             q.sats_visible = static_cast<unsigned int>(n);
             q.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), n, q.cn0);
@@ -294,8 +316,25 @@ gps_ubx_decoder_v1::result gps_ubx_decoder_v1::decode(std::string_view frame, gp
 
                 visible++;
                 cn0[ncn0++] = ch[4];
+
+                // Satellites numbered across constellations; flags bit 0: svUsed
+                gps_satellite gs;
+                gs.constellation = gps_constellation_from_prn(ch[1]);
+                gs.id = ch[1];
+                gs.cn0 = ch[4];
+                gs.used = (ch[2] & 0x01) ? 1 : 0;
+
+                const auto elev = static_cast<int8_t>(ch[5]);
+                const auto azim = static_cast<int16_t>(get_u16(ch + 6));
+                if (elev >= -90 && elev <= 90 && azim >= 0 && azim < 360) {
+                    gs.elevation = static_cast<int16_t>(std::max<int>(0, elev));
+                    gs.azimuth = azim;
+                }
+
+                q.satellites.push_back(gs);
             }
 
+            q.has_satellites = true;
             q.has_sats_visible = true;
             q.sats_visible = visible;
             q.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), ncn0, q.cn0);

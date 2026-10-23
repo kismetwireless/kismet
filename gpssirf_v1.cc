@@ -274,8 +274,21 @@ gps_sirf_decoder_v1::result gps_sirf_decoder_v1::decode(std::string_view frame, 
 
                 if (n > 0)
                     cn0[ncn0++] = static_cast<double>(sum) / n;
+
+                // Azimuth in 1.5 degree steps, elevation in half degrees, both 0 until the
+                // receiver knows where the satellite is; no used flag
+                gps_satellite gs;
+                gs.constellation = gps_constellation_from_prn(ch[0]);
+                gs.id = ch[0];
+                gs.cn0 = n > 0 ? static_cast<double>(sum) / n : 0;
+                if (ch[1] != 0 || ch[2] != 0) {
+                    gs.azimuth = static_cast<int16_t>(std::min(359.0, ch[1] * 1.5));
+                    gs.elevation = static_cast<int16_t>(std::min(90, ch[2] / 2));
+                }
+                q.satellites.push_back(gs);
             }
 
+            q.has_satellites = true;
             q.has_sats_visible = true;
             q.sats_visible = visible;
             q.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), ncn0, q.cn0);

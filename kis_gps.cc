@@ -339,9 +339,11 @@ void kis_gps::clear_quality() {
     kis_lock_guard<kis_mutex> lk(data_mutex, "gps clear_quality");
 
     quality_state = {};
+    satellites_state.clear();
+    satellites_meta = {};
 
     for (auto id : {sats_used_id, sats_visible_id, hdop_id, vdop_id, precision_h_id,
-            precision_v_id, precision_source_id, signal_cn0_id, signal_quality_id})
+            precision_v_id, precision_source_id, signal_cn0_id, signal_quality_id, satellites_id})
         clear_quality_field(id);
 }
 
@@ -374,12 +376,24 @@ void kis_gps::merge_quality(const gps_quality_update& update, time_t now) {
     merge(update.has_error_h, quality_field::error_h, update.error_h);
     merge(update.has_error_v, quality_field::error_v, update.error_v);
     merge(update.has_cn0, quality_field::cn0, update.cn0);
+
+    if (update.has_satellites && !(satellites_meta.present && update.rank < satellites_meta.rank)) {
+        satellites_state = update.satellites;
+        satellites_meta.present = true;
+        satellites_meta.time = now;
+        satellites_meta.rank = update.rank;
+    }
 }
 
 void kis_gps::expire_quality(time_t now) {
     for (auto& q : quality_state) {
         if (q.present && (now - q.time > quality_expire || now < q.time))
             q = {};
+    }
+
+    if (satellites_meta.present && (now - satellites_meta.time > quality_expire || now < satellites_meta.time)) {
+        satellites_meta = {};
+        satellites_state.clear();
     }
 }
 
@@ -425,6 +439,25 @@ void kis_gps::publish_quality(time_t now) {
     publish(hdop_id, hdop, elem_tag<tracker_element_double>{});
     publish(vdop_id, vdop, elem_tag<tracker_element_double>{});
     publish(signal_cn0_id, cn0, elem_tag<tracker_element_double>{});
+
+    if (!satellites_meta.present) {
+        clear_quality_field(satellites_id);
+    } else {
+        // A new list each time, so a serializer holding the old one isn't changed under it
+        auto sats = Globalreg::globalreg->entrytracker->get_shared_instance_as<tracker_element_vector>(satellites_id);
+        sats->reserve(satellites_state.size());
+
+        for (const auto& sat : satellites_state) {
+            auto e = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_gps_satellite>(satellite_entry_id);
+            e->set(sat);
+            sats->push_back(e);
+        }
+
+        auto ci = find(satellites_id);
+        if (ci != end())
+            erase(ci);
+        insert(sats);
+    }
 
     // Same validity the drivers use for the location
     const bool recent = gps_location != nullptr && gps_location->gps_info_ok &&
@@ -494,6 +527,39 @@ void kis_gps::add_signal_report(tracker_component& report) {
     copy(precision_source_id, elem_tag<tracker_element_string>{});
     copy(signal_cn0_id, elem_tag<tracker_element_double>{});
     copy(signal_quality_id, elem_tag<tracker_element_uint8>{});
+}
+
+std::shared_ptr<tracker_element_map> kis_gps::satellite_snapshot() {
+    kis_lock_guard<kis_mutex> lk(data_mutex, "gps satellite_snapshot");
+
+    expire_quality(time(0));
+
+    if (!satellites_meta.present || find(satellites_id) == end())
+        return nullptr;
+
+    auto snap = std::make_shared<tracker_element_map>();
+
+    for (auto id : {gps_uuid->get_id(), gps_name->get_id(), sats_used_id, sats_visible_id, hdop_id,
+            vdop_id, precision_h_id, precision_v_id, signal_cn0_id, signal_quality_id, satellites_id}) {
+        const auto ci = find(id);
+        if (ci != end())
+            snap->insert(ci->second);
+    }
+
+    return snap;
+}
+
+std::shared_ptr<tracker_element_map> kis_gps::track_snapshot() {
+    kis_lock_guard<kis_mutex> lk(data_mutex, "gps track_snapshot");
+
+    auto snap = std::make_shared<tracker_element_map>();
+
+    for (const auto& e : *this) {
+        if (e.first != satellites_id)
+            snap->insert(e.second);
+    }
+
+    return snap;
 }
 
 void kis_gps::update_locations() {
