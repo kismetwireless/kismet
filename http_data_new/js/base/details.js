@@ -72,6 +72,24 @@ export function register(kismet) {
         return state.graph;
     }
 
+    // Past minute / hour / day buttons for a graph; the choice is kept in state.span
+    const spans = [['minute', 'Past minute'], ['hour', 'Past hour'], ['day', 'Past day']];
+    const spanLabels = { minute: ['-60s', 'now'], hour: ['-60m', 'now'], day: ['-24h', 'now'] };
+    function spanTabs(state, redraw) {
+        state.span = state.span ?? 'minute';
+        const buttons = spans.map(([id, label]) => el('button', { type: 'button',
+            class: id === state.span ? 'active' : null,
+            onclick: () => {
+                state.span = id;
+                buttons.forEach((b, i) => b.classList.toggle('active', spans[i][0] === id));
+                redraw();
+            } }, label));
+        return el('div', { class: 'graph-tabs' }, buttons);
+    }
+
+    // Empty slots have no signal, rather than a signal of 0
+    const signalHistory = (r, span = 'minute') => rrd.history(r, now(), span).map((v) => (v === 0 ? NaN : v));
+
     // Each datasource's signal over the last minute, in name order.  The index
     // is the place in that order, so a source keeps its color as others come and go.
     function sourceSignals(seenby) {
@@ -84,7 +102,7 @@ export function register(kismet) {
             .sort((a, b) => String(a.label).localeCompare(String(b.label)))
             .map((s, index) => {
                 // Seconds with no packets have no signal, rather than a signal of 0
-                const values = rrd.history(s.rrd, now()).map((v) => (v === 0 ? NaN : v));
+                const values = signalHistory(s.rrd);
                 return { label: s.label, index, values, heard: values.some(Number.isFinite) };
             });
     }
@@ -192,18 +210,37 @@ export function register(kismet) {
             {
                 group: 'Signal',
                 show: (dev) => api.field(dev, `${sig}.last_signal`, 0) !== 0,
-                help: 'Signal strength in dBm; closer to 0 is stronger.  When more than one datasource heard the device, each gets its own line: the loudest is usually the closest to it, or has the best antenna for it.  The server only keeps each datasource\'s signal when keep_per_datasource_stats=true is set in kismet_memory.conf.',
+                help: 'Signal strength in dBm; closer to 0 is stronger.  The signal range runs from the weakest to the strongest reading in each second, minute, or hour: a narrow band means a device that stays put, a wide one a device that moves or is blocked now and then.  When more than one datasource heard the device, each gets its own line: the loudest is usually the closest to it, or has the best antenna for it.  The server only keeps each datasource\'s signal when keep_per_datasource_stats=true is set in kismet_memory.conf.',
                 fields: [
                     {
+                        // Servers before the signal range only have the past minute
                         id: 'signal_graph', wide: true,
                         field: `${sig}.signal_rrd`,
                         draw: (cell, r, _d, state) => {
-                            // Seconds with no packets have no signal, rather than a signal of 0
-                            const values = rrd.history(r, now()).map((v) => (v === 0 ? NaN : v));
                             graphIn(cell, state, { type: 'line', unit: 'dBm', title: 'Signal, last minute', joinGaps: true })
-                                .draw(values, ['-60s', 'now']);
+                                .draw(signalHistory(r), ['-60s', 'now']);
                         },
-                        show: (r) => r && Array.isArray(r['kismet.common.rrd.minute_vec']),
+                        show: (r, dev) => r && Array.isArray(r['kismet.common.rrd.minute_vec']) &&
+                            !api.field(dev, `${sig}.min_signal_rrd`),
+                    },
+                    {
+                        id: 'signal_range', wide: true,
+                        field: `${sig}.min_signal_rrd`,
+                        show: (r, dev) => r && Array.isArray(r['kismet.common.rrd.minute_vec']) &&
+                            Array.isArray(api.field(dev, `${sig}.max_signal_rrd/kismet.common.rrd.minute_vec`)),
+                        draw: (cell, low, dev, state) => {
+                            if (!state.graph) {
+                                state.graph = historyGraph({ type: 'line', unit: 'dBm', title: 'Signal range' });
+                                cell.replaceChildren(spanTabs(state, () => state.redraw()), state.graph.node);
+                            }
+                            state.redraw = () => state.graph.draw([{
+                                label: 'Weakest to strongest', color: 'var(--accent)',
+                                low: signalHistory(state.low, state.span), high: signalHistory(state.high, state.span),
+                            }], spanLabels[state.span]);
+                            state.low = low;
+                            state.high = api.field(dev, `${sig}.max_signal_rrd`);
+                            state.redraw();
+                        },
                     },
                     {
                         // One line per datasource that heard the device in the last minute; only
@@ -232,28 +269,34 @@ export function register(kismet) {
 
             {
                 group: 'Packets',
+                help: 'Sent are packets the device transmitted; received are packets addressed to it.  Packets it was only part of, such as an access point\'s traffic being passed between clients, or broadcasts, count in all packets but in neither.',
                 fields: [
                     {
                         id: 'packet_graph', wide: true,
                         field: `${base}.packets.rrd`,
                         show: (r) => r && Array.isArray(r['kismet.common.rrd.minute_vec']),
-                        draw: (cell, r, _d, state) => {
+                        draw: (cell, r, dev, state) => {
+                            // All packets, then the ones the device sent (up) and the ones
+                            // sent to it (down), on the same span
                             if (!state.graph) {
-                                state.span = 'minute';
-                                state.graph = historyGraph({ type: 'bar', height: '7rem', minBar: true });
-                                const spans = [['minute', 'Past minute'], ['hour', 'Past hour'], ['day', 'Past day']];
-                                const buttons = spans.map(([id, label]) => el('button', { type: 'button',
-                                    class: id === state.span ? 'active' : null,
-                                    onclick: () => {
-                                        state.span = id;
-                                        buttons.forEach((b, i) => b.classList.toggle('active', spans[i][0] === id));
-                                        state.redraw();
-                                    } }, label));
-                                cell.replaceChildren(el('div', { class: 'graph-tabs' }, buttons), state.graph.node);
+                                state.graph = historyGraph({ type: 'bar', height: '7rem', minBar: true, title: 'All packets' });
+                                state.txrx = historyGraph({ type: 'mirror', height: '7rem', minBar: true, title: 'Sent and received' });
+                                cell.replaceChildren(spanTabs(state, () => state.redraw()), state.graph.node, state.txrx.node);
                             }
-                            const labels = { minute: ['-60s', 'now'], hour: ['-60m', 'now'], day: ['-24h', 'now'] };
-                            state.redraw = () => state.graph.draw(rrd.history(state.rrd, now(), state.span), labels[state.span]);
+                            state.redraw = () => {
+                                state.graph.draw(rrd.history(state.rrd, now(), state.span), spanLabels[state.span]);
+                                state.txrx.node.hidden = !state.tx && !state.rx;
+                                if (!state.txrx.node.hidden)
+                                    state.txrx.draw([
+                                        { label: 'Sent', color: 'var(--accent)', values: rrd.history(state.tx, now(), state.span) },
+                                        { label: 'Received', color: 'var(--ok)', values: rrd.history(state.rx, now(), state.span) },
+                                    ], spanLabels[state.span]);
+                            };
                             state.rrd = r;
+                            // Only worth showing once either has been counted
+                            const counted = (n) => api.field(dev, `${base}.packets.${n}_total`, 0) > 0;
+                            state.tx = counted('tx') || counted('rx') ? dev[`${base}.tx_packets.rrd`] : null;
+                            state.rx = counted('tx') || counted('rx') ? dev[`${base}.rx_packets.rrd`] : null;
                             state.redraw();
                         },
                     },
