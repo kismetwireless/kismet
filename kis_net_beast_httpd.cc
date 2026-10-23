@@ -19,6 +19,7 @@
 #include "kis_net_beast_httpd.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -1082,7 +1083,12 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
             continue;
         }
 
-        if (strstr(modified_realpath, base_realpath) != modified_realpath) {
+        // A matching path prefix alone can also match a sibling directory.
+        const size_t base_len = std::strlen(base_realpath);
+        if (std::strncmp(modified_realpath, base_realpath, base_len) != 0 ||
+                (base_realpath[base_len - 1] != '/' &&
+                 modified_realpath[base_len] != '/' &&
+                 modified_realpath[base_len] != '\0')) {
             if (modified_realpath)
                 free(modified_realpath);
             if (base_realpath)
