@@ -5,9 +5,10 @@
 //
 // modal: true blocks the page behind it (login); otherwise the dialog is a
 // panel the user can leave open while using the page (device details).
-// Panels can be moved by dragging their title bar and resized from their
-// corner; position { left, top, width, height } places one, and onMove(position)
-// is told where the user put it.
+// Every dialog can be moved by dragging its title bar.  Panels can also be
+// resized from their corner; position { left, top, width, height } places
+// one, and onMove(position) is told where the user put it.  Modal dialogs
+// keep the size their content gives them.
 
 import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -64,8 +65,8 @@ export function dialog({ title, body, modal = true, closable = true, className =
         node.show();
         if (position)
             place(position);
-        makeMovable();
     }
+    makeMovable();
 
     function close() {
         if (node.open)
@@ -86,6 +87,17 @@ export function dialog({ title, body, modal = true, closable = true, className =
         node.classList.add('placed');
     }
 
+    // A modal dialog only moves; its size follows its content (settings
+    // sections differ), so only its height is held to what fits below its top
+    function placeModal({ left, top }) {
+        const w = node.offsetWidth;
+        left = Math.max(60 - w, Math.min(left, window.innerWidth - 60));
+        top = Math.max(0, Math.min(top, window.innerHeight - 40));
+        Object.assign(node.style, { left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto', margin: '0',
+            maxHeight: `${Math.max(192, window.innerHeight - top - 8)}px` });
+        node.classList.add('placed');
+    }
+
     function currentPosition() {
         const r = node.getBoundingClientRect();
         return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
@@ -102,7 +114,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
             const dy = e.clientY - start.top;
             node.classList.add('moving');
 
-            const move = (ev) => place({ ...start, left: ev.clientX - dx, top: ev.clientY - dy });
+            const move = (ev) => (modal ? placeModal : place)({ ...start, left: ev.clientX - dx, top: ev.clientY - dy });
             const up = () => {
                 header.removeEventListener('pointermove', move);
                 header.removeEventListener('pointerup', up);
@@ -114,6 +126,17 @@ export function dialog({ title, body, modal = true, closable = true, className =
             header.addEventListener('pointerup', up);
             header.addEventListener('pointercancel', up);
         });
+
+        if (modal) {
+            // Keep a moved dialog on screen when the window gets smaller
+            const refit = () => {
+                if (node.classList.contains('placed'))
+                    placeModal(currentPosition());
+            };
+            window.addEventListener('resize', refit);
+            node.addEventListener('close', () => window.removeEventListener('resize', refit));
+            return;
+        }
 
         // Resizing from the corner; tell the owner the new size once it settles
         let timer = null;
