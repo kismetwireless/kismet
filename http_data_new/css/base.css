@@ -914,6 +914,8 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-pane path.map-link { stroke: var(--muted); stroke-opacity: 0.85; }
 .map-pane path.map-heard { stroke: var(--muted); fill: var(--surface); fill-opacity: 1; }
 .map-pane path.map-trail { stroke: var(--accent); stroke-opacity: 0.8; fill: none; }
+.map-pane path.map-path { stroke: var(--accent); stroke-opacity: 0.5; fill: none; stroke-linejoin: round; }
+.map-pane path.map-path.filtered { stroke-opacity: 0.1; }
 
 .leaflet-tooltip.map-tip {
     background: var(--surface); color: var(--text);

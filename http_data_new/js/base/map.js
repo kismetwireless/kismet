@@ -1,5 +1,5 @@
 // The map tab, and its section in Settings: whether to load the map
-// background from a tile server, and which server.
+// background from a tile server, which server, and how long to keep paths.
 
 export function register(kismet) {
     const { ui, settings, dom } = kismet;
@@ -58,6 +58,12 @@ export function register(kismet) {
             const dark = el('input', { type: 'checkbox', checked: settings.get('map.darkTiles', true) !== false,
                 onchange: () => settings.set('map.darkTiles', dark.checked) });
 
+            const collect = el('input', { type: 'checkbox', checked: settings.get('map.pathsCollect', true) !== false,
+                onchange: () => settings.set('map.pathsCollect', collect.checked) });
+            const keep = el('select', { onchange: () => settings.set('map.pathsAge', Number(keep.value)) },
+                map.pathAges.map((a) => el('option', { value: a.id,
+                    selected: a.id === (Number(settings.get('map.pathsAge', 3600)) || 3600) }, a.title)));
+
             body.append(
                 el('h4', {}, 'Map background'),
                 el('p', { class: 'muted' }, 'The map background is loaded from a map tile server on the internet.  ' +
@@ -70,7 +76,13 @@ export function register(kismet) {
                 el('label', { class: 'field' }, 'Attribution', attribution),
                 el('p', { class: 'muted' }, 'A local or self-hosted tile server keeps map lookups off the internet.  ' +
                     'The attribution is shown in the corner of the map, as the server\'s terms ask.'),
-                el('label', { class: 'choice-item' }, dark, 'Darken the map in dark mode'));
+                el('label', { class: 'choice-item' }, dark, 'Darken the map in dark mode'),
+                el('h4', {}, 'Paths'),
+                el('p', { class: 'muted' }, 'The browser remembers where each device on the map has been, so its path ' +
+                    'can be drawn even when the Kismet server keeps no location history.  Paths last until the page ' +
+                    'is reloaded.'),
+                el('label', { class: 'choice-item' }, collect, 'Keep collecting paths while the map is not shown'),
+                el('label', { class: 'field' }, 'Keep paths for', keep));
 
             return settings.watch('map.tiles', (v) => showPolicy(v ?? 'ask'));
         },

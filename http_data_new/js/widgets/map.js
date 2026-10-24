@@ -3,6 +3,10 @@
 // with a line back to where Kismet was when it heard them.  A list of the
 // devices runs down the side, marking the ones inside the map view.
 //
+// Each refresh also adds to the paths the browser keeps (tracks.js), and the
+// map keeps collecting them, more slowly, while it is hidden.  A device's
+// path joins those with the server's location history, when it keeps one.
+//
 // The map background comes from a public tile server, so nothing is loaded
 // from it until the user agrees (see askTiles).  Without tiles the devices
 // are drawn on a blank map.
@@ -13,12 +17,15 @@ import * as settings from '../core/settings.js';
 import * as theme from '../core/theme.js';
 import * as eventbus from '../core/eventbus.js';
 import * as format from '../core/format.js';
+import * as clock from '../core/clock.js';
+import * as tracks from './tracks.js';
 import { icon } from '../core/icons.js';
 import { mapSources } from '../registry/ui.js';
 import { openDevice } from './detailpanel.js';
 
 const base = 'kismet.device.base';
 const refreshMs = 2000;
+const collectMs = 15000;            // while the map is hidden
 const maxListed = 1000;
 
 export const defaultTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -35,16 +42,43 @@ export const ages = [
     { id: 24 * 3600, title: '24 hours' },
 ];
 
+// How long the browser keeps paths, in seconds
+export const pathAges = [
+    { id: 900, title: '15 minutes' },
+    { id: 3600, title: '1 hour' },
+    { id: 6 * 3600, title: '6 hours' },
+    { id: 24 * 3600, title: '24 hours' },
+];
+
+export const pathModes = [
+    { id: 'all', title: 'All devices' },
+    { id: 'selected', title: 'The selected device' },
+    { id: 'off', title: 'None' },
+];
+
+function pathMode() {
+    const m = settings.get('map.paths', 'all');
+    return pathModes.some((p) => p.id === m) ? m : 'all';
+}
+
+function collecting() {
+    return settings.get('map.pathsCollect', true) !== false;
+}
+
+function pathAge() {
+    return Number(settings.get('map.pathsAge', 3600)) || 3600;
+}
+
 const last = (set, f) => `${base}.${set}/kismet.common.location.last/kismet.common.location.${f}`;
 const commonFields = [
     [`${base}.key`, 'key'], [`${base}.commonname`, 'name'], [`${base}.phyname`, 'phy'],
     [`${base}.type`, 'type'], [`${base}.last_time`, 'last_time'],
     [last('location', 'geopoint'), 'heard'], [last('location', 'fix'), 'heard_fix'],
     [last('location', 'alt'), 'heard_alt'], [last('location', 'speed'), 'heard_speed'],
-    [last('location', 'heading'), 'heard_heading'],
+    [last('location', 'heading'), 'heard_heading'], [last('location', 'time_sec'), 'heard_time'],
     [last('reported_location', 'geopoint'), 'rep'], [last('reported_location', 'fix'), 'rep_fix'],
     [last('reported_location', 'alt'), 'rep_alt'], [last('reported_location', 'speed'), 'rep_speed'],
-    [last('reported_location', 'heading'), 'rep_heading'],
+    [last('reported_location', 'heading'), 'rep_heading'], [last('reported_location', 'time_sec'), 'rep_time'],
 ];
 
 // A usable [lon, lat]: missing fields and "no fix" both come back as zeros
@@ -140,6 +174,9 @@ export function createMap(container, area = null) {
     const ageSelect = el('select', { 'aria-label': 'How long devices stay on the map',
         onchange: () => { settings.set('map.maxAge', Number(ageSelect.value)); fetched.clear(); refresh(); } },
         ages.map((a) => el('option', { value: a.id, selected: a.id === settings.get('map.maxAge', 0) }, a.title)));
+    const pathSelect = el('select', { 'aria-label': 'Which devices show their path',
+        onchange: () => settings.set('map.paths', pathSelect.value) },
+        pathModes.map((m) => el('option', { value: m.id, selected: m.id === pathMode() }, m.title)));
     const inViewOnly = el('input', { type: 'checkbox', checked: settings.get('map.listInView', false),
         onchange: () => { settings.set('map.listInView', inViewOnly.checked); render(); } });
     const layerList = el('div', { class: 'map-layers' });
@@ -150,6 +187,7 @@ export function createMap(container, area = null) {
         search,
         layerList,
         el('label', { class: 'map-age' }, 'Heard in the last ', ageSelect),
+        el('label', { class: 'map-age' }, 'Paths for ', pathSelect),
         el('label', { class: 'map-inview' }, inViewOnly, 'List only devices in view'),
         summary,
         list);
@@ -169,13 +207,15 @@ export function createMap(container, area = null) {
     let visible = false;
     let expanded = false;
     let timer = null;
+    let collectTimer = null;
     let busy = false;
     let fitted = false;
     let stopGps = null;
     let selected = null;
     let legacy = false;
+    legacyServer().then((v) => { legacy = v; });
 
-    // key -> { src, dev, pos, heardOnly, marker, glyph, link, heardDot, row }
+    // key -> { src, dev, pos, heardOnly, marker, glyph, link, heardDot, path, row }
     const entries = new Map();
     const counts = new Map();
 
@@ -342,6 +382,7 @@ export function createMap(container, area = null) {
     function start() {
         if (!map || !visible || timer)
             return;
+        stopCollecting();
         timer = setInterval(refresh, refreshMs);
         stopGps = eventbus.subscribe('GPS_LOCATION',
             ['kismet.common.location.fix', 'kismet.common.location.geopoint'], selfPosition);
@@ -353,6 +394,17 @@ export function createMap(container, area = null) {
         timer = null;
         stopGps?.();
         stopGps = null;
+    }
+
+    function startCollecting() {
+        if (collectTimer || visible || !collecting())
+            return;
+        collectTimer = setInterval(refresh, collectMs);
+    }
+
+    function stopCollecting() {
+        clearInterval(collectTimer);
+        collectTimer = null;
     }
 
     // Sources with an interval (a regex over every device, say) are read less often
@@ -374,7 +426,7 @@ export function createMap(container, area = null) {
     }
 
     async function refresh() {
-        if (busy || !map || !visible)
+        if (busy || (visible ? !map : !collecting()))
             return;
         busy = true;
         try {
@@ -387,12 +439,40 @@ export function createMap(container, area = null) {
                     return { src, list: [], error: err };
                 }
             }));
+            tracks.prune(clock.now() - pathAge());
+            if (!visible || !map) {
+                for (const { src, list } of results) {
+                    for (const dev of list)
+                        positions(src, dev);
+                }
+                return;
+            }
             update(sources, results);
             if (selected)
                 loadTrail(selected);
         } finally {
             busy = false;
         }
+    }
+
+    // Sort out where a device says it is and where Kismet heard it, and add
+    // the reported position to its path
+    function positions(src, dev) {
+        let rep = point(dev.rep, dev.rep_fix);
+        let heard = point(dev.heard, dev.heard_fix);
+        let repTime = dev.rep_time;
+        if (legacy && src.legacy) {
+            rep = heard;
+            heard = null;
+            repTime = dev.heard_time;
+            dev.rep_alt = dev.heard_alt;
+            dev.rep_speed = dev.heard_speed;
+            dev.rep_heading = dev.heard_heading;
+        }
+        dev.rep = rep;
+        dev.heard = heard;
+        if (rep && dev.key)
+            tracks.record(dev.key, rep[0], rep[1], repTime || dev.last_time || clock.now());
     }
 
     // Merge a refresh into the map: move, add, and remove markers in place
@@ -405,23 +485,13 @@ export function createMap(container, area = null) {
                 const key = dev.key;
                 if (!key || seen.has(key))
                     continue;
-                let rep = point(dev.rep, dev.rep_fix);
-                let heard = point(dev.heard, dev.heard_fix);
-                if (legacy && src.legacy) {
-                    rep = heard;
-                    heard = null;
-                    dev.rep_alt = dev.heard_alt;
-                    dev.rep_speed = dev.heard_speed;
-                    dev.rep_heading = dev.heard_heading;
-                }
-                dev.rep = rep;
-                dev.heard = heard;
-                const pos = rep ?? (src.heard ? heard : null);
+                positions(src, dev);
+                const pos = dev.rep ?? (src.heard ? dev.heard : null);
                 if (!pos)
                     continue;
                 seen.add(key);
                 n++;
-                place(key, src, dev, pos, !rep);
+                place(key, src, dev, pos, !dev.rep);
             }
             counts.set(src.id, n);
         }
@@ -493,12 +563,29 @@ export function createMap(container, area = null) {
             e.heardDot.remove();
             e.link = e.heardDot = null;
         }
+        drawPath(e);
+    }
+
+    // The faint path every device leaves, from the browser's own collection
+    function drawPath(e) {
+        const runs = pathMode() === 'all' && !e.heardOnly && tracks.has(e.key) ?
+            tracks.segments(tracks.get(e.key)) : [];
+        if (!runs.length) {
+            e.path?.remove();
+            e.path = null;
+        } else if (!e.path) {
+            e.path = L.polyline(runs, { className: 'map-path', weight: 1.5, interactive: false }).addTo(linkLayer);
+        } else {
+            e.path.setLatLngs(runs);
+        }
+        e.path?.getElement()?.style.setProperty('stroke', e.node.style.getPropertyValue('--marker-color'));
     }
 
     function drop(key, e) {
         e.marker.remove();
         e.link?.remove();
         e.heardDot?.remove();
+        e.path?.remove();
         e.row?.remove();
         entries.delete(key);
     }
@@ -565,6 +652,7 @@ export function createMap(container, area = null) {
             const text = `${label(e)} ${e.key} ${e.dev.type ?? ''} ${detail(e)}`.toLowerCase();
             const match = !q || text.includes(q);
             e.marker.getElement()?.classList.toggle('filtered', !match);
+            e.path?.getElement()?.classList.toggle('filtered', !match);
             e.within = within;
             if (match && (within || !onlyInView))
                 shown.push(e);
@@ -639,35 +727,51 @@ export function createMap(container, area = null) {
         loadTrail(key);
     }
 
-    // Where the selected device has said it was, from its location history
+    // Where the selected device has said it was: the server's location
+    // history, when it keeps one, joined with the browser's own path
     async function loadTrail(key) {
-        let rec;
-        try {
-            rec = await api.post(`devices/by-key/${encodeURIComponent(key)}/device.json`, {
-                fields: [[`${base}.reported_location_cloud/kis.gps.rrd.samples_100`, 'samples']],
-            });
-        } catch {
+        if (pathMode() === 'off') {
+            trail?.remove();
+            trail = null;
             return;
+        }
+        let rec = null;
+        if (!legacy) {
+            try {
+                rec = await api.post(`devices/by-key/${encodeURIComponent(key)}/device.json`, {
+                    fields: [[`${base}.reported_location_cloud/kis.gps.rrd.samples_100`, 'samples']],
+                });
+            } catch {
+                rec = null;
+            }
         }
         if (selected !== key || !map)
             return;
-        const samples = (Array.isArray(rec?.samples) ? rec.samples : [])
-            .map((s) => ({ t: s['kismet.historic.location.time_sec'] ?? 0, p: s['kismet.historic.location.geopoint'] }))
-            .filter((s) => point(s.p))
-            .sort((a, b) => a.t - b.t)
-            .map((s) => [s.p[1], s.p[0]]);
         const e = entries.get(key);
-        if (e && !e.heardOnly)
-            samples.push([e.pos[1], e.pos[0]]);
-        if (samples.length < 2) {
+        const local = e?.heardOnly ? [] : tracks.get(key);
+        const since = local.length ? local[0].t : Infinity;
+        // The server's history fills in before the browser started collecting
+        const older = (Array.isArray(rec?.samples) ? rec.samples : [])
+            .map((s) => {
+                const p = s['kismet.historic.location.geopoint'];
+                const t = s['kismet.historic.location.time_sec'] ?? 0;
+                return point(p) && t < since ? { t, lon: p[0], lat: p[1] } : null;
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.t - b.t);
+        const all = [...older, ...local];
+        if (e && !e.heardOnly && !local.length)
+            all.push({ t: clock.now(), lon: e.pos[0], lat: e.pos[1] });
+        const runs = tracks.segments(all);
+        if (!runs.length) {
             trail?.remove();
             trail = null;
             return;
         }
         if (!trail)
-            trail = L.polyline(samples, { className: 'map-trail', weight: 2, interactive: false }).addTo(linkLayer);
+            trail = L.polyline(runs, { className: 'map-trail', weight: 2.5, interactive: false }).addTo(linkLayer);
         else
-            trail.setLatLngs(samples);
+            trail.setLatLngs(runs);
     }
 
     function fitAll() {
@@ -688,6 +792,15 @@ export function createMap(container, area = null) {
         settings.watch('map.tileAttribution', () => { tileLayer?.remove(); tileLayer = null; applyTiles(); }),
         settings.watch('map.darkTiles', applyTheme),
         theme.onChange(applyTheme),
+        settings.watch('map.paths', () => {
+            pathSelect.value = pathMode();
+            for (const e of entries.values())
+                drawPath(e);
+            if (selected)
+                loadTrail(selected);
+        }),
+        settings.watch('map.pathsCollect', () => (collecting() ? startCollecting() : stopCollecting())),
+        settings.watch('map.pathsAge', () => tracks.prune(clock.now() - pathAge())),
         mapSources.watch(() => refresh()),
         () => document.removeEventListener('keydown', onKey),
         () => stopExpand?.(),
@@ -710,9 +823,11 @@ export function createMap(container, area = null) {
             if (expanded)
                 setExpanded(false);
             stop();
+            startCollecting();
         },
         destroy() {
             stop();
+            stopCollecting();
             for (const fn of unwatch)
                 fn();
             map?.remove();
