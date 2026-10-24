@@ -429,6 +429,24 @@ exports.sanitizeHTML = function(s) {
     });
 }
 
+/* Undo sanitizeHTML, for a sanitized value that has to go back to the server as it was */
+exports.unsanitizeHTML = function(s) {
+    var remap = {
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#x60;': '`',
+        '&#x3D;': '=',
+        '&#x2F;': '/',
+        '&amp;': '&'
+    };
+
+    return String(s).replace(/&(lt|gt|quot|#39|#x60|#x3D|#x2F|amp);/g, function (s) {
+            return remap[s];
+    });
+}
+
 /* Censor a mac-like string, if the global censor_macs option is turned on; must be called by each
  * display component */
 exports.censorMAC = function(t) {

@@ -974,7 +974,7 @@ function update_datasource2(data) {
                 var uuid = $(this).attr('uuid');
                 var chans = [];
                 $('button.chanbutton[uuid=' + uuid + ']', ds_state['ds_content']).each(function(i) {
-                    chans.push($(this).attr('channel'));
+                    chans.push(kismet.unsanitizeHTML($(this).attr('channel')));
                 });
                 var jscmd = {
                     "cmd": "hop",
@@ -1046,7 +1046,7 @@ function update_datasource2(data) {
                             var jscmd = {
                                 "cmd": "lock",
                                 "uuid": uuid,
-                                "channel": $(this).attr('channel'),
+                                "channel": kismet.unsanitizeHTML($(this).attr('channel')),
                             };
 
                             $('.k-ds-modal-message', sdiv).html("Setting channel...");
@@ -1114,7 +1114,7 @@ function update_datasource2(data) {
                                     if ($(this).hasClass('enable-chan-user') ||
                                         $(this).hasClass('enable-chan-system')) {
                                         ds_state['refresh' + uuid] = true;
-                                        chans.push($(this).attr('channel'));
+                                        chans.push(kismet.unsanitizeHTML($(this).attr('channel')));
                                     }
                                 });
 
@@ -1327,7 +1327,7 @@ function update_datasource2(data) {
 
               var firstchanobj = $('button.chanbutton[uuid=' + uuid + ']', ds_state['ds_content']).first();
 
-              var chan = firstchanobj.attr('channel');
+              var chan = kismet.unsanitizeHTML(firstchanobj.attr('channel'));
 
               var jscmd = {
                   "cmd": "lock",
@@ -1393,7 +1393,7 @@ function update_datasource2(data) {
 
               var chans = [];
               $('button.chanbutton[uuid=' + uuid + ']', ds_state['ds_content']).each(function(i) {
-                      chans.push($(this).attr('channel'));
+                      chans.push(kismet.unsanitizeHTML($(this).attr('channel')));
                 });
 
               var jscmd = {
@@ -1516,7 +1516,7 @@ function update_datasource2(data) {
 
                 var chans = [];
                 $('button.chanbutton[uuid=' + uuid + ']', ds_state['ds_content']).each(function(i) {
-                    chans.push($(this).attr('channel'));
+                    chans.push(kismet.unsanitizeHTML($(this).attr('channel')));
                 });
 
                 var jscmd = {
