@@ -116,13 +116,6 @@ struct ais_demod {
     ais_channel_t channels[2];
 };
 
-static uint8_t ais_reverse_byte(uint8_t b) {
-    b = (uint8_t) (((b & 0xF0) >> 4) | ((b & 0x0F) << 4));
-    b = (uint8_t) (((b & 0xCC) >> 2) | ((b & 0x33) << 2));
-    b = (uint8_t) (((b & 0xAA) >> 1) | ((b & 0x55) << 1));
-    return b;
-}
-
 /* CRC-16/X.25; computed over the data and the FCS the residue is 0xF0B8 */
 static uint16_t ais_crc16(const uint8_t *buf, size_t len) {
     uint16_t crc = 0xFFFF;
@@ -159,7 +152,8 @@ static void ais_frame_complete(ais_demod_t *demod, ais_channel_t *chan,
 
     nbytes = nbits / 8;
 
-    /* Bits arrive LSB-first within each byte */
+    /* Each byte is sent LSB-first, so packing LSB-first gives both the FCS and
+     * the payload in AIS (MSB-first) field order */
     memset(frame, 0, nbytes);
     for (i = 0; i < nbits; i++) {
         if (hdlc->bits[i])
@@ -182,10 +176,6 @@ static void ais_frame_complete(ais_demod_t *demod, ais_channel_t *chan,
     chan->last_len = nbytes;
     chan->last_sample = chan->sample_count;
     chan->frames++;
-
-    /* AIS fields are packed MSB-first */
-    for (i = 0; i < nbytes; i++)
-        frame[i] = ais_reverse_byte(frame[i]);
 
     if (demod->cb != NULL)
         demod->cb(demod->cb_ctx, channel, frame, nbytes,
