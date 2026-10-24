@@ -64,6 +64,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <rtl-sdr.h>
@@ -82,6 +83,11 @@
 #define MESSAGEGO    253
 #define OVERWRITE    254
 #define BADSAMPLE    255
+
+/* Bits averaged for the signal level; every frame has at least this many */
+#define LEVEL_BITS   short_frame
+/* Magnitude of a full scale sample, (128^2) */
+#define FULL_SCALE   16384.0f
 
 typedef struct {
     pthread_t demod_thread;
@@ -102,6 +108,9 @@ typedef struct {
     int do_exit;
 
     uint8_t buffer[DEFAULT_BUF_LENGTH];
+
+    /* Mean pulse magnitude of each run of bits, at the index the run starts */
+    uint32_t *power;
 
     int gain;
     int ppm;
@@ -322,6 +331,7 @@ void manchester(kis_capture_handler_t *caph, uint16_t *buf, int len) {
     uint16_t a = 0, b = 0;
     uint16_t bit;
     int i, i2, start, errors;
+    uint32_t sum, nbits;
     int maximum_i = len - 1; // len-1 since we look at i and i+1
     i = 0;
 
@@ -343,9 +353,16 @@ void manchester(kis_capture_handler_t *caph, uint16_t *buf, int len) {
 
         i2 = start = i;
         errors = 0;
+        sum = nbits = 0;
 
         /* mark bits until encoding breaks */
         for (; i < maximum_i; i += 2, i2++) {
+            /* The pulse is in whichever half of the bit is high */
+            if (nbits < LEVEL_BITS) {
+                sum += buf[i] > buf[i + 1] ? buf[i] : buf[i + 1];
+                nbits++;
+            }
+
             bit = single_manchester(caph, a, b, buf[i], buf[i + 1]);
             a = buf[i];
             b = buf[i + 1];
@@ -364,6 +381,9 @@ void manchester(kis_capture_handler_t *caph, uint16_t *buf, int len) {
             buf[i] = buf[i + 1] = OVERWRITE;
             buf[i2] = bit;
         }
+
+        if (start < len)
+            adsb->power[start] = nbits ? sum / nbits : 0;
     }
 }
 
@@ -374,11 +394,18 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
     char adsb_char[(14*2) + 1];
     char json[256];
     uint32_t crc1, crc2;
+    uint32_t run_power = 0;
+    struct cf_params_signal signal;
+    float level;
 
     for (i = 0; i < len; i++) {
         if (buf[i] > 1) {
             continue;
         }
+
+        /* A frame starting partway through a run has the run's level */
+        if (i == 0 || buf[i - 1] > 1)
+            run_power = adsb->power[i];
 
         frame_len = long_frame;
         data_i = 0;
@@ -427,14 +454,20 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
             sprintf(adsb_char + (r * 2), "%02x", adsb->adsb_frame[r]);
         }
 
-        snprintf(json, 256, "{\"adsb\": \"*%s;\"}", adsb_char);
+        level = 10.0f * log10f(((float) run_power + 1e-3f) / FULL_SCALE);
+
+        snprintf(json, 256, "{\"adsb\": \"*%s;\", \"level\": %.1f}", adsb_char, level);
+
+        memset(&signal, 0, sizeof(struct cf_params_signal));
+        signal.signal_dbm = (int32_t) (level < 0 ? level - 0.5f : level + 0.5f);
+        signal.freq_khz = ADSB_FREQ / 1000;
 
         /* Transmit the adsb frame as a JSON */
 
         gettimeofday(&tv, NULL);
 
         while (1) { 
-            if ((r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "adsb", json)) < 0) {
+            if ((r = cf_send_json(caph, NULL, 0, &signal, NULL, tv, "adsb", json)) < 0) {
                 cf_send_error(caph, 0, "unable to send JSON frame");
                 cf_handler_spindown(caph);
                 continue;
@@ -910,6 +943,12 @@ int main(int argc, char *argv[]) {
         .bias_tee_gpio = 0,
     };
 
+
+    local_adsb.power = (uint32_t *) calloc((DEFAULT_BUF_LENGTH / 2) + 1, sizeof(uint32_t));
+    if (local_adsb.power == NULL) {
+        fprintf(stderr, "FATAL: Could not allocate signal level buffer\n");
+        return -1;
+    }
 
     pthread_cond_init(&local_adsb.ready, NULL);
     pthread_mutex_init(&local_adsb.ready_mutex, NULL);

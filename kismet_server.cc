@@ -75,6 +75,7 @@
 #include "datasource_rtlamr.h"
 #include "datasource_rtladsb.h"
 #include "datasource_rtlais.h"
+#include "datasource_rtlaisadsb.h"
 #include "datasource_freaklabs_zigbee.h"
 #include "datasource_zigbee900.h"
 #include "datasource_nrf_mousejack.h"
@@ -953,6 +954,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlamr_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtladsb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlais_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlaisadsb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_freaklabs_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_zigbee900_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));

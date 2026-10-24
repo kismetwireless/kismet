@@ -1,0 +1,38 @@
+include ../Makefile.inc
+
+# The AIS demodulator is shared with capture_sdr_rtlais
+AIS_DIR = ../capture_sdr_rtlais
+
+MONITOR_OBJS = \
+	capture_sdr_rtlaisadsb.c.o \
+	adsb_demod.c.o \
+	ais_demod.c.o
+MONITOR_BIN = kismet_cap_sdr_rtlaisadsb
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
+		    $(DATASOURCE_LIBS) $(LIBUSBLIBS) $(LIBRTLLIBS) -lm
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+ais_demod.c.o: $(AIS_DIR)/ais_demod.c ais_demod.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(AIS_DIR) -c $(AIS_DIR)/ais_demod.c -o $@
+
+ais_demod.c.d: $(AIS_DIR)/ais_demod.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) -I$(AIS_DIR) $(AIS_DIR)/ais_demod.c | sed -e "s/\.o/\.c.o/" > $@
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBRTLCFLAGS) -I$(AIS_DIR) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBRTLCFLAGS) -I$(AIS_DIR) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))

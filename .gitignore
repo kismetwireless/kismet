@@ -75,6 +75,7 @@ capture_sdr_rtlais/ais_demod_test
 capture_sdr_rtlais/ais_rtl_test
 capture_sdr_rtlais/ais_rtl_test-*.tar.gz
 capture_sdr_rtlais/*.dSYM
+capture_sdr_rtlaisadsb/kismet_cap_sdr_rtlaisadsb
 capture_freaklabs_zigbee_v2/kismet_cap_freaklabs_zigbee
 capture_catsniffer_zigbee/kismet_cap_catsniffer_zigbee
 capture_wch_ble_analyzer_pro/kismet_cap_wch_ble_analyzer_pro
