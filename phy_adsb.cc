@@ -19,7 +19,9 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <optional>
 
 #include "phy_adsb.h"
@@ -85,7 +87,8 @@ namespace {
     // A Mode-S BEAST frame (https://wiki.jetvision.de/wiki/Mode-S_Beast:Data_Output_Formats): escape,
     // frame type, 48 bit big endian 12MHz timestamp, signal, and the message; any 0x1a after the frame
     // type is doubled
-    std::string adsb_beast_frame(const std::string& msg, const struct timeval& ts) {
+    std::string adsb_beast_frame(const std::string& msg, const struct timeval& ts,
+            const kis_layer1_packinfo& sig) {
         std::string out;
         out.reserve(2 + (6 + 1 + msg.size()) * 2);
 
@@ -104,8 +107,12 @@ namespace {
         for (int i = 5; i >= 0; i--)
             put(static_cast<uint8_t>((ticks >> (i * 8)) & 0xFF));
 
-        // Signal level isn't known
-        put(0);
+        // BEAST signal is the amplitude relative to full scale, 0-255; the rtl-sdr
+        // sources report the level in dB relative to full scale
+        uint8_t level = 0;
+        if (sig.signal_type == kis_l1_signal_type_dbm && sig.signal_dbm < 0)
+            level = static_cast<uint8_t>(std::clamp(255.0 * std::pow(10.0, sig.signal_dbm / 20.0), 0.0, 255.0));
+        put(level);
 
         for (const auto c : msg)
             put(static_cast<uint8_t>(c));
@@ -363,7 +370,8 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                                     if (adsb_content.size() != 7 && adsb_content.size() != 14)
                                         return 0;
 
-                                    uptr->ws->write(adsb_beast_frame(adsb_content, in_pack->ts));
+                                    uptr->ws->write(adsb_beast_frame(adsb_content, in_pack->ts,
+                                                in_pack->signal_info));
                                 } catch (const std::exception& e) {
                                     return 0;
                                 }
@@ -673,7 +681,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     // once the adsb device has merged it
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(mac, this, packet,
-                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_SIGNAL |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_LOCATION), "ADSB");
 
     if (basedev == nullptr) {
@@ -862,7 +870,7 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     bool new_device;
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(rtlmac, this, packet,
-                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_SIGNAL |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_LOCATION), "ADSB", new_device);
 
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "adsb_json_to_rtl");

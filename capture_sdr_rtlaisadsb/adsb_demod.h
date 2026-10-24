@@ -26,7 +26,8 @@
  *
  * Input is raw unsigned 8-bit IQ (rtlsdr cu8) at ADSB_DEMOD_SAMPLE_RATE,
  * tuned to ADSB_DEMOD_CENTER_FREQ.  Frames that pass the Mode S CRC are
- * delivered whole, 7 or 14 bytes; frames spanning two buffers are lost.
+ * delivered whole, 7 or 14 bytes, with the mean power of their pulses in
+ * dB relative to a full scale sample; frames spanning two buffers are lost.
  */
 
 #include <stddef.h>
@@ -39,7 +40,8 @@
 
 typedef struct adsb_demod adsb_demod_t;
 
-typedef void (*adsb_frame_cb_t)(void *ctx, const uint8_t *frame, size_t frame_len);
+typedef void (*adsb_frame_cb_t)(void *ctx, const uint8_t *frame, size_t frame_len,
+        float level_dbfs);
 
 /* max_buf_len is the largest cu8 buffer that will be passed in */
 adsb_demod_t *adsb_demod_new(size_t max_buf_len, adsb_frame_cb_t cb, void *ctx);

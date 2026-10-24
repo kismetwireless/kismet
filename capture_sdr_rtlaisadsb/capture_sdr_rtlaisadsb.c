@@ -309,11 +309,11 @@ static void ais_frame_cb(void *ctx, int channel, const uint8_t *payload,
     send_frame_json(local->caph, &signal, "ais", json);
 }
 
-static void adsb_frame_cb(void *ctx, const uint8_t *frame, size_t frame_len) {
+static void adsb_frame_cb(void *ctx, const uint8_t *frame, size_t frame_len, float level_dbfs) {
     local_rtl_t *local = (local_rtl_t *) ctx;
     struct cf_params_signal signal;
     char hex[(ADSB_MAX_FRAME_BYTES * 2) + 1];
-    char json[64];
+    char json[96];
     char chanstr[16];
     unsigned int df, tc;
     size_t i;
@@ -335,11 +335,12 @@ static void adsb_frame_cb(void *ctx, const uint8_t *frame, size_t frame_len) {
         snprintf(hex + (i * 2), 3, "%02x", frame[i]);
     hex[frame_len * 2] = 0;
 
-    snprintf(json, sizeof(json), "{\"adsb\": \"*%s;\"}", hex);
+    snprintf(json, sizeof(json), "{\"adsb\": \"*%s;\", \"level\": %.1f}", hex, level_dbfs);
 
     snprintf(chanstr, sizeof(chanstr), "%s", band_defs[BAND_ADSB].chan);
 
     memset(&signal, 0, sizeof(struct cf_params_signal));
+    signal.signal_dbm = (int32_t) (level_dbfs < 0 ? level_dbfs - 0.5f : level_dbfs + 0.5f);
     signal.freq_khz = band_defs[BAND_ADSB].freq_khz;
     signal.channel = chanstr;
 

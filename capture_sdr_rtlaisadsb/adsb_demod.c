@@ -29,6 +29,7 @@
     Copyright (C) 2012 by Ian Gilmour <ian@sdrsharp.com>
 */
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,6 +47,11 @@
 #define ADSB_QUALITY        10
 #define ADSB_ALLOWED_ERRORS 5
 
+/* Bits averaged for the signal level; every frame has at least this many */
+#define LEVEL_BITS          SHORT_FRAME
+/* Magnitude of a full scale cu8 sample, (128^2) */
+#define FULL_SCALE          16384.0f
+
 struct adsb_demod {
     adsb_frame_cb_t cb;
     void *cb_ctx;
@@ -54,6 +60,9 @@ struct adsb_demod {
 
     uint16_t *mag;
     size_t mag_len;
+
+    /* Mean pulse magnitude of each run of bits, at the index the run starts */
+    uint32_t *power;
 
     unsigned long frames;
 };
@@ -158,11 +167,12 @@ static int preamble(const uint16_t *buf, size_t i) {
 }
 
 /* overwrites magnitude buffer with valid bits (BADSAMPLE on errors) */
-static void manchester(uint16_t *buf, size_t len) {
+static void manchester(uint16_t *buf, uint32_t *power, size_t len) {
     /* a and b hold old values to verify local manchester */
     uint16_t a = 0, b = 0;
     uint16_t bit;
-    size_t i, i2;
+    size_t i, i2, start;
+    uint32_t sum, nbits;
     int errors;
 
     if (len <= PREAMBLE_LEN + 1)
@@ -184,11 +194,18 @@ static void manchester(uint16_t *buf, size_t len) {
             break;
         }
 
-        i2 = i;
+        i2 = start = i;
         errors = 0;
+        sum = nbits = 0;
 
         /* mark bits until encoding breaks */
         for (; i < len - 1; i += 2, i2++) {
+            /* The pulse is in whichever half of the bit is high */
+            if (nbits < LEVEL_BITS) {
+                sum += buf[i] > buf[i + 1] ? buf[i] : buf[i + 1];
+                nbits++;
+            }
+
             bit = single_manchester(a, b, buf[i], buf[i + 1]);
             a = buf[i];
             b = buf[i + 1];
@@ -207,6 +224,9 @@ static void manchester(uint16_t *buf, size_t len) {
             buf[i] = buf[i + 1] = OVERWRITE;
             buf[i2] = bit;
         }
+
+        if (start < len)
+            power[start] = nbits ? sum / nbits : 0;
     }
 }
 
@@ -214,10 +234,15 @@ static void messages(adsb_demod_t *demod, const uint16_t *buf, size_t len) {
     uint8_t frame[ADSB_MAX_FRAME_BYTES];
     size_t i;
     int data_i, frame_len;
+    uint32_t run_power = 0;
 
     for (i = 0; i < len; i++) {
         if (buf[i] > 1)
             continue;
+
+        /* A frame starting partway through a run has the run's level */
+        if (i == 0 || buf[i - 1] > 1)
+            run_power = demod->power[i];
 
         frame_len = LONG_FRAME;
         data_i = 0;
@@ -248,7 +273,8 @@ static void messages(adsb_demod_t *demod, const uint16_t *buf, size_t len) {
         demod->frames++;
 
         if (demod->cb != NULL)
-            demod->cb(demod->cb_ctx, frame, frame_len / 8);
+            demod->cb(demod->cb_ctx, frame, frame_len / 8,
+                    10.0f * log10f(((float) run_power + 1e-3f) / FULL_SCALE));
     }
 }
 
@@ -262,7 +288,10 @@ adsb_demod_t *adsb_demod_new(size_t max_buf_len, adsb_frame_cb_t cb, void *ctx) 
 
     demod->mag_len = max_buf_len / 2;
     demod->mag = (uint16_t *) malloc(sizeof(uint16_t) * (demod->mag_len + 1));
-    if (demod->mag == NULL) {
+    demod->power = (uint32_t *) calloc(demod->mag_len + 1, sizeof(uint32_t));
+    if (demod->mag == NULL || demod->power == NULL) {
+        free(demod->mag);
+        free(demod->power);
         free(demod);
         return NULL;
     }
@@ -283,6 +312,7 @@ void adsb_demod_free(adsb_demod_t *demod) {
         return;
 
     free(demod->mag);
+    free(demod->power);
     free(demod);
 }
 
@@ -296,7 +326,7 @@ void adsb_demod_process_cu8(adsb_demod_t *demod, const uint8_t *buf, size_t len)
     for (i = 0; i < n; i++)
         demod->mag[i] = demod->squares[buf[i * 2]] + demod->squares[buf[i * 2 + 1]];
 
-    manchester(demod->mag, n);
+    manchester(demod->mag, demod->power, n);
     messages(demod, demod->mag, n);
 }
 
