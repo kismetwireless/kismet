@@ -936,6 +936,21 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-layer-count { font-variant-numeric: tabular-nums; }
 .map-age, .map-inview { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
 .map-age select { flex: 1; min-width: 0; }
+.map-paths { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
+.map-paths label { display: flex; align-items: center; gap: 0.4em; white-space: nowrap; }
+.map-paths select { flex: 1; min-width: 0; }
+.map-paths-note {
+    font-size: 0.85rem; padding: 0.35em 0.6em; border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--border));
+    background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+}
+.map-paths-note[hidden] { display: none; }
+.map-paths-note summary { cursor: pointer; display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
+.map-paths-note summary .icon { color: var(--warn); flex: none; }
+.map-paths-note summary::-webkit-details-marker { display: none; }
+.map-paths-note summary::after { content: '\25B8'; margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.map-paths-note[open] summary::after { transform: rotate(90deg); }
+.map-paths-note p { margin: 0.4em 0 0.1em; line-height: 1.4; }
 .map-summary { font-size: 0.85rem; }
 .map-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; min-height: 0;
     border-top: 1px solid var(--border); overscroll-behavior: contain; }

@@ -51,14 +51,21 @@ export const pathAges = [
 ];
 
 export const pathModes = [
-    { id: 'all', title: 'All devices' },
-    { id: 'selected', title: 'The selected device' },
-    { id: 'off', title: 'None' },
+    { id: 'all', title: 'all devices' },
+    { id: 'selected', title: 'the selected device' },
 ];
 
-function pathMode() {
+function pathScope() {
     const m = settings.get('map.paths', 'all');
     return pathModes.some((p) => p.id === m) ? m : 'all';
+}
+
+function showPaths() {
+    return settings.get('map.showPaths', true) !== false;
+}
+
+function pathMode() {
+    return showPaths() ? pathScope() : 'off';
 }
 
 function collecting() {
@@ -79,6 +86,7 @@ const commonFields = [
     [last('reported_location', 'geopoint'), 'rep'], [last('reported_location', 'fix'), 'rep_fix'],
     [last('reported_location', 'alt'), 'rep_alt'], [last('reported_location', 'speed'), 'rep_speed'],
     [last('reported_location', 'heading'), 'rep_heading'], [last('reported_location', 'time_sec'), 'rep_time'],
+    [`${base}.reported_location_cloud/kis.gps.rrd.last_sample_ts`, 'cloud_ts'],
 ];
 
 // A usable [lon, lat]: missing fields and "no fix" both come back as zeros
@@ -174,9 +182,17 @@ export function createMap(container, area = null) {
     const ageSelect = el('select', { 'aria-label': 'How long devices stay on the map',
         onchange: () => { settings.set('map.maxAge', Number(ageSelect.value)); fetched.clear(); refresh(); } },
         ages.map((a) => el('option', { value: a.id, selected: a.id === settings.get('map.maxAge', 0) }, a.title)));
-    const pathSelect = el('select', { 'aria-label': 'Which devices show their path',
+    const pathBox = el('input', { type: 'checkbox', checked: showPaths(),
+        onchange: () => settings.set('map.showPaths', pathBox.checked) });
+    const pathSelect = el('select', { 'aria-label': 'Which devices show their path', disabled: !showPaths(),
         onchange: () => settings.set('map.paths', pathSelect.value) },
-        pathModes.map((m) => el('option', { value: m.id, selected: m.id === pathMode() }, m.title)));
+        pathModes.map((m) => el('option', { value: m.id, selected: m.id === pathScope() }, m.title)));
+    // Shown while the paths come only from what this page has seen
+    const pathNoteText = el('p');
+    const pathNote = el('details', { class: 'map-paths-note', hidden: true, open: settings.get('map.pathsNoteOpen', true),
+        ontoggle: () => settings.set('map.pathsNoteOpen', pathNote.open) },
+        el('summary', {}, icon('alert'), 'Paths only go back to when this page was loaded'),
+        pathNoteText);
     const inViewOnly = el('input', { type: 'checkbox', checked: settings.get('map.listInView', false),
         onchange: () => { settings.set('map.listInView', inViewOnly.checked); render(); } });
     const layerList = el('div', { class: 'map-layers' });
@@ -187,7 +203,8 @@ export function createMap(container, area = null) {
         search,
         layerList,
         el('label', { class: 'map-age' }, 'Heard in the last ', ageSelect),
-        el('label', { class: 'map-age' }, 'Paths for ', pathSelect),
+        el('div', { class: 'map-paths' }, el('label', {}, pathBox, 'Show paths for'), pathSelect),
+        pathNote,
         el('label', { class: 'map-inview' }, inViewOnly, 'List only devices in view'),
         summary,
         list);
@@ -214,6 +231,9 @@ export function createMap(container, area = null) {
     let selected = null;
     let legacy = false;
     legacyServer().then((v) => { legacy = v; });
+    // Whether the server keeps location history: unknown until a device
+    // with a reported position turns up
+    let serverHistory = null;
 
     // key -> { src, dev, pos, heardOnly, marker, glyph, link, heardDot, path, row }
     const entries = new Map();
@@ -478,6 +498,7 @@ export function createMap(container, area = null) {
     // Merge a refresh into the map: move, add, and remove markers in place
     function update(sources, results) {
         const seen = new Set();
+        let reporting = 0, history = 0;
         counts.clear();
         for (const { src, list } of results) {
             let n = 0;
@@ -486,6 +507,11 @@ export function createMap(container, area = null) {
                 if (!key || seen.has(key))
                     continue;
                 positions(src, dev);
+                if (dev.rep) {
+                    reporting++;
+                    if (!legacy && dev.cloud_ts > 0)
+                        history++;
+                }
                 const pos = dev.rep ?? (src.heard ? dev.heard : null);
                 if (!pos)
                     continue;
@@ -499,6 +525,9 @@ export function createMap(container, area = null) {
             if (!seen.has(key))
                 drop(key, e);
         }
+        if (reporting)
+            serverHistory = history > 0;
+        showPathNote();
         if (selected && !entries.has(selected))
             select(null);
         if (!fitted && entries.size) {
@@ -564,6 +593,17 @@ export function createMap(container, area = null) {
             e.link = e.heardDot = null;
         }
         drawPath(e);
+    }
+
+    function showPathNote() {
+        pathNote.hidden = !showPaths() || serverHistory !== false;
+        pathNoteText.textContent = (legacy ? 'This Kismet server is too old to keep the history of where devices say they were, ' :
+            'This Kismet server isn\'t keeping the history of where devices say they were, ') +
+            'so the paths are collected by this browser.  They only cover the time since the web UI was loaded' +
+            (collecting() ? '' : ', and only while the map is shown') +
+            ', and reloading the page starts them over.' +
+            (legacy ? '' : '  To keep the history on the server, set keep_location_cloud_history=true in the Kismet ' +
+                'configuration; it takes more memory for each device.');
     }
 
     // The faint path every device leaves, from the browser's own collection
@@ -793,13 +833,25 @@ export function createMap(container, area = null) {
         settings.watch('map.darkTiles', applyTheme),
         theme.onChange(applyTheme),
         settings.watch('map.paths', () => {
-            pathSelect.value = pathMode();
+            pathSelect.value = pathScope();
             for (const e of entries.values())
                 drawPath(e);
             if (selected)
                 loadTrail(selected);
         }),
-        settings.watch('map.pathsCollect', () => (collecting() ? startCollecting() : stopCollecting())),
+        settings.watch('map.showPaths', () => {
+            pathBox.checked = showPaths();
+            pathSelect.disabled = !showPaths();
+            showPathNote();
+            for (const e of entries.values())
+                drawPath(e);
+            if (selected)
+                loadTrail(selected);
+        }),
+        settings.watch('map.pathsCollect', () => {
+            showPathNote();
+            return collecting() ? startCollecting() : stopCollecting();
+        }),
         settings.watch('map.pathsAge', () => tracks.prune(clock.now() - pathAge())),
         mapSources.watch(() => refresh()),
         () => document.removeEventListener('keydown', onKey),
