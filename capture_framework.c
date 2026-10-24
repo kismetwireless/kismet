@@ -461,6 +461,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->lwsprotocol = NULL;
     ch->lwsring = NULL;
     ch->lwstail = 0;
+    ch->lwswake = 0;
     ch->lwsclientwsi = NULL;
     ch->lwsestablished = 0;
     ch->lwsusessl = 0;
@@ -2718,6 +2719,16 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
             caph->lwsestablished = 1;
             cf_send_newsource(caph, caph->lwsuuid);
             break;
+        case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
+            /* Other threads queue messages and wake the service loop; only this thread
+             * may ask for a writeable callback */
+            pthread_mutex_lock(&caph->out_ringbuf_lock);
+            caph->lwswake = 0;
+            if (caph->lwsring != NULL && caph->lwsclientwsi != NULL &&
+                    lws_ring_get_element(caph->lwsring, &caph->lwstail) != NULL)
+                lws_callback_on_writable(caph->lwsclientwsi);
+            pthread_mutex_unlock(&caph->out_ringbuf_lock);
+            break;
         case LWS_CALLBACK_CLIENT_WRITEABLE:
             pthread_mutex_lock(&caph->out_ringbuf_lock);
 
@@ -3251,6 +3262,15 @@ int cf_send_rb_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
+/* Wake the service loop to send what's queued; lws_callback_on_writable isn't safe
+ * from other threads.  Called under out_ringbuf_lock. */
+static void cf_ws_wake(kis_capture_handler_t *caph) {
+    if (caph->lwswake || caph->lwscontext == NULL)
+        return;
+    caph->lwswake = 1;
+    lws_cancel_service(caph->lwscontext);
+}
+
 int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     int n;
     struct cf_ws_msg wsmsg;
@@ -3284,12 +3304,8 @@ int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
         return -1;
     }
 
+    cf_ws_wake(caph);
     pthread_mutex_unlock(&caph->out_ringbuf_lock);
-
-    pthread_mutex_lock(&caph->handler_lock);
-    if (caph->lwsclientwsi != NULL)
-        lws_callback_on_writable(caph->lwsclientwsi);
-    pthread_mutex_unlock(&caph->handler_lock);
 
     return 1;
 }
@@ -3421,16 +3437,22 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
 
     n = lws_ring_get_count_free_elements(caph->lwsring);
     if (n == 0) {
+        cf_ws_wake(caph);
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         return NULL;
     }
 
-    ws_msg = (struct cf_ws_msg *) malloc(sizeof(struct cf_ws_msg));
-    memset(ws_msg, 0, sizeof(struct cf_ws_msg));
+    ws_msg = (struct cf_ws_msg *) calloc(1, sizeof(struct cf_ws_msg));
+    if (ws_msg == NULL) {
+        fprintf(stderr, "FATAL: Failed to allocate ws buffer\n");
+        pthread_mutex_unlock(&caph->out_ringbuf_lock);
+        return NULL;
+    }
 
     ws_msg->payload = (char *) malloc(LWS_PRE + estimated_len + sizeof(kismet_external_frame_v3_t));
     if (ws_msg->payload == NULL) {
         fprintf(stderr, "FATAL: Failed to allocate ws buffer\n");
+        free(ws_msg);
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         return NULL;
     }
@@ -3479,12 +3501,8 @@ int cf_commit_ws_packet(kis_capture_handler_t *caph, struct cf_ws_msg *wsmsg, si
         return -1;
     }
 
+    cf_ws_wake(caph);
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-
-    pthread_mutex_lock(&caph->handler_lock);
-    if (caph->lwsclientwsi != NULL)
-        lws_callback_on_writable(caph->lwsclientwsi);
-    pthread_mutex_unlock(&caph->handler_lock);
 
     return 1;
 }

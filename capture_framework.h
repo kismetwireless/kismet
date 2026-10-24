@@ -303,6 +303,8 @@ struct kis_capture_handler {
 
     struct lws_ring *lwsring;
     uint32_t lwstail;
+    /* A wakeup of the service loop is pending, under out_ringbuf_lock */
+    int lwswake;
 
     struct lws_client_connect_info lwsci;
     struct lws *lwsclientwsi;
