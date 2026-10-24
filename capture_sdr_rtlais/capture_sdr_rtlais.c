@@ -259,7 +259,9 @@ static int find_rtlais_device(char *definition, char *msg) {
      * rtlais-[serial]
      * rtlais-[0, 1, 2, 3...]
      */
-    if (strstr(interface, "rtlais") != interface) {
+    /* Not rtlaisadsb, which shares the prefix */
+    if (strncmp(interface, "rtlais", strlen("rtlais")) != 0 ||
+            (interface[strlen("rtlais")] != 0 && interface[strlen("rtlais")] != '-')) {
         snprintf(msg, STATUS_MAX, "Expected a rtlais interface, skipping");
         free(interface);
         return -1;

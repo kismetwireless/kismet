@@ -133,6 +133,9 @@ BUILD_CAPTURE_SDR_RTLADSBV2 = @BUILD_CAPTURE_SDR_RTLADSBV2@
 CAPTURE_SDR_RTLAIS = capture_sdr_rtlais/kismet_cap_sdr_rtlais
 BUILD_CAPTURE_SDR_RTLAIS = @BUILD_CAPTURE_SDR_RTLAIS@
 
+CAPTURE_SDR_RTLAISADSB = capture_sdr_rtlaisadsb/kismet_cap_sdr_rtlaisadsb
+BUILD_CAPTURE_SDR_RTLAISADSB = @BUILD_CAPTURE_SDR_RTLAISADSB@
+
 CAPTURE_FREAKLABS_ZIGBEEV2 = capture_freaklabs_zigbee_v2/kismet_cap_freaklabs_zigbee
 BUILD_CAPTURE_FREAKLABS_ZIGBEEV2 = @BUILD_CAPTURE_FREAKLABS_ZIGBEEV2@
 
@@ -261,7 +264,7 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
-	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o datasource_rtlais.cc.o \
+	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o datasource_rtlais.cc.o datasource_rtlaisadsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
@@ -418,6 +421,9 @@ $(CAPTURE_SDR_RTLADSBV2): $(DATASOURCE_COMMON_A) FORCE
 
 $(CAPTURE_SDR_RTLAIS): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtlais && $(MAKE))
+
+$(CAPTURE_SDR_RTLAISADSB): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_sdr_rtlaisadsb && $(MAKE))
 
 $(CAPTURE_HACKRF_SWEEP):	$(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
@@ -580,6 +586,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTLAIS) $(BIN)/`basename $(CAPTURE_SDR_RTLAIS)` ; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_SDR_RTLAISADSB)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTLAISADSB) $(BIN)/`basename $(CAPTURE_SDR_RTLAISADSB)` ; \
+	fi;
+
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEEV2)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_FREAKLABS_ZIGBEEV2) $(BIN)/`basename $(CAPTURE_FREAKLABS_ZIGBEEV2)` ; \
 	fi;
@@ -730,6 +740,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_SDR_RTLAIS)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTLAIS) $(BIN)/`basename $(CAPTURE_SDR_RTLAIS)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SDR_RTLAISADSB)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTLAISADSB) $(BIN)/`basename $(CAPTURE_SDR_RTLAISADSB)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEEV2)"x = "1"x; then \
@@ -940,6 +954,7 @@ clean: all-plugins-clean depclean
 	# @(cd capture_sdr_rtlamr && make clean)
 	# @(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_sdr_rtlais && make clean)
+	@(cd capture_sdr_rtlaisadsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ti_cc_2531 && make clean)
