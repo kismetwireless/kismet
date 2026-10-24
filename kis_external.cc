@@ -94,7 +94,8 @@ int kis_external_io::dispatch_frames() {
             return -1;
         }
 
-        size_t total_length = kis_ntoh32(frame->data_sz);
+        const size_t data_sz = kis_ntoh32(frame->data_sz);
+        size_t total_length = data_sz;
 
         if (kis_ntoh16(frame->proto_sentinel) == KIS_EXTERNAL_V2_SIG &&
                 kis_ntoh16(frame->proto_version) == 0x02) {
@@ -103,13 +104,15 @@ int kis_external_io::dispatch_frames() {
             total_length += sizeof(kismet_external_frame_v3_t);
         }
 
-        if (total_length < sizeof(kismet_external_frame_stub_t) ||
+        // Test data_sz too; adding the header can wrap total_length on 32-bit
+        if (data_sz > MAX_EXTERNAL_FRAME_LEN ||
+                total_length < sizeof(kismet_external_frame_stub_t) ||
                 total_length - sizeof(kismet_external_frame_stub_t) > MAX_EXTERNAL_FRAME_LEN) {
             _MSG_ERROR("Kismet external interface got command frame which is "
                     "too large to be processed ({}); either the frame is malformed "
                     "or the connection is from a very old legacy Kismet version using "
                     "a different protocol; make sure that you have updated to a "
-                    "current Kismet version on all systems.", total_length);
+                    "current Kismet version on all systems.", data_sz);
             interface_->trigger_error("external packet too large for buffer");
             return -1;
         }
@@ -754,15 +757,17 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
 #ifdef HAVE_PROTOBUF_CPP
         data_sz = kis_ntoh32(frame_v2->data_sz);
-        frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
-        if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
+        // Bound data_sz before adding the header so frame_sz can't wrap on 32-bit
+        if (data_sz >= MAX_EXTERNAL_FRAME_LEN - sizeof(kismet_external_frame_v2)) {
             _MSG_ERROR("Kismet external interface got an oversized command "
                     "frame.  You most likely need to upgrade the Kismet datasource "
                     "binaries (kismet_cap_...) to match your Kismet server version.");
             trigger_error("command frame too large for buffer");
             return result_handle_packet_error;
         }
+
+        frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
         // If we don't have the whole buffer available, bail on this read
         if (frame_sz > buffamt) {
@@ -799,15 +804,17 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         // The V3 kismet protocol uses msgpack and will be the new target
 
         data_sz = kis_ntoh32(frame_v3->length);
-        frame_sz = data_sz + sizeof(kismet_external_frame_v3);
 
-        if (frame_sz >= MAX_EXTERNAL_FRAME_LEN) {
+        // Bound data_sz before adding the header so frame_sz can't wrap on 32-bit
+        if (data_sz >= MAX_EXTERNAL_FRAME_LEN - sizeof(kismet_external_frame_v3)) {
             _MSG_ERROR("Kismet external interface got an oversized command "
                     "frame.  You most likely need to upgrade the Kismet datasource "
                     "binaries (kismet_cap_...) to match your Kismet server version.");
             trigger_error("command frame too large for buffer");
             return result_handle_packet_error;
         }
+
+        frame_sz = data_sz + sizeof(kismet_external_frame_v3);
 
         // If we don't have the whole buffer available, bail on this read
         if (frame_sz > buffamt) {

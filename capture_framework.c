@@ -2239,6 +2239,10 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         /* handle a legacy v2 ping packet directly; this is used for datasource
          * version discovery in the new ping handshake for v3.  respond with a
          * v3 answer. */
+        if (len < sizeof(kismet_external_frame_v2_t)) {
+            return -1;
+        }
+
         if (strncasecmp(external_frame_v2->command, "PING", 32) == 0) {
             pthread_mutex_lock(&(caph->handler_lock));
 
@@ -2264,9 +2268,11 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
     packet_sz = ntohl(external_frame->data_sz);
 
-    if (len < packet_sz + sizeof(kismet_external_frame_v3_t)) {
-        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet (%lu / %lu)\n",
-                caph->capsource_type, len, packet_sz + sizeof(kismet_external_frame_v3_t));
+    /* Compare without adding to packet_sz, which can wrap on 32-bit */
+    if (len < sizeof(kismet_external_frame_v3_t) ||
+            len - sizeof(kismet_external_frame_v3_t) < packet_sz) {
+        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet (%lu / %u)\n",
+                caph->capsource_type, len, packet_sz);
         return -1;
     }
 
@@ -2370,14 +2376,16 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     }
 
     packet_sz = ntohl(external_frame->data_sz);
-    total_sz = packet_sz + sizeof(kismet_external_frame_v3_t);
 
-    if (total_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
+    /* Bound packet_sz before adding the header so total_sz can't wrap */
+    if (packet_sz >= kis_simple_ringbuf_size(caph->in_ringbuf) - sizeof(kismet_external_frame_v3_t)) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         fprintf(stderr, "FATAL: Capture source (%s) incoming packet too large for ringbuf (%u / %lu)\n",
-				caph->capsource_type, total_sz, kis_simple_ringbuf_size(caph->in_ringbuf));
+				caph->capsource_type, packet_sz, kis_simple_ringbuf_size(caph->in_ringbuf));
         return -1;
     }
+
+    total_sz = packet_sz + sizeof(kismet_external_frame_v3_t);
 
     if (rb_available < total_sz) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
