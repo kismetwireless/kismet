@@ -468,6 +468,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
     white-space: nowrap;
 }
 .message-text { white-space: pre-wrap; word-break: break-word; }
+.messages-note { padding: 0.3rem 0.6rem; font-size: 0.85em; }
 .message.level-error, .message.level-fatal { border-left-color: var(--error); }
 .message.level-error .message-text, .message.level-fatal .message-text { color: var(--error); }
 .message.level-alert { border-left-color: var(--warn); }

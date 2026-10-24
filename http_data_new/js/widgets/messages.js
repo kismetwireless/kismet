@@ -31,38 +31,96 @@ function messageRow(m) {
         el('span', { class: 'message-text' }, m['kismet.messagebus.message_string'] ?? ''));
 }
 
+const retrySeconds = [2, 5, 10];
+
+// The same message from the backlog and from the live feed shows once
+const keyOf = (m) => `${m['kismet.messagebus.message_time']}\u0000${m['kismet.messagebus.message_flags']}\u0000` +
+    `${m['kismet.messagebus.message_string']}`;
+const timeOf = (m) => m['kismet.messagebus.message_time'] ?? 0;
+
 export function createMessages(container) {
     const list = el('ol', { class: 'messages' });
-    container.append(list);
+    // Below the live messages while the earlier ones are still loading
+    const note = el('div', { class: 'messages-note muted', hidden: true });
+    container.append(list, note);
 
-    function add(m, top = true) {
-        const row = messageRow(m);
-        if (top)
-            list.prepend(row);
+    const shown = [];       // newest first, with their rows
+    const seen = new Set();
+
+    function add(m) {
+        const key = keyOf(m);
+        if (seen.has(key))
+            return;
+        seen.add(key);
+        const item = { m, key, row: messageRow(m) };
+        // Usually the newest; a backlog message goes in its place by time
+        let at = 0;
+        while (at < shown.length && timeOf(shown[at].m) > timeOf(m))
+            at++;
+        shown.splice(at, 0, item);
+        if (at < shown.length - 1)
+            list.insertBefore(item.row, shown[at + 1].row);
         else
-            list.append(row);
-        while (list.childElementCount > keep)
-            list.lastElementChild.remove();
+            list.append(item.row);
+        while (shown.length > keep) {
+            const old = shown.pop();
+            old.row.remove();
+            seen.delete(old.key);
+        }
+        // Live messages have started; show them, and say the rest is coming
+        if (!loaded) {
+            outline.done();
+            note.hidden = false;
+        }
     }
 
-    let stop = null;
     const outline = loading.overlay(container, { kind: 'log', rows: 10 }, { label: 'Loading messages', className: 'sk-pane-layer' });
+    let loaded = false;
+    let attempt = 0;
+    let timer = null;
+    let inFlight = false;
 
-    api.get('messagebus/last-time/0/messages.json')
-        .then((r) => {
+    // The messages the server has kept, tried again until they load
+    async function loadBacklog() {
+        clearTimeout(timer);
+        timer = null;
+        if (loaded || inFlight)
+            return;
+        inFlight = true;
+        try {
+            const r = await api.get('messagebus/last-time/0/messages.json');
             const backlog = r['kismet.messagebus.list'] ?? [];
-            backlog.sort((a, b) => b['kismet.messagebus.message_time'] - a['kismet.messagebus.message_time']);
-            backlog.slice(0, keep).forEach((m) => add(m, false));
-        })
-        .catch((err) => add({
-            'kismet.messagebus.message_string': `Could not load messages: ${err.message}`,
-            'kismet.messagebus.message_flags': 4,
-            'kismet.messagebus.message_time': Date.now() / 1000,
-        }))
-        .finally(() => {
+            backlog.sort((a, b) => timeOf(b) - timeOf(a));
+            loaded = true;
             outline.done();
-            stop = eventbus.subscribe('MESSAGE', null, (event) => add(event));
-        });
+            note.hidden = true;
+            backlog.slice(0, keep).forEach(add);
+        } catch (err) {
+            const wait = retrySeconds[Math.min(attempt++, retrySeconds.length - 1)];
+            outline.error(err.message);
+            note.textContent = `Earlier messages couldn't be loaded (${err.message}); trying again…`;
+            timer = setTimeout(loadBacklog, wait * 1000);
+        } finally {
+            inFlight = false;
+        }
+    }
 
-    return { destroy: () => stop?.() };
+    const stop = eventbus.subscribe('MESSAGE', null, (event) => add(event));
+    // Back in touch with the server: try straight away
+    const stopState = eventbus.onState((up) => {
+        if (up && !loaded) {
+            attempt = 0;
+            loadBacklog();
+        }
+    });
+    note.textContent = 'Loading earlier messages…';
+    loadBacklog();
+
+    return {
+        destroy() {
+            stop();
+            stopState();
+            clearTimeout(timer);
+        },
+    };
 }
