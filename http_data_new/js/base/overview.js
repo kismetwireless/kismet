@@ -77,6 +77,12 @@ export function register(kismet) {
                 let out = null;
                 for (const rec of recs) {
                     const h = rrd.history(rec['kismet.channelrec.device_rrd'], last.now, span);
+                    // Counts are sampled once a second on a timer, which now and
+                    // then skips a second; bridge a lone zero between two counts
+                    if (span === 'minute')
+                        for (let i = 1; i < h.length - 1; i++)
+                            if (!h[i] && h[i - 1] && h[i + 1])
+                                h[i] = h[i - 1];
                     out = out ? out.map((v, i) => v + (h[i] ?? 0)) : h.slice();
                 }
                 return out ?? [];
@@ -90,7 +96,8 @@ export function register(kismet) {
                 update(data) {
                     last = data;
                     const m = sum('minute');
-                    now.update(format.count(Math.round(m.length > 1 ? m[m.length - 2] : 0)));
+                    // The last few complete seconds, past a skipped sample
+                    now.update(format.count(Math.round(Math.max(0, ...m.slice(0, -1).slice(-3)))));
                     draw();
                 },
             };
@@ -287,21 +294,26 @@ export function register(kismet) {
                     show();
                     redraw();
                 } }, t));
-            const show = () => buttons.forEach((b, i) => b.classList.toggle('active', ['devices', 'packets'][i] === metric));
-            show();
+            const show = () => {
+                buttons.forEach((b, i) => b.classList.toggle('active', ['devices', 'packets'][i] === metric));
+                note.textContent = `${metric === 'devices' ? 'Right now' : 'Averaged over the last minute'}.  ` +
+                    'Click one for the channel heat map.';
+            };
             const bars = barList({ onPick: () => openCoverage({ view: 'heat' }),
                 fmt: (v) => (v > 0 && v < 10 && v % 1 ? v.toFixed(1) : format.count(Math.round(v))) });
-            body.append(el('div', { class: 'graph-tabs' }, buttons), bars.node,
-                el('div', { class: 'muted ov-note' }, 'Right now.  Click one for the channel heat map.'));
+            const note = el('div', { class: 'muted ov-note' });
+            body.append(el('div', { class: 'graph-tabs' }, buttons), bars.node, note);
+            show();
             let last = null;
             function redraw() {
                 if (!last?.channels)
                     return;
                 const recs = Object.values(last.channels['kismet.channeltracker.frequency_map'] ?? {});
-                const rrdName = metric === 'devices' ? 'kismet.channelrec.device_rrd' : 'kismet.channelrec.packets_rrd';
                 const items = recs.map((rec) => {
                     const khz = rec['kismet.channelrec.frequency'];
-                    return { id: String(khz), value: rrd.latest(rec[rrdName], last.now),
+                    const value = metric === 'devices' ? rrd.recent(rec['kismet.channelrec.device_rrd'], last.now, 3) :
+                        rrd.recent(rec['kismet.channelrec.packets_rrd'], last.now, 60, 'mean');
+                    return { id: String(khz), value,
                         label: `${frequencyLabel(khz, rec['kismet.channelrec.channel'])} (${format.frequency(khz)})` };
                 }).filter((i) => i.value > 0).sort((a, b) => b.value - a.value).slice(0, 10);
                 bars.update(items);
