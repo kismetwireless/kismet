@@ -30,9 +30,9 @@
  * and tuned to AIS_DEMOD_CENTER_FREQ; both AIS channels (161.975MHz and
  * 162.025MHz) are demodulated simultaneously.
  *
- * Valid (CRC-checked) frames are delivered via callback with the FCS removed
- * and the bits of each byte reversed into AIS (MSB-first) order; this is the
- * same bit stream represented by the 6-bit armoring of an AIVDM sentence.
+ * Valid (CRC-checked) frames are delivered via callback with the FCS removed,
+ * in AIS (MSB-first) field order; this is the same bit stream represented by
+ * the 6-bit armoring of an AIVDM sentence.
  */
 
 #define AIS_DEMOD_SAMPLE_RATE       288000
