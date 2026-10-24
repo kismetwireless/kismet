@@ -535,6 +535,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
 
     uint8_t data[4096 * 16];
+    const unsigned int rx_dwords = 1000;
     struct bladeRF_wiphy_header_rx *bwh_r = (struct bladeRF_wiphy_header_rx *) data;
 
     struct timeval ts;
@@ -550,9 +551,11 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         memset(&meta, 0, sizeof(meta));
 
-        bladerf_sync_rx(local_wifi->bladeRF_dev, data, 1000, &meta, 0);
+        if (bladerf_sync_rx(local_wifi->bladeRF_dev, data, rx_dwords, &meta, 0) != 0)
+            continue;
 
-        if (bwh_r->len <= 16)
+        /* len is device controlled; the payload must fit in what was read */
+        if (bwh_r->len <= 16 || bwh_r->len + 16 > rx_dwords * 4)
             continue;
 
         gettimeofday(&ts, NULL);
