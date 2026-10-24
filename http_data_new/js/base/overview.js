@@ -39,7 +39,7 @@ export function register(kismet) {
     const windowNote = (data) => `heard in ${widgets.overview.windows.find((w) => w.id === data.window)?.title ?? 'the chosen time'}`;
 
     ui.dashboardCards.add({
-        id: 'devices', title: 'Devices', priority: 0, w: 2, h: 5, needs: ['status'],
+        id: 'devices', title: 'Devices', loading: ['stat', 'tabs', 'graph'], priority: 0, w: 2, h: 5, needs: ['status'],
         create(body) {
             const total = stat('devices tracked');
             const tabs = spanTabs('devices', () => draw());
@@ -63,7 +63,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'active', title: 'Active devices', priority: 10, w: 2, h: 5, needs: ['channels'],
+        id: 'active', title: 'Active devices', loading: ['stat', 'tabs', 'graph'], priority: 10, w: 2, h: 5, needs: ['channels'],
         create(body) {
             const now = stat('heard in the last 30 seconds');
             const tabs = spanTabs('active', () => draw());
@@ -105,7 +105,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'packets', title: 'Packets', priority: 20, w: 2, h: 5, needs: ['packets'],
+        id: 'packets', title: 'Packets', loading: ['stat', 'tabs', 'graph'], priority: 20, w: 2, h: 5, needs: ['packets'],
         create(body) {
             const rate = stat('packets per second');
             const tabs = spanTabs('packets', () => draw());
@@ -139,7 +139,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'phys', title: 'Devices by type of radio', priority: 30, w: 3, h: 5, needs: ['phys'],
+        id: 'phys', title: 'Devices by type of radio', loading: 'bars', priority: 30, w: 3, h: 5, needs: ['phys'],
         create(body, { actions }) {
             const bars = barList({ onPick: (item) => actions.showDevices(`phy-${item.id}`) });
             body.append(bars.node, el('div', { class: 'muted ov-note' }, 'All devices Kismet has seen.  Click one to list them.'));
@@ -172,7 +172,7 @@ export function register(kismet) {
     }
 
     ui.dashboardCards.add({
-        id: 'types', title: 'Kinds of device', priority: 40, w: 3, h: 5, needs: ['devices'],
+        id: 'types', title: 'Kinds of device', loading: 'bars', priority: 40, w: 3, h: 5, needs: ['devices'],
         create(body) {
             const bars = barList();
             const note = el('div', { class: 'muted ov-note' });
@@ -219,7 +219,7 @@ export function register(kismet) {
     }
 
     ui.dashboardCards.add({
-        id: 'security', title: 'Wi-Fi security', priority: 50, w: 3, h: 5, needs: ['devices'],
+        id: 'security', title: 'Wi-Fi security', loading: 'donut', priority: 50, w: 3, h: 5, needs: ['devices'],
         create(body) {
             const chart = donut({ size: 96, centerLabel: 'APs', empty: 'No Wi-Fi access points' });
             body.append(chart.node);
@@ -241,7 +241,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'manuf', title: 'Top manufacturers', priority: 60, w: 3, h: 5, needs: ['devices'],
+        id: 'manuf', title: 'Top manufacturers', loading: { kind: 'bars', rows: 6 }, priority: 60, w: 3, h: 5, needs: ['devices'],
         create(body) {
             const bars = barList({ empty: 'No manufacturers known yet' });
             body.append(bars.node);
@@ -255,7 +255,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'new', title: 'New devices', priority: 70, w: 3, h: 5, needs: ['devices'],
+        id: 'new', title: 'New devices', loading: ['stat', 'histogram'], priority: 70, w: 3, h: 5, needs: ['devices'],
         create(body) {
             const recent = stat('first seen in the last 5 minutes');
             const graph = historyGraph({ type: 'bar', unit: 'new devices', height: null, minBar: true });
@@ -284,7 +284,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'channels', title: 'Busiest channels', priority: 80, needs: ['channels'], w: 6, h: 6,
+        id: 'channels', title: 'Busiest channels', loading: ['tabs', { kind: 'bars', rows: 6 }], priority: 80, needs: ['channels'], w: 6, h: 6,
         create(body) {
             let metric = kismet.settings.get('overview.channels.metric', 'devices');
             const buttons = [['devices', 'Devices'], ['packets', 'Packets/s']].map(([id, t]) => el('button', { type: 'button',
@@ -335,7 +335,7 @@ export function register(kismet) {
     ];
 
     ui.dashboardCards.add({
-        id: 'alerts', title: 'Alerts, last hour', priority: 75, w: 3, h: 5, needs: ['alerts'],
+        id: 'alerts', title: 'Alerts, last hour', loading: [{ kind: 'bars', rows: 2 }, 'histogram'], priority: 75, w: 3, h: 5, needs: ['alerts'],
         create(body, { actions }) {
             const bars = barList({ onPick: () => actions.showTab('alerts'), empty: 'No alerts in the last hour' });
             const graph = historyGraph({ type: 'bar', unit: 'alerts', height: null, minBar: true });
@@ -365,7 +365,7 @@ export function register(kismet) {
     const nearby = -60, edge = -85;
 
     ui.dashboardCards.add({
-        id: 'signal', title: 'Signal strength', priority: 72, w: 3, h: 5, needs: ['devices'],
+        id: 'signal', title: 'Signal strength', loading: [{ kind: 'text', rows: 2 }, { kind: 'histogram', rows: 14 }], priority: 72, w: 3, h: 5, needs: ['devices'],
         create(body) {
             const counts = el('div', { class: 'ov-signal-counts' });
             const near = stat(`nearby (stronger than ${nearby} dBm)`);
@@ -405,7 +405,7 @@ export function register(kismet) {
     const talkersShown = 10;
 
     ui.dashboardCards.add({
-        id: 'talkers', title: 'Top talkers', priority: 85, w: 6, h: 6, needs: ['talkers'],
+        id: 'talkers', title: 'Top talkers', loading: { kind: 'table', rows: 6 }, priority: 85, w: 6, h: 6, needs: ['talkers'],
         create(body) {
             const list = el('ol', { class: 'ov-talkers' });
             const note = el('div', { class: 'muted ov-note' }, 'Packets per second over the last 10 seconds');
@@ -458,7 +458,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'sources', title: 'Data sources', priority: 100, needs: ['sources'], w: 6, h: 6,
+        id: 'sources', title: 'Data sources', loading: { kind: 'list', rows: 3 }, priority: 100, needs: ['sources'], w: 6, h: 6,
         create(body) {
             const list = el('ul', { class: 'ov-sources' });
             body.append(list);

@@ -7,6 +7,7 @@ import { loadServerModules } from './core/modules.js';
 import { createRibbon } from './widgets/ribbon.js';
 import { createPaneArea } from './widgets/panes.js';
 import { createMenu } from './widgets/menu.js';
+import * as loading from './widgets/loading.js';
 
 import * as baseColumns from './base/columns.js';
 import * as baseRibbon from './base/ribbon_stats.js';
@@ -42,6 +43,12 @@ async function loadServerName() {
 async function start() {
     // Color schemes first, so even the login screen is in the chosen colors
     baseSchemes.register(kismet);
+    // Outlines of the panels while logging in and loading modules, which
+    // can take a while on a slow link
+    const mainOutline = loading.overlay(document.getElementById('main'),
+        ['tabs', { kind: 'table', rows: 14, columns: 6 }], { label: 'Starting', className: 'sk-pane-layer' });
+    const bottomOutline = loading.overlay(document.getElementById('bottom'),
+        ['tabs', { kind: 'log', rows: 6 }], { label: 'Starting', className: 'sk-pane-layer' });
     await ensureSession();
 
     for (const mod of builtins)
@@ -55,6 +62,8 @@ async function start() {
     createRibbon(document.getElementById('ribbon'));
     createPaneArea(document.getElementById('main'), 'main');
     createPaneArea(document.getElementById('bottom'), 'bottom');
+    mainOutline.done();
+    bottomOutline.done();
     setupSplit();
     loadServerName();
 }

@@ -16,6 +16,11 @@
 //              fields in deviceFields (renamed short), for counting
 // plus `now` (server time) and `window` (seconds, or 0 for all devices).
 //
+// Until all of a card's data has arrived it shows a loading outline in the
+// shapes it names in `loading` (see js/widgets/loading.js), and each card is
+// drawn as soon as its own data is in, without waiting on slower requests.
+// A refresh that is slow to come back shows a bar along the top of the card.
+//
 // Layout: on wide screens the cards sit on a 12-column grid, each at an
 // x, y, width, and height in grid cells, packed upward so there are no
 // gaps.  "Edit layout" lets the user drag cards by their title, resize them
@@ -29,6 +34,7 @@ import * as clock from '../core/clock.js';
 import * as settings from '../core/settings.js';
 import { icon } from '../core/icons.js';
 import { dashboardCards } from '../registry/ui.js';
+import * as loading from './loading.js';
 
 const base = 'kismet.device.base';
 const fastSeconds = 5;
@@ -168,7 +174,7 @@ export function createOverview(container, area = null) {
     showExpanded(false);
     const stopExpand = area?.onExpand(showExpanded);
 
-    const cards = new Map();   // id -> { entry, node, handle }
+    const cards = new Map();   // id -> { entry, node, handle, ready, round, loader, busy }
     const data = {};
     let visible = false;
     let timer = null;
@@ -201,11 +207,12 @@ export function createOverview(container, area = null) {
 
     function makeCard(entry) {
         const body = el('div', { class: 'ov-card-body' });
+        const main = el('div', { class: 'ov-card-main' }, body);
         const hideButton = el('button', { class: 'icon-button ov-hide', title: 'Hide this card',
             onclick: () => hideCard(entry.id) }, icon('close'));
         const title = el('h3', { class: 'ov-card-title' }, el('span', {}, entry.title), hideButton);
         const resizer = el('span', { class: 'ov-resize', title: 'Drag to resize', 'aria-hidden': 'true' });
-        const node = el('section', { class: 'ov-card', dataset: { card: entry.id } }, title, body, resizer);
+        const node = el('section', { class: 'ov-card', dataset: { card: entry.id } }, title, main, resizer);
         let handle = null;
         try {
             handle = entry.create(body, { actions }) ?? null;
@@ -214,7 +221,34 @@ export function createOverview(container, area = null) {
         }
         title.addEventListener('pointerdown', (e) => startDrag(e, entry.id, 'move'));
         resizer.addEventListener('pointerdown', (e) => startDrag(e, entry.id, 'resize'));
-        return { entry, node, handle };
+        const c = { entry, node, handle, ready: false, round: 0,
+            loader: loading.overlay(main, entry.loading ?? 'text', { label: `Loading ${entry.title.toLowerCase()}` }),
+            busy: loading.busyBar(node) };
+        // Data other cards already loaded draws it straight away
+        deliver(c);
+        return c;
+    }
+
+    function destroyCard(c) {
+        c.handle?.destroy?.();
+        c.busy.destroy();
+        c.node.remove();
+    }
+
+    // Draw a card once everything it needs is in
+    function deliver(c) {
+        if (!(c.entry.needs ?? []).every((n) => n in data))
+            return;
+        data.now = clock.isKnown() ? clock.now() : Date.now() / 1000;
+        try {
+            c.handle?.update?.(data);
+        } catch (err) {
+            console.error(`dashboard card ${c.entry.id} failed to update:`, err);
+        }
+        if (!c.ready) {
+            c.ready = true;
+            c.loader.done();
+        }
     }
 
     // Cards from the registry, placed where the user left them; new ones go
@@ -224,16 +258,15 @@ export function createOverview(container, area = null) {
         const ids = new Set(list.map((c) => c.id));
         for (const [id, c] of cards) {
             if (!ids.has(id)) {
-                c.handle?.destroy?.();
-                c.node.remove();
+                destroyCard(c);
                 cards.delete(id);
             }
         }
         for (const entry of list) {
             const c = cards.get(entry.id);
             if (!c || c.entry !== entry) {
-                c?.handle?.destroy?.();
-                c?.node.remove();
+                if (c)
+                    destroyCard(c);
                 cards.set(entry.id, makeCard(entry));
             }
         }
@@ -475,16 +508,19 @@ export function createOverview(container, area = null) {
         return Array.isArray(list) ? list : [];
     }
 
+    let round = 0;
+
     async function refresh() {
         if (busy || !visible)
             return;
         busy = true;
+        const thisRound = ++round;
         try {
             const want = needed();
-            const jobs = [];
+            const fetch = new Map();
             for (const name of want) {
                 if (loaders[name])
-                    jobs.push(loaders[name]().then((v) => { data[name] = v; }));
+                    fetch.set(name, loaders[name]);
             }
             // The device scan is the expensive one; it runs less often, and
             // less still on servers with many devices
@@ -493,19 +529,51 @@ export function createOverview(container, area = null) {
                 const every = (count > bigServer ? bigScanSeconds : scanSeconds) * 1000;
                 if (!scanAt || Date.now() - scanAt >= every) {
                     scanAt = Date.now();
-                    jobs.push(scanDevices().then((v) => { data.devices = v; }));
+                    fetch.set('devices', scanDevices);
                 }
             }
-            const results = await Promise.allSettled(jobs);
-            const failed = results.filter((r) => r.status === 'rejected');
-            status.textContent = failed.length ? `Some data could not be loaded: ${failed[0].reason?.message ?? failed[0].reason}` : '';
-            data.now = clock.isKnown() ? clock.now() : Date.now() / 1000;
-            for (const it of items) {
-                const c = cards.get(it.id);
-                try {
-                    c?.handle?.update?.(data);
-                } catch (err) {
-                    console.error(`dashboard card ${it.id} failed to update:`, err);
+
+            const shown = items.map((it) => cards.get(it.id)).filter(Boolean);
+            const pending = new Set(fetch.keys());
+            const waitsOn = (c) => (c.entry.needs ?? []).some((n) => pending.has(n));
+            const refreshing = shown.filter((c) => c.ready && waitsOn(c));
+            refreshing.forEach((c) => c.busy.start());
+
+            // Each card is drawn once none of its data is still on the way
+            const settle = (name) => {
+                pending.delete(name);
+                for (const c of shown) {
+                    if (c.round === thisRound || !(c.entry.needs ?? []).includes(name) || waitsOn(c))
+                        continue;
+                    c.round = thisRound;
+                    if (refreshing.includes(c))
+                        c.busy.stop();
+                    deliver(c);
+                }
+            };
+
+            const failures = [];
+            await Promise.allSettled([...fetch].map(([name, load]) => load().then((v) => {
+                data[name] = v;
+                for (const c of shown)
+                    if (!c.ready && (c.entry.needs ?? []).includes(name))
+                        c.loader.retry();
+                settle(name);
+            }, (err) => {
+                failures.push(err);
+                for (const c of shown)
+                    if (!c.ready && (c.entry.needs ?? []).includes(name))
+                        c.loader.error(err?.message ?? String(err));
+                settle(name);
+            })));
+            status.textContent = failures.length ?
+                `Some data could not be loaded: ${failures[0]?.message ?? failures[0]}` : '';
+
+            // Cards whose data wasn't due this time still move on with the clock
+            for (const c of shown) {
+                if (c.round !== thisRound) {
+                    c.round = thisRound;
+                    deliver(c);
                 }
             }
         } finally {
@@ -536,7 +604,7 @@ export function createOverview(container, area = null) {
             stopExpand?.();
             document.removeEventListener('keydown', onKey);
             for (const c of cards.values())
-                c.handle?.destroy?.();
+                destroyCard(c);
             root.remove();
         },
     };

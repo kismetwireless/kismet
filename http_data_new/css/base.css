@@ -411,7 +411,6 @@ tr.highlighted .bar-graph { fill: currentColor; }
     height: 0.6em;
     width: 60%;
     border-radius: 4px;
-    background: var(--surface-2);
 }
 .data-table tbody tr:hover { background: var(--row-hover); }
 .data-table tbody tr.highlighted {
@@ -993,6 +992,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
     margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
 }
 .ov-card-title > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-card-main { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ov-card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; overflow: auto; overscroll-behavior: contain; }
 .ov-card .graph-tabs { margin: 0; flex: none; }
 .ov-card .history-graph { flex: 1 1 3rem; min-height: 3rem; margin: 0; }
@@ -1129,4 +1129,74 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .gps-history { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.8rem; }
 @media (max-width: 640px) {
     .gps-top { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Loading outlines (js/widgets/loading.js), shaped like the content to come */
+.sk {
+    display: block;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--surface-2) 0%, var(--border) 40%, var(--surface-2) 80%);
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.6s linear infinite;
+}
+@keyframes sk-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+.sk-layer {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; flex-direction: column; gap: 0.35rem; overflow: hidden;
+    background: var(--surface);
+    transition: opacity 0.18s ease;
+}
+.sk-layer.sk-leaving { opacity: 0; pointer-events: none; }
+.sk-message { font-size: 0.75rem; color: var(--muted); flex: none; }
+.sk-layer:not(.sk-failed) .sk-message {
+    /* Read out, but the outline already says it's loading */
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+}
+.sk-layer.sk-failed .sk { animation: none; opacity: 0.6; }
+.skeleton { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.skeleton > :last-child { flex: 1 1 auto; min-height: 0; }
+.skeleton > :not(:last-child) { flex: none; }
+.sk-line { height: 0.6rem; max-width: 100%; }
+.sk-line.sk-strong { height: 0.75rem; }
+.sk-stat { display: flex; align-items: flex-end; gap: 0.5rem; }
+.sk-number { width: 3.2rem; height: 1.6rem; border-radius: 6px; }
+.sk-stat .sk-line { margin-bottom: 0.2rem; }
+.sk-tabs { display: flex; gap: 0.3rem; }
+.sk-pill { width: 3.2rem; height: 1.1rem; border-radius: 6px; }
+.sk-graph { display: flex; min-height: 3rem; }
+.sk-block { position: relative; flex: 1; border-radius: 6px; }
+.sk-graph-line { position: absolute; inset: 15% 0 10%; width: 100%; height: 75%; }
+.sk-graph-line path { fill: none; stroke: var(--surface); stroke-width: 2.5; opacity: 0.8; }
+.sk-histogram { display: flex; align-items: flex-end; gap: 4%; min-height: 3rem; }
+.sk-column { flex: 1; border-radius: 3px 3px 0 0; }
+.sk-rows { display: flex; flex-direction: column; gap: 0.55rem; overflow: hidden; }
+.sk-bar-row { display: grid; grid-template-columns: minmax(4rem, 35%) 1fr; gap: 0.6rem; align-items: center; }
+.sk-bar { height: 1rem; border-radius: 4px; }
+.sk-list-row { display: flex; flex-direction: column; gap: 0.3rem; }
+.sk-table-row { display: grid; gap: 0.8rem; align-items: center; }
+.sk-donut { display: flex; align-items: center; gap: 1rem; }
+.sk-ring {
+    flex: none; width: 5rem; height: 5rem; border-radius: 50%;
+    -webkit-mask: radial-gradient(circle, transparent 52%, #000 53%);
+    mask: radial-gradient(circle, transparent 52%, #000 53%);
+}
+.sk-donut .sk-rows { flex: 1; }
+.ov-card > .loading-bar { top: 0; border-radius: 8px 8px 0 0; }
+.sk-log-row { display: grid; grid-template-columns: 9rem 1fr; gap: 1rem; align-items: center; }
+.sk-log-row > :first-child { max-width: 9rem; }
+.sk-table-layer { padding: 0.55rem 0; }
+.sk-table-layer .sk-table-row { gap: 0; }
+.sk-table-layer .sk-message { padding: 0 0.6rem; }
+.sk-table-layer .sk-table-row > .sk { margin: 0 0.6rem; max-width: calc(100% - 1.2rem); }
+.sk-table-layer .sk-rows { gap: 0.95rem; }
+.sk-pane-layer { padding: 0.4rem 0.6rem; }
+@media (max-width: 640px) {
+    .sk-log-row { grid-template-columns: 5rem 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sk { animation: none; background: var(--surface-2); }
+    .sk-layer { transition: none; }
 }

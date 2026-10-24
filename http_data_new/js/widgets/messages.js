@@ -5,6 +5,7 @@ import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
 import * as eventbus from '../core/eventbus.js';
 import * as format from '../core/format.js';
+import * as loading from './loading.js';
 
 const keep = 250;
 
@@ -45,6 +46,7 @@ export function createMessages(container) {
     }
 
     let stop = null;
+    const outline = loading.overlay(container, { kind: 'log', rows: 10 }, { label: 'Loading messages', className: 'sk-pane-layer' });
 
     api.get('messagebus/last-time/0/messages.json')
         .then((r) => {
@@ -58,6 +60,7 @@ export function createMessages(container) {
             'kismet.messagebus.message_time': Date.now() / 1000,
         }))
         .finally(() => {
+            outline.done();
             stop = eventbus.subscribe('MESSAGE', null, (event) => add(event));
         });
 

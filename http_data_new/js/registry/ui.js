@@ -55,8 +55,13 @@ export const mapSources = createRegistry('mapSources', {
 //   w, h: the card's starting size on the 12-column grid, in columns and
 //     rows of 40 px (3 × 5 if not given; size: 'wide' starts it 6 wide),
 //   needs: the shared data it reads ('status', 'packets', 'phys', 'channels',
-//     'alerts', 'sources', 'devices'; see js/widgets/overview.js),
+//     'alerts', 'sources', 'talkers', 'devices'; see js/widgets/overview.js),
+//   loading: the outline shown until that data arrives, as shapes from
+//     kismet.widgets.loading ('stat', 'tabs', 'graph', 'histogram', 'bars',
+//     'list', 'table', 'donut', 'text'), one or a list stacked top to
+//     bottom, each a name or { kind, rows }; 'text' if not given,
 //   create(body, { actions }) -> { update(data), destroy() }
+//     update() is first called once all of `needs` has arrived
 //     actions.showTab(id), actions.showDevices(viewId)
 export const dashboardCards = createRegistry('dashboardCards', {
     required: ['title', 'create'],

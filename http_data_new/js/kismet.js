@@ -40,6 +40,7 @@ import * as map from './widgets/map.js';
 import * as charts from './widgets/charts.js';
 import * as overview from './widgets/overview.js';
 import * as gps from './widgets/gps.js';
+import * as loading from './widgets/loading.js';
 
 export const kismet = {
     api,
@@ -70,6 +71,7 @@ export const kismet = {
         charts,
         overview,
         gps,
+        loading,
     },
 
     ui: {

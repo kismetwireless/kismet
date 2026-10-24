@@ -33,6 +33,7 @@ import * as settings from '../core/settings.js';
 import { fieldName } from '../registry/columns.js';
 import { makeDraggable, makeResizable, moveColumn, defaultColumns, chooseColumns } from './columnedit.js';
 import { createRowSource } from './rowsource.js';
+import * as loading from './loading.js';
 import { chooseHighlights, highlightSetting } from './highlightedit.js';
 
 const pageSize = 50;
@@ -144,7 +145,10 @@ export function createDataTable(container, {
     // Runs across the top of the table while rows on screen are loading
     const loadingBar = el('div', { class: 'loading-bar', hidden: true, role: 'progressbar', 'aria-label': `Loading ${noun}` });
 
-    container.append(toolbarEl, editBar, el('div', { class: 'table-area' }, loadingBar, holder, message));
+    const area = el('div', { class: 'table-area' }, loadingBar, holder, message);
+    container.append(toolbarEl, editBar, area);
+    // An outline of rows under the header until the first page is in
+    let outline = null;
 
     const rows = createRowSource({ pageSize, load: loadPage, onChange: (err) => {
         state.error = err ?? null;
@@ -426,7 +430,7 @@ export function createDataTable(container, {
     // A row that hasn't loaded yet
     function placeholderRow(index) {
         return el('tr', { class: ['placeholder', index % 2 && 'alt'] },
-            el('td', { colspan: shownColumns.length + iconCol }, el('span', { class: 'placeholder-bar' })));
+            el('td', { colspan: shownColumns.length + iconCol }, el('span', { class: 'sk placeholder-bar' })));
     }
 
     function spacer(height) {
@@ -483,7 +487,32 @@ export function createDataTable(container, {
 
         // Preloads ahead of the user stay quiet; the bar is only for rows they're waiting on
         loadingBar.hidden = !rows.waiting(first, last) || (state.error !== null && rows.total === null);
+        showOutline();
         updateInfo(first, last);
+    }
+
+    function showOutline() {
+        if (rows.total !== null) {
+            outline?.done();
+            outline = null;
+            return;
+        }
+        const cells = [...thead.querySelectorAll('th')];
+        if (!outline)
+            outline = loading.overlay(area, { kind: 'table', rows: 12, columns: Math.max(1, cells.length) },
+                { label: `Loading ${noun}`, className: 'sk-table-layer' });
+        outline.node.style.top = `${thead.offsetHeight}px`;
+        // Line the outline up under the real columns
+        if (cells.length) {
+            const template = cells.map((c) => `${c.offsetWidth}px`).join(' ');
+            for (const row of outline.node.querySelectorAll('.sk-table-row'))
+                if (row.childElementCount === cells.length)
+                    row.style.gridTemplateColumns = template;
+        }
+        if (state.error)
+            outline.error(state.error.message);
+        else
+            outline.retry();
     }
 
     function updateInfo(first, last) {
