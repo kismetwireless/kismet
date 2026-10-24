@@ -111,7 +111,8 @@ void kis_gps_gpsd_v3::handle_error() {
                 [self = shared_from_this()](int) -> int {
                     kis_lock_guard<kis_mutex> lk(self->gps_mutex, "error timer");
 
-                    if (self->socket.is_open() || !self->get_gps_reconnect())
+                    // A failed connect can leave the socket open, so go by the connection state
+                    if (self->get_device_connected() || !self->get_gps_reconnect())
                         return 0;
 
                     self->open_gps(self->get_gps_definition());
