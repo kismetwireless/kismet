@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <atomic>
+#include <future>
 #include <list>
 #include <regex>
 #include <string>
@@ -300,7 +301,74 @@ public:
         return kis_net_beast_httpd::escape_html(html);
     }
 
+    // Synchronous beast writes ignore the stream timeout, so a client that stops reading
+    // holds the connection thread forever.  These match http::write and http::write_header,
+    // but each write_some runs on the stream's strand and fails after write_timeout_sec
+    // without progress.  Only call them from the connection thread.
+    template<bool isRequest, class Body, class Fields>
+    boost::beast::error_code write_timeout(boost::beast::http::serializer<isRequest, Body, Fields>& sr) {
+        boost::beast::error_code ec;
+
+        sr.split(false);
+
+        do {
+            ec = timed_write_some(sr);
+        } while (!ec && !sr.is_done());
+
+        return ec;
+    }
+
+    template<bool isRequest, class Body, class Fields>
+    boost::beast::error_code write_timeout(boost::beast::http::message<isRequest, Body, Fields>& msg) {
+        boost::beast::http::serializer<isRequest, Body, Fields> sr{msg};
+        return write_timeout(sr);
+    }
+
+    template<bool isRequest, class Body, class Fields>
+    boost::beast::error_code write_header_timeout(boost::beast::http::serializer<isRequest, Body, Fields>& sr) {
+        boost::beast::error_code ec;
+
+        sr.split(true);
+
+        while (!ec && !sr.is_header_done())
+            ec = timed_write_some(sr);
+
+        return ec;
+    }
+
 protected:
+    static constexpr unsigned int write_timeout_sec = 30;
+
+    // Set by clear_timeout() from the endpoint thread for long-running streams
+    std::atomic<bool> timeout_cleared_{false};
+
+    template<bool isRequest, class Body, class Fields>
+    boost::beast::error_code timed_write_some(boost::beast::http::serializer<isRequest, Body, Fields>& sr) {
+        auto promise = std::make_shared<std::promise<boost::beast::error_code>>();
+        auto future = promise->get_future();
+
+        try {
+            boost::asio::post(stream_.get_executor(), [this, &sr, promise]() {
+                try {
+                    if (timeout_cleared_)
+                        stream_.expires_never();
+                    else
+                        stream_.expires_after(std::chrono::seconds(write_timeout_sec));
+                    boost::beast::http::async_write_some(stream_, sr,
+                            [promise](boost::beast::error_code ec, std::size_t) {
+                                promise->set_value(ec);
+                            });
+                } catch (...) {
+                    promise->set_exception(std::current_exception());
+                }
+            });
+
+            return future.get();
+        } catch (const std::exception&) {
+            return boost::asio::error::operation_aborted;
+        }
+    }
+
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
     std::function<void ()> closure_cb;
