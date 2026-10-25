@@ -1009,6 +1009,9 @@ tr.highlighted .bar-graph { fill: currentColor; }
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
     padding: 0.5rem 0.65rem;
 }
+.overview:not(.editing) .ov-card.clickable { cursor: pointer; }
+.overview:not(.editing) .ov-card.clickable:hover,
+.overview:not(.editing) .ov-card.clickable:focus-visible { border-color: var(--accent); outline: none; }
 .ov-card-title {
     display: flex; align-items: center; gap: 0.4rem; flex: none;
     margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);

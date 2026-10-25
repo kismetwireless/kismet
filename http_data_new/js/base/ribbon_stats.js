@@ -77,9 +77,14 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'alerts', title: 'Alerts', priority: 30,
+        description: 'Alerts since the server started; click for the alerts',
         create(body) {
             const v = valueStat('alert');
             body.append(v.node);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            stat.title = 'Show the alerts';
+            stat.addEventListener('click', () => kismet.widgets.panes.showPane('alerts'));
             let count = 0;
             const show = () => {
                 dom.replace(v.value, count ? el('span', { class: 'badge alert' }, format.count(count)) : '0');

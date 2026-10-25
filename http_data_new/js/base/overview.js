@@ -336,6 +336,7 @@ export function register(kismet) {
 
     ui.dashboardCards.add({
         id: 'alerts', title: 'Alerts, last hour', loading: [{ kind: 'bars', rows: 2 }, 'histogram'], priority: 75, w: 3, h: 5, needs: ['alerts'],
+        onClick: (actions) => actions.showTab('alerts'),
         create(body, { actions }) {
             const bars = barList({ onPick: () => actions.showTab('alerts'), empty: 'No alerts in the last hour' });
             const graph = historyGraph({ type: 'bar', unit: 'alerts', height: null, minBar: true });

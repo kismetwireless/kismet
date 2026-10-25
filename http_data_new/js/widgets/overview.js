@@ -34,6 +34,7 @@ import * as clock from '../core/clock.js';
 import * as settings from '../core/settings.js';
 import { icon } from '../core/icons.js';
 import { dashboardCards } from '../registry/ui.js';
+import { showPane } from './panes.js';
 import * as loading from './loading.js';
 
 const base = 'kismet.device.base';
@@ -198,7 +199,7 @@ export function createOverview(container, area = null) {
 
     // What cards can do beyond drawing
     const actions = {
-        showTab: (id) => area?.activate?.(id),
+        showTab: (id) => showPane(id),
         showDevices: (viewId) => {
             settings.set('devicelist.view', viewId);
             area?.activate?.('devices');
@@ -221,6 +222,26 @@ export function createOverview(container, area = null) {
         }
         title.addEventListener('pointerdown', (e) => startDrag(e, entry.id, 'move'));
         resizer.addEventListener('pointerdown', (e) => startDrag(e, entry.id, 'resize'));
+        if (typeof entry.onClick === 'function') {
+            node.classList.add('clickable');
+            node.tabIndex = 0;
+            // The card's own controls (buttons, links, picked bars) do their own thing
+            const run = (e) => {
+                const control = e.target.closest('button, a, input, select, textarea, [tabindex]');
+                if (editing || (control && control !== node && node.contains(control)))
+                    return;
+                try {
+                    entry.onClick(actions);
+                } catch (err) {
+                    console.error(`dashboard card ${entry.id}: onClick failed:`, err);
+                }
+            };
+            node.addEventListener('click', run);
+            node.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target === node)
+                    run(e);
+            });
+        }
         const c = { entry, node, handle, ready: false, round: 0,
             loader: loading.overlay(main, entry.loading ?? 'text', { label: `Loading ${entry.title.toLowerCase()}` }),
             busy: loading.busyBar(node) };

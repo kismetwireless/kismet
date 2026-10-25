@@ -79,7 +79,10 @@ export const mapSources = createRegistry('mapSources', {
 //     bottom, each a name or { kind, rows }; 'text' if not given,
 //   create(body, { actions }) -> { update(data), destroy() }
 //     update() is first called once all of `needs` has arrived
-//     actions.showTab(id), actions.showDevices(viewId)
+//     actions.showTab(id) (a pane id, or the id given to kismet.ui.addTable),
+//     actions.showDevices(viewId)
+//   onClick(actions): optional; clicking anywhere on the card (except its
+//     own buttons and links, and while arranging) calls it
 export const dashboardCards = createRegistry('dashboardCards', {
     required: ['title', 'create'],
     defaults: { size: 'small', needs: [] },

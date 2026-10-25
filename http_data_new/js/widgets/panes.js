@@ -5,10 +5,24 @@
 // the tab bar while its tab is showing.  area.setExpanded(true) makes the
 // whole area fill the window, until the user switches to another tab;
 // area.activate(id) switches to another of the area's tabs.
+//
+// showPane(id) switches to a tab from anywhere on the page (a ribbon stat,
+// say): id is a pane id, or the id given to kismet.ui.addTable.
 
 import { el } from '../core/dom.js';
 import * as settings from '../core/settings.js';
 import { panes } from '../registry/ui.js';
+
+const areas = new Map();        // area name -> its api
+
+export function showPane(id) {
+    const pane = panes.get(id) ?? panes.get(`table-${id}`);
+    const areaApi = pane && areas.get(pane.area);
+    if (!areaApi)
+        return false;
+    areaApi.activate(pane.id);
+    return true;
+}
 
 export function createPaneArea(container, area) {
     const tabs = el('div', { class: 'tabs', role: 'tablist' });
@@ -31,6 +45,7 @@ export function createPaneArea(container, area) {
             return () => expandListeners.delete(fn);
         },
     };
+    areas.set(area, areaApi);
 
     const built = new Map();    // pane id -> { tab, body, handle }
     let active = null;
