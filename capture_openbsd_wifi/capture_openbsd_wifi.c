@@ -690,11 +690,19 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     local_channel_t *ret_localchan = NULL;
     unsigned int parsechan;
-    sscanf(chanstr, "%u", &parsechan);
+    enum wifi_chan_band band;
+
+    if (sscanf(chanstr, "%u", &parsechan) != 1)
+        return NULL;
+
+    band = parsechan <= 14 ? wifi_band_2ghz : wifi_band_5ghz;
+
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    if (ret_localchan == NULL)
+        return NULL;
     memset(ret_localchan, 0, sizeof(local_channel_t));
-    ret_localchan->chan_band = wifi_band_2ghz;
-    (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan, wifi_band_2ghz);
+    ret_localchan->chan_band = band;
+    (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan, band);
     return ret_localchan;
 }
 
@@ -702,6 +710,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
  * 'chanstr' should hold at least STATUS_MAX characters; we'll never use
  * that many but it lets us do some cheaty stuff and re-use errstrs */
 void local_channel_to_str(local_channel_t *chan, char *chanstr) {
+    snprintf(chanstr, STATUS_MAX, "%u", wifi_freq_to_chan(chan->control_freq));
 }
 
 int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
