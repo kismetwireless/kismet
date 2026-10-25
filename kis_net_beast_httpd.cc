@@ -18,6 +18,10 @@
 
 #include "kis_net_beast_httpd.h"
 
+#include <boost/asio/post.hpp>
+#include <exception>
+#include <future>
+
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -503,10 +507,6 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                 thread_set_process_name("BEAST");
 
                 while (tcp_socket.socket().is_open()) {
-                    // Reset the timeout every loop through; each request in this
-                    // socket pipeline has up to 30 seconds to complete
-                    boost::beast::get_lowest_layer(tcp_socket).expires_after(std::chrono::seconds(30));
-
                     // Associate the socket
                     auto conn =
                         std::make_shared<kis_net_beast_httpd_connection>(tcp_socket, shared_from_this());
@@ -1234,11 +1234,28 @@ bool kis_net_beast_httpd_connection::start() {
     parser_.emplace();
     parser_->body_limit(100000);
 
+    // The stream and its timer must be accessed through the socket's strand.
+    // The connection thread waits while the asynchronous read is in progress.
+    auto read_promise = std::make_shared<std::promise<boost::beast::error_code>>();
+    auto read_future = read_promise->get_future();
+
     try {
-        boost::beast::http::read(stream_, buffer, *parser_);
-    } catch (const boost::system::system_error& e) {
-        // Silently catch and fail on any error from the transport layer, because we don't
-        // care; we can't deal with a broken client spamming us
+        boost::asio::post(stream_.get_executor(), [this, read_promise]() {
+            try {
+                stream_.expires_after(std::chrono::seconds(30));
+                boost::beast::http::async_read(stream_, buffer, *parser_,
+                        [read_promise](boost::beast::error_code ec, std::size_t) {
+                            read_promise->set_value(ec);
+                        });
+            } catch (...) {
+                read_promise->set_exception(std::current_exception());
+            }
+        });
+
+        if (read_future.get())
+            return do_close();
+    } catch (const std::exception&) {
+        // Also handle failures to schedule or initiate the read.
         return do_close();
     }
 
