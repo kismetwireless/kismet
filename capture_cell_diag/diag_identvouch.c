@@ -5,6 +5,7 @@
  * See diag_identvouch.h for the contract and why it exists.
  */
 #include "diag_identvouch.h"
+#include "cell_safefile.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -41,7 +42,7 @@ static int is_dir(const char *p) {
 
 const char *identvouch_dir(void) {
     static char dir[512];
-    const char *env = getenv(IDENTVOUCH_ENV_DIR);
+    const char *env = cell_getenv(IDENTVOUCH_ENV_DIR);
     uid_t eu = geteuid();
 
     if (env != NULL && *env)

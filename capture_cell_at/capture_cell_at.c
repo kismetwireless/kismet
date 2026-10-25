@@ -2286,7 +2286,7 @@ static int find_modem_ports(char ports[][CELLAT_PORT_PATH_MAX], int max_ports) {
      *     against PTY fake modems. CELLAT_EXTRA_PORTS adds, so a test built on
      *     it would write "AT" into every real modem on the host.
      * An operator naming one AT node wants atport=, which skips the scan. */
-    const char *only = getenv("CELLAT_SCAN_PORTS");
+    const char *only = cell_getenv("CELLAT_SCAN_PORTS");
     if (only && *only) {
         add_named_ports(only, ports, &count, max_ports);
         return count;
@@ -2308,7 +2308,7 @@ static int find_modem_ports(char ports[][CELLAT_PORT_PATH_MAX], int max_ports) {
      *   CELLAT_EXTRA_PORTS=/tmp/cfw3212-at kismet -c cellat-<imei>
      * ). Space-separated chosen over colon-separated because device by-id
      * paths can contain colons (cf. RC400L SN:<hex> form). */
-    const char *extra = getenv("CELLAT_EXTRA_PORTS");
+    const char *extra = cell_getenv("CELLAT_EXTRA_PORTS");
     /* The operator named these paths, so it is not the scan's business to
      * second-guess them -- except under /dev/mhi_* and /dev/wwan*, where a
      * glob would also match the EDL channel. A duplicate is refused:
@@ -3652,7 +3652,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      * KISMET_CELLAT_DEBUG=1 (or true) in the environment, or debug=true in the
      * source definition.  The definition overrides the environment. */
     local->debug = 0;
-    const char *debug_env = getenv("KISMET_CELLAT_DEBUG");
+    const char *debug_env = cell_getenv("KISMET_CELLAT_DEBUG");
     if (debug_env && (strcmp(debug_env, "1") == 0 || strcmp(debug_env, "true") == 0))
         local->debug = 1;
     if ((placeholder_len = cf_find_flag(&placeholder, "debug", definition)) > 0) {

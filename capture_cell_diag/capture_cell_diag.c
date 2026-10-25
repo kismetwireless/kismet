@@ -1389,7 +1389,7 @@ static int add_suspected_modem_ports(const char *pattern, char ports[][256],
 static int find_modem_ports(char ports[][256], int max_ports, scan_scope_t scope) {
     int count = 0;
 
-    const char *only = getenv("CELLDIAG_SCAN_PORTS");
+    const char *only = cell_getenv("CELLDIAG_SCAN_PORTS");
     if (only && *only) {
         count = scan_ports_from_env(only, ports, max_ports);
         /* The named universe, narrowed the same way as the real one: the
@@ -1949,7 +1949,7 @@ static int find_diag_port_wwan(char *out, size_t outsz, char *diag, size_t diags
      * pick as for the AT scan: otherwise an offline test that names
      * PTY fakes as mhi_DUN / mhi_DIAG would have its DIAG node chosen from the
      * host's real /dev/mhi_* -- a real modem, opened from a unit test. */
-    const char *only = getenv("CELLDIAG_SCAN_PORTS");
+    const char *only = cell_getenv("CELLDIAG_SCAN_PORTS");
     if (only && *only) {
         char named[DIAG_WWAN_MAX_NODES][256];
         int m = scan_ports_from_env(only, named, DIAG_WWAN_MAX_NODES);
@@ -5036,12 +5036,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if ((placeholder_len = cf_find_flag(&placeholder, "profiles", definition)) > 0) {
         profiles_dir = strndup(placeholder, placeholder_len);
     } else {
-        const char *env = getenv("CELLDIAG_PROFILES");
+        const char *env = cell_getenv("CELLDIAG_PROFILES");
         profiles_dir = strdup(env && *env ? env : CELLDIAG_PROFILES_DEFAULT);
     }
 
     local->debug = 1;
-    const char *debug_env = getenv("KISMET_CELLDIAG_DEBUG");
+    const char *debug_env = cell_getenv("KISMET_CELLDIAG_DEBUG");
     if (debug_env && (strcmp(debug_env, "0") == 0 || strcmp(debug_env, "false") == 0))
         local->debug = 0;
     if ((placeholder_len = cf_find_flag(&placeholder, "debug", definition)) > 0) {
@@ -5910,7 +5910,7 @@ tee_done:
              * a slice and some other packet must know the slice's bytes, and the
              * session id is in its header. Never set it for a real capture: two
              * streams sharing an id could not be told apart by a reader. */
-            const char *sid = getenv("CELLDIAG_RAWPKT_SESSION_ID");
+            const char *sid = cell_getenv("CELLDIAG_RAWPKT_SESSION_ID");
             if (sid != NULL && *sid) {
                 char *end = NULL;
                 unsigned long long v = strtoull(sid, &end, 10);

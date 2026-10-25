@@ -716,8 +716,8 @@ int cellat_lock_state_read(const char *path, const char *imei, int backend,
 }
 
 void cellat_lock_default_state_path(const char *imei, char *out, size_t out_sz) {
-    const char *home = getenv("HOME");
-    if (home != NULL && home[0] != '\0')
+    char home[1024];
+    if (cell_home_dir(home, sizeof(home)) == 0)
         snprintf(out, out_sz, "%s/.kismet/cellat-lock-%s.state", home, imei ? imei : "");
     else
         snprintf(out, out_sz, "/tmp/cellat-lock-%s.state", imei ? imei : "");

@@ -25,7 +25,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -40,6 +42,28 @@
 
 static inline int cell_is_elevated(void) {
     return getuid() != geteuid() || getgid() != getegid();
+}
+
+/* getenv() that a suid install ignores: the environment is the caller's, and
+ * these variables pick ports, profile directories, and where files go. */
+static inline const char *cell_getenv(const char *name) {
+    return cell_is_elevated() ? NULL : getenv(name);
+}
+
+/* The caller's home: $HOME normally, the password database under suid. */
+static inline int cell_home_dir(char *out, size_t outsz) {
+    if (!cell_is_elevated()) {
+        const char *home = getenv("HOME");
+        if (home == NULL || home[0] == '\0')
+            return -1;
+        return snprintf(out, outsz, "%s", home) < (int) outsz ? 0 : -1;
+    }
+    struct passwd pw, *res = NULL;
+    char buf[4096];
+    if (getpwuid_r(getuid(), &pw, buf, sizeof(buf), &res) != 0 || res == NULL ||
+            pw.pw_dir == NULL || pw.pw_dir[0] != '/')
+        return -1;
+    return snprintf(out, outsz, "%s", pw.pw_dir) < (int) outsz ? 0 : -1;
 }
 
 enum { CELL_SAFE_OPEN = 0, CELL_SAFE_RENAME = 1, CELL_SAFE_UNLINK = 2 };
