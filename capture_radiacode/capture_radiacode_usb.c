@@ -69,26 +69,25 @@ typedef struct {
 /* Search for a value in a block of newline-delimited text */
 int find_config_val(const char *val, const char *data, size_t data_len, 
 		char **ret_val, ssize_t *ret_len) {
-	char *termpos, *nlpos;
+	const size_t val_len = strlen(val);
+	const char *end = data + data_len;
+	const char *line = data;
 
-	termpos = strstr(data, val);
+	while (line < end) {
+		const char *nlpos = memchr(line, '\n', end - line);
+		const char *line_end = nlpos != NULL ? nlpos : end;
 
-	while ((size_t) (termpos - data) < (data_len - strlen(val) - 1)) {
-		if (termpos != data && termpos[-1] != '\n') {
-			termpos = strstr(termpos + 1, val);
-			continue;
+		if ((size_t) (line_end - line) > val_len && memcmp(line, val, val_len) == 0 &&
+				line[val_len] == '=') {
+			*ret_val = (char *) line + val_len + 1;
+			*ret_len = line_end - (line + val_len + 1);
+			return 1;
 		}
 
-		if (termpos[strlen(val)] != '=') {
-			termpos = strstr(termpos + 1, val);
-			continue;
-		}
+		if (nlpos == NULL)
+			break;
 
-        nlpos = strstr(termpos, "\n");
-
-        *ret_val = termpos + strlen(val) + 1;
-        *ret_len = (size_t) (nlpos - termpos) - strlen(val) - 1;
-        return 1;
+		line = nlpos + 1;
 	}
 
     return -1;
@@ -155,6 +154,15 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 
 	resp_len = le32toh(*((uint32_t *) rbuf));
 
+	/* responses are spectra and config text, a few KB */
+	if (resp_len > 1024 * 1024) {
+		snprintf(errstr, STATUS_MAX, "%s invalid USB response length (%u)",
+				localrad->name, resp_len);
+		cf_send_message(localrad->caph, errstr, MSGFLAG_ERROR);
+		*ret_len = -1;
+		return NULL;
+	}
+
 	rdata = (char *) malloc(sizeof(char) * resp_len);
 
 	if (rdata == NULL) {
@@ -165,16 +173,12 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 		return NULL;
 	}
 
-	/* If the entire response already fits */
-	if (resp_len < (256 - 4)) {
-		memcpy(rdata, rbuf + 4, resp_len);
-		*ret_len = resp_len;
-		return rdata;
-	}
+	/* Copy what came with the length, then read the rest */
+	resp_read = (uint32_t) (txamt - 4);
+	if (resp_read > resp_len)
+		resp_read = resp_len;
 
-	/* Copy the first chunk, then iterate over the rest */
-	memcpy(rdata, rbuf + 4, (256 - 4));
-	resp_read = (256 - 4);
+	memcpy(rdata, rbuf + 4, resp_read);
 
 	while (resp_read < resp_len) {
 		if ((r = libusb_bulk_transfer(localrad->usb_handle, 0x81,
@@ -182,6 +186,16 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 						&txamt, timeout)) != 0) {
 			snprintf(errstr, STATUS_MAX, "%s failed to read results from usb: %s",
 					localrad->name, libusb_strerror((enum libusb_error) r));
+			cf_send_message(localrad->caph, errstr, MSGFLAG_ERROR);
+			free(rdata);
+			*ret_len = -1;
+			return NULL;
+		}
+
+		/* an empty read never advances and would spin forever */
+		if (txamt <= 0) {
+			snprintf(errstr, STATUS_MAX, "%s failed to read results from usb: empty transfer",
+					localrad->name);
 			cf_send_message(localrad->caph, errstr, MSGFLAG_ERROR);
 			free(rdata);
 			*ret_len = -1;
@@ -430,6 +444,7 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 
 	char sinkbuf[256];
 	int sink_len;
+	int i;
 
     /* Try to open it */
     r = libusb_open(localrad->matched_dev, &localrad->usb_handle);
@@ -488,10 +503,10 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 
 	/* It appears the radiacode needs to sink all pending io on open before
 	 * issuing commands, spin burning data until we time out */
-	while (1) {
+	for (i = 0; i < 1000; i++) {
 		r = libusb_bulk_transfer(localrad->usb_handle, 0x81,
 				(unsigned char *) sinkbuf, 256, &sink_len, 500);
-		if (r == LIBUSB_ERROR_TIMEOUT) {
+		if (r != 0) {
 			break;
 		}
 	}
@@ -515,7 +530,7 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 		return -1;
 	}
 
-	if (version.target_major < 4 || version.target_minor < 8) {
+	if (version.target_major < 4 || (version.target_major == 4 && version.target_minor < 8)) {
 		snprintf(errstr, STATUS_MAX, "Old firmware version (%u.%u) found; please update the Radiacode device to at "
                 "least 4.8 using the phone app.", version.target_major, version.target_minor);
 		return -1;
@@ -710,6 +725,12 @@ void capture_thread(kis_capture_handler_t *caph) {
                     localrad->name);
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
             break;
+        }
+
+        /* nothing real-time in this report */
+        if (r == 0) {
+            usleep(750000);
+            continue;
         }
 
         // fprintf(stderr, "DEBUG - got CPS %f SV %f\n", data_report.count_rate, data_report.dose_rate);
