@@ -28,6 +28,7 @@
 #include <string.h>
 #include <termios.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include "nxp_kw41z.h"
 
@@ -63,9 +64,14 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-bool checksum(uint8_t *payload, uint8_t len) {
+bool checksum(uint8_t *payload, int len) {
     uint8_t chk = 0;
-    uint8_t checksum = payload[len - 1];
+    uint8_t checksum;
+
+    if (len < 3)
+        return false;
+
+    checksum = payload[len - 1];
     chk = payload[1];
 
     for (int xp = 2; xp < len - 1; xp++) {
@@ -80,7 +86,7 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, u
 
     uint8_t buf[255];
     uint16_t ctr = 0;
-    int8_t res = 0;
+    ssize_t res = 0;
     bool found = false;
     local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     pthread_mutex_lock(&(localnxp->serial_mutex));
@@ -91,7 +97,8 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, u
         /* we are transmitting something */
 	    res = write(localnxp->fd, tx_buf, tx_len);
         if (res < 0) {
-            return res;
+            pthread_mutex_unlock(&(localnxp->serial_mutex));
+            return -1;
         }
         if (resp_len > 0) {
             /* looking for a response */
@@ -121,9 +128,19 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, u
             res = 1;  // no response requested
         }
     } else if (rx_max > 0) {
-        res = read(localnxp->fd, rx_buf, rx_max);
-	    if (res < 0) {
-            usleep(25);
+        struct pollfd pfd = { .fd = localnxp->fd, .events = POLLIN };
+
+        /* an unplugged device reads 0 forever; poll tells it apart from idle */
+        res = poll(&pfd, 1, 100);
+
+        if (res > 0 && (pfd.revents & (POLLHUP | POLLERR | POLLNVAL))) {
+            res = -1;
+        } else if (res > 0) {
+            res = read(localnxp->fd, rx_buf, rx_max);
+
+            if (res < 0 && (errno == EINTR || errno == EAGAIN))
+                res = 0;
+        } else if (res < 0 && errno == EINTR) {
             res = 0;
         }
     }
@@ -524,6 +541,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (localnxp->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
                 localnxp->name, strerror(errno));
+        pthread_mutex_unlock(&(localnxp->serial_mutex));
         return -1;
     }
 
@@ -586,7 +604,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     }
 
     /* if (parsechan > 39 || parsechan < 37) { */
-    if (parsechan > 39 || parsechan < 11) {
+    if (parsechan > 39 || parsechan < 11 || (parsechan > 26 && parsechan < 37)) {
         snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; nxp kw41z channels "
                 "are from 11 to 26 and 37 to 39", parsechan);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -594,6 +612,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     }
 
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    if (ret_localchan == NULL)
+        return NULL;
     ret_localchan->channel = parsechan;
     return ret_localchan;
 }
@@ -671,6 +691,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             memset(buf,0x00,256);
             buf_rx_len = nxp_receive_payload(caph, buf, 256);
             if (buf_rx_len < 0) {
+                snprintf(errstr, STATUS_MAX, "%s serial device closed or failed", localnxp->name);
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
                 break;
@@ -705,6 +726,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                                 buf_rx_len, buf_rx_len, buf)) < 0) {
                     cf_send_error(caph, 0, "unable to send DATA frame");
                     cf_handler_spindown(caph);
+                    break;
                 } else if (r == 0) {
                     cf_handler_wait_ringbuffer(caph);
                     continue;

@@ -56,7 +56,16 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
     }
 **/
     // check what type of packet we are
-    if (content[0] == 0x02 && content[1] == '\x86' && content[2] == 0x03) {
+    if (content[0] == 0x02 && content[1] == 0x86 && content[2] == 0x03) {
+        // Length byte is content[10], check it exists before reading it
+        if (content_sz <= 11 || (content_sz - 11 < content[10])) {
+            packet->error = 1;
+            // error, but preserve the packet for logging
+            packet->set_data((const char *) content, content_sz);
+            datachunk->set_data(packet->data);
+            return rx_content::frame;
+        }
+
         uint32_t rssi = content[5];
         uint16_t nxp_payload_len = content[10];
         uint8_t channel = content[4];
@@ -67,14 +76,6 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
         memset(conv_header, 0, conv_buf_len);
-
-        if (content_sz <= 11 || (content_sz - 11 < nxp_payload_len)) {
-            packet->error = 1;
-            // error, but preserve the packet for logging
-            packet->set_data((const char *) content, content_sz);
-            datachunk->set_data(packet->data);
-            return rx_content::frame;
-        }
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &content[11], nxp_payload_len);
@@ -127,6 +128,7 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
         auto conv_buf_len = sizeof(btle_rf) + nxp_payload_len;
         char conv_buf[conv_buf_len];
         btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
+        memset(conv_buf, 0, conv_buf_len);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &content[12], nxp_payload_len);
