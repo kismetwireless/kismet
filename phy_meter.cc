@@ -94,138 +94,6 @@ mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
     return mac_addr(bytes, 6);
 }
 
-mac_addr kis_meter_phy::json_to_mac(nlohmann::json json) {
-    // Derive a mac addr from the model and device id data
-    //
-    // We turn the model string into 4 bytes using the adler32 checksum,
-    // then we use the model as a (potentially) 16bit int
-    //
-    // Finally we set the locally assigned bit on the first octet
-
-    uint8_t bytes[6];
-    uint16_t *model = (uint16_t *) bytes;
-    uint32_t *deviceid = (uint32_t *) (bytes + 2);
-
-    memset(bytes, 0, 6);
-
-    try {
-        *model = json["model"];
-        *deviceid = json["meterid"];
-    } catch (const std::exception& e) {
-        mac_addr m;
-        m.state.error = true;
-        return m;
-    }
-
-    // Set the local bit
-    bytes[0] |= 0x2;
-
-    return mac_addr(bytes, 6);
-}
-
-bool kis_meter_phy::rtlamr_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
-    std::string err;
-    std::string v;
-
-    // If we're not valid from the capture engine, drop entirely
-    try {
-        if (!json["valid"].get<bool>())
-            return false;
-    } catch (const std::exception& e) {
-        return false;
-    }
-
-    auto id_j = json["meterid"];
-    auto type_j = json["metertype"];
-    auto phy_j = json["phytamper"];
-    auto end_j = json["endptamper"];
-    auto consumption_j = json["consumption"];
-
-    // We need at least an id, type, and consumption
-    if (id_j.is_null() || type_j.is_null() || consumption_j.is_null())
-        return false;
-
-    // synth a mac out of of the type and id
-    mac_addr mac = json_to_mac(json);
-
-    if (mac.state.error) {
-        return false;
-    }
-
-
-    packet->common_info.common_info_ok = true;
-    packet->common_info.type = packet_basic_data;
-    packet->common_info.phyid = fetch_phy_id();
-    packet->common_info.datasize = 0;
-
-    packet->common_info.freq_khz = 912600;
-    packet->common_info.source = mac;
-    packet->common_info.transmitter = mac;
-
-    std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->update_common_device(mac, this, packet,
-                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY), "AMR Meter");
-
-    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtlamr_json_to_phy");
-
-    auto meterdev =
-        basedev->get_sub_as<tracked_meter>(tracked_meter_id);
-
-    if (meterdev == nullptr) {
-        meterdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<tracked_meter>(tracked_meter_id);
-
-        basedev->set_manuf(meter_manuf);
-
-        basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
-
-        basedev->insert(meterdev);
-
-        meterdev->set_meter_id(id_j);
-        meterdev->set_meter_type_code(type_j);
-
-        switch (meterdev->get_meter_type_code()) {
-            case 4:
-            case 5:
-            case 7:
-            case 8:
-                meterdev->set_meter_type("Electric");
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Electric Meter"));
-                break;
-            case 2:
-            case 9:
-            case 12:
-                meterdev->set_meter_type("Gas");
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gas Meter"));
-                break;
-            case 11:
-            case 13:
-                meterdev->set_meter_type("Water");
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Water Meter"));
-                break;
-            default:
-                meterdev->set_meter_type("Meter");
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
-                break;
-        }
-
-        basedev->set_devicename(fmt::format("{}-{}", meterdev->get_meter_type(), id_j.get<unsigned int>()));
-
-        _MSG_INFO("Detected new AMR {} id {}",
-                basedev->get_type_string(), meterdev->get_meter_id());
-    }
-
-    if (!phy_j.is_null())
-        meterdev->set_phy_tamper_flags(phy_j);
-    if (!end_j.is_null())
-        meterdev->set_endpoint_tamper_flags(end_j);
-
-    meterdev->set_consumption(consumption_j);
-    meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
-
-    return true;
-}
-
 /*
 
 DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "IDM", "PacketTypeID": "0x1C", "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "ConsumptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "AsynchronousCounters": 0, "PowerOutageFlags": "0x000000000000", "LastConsumptionCount": 6823922, "DifferentialConsumptionIntervals": [11, 9, 8, 7, 40, 30, 4, 7, 7, 8, 8, 8, 7, 6, 5, 5, 5, 5, 5, 6, 5, 6, 6, 8, 7, 8, 6, 7, 7, 6, 5, 5, 6, 6, 5, 6, 7, 8, 8, 8, 6, 6, 8, 6, 9, 7, 6], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21.437, "noise": -21.891}
@@ -420,7 +288,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
                  UCD_UPDATE_SEENBY), "AMR Meter");
     }
 
-    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtlamr_json_to_phy");
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtl433_json_to_phy");
 
     auto meterdev =
         basedev->get_sub_as<tracked_meter>(tracked_meter_id);
@@ -478,24 +346,7 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
     if (json == nullptr)
         return 0;
 
-    if (json->type == "RTLamr") {
-        std::stringstream ss(json->json_string);
-        nlohmann::json device_json;
-
-        try {
-            ss >> device_json;
-
-            if (phy->rtlamr_json_to_phy(device_json, in_pack)) {
-                auto adata = in_pack->fetch_or_add<packet_metablob>(phy->pack_comp_meta);
-                adata->set_data("METER", json->json_string);
-            }
-        } catch (std::exception& e) {
-            fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
-            return 0;
-        }
-
-        return 1;
-    } else if (json->type == "RTL433") {
+    if (json->type == "RTL433") {
         std::stringstream ss(json->json_string);
         nlohmann::json device_json;
 
