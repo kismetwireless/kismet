@@ -208,6 +208,11 @@ int cellat_option_is_known(const char *key) {
         /* Where the band/RAT settings AS FOUND are saved before a
          * lock is written (default $HOME/.kismet/cellat-lock-<imei>.state). */
         "lockstate",
+        /* Offer the band/RAT lock channels; off by default, as a lock is
+         * written to the modem's saved configuration. */
+        "bandlock",
+        /* Sierra: unlock the advanced AT commands (AT!ENTERCND) at open. */
+        "sierracnd",
         /* cellat's half of the paired-source lifecycle switch. The natural
          * operator action for "stop capturing from this modem" is enabled=false
          * on the paired celldiag-<imei> + cellat-<imei> sources, so cellat must

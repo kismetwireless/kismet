@@ -85,6 +85,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/time.h>
 #include <termios.h>
 #include <time.h>
@@ -322,6 +323,7 @@ typedef struct {
     char          pending_lock[CELLAT_LOCK_SET_MAX];    /* "" = nothing queued */
     char          lock_state_path[1024];
     int           lock_state_written;   /* the state file holds lock_orig */
+    int           lock_enabled;         /* bandlock=true: lock channels offered */
 
     /* The last at_command_t_ex exchange, as its RawAT row names it --
      * ts_mono_ns (the row's join key) and the tx/rx instants. All 0 when no
@@ -2850,6 +2852,14 @@ static int cellat_lock_write(local_cell_t *local, const cellat_lock_settings_t *
 /* At open: probe, read the settings as found, restore any a crashed session
  * left behind, and report the channels. Never fails the open: a modem without
  * lock support simply reports no channels. */
+/* A boolean source option: 1 only for an explicit true / 1. */
+static int cellat_flag_true(char *definition, const char *name) {
+    char *placeholder = NULL;
+    int len = cf_find_flag(&placeholder, name, definition);
+    return (len == 4 && strncasecmp(placeholder, "true", 4) == 0) ||
+           (len == 1 && placeholder[0] == '1');
+}
+
 static void cellat_lock_open(local_cell_t *local, kis_capture_handler_t *caph,
                              const char *imei, char *definition,
                              cf_params_interface_t *iface) {
@@ -2863,6 +2873,10 @@ static void cellat_lock_open(local_cell_t *local, kis_capture_handler_t *caph,
     local->lock_error[0] = '\0';
     local->pending_lock[0] = '\0';
     local->lock_state_written = 0;
+    /* A lock is written to the modem's own configuration and outlives the
+     * capture, so it is offered only when asked for. A lock a crashed session
+     * left behind is still undone below. */
+    local->lock_enabled = cellat_flag_true(definition, "bandlock");
     memset(&now, 0, sizeof(now));
 
     if ((placeholder_len = cf_find_flag(&placeholder, "lockstate", definition)) > 0)
@@ -2974,6 +2988,9 @@ static void cellat_lock_open(local_cell_t *local, kis_capture_handler_t *caph,
     snprintf(local->lock_channel, sizeof(local->lock_channel), "%s",
              memcmp(&local->lock_cur, &local->lock_orig, sizeof(local->lock_cur)) == 0 ?
              "AUTO" : "?");
+
+    if (!local->lock_enabled)
+        return;
 
     char chans[CELLAT_LOCK_CHANNELS_MAX][CELLAT_LOCK_CHAN_MAX];
     size_t nc = cellat_lock_channels(&local->lock_orig, chans, CELLAT_LOCK_CHANNELS_MAX);
@@ -3455,9 +3472,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local->modem_model = strdup("Telit");
 
     } else if (local->vendor == VENDOR_SIERRA) {
-        /* Enable advanced AT commands (default password) */
-        at_command_t(local,"AT!ENTERCND=\"A710\"",
-                   resp, sizeof(resp), 3000);
+        /* Unlock the advanced AT commands with the default password, only
+         * when asked: it changes the modem's access level, and stays changed. */
+        if (cellat_flag_true(definition, "sierracnd"))
+            at_command_t(local,"AT!ENTERCND=\"A710\"",
+                       resp, sizeof(resp), 3000);
 
         /* Probe Sierra-specific commands */
         int n = at_command_t(local,"AT!GSTATUS?",
@@ -4067,10 +4086,12 @@ static int cellat_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
     if (o->status == CELLAT_OPTSET_CHANNEL) {
         cellat_lock_settings_t t;
         char err[512];
-        if (local->disabled || !local->lock_capable) {
+        if (local->disabled || !local->lock_capable || !local->lock_enabled) {
             snprintf(msg, STATUS_MAX,
                      "cellat: '%s' is a channel (a band/RAT lock), and %s", o->value,
                      local->disabled ? "this source is enabled=false" :
+                     local->lock_capable ? "band/RAT locking is off for this source "
+                     "(add bandlock=true; a lock changes the modem's saved settings)" :
                      "this modem has no band/RAT lock support in cellat "
                      "(it locks Quectel AT+QNWPREFCFG / AT+QCFG, Sierra "
                      "AT!SELRAT and 3GPP AT+WS46 modems that answer the probe)");

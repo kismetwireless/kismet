@@ -75,7 +75,7 @@ def _lock_is(ch):
 
 def _run(modem, state: Path, *, configure=(), stop_when=None, close_when=None,
          timeout=25.0, tail=""):
-    d = f"cellat-{IMEI}:atport={modem.port},debug=false,lockstate={state}"
+    d = f"cellat-{IMEI}:atport={modem.port},debug=false,bandlock=true,lockstate={state}"
     if tail:
         d += "," + tail
     return CaptureRun(_binary_or_skip(), d, timeout=timeout, stop_when=stop_when,
@@ -113,6 +113,29 @@ def test_a_quectel_that_errors_the_probe_has_no_channels(tmp_path):
     assert modem.writes == []
     assert any("no band/RAT lock support" in m for _, m in run.config_results), \
         run.config_results
+
+
+def test_without_bandlock_a_lockable_modem_offers_no_channels_and_writes_nothing(tmp_path):
+    """Locking writes the modem's saved configuration, so it is opt-in."""
+    with LockableFakeModem() as modem:
+        d = f"cellat-{IMEI}:atport={modem.port},debug=false,lockstate={tmp_path / 's'}"
+        run = CaptureRun(_binary_or_skip(), d, timeout=25.0,
+                         stop_when=lambda r: len(r.config_results) >= 1,
+                         configure=[(_first_stats, "LTE-B66")]).run()
+    assert run.open_code == 1, run.open_message
+    assert not run.open_channels, run.open_channels
+    assert modem.writes == []
+    assert any("bandlock=true" in m for _, m in run.config_results), run.config_results
+
+
+def test_a_state_file_with_an_injected_rat_is_not_restored(tmp_path):
+    state = tmp_path / "s"
+    state.write_text(f"imei={IMEI}\nbackend=qnwpref\nmode_pref=AUTO\n"
+                     "lte_band=2:4:12:66:71\nnr5g_band=\nrat_lte=06;!RESET\nrat_nr=\n")
+    with LockableFakeModem() as modem:
+        run = _run(modem, state, stop_when=_first_stats)
+    assert modem.writes == []
+    assert any("unusable rat_lte" in m for m in run.messages), run.messages
 
 
 # ── lock and restore ────────────────────────────────────────────────────────
@@ -265,7 +288,7 @@ def _open_panel(page):
 def test_lock_and_unlock_from_the_panel(tmp_path):
     data_sources = _browser()
     with LockableFakeModem(extra={**QENG_SERVING, "AT+CGMM": "RM520N-GL"}) as modem:
-        d = f"cellat-{IMEI}:atport={modem.port},debug=false,lockstate={tmp_path / 's'}"
+        d = f"cellat-{IMEI}:atport={modem.port},debug=false,bandlock=true,lockstate={tmp_path / 's'}"
         with data_sources(tmp_path, d) as (ks, page):
             row = _open_panel(page)
             row.locator("select.cellat-lock-select").select_option("LTE-B66")
@@ -286,7 +309,7 @@ def test_hop_from_the_panel_survives_a_profile_switch(tmp_path):
     set_channel route as a channel, and must not cancel the hop."""
     data_sources = _browser()
     with LockableFakeModem(extra={**QENG_SERVING, "AT+CGMM": "RM520N-GL"}) as modem:
-        d = f"cellat-{IMEI}:atport={modem.port},debug=false,lockstate={tmp_path / 's'}"
+        d = f"cellat-{IMEI}:atport={modem.port},debug=false,bandlock=true,lockstate={tmp_path / 's'}"
         with data_sources(tmp_path, d) as (ks, page):
             assert ks.source()["kismet.datasource.hopping"] in (0, False), \
                 "a cell source was auto-hopped at open"

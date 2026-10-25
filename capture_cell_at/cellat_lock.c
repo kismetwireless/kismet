@@ -665,10 +665,17 @@ int cellat_lock_state_read(const char *path, const char *imei, int backend,
             snprintf(file_imei, sizeof(file_imei), "%s", v);
         else if (strcmp(line, "backend") == 0)
             snprintf(file_backend, sizeof(file_backend), "%s", v);
-        else if (strcmp(line, "rat_lte") == 0)
-            snprintf(s.rat_lte, sizeof(s.rat_lte), "%s", v);
-        else if (strcmp(line, "rat_nr") == 0)
-            snprintf(s.rat_nr, sizeof(s.rat_nr), "%s", v);
+        else if (strcmp(line, "rat_lte") == 0 || strcmp(line, "rat_nr") == 0) {
+            /* Written into AT commands as a mode: never anything but one */
+            char *dst = line[4] == 'l' ? s.rat_lte : s.rat_nr;
+            if (v[0] != '\0' && (!is_mode(v) || strlen(v) >= sizeof(s.rat_lte))) {
+                snprintf(err, err_sz, "%s has an unusable %s '%.16s' -- not "
+                         "restoring from it", path, line, v);
+                fclose(f);
+                return -1;
+            }
+            snprintf(dst, sizeof(s.rat_lte), "%s", v);
+        }
         else if (strcmp(line, "mode_pref") == 0 && is_mode(v))
             have_mode = snprintf(s.mode_pref, sizeof(s.mode_pref), "%s", v) > 0;
         else if (strcmp(line, "lte_band") == 0) {

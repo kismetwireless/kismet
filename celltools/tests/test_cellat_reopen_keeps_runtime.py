@@ -215,7 +215,7 @@ def test_an_explicit_definition_change_wins_over_the_remembered_choice(tmp_path)
 
 def _lock_server(tmp_path, modem):
     return KismetServer(tmp_path, f"cellat-{LOCK_IMEI}:atport={modem.port},"
-                                  f"debug=false,lockstate={tmp_path / 's'}")
+                                  f"debug=false,bandlock=true,lockstate={tmp_path / 's'}")
 
 
 def test_an_error_reopen_reapplies_the_lock_and_the_runtime_profile(tmp_path):

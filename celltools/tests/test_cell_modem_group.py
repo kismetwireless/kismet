@@ -99,7 +99,7 @@ def test_the_modem_row_shows_the_lock_in_force(tmp_path):
     from test_cell_web_ui_browser import _data_sources
     from test_cellat_lock import LockableFakeModem
     with LockableFakeModem(extra={**QENG_SERVING, "AT+CGMM": "RM520N-GL"}) as modem:
-        d = f"cellat-{IMEI}:atport={modem.port},debug=false,lockstate={tmp_path / 's'}"
+        d = f"cellat-{IMEI}:atport={modem.port},debug=false,bandlock=true,lockstate={tmp_path / 's'}"
         with _data_sources(tmp_path, d) as (ks, page):
             _wait(lambda: _by_name(ks, "cellat").get(F + "lock_channel") == "AUTO",
                   what="lock reported")
