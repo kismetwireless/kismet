@@ -636,6 +636,9 @@ void cf_params_interface_free(cf_params_interface_t *pi) {
     if (pi->chanset != NULL)
         free(pi->chanset);
 
+    if (pi->hardware != NULL)
+        free(pi->hardware);
+
     if (pi->channels != NULL) {
         size_t x = 0;
         for (x = 0; x < pi->channels_len; x++) {
