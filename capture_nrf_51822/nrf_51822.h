@@ -61,6 +61,21 @@
 // SLIP CHARS
 #define SLIP_START 0xAB
 #define SLIP_END   0xBC
+#define SLIP_ESC   0xCD
+
+// Escaped as SLIP_ESC followed by the byte + 1
+#define SLIP_ESC_START 0xAC
+#define SLIP_ESC_END   0xBD
+#define SLIP_ESC_ESC   0xCE
+
+// Sniffer header: payload length (protocol 1: header length, payload length), protocol
+// version, packet counter, packet id
+#define NRF_HEADER_LEN   6
+#define NRF_PROTOVER_POS 2
+#define NRF_ID_POS       5
+
+// Largest decoded frame we accept: header, BLE header and a 255-byte PDU with room to spare
+#define NRF_MAX_FRAME 512
 
 // PACKET ID
 #define EVENT_PACKET_ADVERTISING 0x02

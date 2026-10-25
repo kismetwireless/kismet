@@ -346,24 +346,71 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
+/* Hand one decoded frame (sniffer header and payload) to the data source.  Returns
+ * false if the capture is shutting down. */
+static bool nrf_send_frame(kis_capture_handler_t *caph, uint8_t *frame, size_t frame_len) {
+    unsigned int hdr_len;
+    unsigned int pld_len;
+    int r;
+
+    if (frame_len < NRF_HEADER_LEN)
+        return true;
+
+    /* check the protocol version */
+    if (frame[NRF_PROTOVER_POS] == 0x01) {
+        hdr_len = frame[0];
+        pld_len = frame[1];
+    } else if (frame[NRF_PROTOVER_POS] == 0x02 || frame[NRF_PROTOVER_POS] == 0x03) {
+        hdr_len = NRF_HEADER_LEN;
+        pld_len = frame[0] | (frame[1] << 8);
+    } else {
+        return true;
+    }
+
+    /* check the packet_type from the header */
+    if (frame[NRF_ID_POS] != EVENT_PACKET_DATA &&
+            !(frame[NRF_PROTOVER_POS] == 0x03 && frame[NRF_ID_POS] == EVENT_PACKET_ADVERTISING))
+        return true;
+
+    /* the payload length has to match the decoded frame */
+    if (hdr_len < NRF_HEADER_LEN || pld_len == 0 || hdr_len + pld_len != frame_len)
+        return true;
+
+    while (1) {
+        struct timeval tv;
+
+        gettimeofday(&tv, NULL);
+
+        if ((r = cf_send_data(caph, NULL, 0,
+                        NULL, NULL, tv, 0,
+                        pld_len, pld_len, frame + hdr_len)) < 0) {
+            cf_send_error(caph, 0, "unable to send DATA frame");
+            cf_handler_spindown(caph);
+            return false;
+        } else if (r == 0) {
+            cf_handler_wait_ringbuffer(caph);
+            continue;
+        }
+
+        return true;
+    }
+}
+
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
-    char errstr[STATUS_MAX];
     uint8_t buf[BUFFER_SIZE];
     int buf_rx_len = 0;
-    unsigned char pkt[BUFFER_SIZE-1];
-    memset(pkt, 0x00, sizeof(pkt));
 
-    int pkt_start = 0;
-    int hdr_len = 0;
-    int pkt_len = 0;
-    /* int pld_ctr = 0; */
-    int pkt_ctr = 0;
-    bool valid_pkt = false;
-
-    int r = 0;
+    /* The sniffer sends SLIP frames: SLIP_START, the frame with SLIP_START, SLIP_END and
+     * SLIP_ESC escaped as SLIP_ESC + byte + 1, SLIP_END.  A frame can span reads, and a
+     * read can hold several frames, so the decoder keeps its state across reads. */
+    uint8_t frame[NRF_MAX_FRAME];
+    size_t frame_len = 0;
+    bool in_frame = false;
+    bool escaped = false;
+    bool overflow = false;
 
     while (1) {
         if (atomic_load(&caph->spindown)) {
@@ -372,89 +419,62 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        valid_pkt = false;
-		memset(buf, 0, sizeof(buf));
         buf_rx_len = nrf_receive_payload(caph, buf, BUFFER_SIZE);
 
         if (buf_rx_len < 0) {
-            cf_send_error(caph, 0, errstr);
+            cf_send_error(caph, 0, "nrf51822 device not responding");
             cf_handler_spindown(caph);
             break;
         }
 
-        if (buf_rx_len > 0 ) {
-	    if (buf[0] == SLIP_START && buf[buf_rx_len - 1] != SLIP_END) {
-		while(buf[buf_rx_len - 1] != SLIP_END && buf_rx_len < BUFFER_SIZE)
-		{
-		    int size_read = 0, size_to_read = BUFFER_SIZE - buf_rx_len;
-                    size_read = nrf_receive_payload(caph, &buf[buf_rx_len], size_to_read);
-		    buf_rx_len += size_read;
-		}
-	    }
-        }
+        for (int xp = 0; xp < buf_rx_len; xp++) {
+            uint8_t b = buf[xp];
 
-        /* multiple packets can be returned at the same time.
-         * I had tried passing it all to the data source, but
-         * that caused some issues. It was easier to break them
-         * apart here and send along to the data source.
-         */
-        /* do some parsing or validation */
-
-        if (buf[0] == SLIP_START && buf[buf_rx_len - 1] == SLIP_END) {
-            for (int xp = 0; xp < buf_rx_len; xp++) {
-                if ((buf[xp] == SLIP_START && xp == 0) ||
-                    (buf[xp] == SLIP_START && buf[xp - 1] == SLIP_END)) {
-                    pkt_start = xp;
-                    xp++;
-                    /* check the protocol version */
-                    if (buf[pkt_start + 3] == 0x01) {
-                        hdr_len = buf[pkt_start + 1];
-                        pkt_len = buf[pkt_start + 2];
-                    } else if (buf[pkt_start + 3] == 0x02 ||
-                        buf[pkt_start + 3] == 0x03) {
-                        hdr_len = 0x06;
-                        pkt_len = buf[pkt_start + 1];
-                    }
-                }
-
-                /* check the packet_type from the header */
-                if (buf[pkt_start + 6] == EVENT_PACKET_DATA ||
-                        (buf[pkt_start + 3] == 0x03 &&
-                         buf[pkt_start + 6] == EVENT_PACKET_ADVERTISING)) {
-                    valid_pkt = true;
-                    /* pld_ctr = 0; */
-                    pkt_ctr = 0;
-                    memset(pkt, 0x00, sizeof(pkt));
-
-                    for (int hctr = (pkt_start + 1 + hdr_len);
-                         hctr < (pkt_len + pkt_start + 1 + hdr_len); hctr++) {
-                        xp++;
-                        pkt[pkt_ctr] = buf[hctr];
-                        pkt_ctr++;
-                    }
-                }
-
-                /* send the packet along */
-                if (pkt_ctr > 0 && valid_pkt) {
-                    while (1) {
-                        struct timeval tv;
-
-                        gettimeofday(&tv, NULL);
-
-                        if ((r = cf_send_data(caph, NULL, 0,
-                                        NULL, NULL, tv, 0,
-                                        pkt_ctr, pkt_ctr, pkt)) < 0) {
-                            cf_send_error(caph, 0, "unable to send DATA frame");
-                            cf_handler_spindown(caph);
-                        } else if (r == 0) {
-                            cf_handler_wait_ringbuffer(caph);
-                            continue;
-                        } else {
-                            break;
-                        }
-                    }
-                }
+            if (b == SLIP_START) {
+                /* a start always begins a new frame, even inside a broken one */
+                in_frame = true;
+                escaped = false;
+                overflow = false;
+                frame_len = 0;
+                continue;
             }
+
+            if (!in_frame)
+                continue;
+
+            if (b == SLIP_END) {
+                in_frame = false;
+
+                /* stop at a failed send; the loop sees the spindown */
+                if (!escaped && !overflow && !nrf_send_frame(caph, frame, frame_len))
+                    break;
+
+                continue;
+            }
+
+            if (escaped) {
+                escaped = false;
+
+                if (b == SLIP_ESC_START) {
+                    b = SLIP_START;
+                } else if (b == SLIP_ESC_END) {
+                    b = SLIP_END;
+                } else if (b == SLIP_ESC_ESC) {
+                    b = SLIP_ESC;
+                } else {
+                    /* invalid escape; drop the frame */
+                    in_frame = false;
+                    continue;
+                }
+            } else if (b == SLIP_ESC) {
+                escaped = true;
+                continue;
+            }
+
+            if (frame_len < sizeof(frame))
+                frame[frame_len++] = b;
+            else
+                overflow = true;
         }
     }
     cf_handler_spindown(caph);
