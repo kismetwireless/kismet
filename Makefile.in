@@ -118,9 +118,6 @@ BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 # CAPTURE_SDR_RTLAMR = capture_sdr_rtlamr/kismet_cap_sdr_rtlamr
 # BUILD_CAPTURE_SDR_RTLAMR = @BUILD_CAPTURE_SDR_RTLAMR@
 
-# CAPTURE_SDR_RTLADSB = capture_sdr_rtladsb/kismet_cap_sdr_rtladsb
-# BUILD_CAPTURE_SDR_RTLADSB = @BUILD_CAPTURE_SDR_RTLADSB@
-
 # CAPTURE_BT_GEIGER = capture_bt_geiger/kismet_cap_bt_geiger
 # BUILD_CAPTURE_BT_GEIGER = @BUILD_CAPTURE_BT_GEIGER@
 #
@@ -406,9 +403,6 @@ $(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) FORCE
 # 
 # $(CAPTURE_SDR_RTLAMR): FORCE
 # 	(cd capture_sdr_rtlamr && $(MAKE))
-# 
-# $(CAPTURE_SDR_RTLADSB): FORCE
-# 	(cd capture_sdr_rtladsb && $(MAKE))
 # 
 # $(CAPTURE_BT_GEIGER): FORCE
 # 	(cd capture_bt_geiger && $(MAKE))
@@ -952,7 +946,6 @@ clean: all-plugins-clean depclean
 	@(cd capture_sniffle_ble &&  make clean)
 	# @(cd capture_sdr_rtl433 && make clean)
 	# @(cd capture_sdr_rtlamr && make clean)
-	# @(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_sdr_rtlais && make clean)
 	@(cd capture_sdr_rtlaisadsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
