@@ -56,9 +56,30 @@ async function request(path, options = {}) {
             fn();
 
     if (!response.ok)
-        throw new ApiError(response.status, (await response.text()).trim() || response.statusText);
+        throw new ApiError(response.status, await errorText(response));
 
     return response;
+}
+
+// The reason in an error reply.  Kismet and most proxies send a small HTML
+// page; DOMParser reads it as inert text, without running or loading anything.
+async function errorText(response) {
+    let text = '';
+    try {
+        text = (await response.text()).trim();
+    } catch {
+        text = '';
+    }
+    const html = /html/i.test(response.headers.get('Content-Type') ?? '') || /^<(!doctype|html|head|body)\b/i.test(text);
+    if (text && html) {
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        const clean = (s) => (s ?? '').replace(/\s+/g, ' ').trim();
+        const parts = [...doc.querySelectorAll('h1, h2, h3, p, pre')].map((n) => clean(n.textContent)).filter(Boolean);
+        text = parts.length ? parts.join(': ') : clean(doc.body?.textContent) || clean(doc.title);
+    }
+    if (text.length > 300)
+        text = `${text.slice(0, 300)}…`;
+    return text || `${response.status} ${response.statusText}`.trim();
 }
 
 // GET a JSON endpoint
