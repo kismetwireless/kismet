@@ -93,12 +93,11 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 
 	data = radiacode_execute(comms, "\x26\x08", (char *) &cmd_le, 4, &data_len);
 
-	if (data_len < 12) {
-		if (data != NULL) {
+	if (data == NULL || data_len < 12) {
+		if (data != NULL)
 			free(data);
-			*ret_len = -1;
-			return NULL;
-		}
+		*ret_len = -1;
+		return NULL;
 	}
 
 	retcode = le32toh(*((uint32_t *) ((uint8_t *) data + offt)));
@@ -114,7 +113,7 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 	offt += 4;
 
 	/* Hack to apparently work around a newer firmware bug */
-	if (retlen != 0 && data_len - offt == retlen + 1 && data[offt + retlen] == 0x00) {
+	if (retlen != 0 && (size_t) (data_len - offt) == (size_t) retlen + 1 && data[offt + retlen] == 0x00) {
 		retlen = retlen - 1;
 	}
 
@@ -125,14 +124,17 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 		return NULL;
 	}
 
-	rdata = (char *) malloc(sizeof(char) * retlen);
-	memcpy(rdata, data + offt, retlen);
+	/* terminated so text responses (the config block) can be searched safely */
+	rdata = (char *) malloc(sizeof(char) * retlen + 1);
 
 	if (rdata == NULL) {
 		free(data);
 		*ret_len = -1;
 		return NULL;
 	}
+
+	memcpy(rdata, data + offt, retlen);
+	rdata[retlen] = 0;
 
 	free(data);
 
@@ -161,7 +163,7 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 
 	resp = radiacode_execute(comms, "\x0a\x00", NULL, 0, &resp_sz);
 
-	if (resp_sz < 8) {
+	if (resp == NULL || resp_sz < 9) {
 		if (resp != NULL) {
 			free(resp);
 		}
@@ -178,15 +180,13 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 	resp_offt += 4;
 	str_len = resp[resp_offt] & 0xFF;
 
-	if (resp_sz < resp_offt + str_len) {
-		if (resp != NULL) {
-			free(resp);
-		}
-
+	/* the string, then the target version and the next length byte */
+	if ((size_t) resp_sz < resp_offt + 1 + str_len + 5) {
+		free(resp);
 		return -1;
 	}
 
-	snprintf(ret_ver->boot_date, min(32, str_len + 1), "%s", resp + resp_offt + 1);
+	snprintf(ret_ver->boot_date, min(32, str_len + 1), "%.*s", (int) str_len, resp + resp_offt + 1);
 
 	resp_offt += str_len + 1;
 
@@ -196,15 +196,14 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 	resp_offt += 4;
 	str_len = resp[resp_offt] & 0xFF;
 
-	if (resp_sz < resp_offt + str_len) {
-		if (resp != NULL) {
-			free(resp);
-		}
-
+	if ((size_t) resp_sz < resp_offt + 1 + str_len) {
+		free(resp);
 		return -1;
 	}
 
-	snprintf(ret_ver->target_date, min(32, str_len + 1), "%s", resp + resp_offt + 1);
+	snprintf(ret_ver->target_date, min(32, str_len + 1), "%.*s", (int) str_len, resp + resp_offt + 1);
+
+	free(resp);
 
 	/*
 	fprintf(stderr, "DEBUG - radiacode boot %u.%u (%s) fw %u.%u (%s)\n",
@@ -234,6 +233,8 @@ int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_da
 	radiacode_data_header_t *data_hdr = NULL;
 	radiacode_realtimedata_t *rt_data = NULL;
 
+	memset(ret_data, 0, sizeof(radiacode_data_report_t));
+
 	data = radiacode_read_request(comms, RADIA_VS_DATA_BUF, &data_len);
 
 	if (data == NULL) {
@@ -258,6 +259,9 @@ int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_da
 			ret_data->count_rate_err = le16toh(rt_data->count_rate_err_le);
 			ret_data->dose_rate_err = le16toh(rt_data->dose_rate_err_le);
 			ret_data->rt_flags = rt_data->rt_flags;
+
+			free(data);
+			return 1;
 		}
 
 		/* TODO - process other reports like raw data */
@@ -265,8 +269,9 @@ int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_da
 		break;
 	}
 
+	/* no real-time record */
 	free(data);
-	return 1;
+	return 0;
 }
 
 int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config_len) {
@@ -275,6 +280,8 @@ int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config
 	*config = radiacode_read_request(comms, RADIA_VS_CONFIGURATION, &data_len);
 
 	if (*config == NULL || data_len <= 0) {
+		free(*config);
+		*config = NULL;
 		return -ENOMEM;
 	}
 
