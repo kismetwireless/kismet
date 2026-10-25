@@ -63,6 +63,43 @@ typedef struct {
     unsigned int pps_throttle;
 } local_pcap_t;
 
+/* Realtime replay delay between two records.  Timestamps come from the file, so a
+ * backwards, huge, or malformed jump is clamped instead of stalling the replay */
+static unsigned long replay_delay_usec(local_pcap_t *local_pcap, int64_t ts_sec, int64_t ts_usec) {
+    const int64_t max_delay = 10 * 1000000LL;
+    int64_t delay = 0;
+    int64_t last_usec = local_pcap->last_ts.tv_usec;
+
+    if (ts_usec < 0 || ts_usec > 999999)
+        ts_usec = 0;
+    if (last_usec < 0 || last_usec > 999999)
+        last_usec = 0;
+
+    if ((local_pcap->last_ts.tv_sec != 0 || local_pcap->last_ts.tv_usec != 0) &&
+            ts_sec >= (int64_t) local_pcap->last_ts.tv_sec) {
+        /* unsigned difference can't overflow */
+        uint64_t dsec = (uint64_t) ts_sec - (uint64_t) (int64_t) local_pcap->last_ts.tv_sec;
+
+        if (dsec > 10)
+            delay = max_delay;
+        else
+            delay = (int64_t) dsec * 1000000LL + (ts_usec - last_usec);
+    }
+
+    local_pcap->last_ts.tv_sec = ts_sec;
+    local_pcap->last_ts.tv_usec = ts_usec;
+
+    if (delay < 0)
+        return 0;
+    if (delay > max_delay)
+        return max_delay;
+
+    return (unsigned long) delay;
+}
+
+/* Skip oversized records; one near the outbound ringbuffer size would wait forever */
+#define KISMETDB_MAX_RECORD (1024 * 1024)
+
 /* Version callback */
 int sqlite_version_cb(void *ver, int argc, char **data, char **colnames) {
     if (argc != 1) {
@@ -70,7 +107,7 @@ int sqlite_version_cb(void *ver, int argc, char **data, char **colnames) {
         return 0;
     }
 
-    if (sscanf(data[0], "%u", (unsigned int *) ver) != 1) {
+    if (data[0] == NULL || sscanf(data[0], "%u", (unsigned int *) ver) != 1) {
         *((unsigned int *) ver) = 0;
     }
 
@@ -118,30 +155,39 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     dbname = strndup(placeholder, placeholder_len);
 
+    if (dbname == NULL)
+        return 0;
+
     if (stat(dbname, &sbuf) < 0) {
+        free(dbname);
         return 0;
     }
 
     if (!S_ISREG(sbuf.st_mode)) {
         snprintf(msg, STATUS_MAX, "Kismetdb '%s' is not a normal file", dbname);
+        free(dbname);
         return 0;
     }
 
     sql_r = sqlite3_open(dbname, &db);
     if (sql_r) {
         snprintf(msg, STATUS_MAX, "Unable to open kismetdb file: %s", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        free(dbname);
         return 0;
     }
 
     sql_r = sqlite3_exec(db, kismet_version_sql, sqlite_version_cb, &dbversion, &sErrMsg);
+    sqlite3_free(sErrMsg);
     if (sql_r != SQLITE_OK || dbversion == 0) {
         snprintf(msg, STATUS_MAX, "Unable to find kismetdb version in database %s: %s", dbname, sqlite3_errmsg(db));
         sqlite3_close(db);
+        free(dbname);
         return 0;
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         /* Kluge a UUID out of the name */
         snprintf(errstr, 4096, "%08X-0000-0000-0000-0000%08X",
@@ -153,6 +199,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     sqlite3_close(db);
+    free(dbname);
 
     return 1;
 }
@@ -231,7 +278,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         /* Kluge a UUID out of the name */
         snprintf(errstr, 4096, "%08X-0000-0000-0000-0000%08X",
@@ -246,7 +293,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     snprintf(msg, STATUS_MAX, "Opened kismetdb '%s' for playback", dbname);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
-        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+        if (placeholder_len == 4 && strncasecmp(placeholder, "true", 4) == 0) {
             snprintf(errstr, 4096,
                     "kismetdb '%s' will replay in realtime", dbname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -285,26 +332,7 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
      * simulates blocking IO for capturing from hardware, too.
      */
     if (local_pcap->realtime) {
-        if (local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) {
-            delay_usec = 0;
-        } else {
-            /* Catch packets with inconsistent times */
-            if (ts_sec < local_pcap->last_ts.tv_sec) {
-                delay_usec = 0;
-            } else {
-                delay_usec = (ts_sec - local_pcap->last_ts.tv_sec) * 1000000L;
-            }
-
-            if (ts_usec < local_pcap->last_ts.tv_usec) {
-                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + ts_usec;
-            } else {
-                delay_usec += ts_usec - local_pcap->last_ts.tv_usec;
-            }
-
-        }
-
-        local_pcap->last_ts.tv_sec = ts_sec;
-        local_pcap->last_ts.tv_usec = ts_usec;
+        delay_usec = replay_delay_usec(local_pcap, ts_sec, ts_usec);
 
         if (delay_usec != 0) {
             usleep(delay_usec);
@@ -353,6 +381,7 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
                         original_len, len, (uint8_t *) data)) < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
+            break;
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
             // fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
@@ -380,6 +409,8 @@ void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
 
     struct cf_params_gps subgps;
 
+    memset(&subgps, 0, sizeof(struct cf_params_gps));
+
     /* If we're doing 'realtime' playback, delay accordingly based on the
      * previous packet.
      *
@@ -387,26 +418,7 @@ void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
      * simulates blocking IO for capturing from hardware, too.
      */
     if (local_pcap->realtime) {
-        if (local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) {
-            delay_usec = 0;
-        } else {
-            /* Catch packets with inconsistent times */
-            if (ts_sec < local_pcap->last_ts.tv_sec) {
-                delay_usec = 0;
-            } else {
-                delay_usec = (ts_sec - local_pcap->last_ts.tv_sec) * 1000000L;
-            }
-
-            if (ts_usec < local_pcap->last_ts.tv_usec) {
-                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + ts_usec;
-            } else {
-                delay_usec += ts_usec - local_pcap->last_ts.tv_usec;
-            }
-
-        }
-
-        local_pcap->last_ts.tv_sec = ts_sec;
-        local_pcap->last_ts.tv_usec = ts_usec;
+        delay_usec = replay_delay_usec(local_pcap, ts_sec, ts_usec);
 
         if (delay_usec != 0) {
             usleep(delay_usec);
@@ -452,6 +464,7 @@ void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
                         type, json)) < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
+            break;
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
             // fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
@@ -645,7 +658,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             if (packet_fulllen < packet_len)
                 packet_fulllen = packet_len;
 
-            if (packet_len > 0)
+            if (packet_len > 0 && packet_len <= KISMETDB_MAX_RECORD)
                 kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
                         packet_fulllen, packet_len, (const u_char *) packet_data,
                         lat, lon, alt, speed, heading);
@@ -667,13 +680,15 @@ void capture_thread(kis_capture_handler_t *caph) {
             col_type = (const char *) sqlite3_column_text(data_stmt, colno++);
             col_json = (const char *) sqlite3_column_text(data_stmt, colno++);
 
-            if (col_type != NULL && col_json != NULL) {
+            if (col_type != NULL && col_json != NULL &&
+                    strlen(col_json) <= KISMETDB_MAX_RECORD) {
                 data_type = strdup(col_type);
                 data_json = strdup(col_json);
 
-                kismetdb_dispatch_data_cb((u_char *) caph, data_ts_sec, data_ts_usec,
-                        data_type, data_json,
-                        lat, lon, alt, speed, heading);
+                if (data_type != NULL && data_json != NULL)
+                    kismetdb_dispatch_data_cb((u_char *) caph, data_ts_sec, data_ts_usec,
+                            data_type, data_json,
+                            lat, lon, alt, speed, heading);
 
                 free(data_type);
                 free(data_json);
