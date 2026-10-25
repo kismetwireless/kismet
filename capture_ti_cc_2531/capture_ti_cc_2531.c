@@ -149,9 +149,14 @@ int ticc2531_exit_promisc_mode(kis_capture_handler_t *caph) {
 
 int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
-    int actual_len, r;
+    int actual_len = 0, r;
 
     pthread_mutex_lock(&(localticc2531->usb_mutex));
+
+    if (localticc2531->ticc2531_handle == NULL) {
+        pthread_mutex_unlock(&(localticc2531->usb_mutex));
+        return -1;
+    }
    
     r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, 
             rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
@@ -423,6 +428,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     }
 
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    if (ret_localchan == NULL)
+        return NULL;
     ret_localchan->channel = parsechan;
     return ret_localchan;
 }
@@ -700,14 +707,24 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
    
+    /* the capture thread can close and re-open the handle */
+    pthread_mutex_lock(&(localticc2531->usb_mutex));
+
     if (localticc2531->ticc2531_handle == NULL) {
-        // pthread_mutex_unlock(&(localticc2531->usb_mutex));
+        pthread_mutex_unlock(&(localticc2531->usb_mutex));
         return 0;
     }
 
     ticc2531_exit_promisc_mode(caph);
 
     r = ticc2531_set_channel(caph, channel->channel);
+
+    if (r != TICC_USB_UNRESPONSIVE) {
+        localticc2531->channel = channel->channel;
+        ticc2531_enter_promisc_mode(caph);
+    }
+
+    pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
     if (r == TICC_USB_UNRESPONSIVE) {
         snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' channel unable to be set"
@@ -733,10 +750,6 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 1;
     }
 
-    localticc2531->channel = channel->channel;
-
-    ticc2531_enter_promisc_mode(caph);
-
     return 1;
 }
 
@@ -753,10 +766,12 @@ void capture_thread(kis_capture_handler_t *caph) {
     while (1) {
         if (caph->spindown) {
             /* close usb */
+            pthread_mutex_lock(&(localticc2531->usb_mutex));
             if (localticc2531->ticc2531_handle) {
                 libusb_close(localticc2531->ticc2531_handle);
                 localticc2531->ticc2531_handle = NULL;
             }
+            pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
             break;
         }
@@ -825,6 +840,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                             buf_rx_len, buf_rx_len, usb_buf)) < 0) {
                 cf_send_error(caph, 0, "unable to send DATA frame");
                 cf_handler_spindown(caph);
+                break;
             } else if (r == 0) {
                 cf_handler_wait_ringbuffer(caph);
                 continue;
