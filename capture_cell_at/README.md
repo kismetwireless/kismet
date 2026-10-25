@@ -728,7 +728,7 @@ are not wired up.
 
 QMI carries cell data AT cannot: the NR Cell Identity Telit's `AT#RFSTS` omits,
 and full cell identity on Sierra parts whose `AT+CEREG` / `AT+CSQ`
-return ERROR. `qmifeed=<command>` spawns a child that writes one
+return ERROR. `qmifeed=auto` spawns a child that writes one
 `build_cell_json`-shaped observation per stdout line; each line is relayed to
 the server as a `CellModem` record, exactly like an AT observation. The feed
 stamps `"prov":{"src":"qmi",...}`, so `phy_cell` merges it with the AT and DIAG
@@ -755,9 +755,11 @@ kismet -c 'cellat-<imei>:atport=/dev/ttyUSB2,qmifeed=auto -d /dev/cdc-wdm0 --int
 
 - **`auto` (or `1`)** looks for `qmifeed/kismet_qmi_feed.py` beside
   `kismet_cap_cell_at`, or `capture_cell_at/qmifeed/` beside it, in the
-  binary's directory or up to 3 parents, and runs it with the system `python3`.
-  Anything after `auto ` is passed to the feed as its own arguments
-  (`python3 qmifeed/kismet_qmi_feed.py --help` lists them). With no `-d`, the
+  binary's directory or up to 3 parents, and runs it with the first `python3`
+  in `/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin` or `/opt/local/bin`.
+  Anything after `auto ` is split on spaces and passed to the feed directly,
+  with no shell; only `-d`, `--device`, `--interval`, `--imei`, `--once` and
+  `--no-signal` are accepted. With no `-d`, the
   feed picks the `cdc-wdm` whose IMEI matches the source (below). If no feed is
   found, `auto` is refused with a message bus ERROR naming where it looked;
   AT polling carries on. The binary reads its own location from
@@ -766,8 +768,8 @@ kismet -c 'cellat-<imei>:atport=/dev/ttyUSB2,qmifeed=auto -d /dev/cdc-wdm0 --int
   built by `./configure && make` also looks, last, in the data directory
   `make install` copies the feed to (`<datadir>/kismet/cell/qmifeed/`), so an
   installed `kismet_cap_cell_at` finds it too.
-- **Any other value is a command**, run verbatim: a feed of your own, or this
-  one under another interpreter.
+- **Any other value is refused.** A source definition can come from anyone
+  allowed to add a source, so it never names a program to run.
 
 - **Whose cells these are is checked, twice.** The feed stamps
   `prov.imei` with the IMEI its QMI device reports (DMS), and `cdc-wdm`

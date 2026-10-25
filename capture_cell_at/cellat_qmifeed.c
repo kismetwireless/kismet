@@ -21,6 +21,7 @@
 #include "cellat_qmifeed.h"
 #include "../capture_cell_diag/diag_privdrop.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -237,11 +238,11 @@ qmifeed_imei_verdict_t qmifeed_imei_check(const char *line, const char *source_i
     return strcmp(got, source_imei) == 0 ? QMIFEED_IMEI_MATCH : QMIFEED_IMEI_MISMATCH;
 }
 
-int qmifeed_start(qmifeed_t *qf, const char *cmd, char *err, size_t errsz) {
+int qmifeed_start(qmifeed_t *qf, char *const argv[], char *err, size_t errsz) {
     int p[2];
 
-    if (cmd == NULL || cmd[0] == '\0') {
-        snprintf(err, errsz, "qmifeed= needs a command");
+    if (argv == NULL || argv[0] == NULL || argv[0][0] != '/') {
+        snprintf(err, errsz, "qmifeed= needs a program named by its absolute path");
         return -1;
     }
     char env_slot[64];
@@ -266,7 +267,7 @@ int qmifeed_start(qmifeed_t *qf, const char *cmd, char *err, size_t errsz) {
     }
 
     if (pid == 0) {
-        /* `cmd` is the caller's. Under `make suidinstall` it must run as
+        /* The feed is the caller's. Under `make suidinstall` it must run as
          * the caller, never at this binary's effective uid. Before anything
          * else, so nothing below runs elevated either. */
         char perr[160];
@@ -274,15 +275,14 @@ int qmifeed_start(qmifeed_t *qf, const char *cmd, char *err, size_t errsz) {
             dprintf(STDERR_FILENO, "qmifeed: refusing to exec: %s\n", perr);
             _exit(126);
         }
-        /* Own process group, so qmifeed_stop() reaches sh, python and qmicli. */
+        /* Own process group, so qmifeed_stop() reaches python and qmicli. */
         setpgid(0, 0);
 #ifdef __linux__
         /* A SIGKILLed capture child gets no chance to stop us; the kernel does.
          * PDEATHSIG reaches this process only -- it is not inherited across
-         * fork, and a shell killed by it does not pass it on. For `sh -c` plus a
-         * pipeline, it kills sh and orphans the rest. The deeper layers are the
-         * feed's own: kismet_qmi_feed.py exits when its parent changes, and any
-         * writer dies of SIGPIPE on its next line. */
+         * fork. The deeper layers are the feed's own: kismet_qmi_feed.py exits
+         * when its parent changes, and any writer dies of SIGPIPE on its next
+         * line. */
         prctl(PR_SET_PDEATHSIG, SIGTERM);
 #endif
         int devnull = open("/dev/null", O_RDONLY);
@@ -303,8 +303,7 @@ int qmifeed_start(qmifeed_t *qf, const char *cmd, char *err, size_t errsz) {
         signal(SIGPIPE, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
-        char *const argv[] = { "sh", "-c", (char *) cmd, NULL };
-        execve("/bin/sh", argv, env);
+        execve(argv[0], argv, env);
         _exit(127);
     }
 
@@ -520,74 +519,173 @@ static int qmifeed_is_file(const char *path) {
     return stat(path, &st) == 0 && S_ISREG(st.st_mode) && access(path, R_OK) == 0;
 }
 
-/* Single-quote `s` for /bin/sh into out+*len. -1 if it does not fit. */
-static int qmifeed_sh_quote(const char *s, char *out, size_t outsz, size_t *len) {
-    if (*len + 1 >= outsz)
+/* The feed's own options; anything else (--qmilog writes a file) is refused. */
+static const struct {
+    const char *name;
+    int takes_value;
+} qmifeed_auto_options[] = {
+    { "-d", 1 },
+    { "--device", 1 },
+    { "--interval", 1 },
+    { "--imei", 1 },
+    { "--once", 0 },
+    { "--no-signal", 0 },
+};
+
+static int qmifeed_arg_chars_ok(const char *s) {
+    if (*s == '\0')
+        return 0;
+    for (; *s; s++)
+        if (!isalnum((unsigned char) *s) && strchr("._/:+,=-", *s) == NULL)
+            return 0;
+    return 1;
+}
+
+/* Append `s` to out->buf as argv[*argc]. -1 if it does not fit. */
+static int qmifeed_push_arg(qmifeed_cmd_t *out, size_t *used, int *argc,
+                            const char *s, size_t len) {
+    if (*argc >= QMIFEED_ARGV_MAX || len + 1 > sizeof(out->buf) - *used)
         return -1;
-    out[(*len)++] = '\'';
-    for (; *s; s++) {
-        const char *piece = (*s == '\'') ? "'\\''" : NULL;
-        size_t need = piece ? strlen(piece) : 1;
-        if (*len + need + 1 >= outsz)
-            return -1;
-        if (piece) {
-            memcpy(out + *len, piece, need);
-            *len += need;
-        } else {
-            out[(*len)++] = *s;
-        }
-    }
-    if (*len + 1 >= outsz)
-        return -1;
-    out[(*len)++] = '\'';
-    out[*len] = '\0';
+    memcpy(out->buf + *used, s, len);
+    out->buf[*used + len] = '\0';
+    out->argv[(*argc)++] = out->buf + *used;
+    *used += len + 1;
     return 0;
 }
 
-/* The feed at `probe` as `exec python3 '<probe>'<tail>` into out. */
-static int qmifeed_auto_command(const char *probe, const char *tail,
-                                char *out, size_t outsz, char *err, size_t errsz) {
-    /* exec: the shell becomes python, so the direct child that
-     * PR_SET_PDEATHSIG and the group kill reach IS the feed. */
-    size_t len = (size_t) snprintf(out, outsz, "exec python3 ");
-    if (len >= outsz || qmifeed_sh_quote(probe, out, outsz, &len) != 0
-            || len + strlen(tail) >= outsz) {
-        snprintf(err, errsz, "qmifeed=auto: the command for %s is too long",
-                 probe);
+/* python3 from fixed system locations; never $PATH, which a suid caller owns. */
+static const char *qmifeed_find_python(void) {
+    static const char *const cand[] = {
+        "/usr/bin/python3",
+        "/usr/local/bin/python3",
+        "/opt/homebrew/bin/python3",
+        "/opt/local/bin/python3",
+    };
+    for (size_t i = 0; i < sizeof(cand) / sizeof(cand[0]); i++)
+        if (access(cand[i], X_OK) == 0)
+            return cand[i];
+    return NULL;
+}
+
+/* argv = { python, -E, -s, probe, <checked tail tokens>, NULL } */
+static int qmifeed_auto_command(const char *python, const char *probe, const char *tail,
+                                qmifeed_cmd_t *out, char *err, size_t errsz) {
+    size_t used = 0;
+    int argc = 0;
+
+    if (qmifeed_push_arg(out, &used, &argc, python, strlen(python)) != 0
+            || qmifeed_push_arg(out, &used, &argc, "-E", 2) != 0
+            || qmifeed_push_arg(out, &used, &argc, "-s", 2) != 0
+            || qmifeed_push_arg(out, &used, &argc, probe, strlen(probe)) != 0) {
+        snprintf(err, errsz, "qmifeed=auto: the command for %s is too long", probe);
         return -1;
     }
-    memcpy(out + len, tail, strlen(tail) + 1);
+
+    int need_value = 0;
+    const char *p = tail;
+    for (;;) {
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == '\0')
+            break;
+        const char *s = p;
+        while (*p && *p != ' ' && *p != '\t')
+            p++;
+        size_t len = (size_t) (p - s);
+        char tok[256];
+        if (len >= sizeof(tok)) {
+            snprintf(err, errsz, "qmifeed=auto: an argument is too long");
+            return -1;
+        }
+        memcpy(tok, s, len);
+        tok[len] = '\0';
+
+        if (!qmifeed_arg_chars_ok(tok)) {
+            snprintf(err, errsz, "qmifeed=auto: argument '%.64s' has a character "
+                     "the feed does not take", tok);
+            return -1;
+        }
+
+        int ok = 0;
+        if (need_value) {
+            ok = tok[0] != '-';
+            need_value = 0;
+        } else {
+            const char *eq = strchr(tok, '=');
+            size_t nlen = eq ? (size_t) (eq - tok) : len;
+            for (size_t i = 0; i < sizeof(qmifeed_auto_options) /
+                    sizeof(qmifeed_auto_options[0]); i++) {
+                const char *name = qmifeed_auto_options[i].name;
+                if (strlen(name) != nlen || strncmp(tok, name, nlen) != 0)
+                    continue;
+                if (eq == NULL) {
+                    ok = 1;
+                    need_value = qmifeed_auto_options[i].takes_value;
+                } else {
+                    /* --opt=value: long options that take one */
+                    ok = qmifeed_auto_options[i].takes_value && name[1] == '-'
+                        && eq[1] != '\0' && eq[1] != '-';
+                }
+                break;
+            }
+        }
+        if (!ok) {
+            snprintf(err, errsz, "qmifeed=auto: '%.64s' is not an option qmifeed "
+                     "takes (-d, --device, --interval, --imei, --once, --no-signal)",
+                     tok);
+            return -1;
+        }
+        if (qmifeed_push_arg(out, &used, &argc, tok, len) != 0) {
+            snprintf(err, errsz, "qmifeed=auto: too many arguments");
+            return -1;
+        }
+    }
+    if (need_value) {
+        snprintf(err, errsz, "qmifeed=auto: the last option needs a value");
+        return -1;
+    }
+    out->argv[argc] = NULL;
     return 0;
 }
 
 int qmifeed_resolve_command(const char *value, const char *self_dir,
-                            char *out, size_t outsz, char *err, size_t errsz) {
+                            qmifeed_cmd_t *out, char *err, size_t errsz) {
     return qmifeed_resolve_command_in(value, self_dir, QMIFEED_DATADIR,
-                                      out, outsz, err, errsz);
+                                      out, err, errsz);
 }
 
 int qmifeed_resolve_command_in(const char *value, const char *self_dir,
                                const char *data_dir,
-                               char *out, size_t outsz, char *err, size_t errsz) {
+                               qmifeed_cmd_t *out, char *err, size_t errsz) {
+    return qmifeed_resolve_command_with(value, self_dir, data_dir,
+                                        qmifeed_find_python(), out, err, errsz);
+}
+
+int qmifeed_resolve_command_with(const char *value, const char *self_dir,
+                                 const char *data_dir, const char *python,
+                                 qmifeed_cmd_t *out, char *err, size_t errsz) {
     const char *tail = NULL;
 
+    out->argv[0] = NULL;
     if (value == NULL || value[0] == '\0') {
-        snprintf(err, errsz, "qmifeed= needs a command, or auto");
+        snprintf(err, errsz, "qmifeed= needs auto");
         return -1;
     }
     if (!qmifeed_is_auto(value, &tail)) {
-        if (strlen(value) >= outsz) {
-            snprintf(err, errsz, "qmifeed= command is too long");
-            return -1;
-        }
-        snprintf(out, outsz, "%s", value);
-        return 0;
+        snprintf(err, errsz, "qmifeed= only takes auto (or auto <feed options>); "
+                 "it does not run other commands");
+        return -1;
+    }
+    if (python == NULL) {
+        snprintf(err, errsz, "qmifeed=auto: no python3 in /usr/bin, /usr/local/bin, "
+                 "/opt/homebrew/bin or /opt/local/bin");
+        return -1;
     }
     int have_data = data_dir != NULL && data_dir[0] != '\0';
     if ((self_dir == NULL || self_dir[0] == '\0') && !have_data) {
         snprintf(err, errsz, "qmifeed=auto: this binary cannot find its own "
                  "directory, so it cannot find the feed that ships beside it; "
-                 "pass qmifeed=<command> instead");
+                 "check the install");
         return -1;
     }
 
@@ -608,7 +706,7 @@ int qmifeed_resolve_command_in(const char *value, const char *self_dir,
                 continue;
             if (!qmifeed_is_file(probe))
                 continue;
-            return qmifeed_auto_command(probe, tail, out, outsz, err, errsz);
+            return qmifeed_auto_command(python, probe, tail, out, err, errsz);
         }
         char *slash = strrchr(root, '/');
         if (!slash || slash == root)
@@ -620,15 +718,15 @@ int qmifeed_resolve_command_in(const char *value, const char *self_dir,
             && snprintf(probe, sizeof(probe), "%s/%s", data_dir,
                         QMIFEED_AUTO_SCRIPT) < (int) sizeof(probe)
             && qmifeed_is_file(probe))
-        return qmifeed_auto_command(probe, tail, out, outsz, err, errsz);
+        return qmifeed_auto_command(python, probe, tail, out, err, errsz);
     if (have_data)
         snprintf(err, errsz, "qmifeed=auto: no %s beside this binary (%s), up to "
-                 "%d parents, or in %s; pass qmifeed=<command> instead",
+                 "%d parents, or in %s; check the install",
                  QMIFEED_AUTO_SCRIPT, self_dir ? self_dir : "?",
                  QMIFEED_AUTO_MAX_UP, data_dir);
     else
         snprintf(err, errsz, "qmifeed=auto: no %s beside this binary (%s) or up to "
-                 "%d parents; pass qmifeed=<command> instead",
+                 "%d parents; check the install",
                  QMIFEED_AUTO_SCRIPT, self_dir, QMIFEED_AUTO_MAX_UP);
     return -1;
 }

@@ -28,6 +28,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fake_at_modem import QENG_SERVING, FakeAtModem  # noqa: E402
+from fake_qmifeed import server_feed  # noqa: E402
 from test_celldiag_server_routes import KP_ROOT, SERVER  # noqa: E402
 from test_graceful_close_server import LoggingKismetServer  # noqa: E402
 
@@ -101,8 +102,8 @@ def test_rawqmi_rows_and_feed_notes_reach_the_kismetdb(tmp_path):
     _built_or_skip()
     feed = _feed(tmp_path)
     with FakeAtModem(imei=IMEI, extra=QENG_SERVING) as modem:
-        srcdef = f"cellat-{IMEI}:atport={modem.port},debug=false,qmifeed=/bin/sh {feed}"
-        with LoggingKismetServer(tmp_path, srcdef) as srv:
+        srcdef = f"cellat-{IMEI}:atport={modem.port},debug=false,qmifeed=auto"
+        with server_feed(LoggingKismetServer(tmp_path, srcdef), tmp_path, feed) as srv:
             deadline = time.monotonic() + 40.0
             while time.monotonic() < deadline and "qmifeed: " + NOTE not in srv.tail(200000):
                 time.sleep(0.5)

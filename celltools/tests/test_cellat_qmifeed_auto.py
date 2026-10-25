@@ -1,7 +1,7 @@
 """cellat ``qmifeed=auto``: the QMI feed that ships in this tree.
 
-``qmifeed=<command>`` runs any feed command; ``qmifeed=auto`` needs nothing
-outside the source tree. The feed ships as ``capture_cell_at/qmifeed/`` (standard library only), and ``qmifeed=auto`` finds
+``qmifeed=auto`` is the only feed: it needs nothing outside the source tree,
+and any other value is refused. The feed ships as ``capture_cell_at/qmifeed/`` (standard library only), and ``qmifeed=auto`` finds
 it beside the binary.
 
 Pinned here, end to end through the compiled binary, a fake AT modem and a fake
@@ -14,7 +14,7 @@ outside that tree can be what answered:
 * a tree without the feed refuses ``auto`` with the fix in the message, and the
   AT survey carries on.
 
-The resolver's walk and shell quoting are C-tested in
+The resolver's walk and argument checks are C-tested in
 ``capture_cell_at/test_cellat_qmifeed.c``.
 """
 from __future__ import annotations
@@ -94,8 +94,8 @@ def test_auto_runs_the_trees_own_feed(tmp_path, monkeypatch):
     started = [m for m in run.messages if "qmifeed started" in m]
     assert started, run.messages
     script = binary.parent / "qmifeed" / "kismet_qmi_feed.py"
-    # The system python3 on the tree's own file, with auto's arguments passed on.
-    assert f"exec python3 '{script}' -d /dev/fake --interval 1" in started[0]
+    # The tree's own file, with auto's arguments passed on.
+    assert f"{script} auto -d /dev/fake --interval 1" in started[0]
     cells = _qmi(run)
     assert cells, run.messages
     assert all(c["prov"]["imei"] == IMEI for c in cells)
@@ -110,7 +110,7 @@ def test_auto_without_the_feed_refuses_and_at_polling_continues(tmp_path, monkey
     refused = [m for m in run.messages if "qmifeed=auto" in m]
     assert refused, run.messages
     assert "qmifeed/kismet_qmi_feed.py" in refused[0]
-    assert "qmifeed=<command>" in refused[0]
+    assert "check the install" in refused[0]
     assert not any("qmifeed started" in m for m in run.messages)
     assert _qmi(run) == []
     assert len(_at(run)) >= 2

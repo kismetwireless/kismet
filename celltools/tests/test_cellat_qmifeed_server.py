@@ -24,6 +24,7 @@ import time
 from pathlib import Path
 
 from fake_at_modem import QENG_SERVING, FakeAtModem
+from fake_qmifeed import server_feed
 from test_celldiag_server_routes import KismetServer
 from test_cellat_server_fields import _fresh_server_or_skip
 
@@ -63,8 +64,8 @@ def _serve(tmp: Path, mnc: str, until) -> list:
     feed.write_text(f"while :; do echo '{json.dumps(_qmi_serving(mnc))}'; "
                     "sleep 1; done\n")
     with FakeAtModem(imei=IMEI, extra=QENG_SERVING) as modem:
-        with KismetServer(tmp, f"cellat-{IMEI}:atport={modem.port},"
-                               f"debug=false,qmifeed=/bin/sh {feed}") as ks:
+        with server_feed(KismetServer(tmp, f"cellat-{IMEI}:atport={modem.port},"
+                                          "debug=false,qmifeed=auto"), tmp, feed) as ks:
             deadline = time.monotonic() + 40.0
             devices: list = []
             while time.monotonic() < deadline:

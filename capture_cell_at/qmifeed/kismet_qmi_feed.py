@@ -7,7 +7,7 @@ cell_observation dicts. This is the process that runs it on a cadence: poll
 object per line to stdout, flushed per poll.
 
 Who reads stdout: ``kismet_cap_cell_at`` capture child, when its source
-carries ``qmifeed=<command>``. The child spawns this command, reads its stdout
+carries ``qmifeed=auto``. The child spawns this feed, reads its stdout
 line by line, and forwards every line to the Kismet server as a ``CellModem``
 KDS record — the same record type its own AT observations ride — so
 ``datasource_cell_at`` / ``phy_cell`` merge QMI cells with the AT and DIAG ones

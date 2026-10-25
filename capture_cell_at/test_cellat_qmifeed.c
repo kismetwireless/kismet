@@ -1,7 +1,7 @@
 /*
     Selftest for cellat_qmifeed.c -- `make check` in this directory.
 
-    Drives real child processes (/bin/sh -c ...), since the unit's whole job is
+    Drives real child processes (/bin/sh -c ... as the argv), since the unit's whole job is
     process plumbing: line framing across reads, the overlong-line drop, EOF,
     fd hygiene, and a stop that reaches the child's whole process group.
 */
@@ -59,10 +59,16 @@ static void drain(qmifeed_t *qf, sink_t *s) {
     }
 }
 
+/* The plumbing tests drive a shell; qmifeed= itself never runs one. */
+static int start_sh(qmifeed_t *qf, const char *cmd, char *err, size_t errsz) {
+    char *const argv[] = { "/bin/sh", "-c", (char *) cmd, NULL };
+    return qmifeed_start(qf, argv, err, errsz);
+}
+
 static void test_lines_forwarded_in_order(void) {
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "printf '{\"a\":1}\\n{\"b\":2}\\n'", err, sizeof(err)) == 0,
+    CHECK(start_sh(&qf, "printf '{\"a\":1}\\n{\"b\":2}\\n'", err, sizeof(err)) == 0,
           "start: %s", err);
     drain(&qf, &s);
     CHECK(s.n == 2, "want 2 lines, got %d", s.n);
@@ -77,7 +83,7 @@ static void test_line_split_across_writes_is_reassembled(void) {
      * hold the partial tail rather than forward a fragment. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "printf '{\"rat\":'; sleep 0.3; printf '\"LTE\"}\\n'",
+    CHECK(start_sh(&qf, "printf '{\"rat\":'; sleep 0.3; printf '\"LTE\"}\\n'",
                         err, sizeof(err)) == 0, "start: %s", err);
     sleep_ms(100);
     qmifeed_poll(&qf, collect, &s);
@@ -91,7 +97,7 @@ static void test_line_split_across_writes_is_reassembled(void) {
 static void test_non_json_and_blank_lines_dropped(void) {
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "printf 'banner text\\n\\n{\"ok\":1}\\r\\n{\"half\":\\n'",
+    CHECK(start_sh(&qf, "printf 'banner text\\n\\n{\"ok\":1}\\r\\n{\"half\":\\n'",
                         err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s);
     CHECK(s.n == 1 && strcmp(s.line[0], "{\"ok\":1}") == 0,
@@ -106,7 +112,7 @@ static void test_overlong_line_dropped_whole(void) {
      * entirely -- never forwarded as a truncated prefix -- and framing recovers. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf,
+    CHECK(start_sh(&qf,
           "printf '{'; head -c 5000 /dev/zero | tr '\\0' x; printf '}\\n{\"next\":1}\\n'",
           err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s);
@@ -123,7 +129,7 @@ static void test_overlong_tail_that_looks_like_json_is_not_forwarded(void) {
      * an observation, so the rest of an overlong line is discarded to '\n'. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf,
+    CHECK(start_sh(&qf,
           "printf '{'; head -c 4094 /dev/zero | tr '\\0' x; "
           "printf 'y{\"frag\":1}\\n{\"next\":1}\\n'",
           err, sizeof(err)) == 0, "start: %s", err);
@@ -136,7 +142,7 @@ static void test_overlong_tail_that_looks_like_json_is_not_forwarded(void) {
 static void test_unterminated_final_line_delivered_at_eof(void) {
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "printf '{\"last\":1}'", err, sizeof(err)) == 0,
+    CHECK(start_sh(&qf, "printf '{\"last\":1}'", err, sizeof(err)) == 0,
           "start: %s", err);
     drain(&qf, &s);
     CHECK(s.n == 1 && strcmp(s.line[0], "{\"last\":1}") == 0, "n=%d", s.n);
@@ -146,7 +152,7 @@ static void test_unterminated_final_line_delivered_at_eof(void) {
 static void test_eof_flagged_with_no_output(void) {
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "true", err, sizeof(err)) == 0, "start: %s", err);
+    CHECK(start_sh(&qf, "true", err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s);
     CHECK(qf.eof && qf.fd == -1, "eof=%d fd=%d", qf.eof, qf.fd);
     CHECK(qmifeed_poll(&qf, collect, &s) == 0, "a poll after EOF should return 0");
@@ -159,7 +165,7 @@ static void test_eof_flagged_when_it_arrives_with_the_last_lines(void) {
      * one read(); the call must deliver the lines AND flag the EOF. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "printf '{\"a\":1}\\n'; exit 3", err, sizeof(err)) == 0,
+    CHECK(start_sh(&qf, "printf '{\"a\":1}\\n'; exit 3", err, sizeof(err)) == 0,
           "start: %s", err);
     sleep_ms(300);          /* let it print AND exit before the first poll */
     int n = qmifeed_poll(&qf, collect, &s);
@@ -172,7 +178,10 @@ static void test_eof_flagged_when_it_arrives_with_the_last_lines(void) {
 static void test_empty_command_rejected(void) {
     qmifeed_t qf; char err[256] = "";
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "", err, sizeof(err)) == -1, "empty cmd accepted");
+    char *const none[] = { NULL };
+    char *const rel[] = { "sh", "-c", "true", NULL };
+    CHECK(qmifeed_start(&qf, none, err, sizeof(err)) == -1, "empty argv accepted");
+    CHECK(qmifeed_start(&qf, rel, err, sizeof(err)) == -1, "relative program accepted");
     CHECK(strstr(err, "qmifeed=") != NULL, "err '%s'", err);
     CHECK(qmifeed_stop(&qf, 100) == -1, "stop with no child should be -1");
 }
@@ -188,7 +197,7 @@ static void test_inherited_fds_closed_in_child(void) {
              "echo '{\"leak\":1}'; else echo '{\"leak\":0}'; fi", fds[1], fds[1]);
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, cmd, err, sizeof(err)) == 0, "start: %s", err);
+    CHECK(start_sh(&qf, cmd, err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s);
     CHECK(s.n == 1 && strcmp(s.line[0], "{\"leak\":0}") == 0,
           "child inherited fd %d: '%s'", fds[1], s.n ? s.line[0] : "(none)");
@@ -202,7 +211,7 @@ static void test_stop_kills_the_whole_group(void) {
      * the stop must reach it through the process group. It reports its pid. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "sleep 60 & echo \"{\\\"gc\\\":$!}\"; wait",
+    CHECK(start_sh(&qf, "sleep 60 & echo \"{\\\"gc\\\":$!}\"; wait",
                         err, sizeof(err)) == 0, "start: %s", err);
     for (int i = 0; i < 250 && s.n == 0; i++) {
         qmifeed_poll(&qf, collect, &s);
@@ -236,7 +245,7 @@ static void test_child_starts_with_no_blocked_signals(void) {
     sigprocmask(SIG_BLOCK, &blk, &old);
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf,
+    CHECK(start_sh(&qf,
           "printf '{\"blk\":\"%s\"}\\n' \"$(awk '/^SigBlk/{print $2}' /proc/self/status)\"",
           err, sizeof(err)) == 0, "start: %s", err);
     sigprocmask(SIG_SETMASK, &old, NULL);
@@ -251,7 +260,7 @@ static void test_stop_escalates_to_sigkill(void) {
     /* A child that ignores SIGTERM must still be gone within the grace. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "trap '' TERM; echo '{\"up\":1}'; while :; do sleep 1; done",
+    CHECK(start_sh(&qf, "trap '' TERM; echo '{\"up\":1}'; while :; do sleep 1; done",
                         err, sizeof(err)) == 0, "start: %s", err);
     for (int i = 0; i < 250 && s.n == 0; i++) {
         qmifeed_poll(&qf, collect, &s);
@@ -321,7 +330,7 @@ static void test_child_env_carries_the_verified_imei(void) {
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
     qmifeed_set_expect_imei(&qf, SRC_IMEI);
-    CHECK(qmifeed_start(&qf, "echo \"{\\\"env\\\":\\\"$CELLAT_IMEI\\\"}\"",
+    CHECK(start_sh(&qf, "echo \"{\\\"env\\\":\\\"$CELLAT_IMEI\\\"}\"",
                         err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s);
     CHECK(s.n == 1 && strcmp(s.line[0], "{\"env\":\"" SRC_IMEI "\"}") == 0,
@@ -337,7 +346,7 @@ static void test_inherited_cellat_imei_is_replaced_not_duplicated(void) {
     qmifeed_init(&qf);
     qmifeed_set_expect_imei(&qf, SRC_IMEI);
     /* /proc/$$/environ, not `env`: see test_child_env_announces_the_line_protocol. */
-    CHECK(qmifeed_start(&qf, "{ if [ -r /proc/$$/environ ]; then tr '\\0' '\\n' < /proc/$$/environ; "
+    CHECK(start_sh(&qf, "{ if [ -r /proc/$$/environ ]; then tr '\\0' '\\n' < /proc/$$/environ; "
                              "else env; fi; } | grep -c '^CELLAT_IMEI=' | sed 's/.*/{\"n\":&}/'; "
                              "echo \"{\\\"env\\\":\\\"$CELLAT_IMEI\\\"}\"",
                         err, sizeof(err)) == 0, "start: %s", err);
@@ -350,7 +359,7 @@ static void test_inherited_cellat_imei_is_replaced_not_duplicated(void) {
     sink_t s2 = {0};
     qmifeed_init(&qf);
     qmifeed_set_expect_imei(&qf, "000000000000000");
-    CHECK(qmifeed_start(&qf, "echo \"{\\\"env\\\":\\\"${CELLAT_IMEI-unset}\\\"}\"",
+    CHECK(start_sh(&qf, "echo \"{\\\"env\\\":\\\"${CELLAT_IMEI-unset}\\\"}\"",
                         err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s2);
     CHECK(s2.n == 1 && strcmp(s2.line[0], "{\"env\":\"unset\"}") == 0,
@@ -397,7 +406,7 @@ static void test_tagged_lines_are_routed_beside_observations(void) {
     memset(&b, 0, sizeof(b));
     qmifeed_init(&qf);
     qmifeed_set_tag_cb(&qf, collect_tag);
-    CHECK(qmifeed_start(&qf,
+    CHECK(start_sh(&qf,
           "printf '#rawqmi {\"argv\":[\"qmicli\"],\"rc\":0}\\n{\"obs\":1}\\n"
           "#msg info polling /dev/cdc-wdm3 instead\\n#msg error no QMI device\\n'",
           err, sizeof(err)) == 0, "start: %s", err);
@@ -425,7 +434,7 @@ static void test_tagged_lines_without_a_callback_are_non_json(void) {
      * non-JSON. */
     qmifeed_t qf; sink_t s = {0}; char err[256];
     qmifeed_init(&qf);
-    CHECK(qmifeed_start(&qf, "printf '#rawqmi {\"a\":1}\\n#msg info hi\\n{\"ok\":1}\\n'",
+    CHECK(start_sh(&qf, "printf '#rawqmi {\"a\":1}\\n#msg info hi\\n{\"ok\":1}\\n'",
                         err, sizeof(err)) == 0, "start: %s", err);
     drain(&qf, &s);
     CHECK(s.n == 1 && qf.dropped_nonjson == 2 && qf.tagged == 0,
@@ -439,7 +448,7 @@ static void test_malformed_tags_are_counted_not_forwarded(void) {
     memset(&b, 0, sizeof(b));
     qmifeed_init(&qf);
     qmifeed_set_tag_cb(&qf, collect_tag);
-    CHECK(qmifeed_start(&qf,
+    CHECK(start_sh(&qf,
           "printf '#bogus x\\n#rawqmi not-json\\n#rawqmi {\"open\":1\\n"
           "#msg warn x\\n#msg info \\n#rawqmi\\n'",
           err, sizeof(err)) == 0, "start: %s", err);
@@ -458,7 +467,7 @@ static void test_a_raw_line_may_exceed_the_observation_cap(void) {
     memset(&b, 0, sizeof(b));
     qmifeed_init(&qf);
     qmifeed_set_tag_cb(&qf, collect_tag);
-    CHECK(qmifeed_start(&qf,
+    CHECK(start_sh(&qf,
           "printf '#rawqmi {\"x\":\"'; head -c 10000 /dev/zero | tr '\\0' x; printf '\"}\\n';"
           "printf '{\"y\":\"'; head -c 10000 /dev/zero | tr '\\0' y; printf '\"}\\n{\"next\":1}\\n'",
           err, sizeof(err)) == 0, "start: %s", err);
@@ -482,7 +491,7 @@ static void test_child_env_announces_the_line_protocol(void) {
      * (deduplicated) variable table -- and a duplicate is a real defect, since
      * C getenv() takes the FIRST entry and Python os.environ the LAST. Where
      * there is no /proc (Darwin) the count falls back to `env`'s. */
-    CHECK(qmifeed_start(&qf, "{ if [ -r /proc/$$/environ ]; then tr '\\0' '\\n' < /proc/$$/environ; "
+    CHECK(start_sh(&qf, "{ if [ -r /proc/$$/environ ]; then tr '\\0' '\\n' < /proc/$$/environ; "
                              "else env; fi; } | grep -c '^" QMIFEED_PROTO_ENV "=' | sed 's/.*/{\"n\":&}/'; "
                              "echo \"{\\\"p\\\":\\\"$" QMIFEED_PROTO_ENV "\\\"}\"",
                         err, sizeof(err)) == 0, "start: %s", err);
@@ -523,102 +532,140 @@ static void rm_tree(void) {
         fprintf(stderr, "rm_tree: could not remove %s\n", tree);
 }
 
-static void test_a_command_is_used_verbatim(void) {
-    char out[512], err[256];
-    const char *cmd = "/usr/bin/python3 /opt/feed.py --interval 2";
-    CHECK(qmifeed_resolve_command(cmd, "/nonexistent", out, sizeof(out),
-                                  err, sizeof(err)) == 0, "verbatim refused: %s", err);
-    CHECK(strcmp(out, cmd) == 0, "verbatim changed: %s", out);
-    /* "autox" is a command named autox, not the keyword. */
-    CHECK(qmifeed_resolve_command("autox", "/nonexistent", out, sizeof(out),
-                                  err, sizeof(err)) == 0 && strcmp(out, "autox") == 0,
-          "autox read as auto: %s", out);
+#define TEST_PY "/usr/bin/python3"
+
+static int resolve(const char *value, const char *self, const char *data,
+                   qmifeed_cmd_t *out, char *err, size_t errsz) {
+    return qmifeed_resolve_command_with(value, self, data, TEST_PY, out, err, errsz);
+}
+
+/* argv[3] is the feed; argv[4..] its arguments, joined with spaces. */
+static int argv_is(const qmifeed_cmd_t *c, const char *feed, const char *args) {
+    if (c->argv[0] == NULL || strcmp(c->argv[0], TEST_PY) != 0
+            || c->argv[1] == NULL || strcmp(c->argv[1], "-E") != 0
+            || c->argv[2] == NULL || strcmp(c->argv[2], "-s") != 0
+            || c->argv[3] == NULL || strcmp(c->argv[3], feed) != 0)
+        return 0;
+    char joined[1024] = "";
+    size_t len = 0;
+    for (int i = 4; c->argv[i] != NULL; i++)
+        len += (size_t) snprintf(joined + len, sizeof(joined) - len, "%s%s",
+                                 i > 4 ? " " : "", c->argv[i]);
+    return strcmp(joined, args) == 0;
+}
+
+static void test_a_command_is_refused(void) {
+    qmifeed_cmd_t c; char err[256];
+    CHECK(resolve("/usr/bin/python3 /opt/feed.py --interval 2", "/nonexistent", NULL,
+                  &c, err, sizeof(err)) == -1, "a command was accepted");
+    CHECK(strstr(err, "only takes auto") != NULL, "err '%s'", err);
+    CHECK(resolve("autox", "/nonexistent", NULL, &c, err, sizeof(err)) == -1,
+          "autox accepted");
+    CHECK(resolve("touch /tmp/x", "/nonexistent", NULL, &c, err, sizeof(err)) == -1,
+          "shell command accepted");
 }
 
 static void test_auto_finds_the_feed_beside_the_binary(void) {
     make_tree("capture_cell_at");
-    char self[512], out[1024], err[256], want[1024];
+    char self[512], err[256], want[1024];
+    qmifeed_cmd_t c;
     snprintf(self, sizeof(self), "%s/capture_cell_at", tree);
-    CHECK(qmifeed_resolve_command("auto", self, out, sizeof(out), err, sizeof(err)) == 0,
+    snprintf(want, sizeof(want), "%s/capture_cell_at/qmifeed/kismet_qmi_feed.py", tree);
+    CHECK(resolve("auto", self, NULL, &c, err, sizeof(err)) == 0,
           "auto refused beside the binary: %s", err);
-    snprintf(want, sizeof(want),
-             "exec python3 '%s/capture_cell_at/qmifeed/kismet_qmi_feed.py'", tree);
-    CHECK(strcmp(out, want) == 0, "auto -> %s", out);
+    CHECK(argv_is(&c, want, ""), "auto -> %s", c.argv[3] ? c.argv[3] : "(null)");
     /* `1` is the same keyword. */
-    CHECK(qmifeed_resolve_command("1", self, out, sizeof(out), err, sizeof(err)) == 0
-          && strcmp(out, want) == 0, "1 -> %s", out);
+    CHECK(resolve("1", self, NULL, &c, err, sizeof(err)) == 0 && argv_is(&c, want, ""),
+          "1 -> %s", err);
     rm_tree();
 }
 
 static void test_auto_finds_the_feed_from_the_tree_root_and_below(void) {
     make_tree("build/sub");
-    char self[512], out[1024], err[256], want[1024];
-    snprintf(want, sizeof(want),
-             "exec python3 '%s/capture_cell_at/qmifeed/kismet_qmi_feed.py'", tree);
+    char self[512], err[256], want[1024];
+    qmifeed_cmd_t c;
+    snprintf(want, sizeof(want), "%s/capture_cell_at/qmifeed/kismet_qmi_feed.py", tree);
     /* A binary at the tree root finds capture_cell_at/qmifeed/. */
-    CHECK(qmifeed_resolve_command("auto", tree, out, sizeof(out), err, sizeof(err)) == 0
-          && strcmp(out, want) == 0, "root: %s / %s", out, err);
+    CHECK(resolve("auto", tree, NULL, &c, err, sizeof(err)) == 0 && argv_is(&c, want, ""),
+          "root: %s", err);
     /* Two levels down still walks up to it. */
     snprintf(self, sizeof(self), "%s/build/sub", tree);
-    CHECK(qmifeed_resolve_command("auto", self, out, sizeof(out), err, sizeof(err)) == 0
-          && strcmp(out, want) == 0, "below: %s / %s", out, err);
+    CHECK(resolve("auto", self, NULL, &c, err, sizeof(err)) == 0 && argv_is(&c, want, ""),
+          "below: %s", err);
     rm_tree();
 }
 
 static void test_auto_passes_its_arguments_to_the_feed(void) {
     make_tree("capture_cell_at");
-    char self[512], out[1024], err[256], want[1024];
+    char self[512], err[256], want[1024];
+    qmifeed_cmd_t c;
     snprintf(self, sizeof(self), "%s/capture_cell_at", tree);
-    CHECK(qmifeed_resolve_command("auto -d /dev/cdc-wdm0 --interval 2", self,
-                                  out, sizeof(out), err, sizeof(err)) == 0,
-          "auto+args refused: %s", err);
-    snprintf(want, sizeof(want),
-             "exec python3 '%s/capture_cell_at/qmifeed/kismet_qmi_feed.py'"
-             " -d /dev/cdc-wdm0 --interval 2", tree);
-    CHECK(strcmp(out, want) == 0, "auto+args -> %s", out);
+    snprintf(want, sizeof(want), "%s/capture_cell_at/qmifeed/kismet_qmi_feed.py", tree);
+    CHECK(resolve("auto -d /dev/cdc-wdm0  --interval 2 --once", self, NULL,
+                  &c, err, sizeof(err)) == 0, "auto+args refused: %s", err);
+    CHECK(argv_is(&c, want, "-d /dev/cdc-wdm0 --interval 2 --once"), "auto+args split wrong");
+    CHECK(resolve("auto --device=/dev/cdc-wdm1 --imei 351234567890123 --no-signal", self,
+                  NULL, &c, err, sizeof(err)) == 0
+          && argv_is(&c, want, "--device=/dev/cdc-wdm1 --imei 351234567890123 --no-signal"),
+          "long forms refused: %s", err);
+    rm_tree();
+}
+
+static void test_auto_refuses_other_arguments(void) {
+    make_tree("capture_cell_at");
+    char self[512], err[256];
+    qmifeed_cmd_t c;
+    snprintf(self, sizeof(self), "%s/capture_cell_at", tree);
+    static const char *const bad[] = {
+        "auto --qmilog /etc/x",          /* writes a file */
+        "auto --qmilog=/etc/x",
+        "auto --qmil /etc/x",            /* argparse would take the abbreviation */
+        "auto -d",                       /* missing value */
+        "auto -d --qmilog=/etc/x",       /* an option as the value */
+        "auto --device=--qmilog",
+        "auto --once=1",
+        "auto -d=/dev/x",
+        "auto -d /dev/x; touch /tmp/y",
+        "auto -d $(id)",
+        "auto -d `id`",
+        "auto -d '/dev/x'",
+        "auto -d /dev/x|id",
+    };
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++)
+        CHECK(resolve(bad[i], self, NULL, &c, err, sizeof(err)) == -1,
+              "accepted '%s'", bad[i]);
     rm_tree();
 }
 
 static void test_auto_without_a_feed_refuses_and_says_what_to_do(void) {
-    char self[256], out[1024], err[512];
+    char self[256], err[512];
+    qmifeed_cmd_t c;
     snprintf(self, sizeof(self), "/tmp/qmifeed_none_XXXXXX");
     CHECK(mkdtemp(self) != NULL, "mkdtemp");
-    out[0] = '\0';
-    CHECK(qmifeed_resolve_command("auto", self, out, sizeof(out), err, sizeof(err)) == -1,
-          "auto resolved with no feed: %s", out);
-    CHECK(strstr(err, QMIFEED_AUTO_SCRIPT) && strstr(err, self)
-          && strstr(err, "qmifeed=<command>"), "refusal lacks the fix: %s", err);
+    CHECK(resolve("auto", self, NULL, &c, err, sizeof(err)) == -1,
+          "auto resolved with no feed");
+    CHECK(strstr(err, QMIFEED_AUTO_SCRIPT) && strstr(err, self),
+          "refusal lacks where it looked: %s", err);
     rmdir(self);
-    CHECK(qmifeed_resolve_command("auto", NULL, out, sizeof(out), err, sizeof(err)) == -1
-          && strstr(err, "qmifeed=<command>"), "NULL self_dir: %s", err);
-    CHECK(qmifeed_resolve_command("", "/tmp", out, sizeof(out), err, sizeof(err)) == -1,
-          "empty value accepted");
+    CHECK(resolve("auto", NULL, NULL, &c, err, sizeof(err)) == -1, "NULL self_dir resolved");
+    CHECK(resolve("", "/tmp", NULL, &c, err, sizeof(err)) == -1, "empty value accepted");
+    CHECK(qmifeed_resolve_command_with("auto", "/tmp", NULL, NULL, &c,
+                                       err, sizeof(err)) == -1
+          && strstr(err, "python3"), "no python3 not reported: %s", err);
 }
 
-static void test_auto_quotes_the_path_for_the_shell(void) {
+/* A path with a space and a quote needs no quoting: it is one argv entry. */
+static void test_auto_path_is_one_argument(void) {
     make_tree("capture_cell_at");
-    /* Rename the tree to one with a space and a single quote in it. */
-    char odd[512], cmd[1200], self[600], out[2048], err[256];
+    char odd[512], cmd[1200], self[600], err[256], want[1024];
+    qmifeed_cmd_t c;
     snprintf(odd, sizeof(odd), "%s it's", tree);
     snprintf(cmd, sizeof(cmd), "mv '%s' \"%s\"", tree, odd);
     CHECK(system(cmd) == 0, "rename");
     snprintf(self, sizeof(self), "%s/capture_cell_at", odd);
-    CHECK(qmifeed_resolve_command("auto", self, out, sizeof(out), err, sizeof(err)) == 0,
-          "auto refused: %s", err);
-    /* Let the shell itself parse it: `exec python3` swapped for printf. */
-    const char *rest = out + strlen("exec python3 ");
-    char sh[2400];
-    snprintf(sh, sizeof(sh), "printf %%s %s", rest);
-    FILE *f = popen(sh, "r");
-    char got[1024] = "";
-    if (f) {
-        if (fgets(got, sizeof(got), f) == NULL)
-            got[0] = '\0';
-        pclose(f);
-    }
-    char want[1024];
     snprintf(want, sizeof(want), "%s/capture_cell_at/qmifeed/kismet_qmi_feed.py", odd);
-    CHECK(strcmp(got, want) == 0, "shell read %s as [%s]", out, got);
+    CHECK(resolve("auto", self, NULL, &c, err, sizeof(err)) == 0 && argv_is(&c, want, ""),
+          "odd path: %s", err);
     snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", odd);
     if (system(cmd) != 0)
         fprintf(stderr, "could not remove %s\n", odd);
@@ -628,12 +675,12 @@ static void test_auto_quotes_the_path_for_the_shell(void) {
  * `make install` puts the feed in the data dir, the last candidate. */
 static void test_auto_falls_back_to_the_data_dir(void) {
     make_tree("usr/bin");
-    char bin[512], data[512], out[1024], err[512], want[1024];
+    char bin[512], data[512], err[512], want[1024];
+    qmifeed_cmd_t c;
     snprintf(bin, sizeof(bin), "%s/usr/bin", tree);
     /* The data dir IS <tree>/capture_cell_at: it holds qmifeed/. */
     snprintf(data, sizeof(data), "%s/capture_cell_at", tree);
-    snprintf(want, sizeof(want),
-             "exec python3 '%s/capture_cell_at/qmifeed/kismet_qmi_feed.py' -d x", tree);
+    snprintf(want, sizeof(want), "%s/capture_cell_at/qmifeed/kismet_qmi_feed.py", tree);
     /* The walk from usr/bin reaches <tree> in 2 steps and finds
      * capture_cell_at/qmifeed/ there, so move the binary out of range first. */
     char far[512];
@@ -641,32 +688,22 @@ static void test_auto_falls_back_to_the_data_dir(void) {
     char cmd[1200];
     snprintf(cmd, sizeof(cmd), "mkdir -p '%s'", far);
     CHECK(system(cmd) == 0, "mkdir far");
-    out[0] = '\0';
-    CHECK(qmifeed_resolve_command_in("auto", far, NULL, out, sizeof(out),
-                                     err, sizeof(err)) == -1,
-          "no data dir, out of walk range, still resolved: %s", out);
-    CHECK(qmifeed_resolve_command_in("auto -d x", far, data, out, sizeof(out),
-                                     err, sizeof(err)) == 0,
-          "data dir not tried: %s", err);
-    CHECK(strcmp(out, want) == 0, "data dir -> %s", out);
+    CHECK(resolve("auto", far, NULL, &c, err, sizeof(err)) == -1,
+          "no data dir, out of walk range, still resolved");
+    CHECK(resolve("auto -d x", far, data, &c, err, sizeof(err)) == 0
+          && argv_is(&c, want, "-d x"), "data dir not tried: %s", err);
     /* A binary that cannot name its own directory still finds the data dir. */
-    CHECK(qmifeed_resolve_command_in("auto -d x", NULL, data, out, sizeof(out),
-                                     err, sizeof(err)) == 0 && strcmp(out, want) == 0,
-          "NULL self_dir + data dir: %s / %s", out, err);
+    CHECK(resolve("auto -d x", NULL, data, &c, err, sizeof(err)) == 0
+          && argv_is(&c, want, "-d x"), "NULL self_dir + data dir: %s", err);
     /* The walk wins over the data dir: a build tree runs its own feed. */
     char other[512];
     snprintf(other, sizeof(other), "%s/usr", tree);
-    snprintf(want, sizeof(want),
-             "exec python3 '%s/capture_cell_at/qmifeed/kismet_qmi_feed.py'", tree);
-    CHECK(qmifeed_resolve_command_in("auto", bin, other, out, sizeof(out),
-                                     err, sizeof(err)) == 0 && strcmp(out, want) == 0,
-          "walk did not win: %s / %s", out, err);
+    CHECK(resolve("auto", bin, other, &c, err, sizeof(err)) == 0 && argv_is(&c, want, ""),
+          "walk did not win: %s", err);
     /* A data dir without the feed: refused, naming the data dir too. */
-    CHECK(qmifeed_resolve_command_in("auto", far, other, out, sizeof(out),
-                                     err, sizeof(err)) == -1,
-          "empty data dir resolved: %s", out);
-    CHECK(strstr(err, other) && strstr(err, "qmifeed=<command>"),
-          "refusal does not name the data dir: %s", err);
+    CHECK(resolve("auto", far, other, &c, err, sizeof(err)) == -1,
+          "empty data dir resolved");
+    CHECK(strstr(err, other) != NULL, "refusal does not name the data dir: %s", err);
     rm_tree();
 }
 
@@ -727,11 +764,11 @@ static void read_ids(const char *key, char *out, size_t outsz) {
  * Root-only (only root can build that state); a sub-process, so this selftest's
  * own ids are never touched.
  *
- * This pins the OUTCOME, not the attribution. qmifeed= always runs through
- * `/bin/sh -c`, and bash and dash drop privileges by themselves when started
- * with euid != ruid (no -p) -- so on Debian this passes even with the drop in
- * qmifeed_start() deleted. The drop there is for a /bin/sh that does
- * not do that; test_privdrop_cannot_be_undone() below exercises the drop itself,
+ * This pins the OUTCOME, not the attribution. This test runs `/bin/sh -c`,
+ * and bash and dash drop privileges by themselves when started with
+ * euid != ruid (no -p) -- so on Debian this passes even with the drop in
+ * qmifeed_start() deleted. The real feed is python3 with no shell in between,
+ * so the drop is what protects it; test_privdrop_cannot_be_undone() below exercises the drop itself,
  * and celltools/tests/test_celldiag_suid_privdrop.py measures celldiag's
  * execv(python), where no shell stands in between. */
 static void test_qmifeed_child_runs_as_the_caller_under_suid(void) {
@@ -758,7 +795,7 @@ static void test_qmifeed_child_runs_as_the_caller_under_suid(void) {
         }
         qmifeed_t qf; sink_t s = {0}; char err[256];
         qmifeed_init(&qf);
-        if (qmifeed_start(&qf,
+        if (start_sh(&qf,
                 "u=$(grep '^Uid:' /proc/self/status | tr -s '\\t ' '  ' | cut -d' ' -f2-5); "
                 "g=$(grep '^Gid:' /proc/self/status | tr -s '\\t ' '  ' | cut -d' ' -f2-5); "
                 "echo \"{\\\"u\\\":\\\"$u\\\",\\\"g\\\":\\\"$g\\\"}\"",
@@ -837,12 +874,13 @@ int main(void) {
     test_malformed_tags_are_counted_not_forwarded();
     test_a_raw_line_may_exceed_the_observation_cap();
     test_child_env_announces_the_line_protocol();
-    test_a_command_is_used_verbatim();
+    test_a_command_is_refused();
     test_auto_finds_the_feed_beside_the_binary();
     test_auto_finds_the_feed_from_the_tree_root_and_below();
     test_auto_passes_its_arguments_to_the_feed();
+    test_auto_refuses_other_arguments();
     test_auto_without_a_feed_refuses_and_says_what_to_do();
-    test_auto_quotes_the_path_for_the_shell();
+    test_auto_path_is_one_argument();
     test_auto_falls_back_to_the_data_dir();
     test_exe_dir_is_this_binarys_directory();
     test_privdrop_is_a_noop_when_not_suid();

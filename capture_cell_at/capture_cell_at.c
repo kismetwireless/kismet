@@ -222,8 +222,8 @@ typedef struct {
     int atlog_fd;
     char *atlog_path;         /* resolved atlog file path, or NULL */
 
-    /* `qmifeed=<command>` -- a child that polls qmicli and writes one
-     * cell_observation JSON per stdout line (qmifeed/kismet_qmi_feed.py in this tree; qmifeed=auto).
+    /* `qmifeed=auto` -- a child that polls qmicli and writes one
+     * cell_observation JSON per stdout line (qmifeed/kismet_qmi_feed.py in this tree).
      * Parsed at open, spawned at capture start (never during probe/list),
      * drained non-blocking by capture_thread, stopped in its teardown. */
     char     *qmifeed_cmd;    /* NULL = no feed */
@@ -3777,11 +3777,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    /* qmifeed=<command>, or qmifeed=auto for the feed that ships in this
-     * tree (qmifeed/kismet_qmi_feed.py; see qmifeed_resolve_command).
+    /* qmifeed=auto for the feed that ships in this tree
+     * (qmifeed/kismet_qmi_feed.py; see qmifeed_resolve_command).
      * Only recorded here -- open also serves transient probes, and a probe must
-     * never spawn a poller. A command runs via /bin/sh -c, so quote the value if
-     * it contains a comma:
+     * never spawn a poller. Quote the value if it has feed options:
      *   qmifeed=auto
      *   qmifeed="auto -d /dev/cdc-wdm0 --interval 5" */
     if ((placeholder_len = cf_find_flag(&placeholder, "qmifeed", definition)) > 0) {
@@ -4486,13 +4485,13 @@ void capture_thread(kis_capture_handler_t *caph) {
         qmifeed_set_expect_imei(&local->qmifeed, local->modem_imei);
         /* Raw QMI rows and operator notes, in-band. */
         qmifeed_set_tag_cb(&local->qmifeed, cellat_qmifeed_tag);
-        /* `auto` becomes this tree's own feed; a command is verbatim. */
-        char qcmd[4096];
+        qmifeed_cmd_t qcmd;
         if (qmifeed_resolve_command(local->qmifeed_cmd, qmifeed_exe_dir(),
-                                    qcmd, sizeof(qcmd), qerr, sizeof(qerr)) == 0
-                && qmifeed_start(&local->qmifeed, qcmd, qerr, sizeof(qerr)) == 0) {
-            snprintf(errstr, sizeof(errstr), "%s qmifeed started (pid %d): %s",
-                     local->name, (int)local->qmifeed.pid, qcmd);
+                                    &qcmd, qerr, sizeof(qerr)) == 0
+                && qmifeed_start(&local->qmifeed, qcmd.argv, qerr, sizeof(qerr)) == 0) {
+            snprintf(errstr, sizeof(errstr), "%s qmifeed started (pid %d): %s %s",
+                     local->name, (int)local->qmifeed.pid, qcmd.argv[3],
+                     local->qmifeed_cmd);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
         } else {
             snprintf(errstr, sizeof(errstr), "%s %s", local->name, qerr);

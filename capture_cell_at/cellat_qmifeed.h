@@ -15,7 +15,7 @@
     along with Kismet; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-    cellat QMI feed: the `qmifeed=<command>` source option.
+    cellat QMI feed: the `qmifeed=auto` source option.
 
     WHAT IT IS. QMI carries cell data AT cannot: the NR Cell Identity Telit's
     AT#RFSTS drops, and full cell identity on Sierra parts whose
@@ -149,10 +149,11 @@ void qmifeed_init(qmifeed_t *qf);
  * tagged line is counted in dropped_nonjson. */
 void qmifeed_set_tag_cb(qmifeed_t *qf, qmifeed_tag_cb cb);
 
-/* Spawn `/bin/sh -c cmd` with stdout on a pipe, stdin on /dev/null and stderr
- * inherited (it lands in the Kismet log beside the capture child's own).
- * Returns 0, or -1 with an operator-facing reason in `err`. */
-int qmifeed_start(qmifeed_t *qf, const char *cmd, char *err, size_t errsz);
+/* Exec argv[0] (an absolute path; no shell, no $PATH search) with stdout on a
+ * pipe, stdin on /dev/null and stderr inherited (it lands in the Kismet log
+ * beside the capture child's own). Returns 0, or -1 with an operator-facing
+ * reason in `err`. */
+int qmifeed_start(qmifeed_t *qf, char *const argv[], char *err, size_t errsz);
 
 /* Drain whatever the child has written, without blocking, calling `cb` once per
  * complete line that looks like a JSON object ({...}) and fits
@@ -207,16 +208,27 @@ qmifeed_imei_verdict_t qmifeed_imei_check(const char *line, const char *source_i
  * Anything after `auto ` is passed on as the feed's own arguments:
  *   qmifeed=auto                    autodetect the device, 5 s cadence
  *   qmifeed=auto -d /dev/cdc-wdm0 --interval 2
- * Any other value is a command, used verbatim.
+ * The arguments are split on spaces and must be the feed's own options
+ * (QMIFEED_AUTO_OPTIONS); nothing goes through a shell. Any other value is
+ * refused: the definition can come from anyone allowed to add a source, so it
+ * never names a program to run.
  *
- * Fills `out` with the command for qmifeed_start(). Returns 0, or -1 with the
- * reason in `err` when `auto` finds no feed (or `self_dir` is NULL) or the
- * command does not fit. `self_dir` is qmifeed_exe_dir() in the helper; tests
- * pass a directory of their own. */
+ * Fills `out` with the argv for qmifeed_start(). Returns 0, or -1 with the
+ * reason in `err` when the value is not `auto`, an argument is not allowed,
+ * `auto` finds no feed (or `self_dir` is NULL), or no python3 is found.
+ * `self_dir` is qmifeed_exe_dir() in the helper; tests pass a directory of
+ * their own. */
 #define QMIFEED_AUTO_SCRIPT "qmifeed/kismet_qmi_feed.py"
 #define QMIFEED_AUTO_MAX_UP 3
+#define QMIFEED_ARGV_MAX 24
+
+typedef struct {
+    char  buf[4096];
+    char *argv[QMIFEED_ARGV_MAX + 1];
+} qmifeed_cmd_t;
+
 int qmifeed_resolve_command(const char *value, const char *self_dir,
-                            char *out, size_t outsz, char *err, size_t errsz);
+                            qmifeed_cmd_t *out, char *err, size_t errsz);
 
 /* Where `make install` puts the feed -- `<datadir>/kismet/cell`, holding
  * qmifeed/. An installed binary sits in $(BINDIR) with no qmifeed/ beside it,
@@ -232,7 +244,13 @@ int qmifeed_resolve_command(const char *value, const char *self_dir,
  * qmifeed_resolve_command() is this with QMIFEED_DATADIR. */
 int qmifeed_resolve_command_in(const char *value, const char *self_dir,
                                const char *data_dir,
-                               char *out, size_t outsz, char *err, size_t errsz);
+                               qmifeed_cmd_t *out, char *err, size_t errsz);
+
+/* qmifeed_resolve_command_in() with the python3 to run named rather than
+ * searched for; tests use it. */
+int qmifeed_resolve_command_with(const char *value, const char *self_dir,
+                                 const char *data_dir, const char *python,
+                                 qmifeed_cmd_t *out, char *err, size_t errsz);
 
 /* The directory this binary runs from (canonical, symlinks resolved), or NULL
  * when the platform cannot say. */

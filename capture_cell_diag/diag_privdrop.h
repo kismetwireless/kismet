@@ -5,10 +5,9 @@
  *
  * `make suidinstall` installs kismet_cap_cell_at and kismet_cap_cell_diag
  * setuid root, mode 4550, like every other Kismet capture. Unlike the others,
- * cellat starts a child whose command the SOURCE DEFINITION or the ENVIRONMENT
- * names: `qmifeed=<command>` (run by /bin/sh) and `qmifeed=auto` (python3 off
- * $PATH). (celldiag starts no child; this header lives beside it because the
- * two capture drivers share it.)
+ * cellat starts a child: `qmifeed=auto` (the shipped feed under a system
+ * python3, with arguments from the SOURCE DEFINITION). (celldiag starts no
+ * child; this header lives beside it because the two capture drivers share it.)
  * Without a drop, a member
  * of the suid group gets a shell at the binary's effective uid.
  *

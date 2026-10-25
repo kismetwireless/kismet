@@ -2,7 +2,7 @@
 
 ``capture_cell_at/qmifeed/kismet_qmi_feed.py`` (``qmifeed=auto``) polls qmicli and writes one
 build_cell_json-shaped observation per stdout line, stamped
-``{"prov":{"src":"qmi",...}}``. ``qmifeed=<command>`` makes
+``{"prov":{"src":"qmi",...}}``. ``qmifeed=auto`` (here run against a test feed; see fake_qmifeed) makes
 ``kismet_cap_cell_at`` spawn that command and forward each line to the server
 as a ``CellModem`` record -- the record type its own AT observations ride -- so
 ``phy_cell`` merges QMI, AT and DIAG sightings of one tower via ``prov.src``.
@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 
 from fake_at_modem import QENG_SERVING, FakeAtModem
+from fake_qmifeed import feed_tree
 from kismet_capture_ipc import CaptureRun
 from test_cellat_ipc import _binary_or_skip
 
@@ -54,10 +55,10 @@ QMI_NEIGHBOUR = {
 }
 
 
-def _script(tmp_path: Path, body: str) -> str:
+def _script(tmp_path: Path, body: str) -> Path:
     p = tmp_path / "feed.sh"
     p.write_text(body)
-    return f"/bin/sh {p}"
+    return p
 
 
 def _qmi(run: CaptureRun) -> "list[dict]":
@@ -79,7 +80,8 @@ def _run(tmp_path: Path, feed_body: "str | None", stop_when, **kw) -> CaptureRun
     with FakeAtModem(imei=IMEI, extra=QENG_SERVING) as modem:
         definition = f"cellat-{IMEI}:atport={modem.port},debug=false"
         if feed_body is not None:
-            definition += ",qmifeed=" + _script(tmp_path, feed_body)
+            binary = str(feed_tree(tmp_path, binary, _script(tmp_path, feed_body)))
+            definition += ",qmifeed=auto"
         return CaptureRun(binary, definition, timeout=25.0,
                           stop_when=stop_when, **kw).run()
 

@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fake_at_modem import QENG_SERVING, FakeAtModem  # noqa: E402
+from fake_qmifeed import server_feed  # noqa: E402
 from test_cellat_rawqmi_server import RAW, _built_or_skip, _rows  # noqa: E402
 from test_celldiag_server_routes import KP_ROOT  # noqa: E402
 from test_graceful_close_server import LoggingKismetServer  # noqa: E402
@@ -83,8 +84,8 @@ def test_an_oversize_rawqmi_row_is_a_counted_drop_not_a_dead_source(tmp_path):
     big = dict(RAW, stdout="[/dev/cdc-wdm0] QMUX ... " + "x" * 19000)
     feed = _feed(tmp_path, big)
     with FakeAtModem(imei=IMEI, extra=QENG_SERVING) as modem:
-        srcdef = f"cellat-{IMEI}:atport={modem.port},debug=false,qmifeed=/bin/sh {feed}"
-        with LoggingKismetServer(tmp_path, srcdef) as srv:
+        srcdef = f"cellat-{IMEI}:atport={modem.port},debug=false,qmifeed=auto"
+        with server_feed(LoggingKismetServer(tmp_path, srcdef), tmp_path, feed) as srv:
             deadline = time.monotonic() + 40.0
             while time.monotonic() < deadline and "rawqmi-max=" not in srv.tail(200000):
                 time.sleep(0.5)
