@@ -590,7 +590,8 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
         return false;
     }
 
-    if (adsb_bin.length() == 0) {
+    // Mode S frames are 56 or 112 bits
+    if (adsb_bin.length() != 7 && adsb_bin.length() != 14) {
         return false;
     }
 
@@ -1359,6 +1360,8 @@ size_t kis_adsb_phy::adsb_msg_len_by_type(uint8_t type) {
     switch (type) {
         case 16:
         case 7:
+        case 17:
+        case 18:
         case 19:
         case 20:
         case 21:
@@ -1562,8 +1565,8 @@ uint32_t kis_adsb_phy::modes_checksum(const std::string& u8_buf) {
     uint32_t crc = 0;
     size_t offset = 0; 
 
-    if (u8_buf.size() < 7)
-        return 0; 
+    if (u8_buf.size() != 7 && u8_buf.size() != 14)
+        return 0;
 
     if (u8_buf.size() != 14) 
         offset = 112 - 56;
