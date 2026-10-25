@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -52,6 +53,52 @@ typedef struct {
     int client_fd;
 
 } local_droneid_t;
+
+/* Read exactly len bytes; 0 when the peer closed, -1 on error */
+static ssize_t recv_all(int fd, char *buf, size_t len) {
+    size_t got = 0;
+
+    while (got < len) {
+        ssize_t r = recv(fd, buf + got, len - got, 0);
+
+        if (r == 0)
+            return 0;
+
+        if (r < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+
+        got += r;
+    }
+
+    return got;
+}
+
+/* Escape a string of at most len bytes for a JSON string; out holds len * 6 + 1 */
+static void json_escape(const char *in, size_t len, char *out) {
+    size_t o = 0;
+
+    for (size_t i = 0; i < len && in[i] != 0; i++) {
+        unsigned char c = (unsigned char) in[i];
+
+        if (c == '"' || c == '\\') {
+            out[o++] = '\\';
+            out[o++] = c;
+        } else if (c < 0x20) {
+            o += snprintf(out + o, 7, "\\u%04x", c);
+        } else {
+            out[o++] = c;
+        }
+    }
+
+    out[o] = 0;
+}
+
+static double json_double(double d) {
+    return isfinite(d) ? d : 0;
+}
 
 int is_valid_utf8(const char* string, size_t len) {
     const unsigned char * bytes = (const unsigned char *) string;
@@ -291,8 +338,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    sock_flags = fcntl(localdrone->client_fd, F_GETFL, 0);
-    fcntl(localdrone->client_fd, F_SETFL, sock_flags | FD_CLOEXEC);
+    sock_flags = fcntl(localdrone->client_fd, F_GETFD, 0);
+    fcntl(localdrone->client_fd, F_SETFD, sock_flags | FD_CLOEXEC);
 
     return 1;
 }
@@ -334,7 +381,10 @@ void capture_thread(kis_capture_handler_t *caph) {
     const ssize_t tcp_buf_max = 4096;
     char tcp_buf[tcp_buf_max];
 
-    char json[2048];
+    /* two escaped strings and 12 %f doubles, which can each be ~320 chars */
+    char json[8192];
+    char serial_esc[64 * 6 + 1];
+    char type_esc[64 * 6 + 1];
 
     int r;
     struct timeval tv;
@@ -355,47 +405,42 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         /* read the header */
-        amt_read = recv(localdrone->client_fd, tcp_buf, sizeof(struct antsdr_frame), 0);
+        amt_read = recv_all(localdrone->client_fd, tcp_buf, sizeof(struct antsdr_frame));
 
         if (amt_read <= 0) {
-            if (errno && errno != EINTR && errno != EAGAIN) {
-                snprintf(errstr, STATUS_MAX, "%s tcp connection error: %s",
-                        localdrone->name, strerror(errno));
-                cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                break;
-            }
-
-            continue;
+            snprintf(errstr, STATUS_MAX, "%s tcp connection %s", localdrone->name,
+                    amt_read == 0 ? "closed" : strerror(errno));
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            break;
         }
 
         ant_frame = (struct antsdr_frame *) tcp_buf;
 
-        if (ant_frame->length + sizeof(struct antsdr_frame) > tcp_buf_max) {
+        if (le16toh(ant_frame->length) + sizeof(struct antsdr_frame) > tcp_buf_max) {
             snprintf(errstr, STATUS_MAX, "%s tcp connection error: impossibly large droneid report",
                     localdrone->name);
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
             break;
         }
 
-        pkt_len = ant_frame->length;
+        pkt_len = le16toh(ant_frame->length);
         pkt_type = ant_frame->packet_type;
 
+        if (pkt_len == 0)
+            continue;
+
         /* Read the rest of the packet */
-        amt_read = recv(localdrone->client_fd, tcp_buf, pkt_len, 0);
+        amt_read = recv_all(localdrone->client_fd, tcp_buf, pkt_len);
 
         if (amt_read <= 0) {
-            if (errno && errno != EINTR && errno != EAGAIN) {
-                snprintf(errstr, STATUS_MAX, "%s tcp connection error: %s",
-                        localdrone->name, strerror(errno));
-                cf_send_message(caph, errstr, MSGFLAG_ERROR);
-                break;
-            }
-
-            continue;
+            snprintf(errstr, STATUS_MAX, "%s tcp connection %s", localdrone->name,
+                    amt_read == 0 ? "closed" : strerror(errno));
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            break;
         }
 
         /* Only handle 0x1 */
-        if (pkt_type != 0x01) {
+        if (pkt_type != 0x01 || pkt_len < sizeof(struct antsdr_droneid)) {
             continue;
         }
 
@@ -409,9 +454,13 @@ void capture_thread(kis_capture_handler_t *caph) {
             continue;
         }
 
-        snprintf(json, 2048, "{"
-                "\"serial_number\": \"%.64s\","
-                "\"device_type\": \"%.64s\","
+        /* serial and type come from the air */
+        json_escape(ant_droneid->serial, sizeof(ant_droneid->serial), serial_esc);
+        json_escape(ant_droneid->device_type, sizeof(ant_droneid->device_type), type_esc);
+
+        snprintf(json, sizeof(json), "{"
+                "\"serial_number\": \"%s\","
+                "\"device_type\": \"%s\","
                 "\"device_type_8\": %d,"
                 "\"app_lat\": %f,"
                 "\"app_lon\": %f,"
@@ -427,22 +476,22 @@ void capture_thread(kis_capture_handler_t *caph) {
                 "\"speed_u\": %f,"
                 "\"rssi\": %u"
                 "}",
-                ant_droneid->serial,
-                ant_droneid->device_type,
+                serial_esc,
+                type_esc,
                 ant_droneid->device_type_8,
-                ant_droneid->app_lat,
-                ant_droneid->app_lon,
-                ant_droneid->drone_lat,
-                ant_droneid->drone_lon,
-                ant_droneid->height,
-                ant_droneid->altitude,
-                ant_droneid->home_lat,
-                ant_droneid->home_lon,
-                ant_droneid->freq,
-                ant_droneid->speed_e,
-                ant_droneid->speed_n,
-                ant_droneid->speed_u,
-                ant_droneid->rssi);
+                json_double(ant_droneid->app_lat),
+                json_double(ant_droneid->app_lon),
+                json_double(ant_droneid->drone_lat),
+                json_double(ant_droneid->drone_lon),
+                json_double(ant_droneid->height),
+                json_double(ant_droneid->altitude),
+                json_double(ant_droneid->home_lat),
+                json_double(ant_droneid->home_lon),
+                json_double(ant_droneid->freq),
+                json_double(ant_droneid->speed_e),
+                json_double(ant_droneid->speed_n),
+                json_double(ant_droneid->speed_u),
+                le32toh(ant_droneid->rssi));
 
         gettimeofday(&tv, NULL);
 
