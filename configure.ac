@@ -705,12 +705,28 @@ else
     AC_SUBST(LIBMLIB)
 fi
 
-# Do we use libstdc++?
+# Do we use libstdc++?  The C++ compiler normally links its own standard
+# library; adding it again makes clang warn about a duplicate -lc++
+AC_MSG_CHECKING([whether the C++ compiler links its standard library])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <string>
+    ]], [[
+    std::string s("x");
+    return (int) s.size();
+    ]])],
+    [
+     AC_MSG_RESULT([yes])
+     foundcxxl="builtin"
+    ],
+    [AC_MSG_RESULT([no])])
+
 # We need to swap to the g++ compiler here
 oCC="$CC"
 CC="$CXX"
-AC_CHECK_LIB([stdc++], [main],
-        foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
+AS_IF([test "$foundcxxl"x = "x"], [
+    AC_CHECK_LIB([stdc++], [main],
+            foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
+])
 
 AS_IF([test "$foundcxxl"x = "x" -a "$caponly"x != "yes"x],
       [
