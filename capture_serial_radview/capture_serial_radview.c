@@ -351,12 +351,19 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             while (1) {
                 newline = kis_simple_ringbuf_search_byte(localrad->serial_ringbuf, '\n');
-                if (newline <= 0)
+                if (newline < 0)
                     break;
 
-                peeked_sz = kis_simple_ringbuf_peek_zc(localrad->serial_ringbuf, (void **) &buf, newline);
+                /* skip blank lines */
+                if (newline == 0) {
+                    kis_simple_ringbuf_read(localrad->serial_ringbuf, NULL, 1);
+                    continue;
+                }
 
-                if (peeked_sz < newline) {
+                /* peek the newline too, it becomes the terminator */
+                peeked_sz = kis_simple_ringbuf_peek_zc(localrad->serial_ringbuf, (void **) &buf, newline + 1);
+
+                if (peeked_sz < (size_t) newline + 1) {
                     snprintf(errstr, STATUS_MAX, "%s unable to fetch output from buffer.", localrad->name);
                     /* printf("DEBUG: %s\n", errstr); */
                     cf_send_message(caph, errstr, MSGFLAG_ERROR);
