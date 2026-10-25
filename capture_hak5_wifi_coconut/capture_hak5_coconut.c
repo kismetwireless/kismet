@@ -156,7 +156,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         /* Make a fake uuid until we start actually opening them; this just lets us 
          * see if we can even try to probe this device */
@@ -271,6 +271,7 @@ int coconut_rx_packet(struct userspace_wifi_context *context,
                         sizeof(_rtap_hdr) + len, sizeof(_rtap_hdr) + len, (uint8_t *) &rtap_packet)) < 0) {
             cf_send_error(local_wifi->caph, 0, "unable to send DATA frame");
             cf_handler_spindown(local_wifi->caph);
+            break;
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
             cf_handler_wait_ringbuffer(local_wifi->caph);
@@ -405,7 +406,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Once we're able to iterate and find our device, synthesize a uuid unless the
      * user requested one */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_hak5_coconut", 
@@ -474,14 +475,23 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
 
-    local_wifi->coconut_context = init_coconut_context();
-    userspace_wifi_init(&local_wifi->coconut_context->context);
+    /* A context of our own; an open source keeps using local_wifi's */
+    struct wifi_coconut_context *list_context = init_coconut_context();
+
+    if (list_context == NULL || userspace_wifi_init(&list_context->context) < 0) {
+        free(list_context);
+        *interfaces = NULL;
+        return 0;
+    }
 
     unsigned int i = 0;
 
+    local_wifi->coconut_list_numbers = NULL;
+    local_wifi->num_list_numbers = 0;
+
     /* Do an open loop using the list callback and no wait */
-    coconut_search_and_open(local_wifi->coconut_context, false,
-            local_wifi->coconut_context->coconut_number, 
+    coconut_search_and_open(list_context, false,
+            list_context->coconut_number, 
             &coconut_list_callback, (void *) local_wifi);
 
     if (local_wifi->num_list_numbers == 0) {
@@ -506,6 +516,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     free(local_wifi->coconut_list_numbers);
+    local_wifi->coconut_list_numbers = NULL;
 
     return local_wifi->num_list_numbers;
 }
