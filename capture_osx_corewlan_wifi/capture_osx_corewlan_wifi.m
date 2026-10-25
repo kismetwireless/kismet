@@ -180,8 +180,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
             return NULL;
         }
 
-        ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-        memset(ret_localchan, 0, sizeof(local_channel_t));
+        ret_localchan = (local_channel_t *) calloc(1, sizeof(local_channel_t));
+        if (ret_localchan == NULL)
+            return NULL;
 
         /* We set the width and let OSX figure it out */
         (ret_localchan)->channel = parsechan;
@@ -211,8 +212,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
             return NULL;
         }
 
-        ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-        memset(ret_localchan, 0, sizeof(local_channel_t));
+        ret_localchan = (local_channel_t *) calloc(1, sizeof(local_channel_t));
+        if (ret_localchan == NULL)
+            return NULL;
 
         ret_localchan->channel = parsechan;
         ret_localchan->width = DARWIN_CHANWIDTH_20MHZ;
@@ -222,8 +224,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     }
 
     if (r >= 2) {
-        ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-        memset(ret_localchan, 0, sizeof(local_channel_t));
+        ret_localchan = (local_channel_t *) calloc(1, sizeof(local_channel_t));
+        if (ret_localchan == NULL)
+            return NULL;
 
         ret_localchan->channel = parsechan;
 
@@ -302,6 +305,12 @@ int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char
 
     /* Now we build our list and do it all again */
     *chanlist = (char **) malloc(sizeof(char *) * num_chans);
+
+    if (*chanlist == NULL) {
+        *chanlist_sz = 0;
+        return -1;
+    }
+
     *chanlist_sz = num_chans;
 
     for (ci = 0; ci < num_chans; ci++) {
@@ -321,9 +330,10 @@ int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char
                     } else {
                         snprintf(conv_chan, 16, "%ldHT40+", [c channelNumber]);
                     }
-
-                    (*chanlist)[ci] = strdup(conv_chan);
+                } else {
+                    snprintf(conv_chan, 16, "%ld", [c channelNumber]);
                 }
+
                 (*chanlist)[ci] = strdup(conv_chan);
                 break;
             case DARWIN_CHANWIDTH_80MHZ:
@@ -335,8 +345,9 @@ int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char
                 (*chanlist)[ci] = strdup(conv_chan);
                 break;
             default:
-                printf("unknown channel\n");
-                (*chanlist)[ci] = NULL;
+                /* the channel list can't hold NULL entries, fall back to the plain channel */
+                snprintf(conv_chan, 16, "%ld", [c channelNumber]);
+                (*chanlist)[ci] = strdup(conv_chan);
                 break;
         }
     }
