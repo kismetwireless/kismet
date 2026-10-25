@@ -22,6 +22,8 @@
 #include "json_adapter.h"
 #include "packet.h"
 
+#include <cmath>
+
 datasource_scan_source::datasource_scan_source(const std::string& uri, const std::string& source_type,
         const std::string& json_component_type) :
     endpoint_uri{uri},
@@ -108,13 +110,31 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
         }
 
         for (auto r : reports_j) {
-            if (!validate_report(r)) {
+            if (!r.is_object() || !validate_report(r)) {
                 virtual_source->inc_source_num_error_packets(1);
                 throw std::runtime_error("invalid report");
             }
 
+            // Numbers come from the client; range check before converting them
+            auto get_num = [&r](const char *key, double min, double max) -> double {
+                auto j = r.find(key);
+
+                if (j == r.end() || j->is_null())
+                    return 0;
+
+                if (!j->is_number())
+                    throw std::runtime_error(fmt::format("invalid '{}' in report", key));
+
+                auto v = j->get<double>();
+
+                if (!std::isfinite(v) || v < min || v > max)
+                    throw std::runtime_error(fmt::format("invalid '{}' in report", key));
+
+                return v;
+            };
+
             // TS is optional
-            uint64_t ts_s = r.value("timestamp", 0);
+            uint64_t ts_s = static_cast<uint64_t>(get_num("timestamp", 0, 0xFFFFFFFFULL));
 
             packet = packetchain->generate_packet();
 
@@ -138,20 +158,23 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             // Extract any tags
             auto tags_j = r["tags"];
-            if (!tags_j.is_object()) {
+            if (tags_j.is_object()) {
                 auto tagsinfo = std::make_shared<kis_devicetag_packetinfo>();
 
                 for (const auto& i : tags_j.items()) {
-                    tagsinfo->tagmap[i.key()] = i.value();
+                    if (i.value().is_string())
+                        tagsinfo->tagmap[i.key()] = i.value().get<std::string>();
+                    else
+                        tagsinfo->tagmap[i.key()] = i.value().dump();
                 }
 
                 packet->insert(pack_comp_devicetag, tagsinfo);
             }
 
-            double lat = r.value("lat", (double) 0);
-            double lon = r.value("lon", (double) 0);
-            double alt = r.value("alt", (double) 0);
-            double speed = r.value("speed", (double) 0);
+            double lat = get_num("lat", -90, 90);
+            double lon = get_num("lon", -180, 180);
+            double alt = get_num("alt", -100000, 1000000);
+            double speed = get_num("speed", 0, 1000000);
 
             if (lat != 0 && lon != 0) {
                 packet->gps_info.gps_info_ok = true;
@@ -172,13 +195,13 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             if (!r["signal"].is_null()) {
                 packet->signal_info.data_ok = true;
-                packet->signal_info.signal_dbm = r["signal"];
+                packet->signal_info.signal_dbm = static_cast<int>(get_num("signal", -500, 500));
                 packet->signal_info.signal_type = kis_l1_signal_type_dbm;
             }
 
             if (!r["freqkhz"].is_null()) {
                 packet->signal_info.data_ok = true;
-                packet->signal_info.freq_khz = r["freqkhz"];
+                packet->signal_info.freq_khz = get_num("freqkhz", 0, 1000000000);
             }
 
             if (!r["channel"].is_null()) {
