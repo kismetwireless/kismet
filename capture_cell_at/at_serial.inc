@@ -43,6 +43,7 @@
 /* The bounded probe open lives with the probe close in the shared module both scanners link -- every includer of this file links
  * diag_probeclose.c (and -pthread) for it. */
 #include "../capture_cell_diag/diag_probeclose.h"
+#include "../capture_cell_diag/cell_safefile.h"
 
 /* Write an ISO 8601 timestamp + direction tag + message to the transcript fd.
  * direction: "TX" for commands sent, "RX" for responses received.
@@ -118,6 +119,11 @@ static int serial_open(const char *path, int baudrate) {
                          DIAG_PROBE_OPEN_DEADLINE_MS);
     if (fd < 0)
         return -1;
+    if (cell_port_fd_ok(fd, path) != 0) {
+        close(fd);
+        errno = EPERM;
+        return -1;
+    }
 
     /* Claim the port exclusively.
      *

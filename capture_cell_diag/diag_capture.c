@@ -27,6 +27,7 @@
 #define _DEFAULT_SOURCE
 #include "diag_capture.h"
 #include "diag_hdlc.h"
+#include "cell_safefile.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -66,9 +67,17 @@ static void diag_capture_resync(int fd) {
 
 int diag_capture_open(const char *port) {
     struct termios tio;
-    int fd = open(port, O_RDWR | O_NOCTTY | O_CLOEXEC);
+    int fd = open(port, O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
     if (fd < 0)
         return -1;
+    if (cell_port_fd_ok(fd, port) != 0) {
+        close(fd);
+        errno = EPERM;
+        return -1;
+    }
+    int fl = fcntl(fd, F_GETFL);
+    if (fl >= 0)
+        fcntl(fd, F_SETFL, fl & ~O_NONBLOCK);
 
     /* Claim before configuring: a port another process is already reading must
      * fail here rather than have its byte stream split between us. Ahead of the
@@ -427,10 +436,8 @@ int main(void) {
         }
     }
 
-    /* 6. The resync flag on a NON-tty node -- the path a PCIe modem's
-     * /dev/mhi_DIAG takes, which returns before any termios work. A FIFO is a
-     * non-tty node that can be opened by path; the test's own read end sees
-     * what diag_capture_open() wrote. */
+    /* 6. A FIFO named as the DIAG port is refused, and nothing is written to
+     * it: a port must be a character device (cell_port_fd_ok). */
     {
         char fifo[] = "/tmp/diag_capture_selftest_fifoXXXXXX";
         int tmp = mkstemp(fifo);
@@ -445,11 +452,10 @@ int main(void) {
             int rd = open(fifo, O_RDONLY | O_NONBLOCK);
             check(rd >= 0, "open the FIFO's read end");
             int fd = diag_capture_open(fifo);
-            check(fd >= 0 && !isatty(fd), "diag_capture_open opens a non-tty node");
+            check(fd < 0 && errno == EPERM, "diag_capture_open refuses a FIFO");
             uint8_t got[8];
             ssize_t n = rd >= 0 ? read(rd, got, sizeof(got)) : -1;
-            check(n == 1 && got[0] == DIAG_FLAG,
-                  "a non-tty open sends exactly one lone 0x7E too");
+            check(n <= 0, "nothing was written to the refused FIFO");
             if (fd >= 0)
                 close(fd);
             if (rd >= 0)

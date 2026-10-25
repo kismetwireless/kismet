@@ -774,6 +774,11 @@ static int serial_open(const char *path, int baudrate) {
                          DIAG_PROBE_OPEN_DEADLINE_MS);
     if (fd < 0)
         return -1;
+    if (cell_port_fd_ok(fd, path) != 0) {
+        close(fd);
+        errno = EPERM;
+        return -1;
+    }
 
     /* Same exclusive claim the DIAG port takes. This function is a port of
      * cellat's serial_open(); both route through one helper so a change to

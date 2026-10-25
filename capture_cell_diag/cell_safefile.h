@@ -224,6 +224,35 @@ static inline int cell_safe_unlink(const char *path) {
     return cell_safe_op(CELL_SAFE_UNLINK, path, NULL, 0, 0, 0);
 }
 
+/* What an opened modem port must be, checked on the fd so a path swapped after
+ * any earlier check still cannot get past it: a character device, never a
+ * regular file or FIFO. Under suid, also a tty or a modem's own non-tty node
+ * (/dev/mhi_*, /dev/wwan<N>*, /dev/diag), owned by root or the caller -- so
+ * not /dev/mem and the like, and not another user's terminal. Returns 0, or -1
+ * with errno EPERM. */
+static inline int cell_port_fd_ok(int fd, const char *path) {
+    struct stat st;
+    if (fd < 0 || fstat(fd, &st) != 0 || !S_ISCHR(st.st_mode)) {
+        errno = EPERM;
+        return -1;
+    }
+    if (!cell_is_elevated())
+        return 0;
+    if (st.st_uid != 0 && st.st_uid != getuid()) {
+        errno = EPERM;
+        return -1;
+    }
+    if (isatty(fd))
+        return 0;
+    const char *base = path != NULL ? strrchr(path, '/') : NULL;
+    base = base != NULL ? base + 1 : path;
+    if (base != NULL && (strncmp(base, "mhi_", 4) == 0 || strcmp(base, "diag") == 0 ||
+            (strncmp(base, "wwan", 4) == 0 && base[4] >= '0' && base[4] <= '9')))
+        return 0;
+    errno = EPERM;
+    return -1;
+}
+
 /* fopen() through cell_safe_op(); mode is "r" or "w". */
 static inline FILE *cell_safe_fopen(const char *path, const char *mode, mode_t perm,
                                     int must_own) {
