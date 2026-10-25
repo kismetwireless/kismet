@@ -150,7 +150,7 @@ class KismetRtl433(object):
             if not self.proberet["success"]:
                 print("Could not configure local source {}, check your source options and config.")
                 if "message" in self.proberet:
-                    print(self.proberet["message"].decode('utf-8'))
+                    print(self.proberet["message"])
                 sys.exit(0)
 
             print("Connecting to remote server {}".format(self.config.connect))
@@ -252,7 +252,7 @@ class KismetRtl433(object):
                 if not line:
                     break
 
-                msg = line.decode('UTF-8').strip()
+                msg = line.decode('UTF-8', errors='replace').strip()
 
                 if print_stderr:
                     print("RTL433", msg, file=sys.stderr)
@@ -266,14 +266,14 @@ class KismetRtl433(object):
 
         except Exception as e:
             if not self.rtl_reconfigure:
-                trackeback.print_exc(file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
                 print("An error occurred in rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm it can connect to your device.  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr)
 
                 self.kismet.send_datasource_error_report(message="Error handling data from rtl_433: {}".format(e))
 
         finally:
             self.kill_433()
-            if not self.rtl_configure:
+            if not self.rtl_reconfigure:
                 self.kismet.spindown()
 
     def kill_433(self):
