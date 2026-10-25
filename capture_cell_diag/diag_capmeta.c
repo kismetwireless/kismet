@@ -9,6 +9,7 @@
  */
 
 #include "diag_capmeta.h"
+#include "cell_safefile.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -171,7 +172,7 @@ int diag_capmeta_write(const char *path, const char *buf, size_t len) {
     size_t off = 0;
     if (path == NULL || buf == NULL)
         return -1;
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    fd = cell_safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0)
         return -1;
     while (off < len) {

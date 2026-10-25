@@ -113,6 +113,7 @@
 #include "../capture_cell_diag/diag_identvouch.h"
 #include "clockanchor.h"
 #include "cellat_qmifeed.h"
+#include "../capture_cell_diag/cell_safefile.h"
 #include <sys/wait.h>
 
 /* Maximum AT response size (128 KB should handle even AT+COPS=? floods) */
@@ -2955,7 +2956,7 @@ static void cellat_lock_open(local_cell_t *local, kis_capture_handler_t *caph,
         size_t n = 0;
         local->lock_state_written = 1;
         if (cellat_lock_write(local, &local->lock_orig, err, sizeof(err), &n)) {
-            unlink(local->lock_state_path);
+            cell_safe_unlink(local->lock_state_path);
             local->lock_state_written = 0;
             snprintf(buf, sizeof(buf), "%s: restored the band/RAT settings a previous "
                      "session left locked (%zu write(s)) from %s", local->name, n,
@@ -3029,7 +3030,7 @@ static void cellat_lock_apply(local_cell_t *local, kis_capture_handler_t *caph,
              to_orig ? "AUTO" : channel);
     local->lock_error[0] = '\0';
     if (to_orig && local->lock_state_written) {
-        unlink(local->lock_state_path);
+        cell_safe_unlink(local->lock_state_path);
         local->lock_state_written = 0;
     }
     snprintf(buf, sizeof(buf), "%s: band/RAT lock now %s (%zu write(s))", local->name,
@@ -3687,7 +3688,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      * either, or the transcript would miss AT I/O it should log. */
     if ((placeholder_len = cf_find_flag(&placeholder, "transcript", definition)) > 0) {
         char *path = strndup(placeholder, placeholder_len);
-        local->transcript_fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+        local->transcript_fd = cell_safe_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
         if (local->transcript_fd >= 0) {
             snprintf(buf, sizeof(buf), "%s AT transcript logging to %s",
                      local->name, path);
@@ -3705,7 +3706,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char auto_path[256];
         snprintf(auto_path, sizeof(auto_path), "/tmp/kismet_cellat_%s.log",
                  local->modem_imei ? local->modem_imei : "unknown");
-        local->transcript_fd = open(auto_path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+        local->transcript_fd = cell_safe_open_owned(auto_path, O_WRONLY | O_CREAT | O_APPEND, 0600);
         if (local->transcript_fd >= 0) {
             snprintf(buf, sizeof(buf), "%s AT transcript (auto) to %s",
                      local->name, auto_path);
@@ -3733,7 +3734,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if (spec != NULL &&
             atlog_resolve(spec, local->modem_imei, local->modem_model,
                           time(NULL), resolved, sizeof(resolved)) == 0) {
-            local->atlog_fd = open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            local->atlog_fd = cell_safe_open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
             if (local->atlog_fd >= 0) {
                 local->atlog_path = strdup(resolved);
                 snprintf(buf, sizeof(buf), "%s AT corpus tee (atlog JSONL) to %s",
@@ -4175,7 +4176,7 @@ static int cellat_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
             }
             /* Opened BEFORE the old sink is closed: a redirect to an
              * unwritable path keeps the tee the operator already had. */
-            int fd = open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            int fd = cell_safe_open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
             if (fd < 0) {
                 snprintf(msg, STATUS_MAX,
                          "cellat: cannot open atlog file %s: %s (the previous "

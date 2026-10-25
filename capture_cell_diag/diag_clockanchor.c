@@ -9,6 +9,7 @@
 #include "diag_clockanchor.h"
 #include "diag_capmeta.h"   /* diag_capmeta_json_escape */
 #include "diag_hdlc.h"
+#include "cell_safefile.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -148,7 +149,7 @@ int diag_clockanchor_sidecar_path(const char *rawlog_path, char *out,
 }
 
 int diag_clockanchor_append(const char *path, const char *buf, size_t len) {
-    int fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int fd = cell_safe_open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
     size_t off = 0;
 
     if (fd < 0)

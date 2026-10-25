@@ -219,6 +219,7 @@
 
 #include "../capture_framework.h"
 
+#include "cell_safefile.h"
 #include "diag_capture.h"
 #include "diag_config.h"
 #include "diag_portdiag.h"
@@ -3181,7 +3182,7 @@ static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
     /* Opened before the old sink is closed. If the new path is unwritable, an
      * operator redirecting a live tee keeps the one they had rather than losing
      * capture to a typo -- the failure mode of a close-then-open. */
-    fd = open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    fd = cell_safe_open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd < 0) {
         snprintf(msg, STATUS_MAX,
                  "celldiag: cannot open rawlog file %s: %s (the previous tee, "

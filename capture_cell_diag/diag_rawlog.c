@@ -1,6 +1,7 @@
 /* diag_rawlog.c - raw DIAG byte-stream tee sink. See diag_rawlog.h. */
 
 #include "diag_rawlog.h"
+#include "cell_safefile.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -183,9 +184,9 @@ int diag_rawlog_open_session(const char *path, time_t now, char *out,
 
     /* The operator's own path first. O_EXCL answers "is it new?" atomically;
      * only an EEXIST needs the size question. */
-    int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_APPEND, 0644);
+    int fd = cell_safe_open(path, O_WRONLY | O_CREAT | O_EXCL | O_APPEND, 0644);
     if (fd < 0 && errno == EEXIST) {
-        fd = open(path, O_WRONLY | O_APPEND);
+        fd = cell_safe_open(path, O_WRONLY | O_APPEND, 0);
         if (fd >= 0) {
             struct stat st;
             if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0) {
@@ -231,7 +232,7 @@ int diag_rawlog_open_session(const char *path, time_t now, char *out,
             errno = ENAMETOOLONG;
             return -1;
         }
-        fd = open(cand, O_WRONLY | O_CREAT | O_EXCL | O_APPEND, 0644);
+        fd = cell_safe_open(cand, O_WRONLY | O_CREAT | O_EXCL | O_APPEND, 0644);
         if (fd >= 0) {
             memcpy(out, cand, (size_t)w + 1);
             if (diverted)

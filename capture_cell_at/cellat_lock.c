@@ -19,6 +19,7 @@
 */
 
 #include "cellat_lock.h"
+#include "../capture_cell_diag/cell_safefile.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -614,7 +615,7 @@ int cellat_lock_state_write(const char *path, const char *imei,
      * a half file that a later open would refuse -- or worse, half-restore. */
     char tmp[1024];
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);
-    FILE *f = fopen(tmp, "w");
+    FILE *f = cell_safe_fopen(tmp, "w", 0600, 0);
     if (f == NULL)
         return -1;
     int ok = fprintf(f,
@@ -626,9 +627,9 @@ int cellat_lock_state_write(const char *path, const char *imei,
         imei, backend_name(orig->backend), orig->mode_pref, orig->lte_band,
         orig->nr5g_band, orig->rat_lte, orig->rat_nr) > 0;
     ok = (fclose(f) == 0) && ok;
-    if (!ok || rename(tmp, path) != 0) {
+    if (!ok || cell_safe_rename(tmp, path) != 0) {
         int e = errno;
-        unlink(tmp);
+        cell_safe_unlink(tmp);
         errno = e ? e : EIO;
         return -1;
     }
@@ -637,7 +638,8 @@ int cellat_lock_state_write(const char *path, const char *imei,
 
 int cellat_lock_state_read(const char *path, const char *imei, int backend,
                            cellat_lock_settings_t *orig, char *err, size_t err_sz) {
-    FILE *f = fopen(path, "r");
+    /* Only a file this uid wrote: its contents are replayed to the modem */
+    FILE *f = cell_safe_fopen(path, "r", 0, 1);
     if (f == NULL) {
         if (errno == ENOENT)
             return 0;
