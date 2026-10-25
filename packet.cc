@@ -45,6 +45,7 @@ kis_packet::kis_packet() {
     checksum_valid = false;
 	filtered = 0;
     duplicate = 0;
+    dedupe_exempt = false;
     hash = 0;
     hash_frame = std::string_view();
 
@@ -77,6 +78,7 @@ void kis_packet::reset() {
     checksum_valid = false;
     filtered = 0;
     duplicate = 0;
+    dedupe_exempt = false;
 
     common_info.reset();
 

@@ -257,6 +257,61 @@ packet_chain::~packet_chain() {
 
 }
 
+size_t packet_chain::drain_and_stop(std::chrono::milliseconds budget) {
+    if (drain_started.exchange(true) || packet_threads == nullptr)
+        return 0;
+
+    // The sentinel goes to the TAIL of each queue: every thread finishes all
+    // that was queued before it, then exits.
+    for (size_t i = 0; i < n_packet_threads; i++)
+        packet_threads[i]->packet_queue.enqueue(nullptr);
+
+    auto deadline = std::chrono::steady_clock::now() + budget;
+
+    while (true) {
+        size_t running = 0;
+
+        for (size_t i = 0; i < n_packet_threads; i++)
+            if (!packet_threads[i]->exited)
+                running++;
+
+        if (running == 0)
+            return 0;
+
+        if (std::chrono::steady_clock::now() >= deadline)
+            break;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    // Out of budget: stop after the packet in hand, and say what that costs.
+    packetchain_shutdown = true;
+
+    size_t abandoned = 0;
+
+    for (size_t i = 0; i < n_packet_threads; i++) {
+        if (packet_threads[i]->exited)
+            continue;
+
+        // Everything still queued except this thread's own sentinel
+        auto queued = packet_threads[i]->packet_queue.size_approx();
+        abandoned += queued > 0 ? queued - 1 : 0;
+    }
+
+    _MSG_ERROR("The packet chain did not finish its queue within {} ms of shutting "
+            "down; about {} queued packet(s) were not processed or logged.",
+            budget.count(), abandoned);
+
+    return abandoned;
+}
+
+size_t packet_chain::drain_and_stop() {
+    auto budget_ms =
+        Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_packet_drain_ms", 2000);
+
+    return drain_and_stop(std::chrono::milliseconds(budget_ms));
+}
+
 void packet_chain::start_processing() {
     n_packet_threads = Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kismet_packet_threads", 0);
 
@@ -275,6 +330,7 @@ void packet_chain::start_processing() {
             auto name = fmt::format("PACKET {}/{}", n, n_packet_threads);
             thread_set_process_name(name);
             packet_queue_processor(&packet_threads[n]->packet_queue);
+            packet_threads[n]->exited = true;
         });
     }
 }
@@ -336,9 +392,14 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
         }
 
         for (auto& packet : batch) {
+            // NOT stopped by spindown.  Spindown is set the moment a signal arrives,
+            // well before the sources and logs close; stopping here would abandon
+            // every queued packet -- and, since non-802.11 packets go to a random
+            // thread, could log a later packet and drop an earlier one: a gap
+            // mid-stream.  At shutdown drain_and_stop() ends the threads instead, with
+            // a sentinel (nullptr) queued BEHIND everything already delivered.
             if (packet == nullptr ||
                     packetchain_shutdown ||
-                    Globalreg::globalreg->spindown ||
                     Globalreg::globalreg->fatal_condition ||
                     Globalreg::globalreg->complete)
                 return;
@@ -412,6 +473,14 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
 }
 
 void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
+    // A packet its source declares unique never matches, and never enters the
+    // window for a later packet to match against: identical frames from such a
+    // source are separate events, not one frame seen twice.
+    if (packet->dedupe_exempt) {
+        packet->packet_no = unique_packet_no.fetch_add(1);
+        return;
+    }
+
     // Earlier packets sharing this hash; per thread so we don't allocate per packet
     thread_local std::vector<std::shared_ptr<kis_packet>> candidates;
     candidates.clear();

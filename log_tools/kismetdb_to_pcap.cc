@@ -283,8 +283,11 @@ FILE *open_pcapng_file(const std::string& path, bool force) {
                         path, strerror(errno), errno));
     }
 
-    std::string app = fmt::format("Kismet kismetdb_to_pcapng {}-{}-{} {}",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
+    // Written into the pcapng SHB shb_userappl option, i.e. it travels with the
+    // converted capture -- same reason the WiGLE header carries the PoC name.
+    std::string app = fmt::format("{} kismetdb_to_pcapng {}-{}-{} {}",
+            VERSION_POC_NAME, VERSION_MAJOR, VERSION_MINOR, VERSION_TINY,
+            VERSION_GIT_COMMIT);
 
     size_t shb_sz = sizeof(pcapng_shb_t);
     shb_sz += sizeof(pcapng_option_t);

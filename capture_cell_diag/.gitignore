@@ -1,0 +1,4 @@
+# standalone.mk output: the helper, its objects, tests and platform config.
+/build-native/
+# The replay-golden driver (make replay-ndjson); built, not committed.
+/celldiag_replay_ndjson

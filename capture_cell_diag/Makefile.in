@@ -1,0 +1,549 @@
+include ../Makefile.inc
+
+# The parent tree is on the include path so `#include "config.h"` resolves to
+# the configure-generated ../config.h. The autoconf CFLAGS carry only `-I.`,
+# which -- because these recipes run INSIDE capture_cell_diag/ -- is this
+# directory, not the tree root. A hardcoded `#include "../config.h"` cannot be
+# redirected by -I, which would stop standalone.mk from building on a tree that
+# has never run ./configure.
+CPPFLAGS += -I..
+
+# The helper's pure-C modules, and the number is pinned below on purpose.
+#
+# Dropping a module from this list still links and still passes every
+# selftest, so MONITOR_OBJS_COUNT pins the size.
+MONITOR_OBJS = \
+	capture_cell_diag.c.o \
+	diag_hdlc.c.o \
+	diag_config.c.o \
+	diag_capture.c.o \
+	diag_rawlog.c.o \
+	diag_capmeta.c.o \
+	diag_clockanchor.c.o \
+	diag_rawpkt.c.o \
+	diag_profile.c.o \
+	diag_portdiag.c.o \
+	diag_ifclass.c.o \
+	diag_wwanport.c.o \
+	diag_logstream.c.o \
+	diag_stats.c.o \
+	diag_optset.c.o \
+	diag_probeclose.c.o \
+	diag_modemident.c.o \
+	diag_portadmit.c.o \
+	diag_identvouch.c.o \
+	diag_inventory.c.o \
+	diag_gpsfix.c.o \
+	diag_gsmtap_sink.c.o
+
+# Raise this deliberately when a module is added; catching a drop is its purpose.
+MONITOR_OBJS_COUNT = 22
+
+# The helper's native-decode closure. capture_cell_diag.c calls
+# diag_native_decode() directly, so the legs must be in this binary -- not only
+# in the kismet server (where no caller can exist, because the server never sees
+# a raw DIAG payload) and not only in the selftest (a leg that is compiled and
+# passing but in no shipping binary).
+#
+# The generated C++ decode closure the native legs forward to. Defined here,
+# above its first use, because GNU make expands a rule's prerequisite list the
+# moment the rule is read but expands the recipe only at execution time: defined
+# further down, $(MONITOR_BIN)'s prerequisites would see an empty $(NATIVE_OBJS)
+# (so make builds nothing) while its link line sees the full list (so ld is
+# asked for objects that were never compiled).
+#
+# Compiled from source rather than reusing the top-level ../diagspec/**.cpp.o, so
+# this directory's build stands alone instead of linking whatever a previous
+# top-level build happened to leave behind. Same source set the kismet server
+# links -- still exactly one implementation per log code.
+DIAGSPEC_INC = -I../diagspec/generated/cpp -I../diagspec/enrichment/cpp
+DIAGSPEC_SRCS = \
+	../diagspec/generated/cpp/diag_0x512f.cpp \
+	../diagspec/enrichment/cpp/diag_0x512f_observation.cpp \
+	../diagspec/generated/cpp/diag_0xb192.cpp \
+	../diagspec/enrichment/cpp/diag_0xb192_observation.cpp \
+	../diagspec/generated/cpp/diag_0xb195.cpp \
+	../diagspec/enrichment/cpp/diag_0xb195_observation.cpp \
+	../diagspec/generated/cpp/diag_0xb0c0.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0c0_enrich.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0c0_observation.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0c0_gsmtap.cpp \
+	../diagspec/enrichment/cpp/gsmtap.cpp \
+	../diagspec/generated/cpp/diag_0xb0e1.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0e1_gsmtap.cpp \
+	../diagspec/generated/cpp/diag_0xb0e2.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0e2_gsmtap.cpp \
+	../diagspec/generated/cpp/diag_0xb0e3.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0e3_gsmtap.cpp \
+	../diagspec/generated/cpp/diag_0xb0ec.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0ec_gsmtap.cpp \
+	../diagspec/generated/cpp/diag_0xb0ed.cpp \
+	../diagspec/enrichment/cpp/diag_0xb0ed_gsmtap.cpp \
+	../diagspec/enrichment/cpp/lte_nas_structure.cpp \
+	../diagspec/enrichment/cpp/lte_rrc_sib.cpp \
+	../diagspec/enrichment/cpp/lte_rrc_reconfig.cpp \
+	../diagspec/enrichment/cpp/lte_rrc_meas_report.cpp \
+	../diagspec/enrichment/cpp/lte_meas_join.cpp \
+	../diagspec/enrichment/cpp/asn1_helpers.cpp \
+	../diagspec/enrichment/cpp/uper.cpp \
+	../diagspec/generated/cpp/diag_0xb97f.cpp \
+	../diagspec/enrichment/cpp/diag_0xb97f_observation.cpp \
+	../diagspec/generated/cpp/diag_0xb193.cpp \
+	../diagspec/enrichment/cpp/diag_0xb193_observation.cpp \
+	../diagspec/enrichment/cpp/diag_0xb17f_observation.cpp \
+	../diagspec/enrichment/cpp/lte_band.cpp \
+	../diagspec/enrichment/cpp/lte_cell_config.cpp \
+	../diagspec/generated/cpp/diag_0x1476.cpp \
+	../diagspec/enrichment/cpp/diag_0x1476_gpsfix.cpp \
+	../diagspec/generated/cpp/diag_0xb821.cpp \
+	../diagspec/enrichment/cpp/diag_0xb821_enrich.cpp \
+	../diagspec/enrichment/cpp/diag_0xb821_identity.cpp \
+	../diagspec/enrichment/cpp/diag_0xb821_observation.cpp \
+	../diagspec/enrichment/cpp/nr5g_rrc.cpp \
+	../diagspec/enrichment/cpp/nr5g_rrc_meas_report.cpp \
+	../diagspec/enrichment/cpp/nr_rrc_sib.cpp \
+	../kaitaistream.cc
+
+# vpath + $(notdir) so the objects are written HERE, under this directory's own
+# names -- never into ../diagspec/, where they would collide with the identically
+# named objects the top-level $(DIAGSPEC_O) link builds for the kismet server
+# (and where this Makefile's `clean` would then delete the server's objects).
+vpath %.cpp ../diagspec/generated/cpp ../diagspec/enrichment/cpp
+vpath %.cc ..
+NATIVE_OBJS_FULL = \
+	diag_native_decode.cpp.o \
+	$(notdir $(patsubst %.cpp,%.cpp.o,$(patsubst %.cc,%.cc.o,$(DIAGSPEC_SRCS))))
+
+# The native legs are compiled from ../diagspec/. A tree without it stops here
+# with the reason, not with a missing-file error from deep in the build.
+DIAGSPEC_DEFS = $(wildcard ../diagspec/generated/cpp/*.cpp)
+ifeq ($(DIAGSPEC_DEFS),)
+$(error capture_cell_diag needs the C++ decode sources in ../diagspec/generated and ../diagspec/enrichment, which this tree does not include)
+endif
+
+NATIVE_OBJS   = $(NATIVE_OBJS_FULL)
+# $(CXXLIBS) (-lstdc++) is what lets the $(CCLD)=gcc link driver resolve the C++
+# closure; diag_native_decode.h's header comment anticipates exactly this.
+NATIVE_LIBS   = $(CXXLIBS)
+
+# Report the decode path in this binary's version string, so a capture is
+# traceable to the decoder that produced it.
+#
+# The shared version.c cannot express this: it is generated once at the top level
+# and linked into the server, every capture binary and the log tools alike. So
+# the helper appends it at runtime via cf_version_extra, and the server files
+# whatever the helper reports as that source's
+# kismet.datasource.probed.datasource_version -- which puts the answer
+# per-source in /datasource/all_sources.json, where the question is asked.
+CPPFLAGS += -DCELLDIAG_NATIVE_MODE=\"native\"
+
+MONITOR_BIN = kismet_cap_cell_diag
+
+# Standalone hardware-probe helper (no Kismet dependency); shares the DIAG
+# capture core. Built explicitly via `make probe`, not part of `all`/install.
+# diag_profile.c.o is here so the probe resolves diag.spc from the SAME
+# capture_cell_at profile the Kismet helper reads instead of getting a
+# second, drift-prone SPC config site. It is libc-only, so the probe keeps its
+# no-Kismet-link property.
+PROBE_OBJS = \
+	celldiag_probe.c.o \
+	diag_hdlc.c.o \
+	diag_config.c.o \
+	diag_profile.c.o \
+	diag_capture.c.o
+PROBE_BIN = celldiag_probe
+
+all: $(MONITOR_BIN)
+
+# Auto-regenerate this Makefile when its source template or config.status is
+# newer. config.status renders capture_*/Makefile from the committed Makefile.in;
+# without this rule a `git pull` that updates Makefile.in leaves the on-disk
+# generated Makefile stale, so newly-added targets/selftests (e.g. `make check`)
+# silently do not exist and a stale `make check` can read as green. make restarts
+# itself after rebuilding a Makefile, so the fresh rule set is used immediately.
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status capture_cell_diag/Makefile
+
+FORCE:
+.PHONY: FORCE
+
+# ../libkismetdatasource.a is a prerequisite of $(MONITOR_BIN), and without a
+# rule here make treats an existing file with no rule as up to date, so every
+# link would pick up whatever archive happened to be on disk, even one older
+# than the framework sources it should contain. A stale archive links cleanly
+# and exits 0 while missing framework fixes.
+#
+# Other kismet capture sources are built by the top-level Makefile, where the
+# archive's own rule is in scope. This directory is the only capture source
+# with its own Makefile, so it needs this rule.
+#
+# Delegated rather than duplicated: the archive's object list lives in ../Makefile
+# and a copy here would be a second place to forget a file. FORCE because make
+# must ask the sub-make on every build -- the archive's own sources are not
+# prerequisites of anything in this directory, so timestamps here cannot know.
+# The sub-make is a no-op when the archive is current.
+# Whenever the top-level archive target finds the archive out of date it
+# regenerates version.c and re-archives -- in practice after every new commit
+# in this tree -- and the rule above then leaves ../libkismetdatasource.a newer
+# than any binary linked before it, including the SIBLING capture binary,
+# which links the same archive. Left alone, that binary is then genuinely stale
+# (linked against the previous archive) and the celltools staleness guard
+# fails every test that pairs the two sources. So the sibling is
+# relinked here, but only if it is already built (an unbuilt sibling stays
+# unbuilt) and only if it is now older than the archive.
+# CELL_SIBLING_RELINK=no on the sub-make keeps the two directories from
+# recursing into each other.
+../libkismetdatasource.a: FORCE
+	@$(MAKE) --no-print-directory -C .. libkismetdatasource.a
+	@if [ "$(CELL_SIBLING_RELINK)" != no ] && [ -x ../capture_cell_at/kismet_cap_cell_at ] && \
+	    [ ../libkismetdatasource.a -nt ../capture_cell_at/kismet_cap_cell_at ]; then \
+	    echo "  relinking capture_cell_at: it links the archive this build refreshed"; \
+	    $(MAKE) --no-print-directory -C ../capture_cell_at CELL_SIBLING_RELINK=no kismet_cap_cell_at; \
+	 fi
+
+# The C++ depfiles are listed HERE, beside the C ones, and that placement is the
+# working part. Making %.cpp.d a prerequisite of the %.cpp.o pattern rule
+# is not enough on a tree whose objects already exist: make finds them current
+# and never runs the rule, so the depfile is never created and the tracking stays
+# absent precisely where the stale object is. Naming them as prerequisites of the
+# LINK forces them into existence on the next build, and a freshly-generated .d
+# is newer than the stale .o it describes, which triggers the rebuild. The C
+# side works the same way.
+NATIVE_DEPS = $(patsubst %.cpp.o,%.cpp.d,$(filter %.cpp.o,$(NATIVE_OBJS))) \
+	      $(patsubst %.cc.o,%.cc.d,$(filter %.cc.o,$(NATIVE_OBJS)))
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(NATIVE_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) $(NATIVE_DEPS) ../libkismetdatasource.a
+# Pins the size of MONITOR_OBJS -- see MONITOR_OBJS_COUNT.
+# Checked at link rather than in a test because the failure it guards is a
+# shorter list, and a shorter list builds, links and passes every selftest.
+		@[ "$(words $(MONITOR_OBJS))" = "$(MONITOR_OBJS_COUNT)" ] || { \
+		    echo "*** ERROR: MONITOR_OBJS has $(words $(MONITOR_OBJS)) objects, expected $(MONITOR_OBJS_COUNT) ***" >&2; \
+		    echo "The pure-C module set changed.  If a module was ADDED, raise" >&2; \
+		    echo "MONITOR_OBJS_COUNT.  If one VANISHED, this is the bug: the" >&2; \
+		    echo "helper still links, still passes check, and silently lost a" >&2; \
+		    echo "capability." >&2; \
+		    exit 1; }
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(NATIVE_OBJS) \
+		    ../libkismetdatasource.a $(DATASOURCE_LIBS) $(NATIVE_LIBS)
+# Post-link symbol assertion: every declared leg must be DEFINED here. Without
+# it, a link that omits diag_native_decode.cpp.o ships the process holding the
+# raw DIAG bytes with zero decode legs, and every selftest still passes. The
+# expected set comes from diag_native_decode.cpp's own #include list, so adding
+# a leg to the shim without adding it to DIAGSPEC_SRCS fails the link.
+		@sh ../diagspec/check_binary_symbols.sh helper $(MONITOR_BIN) ..
+
+probe: $(PROBE_BIN)
+
+$(PROBE_BIN):	$(PROBE_OBJS) $(patsubst %c.o,%c.d,$(PROBE_OBJS))
+		$(CCLD) $(LDFLAGS) -o $(PROBE_BIN) $(PROBE_OBJS)
+
+# Standalone unit tests for the module cores (libc only, no Kismet link).
+TEST_RAWLOG_BIN = test_diag_rawlog
+# diag_capmeta writes the rawlog capture-config provenance sidecar:
+# sidecar-path derivation, JSON escaping, and the whole-object formatter, all
+# libc-only. Its selftest is a separate test_*.c driver like rawlog's.
+TEST_CAPMETA_BIN = test_diag_capmeta
+# diag_clockanchor is the host<->modem-ts64 anchor core: the DIAG_TS_F
+# request, the reply scanner over the live stream, the ClockAnchor record and
+# its sidecar. libc-only; links the hdlc + capmeta cores it reuses.
+TEST_CLOCKANCHOR_BIN = test_diag_clockanchor
+# diag_rawpkt is the slicer: the raw DIAG stream cut into offset-stamped
+# whole-frame slices for the kismetdb packets table, and the slice-header codec.
+# libc-only, no dependencies.
+TEST_RAWPKT_BIN = test_diag_rawpkt
+TEST_OPTSET_BIN = test_diag_optset
+TEST_STATS_BIN = test_diag_stats
+TEST_PROFILE_BIN = test_diag_profile
+TEST_PORTDIAG_BIN = test_diag_portdiag
+TEST_IFCLASS_BIN = test_diag_ifclass
+# HDLC has no separate test_*.c: its selftest lives in-file behind
+# -DDIAG_HDLC_SELFTEST (see diag_hdlc.c header). Compile that main() so the
+# standard check target actually exercises the framing/CRC core.
+TEST_HDLC_BIN = test_diag_hdlc
+# diag_config's mask math (narrow/full/SPC/F3) also lives behind an in-file
+# selftest (-DDIAG_CONFIG_SELFTEST); it links the pure hdlc+capture cores it
+# calls. Wired in so the LOG_CONFIG mask presets are regression-guarded.
+TEST_CONFIG_BIN = test_diag_config
+# diag_capture's port-open + framed-read core (isatty()-gated termios so MHI
+# /dev/mhi_DIAG non-tty transports open, poll()-gated idle timeout, EOF bail)
+# lives behind an in-file selftest (-DDIAG_CAPTURE_SELFTEST); it drives
+# diag_read_frame over a socketpair. Wired in so the non-tty transport path
+# is regression-guarded.
+TEST_CAPTURE_BIN = test_diag_capture
+# diag_native_decode is the C-callable surface over the generated C++ diagspec
+# cell_observation legs -- the piece that makes native decode
+# reachable from THIS process. Its selftest is deliberately a pure-C translation
+# unit: capture_cell_diag.c is C, so compiling the caller as C is the property
+# under test.
+TEST_NATIVE_BIN = test_diag_native_decode
+# diag_logstream is the streaming raw-HDLC -> (log_code, ts64, payload) extractor:
+# the piece that lets THIS process produce the log-code-stripped payload
+# a native decode leg consumes. diag_capture.c deliberately stops at whole frames
+# of any opcode; this module adds the QShrink4/0x98 envelope handling. Its
+# selftest lives in-file behind
+# -DDIAG_LOGSTREAM_SELFTEST and pins the chunking-invariance property (the record
+# sequence must not depend on where a read() boundary lands).
+# diag_wwanport classifies the DIAG node on the NON-USB transports --
+# mainline wwan (wwan0qcdm0) and out-of-tree MHI (mhi_DIAG). Two incompatible
+# naming conventions with no overlap, so a classifier keyed on one silently finds
+# nothing on the other. Pure libc; its selftest is in-file behind
+# -DDIAG_WWANPORT_SELFTEST and needs no such hardware attached.
+TEST_WWANPORT_BIN = test_diag_wwanport
+# diag_probeclose releases an AT-scan probe fd without waiting out the tty's
+# closing_wait when the port never took its probe. Pure libc +
+# pthreads; its selftest is in-file behind -DDIAG_PROBECLOSE_SELFTEST and drives
+# the stuck state through an ops table, because no fd a test can build has it.
+TEST_PROBECLOSE_BIN = test_diag_probeclose
+# The ModemIdentity record: AT value extraction over the observed
+# CGMI/CGMM/CGMR spellings, the display label, and the JSON object. Pure libc.
+TEST_MODEMIDENT_BIN = test_diag_modemident
+# diag_portadmit decides, from sysfs and before any open(), which USB serial ttys
+# a scan may probe at all. Pure libc; its selftest is in-file behind
+# -DDIAG_PORTADMIT_SELFTEST and builds a fake sysfs tree, so it needs no device.
+TEST_PORTADMIT_BIN = test_diag_portadmit
+# The holder's identity vouch: publish/lookup/withdraw, and every rule a
+# lookup enforces (same node instance, live writer, safe directory). Pure libc.
+TEST_IDENTVOUCH_BIN = test_diag_identvouch
+TEST_LOGSTREAM_BIN = test_diag_logstream
+# The native (code,version) census: counting, bounds, cadence, and pinned
+# golden wire lines. `./test_diag_inventory --trace` is also a driver a
+# differential test can feed record streams to. libc + libm.
+TEST_INVENTORY_BIN = test_diag_inventory
+# The gps_fix status line: pinned goldens, and a --format driver a differential
+# test can feed. libc.
+TEST_GPSFIX_BIN = test_diag_gpsfix
+# The native live GSMTAP UDP sink, against a real loopback receiver. libc.
+TEST_GSMTAP_SINK_BIN = test_diag_gsmtap_sink
+# The replay driver: runs the binary over a replay and prints canonical NDJSON
+# of what Kismet receives. Its canonical-form selftest is part of `check`, and
+# needs no capture. Pure libc.
+REPLAY_NDJSON_BIN = celldiag_replay_ndjson
+# Debug driver: dumps the extracted record stream for a raw-HDLC capture, one
+# (log_code, ts64, payload) per line, for a diff against another extractor.
+# Built by `make logstream-dump`, not part of check (it needs a capture, which
+# is not shipped in the source tree).
+LOGSTREAM_DUMP_BIN = diag_logstream_dump
+# The generated C++ closure the shim forwards to. Compiled from source here rather
+# than reusing the top-level ../diagspec/**.cpp.o, so `make check` in this
+# directory stands alone and does not silently test whatever a previous
+# top-level build happened to leave behind.
+check: $(TEST_HDLC_BIN) $(TEST_CONFIG_BIN) $(TEST_CAPTURE_BIN) $(TEST_RAWLOG_BIN) $(TEST_CAPMETA_BIN) $(TEST_CLOCKANCHOR_BIN) $(TEST_RAWPKT_BIN) $(TEST_STATS_BIN) $(TEST_PROFILE_BIN) $(TEST_PORTDIAG_BIN) $(TEST_IFCLASS_BIN) $(TEST_WWANPORT_BIN) $(TEST_PROBECLOSE_BIN) $(TEST_MODEMIDENT_BIN) $(TEST_PORTADMIT_BIN) $(TEST_IDENTVOUCH_BIN) $(TEST_LOGSTREAM_BIN) $(TEST_NATIVE_BIN) $(TEST_OPTSET_BIN) $(TEST_INVENTORY_BIN) $(TEST_GPSFIX_BIN) $(TEST_GSMTAP_SINK_BIN) $(REPLAY_NDJSON_BIN)
+		./$(TEST_HDLC_BIN)
+		./$(TEST_CONFIG_BIN)
+		./$(TEST_CAPTURE_BIN)
+		./$(TEST_RAWLOG_BIN)
+		./$(TEST_CAPMETA_BIN)
+		./$(TEST_CLOCKANCHOR_BIN)
+		./$(TEST_RAWPKT_BIN)
+		./$(TEST_OPTSET_BIN)
+		./$(TEST_STATS_BIN)
+		./$(TEST_PROFILE_BIN)
+		./$(TEST_PORTDIAG_BIN)
+		./$(TEST_IFCLASS_BIN)
+		./$(TEST_WWANPORT_BIN)
+		./$(TEST_PROBECLOSE_BIN)
+		./$(TEST_MODEMIDENT_BIN)
+		./$(TEST_PORTADMIT_BIN)
+		./$(TEST_IDENTVOUCH_BIN)
+		./$(TEST_LOGSTREAM_BIN)
+		./$(TEST_INVENTORY_BIN)
+		./$(TEST_GPSFIX_BIN)
+		./$(TEST_GSMTAP_SINK_BIN)
+		./$(REPLAY_NDJSON_BIN) --selftest
+		./$(TEST_NATIVE_BIN)
+		sh ../diagspec/test_check_binary_symbols.sh ..
+
+$(REPLAY_NDJSON_BIN):	celldiag_replay_ndjson.c
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(REPLAY_NDJSON_BIN) celldiag_replay_ndjson.c
+
+.PHONY: replay-ndjson
+replay-ndjson: $(REPLAY_NDJSON_BIN)
+
+$(TEST_HDLC_BIN):	diag_hdlc.c diag_hdlc.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_HDLC_SELFTEST -o $(TEST_HDLC_BIN) \
+		    diag_hdlc.c
+
+$(TEST_CONFIG_BIN):	diag_config.c diag_config.h diag_hdlc.c diag_capture.c
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_CONFIG_SELFTEST -o $(TEST_CONFIG_BIN) \
+		    diag_config.c diag_hdlc.c diag_capture.c
+
+$(TEST_CAPTURE_BIN):	diag_capture.c diag_capture.h diag_hdlc.c diag_hdlc.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_CAPTURE_SELFTEST -o $(TEST_CAPTURE_BIN) \
+		    diag_capture.c diag_hdlc.c
+
+$(TEST_RAWLOG_BIN):	test_diag_rawlog.c diag_rawlog.c diag_rawlog.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_RAWLOG_BIN) \
+		    test_diag_rawlog.c diag_rawlog.c
+
+$(TEST_CAPMETA_BIN):	test_diag_capmeta.c diag_capmeta.c diag_capmeta.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CAPMETA_BIN) \
+		    test_diag_capmeta.c diag_capmeta.c
+
+$(TEST_CLOCKANCHOR_BIN):	test_diag_clockanchor.c diag_clockanchor.c diag_clockanchor.h \
+			diag_hdlc.c diag_hdlc.h diag_capmeta.c diag_capmeta.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CLOCKANCHOR_BIN) \
+		    test_diag_clockanchor.c diag_clockanchor.c diag_hdlc.c diag_capmeta.c
+
+$(TEST_RAWPKT_BIN):	test_diag_rawpkt.c diag_rawpkt.c diag_rawpkt.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_RAWPKT_BIN) \
+		    test_diag_rawpkt.c diag_rawpkt.c
+
+$(TEST_OPTSET_BIN):	test_diag_optset.c diag_optset.c diag_optset.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_OPTSET_BIN) \
+		    test_diag_optset.c diag_optset.c
+
+$(TEST_STATS_BIN):	test_diag_stats.c diag_stats.c diag_stats.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STATS_BIN) \
+		    test_diag_stats.c diag_stats.c
+
+$(TEST_PROFILE_BIN):	test_diag_profile.c diag_profile.c diag_profile.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_PROFILE_BIN) \
+		    test_diag_profile.c diag_profile.c
+
+$(TEST_PORTDIAG_BIN):	test_diag_portdiag.c diag_portdiag.c diag_portdiag.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_PORTDIAG_BIN) \
+		    test_diag_portdiag.c diag_portdiag.c
+
+$(TEST_IFCLASS_BIN):	test_diag_ifclass.c diag_ifclass.c diag_ifclass.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_IFCLASS_BIN) \
+		    test_diag_ifclass.c diag_ifclass.c
+
+$(TEST_WWANPORT_BIN):	diag_wwanport.c diag_wwanport.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_WWANPORT_SELFTEST \
+		    -o $(TEST_WWANPORT_BIN) diag_wwanport.c
+
+$(TEST_MODEMIDENT_BIN):	test_diag_modemident.c diag_modemident.c diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_MODEMIDENT_BIN) \
+		    test_diag_modemident.c diag_modemident.c
+
+$(TEST_PROBECLOSE_BIN):	diag_probeclose.c diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -pthread -DDIAG_PROBECLOSE_SELFTEST \
+		    -o $(TEST_PROBECLOSE_BIN) diag_probeclose.c
+
+$(TEST_IDENTVOUCH_BIN):	test_diag_identvouch.c diag_identvouch.c diag_identvouch.h diag_modemident.c diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_IDENTVOUCH_BIN) \
+		    test_diag_identvouch.c diag_identvouch.c diag_modemident.c
+
+$(TEST_INVENTORY_BIN):	test_diag_inventory.c diag_inventory.c diag_inventory.h diag_inventory_codes.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_INVENTORY_BIN) \
+		    test_diag_inventory.c diag_inventory.c -lm
+
+$(TEST_GPSFIX_BIN):	test_diag_gpsfix.c diag_gpsfix.c diag_gpsfix.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_GPSFIX_BIN) \
+		    test_diag_gpsfix.c diag_gpsfix.c
+
+$(TEST_GSMTAP_SINK_BIN):	test_diag_gsmtap_sink.c diag_gsmtap_sink.c diag_gsmtap_sink.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_GSMTAP_SINK_BIN) \
+		    test_diag_gsmtap_sink.c diag_gsmtap_sink.c
+
+$(TEST_PORTADMIT_BIN):	diag_portadmit.c diag_portadmit.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_PORTADMIT_SELFTEST \
+		    -o $(TEST_PORTADMIT_BIN) diag_portadmit.c
+
+$(TEST_LOGSTREAM_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_SELFTEST \
+		    -o $(TEST_LOGSTREAM_BIN) diag_logstream.c diag_hdlc.c
+
+logstream-dump: $(LOGSTREAM_DUMP_BIN)
+
+$(LOGSTREAM_DUMP_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_DUMP \
+		    -o $(LOGSTREAM_DUMP_BIN) diag_logstream.c diag_hdlc.c
+
+# The C caller compiles with $(CC); the shim and the legs it forwards to are C++,
+# so they compile with $(CXX) and the link needs $(CXXLIBS) (-lstdc++). This is
+# the same object set the kismet server links, not a second copy.
+# $(DIAGSPEC_SRCS) and the diagspec headers are prerequisites, not just link
+# inputs: without them a `--sync` of ../diagspec rebuilt nothing, and `make check`
+# ran the PREVIOUS selftest binary against the old legs and read green.
+DIAGSPEC_HDRS = $(wildcard ../diagspec/enrichment/cpp/*.h ../diagspec/generated/cpp/*.h)
+$(TEST_NATIVE_BIN):	test_diag_native_decode.c diag_native_decode.cpp diag_native_decode.h \
+			$(DIAGSPEC_SRCS) $(DIAGSPEC_HDRS)
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c test_diag_native_decode.c \
+		    -o test_diag_native_decode.c.o
+		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -c diag_native_decode.cpp \
+		    -o diag_native_decode.cpp.o
+		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. \
+		    -o $(TEST_NATIVE_BIN) test_diag_native_decode.c.o \
+		    diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS)
+
+clean:
+	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o diag_native_decode.cpp.o
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f $(PROBE_BIN)
+	@-rm -f $(REPLAY_NDJSON_BIN)
+	@-rm -f $(TEST_RAWLOG_BIN)
+	@-rm -f $(TEST_OPTSET_BIN)
+	@-rm -f $(TEST_INVENTORY_BIN)
+	@-rm -f $(TEST_GPSFIX_BIN)
+	@-rm -f $(TEST_GSMTAP_SINK_BIN)
+	@-rm -f $(TEST_STATS_BIN)
+	@-rm -f $(TEST_MODEMIDENT_BIN)
+	@-rm -f $(TEST_PROFILE_BIN)
+	@-rm -f $(TEST_PORTDIAG_BIN)
+	@-rm -f $(TEST_IFCLASS_BIN)
+	@-rm -f $(TEST_PROBECLOSE_BIN)
+	@-rm -f $(TEST_PORTADMIT_BIN)
+	@-rm -f $(TEST_IDENTVOUCH_BIN)
+	@-rm -f $(TEST_HDLC_BIN)
+	@-rm -f $(TEST_CONFIG_BIN)
+	@-rm -f $(TEST_CAPTURE_BIN)
+	@-rm -f $(TEST_WWANPORT_BIN)
+	@-rm -f $(TEST_LOGSTREAM_BIN)
+	@-rm -f $(LOGSTREAM_DUMP_BIN)
+	@-rm -f $(NATIVE_OBJS_FULL)
+	@-rm -f *.o
+	@-rm -f *.d
+
+# C++ objects for the native-decode closure. DIAGSPEC_INC resolves the generated
+# Kaitai headers; the vendored kaitaistream.cc lives at ../ so it needs -I.. too.
+# $< (not $*.cpp): the source is resolved through vpath from ../diagspec/, so the
+# literal stem would name a file that does not exist in this directory.
+# Header dependency tracking for the C++ objects, mirroring the .c.d files the
+# %.c.o rule below generates. Without it a change to a generated header leaves
+# every C++ object make thinks is current. A changed signature then fails to
+# link against the stale object (a default argument is a source-level
+# convenience, not an ABI one: the callee exports only the full-arity symbol).
+# Worse, a header change that alters a struct's layout without changing any
+# mangled name links cleanly against a stale object and produces undefined
+# behaviour at runtime, with `make` and every selftest green.
+#
+# -MP emits phony targets for the headers, so a header that is later deleted or
+# renamed does not turn into "no rule to make target" on the next build.
+#
+# Written as a separate .d rule that the object depends on, rather than the
+# shorter `-MMD` side effect during compilation. `-MMD` emits a depfile only when
+# an object recompiles, so an object make already believes is current never
+# produces one. Making the .d a prerequisite means a missing one is built first,
+# comes out newer than the stale object, and forces the rebuild.
+%.cpp.d : %.cpp
+	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -MT $*.cpp.o \
+	    $< > $@
+
+%.cpp.o : %.cpp %.cpp.d
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@
+
+%.cc.d : %.cc
+	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -MT $*.cc.o \
+	    $< > $@
+
+%.cc.o : %.cc %.cc.d
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@
+
+.PRECIOUS: %.cpp.d %.cc.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+
+# The C++ half of the same include. A plain wildcard rather than a
+# patsubst over NATIVE_OBJS, because the depfiles that exist are exactly the
+# objects that were built, which is what a derived list can miss.
+include $(wildcard *.cpp.d *.cc.d)

@@ -19,6 +19,11 @@
 #ifndef __KISVERSION_H__
 #define __KISVERSION_H__
 
+/* PoC identity -- "KismetCell".  Kept separate from the numeric triple below so
+ * that the WiGLE CSV `release=` field, which is built from those three and is
+ * parsed by wigle.net, stays exactly as upstream shapes it. */
+extern const char *VERSION_POC_NAME;
+
 extern const char *VERSION_MAJOR;
 extern const char *VERSION_MINOR;
 extern const char *VERSION_TINY;

@@ -344,6 +344,16 @@ struct kis_capture_handler {
     /* Die when we hit the end of our write buffer */
     atomic_int spindown;
 
+    /* Graceful close.  close_grace_ms > 0 means the source opted in with
+     * cf_handler_set_close_grace() and advertises it in its OPENREPORT.  When the
+     * server's CLOSEREQ arrives, close_requested is set; the capture thread is
+     * expected to leave its loop, run its teardown, and cf_handler_spindown().
+     * If it has not by close_deadline_ms (CLOCK_MONOTONIC), the loop spins down
+     * by itself so a stuck capture thread cannot hold the source open. */
+    unsigned int close_grace_ms;
+    int close_requested;
+    uint64_t close_deadline_ms;
+
     /* TCP/IPC buffers */
     kis_simple_ringbuf_t *in_ringbuf;
     kis_simple_ringbuf_t *out_ringbuf;
@@ -358,17 +368,20 @@ struct kis_capture_handler {
     /* Lock for output buffer or output ws ring */
     pthread_mutex_t out_ringbuf_lock;
 
-    /* conditional waiter for ringbuf flushing data; broadcast with the mutex held */
+    /* conditional waiter for ringbuf flushing data.  Broadcast with the mutex
+     * held (cf_handler_signal_flush), so a waiter that checked the ring under
+     * it cannot miss a flush. */
     pthread_cond_t out_ringbuf_flush_cond;
     pthread_mutex_t out_ringbuf_flush_cond_mutex;
 
-    /* Self-pipe that wakes cf_handler_loop() out of select() when data is
-     * committed to out_ringbuf; -1 if pipe() failed */
+    /* Self-pipe that wakes cf_handler_loop() out of select() when a frame is
+     * committed to out_ringbuf.  The loop decides its write set before
+     * it blocks, for up to 500 ms, so without this a frame committed while it
+     * is parked waits out the timeout -- and is lost if the source is
+     * stopped in the meantime.  [0] is in the loop's read set, [1] is written
+     * by every commit.  Both non-blocking and close-on-exec; -1 if pipe()
+     * failed, which falls back to waiting for the timeout. */
     int out_ringbuf_wake[2];
-
-    /* Set while the loop may block in select(); a commit only writes the pipe
-     * when it clears this */
-    int out_ringbuf_wake_armed;
 
     /* Are we shutting down? */
     atomic_int shutdown;
@@ -597,6 +610,28 @@ kis_capture_handler_t *cf_handler_init(const char *in_type);
 void cf_handler_free(kis_capture_handler_t *caph);
 
 
+/* Optional per-binary suffix on the reported version string, or NULL (default).
+ *
+ * version.c is generated once at the top level and linked into the server, every
+ * capture binary and the log tools alike, so it cannot describe anything that
+ * varies BETWEEN those binaries.  The celldiag helper's decoder is exactly such
+ * a thing: it is a property of capture_cell_diag's own build, and changing it
+ * does not (and must not) regenerate the shared version.c.
+ *
+ * A capture binary that has such a distinction sets this before parsing argv;
+ * cf_version_string() then appends it.  The server stores whatever the helper
+ * reports as that source's kismet.datasource.probed.datasource_version, so the
+ * distinction lands PER SOURCE in /datasource/all_sources.json -- which is where
+ * "which decoder produced these packets?" is actually asked.
+ */
+extern const char *cf_version_extra;
+
+/* Render this binary's full version into buf: the fork name, the numeric triple,
+ * the git revision (with -dirty when built from a modified tree), and
+ * cf_version_extra when set.  Always NUL-terminated. */
+void cf_version_string(char *buf, size_t len);
+
+
 /* Initialize an interface param
  *
  * Returns:
@@ -633,6 +668,20 @@ void cf_handler_shutdown(kis_capture_handler_t *caph);
  * loop has exited.
  */
 void cf_handler_spindown(kis_capture_handler_t *caph);
+
+/* Graceful close.
+ *
+ * cf_handler_set_close_grace() opts a source in: its OPENREPORT advertises
+ * grace_ms, and the server then stops it with a CLOSEREQ instead of closing the
+ * pipe.  Call it before cf_handler_loop().  grace_ms must cover the source's
+ * whole teardown; it is also the helper-side deadline after which the loop
+ * spins down on its own.
+ *
+ * cf_handler_close_requested() is what a capture loop polls, next to
+ * caph->shutdown: once it is true, leave the loop, run the teardown (anything
+ * sent now still reaches the server), and finish with cf_handler_spindown(). */
+void cf_handler_set_close_grace(kis_capture_handler_t *caph, unsigned int grace_ms);
+int cf_handler_close_requested(kis_capture_handler_t *caph);
 
 /* Pivot into a new namespace and remount root as read-only - this should be
  * used whenever possible by data sources on Linux which can be installed as suidroot;
@@ -716,8 +765,11 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph);
 
 
-/* Perform a blocking wait, waiting for the ringbuffer to free data; returns at
- * once if the ring is empty, otherwise after a flush or at most 100ms */
+/* Perform a blocking wait, waiting for the ringbuffer to free data.
+ *
+ * Returns at once if the ring is already empty: the flush this caller wanted
+ * happened between its failed send and this call, and no later broadcast may
+ * ever come. */
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
 
 

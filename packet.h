@@ -372,6 +372,12 @@ public:
     // Are we a duplicate?
     int duplicate;
 
+    // Set by a datasource whose packets are unique by construction -- e.g. an
+    // offset-stamped slice of a byte stream -- so the packetchain never treats
+    // one as a duplicate. The dedupe key is a 32-bit hash, and a false match
+    // would drop the packet or overwrite its link frame with the earlier one's.
+    bool dedupe_exempt;
+
     // What hash has been calculated, if any?
     uint32_t hash;
 

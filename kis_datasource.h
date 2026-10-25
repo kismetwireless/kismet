@@ -283,6 +283,32 @@ public:
     virtual void set_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
 
+    // Override one source-definition option, to take effect on the NEXT open.
+    // Public wrapper over the protected update_source_definition()
+    // so a web route can reach it.
+    //
+    // This does not affect a running source, and that is not a limitation to
+    // work around -- it is the whole reason the option exists separately from
+    // set_channel(). Options like celldiag's `mask=` are applied by a LOG_CONFIG
+    // handshake to the modem at bring-up, on the same DIAG fd the capture thread
+    // is blocked reading; re-issuing one at runtime from the framework's command
+    // thread is what celldiag declines. The source really does go down and come
+    // back.
+    //
+    // The correct sequence is close_source -> override -> open_source, and the
+    // close is first: the route that reaches this setter refuses a running
+    // source (datasourcetracker.cc), so "override -> close_source ->
+    // open_source" fails on its first call.
+    //
+    // The override is STICKY: parse_source_definition() folds
+    // source_override_opts over the parsed definition on every open, so an
+    // operator's choice survives subsequent reopens (including retry reopens)
+    // rather than silently reverting to the definition the source started with.
+    virtual void set_source_definition_override(const std::string& in_key,
+            const std::string& in_data) {
+        update_source_definition(in_key, in_data);
+    }
+
     // Set the channel hop rate and list of channels to hop on, using a string vector
     virtual void set_channel_hop(double in_rate, std::vector<std::string> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
@@ -337,6 +363,23 @@ public:
     // stay closed, and remote reconnects are refused, until the source is re-opened.
     virtual void disable_source();
 
+    // Graceful close.  A capture binary that advertises a close grace in
+    // its OPENREPORT is closed with a CLOSEREQ instead of a pipe close + SIGTERM:
+    // it finishes its own teardown and exits, and anything it sends meanwhile
+    // (end-of-capture records) is still processed.  Its EOF completes the close
+    // cleanly; if it has not closed by the grace plus a margin, it is closed
+    // the plain way.
+    static constexpr unsigned int graceful_close_max_ms = 10000;
+    static constexpr unsigned int graceful_close_margin_ms = 1000;
+
+    bool get_graceful_close_pending() const { return graceful_close_pending.load(); }
+
+    // How long a caller should wait for this source's pending graceful close
+    // before giving up on it; 0 when none is pending.
+    unsigned int get_graceful_close_wait_ms() const;
+
+    // Give up on a pending graceful close and close the source the plain way.
+    void abort_graceful_close(const std::string& in_reason);
     bool get_source_disabled() const {
         return source_disabled.load();
     }
@@ -549,6 +592,24 @@ protected:
 
     virtual void close_external() override;
     virtual void close_external_impl() override;
+
+    // Send the CLOSEREQ if the capture binary supports it; true if a graceful
+    // close is now pending (including one that already was), false if the
+    // caller must close the plain way.
+    bool begin_graceful_close();
+
+    // The grace the capture binary advertised in its last OPENREPORT; 0 = none
+    std::atomic<unsigned int> close_grace_ms{0};
+    std::atomic<bool> graceful_close_pending{false};
+    int graceful_close_timer_id{-1};
+
+    // An open requested while a graceful close was still finishing -- the web
+    // UI's close -> open restart.  It runs once the close completes, so the old
+    // capture binary's end-of-capture records are not cut off and a late event
+    // from it can never land on the new one.  Called with true to run
+    // the open, false to fail it (Kismet is shutting down) -- never dropped, or
+    // its caller waits forever.
+    std::function<void (bool)> pending_open;
 
 
     // Common interface parsing to set our name/uuid/interface and interface

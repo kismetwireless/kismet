@@ -110,7 +110,9 @@ public:
     // Complete a probe - when the last one completes we're done
     void complete_probe(bool in_success, unsigned int in_transaction, std::string in_reason);
 
-    // Why the driver that owns this definition declined it, or ""
+    // Why the driver that plausibly OWNS this definition declined it, or "" if
+    // no owning driver supplied a reason. Empty is the normal case for a
+    // definition no driver claims -- see datasource_probe_reason.h.
     std::string get_decline_reason();
 
     // Cancel all pending probes, ultimately calls the callback from
@@ -136,7 +138,8 @@ protected:
     // Prototype we found
     shared_datasource_builder source_builder;
 
-    // Guarded by probe_lock
+    // Reason given by the driver that plausibly OWNS this definition, when it
+    // declined it. Guarded by probe_lock like every other member here.
     std::string decline_reason;
 
     // Transaction ID
@@ -166,8 +169,9 @@ typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe
 //
 // IPC sources spawned concurrently, and results aggregated.
 //
-// List requests end after datasource_list_timeout seconds (default 10), answering
-// with whatever listers have reported
+// List requests end after `datasource_list_timeout` seconds (default 10;
+// upstream's fixed 2 s is too short for the AT-talking cell listers),
+// answering with whatever listers HAVE reported; a slower one is left out.
 class datasource_tracker_source_list : public std::enable_shared_from_this<datasource_tracker_source_list> {
 public:
     datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec);
@@ -213,8 +217,12 @@ protected:
 
     std::vector<shared_interface> listed_sources;
 
-    // Set while list_sources() is launching listers; a lister whose helper is
-    // missing answers inline and would otherwise end the list early
+    // True while list_sources() is still launching listers. A builder whose
+    // helper binary is absent answers SYNCHRONOUSLY, inside the launch loop;
+    // without this guard that one answer would empty ipc_list_map before the
+    // next lister was even added, and the whole list would complete with
+    // nothing -- so a host missing ANY list-capable helper would see no
+    // interfaces at all.
     bool launching;
 };
 

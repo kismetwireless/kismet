@@ -125,7 +125,22 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
             // _MSG_DEBUG("successful probe response");
             source_builder = v->second->get_source_builder();
         } else {
-            // Keep the first reason from a driver that owns this definition
+            // Keep the decline reason from a driver that plausibly OWNS this
+            // definition.  Otherwise the operator gets only the generic
+            // "Unable to find driver" sentence -- identical for a typo, a
+            // missing helper package and an unplugged radio.
+            //
+            // Filtered rather than accumulated. Every builder is probed with
+            // every definition and the stock helpers DO write a reason for a
+            // foreign one (capture_linux_wifi's "Expected an interface with a
+            // standard network API, skipping"), so surfacing them all would
+            // turn one bad `-c` into a paragraph. See
+            // datasource_probe_reason.h for why the test is ownership and not
+            // the reason's content.
+            //
+            // First writer wins: a second owning driver's reason would be a
+            // less-close match by construction, and appending them yields a
+            // sentence whose two halves contradict each other.
             auto b = v->second->get_source_builder();
             if (decline_reason.empty() && !in_reason.empty() && b != nullptr &&
                     datasource_reason_is_own_definition(definition, b->get_source_type()))
@@ -262,9 +277,12 @@ void datasource_tracker_source_list::cancel() {
     if (cancel_event_id >= 0)
         timetracker->cancel_timer(cancel_event_id);
 
-    // Answer with whatever has arrived; a lister still running at the deadline
-    // would otherwise leave the request waiting forever.  Cleared so nothing
-    // answers twice.
+    // Answer with whatever HAS arrived.  Answering only when nothing is
+    // outstanding is not enough, because nothing answers later: a lister still
+    // running at the deadline would leave /datasource/list_interfaces blocked
+    // in block_until() for good, and the web UI's Sources panel would read its
+    // 30 s ajax timeout as "no interfaces". A slow lister costs its own
+    // entries, not everyone's. list_cb is cleared so no path can answer twice.
     if (list_cb) {
         auto cb = list_cb;
         list_cb = nullptr;
@@ -311,7 +329,8 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
 
     source->close_source_async([]() {});
 
-    // If we've emptied the vec, end, unless the remaining listers aren't launched yet
+    // If we've emptied the vec, end -- but never mid-launch, where an empty map
+    // means only "the listers after this one are not registered yet".
     if (ipc_list_map.size() == 0 && !launching) {
         cancel();
         return;
@@ -352,12 +371,19 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
     launching = false;
 
-    // Every lister already answered, or none launched
+    // Every lister already answered (none launched, or all answered inline).
     if (ipc_list_map.size() == 0) {
         cancel();
         return;
     }
 
+    // The listing deadline. Upstream's fixed 2 s assumes listers that
+    // enumerate; the cell helpers (kismet_cap_cell_at / kismet_cap_cell_diag)
+    // must TALK to each modem -- AT+CGMR/CGSN/CGMI/CGMM on every AT port --
+    // which takes seconds with several modems attached (one unit that never
+    // sends a final OK costs seconds on its own). With a 2 s deadline their
+    // entries never reach the Sources panel at all. Configurable; a lister still running at
+    // the deadline is simply left out of that answer (see cancel()).
     auto list_timeout_s =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("datasource_list_timeout", 10);
     if (list_timeout_s == 0)
@@ -727,7 +753,13 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (success)
                         return r;
 
-                    // Becomes a 500 with the reason, instead of an empty map
+                    // Say why.  A 500 with an empty map would leave the web
+                    // UI's Enable -- the only way to add a cell source without
+                    // editing config -- showing nothing but "it went away" for
+                    // a missing decode helper, a modem that is not attached, or
+                    // a refused option. The endpoint wrapper
+                    // turns a throw into 500 + "ERROR: <what>", which the panel
+                    // displays on the row the operator clicked.
                     throw std::runtime_error(fmt::format("unable to open '{}': {}",
                                 definition, error_reason.empty() ?
                                 "the open failed and gave no reason" : error_reason));
@@ -946,6 +978,75 @@ void datasource_tracker::trigger_deferred_startup() {
                         con->set_status(500);
                         return std::make_shared<tracker_element_map>();
                     }
+                }));
+
+    /* Override source-definition options, to take effect on the NEXT open.
+     *
+     * Why this route exists: close_source + open_source cannot carry a new
+     * definition.  open_source re-opens with `ds->get_source_definition()`,
+     * the string the source already had, so close-then-reopen faithfully
+     * restores the same options (for example, the same DIAG mask).  Upstream,
+     * `update_source_definition()` has no callers outside its own header and
+     * `append_source_definition()` is called only from two wifi datasource
+     * constructors at build time.
+     *
+     * The machinery underneath is the existing one, not a new path:
+     * parse_source_definition() already folds source_override_opts over the
+     * parsed definition (kis_datasource.cc) and then re-synthesises
+     * source_definition, so a later open_source picks the override up. This
+     * route only supplies the caller that was missing.
+     *
+     * Refuses while the source is RUNNING rather than silently deferring. A
+     * 200 on a request whose effect does not appear until some later reopen is
+     * an acknowledgement that is not a measurement; the operator is told to
+     * close the source first. */
+    httpd->register_route("/datasource/by-uuid/:uuid/update_definition", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    if (ds->get_source_running())
+                        throw std::runtime_error("source is running; close_source "
+                                "first, then update_definition, then open_source "
+                                "-- an option applied at bring-up cannot take "
+                                "effect on a live source");
+
+                    if (con->json()["options"].is_null())
+                        throw std::runtime_error("expected an 'options' object of "
+                                "definition key/value pairs");
+
+                    auto opts = con->json()["options"];
+
+                    if (!opts.is_object())
+                        throw std::runtime_error("'options' must be an object");
+
+                    if (opts.size() == 0)
+                        throw std::runtime_error("'options' is empty; an update "
+                                "that changes nothing would report success");
+
+                    for (auto& kv : opts.items()) {
+                        if (!kv.value().is_string())
+                            throw std::runtime_error(fmt::format("option '{}' must "
+                                        "be a string", kv.key()));
+
+                        _MSG_INFO("Source '{}' ({}) definition override {}={} "
+                                "(applies on next open)",
+                                ds->get_source_name(), ds->get_source_uuid(),
+                                kv.key(), kv.value().get<std::string>());
+
+                        ds->set_source_definition_override(kv.key(),
+                                kv.value().get<std::string>());
+                    }
+
+                    return ds;
                 }));
 
     httpd->register_route("/datasource/by-uuid/:uuid/pause_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -1274,10 +1375,51 @@ void datasource_tracker::launch_configured_sources() {
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
-    kis_lock_guard<kis_mutex> lk(dst_lock, "dst trigger_deferred_shutdown");
+    std::vector<std::shared_ptr<kis_datasource>> sources;
 
-    for (auto i : *datasource_vec) {
-        std::static_pointer_cast<kis_datasource>(i)->close_source();
+    {
+        kis_lock_guard<kis_mutex> lk(dst_lock, "dst trigger_deferred_shutdown");
+
+        for (auto i : *datasource_vec)
+            sources.push_back(std::static_pointer_cast<kis_datasource>(i));
+    }
+
+    // Unlocked from here: a source finishing its close reports back through
+    // the IO threads, and nothing here may hold what they need.
+
+    unsigned int wait_ms = 0;
+
+    for (const auto& s : sources) {
+        s->close_source();
+        wait_ms = std::max(wait_ms, s->get_graceful_close_wait_ms());
+    }
+
+    // Graceful closes: wait for them here, bounded.  The IO threads are
+    // still running, so what a closing source sends now -- its end-of-capture
+    // records -- is still received and queued for the packet chain; the log
+    // tracker's deferred shutdown runs after this one and drains the chain
+    // before it closes the logs.
+    if (wait_ms > 0) {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(wait_ms);
+
+        while (std::chrono::steady_clock::now() < deadline) {
+            bool pending = false;
+
+            for (const auto& s : sources) {
+                if (s->get_graceful_close_pending()) {
+                    pending = true;
+                    break;
+                }
+            }
+
+            if (!pending)
+                break;
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        for (const auto& s : sources)
+            s->abort_graceful_close("did not finish closing before Kismet shut down");
     }
 }
 
@@ -1500,9 +1642,20 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                         "are loaded, the interface is available, and any required Kismet helper packages are "
                         "installed.", i->second->get_definition());
 
+                // Append the reason from the driver that plausibly owns this
+                // definition, if one gave us a reason. Without this the
+                // sentence above is definition-agnostic: identical for a typo,
+                // a missing helper package and an unplugged radio, even when a
+                // helper wrote a sentence naming the exact problem.
+                //
+                // Concatenated onto the SAME message rather than emitted as a
+                // second one: the two are one event, and a separate _MSG would
+                // be free to arrive apart from it (or, on a --silent server, to
+                // be the half that survives).
                 auto reason = i->second->get_decline_reason();
                 if (reason.length())
                     ss += fmt::format("  The closest matching driver said: {}", reason);
+
                 _MSG(ss, MSGFLAG_ERROR);
                 lock.unlock();
                 in_cb(false, ss, NULL);

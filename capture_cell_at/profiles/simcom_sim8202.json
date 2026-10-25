@@ -1,0 +1,87 @@
+{
+    "vendor": "simcom",
+    "model": "sim8202g-m2",
+    "firmware_match": "*SIM8202*",
+    "applicable_models": ["SIM8202G-M2", "SIM8202E-M2", "SIM8202M44A-M2"],
+    "command_reference": {
+        "document": "SIM82XX&SIM83XX Series AT Command Manual",
+        "filename": "SIM82XX_SIM83XX_Series_AT_Command_Manual_V1.03.pdf",
+        "version": "V1.03",
+        "date": "2022-01-14"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE", "NR"],
+        "has_qeng": false,
+        "has_qscan": false,
+        "has_neighbourcell": false,
+        "has_cops_scan": true
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT+CPSI?",
+                "expect": "+CPSI:",
+                "purpose": "verify serving-cell info available (SIMCom's AT+QENG equivalent)"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT+CPSI?",
+                "expect": "+CPSI:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT+CPSI?",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "cpsi_serving",
+            "notes": "SIM82XX/SIM83XX manual V1.02 section 4. One line, RAT-tagged: LTE, NR5G-SA and ENDC each use a different field order. Reports 'NO SERVICE,Online' when not camped, which is a VALID reply with zero observations, not an error. detect_vendor() matches SIMCOM case-insensitively (the device answers 'SIMCOM INCORPORATED'; the vendor's own 'SIMCom' spelling would match nothing), open_callback probes AT+CPSI? into has_cpsi, and parse_cpsi() in cellat_cpsi.inc decodes all three RAT forms. No C code reads this block: `scans.*.parser` selects nothing, and capability dispatch is on the has_* flags. The block documents intent; it is not a dispatch table. The LTE form is decoded against a verbatim captured SIM7600NA line; the two NR forms are grounded in the manual only. Two decode traps the manual buries: the three RAT forms disagree on signal-column order (LTE and ENDC put RSRQ first, NR5G-SA puts RSRP first), and the family disagrees on units (SIM82XX/SIM7600 report dBm x10, SIM7070 whole dBm, and the manual's own ENDC example mixes both in one response), so the scale is decoded per line from RSRP's 3GPP range rather than assumed from the model."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan — the one scan on this modem that is vendor-neutral. Same caveat as `serving`: not dispatched, since dispatch is gated on has_qeng/has_rfsts, both false here."
+        }
+    },
+    "diag": {
+        "usb_id": "1e0e:9001",
+        "port": "QCDM/DM diagnostic on USB interface if00. The USB descriptor manufacturer string is 'QCOM SDXPRAIRIE-MTP', not 'SimTech', so a VID/PID heuristic mis-labels this 1e0e:9001 device as a SIM7600NA-H. Identify by AT+CGMR, which is what firmware_match above consumes; capture_cell_diag auto-detects the DIAG port by matching the IMEI from an AT probe on a sibling port; diagport=<path> overrides.",
+        "port_detect": {
+            "transport": "ttyUSB",
+            "match": "interface",
+            "interface": 0,
+            "driver_path_glob": null
+        },
+        "mask_default": "wardrive",
+        "f3_default": "off",
+        "target_codes": [
+            "0xB193",
+            "0xB0C0",
+            "0xB192",
+            "0xB195",
+            "0xB17F",
+            "0xB821",
+            "0xB97F",
+            "0x1476",
+            "0x14D8"
+        ],
+        "notes": "SDX55 5G NR SA/NSA (sub-6) — same silicon generation as the Quectel RM50xQ/RM520N family, which is why it follows the RM500Q profile. The full DIAG_TARGET_CODES set applies (capture_cell_diag/diag_config.c is the single source of truth). Eight of the nine codes are confirmed emitted by this firmware build: 0xB193, 0xB0C0, 0xB192, 0xB17F, 0xB821, 0xB97F, 0x1476, 0x14D8. 0xB17F, the LTE ML1 per-cell measurement (per-cell RSSI with RSRP/RSRQ), carries version byte 5. Header version bytes match the RM500Q exactly (0xB193 v0x01, 0xB192 v0x01, 0xB0C0 v0x1B, 0xB821 v0x09, 0xB97F v0x07). The 0xB193 subpacket version, which differs across parts (EG25-G v18 / RM500Q v48 / LM960 v36), decodes as v48, identical to the RM500Q, so the shared SDX55 decode path applies unchanged. 0xB195 is the one code not yet observed, and that reflects capture conditions, not capability: 0xB195 is the LTE ML1 connected-mode neighbor measurement and exists only in RRC_CONNECTED, and an unregistered unit ('+CPSI: NO SERVICE') never reaches that state. It is subscribed here rather than omitted; do not read its absence as unsupported. Whatever this list says, the device decides what is actually subscribed: diag_config_filter_supported() narrows the shared set to each modem's advertised subset at handshake time."
+    }
+}

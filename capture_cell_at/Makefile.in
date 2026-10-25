@@ -1,0 +1,340 @@
+include ../Makefile.inc
+
+# diag_wwanport.c.o is built from ../capture_cell_diag/ rather than copied: it is
+# the single classifier that knows BOTH non-USB node-naming conventions, and
+# celldiag asks it for the DIAG node while cellat asks it for the AT node.
+# Two copies would let the two sources drift into claiming one node.
+# diag_probeclose.c.o comes from there for the same reason: both scans write
+# "AT" to every candidate tty and must release one that never took it without
+# waiting out its 30 s closing_wait -- one implementation, two callers.
+# diag_modemident.c.o too: both sources of one modem must describe it
+# the same way in the .kismet, so the ModemIdentity record has one builder.
+# diag_portadmit.c.o too: which USB serial ttys a scan may open is one
+# rule, so cellat and celldiag can never disagree on what a modem is, and a
+# GNSS receiver or USB-UART bridge is opened by neither.
+# diag_identvouch.c.o too: cellat writes the vouch for the AT port it
+# holds, celldiag reads it, so the record has one reader and one writer module.
+MONITOR_OBJS = \
+	capture_cell_at.c.o \
+	cellat_options.c.o \
+	cellat_stats.c.o \
+	cellat_optset.c.o \
+	cellat_lock.c.o \
+	cellat_portscan.c.o \
+	atlog.c.o \
+	clockanchor.c.o \
+	cellat_qmifeed.c.o \
+	diag_wwanport.c.o \
+	diag_probeclose.c.o \
+	diag_modemident.c.o \
+	diag_portadmit.c.o \
+	diag_identvouch.c.o
+MONITOR_BIN = kismet_cap_cell_at
+
+# Standalone AT probe (no Kismet link) + selftest for the shared serial core.
+# Both #include at_serial.inc, so they exercise the exact serial_open/at_command
+# this binary runs, including the non-tty (MHI/wwan) transport. The
+# AT-side analogue of the DIAG side's celldiag_probe / test_diag_capture.
+PROBE_BIN = cellat_serial_probe
+TEST_SERIAL_BIN = test_at_serial
+# Source-option recognition. Links only cellat_options.c -- no capture
+# framework -- so the scanner is testable without a modem or an IPC harness.
+TEST_OPTIONS_BIN = test_cellat_options
+# atlog JSONL tee core. Links only atlog.c -- libc, no Kismet, no serial
+# -- so path templating, JSON escaping and the record formatter are drivable on
+# a host with no modem, exactly like the DIAG side's test_diag_rawlog.
+TEST_ATLOG_BIN = test_atlog
+# Clock-anchor core. Links clockanchor.c + atlog.c (for
+# the shared JSON escaping) -- libc, no Kismet, no serial -- so cclk_extract()
+# (tolerant AT+CCLK? parse across firmware variants) and the ClockAnchor record
+# formatter are drivable on a host with no modem, like test_atlog.
+TEST_CLOCKANCHOR_BIN = test_clockanchor
+# Port-scan admission + the glob wiring. Links cellat_portscan.c and the
+# shared classifier only -- no capture framework -- so the source-pattern table
+# and every admit/refuse rule are drivable over a synthetic candidate list on a
+# host with no modem attached. This is the half find_modem_ports being `static`
+# made untestable.
+TEST_PORTSCAN_BIN = test_cellat_portscan
+# AT+QENG decode core. Includes cellat_qeng.inc — the same text the
+# shipping binary compiles — so the parsers are drivable over recorded modem
+# responses with no framework, no modem and no IPC harness. This is the half
+# parse_qeng_serving being `static` inside a 3000-line translation unit made
+# untestable.
+TEST_QENG_BIN = test_cellat_qeng
+# SIMCom AT+CPSI? decode core. Same pattern: includes cellat_cpsi.inc,
+# driven over verbatim captured and manual-documented responses. The three RAT
+# forms disagree on field order and the family disagrees on signal units, so
+# every fixture is a real string rather than a constructed one.
+TEST_CPSI_BIN = test_cellat_cpsi
+# AT+QSCAN=3,1 full-band-scan decode core. Includes cellat_qscan.inc and
+# cellat_qeng.inc (parse_qscan reuses the qeng decode helpers), the same text
+# capture_cell_at.c compiles.
+TEST_QSCAN_BIN = test_cellat_qscan
+# Standard 3GPP decode cores (generic serving cell + AT+COPS=? PLMN scan).
+# Includes cellat_std3gpp.inc and cellat_qeng.inc (the std parsers reuse the
+# qeng helpers parse_int/parse_hex/plmn_split_mccmnc/build_cell_json), the same
+# text capture_cell_at.c compiles. The vendor-neutral fallback: CSQ/CESQ/
+# CREG/CEREG/C5GREG/COPS?/COPS=? for modems with no engineering command.
+TEST_STD3GPP_BIN = test_cellat_std3gpp
+# The cellat_stats control line. Links cellat_stats.c plus the two
+# libc-only units it reads (the profile table, the JSON escaper) -- no Kismet,
+# no serial -- so the omit-not-zero rule is drivable with no modem.
+TEST_STATS_BIN = test_cellat_stats
+# Runtime settings via set_channel: the classification and
+# value checks, libc + the profile table only.
+TEST_OPTSET_BIN = test_cellat_optset
+# Band/RAT lock logic: what gets written to a modem's NV.
+TEST_LOCK_BIN = test_cellat_lock
+# The qmifeed= child: spawn, line framing, fd hygiene and a stop
+# that reaches the whole process group. libc-only; drives real /bin/sh children.
+TEST_QMIFEED_BIN = test_cellat_qmifeed
+
+all: $(MONITOR_BIN) $(PROBE_BIN)
+
+# Auto-regenerate this Makefile when its source template or config.status is newer.
+# config.status renders capture_*/Makefile from the committed Makefile.in;
+# without this rule a `git pull` that updates Makefile.in leaves the on-disk
+# generated Makefile stale, so newly-added targets/selftests (e.g. `make check`)
+# silently do not exist and a stale `make check` can read as green. make restarts
+# itself after rebuilding a Makefile, so the fresh rule set is used immediately.
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status capture_cell_at/Makefile
+
+# ../libkismetdatasource.a is a prerequisite of the binary, and without a rule
+# make treats an existing file with no rule as up to date, so this directory
+# would link whatever archive happened to be on disk and exit 0. The FORCE rule
+# below always delegates to the top-level build. capture_cell_diag has the same
+# rule: they are the only two capture sources with their own Makefiles, so the
+# only two that could link a stale framework.
+# Whenever the top-level archive target finds the archive out of date it
+# regenerates version.c and re-archives -- in practice after every new commit
+# in this tree -- and the rule above then leaves ../libkismetdatasource.a newer
+# than any binary linked before it, including the SIBLING capture binary,
+# which links the same archive. Left alone, that binary is then genuinely stale
+# (linked against the previous archive) and the celltools staleness guard
+# fails every test that pairs the two sources. So the sibling is
+# relinked here, but only if it is already built (an unbuilt sibling stays
+# unbuilt) and only if it is now older than the archive.
+# CELL_SIBLING_RELINK=no on the sub-make keeps the two directories from
+# recursing into each other.
+../libkismetdatasource.a: FORCE
+	@$(MAKE) --no-print-directory -C .. libkismetdatasource.a
+	@if [ "$(CELL_SIBLING_RELINK)" != no ] && [ -x ../capture_cell_diag/kismet_cap_cell_diag ] && \
+	    [ ../libkismetdatasource.a -nt ../capture_cell_diag/kismet_cap_cell_diag ]; then \
+	    echo "  relinking capture_cell_diag: it links the archive this build refreshed"; \
+	    $(MAKE) --no-print-directory -C ../capture_cell_diag CELL_SIBLING_RELINK=no kismet_cap_cell_diag; \
+	 fi
+
+FORCE:
+.PHONY: FORCE
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
+		    $(DATASOURCE_LIBS)
+
+# Every at_serial.inc includer links the shared probe module: serial_open()'s
+# open is the bounded diag_probe_open(), which runs on a worker thread.
+$(PROBE_BIN):	cellat_serial_probe.c at_serial.inc ../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -pthread -o $(PROBE_BIN) cellat_serial_probe.c \
+		    ../capture_cell_diag/diag_probeclose.c
+
+# Non-USB (wwan/MHI) AT-node admission. The predicate cellat's port scan
+# filters on lives in the shared classifier, so cellat runs that classifier's own
+# selftest: if diag_wwan_is_at() stops refusing mhi_SAHARA, this check goes red,
+# not only celldiag's. The scan would otherwise write ATI into the EDL channel.
+TEST_WWANPORT_BIN = test_diag_wwanport
+# The shared probe close, run here too: if it ever blocks on a stuck
+# port, cellat's open-time scan is the caller that hits Kismet's 30 s
+# command timeout, so this check must go red, not only celldiag's.
+TEST_PROBECLOSE_BIN = test_diag_probeclose
+# The shared ModemIdentity record, run here too: cellat's hardware label
+# and its --list answer are built by it, so a regression must fail this check.
+TEST_MODEMIDENT_BIN = test_diag_modemident
+# The shared scan admission, run here too: cellat's suspected sources are
+# decided by it, so if it ever admits a CH340 this check must go red.
+TEST_PORTADMIT_BIN = test_diag_portadmit
+# The shared identity vouch, run here too: cellat is its writer, so a
+# regression in what it publishes must fail this check as well.
+TEST_IDENTVOUCH_BIN = test_diag_identvouch
+# at_serial.inc compiled with B460800/B921600 absent -- the macOS case.
+# A compile-time assertion: macOS's termios stops at B230400, so referencing
+# those rates unconditionally would break the framework-free selftest build
+# there.
+TEST_SERIAL_PORT_BIN = test_at_serial_portability
+
+check: $(TEST_SERIAL_BIN) $(TEST_OPTIONS_BIN) $(TEST_WWANPORT_BIN) $(TEST_PORTSCAN_BIN) \
+	    $(TEST_QENG_BIN) $(TEST_CPSI_BIN) $(TEST_QSCAN_BIN) $(TEST_STD3GPP_BIN) $(TEST_SERIAL_PORT_BIN) $(TEST_ATLOG_BIN) \
+	    $(TEST_CLOCKANCHOR_BIN) $(TEST_STATS_BIN) $(TEST_OPTSET_BIN) $(TEST_PROBECLOSE_BIN) \
+	    $(TEST_MODEMIDENT_BIN) $(TEST_PORTADMIT_BIN) $(TEST_IDENTVOUCH_BIN) $(TEST_QMIFEED_BIN) $(TEST_LOCK_BIN)
+		./$(TEST_SERIAL_BIN)
+		./$(TEST_SERIAL_PORT_BIN)
+		./$(TEST_OPTIONS_BIN)
+		./$(TEST_WWANPORT_BIN)
+		./$(TEST_PROBECLOSE_BIN)
+		./$(TEST_MODEMIDENT_BIN)
+		./$(TEST_PORTADMIT_BIN)
+		./$(TEST_IDENTVOUCH_BIN)
+		./$(TEST_PORTSCAN_BIN)
+		./$(TEST_QENG_BIN)
+		./$(TEST_CPSI_BIN)
+		./$(TEST_QSCAN_BIN)
+		./$(TEST_STD3GPP_BIN)
+		./$(TEST_ATLOG_BIN)
+		./$(TEST_CLOCKANCHOR_BIN)
+		./$(TEST_STATS_BIN)
+		./$(TEST_OPTSET_BIN)
+		./$(TEST_QMIFEED_BIN)
+		./$(TEST_LOCK_BIN)
+
+$(TEST_LOCK_BIN):	test_cellat_lock.c cellat_lock.c cellat_lock.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_LOCK_BIN) test_cellat_lock.c cellat_lock.c
+
+$(TEST_QMIFEED_BIN):	test_cellat_qmifeed.c cellat_qmifeed.c cellat_qmifeed.h \
+		    ../capture_cell_diag/diag_privdrop.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QMIFEED_BIN) \
+		    test_cellat_qmifeed.c cellat_qmifeed.c
+
+$(TEST_ATLOG_BIN):	test_atlog.c atlog.c atlog.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_ATLOG_BIN) test_atlog.c atlog.c
+
+$(TEST_CLOCKANCHOR_BIN):	test_clockanchor.c clockanchor.c clockanchor.h atlog.c atlog.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CLOCKANCHOR_BIN) \
+		    test_clockanchor.c clockanchor.c atlog.c
+
+$(TEST_STATS_BIN):	test_cellat_stats.c cellat_stats.c cellat_stats.h \
+		    cellat_options.c cellat_options.h atlog.c atlog.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STATS_BIN) \
+		    test_cellat_stats.c cellat_stats.c cellat_options.c atlog.c
+
+$(TEST_OPTSET_BIN):	test_cellat_optset.c cellat_optset.c cellat_optset.h \
+		    cellat_options.c cellat_options.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_OPTSET_BIN) \
+		    test_cellat_optset.c cellat_optset.c cellat_options.c
+
+$(TEST_QENG_BIN):	test_cellat_qeng.c cellat_qeng.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QENG_BIN) test_cellat_qeng.c
+
+$(TEST_CPSI_BIN):	test_cellat_cpsi.c cellat_cpsi.inc cellat_qeng.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CPSI_BIN) test_cellat_cpsi.c
+
+$(TEST_QSCAN_BIN):	test_cellat_qscan.c cellat_qscan.inc cellat_qeng.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QSCAN_BIN) test_cellat_qscan.c
+
+$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_qeng.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STD3GPP_BIN) test_cellat_std3gpp.c
+
+$(TEST_WWANPORT_BIN):	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_WWANPORT_SELFTEST \
+		    -o $(TEST_WWANPORT_BIN) ../capture_cell_diag/diag_wwanport.c
+
+$(TEST_PROBECLOSE_BIN):	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -pthread -DDIAG_PROBECLOSE_SELFTEST \
+		    -o $(TEST_PROBECLOSE_BIN) ../capture_cell_diag/diag_probeclose.c
+
+$(TEST_SERIAL_BIN):	test_at_serial.c at_serial.inc ../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -pthread -o $(TEST_SERIAL_BIN) test_at_serial.c \
+		    ../capture_cell_diag/diag_probeclose.c
+
+$(TEST_SERIAL_PORT_BIN):	test_at_serial_portability.c at_serial.inc ../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -pthread -o $(TEST_SERIAL_PORT_BIN) \
+		    test_at_serial_portability.c ../capture_cell_diag/diag_probeclose.c
+
+$(TEST_OPTIONS_BIN):	test_cellat_options.c cellat_options.c cellat_options.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_OPTIONS_BIN) \
+		    test_cellat_options.c cellat_options.c
+
+$(TEST_PORTSCAN_BIN):	cellat_portscan.c cellat_portscan.h \
+		    ../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h \
+		    ../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DCELLAT_PORTSCAN_SELFTEST \
+		    -o $(TEST_PORTSCAN_BIN) cellat_portscan.c \
+		    ../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_portadmit.c
+
+$(TEST_PORTADMIT_BIN):	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_PORTADMIT_SELFTEST \
+		    -o $(TEST_PORTADMIT_BIN) ../capture_cell_diag/diag_portadmit.c
+
+# Explicit rules for the cross-directory object: the %.c.o pattern below matches
+# only sources in THIS directory, so without these the link fails on a missing
+# prerequisite it does not know how to build.
+diag_wwanport.c.o:	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_wwanport.c -o $@
+
+diag_wwanport.c.d:	../capture_cell_diag/diag_wwanport.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_wwanport.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+diag_modemident.c.o:	../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_modemident.c -o $@
+
+diag_modemident.c.d:	../capture_cell_diag/diag_modemident.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_modemident.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+$(TEST_MODEMIDENT_BIN):	../capture_cell_diag/test_diag_modemident.c ../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_MODEMIDENT_BIN) \
+		    ../capture_cell_diag/test_diag_modemident.c ../capture_cell_diag/diag_modemident.c
+
+diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_identvouch.c -o $@
+
+diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+$(TEST_IDENTVOUCH_BIN):	../capture_cell_diag/test_diag_identvouch.c ../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.c
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_IDENTVOUCH_BIN) \
+		    ../capture_cell_diag/test_diag_identvouch.c ../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_modemident.c
+
+diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_portadmit.c -o $@
+
+diag_portadmit.c.d:	../capture_cell_diag/diag_portadmit.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_portadmit.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_probeclose.c -o $@
+
+diag_probeclose.c.d:	../capture_cell_diag/diag_probeclose.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_probeclose.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f $(PROBE_BIN)
+	@-rm -f $(TEST_SERIAL_BIN)
+	@-rm -f $(TEST_OPTIONS_BIN)
+	@-rm -f $(TEST_WWANPORT_BIN)
+	@-rm -f $(TEST_PROBECLOSE_BIN)
+	@-rm -f $(TEST_MODEMIDENT_BIN)
+	@-rm -f $(TEST_PORTADMIT_BIN)
+	@-rm -f $(TEST_IDENTVOUCH_BIN)
+	@-rm -f $(TEST_PORTSCAN_BIN)
+	@-rm -f $(TEST_QENG_BIN)
+	@-rm -f $(TEST_QSCAN_BIN)
+	@-rm -f $(TEST_ATLOG_BIN)
+	@-rm -f $(TEST_STATS_BIN)
+	@-rm -f $(TEST_OPTSET_BIN)
+	@-rm -f $(TEST_LOCK_BIN)
+	@-rm -f $(TEST_QMIFEED_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+# `qmifeed=auto`'s last candidate is where `make install` puts the feed
+# (the top-level commoninstall copies qmifeed/*.py to $(SHARE)cell/qmifeed/).
+# No DESTDIR here: it is a staging prefix, not where the binary will run.
+# datarootdir is named so config.status knows the data dir honours --datarootdir.
+datarootdir = @datarootdir@
+cellat_qmifeed.c.o: CPPFLAGS += -DQMIFEED_DATADIR='"@datadir@/kismet/cell"'
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))

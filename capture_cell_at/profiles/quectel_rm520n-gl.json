@@ -1,0 +1,140 @@
+{
+    "vendor": "quectel",
+    "model": "rm520n-gl",
+    "firmware_match": "RM520N*",
+    "applicable_models": ["RM520N-GL", "RM520N-CN", "RM530N-GL",
+                          "RG520N-NA", "RG520N-EB", "RG520N-EU", "RG520N-LA", "RG520N-GT",
+                          "RG525F-NA"],
+    "command_reference": {
+        "document": "RG520N&RG525F&RG5x0F&RM5x0N Series AT Commands Manual",
+        "filename": "Quectel_RG520NRG525FRG5x0FRM5x0N_Series_AT_Commands_Manual_V1.1.pdf",
+        "version": "V1.1",
+        "date": "2025-02-20"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "firmware_detail": "AT+QGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE", "NR"],
+        "has_qeng": true,
+        "has_qscan": true,
+        "has_neighbourcell": true,
+        "has_cops_scan": true,
+        "has_qendc": true
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT+CMEE=2",
+                "expect": "OK",
+                "purpose": "verbose CME errors — firmware returns bare ERROR otherwise"
+            },
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "verify engineering mode available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT+QENG=\"servingcell\"",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "qeng_serving",
+            "notes": "Returns LTE or NR5G-SA/NSA serving cell. Field order differs by RAT. No-SIM state returns empty OK (not an error)."
+        },
+        "neighbor": {
+            "cmd": "AT+QENG=\"neighbourcell\"",
+            "interval_ms": 5000,
+            "timeout_ms": 10000,
+            "parser": "qeng_neighbor",
+            "notes": "Returns intra-frequency and inter-frequency LTE neighbors. Spelling is neighbourcell (singular)."
+        },
+        "full_scan": {
+            "cmd": "AT+QSCAN=3,1",
+            "interval_ms": 60000,
+            "timeout_ms": 120000,
+            "parser": "qscan",
+            "notes": "3 = LTE+NR. Mixed NR5G/LTE rows with MCC/MNC. 60-120 s. The actively-camped cell may be omitted from results (known Quectel quirk)."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan. Slow — always use the full 180 s timeout and bail on no-op."
+        }
+    },
+    "band_config": {
+        "read_lte": "AT+QNWPREFCFG=\"lte_band\"",
+        "read_nr5g_sa": "AT+QNWPREFCFG=\"nr5g_band\"",
+        "read_nr5g_nsa": "AT+QNWPREFCFG=\"nsa_nr5g_band\"",
+        "notes": "SDX62 divergence from RM500Q: band read/force moved to AT+QNWPREFCFG. AT+QCFG=\"band\" returns ERROR on this family."
+    },
+    "endc": {
+        "cmd": "AT+QENDC?",
+        "notes": "NR EN-DC state readout. Optional capability probe; returns +QENDC: 0 on LTE-only attach."
+    },
+    "known_broken": [
+        {
+            "cmd": "AT+CPSI?",
+            "notes": "SIMCom command — not present on Quectel SDX62 firmware."
+        },
+        {
+            "cmd": "AT+CNSMOD?",
+            "notes": "SIMCom command — not present on Quectel SDX62 firmware."
+        },
+        {
+            "cmd": "AT+CESQ",
+            "notes": "Returns ERROR in no-signal state. Use AT+CSQ instead (CSQ 99,99 = no service, not an error)."
+        },
+        {
+            "cmd": "AT+CNMP?",
+            "notes": "Not supported. Use AT+QNWPREFCFG=\"mode_pref\"."
+        },
+        {
+            "cmd": "AT+CNBP?",
+            "notes": "Not supported. Use the AT+QNWPREFCFG band keys."
+        },
+        {
+            "cmd": "AT+QCFG=\"band\"",
+            "notes": "Returns ERROR on SDX62 — removed in favor of AT+QNWPREFCFG."
+        },
+        {
+            "cmd": "AT+CSCLK?",
+            "notes": "Not supported on this firmware."
+        }
+    ],
+    "diag": {
+        "usb_id": "2c7c:0801",
+        "port": "Lowest USB interface (if00) on the modem's USB device. capture_cell_diag auto-detects it by matching the IMEI from an AT probe on a sibling port; diagport=<path> overrides.",
+        "port_detect": {
+            "transport": "ttyUSB",
+            "match": "interface",
+            "interface": 0,
+            "driver_path_glob": null
+        },
+        "mask_default": "wardrive",
+        "f3_default": "off",
+        "target_codes": ["0xB193", "0xB0C0", "0xB192", "0xB195", "0xB17F", "0xB197", "0xB821", "0xB97F", "0x1476", "0x14D8"],
+        "notes": "Code set mirrors DIAG_TARGET_CODES in capture_cell_diag/diag_config.c (the single source of truth): LTE ML1 serving 0xB193, LTE RRC OTA/SIB1 0xB0C0, LTE ML1 idle neighbors 0xB192, LTE ML1 connected neighbors 0xB195, LTE ML1 per-cell measurement 0xB17F (per-cell RSSI with RSRP/RSRQ), NR5G RRC OTA/SIB1 0xB821, NR5G ML1 measurement DB 0xB97F. 0xB825 (NR5G RRC configuration info) is intentionally omitted: nci-only, not a mappable measurement. GNSS position 0x1476 (LTE ML1 / gpsOne position report) and 0x14D8 (GNSS engine state) complete the set: the capture helper turns 0x1476 into a gps_fix and geo-tags every cell_observation from it. 0x14D8 is subscribed but yields no position (its parser hardcodes lat/lon/alt to 0.0 and no firmware populates those bytes), so it contributes engine state only. This list documents intent; the device decides what is actually subscribed, because diag_config_filter_supported narrows the shared set to each modem's advertised subset at handshake time. 0xB17F is emitted with version byte 5, including on a SIM-less PCIe/MHI unit. 0xB197 (LTE ML1 serving cell information: per-cell DL bandwidth RB + Tx antenna ports) is emitted by RM520N-GL R03A04 with version byte 2 (matching EG25-G/LM960/RM500Q) while the unit is moving. The trigger is mobility, not SIM presence: a stationary SIM'd unit emits none across an AT+CFUN=4->1 re-camp or connected-mode AT+CGACT PDP-activate cycles, even while 0xB193 and 0xB195 flow, so a stationary unit reading 0 is not a missing capability."
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "vendor": "telit",
+    "model": "lm960",
+    "firmware_match": "32.01.*",
+    "applicable_models": ["LM960", "LM960A18"],
+    "command_reference": {
+        "document": "LM960/LM960A18 AT Commands Reference Guide",
+        "filename": "Telit_LM960_AT_Commands_Reference_Guide_r3.pdf",
+        "version": "Rev.3",
+        "date": "2020-01-07"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE"],
+        "has_rfsts": true,
+        "has_servinfo": true,
+        "has_moni": true,
+        "has_cops_scan": true,
+        "has_csurv": false
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT#RFSTS",
+                "expect": "#RFSTS:",
+                "purpose": "verify RF status available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT#RFSTS",
+                "expect": "#RFSTS:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT#RFSTS",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "rfsts",
+            "notes": "Format: #RFSTS: \"MCC MNC\",EARFCN,RSRP,TXPWR,RSRQ,TAC,BAND,,DRX,MIMO,SFN,CellID,\"IMEI\",\"Operator\",MODE,DUPLEX"
+        },
+        "serving_compact": {
+            "cmd": "AT#SERVINFO",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "servinfo",
+            "notes": "Format: #SERVINFO: EARFCN,RSSI,\"operator\",\"MCCMNC\",cell_id,TAC,PCI,?,RSRP. Less detail than RFSTS but includes PCI."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan. 30-120 seconds. Works without SIM."
+        }
+    },
+    "diag": {
+        "usb_id": "1bc7:1040",
+        "port": "Qualcomm DM/DIAG on USB interface if00 (class ff/ff/ff), composition 1040 (also 1041 on some units). NOTE: the ttyUSB *number* floats across units/bus enumeration (observed as ttyUSB0/ttyUSB4/ttyUSB6), and the AT port is on if04 (NOT the lowest interface) — so interface-number matching, not lowest-ttyUSB or a fixed device node, is required. diagport=<path> overrides.",
+        "port_detect": {
+            "transport": "ttyUSB",
+            "match": "interface",
+            "interface": 0,
+            "driver_path_glob": null
+        },
+        "mask_default": "wardrive",
+        "f3_default": "off",
+        "target_codes": [
+            "0xB193",
+            "0xB0C0",
+            "0xB192",
+            "0xB195",
+            "0xB17F",
+            "0xB197"
+        , "0x1476", "0x14D8"],
+        "notes": "SDX20 LTE Cat 18 (no NR radio). Subscribes the LTE subset of DIAG_TARGET_CODES (capture_cell_diag/diag_config.c is the single source of truth): LTE ML1 serving 0xB193, LTE RRC OTA/SIB1 0xB0C0, LTE ML1 idle neighbors 0xB192, LTE ML1 connected neighbors 0xB195, LTE ML1 per-cell measurement 0xB17F (per-cell RSSI with RSRP/RSRQ); the NR5G codes (0xB821/0xB97F) never fire. Telit's USB layout puts DIAG on if00 but AT on if04. A 'lowest ttyUSB' default would wrongly select if00's sibling if the in-modem kernel diag driver (DIAG_USB_diag) has claimed if00 (routing DIAG via /dev/diag), which happens on some units; interface=0 then correctly finds no if00 ttyUSB and surfaces the actionable diagnostic rather than opening the AT port as DIAG. If DIAG is only reachable via the modem's /dev/diag kernel node, pass diagport= explicitly. GNSS position 0x1476 (LTE ML1 / gpsOne position report) and 0x14D8 (GNSS engine state) complete the set: the capture helper turns 0x1476 into a gps_fix and geo-tags every cell_observation from it. 0x14D8 is subscribed but yields no position (its parser hardcodes lat/lon/alt to 0.0 and no firmware populates those bytes), so it contributes engine state only. This list documents intent; the device decides what is actually subscribed, because diag_config_filter_supported narrows the shared set to each modem's advertised subset at handshake time. 0xB17F is emitted with version byte 5, including on a SIM-less unit. LTE ML1 serving cell information 0xB197 (per-cell DL bandwidth RB + Tx antenna ports) is emitted with version byte 2 after an AT+CFUN=4->1 re-camp, even without a SIM, and not during an idle window before it. It is event-driven (camp/config), so an idle window reading 0 is not absence; a CFUN cycle is enough to trigger it, no power cycle needed."
+    },
+    "quirks": {
+        "ati_returns_build_number": "ATI returns '332' (build number), not model name. Use AT+CGMM for model.",
+        "band_255_means_unavailable": "AT#RFSTS band field reports 255 when not available. Filter to 0.",
+        "bnd_query_slow": "AT#BND? takes ~30 seconds to respond. Use 45s+ timeout.",
+        "csurv_broken_on_some_profiles": "AT#CSURV returns empty on Generic (32.01.110) and TMUS (32.01.150) firmware profiles."
+    }
+}
