@@ -1130,7 +1130,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
             ec = {};
 
-            boost::beast::http::write(con->stream(), res, ec);
+            ec = con->write_timeout(res);
 
             return true;
         }
@@ -1144,7 +1144,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
         ec = {};
 
-        boost::beast::http::write(con->stream(), res, ec);
+        ec = con->write_timeout(res);
 
         return true;
     }
@@ -1220,7 +1220,8 @@ void kis_net_beast_httpd_connection::set_target_file(const std::string& fname) {
 }
 
 void kis_net_beast_httpd_connection::clear_timeout() {
-    boost::beast::get_lowest_layer(stream_).expires_never();
+    // Called from the endpoint thread; the stream timer is only touched on its strand
+    timeout_cleared_ = true;
 }
 
 void kis_net_beast_httpd_connection::append_header(const std::string& header, const std::string& value) {
@@ -1306,7 +1307,7 @@ bool kis_net_beast_httpd_connection::start() {
             boost::beast::http::fields> sr{response};
 
         boost::system::error_code error;
-        boost::beast::http::write_header(stream_, sr, error);
+        error = write_header_timeout(sr);
 
         if (error)
             return do_close();
@@ -1316,7 +1317,7 @@ bool kis_net_beast_httpd_connection::start() {
         response.body().size = 0;
         response.body().more = false;
 
-        boost::beast::http::write(stream_, sr, error);
+        error = write_timeout(sr);
 
         if (error || client_req_close)
             return do_close();
@@ -1413,7 +1414,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            error = write_timeout(res);
 
             return do_close();
         }
@@ -1431,7 +1432,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            error = write_timeout(res);
 
             return do_close();
         }
@@ -1458,7 +1459,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            error = write_timeout(res);
 
             if (error || client_req_close)
                 return do_close();
@@ -1489,7 +1490,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            error = write_timeout(res);
 
             if (error || client_req_close)
                 return do_close();
@@ -1521,7 +1522,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            error = write_timeout(res);
 
             if (error || client_req_close)
                 return do_close();
@@ -1612,7 +1613,7 @@ bool kis_net_beast_httpd_connection::start() {
         if (sz) {
             // Write the headers once we have body content
             if (!first_response_write) {
-                boost::beast::http::write_header(stream_, sr, error);
+                error = write_header_timeout(sr);
 
                 if (error) {
                     // _MSG_ERROR("(DEBUG) {} {} - Error writing headers - {}", verb_, uri_, error.message());
@@ -1630,7 +1631,7 @@ bool kis_net_beast_httpd_connection::start() {
             response.body().size = chunk_sz;
             response.body().more = true;
 
-            boost::beast::http::write(stream_, sr, error);
+            error = write_timeout(sr);
 
             response_stream_.consume(chunk_sz);
 
@@ -1660,7 +1661,7 @@ bool kis_net_beast_httpd_connection::start() {
     response.body().size = 0;
     response.body().more = false;
 
-    boost::beast::http::write(stream_, sr, error);
+    error = write_timeout(sr);
 
     if (error) {
         // _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
