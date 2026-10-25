@@ -5632,6 +5632,10 @@ char *json_sanitize_string(char *s) {
 
     result = malloc(sizeof(char) * strlen(s) + space + 1);
 
+    if (result == NULL) {
+        return NULL;
+    }
+
     pos = 0;
 
     for (i = 0; i < strlen(s); i++) {
@@ -5641,6 +5645,7 @@ char *json_sanitize_string(char *s) {
             /* quotation mark (0x22) */
             case '"':
                 {
+                    result[pos] = '\\';
                     result[pos + 1] = '"';
                     pos += 2;
                     break;
@@ -5649,7 +5654,8 @@ char *json_sanitize_string(char *s) {
                 /* reverse solidus (0x5c) */
             case '\\':
                 {
-                    /* nothing to change */
+                    result[pos] = '\\';
+                    result[pos + 1] = '\\';
                     pos += 2;
                     break;
                 }
@@ -5657,6 +5663,7 @@ char *json_sanitize_string(char *s) {
                 /* backspace (0x08) */
             case '\b':
                 {
+                    result[pos] = '\\';
                     result[pos + 1] = 'b';
                     pos += 2;
                     break;
@@ -5665,6 +5672,7 @@ char *json_sanitize_string(char *s) {
                 /* formfeed (0x0c) */
             case '\f':
                 {
+                    result[pos] = '\\';
                     result[pos + 1] = 'f';
                     pos += 2;
                     break;
@@ -5673,6 +5681,7 @@ char *json_sanitize_string(char *s) {
                 /* newline (0x0a) */
             case '\n':
                 {
+                    result[pos] = '\\';
                     result[pos + 1] = 'n';
                     pos += 2;
                     break;
@@ -5681,6 +5690,7 @@ char *json_sanitize_string(char *s) {
                 /* carriage return (0x0d) */
             case '\r':
                 {
+                    result[pos] = '\\';
                     result[pos + 1] = 'r';
                     pos += 2;
                     break;
@@ -5689,6 +5699,7 @@ char *json_sanitize_string(char *s) {
                 /* horizontal tab (0x09) */
             case '\t':
                 {
+                    result[pos] = '\\';
                     result[pos + 1] = 't';
                     pos += 2;
                     break;
@@ -5699,10 +5710,9 @@ char *json_sanitize_string(char *s) {
                     if (c >= 0x00 && c <= 0x1f)
                     {
                         /* print character c as \uxxxx */
-                        sprintf(&result[pos + 1], "u%04x", (int) c);
-                        pos += 6;
-                        /* overwrite trailing null character */
                         result[pos] = '\\';
+                        snprintf(&result[pos + 1], 6, "u%04x", (int) c);
+                        pos += 6;
                     }
                     else
                     {
