@@ -61,6 +61,14 @@ kis_datasource_ticc2540::rx_content kis_datasource_ticc2540::handle_rx_data_cont
         return rx_content::frame;
     }
 
+    // the length byte counts the 2 status bytes; a btle payload is at most 255 bytes
+    if (content[7] < 0x02) {
+        packet->error = 1;
+        packet->set_data((const char *) content, content_sz);
+        datachunk->set_data(packet->data);
+        return rx_content::frame;
+    }
+
     unsigned int cc_payload_len = content[7] - 0x02;
     if (cc_payload_len + 8 != content_sz - 2) {
         packet->error = 1;
@@ -94,6 +102,7 @@ kis_datasource_ticc2540::rx_content kis_datasource_ticc2540::handle_rx_data_cont
     char conv_buf[conv_buf_len];
 
     btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
+    memset(conv_buf, 0, conv_buf_len);
 
     // Copy the actual packet payload into the header
     memcpy(conv_header->payload, &content[8], cc_payload_len);
