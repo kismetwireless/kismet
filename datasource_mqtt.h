@@ -65,6 +65,8 @@ protected:
 
     std::string topic_;
 
+    // json_type_, freq_khz_ and channel_ are read by the mosquitto thread
+    kis_mutex msg_mutex_;
     uint64_t freq_khz_;
     std::string channel_;
 

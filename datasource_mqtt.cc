@@ -29,6 +29,7 @@ kis_datasource_mqtt::kis_datasource_mqtt(shared_datasource_builder in_builder) :
     mosquitto_ = nullptr;
     thread_started_ = false;
     mqtt_connected_ = false;
+    freq_khz_ = 0;
     set_int_source_hardware("mqtt");
 }
 
@@ -166,8 +167,13 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
         }
     }
 
+    // Read by the mosquitto thread; set under msg_mutex_ once the definition is validated
+    std::string json_type;
+    std::string channel;
+    uint64_t freq_khz = 0;
+
     if (has_definition_opt("mapping")) {
-        json_type_ = get_definition_opt("mapping");
+        json_type = get_definition_opt("mapping");
     } else {
         set_int_source_running(0);
         set_int_source_error(1);
@@ -196,12 +202,12 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
     }
 
     if (has_definition_opt("channel")) {
-        channel_ = get_definition_opt("channel");
+        channel = get_definition_opt("channel");
     }
 
     if (has_definition_opt("frequency")) {
         try {
-            freq_khz_ = human_to_freq_khz(get_definition_opt("frequency"));
+            freq_khz = human_to_freq_khz(get_definition_opt("frequency"));
         } catch (...) {
             set_int_source_running(0);
             set_int_source_error(1);
@@ -212,8 +218,13 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
                 return;
             }
         }
-    } else {
-        freq_khz_ = 0;
+    }
+
+    {
+        kis_lock_guard<kis_mutex> lk(msg_mutex_, "datasource_mqtt open_interface");
+        json_type_ = json_type;
+        channel_ = channel;
+        freq_khz_ = freq_khz;
     }
 
 
@@ -413,17 +424,27 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
 
             gettimeofday(&(packet->ts), NULL);
 
-            if (ds->freq_khz_ != 0 || ds->channel_.length() != 0) {
+            std::string json_type, channel;
+            uint64_t freq_khz;
+
+            {
+                kis_lock_guard<kis_mutex> lk(ds->msg_mutex_, "datasource_mqtt mqtt_msg_cb");
+                json_type = ds->json_type_;
+                channel = ds->channel_;
+                freq_khz = ds->freq_khz_;
+            }
+
+            if (freq_khz != 0 || channel.length() != 0) {
                 auto l1 = ds->packetchain->new_packet_component<kis_layer1_packinfo>();
 
-                l1->freq_khz = ds->freq_khz_;
-                l1->channel = ds->channel_;
+                l1->freq_khz = freq_khz;
+                l1->channel = channel;
 
                 packet->insert(ds->pack_comp_l1_agg, l1);
             }
 
             auto jsoninfo = ds->packetchain->new_packet_component<kis_json_packinfo>();
-            jsoninfo->type = ds->json_type_;
+            jsoninfo->type = json_type;
             jsoninfo->json_string = std::string((const char *) msg->payload, msg->payloadlen);
 
             packet->insert(ds->pack_comp_json, jsoninfo);
@@ -452,7 +473,7 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
                     kis_unique_lock<kis_mutex> lock(ds->ext_mutex, std::defer_lock, "datasource_mqtt tls");
                     lock.lock();
                     snprintf(buf, size, "%s", ds->tls_keyfile_pw_.c_str());
-                    return ds->tls_keyfile_.length();
+                    return strlen(buf);
                 });
 
         if (rc != MOSQ_ERR_SUCCESS) {
