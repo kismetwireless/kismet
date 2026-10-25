@@ -72,7 +72,6 @@
 #include "datasource_openbsd_wifi.h"
 #include "datasource_osx_corewlan_wifi.h"
 #include "datasource_rtl433.h"
-#include "datasource_rtlamr.h"
 #include "datasource_rtladsb.h"
 #include "datasource_rtlais.h"
 #include "datasource_rtlaisadsb.h"
@@ -951,7 +950,6 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_openbsd_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_osx_corewlan_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtl433_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlamr_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtladsb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlais_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlaisadsb_builder()));

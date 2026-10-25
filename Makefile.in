@@ -115,9 +115,6 @@ BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 # CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
 # BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
 
-# CAPTURE_SDR_RTLAMR = capture_sdr_rtlamr/kismet_cap_sdr_rtlamr
-# BUILD_CAPTURE_SDR_RTLAMR = @BUILD_CAPTURE_SDR_RTLAMR@
-
 # CAPTURE_BT_GEIGER = capture_bt_geiger/kismet_cap_bt_geiger
 # BUILD_CAPTURE_BT_GEIGER = @BUILD_CAPTURE_BT_GEIGER@
 #
@@ -261,7 +258,7 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
-	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o datasource_rtlais.cc.o datasource_rtlaisadsb.cc.o \
+	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtladsb.cc.o datasource_rtlais.cc.o datasource_rtlaisadsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
@@ -400,9 +397,6 @@ $(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) FORCE
 
 # $(CAPTURE_SDR_RTL433): FORCE
 # 	(cd capture_sdr_rtl433 && $(MAKE))
-# 
-# $(CAPTURE_SDR_RTLAMR): FORCE
-# 	(cd capture_sdr_rtlamr && $(MAKE))
 # 
 # $(CAPTURE_BT_GEIGER): FORCE
 # 	(cd capture_bt_geiger && $(MAKE))
@@ -945,7 +939,6 @@ clean: all-plugins-clean depclean
 	@(cd capture_catsniffer_zigbee &&  make clean)
 	@(cd capture_sniffle_ble &&  make clean)
 	# @(cd capture_sdr_rtl433 && make clean)
-	# @(cd capture_sdr_rtlamr && make clean)
 	@(cd capture_sdr_rtlais && make clean)
 	@(cd capture_sdr_rtlaisadsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
