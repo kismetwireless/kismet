@@ -756,8 +756,6 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
         memset(ret_localchan, 0, sizeof(local_channel_t));
 
-        ret_localchan->chan_band = band_guess;
-
         r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
         if (r != 2) {
@@ -765,6 +763,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                     "not appear to be a valid HT40 channel",
                     local_wifi->name, chanstr);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
+            free(ret_localchan);
             return NULL;
         }
 
@@ -774,6 +773,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         } else if (parsechan <= 196) {
             band_guess = wifi_band_5ghz;
         }
+
+        ret_localchan->chan_band = band_guess;
 
         if (r == 2) {
             (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan, band_guess);
@@ -793,6 +794,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                                     "channel; this does not appear to be a valid channel "
                                     "for 40MHz operation.", local_wifi->name, parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_INFO);
+                            free(ret_localchan);
                             return NULL;
                         }
                     }
@@ -813,6 +815,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                                     "channel; this does not appear to be a valid channel "
                                     "for 40MHz operation.", parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_INFO);
+                            free(ret_localchan);
                             return NULL;
                         }
                     }
@@ -1028,7 +1031,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     /* Prefer mac80211 channel fetch */
     ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, &chanlist_fetch, &chanlist_fetch_sz);
 
-    if (ret < 0 || chanlist_sz == 0) {
+    if (ret < 0 || chanlist_fetch_sz == 0) {
 #ifdef HAVE_LINUX_WIRELESS
         snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink, falling "
                 "back to WEXT ioctls.  This interface will not be able to tune to HT channels.",
@@ -1840,6 +1843,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    /* Interface names end up in /sys paths and ioctls */
+    if (placeholder_len >= IFNAMSIZ || memchr(placeholder, '/', placeholder_len) != NULL) {
+        snprintf(msg, STATUS_MAX, "Invalid interface name in definition");
+        return -1;
+    }
+
     local_wifi->interface = strndup(placeholder, placeholder_len);
 
     if ((placeholder_len =
@@ -2369,6 +2378,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             /* Look to see if there's a vif= flag specified on the source line; this
              * takes precedence over everything */
             if ((placeholder_len = cf_find_flag(&placeholder, "vif", definition)) > 0) {
+                if (placeholder_len >= IFNAMSIZ || memchr(placeholder, '/', placeholder_len) != NULL) {
+                    snprintf(msg, STATUS_MAX, "%s invalid vif= interface name", local_wifi->name);
+                    return -1;
+                }
+
                 local_wifi->cap_interface = strndup(placeholder, placeholder_len);
                 local_wifi->base_phy = mac80211_find_parent(local_wifi->cap_interface);
             } else {
@@ -3166,8 +3180,6 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     struct dirent *devfile;
     char errstr[STATUS_MAX];
 
-    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
-
     /* Basic list of devices */
     typedef struct wifi_list {
         char *device;
@@ -3184,6 +3196,9 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     char driver[32] = "";
 
+    void *list_socket = NULL;
+    int list_id = 0;
+
     if ((devdir = opendir("/sys/class/net/")) == NULL) {
         /* fprintf(stderr, "debug - no /sys/class/net dir?\n"); */
 
@@ -3192,8 +3207,9 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
-    if (mac80211_connect(&(local_wifi->mac80211_socket), &(local_wifi->mac80211_id), errstr) < 0) {
-        local_wifi->mac80211_socket = NULL;
+    /* Use our own socket; an open source keeps using local_wifi's */
+    if (mac80211_connect(&list_socket, &list_id, errstr) < 0) {
+        list_socket = NULL;
     }
 
     /* Look at the files in the sys dir and see if they're wi-fi */
@@ -3204,11 +3220,11 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         unsigned int mode = -1;
 
         /* Try netlink first */
-        if (local_wifi->mac80211_socket != NULL) {
+        if (list_socket != NULL) {
             int ifidx = if_nametoindex(devfile->d_name);
 
-            r = mac80211_get_iftype_cache(ifidx, local_wifi->mac80211_socket,
-                    local_wifi->mac80211_id, &mode, errstr);
+            r = mac80211_get_iftype_cache(ifidx, list_socket,
+                    list_id, &mode, errstr);
             if (mode == 0)
                 r = -1;
         } else {
@@ -3236,7 +3252,8 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         }
     }
 
-    mac80211_disconnect(local_wifi->mac80211_socket);
+    if (list_socket != NULL)
+        mac80211_disconnect(list_socket);
 
     closedir(devdir);
 
@@ -3291,6 +3308,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
             fprintf(stderr, "%s %s/%s could not send packet to Kismet server, terminating.",
                     local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
             cf_handler_spindown(caph);
+            break;
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
             cf_handler_wait_ringbuffer(caph);

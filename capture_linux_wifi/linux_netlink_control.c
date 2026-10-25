@@ -133,7 +133,7 @@ int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr) {
 #else
 
     *nl_sock = nl_socket_alloc();
-    if (!nl_sock) {
+    if (*nl_sock == NULL) {
         snprintf(errstr, STATUS_MAX, 
                 "unable to connect to netlink: could not allocate netlink socket");
         return -1;
@@ -142,15 +142,18 @@ int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr) {
     if (genl_connect(*nl_sock)) {
         snprintf(errstr, STATUS_MAX, 
                 "unable to connect to netlink: could not connect to generic netlink");
-        return -1;
         nl_socket_free(*nl_sock);
+        *nl_sock = NULL;
+        return -1;
     }
 
     *nl80211_id = genl_ctrl_resolve(*nl_sock, "nl80211");
-    if (nl80211_id < 0) {
+    if (*nl80211_id < 0) {
         snprintf(errstr, STATUS_MAX, 
                 "unable to connect to netlink: could not resolve nl80211");
         nl_socket_free(*nl_sock);
+        *nl_sock = NULL;
+        return -1;
     }
 
     return 0;
@@ -666,8 +669,12 @@ nla_put_failure:
         return -1;
     }
 
-    while (err > 0)
-        nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+    /* a socket error that fires no callback would leave err set forever */
+    while (err > 0) {
+        int r = nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+        if (r < 0 && err > 0)
+            err = r;
+    }
 
     nl_cb_put(cb);
     nlmsg_free(msg);
@@ -736,7 +743,9 @@ nla_put_failure:
     }
 
     while (err > 0) {
-        nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+        int r = nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+        if (r < 0 && err > 0)
+            err = r;
     }
 
     nl_cb_put(cb);
@@ -1102,7 +1111,9 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
 
     while (err > 0) {
         /* fprintf(stderr, "DEBUG - processing messages\n"); */
-        nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+        int r = nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+        if (r < 0 && err > 0)
+            err = r;
     }
 
     nl_cb_put(cb);

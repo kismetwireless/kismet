@@ -674,6 +674,10 @@ int iwconfig_get_chanlist(const char *interface, char *errstr,
 	}
     */
 
+    /* driver supplied */
+    if (range.num_frequency > IW_MAX_FREQUENCIES)
+        range.num_frequency = IW_MAX_FREQUENCIES;
+
     if (range.num_frequency <= 0) {
         *chan_list = NULL;
         *chan_list_len = 0;
