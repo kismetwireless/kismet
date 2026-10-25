@@ -599,18 +599,17 @@ void capture_thread(kis_capture_handler_t *caph) {
     int r;
     struct timeval ts;
     char errstr[STATUS_MAX];
+    int reset_due;
 
     while (!caph->spindown) {
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
-        if (time(0) - local_ubertooth->last_reset > 30) {
-            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
-            
-            if (u1_reset_and_conf(caph, errstr) < 0) {
-                cf_send_error(caph, 0, "error receiving from Ubertooth One");
-                break;
-            }
-        }
+        reset_due = time(0) - local_ubertooth->last_reset > 30;
         pthread_mutex_unlock(&local_ubertooth->u1_mutex);
+
+        if (reset_due && u1_reset_and_conf(caph, errstr) < 0) {
+            cf_send_error(caph, 0, "error receiving from Ubertooth One");
+            break;
+        }
 
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
         r = cmd_poll(local_ubertooth->ut->devh, &rx);
@@ -631,6 +630,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                                 sizeof(usb_pkt_rx), (unsigned char *) &rx)) < 0) {
                     cf_send_error(caph, 0, "unable to send DATA frame");
                     cf_handler_spindown(caph);
+                    break;
                 } else if (r == 0) {
                     /* Go into a wait for the write buffer to get flushed */
                     cf_handler_wait_ringbuffer(caph);
