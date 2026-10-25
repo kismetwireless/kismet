@@ -276,6 +276,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     libusb_free_device_list(libusb_devs, 1);
 
+    if (!matched_device) {
+        snprintf(msg, STATUS_MAX, "Unable to find mousejack USB device");
+        return 0;
+    }
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
@@ -469,14 +473,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 if (busno == libusb_get_bus_number(libusb_devs[i]) &&
                         devno == libusb_get_device_address(libusb_devs[i])) {
                     matched_device = 1;
-                    matched_dev = libusb_devs[i];
+                    matched_dev = libusb_ref_device(libusb_devs[i]);
                     break;
                 }
             } else {
                 matched_device = 1;
                 busno = libusb_get_bus_number(libusb_devs[i]);
                 devno = libusb_get_device_address(libusb_devs[i]);
-                matched_dev = libusb_devs[i];
+                matched_dev = libusb_ref_device(libusb_devs[i]);
                 break;
             }
         }
@@ -484,6 +488,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (!matched_device) {
         snprintf(msg, STATUS_MAX, "Unable to find mousejack USB device");
+        libusb_free_device_list(libusb_devs, 1);
         return -1;
     }
 
@@ -521,8 +526,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Try to open it */
     r = libusb_open(matched_dev, &localnrf->nrf_handle);
+    libusb_unref_device(matched_dev);
     if (r < 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to open mousejack USB interface: %s", 
+        snprintf(msg, STATUS_MAX, "Unable to open mousejack USB interface: %s", 
                 libusb_strerror((enum libusb_error) r));
         return -1;
     }
@@ -668,6 +674,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                             buf_rx_len, buf_rx_len, usb_buf)) < 0) {
                 cf_send_error(caph, 0, "unable to send DATA frame");
                 cf_handler_spindown(caph);
+                break;
             } else if (r == 0) {
                 cf_handler_wait_ringbuffer(caph);
                 continue;
