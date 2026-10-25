@@ -11546,11 +11546,48 @@ printf '%s\n' "yes" >&6; }
 
 fi
 
-# Do we use libstdc++?
+# Do we use libstdc++?  The C++ compiler normally links its own standard
+# library; adding it again makes clang warn about a duplicate -lc++
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler links its standard library" >&5
+printf %s "checking whether the C++ compiler links its standard library... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <string>
+
+int
+main (void)
+{
+
+    std::string s("x");
+    return (int) s.size();
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"
+then :
+
+     { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf '%s\n' "yes" >&6; }
+     foundcxxl="builtin"
+
+else case e in #(
+  e) { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; } ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+
 # We need to swap to the g++ compiler here
 oCC="$CC"
 CC="$CXX"
-{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for main in -lstdc++" >&5
+if test "$foundcxxl"x = "x"
+then :
+
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for main in -lstdc++" >&5
 printf %s "checking for main in -lstdc++... " >&6; }
 if test ${ac_cv_lib_stdcpp_main+y}
 then :
@@ -11591,6 +11628,8 @@ then :
   foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++"
 fi
 
+
+fi
 
 if test "$foundcxxl"x = "x" -a "$caponly"x != "yes"x
 then :
@@ -16047,8 +16086,6 @@ sharedatadir=`(
     eval echo "$sharedatadir"
 )`
 sharedatadir=${sharedatadir}
-
-
 
 
 
