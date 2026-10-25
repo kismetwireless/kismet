@@ -250,6 +250,10 @@ TOOL_KISMET_DISCOVERY_O = \
 TOOL_BINS = \
 	$(TOOL_KISMET_DISCOVERY)
 
+TOOL_USBSERIAL = usbserial/kismet_usbserial
+BUILD_USBSERIAL = @BUILD_USBSERIAL@
+USBSERIAL_BINS = @USBSERIAL_BINS@
+
 PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o \
 	sqlite3_cpp11.cc.o mpack/mpack.c.o \
 	globalregistry.cc.o eventbus.cc.o \
@@ -299,12 +303,12 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 
 PS	= kismet
 
-STD_ALL = Makefile $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS)
-DS_ONLY = Makefile $(DATASOURCE_BINS)
+STD_ALL = Makefile $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS) $(USBSERIAL_BINS)
+DS_ONLY = Makefile $(DATASOURCE_BINS) $(USBSERIAL_BINS)
 
 ALL	= @ALLTARGETS@
 
-INSTBINS = $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS)
+INSTBINS = $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS) $(USBSERIAL_BINS)
 
 # Detect date from variables or now
 ifdef SOURCE_DATE_EPOCH
@@ -476,6 +480,9 @@ $(CAPTURE_ANTSDR_DRONEID): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_WCH_BLE_ANALYZER_PRO): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_wch_ble_analyzer_pro && $(MAKE))
 
+$(TOOL_USBSERIAL): FORCE
+	(cd usbserial && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -620,6 +627,10 @@ commoninstall: $(INSTBINS)
 
 	# Install the other tools
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(TOOL_KISMET_DISCOVERY) $(BIN)/`basename $(TOOL_KISMET_DISCOVERY)`;
+
+	@if test "$(BUILD_USBSERIAL)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(TOOL_USBSERIAL) $(BIN)/`basename $(TOOL_USBSERIAL)`; \
+	fi;
 
 	mkdir -p $(BIN)
 
@@ -952,6 +963,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_hak5_wifi_coconut && make clean)
 	@(cd capture_userspace_usb_wifi && make clean)
 	@(cd capture_morse_mm8108_usb_halow && make clean)
+	@(cd usbserial && make clean)
 	@(cd capture_serial_radview && make clean)
 	@(cd capture_radiacode && make clean)
 	@(cd capture_antsdr_droneid && make clean)

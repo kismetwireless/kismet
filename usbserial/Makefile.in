@@ -1,0 +1,30 @@
+include ../Makefile.inc
+
+# Serves the serial ports of USB modems with no host driver as pseudo-terminals
+
+OBJS = usbserial.c.o kismet_usbserial.c.o
+
+TOOL_BIN = kismet_usbserial
+
+CFLAGS += $(LIBUSBCFLAGS)
+USBSERIAL_LIBS = @USBSERIAL_LIBS@
+
+all: $(TOOL_BIN)
+
+$(TOOL_BIN):	$(OBJS) $(patsubst %c.o,%c.d,$(OBJS))
+		$(CCLD) $(LDFLAGS) -o $(TOOL_BIN) $(OBJS) $(LIBUSBLIBS) $(USBSERIAL_LIBS) $(PTHREAD_LIBS)
+
+clean:
+	@-rm -f $(TOOL_BIN)
+	@-rm -f *.o *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $*.c | sed -e "s|^[^:]*\.o:|$*.c.o:|" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(OBJS)))
