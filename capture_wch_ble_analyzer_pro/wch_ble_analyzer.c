@@ -360,7 +360,7 @@ int wch_read_packets(wch_device_t    *dev,
             break;   /* truncated frame – wait for more data */
 
         /* appears to indicate a junk packet - process the length of the packet but don't send it */
-        if (buf[offset + 9] != 0) {
+        if (frame_size >= 10 && buf[offset + 9] != 0) {
             offset += frame_size;
             continue;
         }
