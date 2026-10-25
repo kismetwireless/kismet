@@ -6,10 +6,12 @@ MONITOR_OBJS = \
 
 MONITOR_BIN = kismet_cap_bladerf_wiphy
 
+CFLAGS+=@BLADERFCFLAGS@
+
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(CCLD) @BLADERFCFLAGS@ $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS) @BLADERFLIBS@
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS) @BLADERFLIBS@
 
 clean:
 	@-rm -f $(MONITOR_BIN)

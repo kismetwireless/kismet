@@ -320,7 +320,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
          * and the mac address of the device */
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-00%04X",
                 adler32_csum((unsigned char *) "kismet_cap_brf_wiphy",
-                    strlen("kismet_cap_blader_wiphy")) & 0xFFFFFFFF,
+                    strlen("kismet_cap_brf_wiphy")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) interface, strlen(interface)));
         *uuid = strdup(errstr);
     }
@@ -366,13 +366,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    free(local_wifi->interface);
     local_wifi->interface = strndup(placeholder, placeholder_len);
 
-    if (sscanf(local_wifi->interface, "brf-wiphy-%u", &local_wifi->bladerf_index) != 1) {
+    if (local_wifi->interface == NULL ||
+            sscanf(local_wifi->interface, "brf-wiphy-%u", &local_wifi->bladerf_index) != 1) {
         snprintf(msg, STATUS_MAX, "Invalid bladeRF interface, expected brf-wiphy-N");
         free(local_wifi->interface);
+        local_wifi->interface = NULL;
         return -1;
     }
+
+    free(local_wifi->name);
 
     if ((placeholder_len =
                 cf_find_flag(&placeholder, "name", definition)) > 0) {
@@ -384,6 +389,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Build an interface index parameter for now; in the future we should also
      * support serial number based */
     snprintf(errstr2, 1024, "*:instance=%u", local_wifi->bladerf_index);
+
+    if (local_wifi->bladeRF_dev != NULL) {
+        bladerf_close(local_wifi->bladeRF_dev);
+        local_wifi->bladeRF_dev = NULL;
+    }
 
     ret = bladerf_open(&local_wifi->bladeRF_dev, errstr2);
     if (ret != 0) {
@@ -400,6 +410,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "wlan mode (%d); make sure you have the wiphy capable libbladerf2 "
                 "library and have loaded the wlanxA9 FPGA firmware",
                 local_wifi->name, ret);
+        bladerf_close(local_wifi->bladeRF_dev);
+        local_wifi->bladeRF_dev = NULL;
         return -1;
     }
 
@@ -408,6 +420,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (ret != 0) {
         snprintf(msg, STATUS_MAX, "%s unable to configure bladeRF interface sample "
                 "rate: %d", local_wifi->name, ret);
+        bladerf_close(local_wifi->bladeRF_dev);
+        local_wifi->bladeRF_dev = NULL;
         return -1;
     }
 
@@ -415,6 +429,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (ret != 0) {
         snprintf(msg, STATUS_MAX, "%s unable to configure bladeRF interface RX module: %d",
                 local_wifi->name, ret);
+        bladerf_close(local_wifi->bladeRF_dev);
+        local_wifi->bladeRF_dev = NULL;
         return -1;
     }
 
@@ -428,7 +444,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-00%04X",
                 adler32_csum((unsigned char *) "kismet_cap_brf_wiphy",
-                    strlen("kismet_cap_blader_wiphy")) & 0xFFFFFFFF,
+                    strlen("kismet_cap_brf_wiphy")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) local_wifi->interface,
                     strlen(local_wifi->interface)));
         *uuid = strdup(errstr);
@@ -440,6 +456,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (ret < 0) {
         snprintf(msg, STATUS_MAX, "%s could not get list of channels from capture "
                 "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
+        bladerf_close(local_wifi->bladeRF_dev);
+        local_wifi->bladeRF_dev = NULL;
         return -1;
     }
 
@@ -462,6 +480,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             snprintf(msg, STATUS_MAX,
                     "%s %s could not parse channel= option provided in source "
                     "definition", local_wifi->name, local_wifi->interface);
+            bladerf_close(local_wifi->bladeRF_dev);
+            local_wifi->bladeRF_dev = NULL;
             return -1;
         }
 
@@ -475,6 +495,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
             free(localchan);
             localchan = NULL;
+            bladerf_close(local_wifi->bladeRF_dev);
+            local_wifi->bladeRF_dev = NULL;
             return -1;
         }
     }
@@ -541,6 +563,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     struct timeval ts;
 
     int ret;
+    unsigned int rx_errors = 0;
 
     memset(data, 0, 4096 * 16);
 
@@ -549,10 +572,26 @@ void capture_thread(kis_capture_handler_t *caph) {
     while (1) {
         struct bladerf_metadata meta;
 
+        if (caph->spindown)
+            break;
+
         memset(&meta, 0, sizeof(meta));
 
-        if (bladerf_sync_rx(local_wifi->bladeRF_dev, data, rx_dwords, &meta, 0) != 0)
+        if ((ret = bladerf_sync_rx(local_wifi->bladeRF_dev, data, rx_dwords, &meta, 0)) != 0) {
+            /* an unplugged device fails every read; don't spin on it */
+            if (++rx_errors >= 100) {
+                snprintf(errstr, STATUS_MAX, "%s bladeRF receive failed: %s",
+                        local_wifi->name, bladerf_strerror(ret));
+                cf_send_error(caph, 0, errstr);
+                cf_handler_spindown(caph);
+                break;
+            }
+
+            usleep(10000);
             continue;
+        }
+
+        rx_errors = 0;
 
         /* len is device controlled; the payload must fit in what was read */
         if (bwh_r->len <= 16 || bwh_r->len + 16 > rx_dwords * 4)
