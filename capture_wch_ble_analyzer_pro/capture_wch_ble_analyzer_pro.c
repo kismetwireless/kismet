@@ -80,6 +80,9 @@ typedef struct {
     char *name;
     char *interface;
 
+    /* devices found at open; wch[] points into this */
+    wch_device_t devs[MAX_MCU_DEVICES];
+
     wch_device_t *wch[3];
     size_t num_wch;
 
@@ -248,7 +251,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
         wch_agg_cnt = aggregate_wch_devices(local, wch_aggregates, wch_devs, wch_devs_cnt);
 
-        if (busno < wch_agg_cnt) {
+        if (busno >= 0 && busno < wch_agg_cnt) {
             matched = true;
         }
 
@@ -375,7 +378,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int x;
     int busno = -1, devno = -1;
 
-    wch_device_t wch_devs[MAX_MCU_DEVICES];
     int wch_devs_cnt = 0;
 
     wch_aggregate_t wch_aggregates[MAX_AGGREGATE_DEVICES];
@@ -384,6 +386,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char cap_if[32];
 
     local_wch_btle_t *local = (local_wch_btle_t *) caph->userdata;
+    wch_device_t *wch_devs = local->devs;
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
@@ -454,7 +457,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         wch_agg_cnt = aggregate_wch_devices(local, wch_aggregates, wch_devs, wch_devs_cnt);
 
-        if (busno < wch_agg_cnt) {
+        if (busno >= 0 && busno < wch_agg_cnt) {
             matched = true;
 
             for (size_t w = 0; w < wch_aggregates[busno].n_dev; w++) {
@@ -615,6 +618,7 @@ static void on_packet(const wch_pkt_hdr_t *hdr, const uint8_t *pdu, int pdu_len,
                         pdu_len, pdu_len, (uint8_t *) pdu,
                         3, crc)) < 0) {
             cf_handler_spindown(caph);
+            break;
         } else if (ret == 0) {
             cf_handler_wait_ringbuffer(caph);
             continue;
