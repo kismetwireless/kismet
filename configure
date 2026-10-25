@@ -673,6 +673,9 @@ LIBBTBBCFLAGS
 LIBBTBBLIBS
 LIBUBERTOOTHCFLAGS
 LIBUBERTOOTHLIBS
+USBSERIAL_LIBS
+USBSERIAL_BINS
+BUILD_USBSERIAL
 FIRMWARECFLAGS
 FIRMWARELIBS
 liblzma_LIBS
@@ -843,6 +846,7 @@ enable_wifi_coconut
 enable_firmware_compression
 enable_usbwifi
 enable_mm8108
+enable_usbserial
 enable_ubertooth
 enable_librtlsdr
 enable_mosquitto
@@ -1557,6 +1561,10 @@ Optional Features:
   --disable-mm8108        Disable Morse Micro MM8108 USB HaLow (userspace via
                           libusb); built by default on Linux and macOS when
                           libusb is available
+  --disable-usbserial     Disable kismet_usbserial, which serves the serial
+                          ports of USB modems with no host driver (userspace
+                          via libusb); built by default when libusb is
+                          available
   --disable-ubertooth     Disable Ubertooth One support
   --disable-librtlsdr     Disable librtlsdr support and any librtlsdr based
                           data sources
@@ -15273,6 +15281,116 @@ if test x"$want_mm8108" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_MM8108)"
 fi
 
+want_usbserial="auto"
+# Check whether --enable-usbserial was given.
+if test ${enable_usbserial+y}
+then :
+  enableval=$enable_usbserial; case "${enableval}" in
+          no) want_usbserial=no ;;
+           *) want_usbserial=yes ;;
+	 esac
+else case e in #(
+  e) want_usbserial=auto
+ ;;
+esac
+fi
+
+
+BUILD_USBSERIAL=0
+USBSERIAL_BINS=""
+USBSERIAL_LIBS=""
+usbserial_reason="disabled"
+if test x"$want_usbserial" = x"auto"; then
+    if test x"$have_usb" != x"yes"; then
+        want_usbserial=no
+        usbserial_reason="libusb-1.0 not found"
+    else
+        want_usbserial=yes
+    fi
+fi
+
+if test x"$want_usbserial" = x"yes"; then
+    if test x"$have_usb" != "xyes"; then
+        as_fn_error $? "libusb-1.0 required for kismet_usbserial" "$LINENO" 5
+    fi
+
+    # openpty is in libutil on older glibc and the BSDs
+    OLIBS="$LIBS"
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for library containing openpty" >&5
+printf %s "checking for library containing openpty... " >&6; }
+if test ${ac_cv_search_openpty+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+namespace conftest {
+  extern "C" int openpty ();
+}
+int
+main (void)
+{
+return conftest::openpty ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' util
+do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_cxx_try_link "$LINENO"
+then :
+  ac_cv_search_openpty=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext
+  if test ${ac_cv_search_openpty+y}
+then :
+  break
+fi
+done
+if test ${ac_cv_search_openpty+y}
+then :
+
+else case e in #(
+  e) ac_cv_search_openpty=no ;;
+esac
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_openpty" >&5
+printf '%s\n' "$ac_cv_search_openpty" >&6; }
+ac_res=$ac_cv_search_openpty
+if test "$ac_res" != no
+then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+  if test x"$ac_cv_search_openpty" != x"none required"
+then :
+  USBSERIAL_LIBS="$ac_cv_search_openpty"
+fi
+else case e in #(
+  e) as_fn_error $? "openpty() is required for kismet_usbserial" "$LINENO" 5 ;;
+esac
+fi
+
+    LIBS="$OLIBS"
+
+    BUILD_USBSERIAL=1
+    USBSERIAL_BINS="\$(TOOL_USBSERIAL)"
+fi
+
+
+
+
 
 want_ubertooth="yes"
 # Check whether --enable-ubertooth was given.
@@ -16235,7 +16353,7 @@ sharedatadir=${sharedatadir}
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_rtlais/Makefile capture_sdr_rtlaisadsb/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile usbserial/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_rtlais/Makefile capture_sdr_rtlaisadsb/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_lorapipe/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -16897,6 +17015,7 @@ do
     "capture_hak5_wifi_coconut/Makefile") CONFIG_FILES="$CONFIG_FILES capture_hak5_wifi_coconut/Makefile" ;;
     "capture_userspace_usb_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_userspace_usb_wifi/Makefile" ;;
     "capture_morse_mm8108_usb_halow/Makefile") CONFIG_FILES="$CONFIG_FILES capture_morse_mm8108_usb_halow/Makefile" ;;
+    "usbserial/Makefile") CONFIG_FILES="$CONFIG_FILES usbserial/Makefile" ;;
     "capture_linux_bluetooth/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_bluetooth/Makefile" ;;
     "capture_linux_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_wifi/Makefile" ;;
     "capture_nrf_51822/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_51822/Makefile" ;;
@@ -17796,6 +17915,12 @@ if test "$BUILD_CAPTURE_MM8108" = 1; then
 	echo "yes";
 else
 	echo "no ($mm8108_reason)";
+fi
+printf "     USB serial bridge: "
+if test "$BUILD_USBSERIAL" = 1; then
+	echo "yes";
+else
+	echo "no ($usbserial_reason)";
 fi
 printf "   Compressed firmware: "
 if test x"$want_fwcompress" != x"yes"; then
