@@ -33,6 +33,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -311,9 +312,36 @@ void capture_thread(kis_capture_handler_t *caph) {
     size_t peeked_sz;
 
     char errstr[STATUS_MAX];
+    struct pollfd pfd;
+    int pr;
 
     while (1) {
         if (caph->spindown) {
+            break;
+        }
+
+        pfd.fd = localrad->fd;
+        pfd.events = POLLIN;
+        pfd.revents = 0;
+
+        pr = poll(&pfd, 1, 500);
+
+        if (pr < 0) {
+            if (errno == EINTR)
+                continue;
+
+            snprintf(errstr, STATUS_MAX, "%s serial port error: %s", localrad->name,
+                    strerror(errno));
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            break;
+        }
+
+        if (pr == 0)
+            continue;
+
+        if (!(pfd.revents & POLLIN)) {
+            snprintf(errstr, STATUS_MAX, "%s serial port closed or disconnected", localrad->name);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
             break;
         }
 
@@ -333,7 +361,14 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (amt_read <= 0) {
             kis_simple_ringbuf_commit(localrad->serial_ringbuf, buf, 0);
 
-            if (errno && errno != EINTR && errno != EAGAIN) {
+            /* poll said readable, so a 0 read is a hangup */
+            if (amt_read == 0) {
+                snprintf(errstr, STATUS_MAX, "%s serial port closed or disconnected", localrad->name);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                break;
+            }
+
+            if (errno != EINTR && errno != EAGAIN) {
                 snprintf(errstr, STATUS_MAX, "%s serial port error: %s", localrad->name,
                         strerror(errno));
                 /* printf("DEBUG: %s\n", errstr); */

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <termios.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 
 #include "../config.h"
@@ -114,9 +115,36 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 
     while (1) {
         if (localnrf->rbuf_pos >= localnrf->rbuf_len) {
+            struct pollfd pfd = { .fd = localnrf->fd, .events = POLLIN };
+            int pr = poll(&pfd, 1, 100);
+
+            if (pr < 0) {
+                if (errno == EINTR)
+                    continue;
+                return -1;
+            }
+
+            if (pr == 0) {
+                if (++loop_ctr > 1)
+                    return 0;
+                continue;
+            }
+
+            /* hangup or error without data; the device is gone */
+            if (!(pfd.revents & POLLIN)) {
+                errno = EIO;
+                return -1;
+            }
+
             pthread_mutex_lock(&(localnrf->serial_mutex));
             res = read(localnrf->fd, localnrf->rbuf, sizeof(localnrf->rbuf));
             pthread_mutex_unlock(&(localnrf->serial_mutex));
+
+            /* readable but nothing read is a hung up tty */
+            if (res == 0) {
+                errno = EIO;
+                return -1;
+            }
 
             if (res < 0) {
                 if (errno == EINTR)
