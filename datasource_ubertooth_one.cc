@@ -82,6 +82,7 @@ kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx
     char conv_buf[conv_buf_len];
 
     btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
+    memset(conv_buf, 0, conv_buf_len);
 
     // Copy the actual packet payload into the header
     memcpy(conv_header->payload, usb_rx->data, payload_len);
