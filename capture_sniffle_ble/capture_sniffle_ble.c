@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -356,10 +357,26 @@ static void sniffle_setup_passive_scan(local_sniffle_t *localsniffle) {
  * Returns line length, 0 on a blank/ignorable read, or -1 on error/closed. */
 static int sniffle_readline(kis_capture_handler_t *caph, int fd, char *buf, int bufsize) {
     int pos = 0;
+    bool overlong = false;
 
-    while (pos < bufsize - 1) {
+    while (1) {
         if (atomic_load(&caph->spindown))
             return -1;
+
+        struct pollfd pfd = { .fd = fd, .events = POLLIN };
+        int pr = poll(&pfd, 1, 500);
+
+        if (pr < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+
+        if (pr == 0)
+            continue;
+
+        if (!(pfd.revents & POLLIN))
+            return -1; /* hangup or error, device is gone */
 
         char c;
         int r = read(fd, &c, 1);
@@ -370,19 +387,26 @@ static int sniffle_readline(kis_capture_handler_t *caph, int fd, char *buf, int 
             return -1;
         }
 
+        /* readable but nothing to read means the tty hung up (unplugged) */
         if (r == 0)
-            continue; // VTIME timeout with nothing read, just retry
+            return -1;
 
         if (c == '\n') {
+            if (overlong)
+                return 0;
             if (pos > 0 && buf[pos - 1] == '\r')
                 pos--;
             return pos;
         }
 
+        /* drop the rest of a line too long for the buffer and resync on the next one */
+        if (pos >= bufsize - 1) {
+            overlong = true;
+            continue;
+        }
+
         buf[pos++] = (uint8_t) c;
     }
-
-    return -1; // line too long, treat as desync
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
