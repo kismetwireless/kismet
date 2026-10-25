@@ -103,7 +103,8 @@ input:focus, select:focus, button:focus-visible {
     position: absolute;
     top: calc(100% + 0.4rem);
     left: 0;
-    z-index: 20;
+    /* Only without popover support; a popover is in the top layer, above everything */
+    z-index: 2147483647;
     min-width: 12rem;
     padding: 0.3rem;
     background: var(--surface);
@@ -111,6 +112,8 @@ input:focus, select:focus, button:focus-visible {
     border-radius: 8px;
     box-shadow: var(--shadow);
 }
+/* Undo the browser's popover centering; openMenu() places it under the button */
+.menu-list:popover-open { position: fixed; inset: auto; margin: 0; color: var(--text); overflow: visible; }
 .menu-item {
     display: flex;
     align-items: center;

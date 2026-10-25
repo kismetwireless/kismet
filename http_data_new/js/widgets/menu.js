@@ -4,8 +4,11 @@ import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { menuItems } from '../registry/ui.js';
 
+// The list opens in the browser's top layer (a popover), so no window or
+// expanded pane can cover it, however far it has been raised
 export function createMenu(container) {
-    const list = el('div', { class: 'menu-list', role: 'menu', hidden: true });
+    const list = el('div', { class: 'menu-list', role: 'menu', popover: 'manual', hidden: true });
+    const topLayer = typeof list.showPopover === 'function';
     const button = el('button', { class: 'icon-button menu-button', title: 'Menu', 'aria-haspopup': 'menu',
         onclick: (e) => {
             e.stopPropagation();
@@ -19,12 +22,25 @@ export function createMenu(container) {
                 item.onClick();
             } }, item.icon ? icon(item.icon) : null, item.title)));
         list.hidden = false;
+        if (topLayer) {
+            const r = button.getBoundingClientRect();
+            Object.assign(list.style, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.bottom + 6)}px` });
+            list.showPopover();
+        }
         list.querySelector('button')?.focus();
     }
 
     function closeMenu() {
+        if (topLayer && list.matches(':popover-open'))
+            list.hidePopover();
         list.hidden = true;
     }
+
+    // It's placed under the button when it opens, so a resize leaves it behind
+    window.addEventListener('resize', () => {
+        if (!list.hidden)
+            closeMenu();
+    });
 
     document.addEventListener('click', (e) => {
         if (!list.hidden && !list.contains(e.target))
