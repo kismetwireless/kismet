@@ -101,6 +101,10 @@ int rz_killerbee_set_mode(kis_capture_handler_t *caph, uint8_t mode) {
 	data[0] = RZ_KILLERBEE_SET_MODE;
 	data[1] = mode;
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+	if (localrz_killerbee->rz_killerbee_handle == NULL) {
+		pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+		return -1;
+	}
 	ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle,
 			RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer,
 			RZ_KILLERBEE_CMD_TIMEOUT);
@@ -118,6 +122,10 @@ int rz_killerbee_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
 	data[0] = RZ_KILLERBEE_SET_CHANNEL;
 	data[1] = channel;
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+	if (localrz_killerbee->rz_killerbee_handle == NULL) {
+		pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+		return -1;
+	}
 	ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle,
 			RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer,
 			RZ_KILLERBEE_CMD_TIMEOUT);
@@ -134,6 +142,10 @@ int rz_killerbee_open_stream(kis_capture_handler_t *caph) {
 	unsigned char data[2];
 	data[0] = RZ_KILLERBEE_OPEN_STREAM;
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+	if (localrz_killerbee->rz_killerbee_handle == NULL) {
+		pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+		return -1;
+	}
 	ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle,
 			RZ_KILLERBEE_CMD_EP, data, sizeof(data) - 1, &xfer,
 			RZ_KILLERBEE_CMD_TIMEOUT);
@@ -154,6 +166,10 @@ int rz_killerbee_close_stream(kis_capture_handler_t *caph) {
 	localrz_killerbee->ready = false;
 	data[0] = RZ_KILLERBEE_CLOSE_STREAM;
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+	if (localrz_killerbee->rz_killerbee_handle == NULL) {
+		pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+		return -1;
+	}
 	ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle,
 			RZ_KILLERBEE_CMD_EP, data, sizeof(data) - 1, &xfer,
 			RZ_KILLERBEE_CMD_TIMEOUT);
@@ -166,6 +182,10 @@ int rz_killerbee_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, s
 	local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
 	int actual_len, r;
 	pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+	if (localrz_killerbee->rz_killerbee_handle == NULL) {
+		pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+		return -1;
+	}
 	r = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle,
 			RZ_KILLERBEE_PKT_EP, rx_buf, rx_max, &actual_len,
 			RZ_KILLERBEE_READ_TIMEOUT);
@@ -591,6 +611,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
 	}
 
 	ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+	if (ret_localchan == NULL)
+		return NULL;
 	ret_localchan->channel = parsechan;
 	return ret_localchan;
 }
@@ -636,8 +658,11 @@ void capture_thread(kis_capture_handler_t *caph) {
 				rz_killerbee_close_stream(caph);
 				rz_killerbee_set_mode(caph, RZ_KILLERBEE_CMD_MODE_NONE);
 
+				/* the hop thread can still be in chancontrol */
+				pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
 				libusb_close(localrz_killerbee->rz_killerbee_handle);
 				localrz_killerbee->rz_killerbee_handle = NULL;
+				pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 			}
 
 			break;
