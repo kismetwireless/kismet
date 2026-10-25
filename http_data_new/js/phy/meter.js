@@ -17,6 +17,14 @@ export function register(kismet) {
         match: (row) => (isMeter(row) ? icons.icon('meter', 'Utility meter') : null),
     });
 
+    ui.mapSources.add({
+        id: 'meter', title: 'Utility meters', priority: 71, icon: 'meter', view: 'phy-METER', position: 'average',
+        defaultVisible: false,
+        fields: [[`${m}/${m}.meter_type`, 'meter_type']],
+        detail: (d) => d.meter_type ?? '',
+        color: () => 'hsl(160 60% 42%)',
+    });
+
     ui.rowHighlights.add({
         id: 'meter_all', name: 'RF meter device', priority: 100,
         description: 'Power, water, and gas meters',

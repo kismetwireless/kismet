@@ -1,7 +1,9 @@
-// The map tab: devices that report their own position (aircraft, vessels,
-// drones, mesh nodes; kismet.ui.mapSources), drawn where they say they are,
-// with a line back to where Kismet was when it heard them.  A list of the
-// devices runs down the side, marking the ones inside the map view.
+// The map tab: the kinds of device that phys and plugins register in
+// kismet.ui.mapSources.  Devices that report their own position (aircraft,
+// vessels, drones, mesh nodes) are drawn where they say they are, with a line
+// back to where Kismet was when it heard them; others (Wi-Fi access points,
+// sensors) are drawn where Kismet heard them.  A list of the devices runs
+// down the side, marking the ones inside the map view.
 //
 // Each refresh also adds to the paths the browser keeps (tracks.js), and the
 // map keeps collecting them, more slowly, while it is hidden.  A device's
@@ -27,6 +29,7 @@ const base = 'kismet.device.base';
 const refreshMs = 2000;
 const collectMs = 15000;            // while the map is hidden
 const maxListed = 1000;
+const maxMarkers = 5000;
 
 export const defaultTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const defaultAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
@@ -86,6 +89,8 @@ const commonFields = [
     [last('reported_location', 'geopoint'), 'rep'], [last('reported_location', 'fix'), 'rep_fix'],
     [last('reported_location', 'alt'), 'rep_alt'], [last('reported_location', 'speed'), 'rep_speed'],
     [last('reported_location', 'heading'), 'rep_heading'], [last('reported_location', 'time_sec'), 'rep_time'],
+    [`${base}.location/kismet.common.location.avg_loc/kismet.common.location.geopoint`, 'avg'],
+    [`${base}.location/kismet.common.location.avg_loc/kismet.common.location.fix`, 'avg_fix'],
     [`${base}.reported_location_cloud/kis.gps.rrd.last_sample_ts`, 'cloud_ts'],
 ];
 
@@ -235,9 +240,10 @@ export function createMap(container, area = null) {
     // with a reported position turns up
     let serverHistory = null;
 
-    // key -> { src, dev, pos, heardOnly, marker, glyph, link, heardDot, path, row }
+    // key -> { src, dev, pos, how, heardOnly, tracked, marker, glyph, link, heardDot, path, row }
     const entries = new Map();
     const counts = new Map();
+    let skipped = 0;
 
     function enabled(src) {
         return settings.get(`map.layers.${src.id}`, src.defaultVisible) !== false;
@@ -430,6 +436,23 @@ export function createMap(container, area = null) {
     // Sources with an interval (a regex over every device, say) are read less often
     const fetched = new Map();      // source id -> { at, list }
 
+    // How many devices each server view holds, so kinds with none (phys
+    // nothing has been seen on) can leave the list
+    let viewSizes = null;
+    let viewsAt = 0;
+
+    async function loadViews() {
+        viewsAt = Date.now();
+        try {
+            const views = await api.get('devices/views/all_views.json');
+            viewSizes = new Map((Array.isArray(views) ? views : [])
+                .map((v) => [v['kismet.devices.view.id'], Number(v['kismet.devices.view.size']) || 0]));
+        } catch {
+            viewSizes = null;
+        }
+        layers(mapSources.list());
+    }
+
     async function fetchSource(src) {
         const cached = fetched.get(src.id);
         if (src.interval && cached && Date.now() - cached.at < src.interval)
@@ -449,9 +472,14 @@ export function createMap(container, area = null) {
         if (busy || (visible ? !map : !collecting()))
             return;
         busy = true;
+        if (visible && Date.now() - viewsAt > 30000)
+            loadViews();
         try {
             const sources = mapSources.list();
-            const results = await Promise.all(sources.filter(enabled).map(async (src) => {
+            // While hidden, only the kinds that leave paths are worth reading
+            const wanted = sources.filter((src) => enabled(src) && (visible ||
+                (src.paths !== false && !['heard', 'average'].includes(src.position))));
+            const results = await Promise.all(wanted.map(async (src) => {
                 try {
                     return { src, list: await fetchSource(src) };
                 } catch (err) {
@@ -475,8 +503,9 @@ export function createMap(container, area = null) {
         }
     }
 
-    // Sort out where a device says it is and where Kismet heard it, and add
-    // the reported position to its path
+    // Sort out where a device says it is and where Kismet heard it, add the
+    // reported position to its path, and pick where the source draws it:
+    // { pos: [lon, lat], how: 'reported' | 'heard' | 'average' }, or null
     function positions(src, dev) {
         let rep = point(dev.rep, dev.rep_fix);
         let heard = point(dev.heard, dev.heard_fix);
@@ -489,16 +518,34 @@ export function createMap(container, area = null) {
             dev.rep_speed = dev.heard_speed;
             dev.rep_heading = dev.heard_heading;
         }
-        dev.rep = rep;
         dev.heard = heard;
-        if (rep && dev.key)
+        dev.avg = point(dev.avg, dev.avg_fix);
+        if (typeof src.position === 'function') {
+            const p = call(src, 'position', dev, null);
+            rep = Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) &&
+                Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90 ? point(p) : null;
+        }
+        dev.rep = rep;
+        if (rep && dev.key && src.paths !== false)
             tracks.record(dev.key, rep[0], rep[1], repTime || dev.last_time || clock.now());
+
+        switch (typeof src.position === 'function' ? 'reported' : src.position) {
+        case 'heard':
+            return heard ? { pos: heard, how: 'heard' } : null;
+        case 'average':
+            return dev.avg ? { pos: dev.avg, how: 'average' } : heard ? { pos: heard, how: 'heard' } : null;
+        case 'reported-or-heard':
+            return rep ? { pos: rep, how: 'reported' } : heard ? { pos: heard, how: 'heard' } : null;
+        default:
+            return rep ? { pos: rep, how: 'reported' } : null;
+        }
     }
 
     // Merge a refresh into the map: move, add, and remove markers in place
     function update(sources, results) {
         const seen = new Set();
         let reporting = 0, history = 0;
+        skipped = 0;
         counts.clear();
         for (const { src, list } of results) {
             let n = 0;
@@ -506,18 +553,21 @@ export function createMap(container, area = null) {
                 const key = dev.key;
                 if (!key || seen.has(key))
                     continue;
-                positions(src, dev);
+                const at = positions(src, dev);
                 if (dev.rep) {
                     reporting++;
                     if (!legacy && dev.cloud_ts > 0)
                         history++;
                 }
-                const pos = dev.rep ?? (src.heard ? dev.heard : null);
-                if (!pos)
+                if (!at)
                     continue;
+                if (seen.size >= maxMarkers) {
+                    skipped++;
+                    continue;
+                }
                 seen.add(key);
                 n++;
-                place(key, src, dev, pos, !dev.rep);
+                place(key, src, dev, at.pos, at.how);
             }
             counts.set(src.id, n);
         }
@@ -538,7 +588,8 @@ export function createMap(container, area = null) {
         render();
     }
 
-    function place(key, src, dev, pos, heardOnly) {
+    function place(key, src, dev, pos, how) {
+        const heardOnly = how !== 'reported';
         const ll = [pos[1], pos[0]];
         let e = entries.get(key);
         if (!e) {
@@ -560,7 +611,7 @@ export function createMap(container, area = null) {
         } else {
             e.marker.setLatLng(ll);
         }
-        Object.assign(e, { src, dev, pos, heardOnly });
+        Object.assign(e, { src, dev, pos, how, heardOnly, tracked: !heardOnly && src.paths !== false });
 
         const name = call(src, 'icon', dev, 'gps') || 'gps';
         if (name !== e.iconName) {
@@ -608,7 +659,7 @@ export function createMap(container, area = null) {
 
     // The faint path every device leaves, from the browser's own collection
     function drawPath(e) {
-        const runs = pathMode() === 'all' && !e.heardOnly && tracks.has(e.key) ?
+        const runs = pathMode() === 'all' && e.tracked && tracks.has(e.key) ?
             tracks.segments(tracks.get(e.key)) : [];
         if (!runs.length) {
             e.path?.remove();
@@ -639,8 +690,10 @@ export function createMap(container, area = null) {
         const extra = call(e.src, 'detail', e.dev, null);
         if (extra)
             parts.push(extra);
-        if (e.heardOnly)
+        if (e.how === 'heard')
             parts.push('where Kismet heard it');
+        else if (e.how === 'average')
+            parts.push('around where Kismet heard it');
         parts.push(format.ago(e.dev.last_time));
         return parts.join(' · ');
     }
@@ -658,15 +711,19 @@ export function createMap(container, area = null) {
                 const box = el('input', { type: 'checkbox', checked: enabled(src),
                     onchange: () => { settings.set(`map.layers.${src.id}`, box.checked); fetched.clear(); refresh(); } });
                 const count = el('span', { class: 'map-layer-count muted' });
-                layerRows.set(src.id, count);
                 const name = src.layerIcon ?? (typeof src.icon === 'string' ? src.icon : 'gps');
-                return el('label', { class: 'map-layer' }, box, icon(name), el('span', {}, src.title), count);
+                const rowEl = el('label', { class: 'map-layer' }, box, icon(name), el('span', {}, src.title), count);
+                layerRows.set(src.id, { row: rowEl, count });
+                return rowEl;
             }));
         }
-        for (const src of sources)
-            layerRows.get(src.id).textContent = enabled(src) ? String(counts.get(src.id) ?? 0) : '';
+        for (const src of sources) {
+            const { row: rowEl, count } = layerRows.get(src.id);
+            count.textContent = enabled(src) ? String(counts.get(src.id) ?? 0) : '';
+            rowEl.hidden = !!viewSizes && src.view !== 'all' && !viewSizes.get(src.view) && !counts.get(src.id);
+        }
 
-        legends.replaceChildren(...sources.filter((s) => enabled(s) && s.legend).map((s) => {
+        legends.replaceChildren(...sources.filter((s) => enabled(s) && s.legend && !layerRows.get(s.id).row.hidden).map((s) => {
             try {
                 return s.legend();
             } catch {
@@ -715,8 +772,10 @@ export function createMap(container, area = null) {
         summary.textContent = (entries.size ?
             `${entries.size} on the map, ${inView} in view${shown.length > maxListed ? `; first ${maxListed} listed` : ''}` :
             'No devices with a position yet') +
-            (legacy ? '.  This Kismet server is older than 2026-10, so it can\'t show where devices were heard from, ' +
-                'and only some kinds of device have a position.' : '');
+            (skipped ? `; ${skipped} more not drawn, over the limit of ${maxMarkers.toLocaleString()}` : '') +
+            (legacy ? '.  This Kismet server is older than 2026-10, so it keeps one position for each device: ' +
+                'aircraft and vessels are drawn where they say they are, with no line to where they were heard, ' +
+                'and other devices where Kismet heard them.' : '');
     }
 
     function row(e) {
@@ -788,7 +847,7 @@ export function createMap(container, area = null) {
         if (selected !== key || !map)
             return;
         const e = entries.get(key);
-        const local = e?.heardOnly ? [] : tracks.get(key);
+        const local = e?.tracked ? tracks.get(key) : [];
         const since = local.length ? local[0].t : Infinity;
         // The server's history fills in before the browser started collecting
         const older = (Array.isArray(rec?.samples) ? rec.samples : [])
@@ -800,7 +859,7 @@ export function createMap(container, area = null) {
             .filter(Boolean)
             .sort((a, b) => a.t - b.t);
         const all = [...older, ...local];
-        if (e && !e.heardOnly && !local.length)
+        if (e?.tracked && !local.length)
             all.push({ t: clock.now(), lon: e.pos[0], lat: e.pos[1] });
         const runs = tracks.segments(all);
         if (!runs.length) {

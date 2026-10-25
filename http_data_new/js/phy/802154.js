@@ -15,6 +15,12 @@ export function register(kismet) {
         match: (row) => (is802154(row) ? icons.icon('zigbee', '802.15.4') : null),
     });
 
+    ui.mapSources.add({
+        id: '802154', title: '802.15.4 / Zigbee', priority: 73, icon: 'zigbee', view: 'phy-802.15.4', position: 'average',
+        defaultVisible: false,
+        color: () => 'hsl(50 85% 48%)',
+    });
+
     ui.rowHighlights.add({
         id: '802154_all', name: '802.15.4/Zigbee device', priority: 100,
         description: 'Every 802.15.4 device',

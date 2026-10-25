@@ -59,7 +59,8 @@ export function register(kismet) {
     // Drones on the map: Remote ID and DroneID report where they are; drones
     // only recognized by their radio are shown where Kismet heard them
     ui.mapSources.add({
-        id: 'uav', title: 'Drones', priority: 20, icon: 'drone', view: 'all', heard: true, maxAge: 600, interval: 5000,
+        id: 'uav', title: 'Drones', priority: 20, icon: 'drone', view: 'all', position: 'reported-or-heard', maxAge: 600,
+        interval: 5000,
         regex: [[`${uav}/uav.manufacturer`, '.*']],
         fields: [[`${uav}/uav.manufacturer`, 'uav_manuf'], [`${uav}/uav.model`, 'uav_model'],
             [`${uav}/uav.serialnumber`, 'uav_serial']],

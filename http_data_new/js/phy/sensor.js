@@ -104,6 +104,14 @@ export function register(kismet) {
         match: (row) => (isSensor(row) ? icons.icon('gauge', 'RF sensor') : null),
     });
 
+    ui.mapSources.add({
+        id: 'rfsensor', title: 'RF sensors', priority: 70, icon: 'gauge', view: 'phy-RFSENSOR', position: 'average',
+        defaultVisible: false,
+        fields: [[`${s}/${s}.common/${s}.model`, 'sensor_model']],
+        label: (d) => String(d.sensor_model ?? '').trim() || d.name,
+        color: () => 'hsl(330 70% 60%)',
+    });
+
     ui.rowHighlights.add({
         id: 'rfsensor_all', name: 'Sensor device', priority: 100,
         description: 'RF sensors (weather, temperature, tire pressure, and more)',

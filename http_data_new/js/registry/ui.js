@@ -28,26 +28,38 @@ export const panes = createRegistry('panes', {
     defaults: { area: 'bottom' },
 });
 
-// Kinds of device drawn on the map tab.  Each is read from a device view,
-// optionally narrowed by a Kismet regex, every couple of seconds while the
-// map is showing.
-//   id, title, priority, icon (icon name, or fn(dev) -> name),
+// Kinds of device drawn on the map tab, each with a checkbox in the map's
+// list.  Phys and plugins add one for each kind of device that has a place
+// on the map.  Each is read from a device view, optionally narrowed by a
+// Kismet regex, every couple of seconds while the map is showing (and every
+// 15 s while it's hidden, to keep paths going).  A device claimed by more
+// than one kind is drawn by the one with the lowest priority.
+//
+// What to read:
 //   view: device view id (default 'all'), regex: optional [[field, regex], ...],
 //   fields: extra [path, name] pairs the functions below read from dev,
+//   maxAge: seconds a device stays on the map after it's last heard,
+//   interval: optional ms between reads, for kinds that are slow to query
+// Where to draw it:
+//   position: 'reported' (default): where the device says it is,
+//     'heard': where Kismet last heard it, 'average': the middle of where
+//     Kismet has heard it (a fixed device's best guess), 'reported-or-heard':
+//     reported, or heard when it reports nothing; or fn(dev) -> [lon, lat] or
+//     null, treated as a reported position
+//   paths: draw the path a reported position leaves (default true)
+//   legacy: on servers older than 2026-10, the device location is the position
+//     the device reported (ADS-B, AIS)
+// How it looks:
+//   id, title, priority, defaultVisible, icon (icon name, or fn(dev) -> name),
+//   layerIcon: icon for the checkbox when icon is a function,
 //   label(dev), detail(dev) -> short text, color(dev) -> CSS color,
 //   heading(dev) -> degrees to point the icon, or null,
-//   maxAge: seconds a device stays on the map after it's last heard,
-//   interval: optional ms between reads, for sources that are slow to query,
-//   layerIcon: icon for the source's checkbox when icon is a function,
-//   heard: also draw devices with no reported position where Kismet heard them,
-//   legacy: on servers older than 2026-10, the device location is the position
-//     the device reported (ADS-B, AIS),
 //   legend() -> optional node shown on the map while the kind is visible
-// dev has key, name, phy, type, last_time, heard and rep ([lon, lat] or
-// null), rep_alt, rep_speed, rep_heading, plus the source's own fields.
+// dev has key, name, phy, type, last_time, rep, heard and avg ([lon, lat] or
+// null), rep_alt, rep_speed, rep_heading, plus the kind's own fields.
 export const mapSources = createRegistry('mapSources', {
     required: ['title'],
-    defaults: { view: 'all', icon: 'gps', maxAge: 600, heard: false, defaultVisible: true },
+    defaults: { view: 'all', icon: 'gps', maxAge: 600, position: 'reported', paths: true, defaultVisible: true },
 });
 
 // Cards on the Overview tab.

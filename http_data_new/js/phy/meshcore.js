@@ -26,6 +26,15 @@ export function register(kismet) {
         match: (row) => (isMeshcore(row) ? icons.icon('mesh', 'MeshCore node') : null),
     });
 
+    // Nodes that put a location in their adverts
+    ui.mapSources.add({
+        id: 'meshcore', title: 'MeshCore nodes', priority: 31, icon: 'mesh', view: 'phy-MeshCore', maxAge: 3600,
+        fields: [[`${n}/${n}.name`, 'mc_name'], [`${n}/${n}.type`, 'mc_type']],
+        label: (d) => String(d.mc_name ?? '').trim() || d.name,
+        detail: (d) => nodeTypes[d.mc_type] ?? '',
+        color: () => 'var(--accent)',
+    });
+
     ui.rowHighlights.add({
         id: 'meshcore_all', name: 'MeshCore node', priority: 100,
         description: 'MeshCore LoRa mesh nodes',

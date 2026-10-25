@@ -54,6 +54,12 @@ export function register(kismet) {
         match: (row) => (isBtle(row) ? icons.icon('bluetooth', 'Bluetooth LE') : null),
     });
 
+    ui.mapSources.add({
+        id: 'btle', title: 'Bluetooth LE', priority: 61, icon: 'bluetooth', view: 'phy-BTLE', position: 'average',
+        defaultVisible: false,
+        color: () => 'hsl(185 65% 50%)',
+    });
+
     ui.rowHighlights.add({
         id: 'btle_all', name: 'BTLE device', priority: 102,
         description: 'Every device seen by a BTLE radio',

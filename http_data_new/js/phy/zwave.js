@@ -8,6 +8,12 @@ export function register(kismet) {
     const isZwave = (row) => row[`${base}.phyname`] === 'Z-Wave';
     const hex = (v) => v.toString(16);
 
+    ui.mapSources.add({
+        id: 'zwave', title: 'Z-Wave', priority: 72, icon: 'radio', view: 'phy-Z-Wave', position: 'average',
+        defaultVisible: false,
+        color: () => 'hsl(30 80% 55%)',
+    });
+
     ui.rowHighlights.add({
         id: 'zwave_all', name: 'Z-Wave device', priority: 100,
         description: 'Z-Wave nodes',

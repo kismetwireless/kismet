@@ -12,6 +12,13 @@ export function register(kismet) {
         match: (row) => (isBluetooth(row) ? icons.icon('bluetooth', 'Bluetooth') : null),
     });
 
+    ui.mapSources.add({
+        id: 'bluetooth', title: 'Bluetooth', priority: 60, icon: 'bluetooth', view: 'phy-Bluetooth', position: 'average',
+        defaultVisible: false,
+        detail: (d) => d.type,
+        color: () => 'hsl(260 70% 65%)',
+    });
+
     ui.rowHighlights.add({
         id: 'bluetooth_all', name: 'Bluetooth device', priority: 100,
         description: 'Every Bluetooth device',

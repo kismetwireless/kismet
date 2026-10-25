@@ -82,6 +82,26 @@ export function register(kismet) {
     });
 
     ui.deviceViews.add({ id: 'phydot11_accesspoints', title: 'Wi-Fi access points', group: 'Wi-Fi', priority: -100 });
+
+    // Access points don't move, so the middle of where Kismet heard them is
+    // the best guess of where they are; clients are off until asked for
+    const wifiDetail = (d) => [d.crypt, d.channel ? `channel ${d.channel}` : null].filter(Boolean).join(', ');
+    ui.mapSources.add({
+        id: 'dot11_ap', title: 'Wi-Fi access points', priority: 50, icon: 'wifi', view: 'phydot11_accesspoints',
+        position: 'average',
+        fields: [[`${beacon}/dot11.advertisedssid.ssid`, 'ssid'], [`${base}.crypt`, 'crypt'], [`${base}.channel`, 'channel']],
+        label: (d) => String(d.ssid ?? '').trim() || d.name,
+        detail: wifiDetail,
+        color: () => 'hsl(210 80% 55%)',
+    });
+    ui.mapSources.add({
+        id: 'dot11_client', title: 'Wi-Fi clients', priority: 51, icon: 'wifi', view: `phy-${phy}`, position: 'average',
+        defaultVisible: false, interval: 5000,
+        regex: [[`${base}.type`, '^Wi-Fi (Client|Bridged|Device)$']],
+        fields: [[`${base}.channel`, 'channel']],
+        detail: (d) => [d.type, d.channel ? `channel ${d.channel}` : null].filter(Boolean).join(', '),
+        color: () => 'hsl(195 45% 60%)',
+    });
     ui.channelNames.add({ id: phy, title: 'Wi-Fi', priority: 0, name: channelName, frequency: channelFrequency });
     ui.sourceChannels.add({
         id: 'dot11',
