@@ -67,24 +67,8 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-        int64_t avg = 0;
-        int64_t avg_c = 0;
-
-        for (const auto& i : *e) {
-            if (i != default_val()) {
-                avg += i;
-                avg_c++;
-            }
-        }
-
-        if (avg_c == 0)
-            return default_val();
-
-        return avg / avg_c;
-    }
-
-    static int64_t combine_vector(const tracker_element_vector_double::vector_t& e) {
+    template<typename C>
+    static int64_t combine_vector(const C& e) {
         int64_t avg = 0;
         int64_t avg_c = 0;
 
