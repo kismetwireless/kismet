@@ -107,7 +107,13 @@ typedef struct {
 
     int do_exit;
 
+    /* filled by the usb callback; the demod thread works on its own copy so the
+     * callback never waits on demodulation */
     uint8_t buffer[DEFAULT_BUF_LENGTH];
+    uint32_t buffer_len;
+    int data_ready;
+
+    uint8_t work[DEFAULT_BUF_LENGTH];
 
     /* Mean pulse magnitude of each run of bits, at the index the run starts */
     uint32_t *power;
@@ -470,7 +476,7 @@ void messages(kis_capture_handler_t *caph, uint16_t *buf, int len) {
             if ((r = cf_send_json(caph, NULL, 0, &signal, NULL, tv, "adsb", json)) < 0) {
                 cf_send_error(caph, 0, "unable to send JSON frame");
                 cf_handler_spindown(caph);
-                continue;
+                return;
             } else if (r == 0) {
                 cf_handler_wait_ringbuffer(caph);
             } else {
@@ -488,8 +494,13 @@ static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
 
     if (caph->spindown || adsb->do_exit) return;
 
+    if (len > DEFAULT_BUF_LENGTH)
+        len = DEFAULT_BUF_LENGTH;
+
     pthread_mutex_lock(&adsb->ready_mutex);
     memcpy(adsb->buffer, buf, len);
+    adsb->buffer_len = len & ~1U;
+    adsb->data_ready = 1;
     pthread_cond_signal(&adsb->ready);
     pthread_mutex_unlock(&adsb->ready_mutex);
 }
@@ -499,15 +510,33 @@ static void *rtlsdr_demod_thread(void *arg) {
     local_adsb_t *adsb = (local_adsb_t *) caph->userdata;
 
     int len;
+    uint32_t work_len;
+    struct timespec ts;
+
     while (!caph->spindown && !adsb->do_exit) {
         pthread_mutex_lock(&adsb->ready_mutex);
-        pthread_cond_wait(&adsb->ready, &adsb->ready_mutex);
 
-        len = magnitude(caph, adsb->buffer, DEFAULT_BUF_LENGTH);
-        manchester(caph, (uint16_t *) adsb->buffer, len);
-        messages(caph, (uint16_t *) adsb->buffer, len);
+        /* wake up periodically to notice spindown */
+        while (!adsb->data_ready && !caph->spindown && !adsb->do_exit) {
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += 1;
+            pthread_cond_timedwait(&adsb->ready, &adsb->ready_mutex, &ts);
+        }
+
+        if (!adsb->data_ready) {
+            pthread_mutex_unlock(&adsb->ready_mutex);
+            continue;
+        }
+
+        work_len = adsb->buffer_len;
+        memcpy(adsb->work, adsb->buffer, work_len);
+        adsb->data_ready = 0;
 
         pthread_mutex_unlock(&adsb->ready_mutex);
+
+        len = magnitude(caph, adsb->work, work_len);
+        manchester(caph, (uint16_t *) adsb->work, len);
+        messages(caph, (uint16_t *) adsb->work, len);
     }
     rtlsdr_cancel_async(adsb->dev);
     return NULL;
@@ -904,7 +933,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->channels[0] = strdup("1090MHz");
     (*ret_interface)->channels_len = 1;
 
-    pthread_create(&adsb->demod_thread, NULL, rtlsdr_demod_thread, (void *) caph);
+    if (pthread_create(&adsb->demod_thread, NULL, rtlsdr_demod_thread, (void *) caph) != 0) {
+        snprintf(msg, STATUS_MAX, "%s: could not start demodulation thread", interface);
+        return -1;
+    }
 
     /* Defer launching async to the service thread */
 
@@ -922,6 +954,14 @@ void capture_thread(kis_capture_handler_t *caph) {
     /* do nothing until we're done */
 
     rtlsdr_cancel_async(adsb->dev); 
+
+    /* the demod thread uses the device, lock and cond until it exits */
+    pthread_mutex_lock(&adsb->ready_mutex);
+    adsb->do_exit = 1;
+    pthread_cond_broadcast(&adsb->ready);
+    pthread_mutex_unlock(&adsb->ready_mutex);
+
+    pthread_join(adsb->demod_thread, NULL);
 
     pthread_cond_destroy(&adsb->ready);
     pthread_mutex_destroy(&adsb->ready_mutex);
