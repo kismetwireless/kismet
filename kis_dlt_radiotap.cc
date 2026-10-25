@@ -257,15 +257,16 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
     // Assign it to the callback data
     hdr = reinterpret_cast<const struct ieee80211_radiotap_header *>(linkchunk->data());
-    if (linkchunk->length() < EXTRACT_LE_16BITS(&hdr->it_len)) {
+    const auto radiotap_len = EXTRACT_LE_16BITS(&hdr->it_len);
+    if (radiotap_len < sizeof(*hdr) || linkchunk->length() < radiotap_len) {
         return 0;
     }
 
-    // null-statement for-loop
+    auto bitmap_remaining = radiotap_len - sizeof(*hdr);
     for (last_presentp = &hdr->it_present;
          (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (const u_char *) (last_presentp + 1) <= (const u_char *) linkchunk->data() +
-         EXTRACT_LE_16BITS(&(hdr->it_len)); last_presentp++);
+         bitmap_remaining >= sizeof(*last_presentp);
+         last_presentp++, bitmap_remaining -= sizeof(*last_presentp));
 
     /* are there more bitmap extensions than bytes in header? */
     if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
