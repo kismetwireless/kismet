@@ -79,6 +79,17 @@ public:
         std::vector<double> del_vec;
         bool del = false;
 
+        if (spectrum.empty() || spectrum.size() > max_spectrum_bins)
+            return;
+
+        // Start the rolling aggregate over if the spectrum size changes, the running
+        // sum only works when every entry lines up
+        if (aggregate_spectrum->size() != spectrum.size()) {
+            spectrum_rolling_log.clear();
+            spectrum_rolling_log_time.clear();
+            aggregate_spectrum->clear();
+        }
+
         if (aggregate_spectrum->size() == 0) {
             aggregate_spectrum->set(spectrum);
             spectrum_rolling_log.push_back(spectrum);
@@ -94,7 +105,8 @@ public:
             spectrum_rolling_log.pop_front();
             spectrum_rolling_log_time.pop_front();
 
-            if (aggregate_spectrum_start->get() < spectrum_rolling_log_time.front()) {
+            if (!spectrum_rolling_log_time.empty() &&
+                    aggregate_spectrum_start->get() < spectrum_rolling_log_time.front()) {
                 aggregate_spectrum_start->set(spectrum_rolling_log_time.front());
             }
         }
@@ -168,6 +180,8 @@ protected:
     std::list<time_t> spectrum_rolling_log_time;
 
     unsigned int rolling_sz;
+
+    static constexpr size_t max_spectrum_bins = 4096;
 };
 
 class kis_radiation_phy : public kis_phy_handler {
