@@ -499,14 +499,6 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
         std::stringstream ss(json->json_string);
         nlohmann::json device_json;
 
-            ss >> device_json;
-
-            if (phy->rtl433_json_to_phy(device_json, in_pack)) {
-                auto adata = in_pack->fetch_or_add<packet_metablob>(phy->pack_comp_meta);
-                adata->set_data("METER", json->json_string);
-            }
-
-#if 0
         try {
             ss >> device_json;
 
@@ -518,7 +510,6 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
             fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
             return 0;
         }
-#endif
 
         return 1;
 
