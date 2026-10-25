@@ -129,7 +129,8 @@ kis_datasource_lorapipe::rx_content kis_datasource_lorapipe::handle_rx_data_cont
         return fail();
     }
 
-    if (!lorapipe_parse(toks[7], signal)) {
+    // signal_dbm is an int; an out of range double can't be converted
+    if (!lorapipe_parse(toks[7], signal) || signal < -500 || signal > 500) {
         return fail();
     }
 
