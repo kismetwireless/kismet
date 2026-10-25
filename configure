@@ -742,6 +742,9 @@ BIN_DIR
 LOCALSTATE_DIR
 CONFFILE_DIR
 PLUGINLDFLAGS
+USBWIFI_WNOCFLAGS
+WNOCFLAGS
+WNOCXXFLAGS
 HAVE_CXX17
 HAVE_CXX20
 GCC_VERSION
@@ -10144,6 +10147,112 @@ printf '%s\n' "$as_me: WARNING: setting -Wno-dangling-reference for gcc${GCC_MAJ
         CPPFLAGS="${CPPFLAGS} -Wno-dangling-reference"
 
 fi
+
+# Only pass the -Wno-foo options the compiler knows.  gcc ignores unknown ones
+# until something else warns, then lists each of them; it does reject an unknown
+# -Wfoo, so test that form.
+
+
+
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking which warnings can be disabled for WNOCXXFLAGS" >&5
+printf %s "checking which warnings can be disabled for WNOCXXFLAGS... " >&6; }
+    kis_wno_save="$CXXFLAGS"
+    WNOCXXFLAGS=""
+    for kis_wno in unknown-warning-option deprecated-declarations format-truncation unused-local-typedefs unused-function infinite-recursion; do
+        CXXFLAGS="$kis_wno_save -Werror -W$kis_wno"
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  WNOCXXFLAGS="$WNOCXXFLAGS -Wno-$kis_wno"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+    done
+    CXXFLAGS="$kis_wno_save"
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $WNOCXXFLAGS" >&5
+printf '%s\n' "$WNOCXXFLAGS" >&6; }
+
+
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+
+
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking which warnings can be disabled for WNOCFLAGS" >&5
+printf %s "checking which warnings can be disabled for WNOCFLAGS... " >&6; }
+    kis_wno_save="$CFLAGS"
+    WNOCFLAGS=""
+    for kis_wno in unknown-warning-option format-truncation unused-function; do
+        CFLAGS="$kis_wno_save -Werror -W$kis_wno"
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  WNOCFLAGS="$WNOCFLAGS -Wno-$kis_wno"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+    done
+    CFLAGS="$kis_wno_save"
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $WNOCFLAGS" >&5
+printf '%s\n' "$WNOCFLAGS" >&6; }
+
+
+
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking which warnings can be disabled for USBWIFI_WNOCFLAGS" >&5
+printf %s "checking which warnings can be disabled for USBWIFI_WNOCFLAGS... " >&6; }
+    kis_wno_save="$CFLAGS"
+    USBWIFI_WNOCFLAGS=""
+    for kis_wno in unused-parameter sign-compare missing-field-initializers address-of-packed-member format-truncation unknown-warning-option; do
+        CFLAGS="$kis_wno_save -Werror -W$kis_wno"
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  USBWIFI_WNOCFLAGS="$USBWIFI_WNOCFLAGS -Wno-$kis_wno"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+    done
+    CFLAGS="$kis_wno_save"
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $USBWIFI_WNOCFLAGS" >&5
+printf '%s\n' "$USBWIFI_WNOCFLAGS" >&6; }
+
+
+ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
 
 
 
