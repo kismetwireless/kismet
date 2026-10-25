@@ -44,6 +44,7 @@
 #include "nlohmann/json.hpp"
 #include "kis_mutex.h"
 #include "macaddr.h"
+#include "flat_id_map.h"
 #include "unordered_dense.h"
 #include "uuid.h"
 
@@ -1754,7 +1755,7 @@ protected:
 
 // Dictionary / map-by-id
 class tracker_element_map :
-    public tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+    public tracker_element_core_map<flat_id_map<uint16_t, std::shared_ptr<tracker_element>>,
     uint16_t,
     std::shared_ptr<tracker_element>,
     tracker_element_key_adapter_direct<uint16_t>,
@@ -1762,7 +1763,7 @@ class tracker_element_map :
     tracker_type::tracker_map> {
 public:
     tracker_element_map() :
-        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+        tracker_element_core_map<flat_id_map<uint16_t, std::shared_ptr<tracker_element>>,
         uint16_t,
         std::shared_ptr<tracker_element>,
         tracker_element_key_adapter_direct<uint16_t>,
@@ -1770,7 +1771,7 @@ public:
         tracker_type::tracker_map>() { }
 
     tracker_element_map(int id) :
-        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+        tracker_element_core_map<flat_id_map<uint16_t, std::shared_ptr<tracker_element>>,
         uint16_t,
         std::shared_ptr<tracker_element>,
         tracker_element_key_adapter_direct<uint16_t>,
@@ -1778,7 +1779,7 @@ public:
         tracker_type::tracker_map>(id) { }
 
     tracker_element_map(const tracker_element_map *p) :
-        tracker_element_core_map<ankerl::unordered_dense::map<uint16_t, std::shared_ptr<tracker_element>>,
+        tracker_element_core_map<flat_id_map<uint16_t, std::shared_ptr<tracker_element>>,
         uint16_t,
         std::shared_ptr<tracker_element>,
         tracker_element_key_adapter_direct<uint16_t>,

@@ -65,6 +65,9 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
         }
     }
 
+    // Registered fields are fixed now, drop the growth slack
+    map.shrink_to_fit();
+
     // Remove all the registration records we've allocated
     delete registered_fields;
     registered_fields = nullptr;
