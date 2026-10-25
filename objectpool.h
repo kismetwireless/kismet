@@ -30,22 +30,17 @@
 template <class T>
 class shared_object_pool {
 private:
+    // Only the pool reference is kept per object; the deleter is copied into every
+    // shared_ptr control block, so the reset function lives in the pool
     struct pool_deleter {
     public:
-        explicit pool_deleter(std::weak_ptr<shared_object_pool<T>* > pool, 
-                std::function<void (T*)> reset) : 
-            pool_(pool),
-            reset_(reset) { }
+        explicit pool_deleter(std::weak_ptr<shared_object_pool<T>* > pool) :
+            pool_(pool) { }
 
         void operator()(T* ptr) {
             if (auto pool_ptr = pool_.lock()) {
-                try {
-                    reset_(ptr);
-                    (*pool_ptr.get())->add(std::unique_ptr<T>{ptr});
-                    return;
-                } catch(...) {
-
-                }
+                (*pool_ptr.get())->recycle(ptr);
+                return;
             }
 
             std::default_delete<T>{}(ptr);
@@ -53,8 +48,26 @@ private:
 
     private:
         std::weak_ptr<shared_object_pool<T>* > pool_;
-        std::function<void (T*)> reset_;
     };
+
+    // Owns ptr from the start, so a failed reset or add deletes it exactly once
+    void recycle(T* ptr) noexcept {
+        auto obj = std::unique_ptr<T>{ptr};
+
+        try {
+            std::function<void (T*)> reset;
+
+            {
+                kis_lock_guard<kis_mutex> lg(pool_mutex);
+                reset = reset_;
+            }
+
+            reset(obj.get());
+            add(std::move(obj));
+        } catch (...) {
+
+        }
+    }
 
 public:
     using ptr_type = std::unique_ptr<T, pool_deleter>;
@@ -100,11 +113,11 @@ public:
     ptr_type acquire() {
         kis_lock_guard<kis_mutex> lg(pool_mutex);
         if (pool_.empty()) {
-            return ptr_type(new T(), 
-                    pool_deleter{std::weak_ptr<shared_object_pool<T>*>{this_}, reset_});
+            return ptr_type(new T(),
+                    pool_deleter{std::weak_ptr<shared_object_pool<T>*>{this_}});
         } else {
             ptr_type tmp(pool_.top().release(),
-                    pool_deleter{std::weak_ptr<shared_object_pool<T>*>{this_}, reset_});
+                    pool_deleter{std::weak_ptr<shared_object_pool<T>*>{this_}});
             pool_.pop();
             return tmp;
         }
