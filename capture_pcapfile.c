@@ -80,6 +80,40 @@ typedef struct {
     unsigned int pps_throttle;
 } local_pcap_t;
 
+/* Realtime replay delay between two records.  Timestamps come from the file, so a
+ * backwards, huge, or malformed jump is clamped instead of stalling the replay */
+static unsigned long replay_delay_usec(local_pcap_t *local_pcap, int64_t ts_sec, int64_t ts_usec) {
+    const int64_t max_delay = 10 * 1000000LL;
+    int64_t delay = 0;
+    int64_t last_usec = local_pcap->last_ts.tv_usec;
+
+    if (ts_usec < 0 || ts_usec > 999999)
+        ts_usec = 0;
+    if (last_usec < 0 || last_usec > 999999)
+        last_usec = 0;
+
+    if ((local_pcap->last_ts.tv_sec != 0 || local_pcap->last_ts.tv_usec != 0) &&
+            ts_sec >= (int64_t) local_pcap->last_ts.tv_sec) {
+        /* unsigned difference can't overflow */
+        uint64_t dsec = (uint64_t) ts_sec - (uint64_t) (int64_t) local_pcap->last_ts.tv_sec;
+
+        if (dsec > 10)
+            delay = max_delay;
+        else
+            delay = (int64_t) dsec * 1000000LL + (ts_usec - last_usec);
+    }
+
+    local_pcap->last_ts.tv_sec = ts_sec;
+    local_pcap->last_ts.tv_usec = ts_usec;
+
+    if (delay < 0)
+        return 0;
+    if (delay > max_delay)
+        return max_delay;
+
+    return (unsigned long) delay;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *definition,
         char *msg, char **uuid,
@@ -115,25 +149,33 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     pcapfname = strndup(placeholder, placeholder_len);
 
+    if (pcapfname == NULL)
+        return 0;
+
     if (stat(pcapfname, &sbuf) < 0) {
+        free(pcapfname);
         return 0;
     }
 
     if (!S_ISREG(sbuf.st_mode)) {
         snprintf(msg, STATUS_MAX, "File '%s' is not a regular file", pcapfname);
+        free(pcapfname);
         return 0;
     }
 
     pd = pcap_open_offline(pcapfname, errstr);
-    if (strlen(errstr) > 0) {
+    if (pd == NULL || strlen(errstr) > 0) {
         snprintf(msg, STATUS_MAX, "%s", errstr);
+        if (pd != NULL)
+            pcap_close(pd);
+        free(pcapfname);
         return -1;
     }
 
     pcap_close(pd);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         /* Kluge a UUID out of the name */
         snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
@@ -143,6 +185,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
                     strlen(pcapfname)) & 0xFFFFFFFF);
         *uuid = strdup(errstr);
     }
+
+    free(pcapfname);
 
     return 1;
 }
@@ -221,7 +265,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno,
     snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
-        if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+        if (placeholder_len == 4 && strncasecmp(placeholder, "true", 4) == 0) {
             snprintf(errstr, PCAP_ERRBUF_SIZE,
                     "Pcapfile '%s' will replay in realtime", pcapfname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -254,27 +298,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
      * simulates blocking IO for capturing from hardware, too.
      */
     if (local_pcap->realtime) {
-        if (local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) {
-            delay_usec = 0;
-        } else {
-            /* Catch corrupt pcaps w/ inconsistent times */
-            if (header->ts.tv_sec < local_pcap->last_ts.tv_sec) {
-                delay_usec = 0;
-            } else {
-                delay_usec = (header->ts.tv_sec - local_pcap->last_ts.tv_sec) * 1000000L;
-            }
-
-            if (header->ts.tv_usec < local_pcap->last_ts.tv_usec) {
-                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) +
-                    header->ts.tv_usec;
-            } else {
-                delay_usec += header->ts.tv_usec - local_pcap->last_ts.tv_usec;
-            }
-
-        }
-
-        local_pcap->last_ts.tv_sec = header->ts.tv_sec;
-        local_pcap->last_ts.tv_usec = header->ts.tv_usec;
+        delay_usec = replay_delay_usec(local_pcap, header->ts.tv_sec, header->ts.tv_usec);
 
         if (delay_usec != 0) {
             usleep(delay_usec);
@@ -315,6 +339,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
             pcap_breakloop(local_pcap->pd);
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
+            break;
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
             // fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
