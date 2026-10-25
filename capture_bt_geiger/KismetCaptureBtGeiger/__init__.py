@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import uuid
 
 have_blepy = False
@@ -27,7 +28,8 @@ try:
     from bluepy.btle import UUID, Peripheral, DefaultDelegate, BTLEDisconnectError
     have_blepy = True
 except:
-    pass
+    # keep the module importable so a missing bluepy is reported instead of crashing
+    Peripheral = object
 
 from . import kismetexternal
 
@@ -105,17 +107,17 @@ class KismetBtGeiger(object):
             self.proberet = self.datasource_probesource(source, options)
 
             if self.proberet == None:
-                print(f"Could not configure local source {config.source}, check your source options and config.")
+                print(f"Could not configure local source {self.config.source}, check your source options and config.")
                 sys.exit(0)
 
             if not "success" in self.proberet:
-                print("Could not configure local source {}, check your source options and config.")
+                print(f"Could not configure local source {self.config.source}, check your source options and config.")
                 if "message" in self.proberet:
                     print(self.proberet["message"])
                 sys.exit(0)
 
             if not self.proberet["success"]:
-                print("Could not configure local source {}, check your source options and config.")
+                print(f"Could not configure local source {self.config.source}, check your source options and config.")
                 if "message" in self.proberet:
                     print(self.proberet["message"])
                 sys.exit(0)
@@ -181,6 +183,8 @@ class KismetBtGeiger(object):
         ret = {}
 
         if not have_blepy:
+            ret["success"] = False
+            ret["message"] = "bluepy is not available; install the python bluepy module"
             return ret
 
         if not source[:8] == "btgeiger":
@@ -242,24 +246,36 @@ class KismetBtGeiger(object):
 
         return True
 
+    def __radio_error(self, message):
+        self.kismet.send_datasource_error_report(message = message)
+        self.kismet.spindown()
+
     def __async_radio_thread(self):
+        # This runs outside the asyncio loop, so hand everything to the loop thread-safely
+        loop = self.kismet.loop
+        message = "BT geiger reader stopped"
+
         # This function blocks forever until cancelled
         try:
             while True:
                 (cps, cpm, usvh) = self.geiger.read()
-                self.kismet.add_task(self.message_queue.put, [{"cps": cps, "cpm": cpm, "usvh": usvh}])
+                loop.call_soon_threadsafe(self.message_queue.put_nowait, {"cps": cps, "cpm": cpm, "usvh": usvh})
                 time.sleep(0.5)
         except Exception as e:
-            self.kismet.send_datasource_error_report(message = f"Error reading from BT geiger: {e}")
+            message = f"Error reading from BT geiger: {e}"
 
         # Always make sure we die
-        self.kismet.spindown()
+        try:
+            loop.call_soon_threadsafe(self.__radio_error, message)
+        except RuntimeError:
+            # loop already closed
+            pass
 
     def open_radio(self, device):
         try:
             self.geiger = Geiger(device)
         except Exception as e:
-            return [False, f"Error opening BT Geiger device: {e.args[0]}"]
+            return [False, f"Error opening BT Geiger device: {e}"]
 
         self.geiger_thread = threading.Thread(target=self.__async_radio_thread)
         self.geiger_thread.daemon = True
