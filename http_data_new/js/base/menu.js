@@ -10,17 +10,22 @@ export function register(kismet) {
     });
 
     ui.menuItems.add({
-        id: 'channels', title: 'Channel coverage', icon: 'radio', priority: 10,
+        id: 'channels', title: 'Channel coverage', icon: 'radio',
         onClick: () => kismet.widgets.coverage.openCoverage(),
     });
 
     ui.menuItems.add({
-        id: 'settings', title: 'Settings', icon: 'gear', priority: 0,
+        id: 'gps', title: 'GPS', icon: 'gps',
+        onClick: () => kismet.widgets.gps.openGps(),
+    });
+
+    ui.menuItems.add({
+        id: 'settings', title: 'Settings', icon: 'gear', priority: 0, section: 'settings',
         onClick: () => kismet.widgets.settingsdialog.openSettings(),
     });
 
     ui.menuItems.add({
-        id: 'about', title: 'About', icon: 'info', priority: 1000,
+        id: 'about', title: 'About', icon: 'info', priority: 0, section: 'about',
         async onClick() {
             const body = el('div', { class: 'about' }, el('p', {}, 'Loading...'));
             kismet.widgets.dialog.dialog({ title: 'About Kismet', body });

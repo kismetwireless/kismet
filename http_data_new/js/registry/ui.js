@@ -3,9 +3,14 @@
 import { createRegistry } from './registry.js';
 
 // Main menu entries.
-//   id, title, icon (optional name from js/core/icons.js), priority, onClick()
+//   id, title, icon (optional name from js/core/icons.js), priority, onClick(),
+//   section: 'about', 'windows' (the default), or 'settings'
+// The sections are shown in that order, divided by lines.  Windows (feature
+// windows such as GPS) are listed alphabetically; the others by priority.
+export const menuSections = ['about', 'windows', 'settings'];
 export const menuItems = createRegistry('menuItems', {
     required: ['title', 'onClick'],
+    defaults: { section: 'windows' },
 });
 
 // Stats in the ribbon across the top of the page.

@@ -2,7 +2,7 @@
 
 import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { menuItems } from '../registry/ui.js';
+import { menuItems, menuSections } from '../registry/ui.js';
 
 // The list opens in the browser's top layer (a popover), so no window or
 // expanded pane can cover it, however far it has been raised
@@ -15,12 +15,23 @@ export function createMenu(container) {
             list.hidden ? openMenu() : closeMenu();
         } }, icon('menu'));
 
-    function openMenu() {
-        list.replaceChildren(...menuItems.list().map((item) =>
-            el('button', { class: 'menu-item', role: 'menuitem', onclick: () => {
+    function entries() {
+        const items = menuItems.list();
+        const groups = menuSections.map((section) => {
+            const group = items.filter((item) => (menuSections.includes(item.section) ? item.section : 'windows') === section);
+            return section === 'windows' ? group.sort((a, b) => String(a.title).localeCompare(String(b.title))) : group;
+        }).filter((group) => group.length);
+        return groups.flatMap((group, i) => [
+            i ? el('hr', { class: 'menu-divider', role: 'separator' }) : null,
+            ...group.map((item) => el('button', { class: 'menu-item', role: 'menuitem', onclick: () => {
                 closeMenu();
                 item.onClick();
-            } }, item.icon ? icon(item.icon) : null, item.title)));
+            } }, item.icon ? icon(item.icon) : null, item.title)),
+        ]).filter(Boolean);
+    }
+
+    function openMenu() {
+        list.replaceChildren(...entries());
         list.hidden = false;
         if (topLayer) {
             const r = button.getBoundingClientRect();

@@ -125,6 +125,7 @@ input:focus, select:focus, button:focus-visible {
     padding: 0.45em 0.6em;
 }
 .menu-item:hover, .menu-item:focus-visible { background: var(--accent-soft); outline: none; }
+.menu-divider { border: none; border-top: 1px solid var(--border); margin: 0.3rem 0.2rem; }
 
 .brand {
     display: flex;
