@@ -3697,8 +3697,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Parse transcript file option — logs all AT I/O with timestamps.
      * If debug is on and no transcript path specified, auto-create one
-     * in /tmp/ based on IMEI.  Either file is created 0600: it holds the
-     * modem's identifiers, and /tmp is shared.
+     * in $TMPDIR or /tmp/ under a random name.  Either file is created 0600:
+     * it holds the modem's identifiers, and /tmp is shared.
      *
      * This block must stay below the `local->name` assignment above: all
      * four messages here prefix with `local->name`, and above the assignment
@@ -3721,11 +3721,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
         free(path);
     } else if (local->debug && local->transcript_fd < 0) {
-        /* Auto-transcript in debug mode */
-        char auto_path[256];
-        snprintf(auto_path, sizeof(auto_path), "/tmp/kismet_cellat_%s.log",
+        /* Auto-transcript in debug mode, under a fresh random name */
+        char auto_path[1024], prefix[96];
+        const char *tmpdir = cell_getenv("TMPDIR");
+        snprintf(prefix, sizeof(prefix), "kismet_cellat_%s_",
                  local->modem_imei ? local->modem_imei : "unknown");
-        local->transcript_fd = cell_safe_open_owned(auto_path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+        local->transcript_fd = cell_safe_open_unique(tmpdir && tmpdir[0] ? tmpdir : "/tmp",
+                                                     prefix, ".log", O_WRONLY | O_APPEND,
+                                                     0600, auto_path, sizeof(auto_path));
         if (local->transcript_fd >= 0) {
             snprintf(buf, sizeof(buf), "%s AT transcript (auto) to %s",
                      local->name, auto_path);

@@ -607,17 +607,33 @@ static const char *backend_name(int b) {
 
 int cellat_lock_state_write(const char *path, const char *imei,
                             const cellat_lock_settings_t *orig) {
-    if (path == NULL || imei == NULL || orig == NULL) {
+    if (path == NULL || path[0] == '\0' || imei == NULL || orig == NULL) {
         errno = EINVAL;
         return -1;
     }
-    /* Written to a temp name and renamed, so a crash mid-write can never leave
-     * a half file that a later open would refuse -- or worse, half-restore. */
-    char tmp[1024];
-    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
-    FILE *f = cell_safe_fopen(tmp, "w", 0600, 0);
-    if (f == NULL)
+    /* Written to a random temp name beside it and renamed, so a crash
+     * mid-write can never leave a half file that a later open would refuse --
+     * or worse, half-restore. */
+    char dir[1024], prefix[256], tmp[1024];
+    const char *slash = strrchr(path, '/');
+    if (slash == NULL) {
+        snprintf(dir, sizeof(dir), ".");
+        snprintf(prefix, sizeof(prefix), ".%s.", path);
+    } else {
+        snprintf(dir, sizeof(dir), "%.*s", (int) (slash == path ? 1 : slash - path), path);
+        snprintf(prefix, sizeof(prefix), ".%s.", slash + 1);
+    }
+    int fd = cell_safe_open_unique(dir, prefix, ".tmp", O_WRONLY, 0600, tmp, sizeof(tmp));
+    if (fd < 0)
         return -1;
+    FILE *f = fdopen(fd, "w");
+    if (f == NULL) {
+        int e = errno;
+        close(fd);
+        cell_safe_unlink(tmp);
+        errno = e;
+        return -1;
+    }
     int ok = fprintf(f,
         "# cellat band/RAT lock: this modem's settings AS FOUND, before a lock\n"
         "# was written. A cellat source restores them from here on\n"
@@ -724,8 +740,10 @@ int cellat_lock_state_read(const char *path, const char *imei, int backend,
 
 void cellat_lock_default_state_path(const char *imei, char *out, size_t out_sz) {
     char home[1024];
+    /* No /tmp fallback: a fixed name there is one anyone could take first.
+     * Without a home, locking needs an explicit lockstate=. */
     if (cell_home_dir(home, sizeof(home)) == 0)
         snprintf(out, out_sz, "%s/.kismet/cellat-lock-%s.state", home, imei ? imei : "");
-    else
-        snprintf(out, out_sz, "/tmp/cellat-lock-%s.state", imei ? imei : "");
+    else if (out_sz > 0)
+        out[0] = '\0';
 }

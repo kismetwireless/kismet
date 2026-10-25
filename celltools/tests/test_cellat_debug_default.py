@@ -3,7 +3,7 @@
 
 Debug mode reads the IMSI (``AT+CIMI``) and ICCID (``AT+ICCID`` / ``AT+QCCID``)
 and, when no ``transcript=`` path is given, writes an AT transcript to
-``/tmp/kismet_cellat_<IMEI>.log``. Neither belongs on the default path of a
+``$TMPDIR/kismet_cellat_<IMEI>_<random>.log``. Neither belongs on the default path of a
 published tool: subscriber identifiers would be read on every open, and the
 transcript would sit in a shared directory.
 
@@ -22,7 +22,9 @@ default path would prove nothing.
 from __future__ import annotations
 
 import os
+import shutil
 import stat
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -31,11 +33,11 @@ import cell_binaries
 from fake_at_modem import QENG_SERVING, FakeAtModem
 from kismet_capture_ipc import CaptureRun
 
-#: A synthetic 15-digit IMEI that this module alone uses, so the fixed
-#: auto-transcript path below cannot collide with a sibling module's run.
+#: A synthetic 15-digit IMEI that this module alone uses.
 IMEI = "351234567890125"
 
-AUTO_TRANSCRIPT = Path(f"/tmp/kismet_cellat_{IMEI}.log")
+#: The auto transcript's name is random; each run gets its own TMPDIR to find it in.
+AUTO_GLOB = f"kismet_cellat_{IMEI}_*.log"
 AUTO_LINE = "AT transcript (auto) to"
 
 #: The commands debug mode sends to read subscriber identifiers.
@@ -53,8 +55,9 @@ def _binary_or_skip() -> str:
     return str(found.path)
 
 
-def _env(debug_env: "str | None") -> dict[str, str]:
+def _env(debug_env: "str | None", tmpdir: str) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if k != "KISMET_CELLAT_DEBUG"}
+    env["TMPDIR"] = tmpdir
     if debug_env is not None:
         env["KISMET_CELLAT_DEBUG"] = debug_env
     return env
@@ -68,10 +71,7 @@ def _open(options: str = "", debug_env: "str | None" = None):
     has seen every command the open will send.
     """
     binary = _binary_or_skip()
-    try:
-        AUTO_TRANSCRIPT.unlink()
-    except FileNotFoundError:
-        pass
+    tmpdir = tempfile.mkdtemp(prefix="cellat_debug_")
     with FakeAtModem(imei=IMEI, firmware="RM520NGLAAR03A03M4G",
                      manufacturer="Quectel", extra=QENG_SERVING) as modem:
 
@@ -80,12 +80,13 @@ def _open(options: str = "", debug_env: "str | None" = None):
 
         definition = f"cellat-{IMEI}:atport={modem.port}{options}"
         run = _Run(binary, definition, timeout=25.0, stop_when=opened,
-                   env=_env(debug_env)).run()
+                   env=_env(debug_env, tmpdir)).run()
         commands = list(modem.commands)
     auto_mode = None
-    if AUTO_TRANSCRIPT.exists():
-        auto_mode = stat.S_IMODE(AUTO_TRANSCRIPT.stat().st_mode)
-        AUTO_TRANSCRIPT.unlink()
+    made = sorted(Path(tmpdir).glob(AUTO_GLOB))
+    if made:
+        auto_mode = stat.S_IMODE(made[0].stat().st_mode)
+    shutil.rmtree(tmpdir, ignore_errors=True)
     return run, commands, auto_mode
 
 
@@ -122,7 +123,7 @@ def test_the_default_open_reads_no_subscriber_identifier(default_open):
 
 def test_the_default_open_writes_no_auto_transcript(default_open):
     run, _commands, mode = default_open
-    assert mode is None, f"{AUTO_TRANSCRIPT} was created on the default path"
+    assert mode is None, f"{AUTO_GLOB} was created on the default path"
     assert not any(AUTO_LINE in m for m in run.messages)
 
 
@@ -136,7 +137,7 @@ def test_debug_true_reads_the_identifiers(debug_open):
 def test_the_debug_auto_transcript_is_private(debug_open):
     run, _commands, mode = debug_open
     assert any(AUTO_LINE in m for m in run.messages), run.messages
-    assert mode is not None, f"{AUTO_TRANSCRIPT} was not created"
+    assert mode is not None, f"{AUTO_GLOB} was not created"
     assert mode & 0o077 == 0, f"auto transcript mode is {oct(mode)}"
 
 

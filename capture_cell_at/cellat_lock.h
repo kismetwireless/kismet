@@ -198,7 +198,8 @@ int cellat_lock_state_read(const char *path, const char *imei, int backend,
                            cellat_lock_settings_t *orig, char *err, size_t err_sz);
 
 /* The default state-file path for `imei`: $HOME/.kismet/cellat-lock-<imei>.state
- * (Kismet's own per-user directory), or /tmp when HOME is unset. */
+ * (Kismet's own per-user directory), or "" with no home directory -- a lock
+ * then cannot be saved, so it is refused. */
 void cellat_lock_default_state_path(const char *imei, char *out, size_t out_sz);
 
 #ifdef __cplusplus

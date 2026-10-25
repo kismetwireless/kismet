@@ -12,7 +12,10 @@
  *
  * Every open refuses a final symlink (O_NOFOLLOW) and anything that is not a
  * regular file, suid or not. The open is non-blocking, so a FIFO or device
- * named as a log cannot hang the capture before it is refused.
+ * named as a log cannot hang the capture before it is refused. In a sticky
+ * directory (/tmp), an existing file must also be this user's: a name someone
+ * else could create first is never written into. Files the captures name
+ * themselves in a shared directory get a random name (cell_safe_open_unique).
  *
  * Header-only (static inline), like diag_privdrop.h, so both captures share
  * one implementation with no new object in either build.
@@ -68,9 +71,29 @@ static inline int cell_home_dir(char *out, size_t outsz) {
 
 enum { CELL_SAFE_OPEN = 0, CELL_SAFE_RENAME = 1, CELL_SAFE_UNLINK = 2 };
 
+/* A file someone else owns, in a directory anyone may create in. */
+static inline int cell_foreign_in_sticky(const char *path, const struct stat *st) {
+    if (st->st_uid == geteuid())
+        return 0;
+    char dir[1024];
+    const char *slash = strrchr(path, '/');
+    if (slash == NULL) {
+        snprintf(dir, sizeof(dir), ".");
+    } else if (slash == path) {
+        snprintf(dir, sizeof(dir), "/");
+    } else {
+        size_t n = (size_t) (slash - path);
+        if (n >= sizeof(dir))
+            return 1;
+        memcpy(dir, path, n);
+        dir[n] = '\0';
+    }
+    struct stat ds;
+    return stat(dir, &ds) != 0 || (ds.st_mode & S_ISVTX) != 0;
+}
+
 /* The operation itself, at whatever ids this process holds. must_own: an
- * existing file has to belong to the effective uid (a shared directory like
- * /tmp, where someone else could have made it first). */
+ * existing file has to belong to the effective uid wherever it is. */
 static inline int cell_safe_op_direct(int op, const char *a, const char *b,
                                       int flags, mode_t mode, int must_own) {
     if (op == CELL_SAFE_RENAME)
@@ -83,7 +106,7 @@ static inline int cell_safe_op_direct(int op, const char *a, const char *b,
         return -1;
     struct stat st;
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) ||
-            (must_own && st.st_uid != geteuid())) {
+            (must_own && st.st_uid != geteuid()) || cell_foreign_in_sticky(a, &st)) {
         close(fd);
         errno = EPERM;
         return -1;
@@ -211,9 +234,35 @@ static inline int cell_safe_open(const char *path, int flags, mode_t mode) {
     return cell_safe_op(CELL_SAFE_OPEN, path, NULL, flags, mode, 0);
 }
 
-/* For a fixed name in a shared directory: an existing file must be ours. */
-static inline int cell_safe_open_owned(const char *path, int flags, mode_t mode) {
-    return cell_safe_op(CELL_SAFE_OPEN, path, NULL, flags, mode, 1);
+/* Create <dir>/<prefix><random><suffix> exclusively, so the name cannot be
+ * guessed and taken first. The path is written to out. */
+static inline int cell_safe_open_unique(const char *dir, const char *prefix,
+                                        const char *suffix, int flags, mode_t mode,
+                                        char *out, size_t outsz) {
+    int rfd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+    if (rfd < 0)
+        return -1;
+    int fd = -1;
+    for (int tries = 0; tries < 16 && fd < 0; tries++) {
+        unsigned char r[8];
+        if (read(rfd, r, sizeof(r)) != (ssize_t) sizeof(r)) {
+            errno = EIO;
+            break;
+        }
+        int w = snprintf(out, outsz, "%s/%s%02x%02x%02x%02x%02x%02x%02x%02x%s", dir, prefix,
+                         r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], suffix);
+        if (w < 0 || (size_t) w >= outsz) {
+            errno = ENAMETOOLONG;
+            break;
+        }
+        fd = cell_safe_open(out, flags | O_CREAT | O_EXCL, mode);
+        if (fd < 0 && errno != EEXIST)
+            break;
+    }
+    int e = errno;
+    close(rfd);
+    errno = e;
+    return fd;
 }
 
 static inline int cell_safe_rename(const char *from, const char *to) {
