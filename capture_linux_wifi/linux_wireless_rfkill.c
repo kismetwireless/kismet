@@ -71,6 +71,7 @@ int linux_sys_get_rfkill(const char *interface, unsigned int rfkill_type) {
         }
     }
 
+    closedir(devdir);
     return -1;
 }
 
@@ -114,6 +115,7 @@ int linux_sys_clear_rfkill(const char *interface) {
         }
     }
 
+    closedir(devdir);
     return -1;
 }
 
