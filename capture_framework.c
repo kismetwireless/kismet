@@ -1897,6 +1897,16 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             cbret = -1;
             goto finish;
+        } else if (caph->capture_running) {
+            /* Sources free their state on open; re-opening under a running capture
+             * thread would pull it out from under it */
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_openresp(caph, seqno, false, "source is already open and capturing", 0,
+                    NULL, NULL, NULL);
+            pthread_mutex_lock(&(caph->handler_lock));
+
+            cbret = 0;
+            goto finish;
         } else {
             cf_params_interface_t *interfaceparams = NULL;
             cf_params_spectrum_t *spectrumparams = NULL;
