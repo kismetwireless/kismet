@@ -82,6 +82,79 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 },
                 help: "BLE advertising PDU type indicating if device is connectable",
             },
+            {
+                field: "btle.device/btle.device.tracker",
+                groupTitle: "Location Tracker",
+                filterOnEmpty: true,
+                id: "btle_tracker",
+                help: "Location tracker (item finder) advertisement.  The values are what the tracker advertises; they are not authenticated.",
+                fields: [
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.type",
+                    title: "Type",
+                    draw: function(opts) {
+                        var types = {
+                            "samsung_smarttag": "Samsung SmartTag",
+                        };
+                        return types[opts['value']] || opts['value'];
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.state_name",
+                    title: "State",
+                    draw: function(opts) {
+                        var raw = kismet.ObjectByString(opts['data'],
+                            "btle.device/btle.device.tracker/btle.device.tracker.state");
+                        return opts['value'].replace(/_/g, " ") + " (" + raw + ")";
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.separated",
+                    title: "Separated",
+                    draw: function(opts) {
+                        if (opts['value'])
+                            return "Yes";
+                        return "No";
+                    },
+                    help: "The tracker advertises that it is away from its owner.",
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.battery",
+                    title: "Battery",
+                    draw: function(opts) {
+                        return opts['value'].replace(/_/g, " ");
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.uwb",
+                    title: "UWB",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        if (opts['value'])
+                            return "Supported";
+                        return "Not supported";
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.aging_counter",
+                    title: "Aging Counter",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.privacy_id",
+                    title: "Privacy ID",
+                    filterOnEmpty: true,
+                    help: "Rotating identifier from the advertisement.  It does not identify the owner; a separated tracker keeps it across several address changes.",
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.last_time",
+                    title: "Last Seen",
+                    draw: function(opts) {
+                        return new Date(opts['value'] * 1000);
+                    },
+                },
+                ],
+            },
             ],
         });
     },
