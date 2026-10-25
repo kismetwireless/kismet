@@ -13,8 +13,8 @@ CCLD		= @CC@
 # make current gcc/clang awful cranky under -wall
 
 LDFLAGS		+= @LDFLAGS@
-CFLAGS		+= -Wall -Wno-unknown-warning-option -Wno-format-truncation -Wno-unused-function -g -I. -fPIE @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PCAPCFLAGS@ @LIBWSCFLAGS@
-CXXFLAGS 	+= -Wall -Wno-unknown-warning-option -Wno-deprecated-declarations -Wno-format-truncation -Wno-unused-local-typedefs -Wno-unused-function -Wno-infinite-recursion -g -I. -fPIE @CXXFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@ @OPENSSL_INCLUDES@
+CFLAGS		+= -Wall @WNOCFLAGS@ -g -I. -fPIE @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PCAPCFLAGS@ @LIBWSCFLAGS@
+CXXFLAGS 	+= -Wall @WNOCXXFLAGS@ -g -I. -fPIE @CXXFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@ @OPENSSL_INCLUDES@
 CPPFLAGS 	+= @CPPFLAGS@
 
 INSTALL		= @INSTALL@

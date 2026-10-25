@@ -230,6 +230,32 @@ AS_IF([test x"$GCC_MAJOR" = x"13" -o x"$GCC_MAJOR" = x"14"],
     []
 )
 
+# Only pass the -Wno-foo options the compiler knows.  gcc ignores unknown ones
+# until something else warns, then lists each of them; it does reject an unknown
+# -Wfoo, so test that form.
+dnl KIS_CHECK_WNO(OUTPUT-VARIABLE, FLAGS-VARIABLE, WARNINGS)
+AC_DEFUN([KIS_CHECK_WNO], [
+    AC_MSG_CHECKING([which warnings can be disabled for $1])
+    kis_wno_save="$$2"
+    $1=""
+    for kis_wno in $3; do
+        $2="$kis_wno_save -Werror -W$kis_wno"
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [])], [$1="$$1 -Wno-$kis_wno"])
+    done
+    $2="$kis_wno_save"
+    AC_MSG_RESULT([$$1])
+    AC_SUBST($1)
+])
+
+KIS_CHECK_WNO([WNOCXXFLAGS], [CXXFLAGS],
+    [unknown-warning-option deprecated-declarations format-truncation unused-local-typedefs unused-function infinite-recursion])
+AC_LANG_PUSH([C])
+KIS_CHECK_WNO([WNOCFLAGS], [CFLAGS],
+    [unknown-warning-option format-truncation unused-function])
+KIS_CHECK_WNO([USBWIFI_WNOCFLAGS], [CFLAGS],
+    [unused-parameter sign-compare missing-field-initializers address-of-packed-member format-truncation unknown-warning-option])
+AC_LANG_POP([C])
+
 
 AC_SUBST(PLUGINLDFLAGS)
 
