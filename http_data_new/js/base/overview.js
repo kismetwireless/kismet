@@ -258,8 +258,9 @@ export function register(kismet) {
         id: 'new', title: 'New devices', loading: ['stat', 'histogram'], priority: 70, w: 3, h: 5, needs: ['devices'],
         create(body) {
             const recent = stat('first seen in the last 5 minutes');
-            const graph = historyGraph({ type: 'bar', unit: 'new devices', height: null, minBar: true });
-            const note = el('div', { class: 'muted ov-note' }, 'First seen, per minute, over the last hour');
+            // No unit on the axis: its label would take a third of a narrow card
+            const graph = historyGraph({ type: 'bar', unit: '', height: null, minBar: true });
+            const note = el('div', { class: 'muted ov-note' }, 'New devices per minute, over the last hour');
             body.append(recent.node, graph.node, note);
             return {
                 update(data) {
