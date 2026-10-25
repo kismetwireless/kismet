@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -115,6 +116,9 @@ int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t
     fz_cmd_len = sizeof(fz_cmd) + len;
 
     zcmd = (fz_cmd *) malloc(fz_cmd_len);
+    if (zcmd == NULL)
+        return -1;
+
     memcpy(zcmd->cmd_magic, magic, sizeof(magic));
     zcmd->version = 1;
     memcpy(zcmd->cmd, cmd, len);
@@ -124,9 +128,11 @@ int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t
                  freak->name, strerror(errno));
         cf_send_error(caph, 0, errstr);
         cf_handler_spindown(caph);
+        free(zcmd);
         return -1;
     }
 
+    free(zcmd);
     return 1;
 }
 
@@ -195,7 +201,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     }
 
     if ((localfreak->band == 0 && channel->channel != 0) ||
-            (localfreak->band == 1 && (channel == 0 || channel->channel >= 11)) ||
+            (localfreak->band == 1 && (channel->channel == 0 || channel->channel >= 11)) ||
             (localfreak->band == 2 && (channel->channel < 11 || channel->channel > 26))) {
         snprintf(errstr, STATUS_MAX, "invalid channel for this freaklabs device (%u not in band %u)", channel->channel, localfreak->band);
         cf_send_warning(caph, errstr);
@@ -288,7 +294,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
-    for (int i = s_chan; i < n_chans - s_chan; i++) {
+    for (int i = s_chan; i < s_chan + n_chans; i++) {
         char chstr[3];
         snprintf(chstr, 3, "%d", i);
         (*ret_interface)->channels[i - s_chan] = strdup(chstr);
@@ -453,18 +459,54 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 }
 
 /* Work around serial port oddness and keep spinning reading from the serial 
- * device until we get the amount of data we want or until it errors out. */
-int spin_read(int fd, uint8_t *buf, size_t len) {
+ * device until we get the amount of data we want or until it errors out.  An idle
+ * device waits until spindown; a frame that stalls part way is returned short. */
+int spin_read(kis_capture_handler_t *caph, int fd, uint8_t *buf, size_t len) {
     size_t read_so_far = 0;
+    int stalled = 0;
     int r;
 
     while (read_so_far < len) {
+        struct pollfd pfd = { .fd = fd, .events = POLLIN };
+
+        if (caph->spindown)
+            break;
+
+        r = poll(&pfd, 1, 1000);
+
+        if (r < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+
+        if (r == 0) {
+            if (read_so_far > 0 && ++stalled >= 5)
+                break;
+            continue;
+        }
+
+        /* unplugged */
+        if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+            errno = EIO;
+            return -1;
+        }
+
         r = read(fd, buf + read_so_far, len - read_so_far);
 
         if (r < 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
             return r;
         }
 
+        /* readable but no data is a hangup */
+        if (r == 0) {
+            errno = EIO;
+            return -1;
+        }
+
+        stalled = 0;
         read_so_far += r;
     }
   
@@ -501,7 +543,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        r = spin_read(localfreak->fd, buf, sizeof(fz_hdr));
+        r = spin_read(caph, localfreak->fd, buf, sizeof(fz_hdr));
 
         if (r < 0) {
             snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
@@ -511,19 +553,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        if (r == 0) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localfreak->name);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-            break;
-        }
-
-        if (r < sizeof(fz_hdr)) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full header", localfreak->name);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-            break;
-        }
+        /* idle, spindown, or a stalled partial header */
+        if (r < sizeof(fz_hdr))
+            continue;
 
         /* Silently skip ahead if there's no magic */
         if (memcmp(hdr->magic, magic, 4) != 0 && memcmp(hdr->magic, magic_legacy, 4) != 0) {
@@ -535,7 +567,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             pkt_len = hdr->version;
         } else {
             /* two-byte header of command and length */
-            r = spin_read(localfreak->fd, buf, sizeof(fz_cmd_hdr));
+            r = spin_read(caph, localfreak->fd, buf, sizeof(fz_cmd_hdr));
 
             if (r < 0) {
                 snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
@@ -545,19 +577,8 @@ void capture_thread(kis_capture_handler_t *caph) {
                 break;
             }
 
-            if (r == 0) {
-                snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localfreak->name);
-                cf_send_error(caph, 0, errstr);
-                cf_handler_spindown(caph);
-                break;
-            }
-
-            if (r < sizeof(fz_hdr)) {
-                snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full header", localfreak->name);
-                cf_send_error(caph, 0, errstr);
-                cf_handler_spindown(caph);
-                break;
-            }
+            if (r < sizeof(fz_cmd_hdr))
+                continue;
 
             if (cmd_hdr->cmd == FZ_CMD_CHANNEL) {
                 localfreak->channel = cmd_hdr->val;
@@ -573,7 +594,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         /* Read into packet buffer; buffer is always big enough to hold a uint8 length so no extra checks */
-        r = spin_read(localfreak->fd, buf, pkt_len);
+        r = spin_read(caph, localfreak->fd, buf, pkt_len);
 
         if (r < 0) {
             snprintf(errstr, BUFFER_SIZE, "%s - error reading from serial: %s",
@@ -583,19 +604,8 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        if (r == 0) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection closed", localfreak->name);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-            break;
-        }
-
-        if (r < pkt_len) {
-            snprintf(errstr, BUFFER_SIZE, "%s - serial connection failed to read full header", localfreak->name);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-            break;
-        }
+        if (r < pkt_len)
+            continue;
 
 
         while (1) {
@@ -608,6 +618,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 snprintf(errstr, BUFFER_SIZE, "%s - unable to send packet to Kismet server", localfreak->name);
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
+                break;
             } else if (r == 0) {
                 cf_handler_wait_ringbuffer(caph);
                 continue;
