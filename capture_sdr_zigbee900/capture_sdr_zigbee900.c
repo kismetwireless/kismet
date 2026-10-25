@@ -523,11 +523,18 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
 
     while (1) {
         newline = kis_simple_ringbuf_search_byte(ipc->in_ringbuf, '\n');
-        if (newline <= 0)
+        if (newline < 0)
             break;
 
-        peeked_sz = kis_simple_ringbuf_peek_zc(ipc->in_ringbuf, (void **) &buf, newline);
-        if (peeked_sz < (size_t) newline) {
+        /* skip blank lines */
+        if (newline == 0) {
+            kis_simple_ringbuf_read(ipc->in_ringbuf, NULL, 1);
+            continue;
+        }
+
+        /* peek the newline too, it becomes the terminator */
+        peeked_sz = kis_simple_ringbuf_peek_zc(ipc->in_ringbuf, (void **) &buf, newline + 1);
+        if (peeked_sz < (size_t) newline + 1) {
             kis_simple_ringbuf_peek_free(ipc->in_ringbuf, buf);
             break;
         }
@@ -536,7 +543,7 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
 
         matched = 0;
         if (strncmp(buf, "PSDU ", 5) == 0) {
-            if (sscanf(buf + 5, "%u %d %127s", &line_channel, &line_rssi, hexbuf) == 3) {
+            if (sscanf(buf + 5, "%u %d %254s", &line_channel, &line_rssi, hexbuf) == 3) {
                 pkt_len = hex_decode(hexbuf, strlen(hexbuf), pkt, sizeof(pkt));
                 if (pkt_len > 0) {
                     struct cf_params_signal sig;
@@ -591,11 +598,18 @@ int ipc_handle_err(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz)
 
     while (1) {
         newline = kis_simple_ringbuf_search_byte(ipc->err_ringbuf, '\n');
-        if (newline <= 0)
+        if (newline < 0)
             break;
 
-        peeked_sz = kis_simple_ringbuf_peek_zc(ipc->err_ringbuf, (void **) &buf, newline);
-        if (peeked_sz < (size_t) newline) {
+        /* skip blank lines */
+        if (newline == 0) {
+            kis_simple_ringbuf_read(ipc->err_ringbuf, NULL, 1);
+            continue;
+        }
+
+        /* peek the newline too, it becomes the terminator */
+        peeked_sz = kis_simple_ringbuf_peek_zc(ipc->err_ringbuf, (void **) &buf, newline + 1);
+        if (peeked_sz < (size_t) newline + 1) {
             kis_simple_ringbuf_peek_free(ipc->err_ringbuf, buf);
             break;
         }
