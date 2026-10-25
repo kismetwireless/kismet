@@ -1800,7 +1800,12 @@ bool kis_net_beast_route::match_verb(boost::beast::http::verb verb) {
 }
 
 bool kis_net_beast_route::match_role(bool login, const std::string& role) {
-    if (login_ && !login)
+    // Routes without a login are open to everyone, whatever the role of a token or cookie
+    // the client sends along
+    if (!login_)
+        return true;
+
+    if (!login)
         return false;
 
     bool valid = false;
