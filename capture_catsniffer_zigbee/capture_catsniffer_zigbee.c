@@ -314,6 +314,11 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
 
     //printf("set_channel: Attempting to set channel to %u.\n", channel); //Debug
 
+    /* Only 2.4GHz channels can be tuned; check before stopping the radio */
+    if (channel < 11 || channel > 26) {
+        return -1; /* Invalid channel */
+    }
+
     // First, send the stop command
     //printf("set_channel: Sending stop command.\n"); //Debug
     r = send_stop_command(caph, catsniffer);
@@ -327,10 +332,6 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
     if (r < 0) {
         printf("init_interface: Failed to send initialization command. Error code: %d.\n", r);
         return r;
-    }
-
-    if (channel < 11 || channel > 26) {
-        return -1; // Invalid channel
     }
 
     int channel_index = channel - START_CHANNEL;
@@ -393,9 +394,17 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     }
 
     if ((localcatsniffer->band == 0 && channel->channel != 0) ||
-            (localcatsniffer->band == 1 && (channel == 0 || channel->channel >= 11)) ||
+            (localcatsniffer->band == 1 && (channel->channel == 0 || channel->channel >= 11)) ||
             (localcatsniffer->band == 2 && (channel->channel < 11 || channel->channel > 26))) {
         snprintf(errstr, STATUS_MAX, "invalid channel for this device (%u not in band %u)", channel->channel, localcatsniffer->band);
+        cf_send_warning(caph, errstr);
+        return 1;
+    }
+
+    /* There are no tuning commands for the sub-GHz bands */
+    if (channel->channel < 11 || channel->channel > 26) {
+        snprintf(errstr, STATUS_MAX, "channel control is only supported on 2.4GHz (band %u)",
+                localcatsniffer->band);
         cf_send_warning(caph, errstr);
         return 1;
     }
@@ -518,7 +527,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
 
     char *localbaudratestr = NULL;
-    unsigned int *localbaudrate = NULL;
+    unsigned int localbaudrate = 0;
 
     /* 0: 800mhz
      * 1: 900mhz (0-11)
@@ -551,19 +560,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
-        localbaudrate = (unsigned int *) malloc(sizeof(unsigned int));
-        *localbaudrate = atoi(localbaudratestr);
-        free(localbaudratestr);
 
-        if (localbaudrate == NULL) {
+        if (localbaudratestr == NULL || sscanf(localbaudratestr, "%u", &localbaudrate) != 1 ||
+                get_baud(localbaudrate) < 0) {
+            free(localbaudratestr);
+            free(device);
             snprintf(msg, STATUS_MAX, "%s could not parse baudrate option "
                                       "provided in source definition", localcatsniffer->name);
             return -1;
         }
 
-        localcatsniffer->baudrate = get_baud(*localbaudrate);
+        free(localbaudratestr);
 
-        free(localbaudrate);
+        localcatsniffer->baudrate = get_baud(localbaudrate);
     } else {
         localcatsniffer->baudrate = D_BAUDRATE;
     }
