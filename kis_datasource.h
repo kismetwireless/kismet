@@ -602,6 +602,16 @@ protected:
     std::atomic<unsigned int> close_grace_ms{0};
     std::atomic<bool> graceful_close_pending{false};
     int graceful_close_timer_id{-1};
+    // Bumped each time the grace timer is cancelled, so a callback already running
+    // when it was cancelled leaves a newer close alone; guarded by ext_mutex
+    uint64_t graceful_close_gen{0};
+
+    // ext_mutex held.  Only cancels: remove_timer() waits for a running callback,
+    // and the callback takes ext_mutex
+    void cancel_graceful_close_timer();
+
+    // With only_gen, abort only the graceful close that grace timer belongs to
+    void abort_graceful_close(const std::string& in_reason, const uint64_t *only_gen);
 
     // An open requested while a graceful close was still finishing -- the web
     // UI's close -> open restart.  It runs once the close completes, so the old

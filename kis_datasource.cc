@@ -581,8 +581,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     // A remote capture reconnecting replaces whatever was closing
     graceful_close_pending = false;
-    timetracker->remove_timer(graceful_close_timer_id);
-    graceful_close_timer_id = -1;
+    cancel_graceful_close_timer();
     pending_open = nullptr;
 
     // Unlock before attaching sockets
@@ -668,8 +667,7 @@ void kis_datasource::handle_error(const std::string& in_error) {
     if (graceful_close_pending.exchange(false)) {
         {
             kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_error graceful");
-            timetracker->remove_timer(graceful_close_timer_id);
-            graceful_close_timer_id = -1;
+            cancel_graceful_close_timer();
         }
 
         _MSG_INFO("Data source '{} / {}' closed cleanly ({})", get_source_name(),
@@ -741,19 +739,31 @@ bool kis_datasource::begin_graceful_close() {
     _MSG_DEBUG("Data source '{}' is closing; waiting up to {} ms for it to finish",
             get_source_name(), wait_ms);
 
-    timetracker->remove_timer(graceful_close_timer_id);
+    cancel_graceful_close_timer();
+    auto gen = graceful_close_gen;
+    // Weak, so a callback still running after a cancel can't outlive the source
+    std::weak_ptr<kis_external_interface> weak = shared_from_this();
     graceful_close_timer_id =
         timetracker->register_timer(static_cast<int>((wait_ms + 99) / 100), nullptr, 0,
-                [this](int) -> int {
-                    {
-                        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource graceful_close timer");
-                        graceful_close_timer_id = -1;
-                    }
-                    abort_graceful_close("did not finish closing within its grace");
+                [this, gen, weak](int) -> int {
+                    auto self = weak.lock();
+                    if (self == nullptr)
+                        return 0;
+
+                    abort_graceful_close("did not finish closing within its grace", &gen);
                     return 0;
                 });
 
     return true;
+}
+
+void kis_datasource::cancel_graceful_close_timer() {
+    graceful_close_gen++;
+
+    if (graceful_close_timer_id >= 0)
+        timetracker->cancel_timer(graceful_close_timer_id);
+
+    graceful_close_timer_id = -1;
 }
 
 unsigned int kis_datasource::get_graceful_close_wait_ms() const {
@@ -764,13 +774,22 @@ unsigned int kis_datasource::get_graceful_close_wait_ms() const {
 }
 
 void kis_datasource::abort_graceful_close(const std::string& in_reason) {
-    if (!graceful_close_pending.exchange(false))
-        return;
+    abort_graceful_close(in_reason, nullptr);
+}
 
+void kis_datasource::abort_graceful_close(const std::string& in_reason,
+        const uint64_t *only_gen) {
     {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource abort_graceful_close");
-        timetracker->remove_timer(graceful_close_timer_id);
-        graceful_close_timer_id = -1;
+
+        // A grace timer cancelled while its callback was already running
+        if (only_gen != nullptr && *only_gen != graceful_close_gen)
+            return;
+
+        if (!graceful_close_pending.exchange(false))
+            return;
+
+        cancel_graceful_close_timer();
     }
 
     _MSG_ERROR("Data source '{} / {}' {}; closing it without the rest of its teardown",
@@ -815,8 +834,7 @@ void kis_datasource::close_external_impl() {
 
     // Whatever closed us, nothing is pending any more
     graceful_close_pending = false;
-    timetracker->remove_timer(graceful_close_timer_id);
-    graceful_close_timer_id = -1;
+    cancel_graceful_close_timer();
 
     auto reopen = std::move(pending_open);
     pending_open = nullptr;
