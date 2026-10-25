@@ -92,6 +92,12 @@ struct usbserial_dev {
     int inflight;
     int stopping;
     int failed;
+    int cancelled;
+
+    /* Why it failed; a generic transfer error is checked against the device being
+     * unplugged before it's reported, since macOS reports an unplug that way */
+    char fail_reason[128];
+    int fail_unknown;
 
     usbserial_rx_cb_t rx_cb;
     usbserial_err_cb_t err_cb;
@@ -395,15 +401,14 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
     return dev;
 }
 
-/* Lock held */
-static void fail_locked(usbserial_dev_t *dev, const char *reason) {
+/* Lock held; the event thread reports it once the transfers are back */
+static void fail_locked(usbserial_dev_t *dev, const char *reason, int unknown) {
     if (dev->failed)
         return;
 
     dev->failed = 1;
-
-    if (dev->err_cb != NULL)
-        dev->err_cb(dev, reason, dev->aux);
+    dev->fail_unknown = unknown;
+    snprintf(dev->fail_reason, sizeof(dev->fail_reason), "%s", reason);
 }
 
 /* Lock held */
@@ -414,8 +419,10 @@ static int submit_locked(usbserial_dev_t *dev, struct libusb_transfer *t) {
         return -1;
 
     if ((r = libusb_submit_transfer(t)) != 0) {
-        fail_locked(dev, r == LIBUSB_ERROR_NO_DEVICE ? "device was removed" :
-                libusb_strerror(r));
+        if (r == LIBUSB_ERROR_NO_DEVICE)
+            fail_locked(dev, "device was removed", 0);
+        else
+            fail_locked(dev, libusb_strerror(r), 1);
         return -1;
     }
 
@@ -456,13 +463,13 @@ static int transfer_status_ok(usbserial_dev_t *dev, struct libusb_transfer *t) {
         case LIBUSB_TRANSFER_CANCELLED:
             return 0;
         case LIBUSB_TRANSFER_NO_DEVICE:
-            fail_locked(dev, "device was removed");
+            fail_locked(dev, "device was removed", 0);
             return 0;
         case LIBUSB_TRANSFER_STALL:
-            fail_locked(dev, "endpoint stalled");
+            fail_locked(dev, "endpoint stalled", 1);
             return 0;
         default:
-            fail_locked(dev, "transfer failed");
+            fail_locked(dev, "transfer failed", 1);
             return 0;
     }
 }
@@ -544,21 +551,93 @@ static void LIBUSB_CALL tx_complete(struct libusb_transfer *t) {
     pthread_mutex_unlock(&dev->lock);
 }
 
+/* Lock held; cancelling a transfer that isn't in flight is harmless */
+static void cancel_all_locked(usbserial_dev_t *dev) {
+    size_t i;
+    int x;
+
+    if (dev->cancelled)
+        return;
+
+    dev->cancelled = 1;
+
+    for (i = 0; i < dev->num_ports; i++) {
+        usbserial_port_t *port = &dev->ports[i];
+
+        for (x = 0; x < USBSERIAL_RX_XFERS; x++)
+            libusb_cancel_transfer(port->rx[x]);
+        if (port->intr != NULL)
+            libusb_cancel_transfer(port->intr);
+        if (port->tx_busy)
+            libusb_cancel_transfer(port->tx);
+    }
+}
+
+/* Whether the device has been unplugged; only from the event thread with no
+ * transfers in flight, since it makes a synchronous request */
+static int device_gone(usbserial_dev_t *dev) {
+    libusb_device *self = libusb_get_device(dev->handle);
+    libusb_device **list = NULL;
+    unsigned char status[2];
+    ssize_t n, i;
+    int r, found = 0;
+
+    r = libusb_control_transfer(dev->handle,
+            LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_STANDARD | LIBUSB_RECIPIENT_DEVICE,
+            LIBUSB_REQUEST_GET_STATUS, 0, 0, status, sizeof(status), 500);
+
+    if (r == LIBUSB_ERROR_NO_DEVICE)
+        return 1;
+    if (r >= 0)
+        return 0;
+
+    /* Some backends fail the request without saying why; fall back to whether the
+     * device is still on the bus */
+    if ((n = libusb_get_device_list(dev->ctx, &list)) < 0)
+        return 0;
+
+    for (i = 0; i < n; i++) {
+        if (list[i] == self) {
+            found = 1;
+            break;
+        }
+    }
+
+    libusb_free_device_list(list, 1);
+
+    return !found;
+}
+
 static void *event_thread(void *arg) {
     usbserial_dev_t *dev = (usbserial_dev_t *) arg;
+    int report = 0;
 
     while (1) {
         struct timeval tv = { 0, 100000 };
         int done;
 
         pthread_mutex_lock(&dev->lock);
+
+        /* One failed transfer stops the device; bring the rest back */
+        if (dev->failed)
+            cancel_all_locked(dev);
+
         done = (dev->stopping || dev->failed) && dev->inflight == 0;
+        report = dev->failed && !dev->stopping;
+
         pthread_mutex_unlock(&dev->lock);
 
         if (done)
             break;
 
         libusb_handle_events_timeout_completed(dev->ctx, &tv, NULL);
+    }
+
+    if (report && dev->err_cb != NULL) {
+        if (dev->fail_unknown && device_gone(dev))
+            snprintf(dev->fail_reason, sizeof(dev->fail_reason), "device was removed");
+
+        dev->err_cb(dev, dev->fail_reason, dev->aux);
     }
 
     return NULL;
@@ -632,26 +711,12 @@ int usbserial_start(usbserial_dev_t *dev, usbserial_rx_cb_t rx_cb,
 }
 
 void usbserial_close(usbserial_dev_t *dev) {
-    size_t i;
-    int x;
-
     if (dev == NULL)
         return;
 
     pthread_mutex_lock(&dev->lock);
     dev->stopping = 1;
-
-    for (i = 0; i < dev->num_ports; i++) {
-        usbserial_port_t *port = &dev->ports[i];
-
-        for (x = 0; x < USBSERIAL_RX_XFERS; x++)
-            libusb_cancel_transfer(port->rx[x]);
-        if (port->intr != NULL)
-            libusb_cancel_transfer(port->intr);
-        if (port->tx_busy)
-            libusb_cancel_transfer(port->tx);
-    }
-
+    cancel_all_locked(dev);
     pthread_mutex_unlock(&dev->lock);
 
     /* The event thread runs until every cancelled transfer has come back */
