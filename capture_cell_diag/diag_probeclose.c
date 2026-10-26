@@ -643,7 +643,17 @@ static void test_drain_input(void) {
      * its bound and leaves the rest. */
     char blob[DIAG_PROBE_DRAIN_MAX + 4096];
     memset(blob, 'x', sizeof(blob));
-    (void)!write(sv[1], blob, sizeof(blob));
+    /* macOS buffers only 8 KB each way on a local socket; make room for the
+     * whole blob, or the write blocks with nothing reading */
+    int bufsz = 4 * (int)sizeof(blob);
+    for (int k = 0; k < 2; k++) {
+        setsockopt(sv[k], SOL_SOCKET, SO_SNDBUF, &bufsz, sizeof(bufsz));
+        setsockopt(sv[k], SOL_SOCKET, SO_RCVBUF, &bufsz, sizeof(bufsz));
+    }
+    check(fcntl(sv[1], F_SETFL, fcntl(sv[1], F_GETFL) | O_NONBLOCK) == 0,
+          "drain: a non-blocking writer");
+    check(write(sv[1], blob, sizeof(blob)) == (ssize_t)sizeof(blob),
+          "drain: the whole blob is queued");
     n = diag_probe_drain_input(sv[0]);
     check(n >= DIAG_PROBE_DRAIN_MAX && n < (ssize_t)sizeof(blob),
           "drain: bounded -- stops at DIAG_PROBE_DRAIN_MAX");
