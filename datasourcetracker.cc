@@ -21,6 +21,8 @@
 #include <string.h>
 #include <getopt.h>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 
 #include <string_view>
@@ -125,22 +127,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
             // _MSG_DEBUG("successful probe response");
             source_builder = v->second->get_source_builder();
         } else {
-            // Keep the decline reason from a driver that plausibly OWNS this
-            // definition.  Otherwise the operator gets only the generic
-            // "Unable to find driver" sentence -- identical for a typo, a
-            // missing helper package and an unplugged radio.
-            //
-            // Filtered rather than accumulated. Every builder is probed with
-            // every definition and the stock helpers DO write a reason for a
-            // foreign one (capture_linux_wifi's "Expected an interface with a
-            // standard network API, skipping"), so surfacing them all would
-            // turn one bad `-c` into a paragraph. See
-            // datasource_probe_reason.h for why the test is ownership and not
-            // the reason's content.
-            //
-            // First writer wins: a second owning driver's reason would be a
-            // less-close match by construction, and appending them yields a
-            // sentence whose two halves contradict each other.
+            // Keep the first reason from a driver that owns this definition
             auto b = v->second->get_source_builder();
             if (decline_reason.empty() && !in_reason.empty() && b != nullptr &&
                     datasource_reason_is_own_definition(definition, b->get_source_type()))
@@ -277,12 +264,9 @@ void datasource_tracker_source_list::cancel() {
     if (cancel_event_id >= 0)
         timetracker->cancel_timer(cancel_event_id);
 
-    // Answer with whatever HAS arrived.  Answering only when nothing is
-    // outstanding is not enough, because nothing answers later: a lister still
-    // running at the deadline would leave /datasource/list_interfaces blocked
-    // in block_until() for good, and the web UI's Sources panel would read its
-    // 30 s ajax timeout as "no interfaces". A slow lister costs its own
-    // entries, not everyone's. list_cb is cleared so no path can answer twice.
+    // Answer with whatever has arrived; a lister still running at the deadline
+    // would otherwise leave the request waiting forever.  Cleared so nothing
+    // answers twice.
     if (list_cb) {
         auto cb = list_cb;
         list_cb = nullptr;
@@ -329,8 +313,7 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
 
     source->close_source_async([]() {});
 
-    // If we've emptied the vec, end -- but never mid-launch, where an empty map
-    // means only "the listers after this one are not registered yet".
+    // If we've emptied the vec, end, unless the remaining listers aren't launched yet
     if (ipc_list_map.size() == 0 && !launching) {
         cancel();
         return;
@@ -371,19 +354,12 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
     launching = false;
 
-    // Every lister already answered (none launched, or all answered inline).
+    // Every lister already answered, or none launched
     if (ipc_list_map.size() == 0) {
         cancel();
         return;
     }
 
-    // The listing deadline. Upstream's fixed 2 s assumes listers that
-    // enumerate; the cell helpers (kismet_cap_cell_at / kismet_cap_cell_diag)
-    // must TALK to each modem -- AT+CGMR/CGSN/CGMI/CGMM on every AT port --
-    // which takes seconds with several modems attached (one unit that never
-    // sends a final OK costs seconds on its own). With a 2 s deadline their
-    // entries never reach the Sources panel at all. Configurable; a lister still running at
-    // the deadline is simply left out of that answer (see cancel()).
     auto list_timeout_s =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("datasource_list_timeout", 10);
     if (list_timeout_s == 0)
@@ -753,13 +729,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (success)
                         return r;
 
-                    // Say why.  A 500 with an empty map would leave the web
-                    // UI's Enable -- the only way to add a cell source without
-                    // editing config -- showing nothing but "it went away" for
-                    // a missing decode helper, a modem that is not attached, or
-                    // a refused option. The endpoint wrapper
-                    // turns a throw into 500 + "ERROR: <what>", which the panel
-                    // displays on the row the operator clicked.
+                    // Becomes a 500 with the reason, instead of an empty map
                     throw std::runtime_error(fmt::format("unable to open '{}': {}",
                                 definition, error_reason.empty() ?
                                 "the open failed and gave no reason" : error_reason));
@@ -1013,6 +983,14 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (ds == nullptr)
                         throw std::runtime_error("no such datasource");
 
+                    // Only the cell sources' restart-time settings; file, command and
+                    // identity options can't be changed through here
+                    auto builder = ds->get_source_builder();
+                    auto ds_type = builder == nullptr ? std::string() :
+                        str_lower(builder->get_source_type());
+                    if (ds_type != "cellat" && ds_type != "celldiag")
+                        throw std::runtime_error("update_definition only applies to cell sources");
+
                     if (ds->get_source_running())
                         throw std::runtime_error("source is running; close_source "
                                 "first, then update_definition, then open_source "
@@ -1032,10 +1010,47 @@ void datasource_tracker::trigger_deferred_startup() {
                         throw std::runtime_error("'options' is empty; an update "
                                 "that changes nothing would report success");
 
+                    static constexpr std::array<std::string_view, 5> at_opts{
+                        "enabled", "strategy", "debug", "bandlock", "clock_anchor_sec"
+                    };
+                    static constexpr std::array<std::string_view, 6> diag_opts{
+                        "enabled", "mask", "f3", "qsh", "rawpackets", "clock_anchor_sec"
+                    };
+
+                    auto is_at = ds_type == "cellat";
+
+                    // Validate everything before applying anything
                     for (auto& kv : opts.items()) {
+                        auto ok = is_at ?
+                            std::find(at_opts.begin(), at_opts.end(), kv.key()) != at_opts.end() :
+                            std::find(diag_opts.begin(), diag_opts.end(), kv.key()) != diag_opts.end();
+
+                        if (!ok)
+                            throw std::runtime_error(is_at ?
+                                    "unsupported option; update_definition accepts "
+                                    "enabled, strategy, debug, bandlock, clock_anchor_sec" :
+                                    "unsupported option; update_definition accepts "
+                                    "enabled, mask, f3, qsh, rawpackets, clock_anchor_sec");
+
                         if (!kv.value().is_string())
                             throw std::runtime_error(fmt::format("option '{}' must "
                                         "be a string", kv.key()));
+
+                        // Values are folded into the comma-separated definition
+                        const auto& v = kv.value().get_ref<const std::string&>();
+                        if (v.empty() || v.length() > 64)
+                            throw std::runtime_error(fmt::format("option '{}' has an "
+                                        "invalid value", kv.key()));
+
+                        for (auto c : v) {
+                            if (!isalnum(static_cast<unsigned char>(c)) && c != '_' &&
+                                    c != '-' && c != '.')
+                                throw std::runtime_error(fmt::format("option '{}' has an "
+                                            "invalid value", kv.key()));
+                        }
+                    }
+
+                    for (auto& kv : opts.items()) {
 
                         _MSG_INFO("Source '{}' ({}) definition override {}={} "
                                 "(applies on next open)",
@@ -1642,20 +1657,9 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                         "are loaded, the interface is available, and any required Kismet helper packages are "
                         "installed.", i->second->get_definition());
 
-                // Append the reason from the driver that plausibly owns this
-                // definition, if one gave us a reason. Without this the
-                // sentence above is definition-agnostic: identical for a typo,
-                // a missing helper package and an unplugged radio, even when a
-                // helper wrote a sentence naming the exact problem.
-                //
-                // Concatenated onto the SAME message rather than emitted as a
-                // second one: the two are one event, and a separate _MSG would
-                // be free to arrive apart from it (or, on a --silent server, to
-                // be the half that survives).
                 auto reason = i->second->get_decline_reason();
                 if (reason.length())
                     ss += fmt::format("  The closest matching driver said: {}", reason);
-
                 _MSG(ss, MSGFLAG_ERROR);
                 lock.unlock();
                 in_cb(false, ss, NULL);

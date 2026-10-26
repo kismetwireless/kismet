@@ -178,19 +178,10 @@ bool kis_wiglecsv_logfile::open_log(const std::string& in_template, const std::s
     _MSG_INFO("Opened wiglecsv log file '{}'", in_path);
 
     // CSV headers
-    //
-    // appRelease carries the fork name so an upload is traceable to this fork
-    // rather than reading as stock Kismet.  Only appRelease: model, device,
-    // display, board and brand stay upstream's values on purpose, because
-    // wigle.net keys client attribution on them and how it treats unknown ones
-    // is unverified -- a DQ'd or oddly-bucketed upload would cost more than
-    // the extra attribution is worth.  release= likewise keeps the bare
-    // numeric triple, which is why VERSION_POC_NAME is a separate symbol.
-    fmt::print(csvfile, "WigleWifi-1.6,appRelease={4}-{0}.{1}.{2}-{3},model=Kismet,"
+    fmt::print(csvfile, "WigleWifi-1.6,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,"
             "release={0}.{1}.{2}-{3},device=kismet,display=kismet,board=kismet,brand=Kismet,"
             "star=Sol,body=3,subBody=0\n",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT,
-            VERSION_POC_NAME);
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
     fmt::print(csvfile, "MAC,SSID,AuthMode,FirstSeen,Channel,Frequency,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,RCOIs,MfgrId,Type\n");
 
@@ -268,11 +259,10 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (in_pack->common_info.type != packet_basic_mgmt)
         return 1;
 
-    // Find the record for the origin device.
-    // Cell PHY uses common->dest (not source) as the device MAC to get
-    // RX packet classification, so also check dest if source lookup fails.
+    // Find the record for the origin device; the cell phy files its cell under dest
     auto d_k = devs->devrefs.find(in_pack->common_info.source);
-    if (d_k == devs->devrefs.end())
+    if (d_k == devs->devrefs.end() && wigle->cell_phy != nullptr &&
+            in_pack->common_info.phyid == wigle->cell_phy->fetch_phy_id())
         d_k = devs->devrefs.find(in_pack->common_info.dest);
     if (d_k == devs->devrefs.end())
         return 1;
@@ -487,18 +477,18 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         //   [CurrentLatitude],[CurrentLongitude],[AltitudeMeters],[AccuracyMeters],
         //   [RCOIs],[MfgrId],[Type]
         fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
-                emit_key,
+                munge_for_csv(emit_key),
                 munge_for_csv(emit_operator),
-                authmode,
+                munge_for_csv(authmode),
                 ts.str(),
-                dev->get_channel(),
+                munge_for_csv(dev->get_channel()),
                 (uint32_t) cell->get_cell_arfcn(),
                 signal,
                 in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
                 0,
                 "",
                 "",
-                cell->get_cell_rat());
+                munge_for_csv(cell->get_cell_rat()));
     }
 
     {

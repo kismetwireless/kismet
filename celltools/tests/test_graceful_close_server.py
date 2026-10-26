@@ -69,8 +69,9 @@ class LoggingKismetServer(KismetServer):
 
     def __init__(self, tmp_path: Path, srcdef: str, extra: "tuple[str, ...]" = ()) -> None:
         super().__init__(tmp_path, srcdef, silent=False)
-        self.logdir = tmp_path / "logs"
-        self.logdir.mkdir()
+        # The test's own directory: the server confines rawlog=, atlog= and
+        # the like to the log directory, and the tests put those files there.
+        self.logdir = tmp_path
         site = self.conf / "kismet_site.conf"
         kept = [ln for ln in site.read_text().splitlines()
                 if ln.split("=", 1)[0].strip().lower() not in self._KEYS]

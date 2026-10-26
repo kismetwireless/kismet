@@ -99,12 +99,6 @@ CONF_FILES=(
 #
 # Format: <name in conf/>|<name under $KISMET_SHARE>|<consumer that reads it>
 #
-# ⚠️ Two of these differ from the conf/ name: the bluetooth defaults in
-# bluetooth_ids.cc are spelled WITHOUT .gz. That is not a typo to correct here
-# -- the consumer opens them with gzopen(), which reads gzip content regardless
-# of extension, so a link named .txt pointing at conf/'s .txt.gz resolves and
-# decompresses correctly. Naming them .txt.gz under share/ does not.
-#
 # ⚠️ kismet_uav.conf.yaml is deliberately NOT in this group. It is a BUILD
 # input -- a build step compiles it into conf/kismet_uav.conf,
 # which is what ships as a config symlink in [1/5]. No runtime code path opens
@@ -112,8 +106,8 @@ CONF_FILES=(
 DATA_FILES=(
   "kismet_manuf.txt.gz|kismet_manuf.txt.gz|kismet.conf ouifile"
   "kismet_adsb_icao.txt.gz|kismet_adsb_icao.txt.gz|kismet.conf icaofile"
-  "kismet_bluetooth_ids.txt.gz|kismet_bluetooth_ids.txt|bluetooth_ids.cc btoidfile default"
-  "kismet_bluetooth_manuf.txt.gz|kismet_bluetooth_manuf.txt|bluetooth_ids.cc btmanuffile default"
+  "kismet_bluetooth_ids.txt.gz|kismet_bluetooth_ids.txt.gz|bluetooth_ids.cc btoidfile default"
+  "kismet_bluetooth_manuf.txt.gz|kismet_bluetooth_manuf.txt.gz|bluetooth_ids.cc btmanuffile default"
 )
 # The helper dirs kismet_site.conf must put on the search path. Without these
 # the server falls back to the installed helpers in /usr/local/bin, which is the

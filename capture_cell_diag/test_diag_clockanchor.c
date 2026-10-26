@@ -1,7 +1,7 @@
 /* test_diag_clockanchor.c - standalone unit tests for the DIAG clock anchor.
  *
  * Links diag_clockanchor.c + its two libc-only dependencies (diag_hdlc.c,
- * diag_capmeta.c) and nothing else: `make -f standalone.mk check`. Covers the
+ * diag_capmeta.c) and nothing else: `make check`. Covers the
  * request frame, the reply scanner (split reads, stuffed bytes, interleaved
  * flood, partial in-flight frame, rejection, CRC failure), the midpoint, the
  * record's exact bytes, and the sidecar path + append.

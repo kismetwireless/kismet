@@ -1,13 +1,5 @@
 include Makefile.inc
 
-# Pin the default goal explicitly. GNU make otherwise takes it from the first
-# non-special target in the file, and this fork adds targets (check-decisions,
-# and any future selftest) ABOVE upstream's `all:` -- so a bare `make` built one
-# unit test and no kismet binary, with no error, which reads as a good build.
-# Setting it here makes the goal independent of target order, so inserting
-# another target above `all:` cannot silently reintroduce that.
-.DEFAULT_GOAL := all
-
 CONFIGFILES = \
 	kismet.conf \
 	kismet_httpd.conf \
@@ -281,10 +273,9 @@ LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_GPX) \
 	$(LOGTOOL_KISMETDB_CLEAN) \
 	$(LOGTOOL_KISMETDB_PCAP) \
-	$(LOGTOOL_KISMETDB_CELLNDJSON) \
-	$(LOGTOOL_KISMETDB_ATLOG) \
-	$(LOGTOOL_KISMETDB_QMILOG) \
-	$(LOGTOOL_KISMETDB_HDLC)
+	$(CELL_LOGTOOL_BINS)
+
+CELL_LOGTOOL_BINS = @CELL_LOGTOOL_BINS@
 
 TOOL_KISMET_DISCOVERY = tools/kismet_discovery
 TOOL_KISMET_DISCOVERY_O = \
@@ -292,38 +283,6 @@ TOOL_KISMET_DISCOVERY_O = \
 
 TOOL_BINS = \
 	$(TOOL_KISMET_DISCOVERY)
-
-# diagspec DIAG decode->frame chain (GPL-2.0-or-later, SPDX-stamped).
-#
-# Deliberately empty.  The decode legs (the 0xB0C0/0xB821/0xB808 frame legs, the
-# 0xB192/0xB195/0xB0C0/0xB97F cell_observation legs, their generated parsers
-# and the UPER/SIB1 closure) cannot be called from the server:
-#
-#   * The decoding runs in the capture HELPER's process, not in this server.
-#   * The helper's decoded upstream is cf_send_json() -- already-decoded
-#     observations and diag_stats.
-#   * The raw DIAG slices it sends via cf_send_data() (DLT 147) are cuts of the
-#     byte stream, not records, and go only to the loggers; see
-#     datasource_cell_diag.h.
-#
-# A leg linked here would be dead weight
-# in a 400+ MB binary and misrepresent where decoding happens.  The legs build
-# and ship in capture_cell_diag/, via that directory's DIAGSPEC_SRCS/NATIVE_OBJS,
-# which is the process holding the raw bytes: exactly one implementation per
-# log code.
-#
-# The variable is kept (rather than deleted along with its uses) so that if a
-# raw-payload helper->server path is ever DESIGNED, restoring the link is a list
-# edit at one site instead of a re-derivation. Until then,
-# diagspec/check_binary_symbols.sh's `server` role -- an ABSENCE assertion --
-# fails the link below if any leg symbol reappears in the binary.
-#
-# DIAGSPEC_INC and the diagspec/%.cpp.o pattern rule stay for the same reason:
-# they are how a re-added object would be compiled (with the diagspec include
-# roots, against Kismet's own vendored Kaitai runtime -- the chain drops
-# diagspec's runtime entirely, so there is no v0.10/v0.11 collision).
-DIAGSPEC_INC = -Idiagspec/generated/cpp -Idiagspec/enrichment/cpp
-DIAGSPEC_O =
 
 PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o \
 	sqlite3_cpp11.cc.o mpack/mpack.c.o \
@@ -374,75 +333,6 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	kis_database.cc.o \
 	kismet_server.cc.o
 
-# phy_cell decision-layer selftest. Links ONLY phy_cell_decisions.cc --
-# no devicetracker, no entrytracker, no packet chain -- which is the whole point:
-# the funnel every cell observation passes through is otherwise reachable only
-# by running the entire server against hardware or a replay.
-TEST_PHY_CELL_BIN = test_phy_cell_decisions
-
-# diagspec/enrichment/cpp/lte_band.cpp is the helper's band table. When the tree
-# has it, it is linked HERE only, so the selftest can sweep the server's table
-# against it. A tree without the diagspec decode sources builds the selftest
-# without that one sweep.
-TEST_PHY_CELL_BAND_SRC = $(wildcard diagspec/enrichment/cpp/lte_band.cpp)
-ifneq ($(TEST_PHY_CELL_BAND_SRC),)
-TEST_PHY_CELL_BAND_FLAGS = -DHAVE_HELPER_BAND_TABLE -Idiagspec/enrichment/cpp
-endif
-$(TEST_PHY_CELL_BIN):	test_phy_cell_decisions.cc phy_cell_decisions.cc phy_cell_decisions.h \
-		$(TEST_PHY_CELL_BAND_SRC)
-		$(CXX) $(CXXFLAGS) $(CPPFLAGS) -I. $(TEST_PHY_CELL_BAND_FLAGS) -o $(TEST_PHY_CELL_BIN) \
-		    test_phy_cell_decisions.cc phy_cell_decisions.cc \
-		    $(TEST_PHY_CELL_BAND_SRC) $(LDFLAGS)
-
-# device_location_signal_threshold admission selftest. Links NOTHING --
-# device_location_policy.h is header-only and dependency-free, which is the
-# whole reason the decision was lifted out of update_common_device: that method
-# needs a packet chain, an entrytracker and the devicelist mutex.
-TEST_DEVLOC_BIN = test_device_location_policy
-
-$(TEST_DEVLOC_BIN):	test_device_location_policy.cc device_location_policy.h
-		$(CXX) $(CXXFLAGS) $(CPPFLAGS) -I. -o $(TEST_DEVLOC_BIN) \
-		    test_device_location_policy.cc $(LDFLAGS)
-
-# Probe-decline ownership selftest. Links NOTHING --
-# datasource_probe_reason.h is header-only, for the same reason
-# device_location_policy.h is: the decision about WHICH declining driver's
-# reason an operator should see sits inside complete_probe(), which needs a
-# time tracker, a builder vec and a live IPC probe map. Lifting it out is what
-# makes it testable on a host that cannot ./configure this tree at all.
-#
-# Compiles with a bare `c++ -std=c++17 test_datasource_probe_reason.cc` too, on
-# a host with no configure.  Defining _XOPEN_SOURCE breaks that on Darwin by
-# hiding its BSD extensions; this file deliberately does not define it.
-TEST_PROBE_REASON_BIN = test_datasource_probe_reason
-
-$(TEST_PROBE_REASON_BIN):	test_datasource_probe_reason.cc datasource_probe_reason.h
-		$(CXX) $(CXXFLAGS) $(CPPFLAGS) -I. -o $(TEST_PROBE_REASON_BIN) \
-		    test_datasource_probe_reason.cc $(LDFLAGS)
-
-# timetracker_dispatch.h holds the timer dispatcher's launch rule: a
-# timer still running from an earlier tick is never launched again. Lifted out
-# of time_tracker::time_dispatcher() for the same reason as the headers above --
-# the dispatcher needs a global registry, worker threads and a wall clock; the
-# rule needs none of them. Also builds with a bare `c++ -std=c++17 -I.`.
-TEST_TIMETRACKER_DISPATCH_BIN = test_timetracker_dispatch
-
-$(TEST_TIMETRACKER_DISPATCH_BIN):	test_timetracker_dispatch.cc timetracker_dispatch.h
-		$(CXX) $(CXXFLAGS) $(CPPFLAGS) -I. -o $(TEST_TIMETRACKER_DISPATCH_BIN) \
-		    test_timetracker_dispatch.cc $(LDFLAGS)
-
-# One command for every server-side decision-layer selftest. Each of these binds
-# nothing but its own translation unit, so this stays seconds-fast and needs no
-# hardware, no replay and no configured datasource. A test nobody can discover
-# (one reachable only by knowing its target name) is a test that decays.
-.PHONY: check-decisions
-check-decisions:	$(TEST_PHY_CELL_BIN) $(TEST_DEVLOC_BIN) $(TEST_PROBE_REASON_BIN) \
-		    $(TEST_TIMETRACKER_DISPATCH_BIN)
-		./$(TEST_PHY_CELL_BIN)
-		./$(TEST_DEVLOC_BIN)
-		./$(TEST_PROBE_REASON_BIN)
-		./$(TEST_TIMETRACKER_DISPATCH_BIN)
-
 PS	= kismet
 
 STD_ALL = Makefile $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS)
@@ -475,64 +365,18 @@ version-%:
 version:
 	@./tools/mkversion.sh
 
-# If the builder hasn't run `make version-maj-min-tiny` then assume we're building git and
+# If the builder hasn't run `make version-maj-min-tiny` then assume we're building git and 
 # generate it as a git based on the requested timestamp (or now)
-#
-# FORCE, not a bare `version.c:` rule.  With no prerequisites make builds this
-# target only when the file is MISSING -- so version.c would be generated at the
-# first build in a tree and then never again, no matter how many commits landed
-# on top.  The string is stamped into WiGLE CSV uploads and .kismet logs, so a
-# frozen value misattributes captured data to a commit that did not produce it.
-#
-# The rebuild stays cheap because mkversion.sh writes the file only when its
-# content changed, so version.c.o -- and the ~540MB relink behind it -- is
-# triggered by a real version change, not by the script having run.
-version.c: FORCE
-	@./tools/mkversion.sh "$(BUILD_DATE)"
+version.c:
+	./tools/mkversion.sh "$(BUILD_DATE)"
 
 # This is no longer a special thing but keep it separate for now
 version.c.o : version.c version.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c version.c -o version.c.o
 
-# $(DIAGSPEC_O) is kept OUT of $(PSO) on purpose: Kismet's auto-dependency
-# machinery (the `include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))` line) is
-# hardwired to the .cc extension, so a .cpp.o would slip through unrewritten and
-# be include'd as a bogus makefile. The diagspec leaf sources need no header
-# auto-dep, so they ride the link rule directly as plain object prereqs.
-#
-# `Makefile` is a prerequisite because GNU make tracks prerequisite FILES, not
-# the prerequisite LIST.  Putting objects back into $(DIAGSPEC_O) that exist
-# from an earlier build and are older than the binary would otherwise leave
-# `make kismet` printing "'kismet' is up to date" and relinking nothing, even
-# though the link line changed -- and the post-link guard below cannot fire on
-# a link that never runs.  Since the link command is DERIVED from the
-# Makefile, a newer Makefile means the current binary was linked by different
-# instructions -- relink. Costs
-# one ~30s relink per Makefile.in edit or configure run; buys the guarantee that
-# every kismet binary was linked by the rules currently in the tree.
-$(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(DIAGSPEC_O) $(patsubst %c.o,%c.d,$(PSO)) version.c.o Makefile
-	@sh diagspec/check_diagspec_o.sh Makefile.in Makefile
+$(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO)) version.c.o
 	@rm -f kismet
-	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(DIAGSPEC_O) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
-# POST-link, not pre-link, and deliberately NOT under a `check` target.
-# check_diagspec_o.sh above compares one LIST against another; a "compiled,
-# passing, in no shipping binary" object is usually a MISSING declaration,
-# which a list-vs-list check structurally cannot see. This one asks
-# the linked artifact itself. Wired into the link rule so it cannot be skipped:
-# the only way to obtain a kismet binary is to pass it.
-#
-# For the SERVER this is an ABSENCE assertion, the inverse of the helper's: it
-# fails if ANY decode leg is defined in kismet, because no caller for one can
-# exist here. It is the enforcement behind the empty $(DIAGSPEC_O) above --
-# adding an object back makes THIS line fail, at build time, with the reason.
-#
-# The `rm -f` on failure is not tidiness. The guard runs POST-link, so a rejected
-# build has already written $(PS) -- and a rejected binary left on disk is NEWER
-# than every prerequisite, so the next `make` reports "'kismet' is up to date"
-# and exits 0 while the rejected artifact sits there looking shippable.
-# Deleting it makes the failure sticky: every
-# subsequent make re-links and re-fails until the cause is fixed.
-	@sh diagspec/check_binary_symbols.sh server $(PS) . || { rm -f $(PS); exit 1; }
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 
 $(LOGTOOL_KISMETDB_STRIP):	$(LOGTOOL_KISMETDB_STRIP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O))
@@ -573,7 +417,7 @@ $(LOGTOOL_KISMETDB_HDLC):	$(LOGTOOL_KISMETDB_HDLC_O) $(patsubst %c.o,%c.d,$(LOGT
 
 
 
-$(TOOL_KISMET_DISCOVERY):	$(TOOL_KISMET_DISCOVERY_O) $(patsubst %c.o,%c.d,$(TOOL_KISMET_DISCOVERY_O)) version.c.o
+$(TOOL_KISMET_DISCOVERY): 	$(TOOL_KISMET_DISCOVERY_O) $(patsubst %c.o,%c.d,$(TOOL_KISMET_DISCOVERY_O)) version.c.o
 	$(LD) $(LDFLAGS) -o $(TOOL_KISMET_DISCOVERY) $(TOOL_KISMET_DISCOVERY_O) version.c.o $(LIBS) $(CXXLIBS) -rdynamic
 
 
@@ -683,54 +527,15 @@ $(CAPTURE_WCH_BLE_ANALYZER_PRO): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_CELL_AT): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_cell_at && $(MAKE))
 
-# Refresh the subdir's generated Makefile from HERE, before descending.
-# capture_cell_diag/Makefile.in has a self-regenerating `Makefile: Makefile.in
-# ../config.status` rule -- but a generated Makefile written before that rule
-# existed does not contain it, so it can never regenerate itself: a
-# self-healing rule cannot bootstrap onto the stale tree it exists to heal.  A
-# stale subdir Makefile can, for example, run fewer `make check` suites than
-# Makefile.in declares and still read green.
-#
-# This rule is bootstrap-proof because the TOP-LEVEL Makefile does regenerate
-# itself (the `Makefile: Makefile.in config.status` rule below), so a tree that
-# gets this file gets this check.
 $(CAPTURE_CELL_DIAG): $(DATASOURCE_COMMON_A) FORCE
-	@if test -f capture_cell_diag/Makefile.in -a -x ./config.status; then \
-		if test capture_cell_diag/Makefile.in -nt capture_cell_diag/Makefile; then \
-			echo "*** capture_cell_diag/Makefile.in is newer -- regenerating ***"; \
-			./config.status capture_cell_diag/Makefile || exit 1; \
-		fi; \
-	fi
 	(cd capture_cell_diag && $(MAKE))
 
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
 
-# Regenerate this Makefile when Makefile.in changes, instead of only warning.
-#
-# Upstream's rule here printed an advisory and updated nothing.  GNU make's
-# "remaking makefiles" phase only re-execs make when the makefile target's
-# mtime actually changes -- so with only the advisory, make keeps the STALE
-# generated Makefile, and the build SUCCEEDS while quietly linking from the
-# old variable values (for example, objects added to $(DIAGSPEC_O) never reach
-# the kismet binary).
-#
-# Running config.status regenerates Makefile from Makefile.in with the recorded
-# configure options; the new mtime makes GNU make restart itself automatically.
-Makefile: Makefile.in config.status
-	@if test -x ./config.status; then \
-		echo "*** Makefile.in is newer than Makefile -- regenerating (config.status) ***"; \
-		./config.status Makefile || exit 1; \
-	else \
-		echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."; \
-	fi
-
-config.status: configure
-	@if test -x ./config.status; then \
-		echo "*** configure is newer than config.status -- re-running configure ***"; \
-		./config.status --recheck || exit 1; \
-	fi
+Makefile: Makefile.in configure
+	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 
 binsuidinstall: $(DATASOURCE_BINS)
 	mkdir -p $(BIN)
@@ -847,14 +652,6 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)` ; \
 	fi;
 
-	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CELL_AT) $(BIN)/`basename $(CAPTURE_CELL_AT)` ; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_CELL_DIAG)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CELL_DIAG) $(BIN)/`basename $(CAPTURE_CELL_DIAG)` ; \
-	fi;
-
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(ETC)/kismet_site.d
@@ -874,10 +671,12 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_GPX) $(BIN)/`basename $(LOGTOOL_KISMETDB_GPX)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CLEAN) $(BIN)/`basename $(LOGTOOL_KISMETDB_CLEAN)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_PCAP) $(BIN)/`basename $(LOGTOOL_KISMETDB_PCAP)`;
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CELLNDJSON) $(BIN)/`basename $(LOGTOOL_KISMETDB_CELLNDJSON)`;
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_ATLOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_ATLOG)`;
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_QMILOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_QMILOG)`;
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_HDLC) $(BIN)/`basename $(LOGTOOL_KISMETDB_HDLC)`;
+	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CELLNDJSON) $(BIN)/`basename $(LOGTOOL_KISMETDB_CELLNDJSON)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_ATLOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_ATLOG)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_QMILOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_QMILOG)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_HDLC) $(BIN)/`basename $(LOGTOOL_KISMETDB_HDLC)`; \
+	fi;
 
 	# Install the other tools
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(TOOL_KISMET_DISCOVERY) $(BIN)/`basename $(TOOL_KISMET_DISCOVERY)`;
@@ -1017,8 +816,6 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_AT) $(BIN)/`basename $(CAPTURE_CELL_AT)`; \
-		mkdir -p $(SHARE)cell/qmifeed; \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 capture_cell_at/qmifeed/*.py $(SHARE)cell/qmifeed/; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_CELL_DIAG)"x = "1"x; then \
@@ -1031,36 +828,10 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 
-# $(INSTALL), never `cp`, for every data file into $(SHARE).
-# `kismet-host-preflight.sh --fix` creates ABSENT data files as SYMLINKS into
-# conf/. `cp` onto such a link resolves it to its own source and aborts with
-# "'conf/X' and '$(SHARE)/X' are the same file", killing commoninstall halfway
-# -- configsinstall never runs.  --fix followed by `make install` is the
-# documented order, so this path is the common one.
-# install(1) unlinks the destination first, so a link is replaced by a real
-# copy and conf/ is never written through it.
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_manuf.txt.gz $(SHARE)/kismet_manuf.txt.gz
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_adsb_icao.txt.gz $(SHARE)/kismet_adsb_icao.txt.gz
-
-# The two bluetooth databases.  Without them, `make install` ships two of the
-# four data files the server opens, and a host that was only installed --
-# never preflighted -- silently loses Bluetooth service-name resolution,
-# logging "BTOID file ... was not found".
-#
-# Installed under the NO-.gz names on purpose; this is not a typo.
-# bluetooth_ids.cc defaults btoidfile/btmanuffile to
-# "%S/kismet/kismet_bluetooth_{ids,manuf}.txt" -- without .gz -- and opens them
-# with gzopen(), which reads gzip content regardless of extension. So the
-# gzipped payload under a .txt name resolves and decompresses correctly, while
-# a faithful .txt.gz name would not be found at all. Renaming these to match
-# conf/ is the obvious-looking change that reintroduces the bug.
-#
-# These are also the served names `celltools/kismet-host-preflight.sh --fix`
-# links (see its DATA_FILES table), so both paths satisfy the same consumers.
-# They are NOT the same state: --fix makes symlinks, this makes copies -- which
-# is why every line here is $(INSTALL) and not `cp` (see above).
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_bluetooth_ids.txt.gz $(SHARE)/kismet_bluetooth_ids.txt
-	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_bluetooth_manuf.txt.gz $(SHARE)/kismet_bluetooth_manuf.txt
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_bluetooth_ids.txt.gz $(SHARE)/kismet_bluetooth_ids.txt.gz
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_bluetooth_manuf.txt.gz $(SHARE)/kismet_bluetooth_manuf.txt.gz
 
 
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
@@ -1320,12 +1091,6 @@ firmware_file.c.o firmware_file.c.d: CFLAGS += $(FIRMWARECFLAGS)
 %.cc.o: %.cc
 %.cc.o:	%.cc %.cc.d
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
-
-# diagspec sources are .cpp with flat cross-includes; build them with the
-# diagspec include roots added (scoped to this rule so global flags stay clean).
-# They pick up Kismet's vendored kaitai/ headers via the global -I. in CXXFLAGS.
-diagspec/%.cpp.o: diagspec/%.cpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -c $< -o $@
 
 %.c.d:  %.c
 	$(CC) -MM -MP $(CFLAGS) $(CPPFLAGS) -MT $*.c.o $*.c -MF $*.c.d

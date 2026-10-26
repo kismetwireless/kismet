@@ -21,32 +21,7 @@ kismet -c celldiag-<IMEI>
 **`make`** (in a tree that has run `./configure`) builds `./kismet_cap_cell_diag`
 with the C shim (`diag_native_decode.cpp`) and the C++ decode legs compiled from
 `../diagspec/generated/` and `../diagspec/enrichment/`. A tree without those
-sources stops at once with that reason. `libstdc++` is in its `ldd`. A post-link
-symbol guard (`../diagspec/check_binary_symbols.sh`, role `helper`) fails the
-build if any leg the shim declares is missing from the binary.
-
-**`make -f standalone.mk`** builds the same helper with **no autoconf input at
-all**, on a tree that has never run `./configure`, into `build-native/` (its
-generated platform `config.h` and `version.c` in `build-native/platform/`). Its
-default goal, `check-native`:
-
-1. checks its prerequisites (a C++ compiler that builds `-std=gnu++20`, the
-   Kaitai runtime vendored at the tree root, the `../diagspec/` decode sources)
-   and stops **before** anything compiles if one is missing, naming the fix;
-2. runs `check` (every framework-free selftest);
-3. links the helper and runs the `helper` symbol guard on it;
-4. runs the native-decode selftest (linked from the same objects) and the
-   replay driver's selftest;
-5. replays the in-tree capture `fixtures/functional.hdlc` and requires exactly
-   `fixtures/functional.native.ndjson`, plus the source's own report
-   `decoder: native, in process`.
-
-The fixture is **synthesised, not scrubbed** (its generator,
-`fixtures/make_functional_fixture.py`, is committed beside it), so it holds no
-real identifiers. libwebsockets is used when present; a build without it loses
-only the remote-capture websocket transport. It builds on Linux and Darwin.
-`build-native/` is a check artifact, never `./kismet_cap_cell_diag`: a
-configured tree's helper has exactly one writer.
+sources stops at once with that reason. `libstdc++` is in its `ldd`.
 
 Other targets: `make probe` builds [`celldiag_probe`](#debugging-with-a-raw-capture),
 `make replay-ndjson` the replay driver, `make logstream-dump` a driver that dumps
@@ -108,7 +83,6 @@ celldiag stats: <VERDICT> | port=open|closed bytes=… rd_err=… last_read=… 
 |---|---|
 | `NODATA` | never read a byte from the port |
 | `PORT-CLOSED` | the DIAG port is closed (a finished replay, a stopped source); `decoder=stopped` |
-| `DECODER-STALLED` | the port is open but the reader has stopped advancing |
 | `STALLED` | reads have stopped: a quiet port read by a live reader |
 | `RX-NO-OBS` | bytes arriving, no observation within the interval |
 | `FLOWING` | a recent observation was relayed |
@@ -118,27 +92,9 @@ contradicts the fields printed beside it.
 
 `diag_stats` keeps the field name `helper_alive` (the server registers it, and
 the datasources panel shows **DEAD** when it is `0` on a running source). It
-means the in-process decoder is alive: its DIAG reader has passed the top of
-its loop within the last **10 s**.
-
-The reader loop is `poll()`-bounded at 250 ms, so it stamps its heartbeat
-four times a second even on a silent port. A quiet modem therefore reads
-`STALLED` (no bytes) with `decoder=alive`, which is not a fault in the
-decoder. A watchdog thread judges the heartbeat, because the reader cannot
-judge itself: it prints the regular stats line, and a stuck reader prints
-nothing. When the heartbeat is more than 10 s old, the watchdog:
-
-- sends a `diag_stats` object holding only `helper_alive: 0` and `decode_mode`,
-  so the web panel shows **DEAD** and no counter is touched;
-- prints `celldiag stats: DECODER-STALLED | decoder=stalled no_progress=Ns
-  bound=10s | the native DIAG reader has stopped advancing: observations have
-  stopped` at ERROR, at once and then on every stats interval while the stall
-  lasts.
-
-When the reader moves again it sends `helper_alive: 1` and an INFO line,
-`nativedecode=only: the decoder is alive again`. On a finished replay or a
-stopped source, the last stats line reads `PORT-CLOSED … decoder=stopped` and
-`helper_alive` is `0`.
+is `1` once the in-process decoder is armed, and `0` once the source stops,
+when the last stats line reads `PORT-CLOSED … decoder=stopped`. There is no
+stall watchdog.
 
 ### The `diag_inventory` census
 
@@ -568,7 +524,7 @@ exits `0` ok, `2` if the source refused to open or reported an ERROR, `3` on
 |---|---|---|
 | `nativedecode=<x> is not supported` / `census=<x> is not supported` at open | a definition written for an older version that named another decoder or census producer | remove the option, or set it to `nativedecode=only` / `census=native` |
 | `the helper= source option was removed` | a definition written for an older version | delete `helper=…` from the definition |
-| `bytes=` climbs but `obs=0` (`RX-NO-OBS`) | the stream carries no record a native leg turns into an observation: no cell in range, a mask without the cell codes, or codes no leg reads | read the [decoder readout](#decoder): `no-leg=` counts records no leg reads and `declined=` records a leg read and found nothing in; the census names `undecoded_native` codes. A stuck reader reads `DECODER-STALLED` instead |
+| `bytes=` climbs but `obs=0` (`RX-NO-OBS`) | the stream carries no record a native leg turns into an observation: no cell in range, a mask without the cell codes, or codes no leg reads | read the [decoder readout](#decoder): `no-leg=` counts records no leg reads and `declined=` records a leg read and found nothing in; the census names `undecoded_native` codes. |
 | `LOG_CONFIG handshake failed ... SPC-gated?` | EC2x SPC gate | pass `spc=000000`; see [Per-modem DIAG quirks](#per-modem-diag-quirks) |
 | `DIAG SPC unlock (spc=000000) rejected` after ~20 s, in a multi-source open, on a unit whose SPC works alone | another process wrote into the DIAG port before the open (a `cellat` IMEI scan writes `AT\r\n` to every port it can claim); the modem glued those bytes to the SPC frame, whose CRC then failed | fixed in current helpers: the DIAG port open sends one lone `0x7E` first, which ends any such partial frame. Rebuild an older helper |
 | the scan reads `AT identify: IMEI … not found while N port(s) were held by another process` | a concurrent source was probing this modem's AT ports at that instant | nothing: one rescan follows after 250–775 ms. `CELLDIAG_SCAN_PORTS="<path> <glob> …"` **replaces** the scanned set (`/dev/ttyUSB*` + `/dev/ttyACM*`); `atport=` names one AT node and skips the scan |

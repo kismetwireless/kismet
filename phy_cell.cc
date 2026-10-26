@@ -149,6 +149,34 @@ int kis_cellular_phy::packet_handler(CHAINCALL_PARMS) {
  * provenance source can advertise what it contributes (e.g. AT supplies
  * mcc/mnc/tac/cell_id, DIAG supplies rsrp/rsrq). Only keys present and
  * non-null are reported. */
+// A provenance source is a short capture tag (at, diag, qmi), and an origin a
+// short printable token (a log code or AT command); either one keys or fills
+// device records, so anything else from a capture is dropped
+static bool prov_src_ok(const std::string& src) {
+    if (src.empty() || src.size() > 16)
+        return false;
+
+    for (unsigned char c : src) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'))
+            return false;
+    }
+
+    return true;
+}
+
+static bool prov_origin_ok(const std::string& origin) {
+    if (origin.size() > 32)
+        return false;
+
+    for (unsigned char c : origin) {
+        if (c < 0x21 || c > 0x7e || c == '<' || c == '>' || c == '&' || c == '"' ||
+                c == '\'' || c == '`')
+            return false;
+    }
+
+    return true;
+}
+
 static std::vector<std::string> prov_contributed_fields(nlohmann::json& json) {
     /* Which keys are present is a JSON question; which keys COUNT, and in what
      * order, is the decision layer's. */
@@ -264,10 +292,8 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     //               Sources: AT#MONI, AT+QENG="neighbourcell", AT$QCRSRP?,
     //                        AT#CSURVC (6-field lines), AT!LTEINFO?
     //
-    // Key derivation, signal policy, band/channel and naming all live in
-    // cell_decisions (phy_cell_decisions.{h,cc}) so they are reachable by
-    // test_phy_cell_decisions without linking the device tracker -- see that
-    // header for why, and for what is deliberately not covered there.
+    // Key derivation, signal policy, band/channel and naming live in
+    // cell_decisions (phy_cell_decisions.{h,cc})
     const auto derived = cell_decisions::derive_key(rat, plmn, tac, cid,
             pci, have_earfcn, earfcn);
     if (!derived.valid)
@@ -355,7 +381,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     //    sets a location signal threshold. conf/kismet_filter.conf documents
     //    that "packet types which do not report a signal level will use all
     //    packets"; that gate lives in
-    //    device_location_policy::admits_location() (see that header). Roughly
+    //    device_tracker::update_common_device_locked(). Roughly
     //    half of 0xB193 observations take the `!have_rsrp` path, so this
     //    matters.
     //
@@ -673,12 +699,12 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     auto prov_j = json["prov"];
     if (prov_j.is_object()) {
         auto psrc_j = prov_j["src"];
-        if (psrc_j.is_string()) {
+        if (psrc_j.is_string() && prov_src_ok(psrc_j.get<std::string>())) {
             std::string psrc = psrc_j.get<std::string>();
 
             std::string porigin;
             auto porigin_j = prov_j["origin"];
-            if (porigin_j.is_string())
+            if (porigin_j.is_string() && prov_origin_ok(porigin_j.get<std::string>()))
                 porigin = porigin_j.get<std::string>();
 
             double pcaptured = 0.0;

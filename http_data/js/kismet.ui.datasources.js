@@ -875,7 +875,8 @@ export const cell_augment_interfaces = (intfs, sources) => {
         extra.push({
             'kismet.datasource.probed.interface': sib_iface,
             'kismet.datasource.probed.in_use_uuid': '00000000-0000-0000-0000-000000000000',
-            'kismet.datasource.probed.hardware': cell_source_label(s),
+            // Sanitized like a listed row: the Hardware row renders it as HTML
+            'kismet.datasource.probed.hardware': kismet.sanitizeHTML(cell_source_label(s)),
             'kismet.datasource.type_driver': {
                 'kismet.datasource.driver.type': sib,
                 'kismet.datasource.driver.description':

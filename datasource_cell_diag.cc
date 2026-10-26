@@ -371,8 +371,73 @@ static std::string celldiag_uuid_for_imei(const std::string& imei) {
     return std::string(out);
 }
 
+namespace {
+    const std::vector<cell_paths::file_opt> celldiag_file_opts = {
+        { "rawlog", true, true },
+        { "replay", false, false },
+        { "profiles", true, false },
+    };
+}
+
+bool kis_datasource_cell_diag::parse_source_definition(std::string in_definition) {
+    if (!kis_datasource::parse_source_definition(in_definition))
+        return false;
+
+    if (get_source_remote())
+        return true;
+
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "celldiag parse_source_definition");
+
+    std::string err;
+    if (!cell_paths::confine_definition(celldiag_file_opts, source_definition_opts, err)) {
+        _MSG_ERROR("Source '{}': {}", get_source_name(), err);
+        return false;
+    }
+
+    set_int_source_definition(generate_source_definition());
+    return true;
+}
+
+void kis_datasource_cell_diag::set_channel(std::string in_channel,
+        unsigned int in_transaction, configure_callback_t in_cb) {
+    std::string err;
+    if (!get_source_remote() &&
+            !cell_paths::confine_setting(celldiag_file_opts, in_channel, err)) {
+        if (in_cb != nullptr)
+            in_cb(in_transaction, false, err);
+        return;
+    }
+
+    kis_datasource::set_channel(in_channel, in_transaction, in_cb);
+}
+
+void kis_datasource_cell_diag::set_channel_hop(double in_rate,
+        std::shared_ptr<tracker_element_vector_string> in_chans,
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+        configure_callback_t in_cb) {
+    if (!get_source_remote()) {
+        std::string err;
+        in_chans = cell_paths::confine_hop(celldiag_file_opts, in_chans, err);
+
+        if (!err.empty()) {
+            if (in_cb != nullptr)
+                in_cb(in_transaction, false, err);
+            return;
+        }
+    }
+
+    kis_datasource::set_channel_hop(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
+}
+
 void kis_datasource_cell_diag::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
+    std::string path_err;
+    if (!cell_paths::check_definition(celldiag_file_opts, in_definition, path_err)) {
+        if (in_cb != nullptr)
+            in_cb(in_transaction, false, path_err);
+        return;
+    }
+
     // Give this source a unique, port-stable UUID BEFORE the IPC open, by
     // injecting a deterministic uuid= into the definition when the operator did
     // not supply one. This is required (not just nice) because Kismet merges a

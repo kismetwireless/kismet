@@ -30,6 +30,7 @@
  * Requires JSON_BUF_MAX to be defined by the includer.
  */
 
+#include <stdarg.h>
 #include <stdint.h>   /* inject_prov_x's exchange stamps */
 
 /* Extract the VALUE a single AT response line carries, or NULL if the line
@@ -502,8 +503,61 @@ static int plmn_split_mccmnc(const char *s, char *mcc_out, size_t mcc_sz,
  * Only includes fields that have valid values.
  * mcc/mnc are as-broadcast digit strings (or NULL when absent) -- see the
  * PLMN helpers above.
- * Returns number of bytes written (not including NUL), or -1 on error.
+ * Returns number of bytes written (not including NUL), or -1 on error with
+ * buf left empty.
  */
+/* Escape a modem-supplied string for a JSON value.  Capped, so the strings
+ * can't push an observation past JSON_BUF_MAX; bytes outside printable ASCII
+ * become '?' since the server rejects invalid UTF-8. */
+static void cell_json_escape(char *out, size_t out_sz, const char *in) {
+    size_t o = 0;
+
+    for (; *in != '\0'; in++) {
+        unsigned char c = (unsigned char) *in;
+        char esc[8];
+        size_t el;
+
+        if (c == '"' || c == '\\') {
+            esc[0] = '\\';
+            esc[1] = (char) c;
+            el = 2;
+        } else if (c < 0x20) {
+            el = (size_t) snprintf(esc, sizeof(esc), "\\u%04x", c);
+        } else if (c >= 0x7f) {
+            esc[0] = '?';
+            el = 1;
+        } else {
+            esc[0] = (char) c;
+            el = 1;
+        }
+
+        if (o + el >= out_sz)
+            break;
+
+        memcpy(out + o, esc, el);
+        o += el;
+    }
+
+    out[o] = '\0';
+}
+
+/* Append to buf at *pos; a write that doesn't fit marks *pos as overflowed */
+static void cell_json_append(char *buf, size_t buf_sz, size_t *pos,
+                             const char *fmt, ...) {
+    if (*pos >= buf_sz)
+        return;
+
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(buf + *pos, buf_sz - *pos, fmt, ap);
+    va_end(ap);
+
+    if (n < 0 || (size_t) n >= buf_sz - *pos)
+        *pos = buf_sz;
+    else
+        *pos += (size_t) n;
+}
+
 static int build_cell_json(char *buf, size_t buf_sz,
                            const char *rat, const char *duplex,
                            const char *mcc,
@@ -521,40 +575,42 @@ static int build_cell_json(char *buf, size_t buf_sz,
                            const char *obs_type,
                            int is_serving,
                            const char *operator_name) {
-    int pos = 0;
+    size_t pos = 0;
     int first = 1;
+    char esc[256];
 
-#define JSON_START() pos += snprintf(buf + pos, buf_sz - pos, "{")
+    if (buf_sz == 0)
+        return -1;
+
+#define JSON_START() cell_json_append(buf, buf_sz, &pos, "{")
 #define JSON_STR(key, val) do { \
     if (val) { \
-        pos += snprintf(buf + pos, buf_sz - pos, "%s\"%s\":\"%s\"", \
-                        first ? "" : ",", key, val); \
+        cell_json_escape(esc, sizeof(esc), val); \
+        cell_json_append(buf, buf_sz, &pos, "%s\"%s\":\"%s\"", \
+                         first ? "" : ",", key, esc); \
         first = 0; \
     } \
 } while (0)
 #define JSON_LONG(key, val, have) do { \
     if (have) { \
-        pos += snprintf(buf + pos, buf_sz - pos, "%s\"%s\":%ld", \
-                        first ? "" : ",", key, val); \
+        cell_json_append(buf, buf_sz, &pos, "%s\"%s\":%ld", \
+                         first ? "" : ",", key, val); \
         first = 0; \
     } \
 } while (0)
 #define JSON_ULONG(key, val, have) do { \
     if (have) { \
-        pos += snprintf(buf + pos, buf_sz - pos, "%s\"%s\":%lu", \
-                        first ? "" : ",", key, val); \
+        cell_json_append(buf, buf_sz, &pos, "%s\"%s\":%lu", \
+                         first ? "" : ",", key, val); \
         first = 0; \
     } \
 } while (0)
 #define JSON_BOOL(key, val) do { \
-    pos += snprintf(buf + pos, buf_sz - pos, "%s\"%s\":%s", \
-                    first ? "" : ",", key, val ? "true" : "false"); \
+    cell_json_append(buf, buf_sz, &pos, "%s\"%s\":%s", \
+                     first ? "" : ",", key, val ? "true" : "false"); \
     first = 0; \
 } while (0)
-#define JSON_END() pos += snprintf(buf + pos, buf_sz - pos, "}")
-
-    if ((size_t)pos >= buf_sz)
-        return -1;
+#define JSON_END() cell_json_append(buf, buf_sz, &pos, "}")
 
     JSON_START();
     JSON_STR("rat", rat);
@@ -583,7 +639,12 @@ static int build_cell_json(char *buf, size_t buf_sz,
 #undef JSON_BOOL
 #undef JSON_END
 
-    return pos;
+    if (pos >= buf_sz) {
+        buf[0] = '\0';
+        return -1;
+    }
+
+    return (int) pos;
 }
 
 /*

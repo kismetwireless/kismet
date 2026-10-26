@@ -566,13 +566,10 @@ int main(int argc, char *argv[]) {
     if (verbose)
         fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
-    // CSV headers -- must match kis_wiglecsvlogfile.cc's live header exactly;
-    // see the rationale there for why only appRelease carries the fork name.
-    fmt::print(ofile, "WigleWifi-1.6,appRelease={4}-{0}.{1}.{2}-{3},model=Kismet,"
+    fmt::print(ofile, "WigleWifi-1.6,appRelease=Kismet{0}{1}{2}-{3},model=Kismet,"
             "release={0}.{1}.{2}-{3},device=kismet,display=kismet,board=kismet,brand=Kismet,"
             "star=Sol,body=3,subBody=0\n",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT,
-            VERSION_POC_NAME);
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
     fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,Frequency,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,RCOIs,MfgrId,Type\n");
 

@@ -194,11 +194,11 @@ kismet_ui.AddDeviceDetail("cell", "Cell Info", 10, {
                             when = new Date(last * 1000).toLocaleTimeString();
 
                         rows.push('<tr>' +
-                            '<td style="padding-right: 10px;"><b>' + src + '</b></td>' +
-                            '<td style="padding-right: 10px;">' + origin + '</td>' +
-                            '<td style="padding-right: 10px;">' + count + ' obs</td>' +
+                            '<td style="padding-right: 10px;"><b>' + kismet.sanitizeHTML(src) + '</b></td>' +
+                            '<td style="padding-right: 10px;">' + kismet.sanitizeHTML(origin) + '</td>' +
+                            '<td style="padding-right: 10px;">' + kismet.sanitizeHTML(count) + ' obs</td>' +
                             '<td style="padding-right: 10px;">' + when + '</td>' +
-                            '<td>' + fields.join(', ') + '</td>' +
+                            '<td>' + kismet.sanitizeHTML(fields.join(', ')) + '</td>' +
                             '</tr>');
                     });
 

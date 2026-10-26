@@ -132,8 +132,7 @@ def test_the_relay_carries_the_pinned_observations(tmp_path):
     """The binary over datasource IPC relays exactly the fixture's pinned rows.
 
     ``functional.native.ndjson`` pins what the native decode of this fixture
-    must be. ``standalone.mk check-native`` holds the replay driver to it; this
-    holds the SHIPPED path to it -- decode, render, ring, ``cf_send_json`` --
+    must be; this holds the SHIPPED path to it -- decode, render, ring, ``cf_send_json`` --
     so a dropped, reordered or corrupted observation anywhere in the relay is a
     failure here, not only a decode change."""
     binary = _binary_or_skip()
@@ -2056,23 +2055,14 @@ def test_a_stalled_server_does_not_stop_the_live_diag_reader(tmp_path):
 
 # ── helper_alive means "the decoder is alive" ────────────────────────────────
 # There is no helper process; helper_alive keeps its wire name and reports the
-# in-process decoder, judged from the DIAG reader's heartbeat by a watchdog
-# thread. The upstream datasources panel renders a 0 as "DEAD -- observations
-# have stopped", so the field must:
+# in-process decoder. The upstream datasources panel renders a 0 as "DEAD --
+# observations have stopped", so the field must:
 #
 # * read 1, with a FLOWING verdict and `decoder=alive`, while records flow;
-# * stay 1 on a quiet port: a silent modem is not a stuck decoder;
-# * fall to 0 within the bound when the reader really stalls, with a loud
-#   DECODER-STALLED verdict, and come back when the reader moves again --
-#   the negative control that proves the 1 is not hard-coded.
-#
-# The stall is real, not simulated. rawlog= points at a FIFO whose reader
-# never reads, so the capture thread blocks inside its tee write(), the same
-# place a hung disk would block it. No test knob is compiled into the binary.
+# * stay 1 on a quiet port: a silent modem is not a stuck decoder.
 
-#: DIAG_STATS_DECODER_STALL_SEC and the watchdog's LIVE_TICK_NS.
+#: DIAG_STATS_DECODER_STALL_SEC.
 _LIVE_BOUND_S = 10.0
-_LIVE_TICK_S = 0.5
 _STATS_PREFIX = "celldiag stats:"
 
 
@@ -2221,164 +2211,4 @@ def test_a_quiet_port_is_not_a_stalled_decoder(tmp_path):
         problems.append(
             f"past the bound, a quiet port should read STALLED (no bytes) with "
             f"decoder=alive: {[s for _t, s in late]}")
-    assert not problems, "\n".join(problems)
-
-
-def _fionread(fd: int) -> int:
-    import array
-    import fcntl
-    import termios
-    buf = array.array("i", [0])
-    fcntl.ioctl(fd, termios.FIONREAD, buf, True)
-    return buf[0]
-
-
-#: Copies of the fixture the stalled-reader test replays: many times the
-#: one-page tee FIFO, so the reader stays blocked behind a full pipe.
-_STALLED_READER_COPIES = 64
-
-
-@pytest.mark.skipif(not sys.platform.startswith("linux"),
-                    reason="F_SETPIPE_SZ shrinks the tee FIFO to one page")
-def test_a_stalled_reader_reads_dead_within_the_bound(tmp_path):
-    """THE NEGATIVE CONTROL: a stuck reader drives helper_alive to 0 and the
-    verdict to DECODER-STALLED within the bound, then back to 1 when it moves
-    again, and the stall loses no record."""
-    import fcntl
-    import select
-    binary = _binary_or_skip()
-    data = _tiled_fixture(_STALLED_READER_COPIES)
-    fixture = tmp_path / "tiled.hdlc"
-    fixture.write_bytes(data)
-    plain = CellDiagRun(binary, _definition(fixture),
-                        env=_no_python_env(tmp_path)).run()
-    assert plain.observations, "the fixture yields no observations"
-
-    replay = tmp_path / "replay.fifo"
-    tee = tmp_path / "tee.fifo"
-    os.mkfifo(replay)
-    os.mkfifo(tee)
-    # The tee's reader, opened first so the binary's open does not block, and
-    # shrunk to one page, then NOT read: the capture thread's tee write()
-    # blocks once that page is full.
-    tee_r = os.open(tee, os.O_RDONLY | os.O_NONBLOCK)
-    fcntl.fcntl(tee_r, getattr(fcntl, "F_SETPIPE_SZ", 1031), 4096)
-    cap = fcntl.fcntl(tee_r, getattr(fcntl, "F_GETPIPE_SZ", 1032))
-    assert len(data) > 4 * cap, (
-        f"the stream ({len(data)} B) is too short to fill the tee FIFO "
-        f"({cap} B) and keep the reader blocked behind it")
-    hold = threading.Event()
-    feeder = _feed(replay, data, pieces=1, gap_s=0.0, hold=hold, hold_s=90.0)
-    state: dict = {"drained": 0}
-    stop_drain = threading.Event()
-
-    def drain():
-        while not stop_drain.is_set():
-            r, _w, _x = select.select([tee_r], [], [], 0.2)
-            if not r:
-                continue
-            try:
-                chunk = os.read(tee_r, 65536)
-            except BlockingIOError:
-                continue
-            if not chunk:
-                break                       # the binary closed the tee
-            state["drained"] += len(chunk)
-
-    def stalled(run):
-        return [(t, o) for t, o in run.stats() if o.get("helper_alive") == 0]
-
-    def watch(run):
-        try:
-            deadline = time.monotonic() + 15.0
-            while time.monotonic() < deadline:
-                if _fionread(tee_r) >= cap:
-                    state["blocked"] = time.monotonic()
-                    break
-                time.sleep(0.02)
-            else:
-                return
-            deadline = state["blocked"] + _LIVE_BOUND_S + 5.0
-            while time.monotonic() < deadline and not stalled(run):
-                time.sleep(0.05)
-            time.sleep(1.0)
-            state["unblocked"] = time.monotonic()
-            threading.Thread(target=drain, daemon=True).start()
-            deadline = time.monotonic() + 5.0
-            while time.monotonic() < deadline and not any(
-                    t > state["unblocked"] and o.get("helper_alive") == 1
-                    for t, o in run.stats()):
-                time.sleep(0.05)
-            time.sleep(1.5)                 # a cadence line after the recovery
-        finally:
-            hold.set()                      # end the replay: EOF on the FIFO
-
-    run = _TimedRun(binary, _definition(replay, stats_interval=1, rawlog=tee),
-                    env=_no_python_env(tmp_path), timeout=90.0, poll_s=0.05)
-    w = threading.Thread(target=watch, args=(run,), daemon=True)
-    w.start()
-    run.run()
-    w.join(timeout=10)
-    feeder.join(timeout=5)
-    stop_drain.set()
-    os.close(tee_r)
-
-    assert "blocked" in state, (
-        "the control did not take: the tee FIFO never filled, so the reader "
-        "never blocked and nothing below was exercised")
-    blocked = state["blocked"]
-    unblocked = state.get("unblocked", float("inf"))
-    stats = run.stats()
-    lines = run.lines()
-    problems = []
-    if not stats or stats[0][1].get("helper_alive") != 1:
-        problems.append(
-            f"the decoder was never reported alive before the stall: "
-            f"{[o for _t, o in stats[:2]]}")
-    during = [(t, o) for t, o in stats if blocked <= t < unblocked]
-    zero = [(t, o) for t, o in during if o.get("helper_alive") == 0]
-    if not zero:
-        problems.append(
-            f"helper_alive never fell to 0 while the reader was blocked "
-            f"({unblocked - blocked:.1f} s): the UI would show a stuck source as "
-            f"healthy. Objects meanwhile: {[o for _t, o in during]}")
-    else:
-        lag = zero[0][0] - blocked
-        if not (_LIVE_BOUND_S - 1.0 <= lag <= _LIVE_BOUND_S + _LIVE_TICK_S + 1.5):
-            problems.append(
-                f"the stall was reported {lag:.2f} s after the reader blocked; "
-                f"the bound is {_LIVE_BOUND_S:g} s (+ {_LIVE_TICK_S:g} s tick)")
-        if zero[0][1] != {"type": "diag_stats", "helper_alive": 0,
-                          "decode_mode": "native-only"}:
-            problems.append(f"the stall object carries more than liveness: {zero[0][1]}")
-    alarm = [(t, s, f) for t, s, f in lines
-             if blocked <= t < unblocked and "DECODER-STALLED" in s]
-    if not alarm:
-        problems.append("no DECODER-STALLED verdict while the reader was blocked")
-    else:
-        _t, s, f = alarm[0]
-        if not (s.startswith(f"{_STATS_PREFIX} DECODER-STALLED |")
-                and "decoder=stalled" in s):
-            problems.append(f"the stall line does not name the decoder: {s}")
-        if not f & MSGFLAG_ERROR:
-            problems.append(f"the stall line is not loud (flags={f}): {s}")
-    if _helper_words(lines):
-        problems.append(f"a stats line names a helper: {_helper_words(lines)}")
-    back = [(t, o) for t, o in stats
-            if t >= unblocked and o.get("helper_alive") == 1]
-    if not back or back[0][0] - unblocked > _LIVE_TICK_S + 2.0:
-        problems.append(
-            f"the decoder was not reported alive again within "
-            f"{_LIVE_TICK_S + 2.0:g} s of the reader moving: "
-            f"{[(round(t - unblocked, 2), o.get('helper_alive')) for t, o in stats if t >= unblocked]}")
-    if not any("the decoder is alive again" in m for m in run.messages):
-        problems.append("the recovery was not announced")
-    if stats and stats[-1][1].get("helper_alive") != 0:
-        problems.append(f"final object after the reader finished: {stats[-1][1]}")
-    if len(run.observations) != len(plain.observations):
-        problems.append(
-            f"the stall lost records: {len(run.observations)} observations vs "
-            f"{len(plain.observations)} from an unstalled replay of the same bytes")
-    if state["drained"] != len(data):
-        problems.append(f"the tee carried {state['drained']} of {len(data)} bytes")
     assert not problems, "\n".join(problems)

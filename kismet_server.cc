@@ -217,9 +217,8 @@ void SpindownKismet() {
     globalregistry->shutdown_deferred();
     globalregistry->spindown = 1;
 
-    // The packet threads do not stop on spindown; the log tracker
-    // normally drained and stopped them above, and this is a no-op then.  Stop
-    // them here regardless, before the globals they use are torn down.
+    // When draining, the log tracker normally drained and stopped the packet threads
+    // above, and this is a no-op; stop them here regardless before the globals go
     auto packetchain = Globalreg::fetch_global_as<packet_chain>();
     if (packetchain != nullptr)
         packetchain->drain_and_stop();
@@ -592,16 +591,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (r < 0) break;
 
         if (r == 'v') {
-            /* The fork name, not the bare "Kismet" banner: this server is the
-             * AT+DIAG cell-PHY fork, and `kismet --version` is the first thing
-             * anyone runs to answer "what am I about to drive with?".
-             *
-             * Byte-for-byte the same spelling the capture helpers print and
-             * /system/status.json reports -- upstream's banner put a space here
-             * where every other site uses '-', and two spellings of one version
-             * invite confusion. */
-            printf("%s-%s.%s.%s-%s\n", VERSION_POC_NAME, VERSION_MAJOR, VERSION_MINOR,
-                    VERSION_TINY, VERSION_GIT_COMMIT);
+            printf("Kismet %s.%s.%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
             exit(1);
         } else if (r == 'h') {
             usage(argv[0]);

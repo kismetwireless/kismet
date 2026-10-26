@@ -368,14 +368,15 @@ static void test_session_ext_from_basename_only(void) {
     rm_tree(d);
 }
 
-/* Not a regular file (a tee to /dev/null, a FIFO): never diverted. */
+/* Not a regular file (a tee to /dev/null, a FIFO): refused, never diverted. */
 static void test_session_char_device_as_given(void) {
     char out[64];
     int div = -1;
+    errno = 0;
     int fd = diag_rawlog_open_session("/dev/null", fixed_now(), out, sizeof(out),
                                       &div);
-    CHECK(fd >= 0 && div == 0 && strcmp(out, "/dev/null") == 0,
-          "/dev/null: fd=%d div=%d out=%s", fd, div, out);
+    CHECK(fd < 0 && errno == EPERM && div == 0,
+          "/dev/null: fd=%d errno=%d div=%d", fd, errno, div);
     if (fd >= 0) close(fd);
 }
 

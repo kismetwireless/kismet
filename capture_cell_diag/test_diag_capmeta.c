@@ -1,7 +1,7 @@
 /* test_diag_capmeta.c - standalone unit tests for the capture_meta sidecar core.
  *
  * Links only diag_capmeta.c (libc, no Kismet), so it runs off the capture
- * framework: `make -f standalone.mk check` in this directory. Covers the three
+ * framework: `make check` in this directory. Covers the three
  * pieces with real branching logic - sidecar path derivation
  * (diag_capmeta_sidecar_path / _basename), JSON escaping
  * (diag_capmeta_json_escape) and the whole-object formatter

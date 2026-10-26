@@ -2,6 +2,7 @@
  * See diag_profile.h for the contract. libc-only; no Kismet, no JSON library. */
 
 #include "diag_profile.h"
+#include "cell_safefile.h"
 
 #include <fnmatch.h>
 #include <glob.h>
@@ -209,7 +210,7 @@ int diag_profile_glob_match(const char *pattern, const char *str) {
 /* Read a whole file into a NUL-terminated malloc'd buffer, or NULL on error /
  * over-size. Caller frees. */
 static char *read_file(const char *path) {
-    FILE *f = fopen(path, "rb");
+    FILE *f = cell_safe_fopen(path, "r", 0, 0);
     if (!f)
         return NULL;
     if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }

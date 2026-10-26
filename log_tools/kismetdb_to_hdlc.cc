@@ -57,7 +57,8 @@
  *             bytes are whole frames and the frames around them still deframe.
  *   overlap   the next slice starts before the end of the last one. The slice
  *             is skipped; this should never happen.
- *   malformed a DLT-147 row that is not a valid v1 slice. The row is skipped.
+ *   malformed a DLT-147 row that is not a valid v1 slice, or one ending past
+ *             the 64-bit stream. The row is skipped.
  *   truncated a row stored shorter than packet_full_len.
  *   unaligned a slice not flagged FRAGMENT whose payload does not end in 0x7E
  *             (the contract says every such slice does).
@@ -129,12 +130,13 @@
 #include "nlohmann/json.hpp"
 #include "capture_cell_diag/diag_rawpkt.h"
 
-enum {
-    EXIT_OK = 0,
-    EXIT_ERR = 1,
-    EXIT_NODATA = 2,
-    EXIT_STRICT = 3,
-};
+constexpr int EXIT_OK = 0;
+constexpr int EXIT_ERR = 1;
+constexpr int EXIT_NODATA = 2;
+constexpr int EXIT_STRICT = 3;
+
+constexpr int OPT_STRICT = 1000;
+constexpr int OPT_REQUIRE_END = 1001;
 
 void print_help(char *argv) {
     printf("Kismetdb to raw DIAG HDLC\n");
@@ -175,8 +177,25 @@ void print_help(char *argv) {
            DIAG_RAWPKT_DLT);
 }
 
+/* Strings from the db go to the terminal: control and non-ASCII bytes are
+ * escaped so a crafted source name can't send escape sequences. */
+static std::string term_safe(const std::string& in) {
+    std::string out;
+    for (unsigned char c : in) {
+        if (c >= 0x20 && c < 0x7f && c != '\\') {
+            out += (char) c;
+        } else {
+            char esc[5];
+            snprintf(esc, sizeof(esc), "\\x%02x", c);
+            out += esc;
+        }
+    }
+    return out;
+}
+
 struct source_t {
-    std::string uuid;
+    std::string uuid;           /* as stored; queries use it */
+    std::string uuid_disp;      /* the rest are terminal-safe */
     std::string name;
     std::string rawlog;         /* rawlog= spec from the source definition, if any */
 
@@ -360,6 +379,12 @@ static int index_source(sqlite3 *db, source_t& src, size_t src_idx, int64_t dlt,
         s.rowid = rowid;
         s.header_len = hl;
         s.payload_len = (uint32_t) (len - hl);
+
+        /* A slice can't end past the 64-bit stream */
+        if (s.payload_len > UINT64_MAX - s.offset) {
+            src.malformed++;
+            continue;
+        }
         uint64_t session = get_le64(h + 8);
         uint8_t flags = h[5];
 
@@ -389,7 +414,7 @@ static int index_source(sqlite3 *db, source_t& src, size_t src_idx, int64_t dlt,
 
     if (r != SQLITE_DONE) {
         fprintf(stderr, "ERROR:  Failed reading packets for source %s: %s\n",
-                src.uuid.c_str(), sqlite3_errmsg(db));
+                src.uuid_disp.c_str(), sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return -1;
     }
@@ -502,7 +527,7 @@ static int read_drop_rows(sqlite3 *db, source_t& src, size_t src_idx,
     }
     if (r != SQLITE_DONE) {
         fprintf(stderr, "ERROR:  Failed reading data for source %s: %s\n",
-                src.uuid.c_str(), sqlite3_errmsg(db));
+                src.uuid_disp.c_str(), sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return -1;
     }
@@ -563,12 +588,12 @@ static int read_abort_rows(sqlite3 *db, source_t& src, size_t src_idx,
         if (st->abort_rows++ == 0) {
             st->abort_delivered_end = u64("delivered_end")->get<uint64_t>();
             st->abort_slices = u64("slices")->get<uint64_t>();
-            st->abort_reason = str("reason")->get<std::string>();
+            st->abort_reason = term_safe(str("reason")->get<std::string>());
         }
     }
     if (r != SQLITE_DONE) {
         fprintf(stderr, "ERROR:  Failed reading data for source %s: %s\n",
-                src.uuid.c_str(), sqlite3_errmsg(db));
+                src.uuid_disp.c_str(), sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return -1;
     }
@@ -583,27 +608,27 @@ static bool warn_source(const source_t& src) {
     bool any = false;
     if (src.malformed) {
         fprintf(stderr, "WARNING: %s (%s): %" PRIu64 " DLT-%u row(s) are not valid "
-                "slices (bad magic, version or header length) and were skipped.\n",
-                src.name.c_str(), src.uuid.c_str(), src.malformed, DIAG_RAWPKT_DLT);
+                "slices (bad magic, version, header length or offset) and were skipped.\n",
+                src.name.c_str(), src.uuid_disp.c_str(), src.malformed, DIAG_RAWPKT_DLT);
         any = true;
     }
     if (src.truncated) {
         fprintf(stderr, "WARNING: %s (%s): %" PRIu64 " truncated packet(s) (stored "
                 "shorter than captured).\n",
-                src.name.c_str(), src.uuid.c_str(), src.truncated);
+                src.name.c_str(), src.uuid_disp.c_str(), src.truncated);
         any = true;
     }
     if (src.bad_drop_rows) {
         fprintf(stderr, "WARNING: %s (%s): %" PRIu64 " %s row(s) do not parse: the "
                 "source reported a drop this tool cannot place.\n",
-                src.name.c_str(), src.uuid.c_str(), src.bad_drop_rows,
+                src.name.c_str(), src.uuid_disp.c_str(), src.bad_drop_rows,
                 DIAG_RAWPKT_DROP_TYPE);
         any = true;
     }
     if (src.bad_abort_rows) {
         fprintf(stderr, "WARNING: %s (%s): %" PRIu64 " %s row(s) do not parse: the "
                 "server recorded a mid-stream death this tool cannot place.\n",
-                src.name.c_str(), src.uuid.c_str(), src.bad_abort_rows,
+                src.name.c_str(), src.uuid_disp.c_str(), src.bad_abort_rows,
                 DIAG_RAWPKT_ABORT_TYPE);
         any = true;
     }
@@ -778,8 +803,6 @@ static bool parse_u64(const char *s, uint64_t& out) {
 }
 
 int main(int argc, char *argv[]) {
-    enum { OPT_STRICT = 1000, OPT_REQUIRE_END };
-
     static struct option longopt[] = {
         { "in", required_argument, 0, 'i' },
         { "out", required_argument, 0, 'o' },
@@ -936,9 +959,11 @@ int main(int argc, char *argv[]) {
             };
             s.uuid = col(0);
             s.name = col(1);
-            s.rawlog = rawlog_from_definition(col(2));
             if (!source_filter.empty() && s.uuid != source_filter && s.name != source_filter)
                 continue;
+            s.uuid_disp = term_safe(s.uuid);
+            s.name = term_safe(s.name);
+            s.rawlog = term_safe(rawlog_from_definition(col(2)));
             sources.push_back(s);
         }
         sqlite3_finalize(stmt);
@@ -1011,13 +1036,13 @@ int main(int argc, char *argv[]) {
                 printf("%s  %s  session=%" PRIu64 " (%s) slices=%" PRIu64 " bytes=%"
                        PRIu64 " gaps=%" PRIu64 " gap_bytes=%" PRIu64 " overlaps=%"
                        PRIu64 " fragments=%" PRIu64 " unaligned=%" PRIu64 "%s%s\n",
-                       s.uuid.c_str(), s.name.c_str(), st.session_id,
+                       s.uuid_disp.c_str(), s.name.c_str(), st.session_id,
                        session_utc(st.session_id).c_str(), st.slices, st.bytes,
                        st.gaps, st.gap_bytes, st.overlaps, st.fragments, st.unaligned,
                        end.c_str(), tail.c_str());
             }
             if (!any)
-                printf("%s  %s  sessions=0%s\n", s.uuid.c_str(), s.name.c_str(),
+                printf("%s  %s  sessions=0%s\n", s.uuid_disp.c_str(), s.name.c_str(),
                        tail.c_str());
         }
         sqlite3_close(db);
@@ -1053,7 +1078,7 @@ int main(int argc, char *argv[]) {
                 "one with --source / --session, or use --out-dir:\n", streams.size());
         for (const auto& st : streams)
             fprintf(stderr, "    %s  %s  session=%" PRIu64 " (%s)  bytes=%" PRIu64 "\n",
-                    sources[st.src].uuid.c_str(), sources[st.src].name.c_str(),
+                    sources[st.src].uuid_disp.c_str(), sources[st.src].name.c_str(),
                     st.session_id, session_utc(st.session_id).c_str(), st.bytes);
         sqlite3_close(db);
         exit(EXIT_ERR);
@@ -1106,7 +1131,7 @@ int main(int argc, char *argv[]) {
         if (verbose)
             fprintf(stderr, "* %s (%s) session %" PRIu64 ": %zu slices, %" PRIu64
                     " bytes -> %s\n", sources[st.src].name.c_str(),
-                    sources[st.src].uuid.c_str(), st.session_id, st.take.size(),
+                    sources[st.src].uuid_disp.c_str(), st.session_id, st.take.size(),
                     st.bytes, st.path.c_str());
     }
 

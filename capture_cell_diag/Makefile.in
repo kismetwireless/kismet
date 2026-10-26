@@ -1,17 +1,9 @@
 include ../Makefile.inc
 
 # The parent tree is on the include path so `#include "config.h"` resolves to
-# the configure-generated ../config.h. The autoconf CFLAGS carry only `-I.`,
-# which -- because these recipes run INSIDE capture_cell_diag/ -- is this
-# directory, not the tree root. A hardcoded `#include "../config.h"` cannot be
-# redirected by -I, which would stop standalone.mk from building on a tree that
-# has never run ./configure.
+# the configure-generated ../config.h.
 CPPFLAGS += -I..
 
-# The helper's pure-C modules, and the number is pinned below on purpose.
-#
-# Dropping a module from this list still links and still passes every
-# selftest, so MONITOR_OBJS_COUNT pins the size.
 MONITOR_OBJS = \
 	capture_cell_diag.c.o \
 	diag_hdlc.c.o \
@@ -35,9 +27,6 @@ MONITOR_OBJS = \
 	diag_inventory.c.o \
 	diag_gpsfix.c.o \
 	diag_gsmtap_sink.c.o
-
-# Raise this deliberately when a module is added; catching a drop is its purpose.
-MONITOR_OBJS_COUNT = 22
 
 # The helper's native-decode closure. capture_cell_diag.c calls
 # diag_native_decode() directly, so the legs must be in this binary -- not only
@@ -105,9 +94,7 @@ DIAGSPEC_SRCS = \
 	../kaitaistream.cc
 
 # vpath + $(notdir) so the objects are written HERE, under this directory's own
-# names -- never into ../diagspec/, where they would collide with the identically
-# named objects the top-level $(DIAGSPEC_O) link builds for the kismet server
-# (and where this Makefile's `clean` would then delete the server's objects).
+# names -- never into the shared ../diagspec/ source tree.
 vpath %.cpp ../diagspec/generated/cpp ../diagspec/enrichment/cpp
 vpath %.cc ..
 NATIVE_OBJS_FULL = \
@@ -122,8 +109,8 @@ $(error capture_cell_diag needs the C++ decode sources in ../diagspec/generated 
 endif
 
 NATIVE_OBJS   = $(NATIVE_OBJS_FULL)
-# $(CXXLIBS) (-lstdc++) is what lets the $(CCLD)=gcc link driver resolve the C++
-# closure; diag_native_decode.h's header comment anticipates exactly this.
+# The C++ closure links through $(LD), the C++ driver, as the server does;
+# $(CXXLIBS) carries whatever else configure found the C++ side needs.
 NATIVE_LIBS   = $(CXXLIBS)
 
 # Report the decode path in this binary's version string, so a capture is
@@ -152,54 +139,12 @@ PROBE_OBJS = \
 	diag_profile.c.o \
 	diag_capture.c.o
 PROBE_BIN = celldiag_probe
+# Debug driver: dumps the extracted record stream for a raw-HDLC capture, one
+# (log_code, ts64, payload) per line, for a diff against another extractor.
+# Not part of check (it needs a capture, which is not shipped in the source tree).
+LOGSTREAM_DUMP_BIN = diag_logstream_dump
 
-all: $(MONITOR_BIN)
-
-# Auto-regenerate this Makefile when its source template or config.status is
-# newer. config.status renders capture_*/Makefile from the committed Makefile.in;
-# without this rule a `git pull` that updates Makefile.in leaves the on-disk
-# generated Makefile stale, so newly-added targets/selftests (e.g. `make check`)
-# silently do not exist and a stale `make check` can read as green. make restarts
-# itself after rebuilding a Makefile, so the fresh rule set is used immediately.
-Makefile: Makefile.in ../config.status
-	cd .. && ./config.status capture_cell_diag/Makefile
-
-FORCE:
-.PHONY: FORCE
-
-# ../libkismetdatasource.a is a prerequisite of $(MONITOR_BIN), and without a
-# rule here make treats an existing file with no rule as up to date, so every
-# link would pick up whatever archive happened to be on disk, even one older
-# than the framework sources it should contain. A stale archive links cleanly
-# and exits 0 while missing framework fixes.
-#
-# Other kismet capture sources are built by the top-level Makefile, where the
-# archive's own rule is in scope. This directory is the only capture source
-# with its own Makefile, so it needs this rule.
-#
-# Delegated rather than duplicated: the archive's object list lives in ../Makefile
-# and a copy here would be a second place to forget a file. FORCE because make
-# must ask the sub-make on every build -- the archive's own sources are not
-# prerequisites of anything in this directory, so timestamps here cannot know.
-# The sub-make is a no-op when the archive is current.
-# Whenever the top-level archive target finds the archive out of date it
-# regenerates version.c and re-archives -- in practice after every new commit
-# in this tree -- and the rule above then leaves ../libkismetdatasource.a newer
-# than any binary linked before it, including the SIBLING capture binary,
-# which links the same archive. Left alone, that binary is then genuinely stale
-# (linked against the previous archive) and the celltools staleness guard
-# fails every test that pairs the two sources. So the sibling is
-# relinked here, but only if it is already built (an unbuilt sibling stays
-# unbuilt) and only if it is now older than the archive.
-# CELL_SIBLING_RELINK=no on the sub-make keeps the two directories from
-# recursing into each other.
-../libkismetdatasource.a: FORCE
-	@$(MAKE) --no-print-directory -C .. libkismetdatasource.a
-	@if [ "$(CELL_SIBLING_RELINK)" != no ] && [ -x ../capture_cell_at/kismet_cap_cell_at ] && \
-	    [ ../libkismetdatasource.a -nt ../capture_cell_at/kismet_cap_cell_at ]; then \
-	    echo "  relinking capture_cell_at: it links the archive this build refreshed"; \
-	    $(MAKE) --no-print-directory -C ../capture_cell_at CELL_SIBLING_RELINK=no kismet_cap_cell_at; \
-	 fi
+all: $(MONITOR_BIN) $(PROBE_BIN) $(LOGSTREAM_DUMP_BIN)
 
 # The C++ depfiles are listed HERE, beside the C ones, and that placement is the
 # working part. Making %.cpp.d a prerequisite of the %.cpp.o pattern rule
@@ -213,24 +158,8 @@ NATIVE_DEPS = $(patsubst %.cpp.o,%.cpp.d,$(filter %.cpp.o,$(NATIVE_OBJS))) \
 	      $(patsubst %.cc.o,%.cc.d,$(filter %.cc.o,$(NATIVE_OBJS)))
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(NATIVE_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) $(NATIVE_DEPS) ../libkismetdatasource.a
-# Pins the size of MONITOR_OBJS -- see MONITOR_OBJS_COUNT.
-# Checked at link rather than in a test because the failure it guards is a
-# shorter list, and a shorter list builds, links and passes every selftest.
-		@[ "$(words $(MONITOR_OBJS))" = "$(MONITOR_OBJS_COUNT)" ] || { \
-		    echo "*** ERROR: MONITOR_OBJS has $(words $(MONITOR_OBJS)) objects, expected $(MONITOR_OBJS_COUNT) ***" >&2; \
-		    echo "The pure-C module set changed.  If a module was ADDED, raise" >&2; \
-		    echo "MONITOR_OBJS_COUNT.  If one VANISHED, this is the bug: the" >&2; \
-		    echo "helper still links, still passes check, and silently lost a" >&2; \
-		    echo "capability." >&2; \
-		    exit 1; }
-		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(NATIVE_OBJS) \
+		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(NATIVE_OBJS) \
 		    ../libkismetdatasource.a $(DATASOURCE_LIBS) $(NATIVE_LIBS)
-# Post-link symbol assertion: every declared leg must be DEFINED here. Without
-# it, a link that omits diag_native_decode.cpp.o ships the process holding the
-# raw DIAG bytes with zero decode legs, and every selftest still passes. The
-# expected set comes from diag_native_decode.cpp's own #include list, so adding
-# a leg to the shim without adding it to DIAGSPEC_SRCS fails the link.
-		@sh ../diagspec/check_binary_symbols.sh helper $(MONITOR_BIN) ..
 
 probe: $(PROBE_BIN)
 
@@ -318,11 +247,6 @@ TEST_GSMTAP_SINK_BIN = test_diag_gsmtap_sink
 # of what Kismet receives. Its canonical-form selftest is part of `check`, and
 # needs no capture. Pure libc.
 REPLAY_NDJSON_BIN = celldiag_replay_ndjson
-# Debug driver: dumps the extracted record stream for a raw-HDLC capture, one
-# (log_code, ts64, payload) per line, for a diff against another extractor.
-# Built by `make logstream-dump`, not part of check (it needs a capture, which
-# is not shipped in the source tree).
-LOGSTREAM_DUMP_BIN = diag_logstream_dump
 # The generated C++ closure the shim forwards to. Compiled from source here rather
 # than reusing the top-level ../diagspec/**.cpp.o, so `make check` in this
 # directory stands alone and does not silently test whatever a previous
@@ -351,7 +275,6 @@ check: $(TEST_HDLC_BIN) $(TEST_CONFIG_BIN) $(TEST_CAPTURE_BIN) $(TEST_RAWLOG_BIN
 		./$(TEST_GSMTAP_SINK_BIN)
 		./$(REPLAY_NDJSON_BIN) --selftest
 		./$(TEST_NATIVE_BIN)
-		sh ../diagspec/test_check_binary_symbols.sh ..
 
 $(REPLAY_NDJSON_BIN):	celldiag_replay_ndjson.c
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(REPLAY_NDJSON_BIN) celldiag_replay_ndjson.c

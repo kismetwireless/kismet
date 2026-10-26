@@ -55,6 +55,9 @@ BUILD_CAPTURE_USB_RADIACODE=0
 BUILD_CAPTURE_ANTSDR_DRONEID=1
 BUILD_CAPTURE_SNIFFLE_BLE=1
 BUILD_CAPTURE_LORAPIPE=1
+BUILD_CAPTURE_CELL_AT=0
+BUILD_CAPTURE_CELL_DIAG=0
+CELL_LOGTOOL_BINS=""
 
 # deprecated
 BUILD_CAPTURE_SDR_RTL433=0
@@ -2003,13 +2006,22 @@ fi
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WCH_BLE_ANALYZER_PRO)"
 
-# Cell modem AT capture — depends only on serial (POSIX termios)
-BUILD_CAPTURE_CELL_AT=1
-DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_AT)"
+AC_ARG_ENABLE([cell],
+    AS_HELP_STRING([--disable-cell], [Disable the cellular modem AT and DIAG capture tools and their log converters]),
+	[case "${enableval}" in
+          no) want_cell=no ;;
+           *) want_cell=yes ;;
+	 esac],
+         [want_cell=yes]
+)
 
-# Cell modem DIAG capture — depends only on serial (POSIX termios)
-BUILD_CAPTURE_CELL_DIAG=1
-DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_DIAG)"
+if test x"$want_cell" = x"yes"; then
+    BUILD_CAPTURE_CELL_AT=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_AT)"
+    BUILD_CAPTURE_CELL_DIAG=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_DIAG)"
+    CELL_LOGTOOL_BINS="\$(LOGTOOL_KISMETDB_CELLNDJSON) \$(LOGTOOL_KISMETDB_ATLOG) \$(LOGTOOL_KISMETDB_QMILOG) \$(LOGTOOL_KISMETDB_HDLC)"
+fi
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -2186,6 +2198,7 @@ AC_SUBST(BUILD_CAPTURE_ANTSDR_DRONEID)
 AC_SUBST(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)
 AC_SUBST(BUILD_CAPTURE_CELL_AT)
 AC_SUBST(BUILD_CAPTURE_CELL_DIAG)
+AC_SUBST(CELL_LOGTOOL_BINS)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -2528,6 +2541,12 @@ if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
 	echo "yes";
 else
 	echo "no";
+fi
+printf " Cell modem (AT, DIAG): "
+if test "$BUILD_CAPTURE_CELL_AT" = 1; then
+	echo "yes";
+else
+	echo "no (disabled)";
 fi
 
 printf " lm-sensors monitoring: "

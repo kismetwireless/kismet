@@ -67,10 +67,14 @@ static void diag_capture_resync(int fd) {
 
 int diag_capture_open(const char *port) {
     struct termios tio;
-    int fd = open(port, O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
+    char real[PATH_MAX];
+    dev_t rdev;
+    if (cell_port_path_ok(port, real, sizeof(real), &rdev) != 0)
+        return -1;
+    int fd = open(real, O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK | O_NOFOLLOW);
     if (fd < 0)
         return -1;
-    if (cell_port_fd_ok(fd, port) != 0) {
+    if (cell_port_fd_ok(fd, real, rdev) != 0) {
         close(fd);
         errno = EPERM;
         return -1;
@@ -335,10 +339,22 @@ int main(void) {
         check(!diag_open_errno_is_transient(ENOENT), "ENOENT is NOT transient");
         check(!diag_open_errno_is_transient(ENXIO), "ENXIO is NOT transient");
 
-        /* A valid non-tty node opens on the first attempt. /dev/null is O_RDWR
-         * openable and isatty()==false, so diag_capture_open returns its fd. */
-        int fd = diag_capture_open_retry("/dev/null", 5, 200);
-        check(fd >= 0, "retry opens /dev/null on the first attempt");
+        /* A valid port opens on the first attempt: a pty passes the modem port
+         * checks. /dev/null is not a modem port, and is refused, not retried. */
+        int ptm = posix_openpt(O_RDWR | O_NOCTTY);
+        const char *pts = (ptm >= 0 && grantpt(ptm) == 0 && unlockpt(ptm) == 0) ?
+            ptsname(ptm) : NULL;
+        check(pts != NULL, "ptsname resolves the retry test's pty");
+        int fd = pts != NULL ? diag_capture_open_retry(pts, 5, 200) : -1;
+        check(fd >= 0, "retry opens a pty on the first attempt");
+        if (fd >= 0)
+            close(fd);
+        if (ptm >= 0)
+            close(ptm);
+
+        errno = 0;
+        fd = diag_capture_open_retry("/dev/null", 5, 200);
+        check(fd < 0 && errno == EPERM, "retry refuses /dev/null, which is not a modem port");
         if (fd >= 0)
             close(fd);
 

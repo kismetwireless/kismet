@@ -252,8 +252,61 @@ void kis_datasource_cell_at::apply_cellat_stats_json(const std::string& json_str
     }
 }
 
+namespace {
+    const std::vector<cell_paths::file_opt> cellat_file_opts = {
+        { "atlog", true, true },
+        { "transcript", false, false },
+        { "lockstate", false, false },
+    };
+}
+
+bool kis_datasource_cell_at::parse_source_definition(std::string in_definition) {
+    if (!kis_datasource::parse_source_definition(in_definition))
+        return false;
+
+    if (get_source_remote())
+        return true;
+
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "cellat parse_source_definition");
+
+    std::string err;
+    if (!cell_paths::confine_definition(cellat_file_opts, source_definition_opts, err)) {
+        _MSG_ERROR("Source '{}': {}", get_source_name(), err);
+        return false;
+    }
+
+    set_int_source_definition(generate_source_definition());
+    return true;
+}
+
+void kis_datasource_cell_at::set_channel_hop(double in_rate,
+        std::shared_ptr<tracker_element_vector_string> in_chans,
+        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+        configure_callback_t in_cb) {
+    if (!get_source_remote()) {
+        std::string err;
+        in_chans = cell_paths::confine_hop(cellat_file_opts, in_chans, err);
+
+        if (!err.empty()) {
+            if (in_cb != nullptr)
+                in_cb(in_transaction, false, err);
+            return;
+        }
+    }
+
+    kis_datasource::set_channel_hop(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
+}
+
 void kis_datasource_cell_at::set_channel(std::string in_channel,
         unsigned int in_transaction, configure_callback_t in_cb) {
+    std::string err;
+    if (!get_source_remote() &&
+            !cell_paths::confine_setting(cellat_file_opts, in_channel, err)) {
+        if (in_cb != nullptr)
+            in_cb(in_transaction, false, err);
+        return;
+    }
+
     // Which runtime keys the operator touched. The VALUE is not kept:
     // the success bit is 1 for applied and refused settings alike, so
     // what gets restored is the helper's readback of what actually ran.
@@ -393,6 +446,13 @@ static std::string cellat_uuid_for_imei(const std::string& imei) {
 
 void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
+    std::string path_err;
+    if (!cell_paths::check_definition(cellat_file_opts, in_definition, path_err)) {
+        if (in_cb != nullptr)
+            in_cb(in_transaction, false, path_err);
+        return;
+    }
+
     // Set a unique, port-stable UUID BEFORE the IPC open (see the detailed
     // rationale in datasource_cell_diag.cc). Kismet merges a datasource into the
     // tracker even when its open fails, and the failed-open report path does not

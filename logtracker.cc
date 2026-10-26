@@ -261,11 +261,9 @@ void log_tracker::trigger_deferred_startup() {
 }
 
 void log_tracker::trigger_deferred_shutdown() {
-    // The sources are closed by now -- the datasource tracker's deferred
-    // shutdown runs before ours, and waits out their graceful closes -- so
-    // finish what they delivered before the logs it would be written to close.
-    // Stopping the packet threads at spindown instead would drop whatever was
-    // still queued.
+    // The sources are closed by now (the datasource tracker's deferred shutdown
+    // runs first and waits out graceful closes); with a graceful-close source,
+    // finish what they delivered before the logs close
     auto packetchain = Globalreg::fetch_global_as<packet_chain>();
     if (packetchain != nullptr)
         packetchain->drain_and_stop();

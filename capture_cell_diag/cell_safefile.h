@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,6 +72,12 @@ static inline int cell_home_dir(char *out, size_t outsz) {
 
 enum { CELL_SAFE_OPEN = 0, CELL_SAFE_RENAME = 1, CELL_SAFE_UNLINK = 2 };
 
+/* Open options. MUST_OWN: an existing file has to belong to the effective uid
+ * wherever it is. FIFO_OK: a FIFO is accepted as well as a regular file (a
+ * replay read from a pipe), and is opened blocking, so the read waits for its
+ * writer the way a plain open() does. */
+enum { CELL_SAFE_MUST_OWN = 1, CELL_SAFE_FIFO_OK = 2 };
+
 /* A file someone else owns, in a directory anyone may create in. */
 static inline int cell_foreign_in_sticky(const char *path, const struct stat *st) {
     if (st->st_uid == geteuid())
@@ -92,21 +99,26 @@ static inline int cell_foreign_in_sticky(const char *path, const struct stat *st
     return stat(dir, &ds) != 0 || (ds.st_mode & S_ISVTX) != 0;
 }
 
-/* The operation itself, at whatever ids this process holds. must_own: an
- * existing file has to belong to the effective uid wherever it is. */
+/* The operation itself, at whatever ids this process holds; opts are the
+ * CELL_SAFE_ open options. */
 static inline int cell_safe_op_direct(int op, const char *a, const char *b,
-                                      int flags, mode_t mode, int must_own) {
+                                      int flags, mode_t mode, int opts) {
     if (op == CELL_SAFE_RENAME)
         return rename(a, b);
     if (op == CELL_SAFE_UNLINK)
         return unlink(a);
 
-    int fd = open(a, flags | O_NOFOLLOW | O_CLOEXEC | O_NOCTTY | O_NONBLOCK, mode);
+    struct stat ls;
+    int fifo = (opts & CELL_SAFE_FIFO_OK) && lstat(a, &ls) == 0 && S_ISFIFO(ls.st_mode);
+    int fd = open(a, flags | O_NOFOLLOW | O_CLOEXEC | O_NOCTTY | (fifo ? 0 : O_NONBLOCK),
+                  mode);
     if (fd < 0)
         return -1;
     struct stat st;
-    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) ||
-            (must_own && st.st_uid != geteuid()) || cell_foreign_in_sticky(a, &st)) {
+    if (fstat(fd, &st) != 0 ||
+            !(S_ISREG(st.st_mode) || ((opts & CELL_SAFE_FIFO_OK) && S_ISFIFO(st.st_mode))) ||
+            ((opts & CELL_SAFE_MUST_OWN) && st.st_uid != geteuid()) ||
+            cell_foreign_in_sticky(a, &st)) {
         close(fd);
         errno = EPERM;
         return -1;
@@ -121,13 +133,13 @@ static inline int cell_safe_op_direct(int op, const char *a, const char *b,
  * and (for an open) the fd come back over a socketpair. Only async-signal-safe
  * calls run in the child -- the captures are threaded. */
 static inline int cell_safe_op(int op, const char *a, const char *b,
-                               int flags, mode_t mode, int must_own) {
+                               int flags, mode_t mode, int opts) {
     if (a == NULL || (op == CELL_SAFE_RENAME && b == NULL)) {
         errno = EINVAL;
         return -1;
     }
     if (!cell_is_elevated())
-        return cell_safe_op_direct(op, a, b, flags, mode, must_own);
+        return cell_safe_op_direct(op, a, b, flags, mode, opts);
 
     int sv[2];
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0)
@@ -150,7 +162,7 @@ static inline int cell_safe_op(int op, const char *a, const char *b,
         int fd = -1;
         close(sv[0]);
         if (diag_child_drop_privs(perr, sizeof(perr)) == 0) {
-            fd = cell_safe_op_direct(op, a, b, flags, mode, must_own);
+            fd = cell_safe_op_direct(op, a, b, flags, mode, opts);
             res[0] = fd >= 0 ? 0 : -1;
             res[1] = fd >= 0 ? 0 : errno;
         }
@@ -273,15 +285,87 @@ static inline int cell_safe_unlink(const char *path) {
     return cell_safe_op(CELL_SAFE_UNLINK, path, NULL, 0, 0, 0);
 }
 
-/* What an opened modem port must be, checked on the fd so a path swapped after
- * any earlier check still cannot get past it: a character device, never a
- * regular file or FIFO. Under suid, also a tty or a modem's own non-tty node
+static inline int cell_all_digits(const char *s) {
+    if (*s == '\0')
+        return 0;
+    for (; *s != '\0'; s++)
+        if (*s < '0' || *s > '9')
+            return 0;
+    return 1;
+}
+
+static inline int cell_prefix_digits(const char *s, const char *prefix) {
+    size_t n = strlen(prefix);
+    return strncmp(s, prefix, n) == 0 && cell_all_digits(s + n);
+}
+
+/* A modem port name under /dev, after symlinks are resolved: USB serial and
+ * ACM ttys, a modem's own non-tty nodes (/dev/mhi_*, /dev/wwan<N>*, /dev/diag),
+ * the macOS serial nodes, and ptys (a usbserial bridge port). */
+static inline int cell_port_name_ok(const char *real) {
+    if (strncmp(real, "/dev/", 5) != 0)
+        return 0;
+    const char *n = real + 5;
+#if defined(__APPLE__)
+    if ((strncmp(n, "cu.", 3) == 0 && n[3] != '\0') ||
+            (strncmp(n, "tty.", 4) == 0 && n[4] != '\0'))
+        return strchr(n, '/') == NULL;
+    if (cell_prefix_digits(n, "ttys"))
+        return 1;
+#else
+    if (strncmp(n, "pts/", 4) == 0)
+        return cell_all_digits(n + 4);
+#endif
+    if (strchr(n, '/') != NULL)
+        return 0;
+    if (cell_prefix_digits(n, "ttyUSB") || cell_prefix_digits(n, "ttyACM"))
+        return 1;
+    if (strncmp(n, "mhi_", 4) == 0 && n[4] != '\0')
+        return 1;
+    if (strncmp(n, "wwan", 4) == 0 && n[4] >= '0' && n[4] <= '9')
+        return 1;
+    return strcmp(n, "diag") == 0;
+}
+
+/* Check a modem port before it is opened, since opening some character
+ * devices does something by itself (a watchdog, a tape rewind). The path is
+ * resolved through any symlink (/dev/serial/by-id, a usbserial link) and must
+ * name a modem node (cell_port_name_ok) that is a character device; under
+ * suid, one owned by root or the caller. The resolved path goes to out, for
+ * the open, and its device number to rdev, for cell_port_fd_ok. Returns 0, or
+ * -1 with errno (EPERM for a path that is not a modem port). */
+static inline int cell_port_path_ok(const char *path, char *out, size_t outsz,
+                                    dev_t *rdev) {
+    char real[PATH_MAX];
+    struct stat st;
+    if (path == NULL || out == NULL || rdev == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (realpath(path, real) == NULL)
+        return -1;
+    if (!cell_port_name_ok(real) || stat(real, &st) != 0 || !S_ISCHR(st.st_mode) ||
+            (cell_is_elevated() && st.st_uid != 0 && st.st_uid != getuid())) {
+        errno = EPERM;
+        return -1;
+    }
+    if (snprintf(out, outsz, "%s", real) >= (int) outsz) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    *rdev = st.st_rdev;
+    return 0;
+}
+
+/* What an opened modem port must be, checked on the fd so a node swapped after
+ * cell_port_path_ok still cannot get past it: the same character device it
+ * checked (rdev). Under suid, also a tty or a modem's own non-tty node
  * (/dev/mhi_*, /dev/wwan<N>*, /dev/diag), owned by root or the caller -- so
  * not /dev/mem and the like, and not another user's terminal. Returns 0, or -1
  * with errno EPERM. */
-static inline int cell_port_fd_ok(int fd, const char *path) {
+static inline int cell_port_fd_ok(int fd, const char *path, dev_t rdev) {
     struct stat st;
-    if (fd < 0 || fstat(fd, &st) != 0 || !S_ISCHR(st.st_mode)) {
+    if (fd < 0 || fstat(fd, &st) != 0 || !S_ISCHR(st.st_mode) || st.st_rdev != rdev) {
         errno = EPERM;
         return -1;
     }
@@ -304,10 +388,10 @@ static inline int cell_port_fd_ok(int fd, const char *path) {
 
 /* fopen() through cell_safe_op(); mode is "r" or "w". */
 static inline FILE *cell_safe_fopen(const char *path, const char *mode, mode_t perm,
-                                    int must_own) {
+                                    int opts) {
     int write = mode != NULL && mode[0] == 'w';
     int fd = cell_safe_op(CELL_SAFE_OPEN, path, NULL,
-                          write ? (O_WRONLY | O_CREAT | O_TRUNC) : O_RDONLY, perm, must_own);
+                          write ? (O_WRONLY | O_CREAT | O_TRUNC) : O_RDONLY, perm, opts);
     if (fd < 0)
         return NULL;
     FILE *f = fdopen(fd, write ? "w" : "r");

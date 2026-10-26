@@ -26,7 +26,7 @@ def forget_installed_datadir(binary: Path) -> list[str]:
     nothing moves) acts as a build-time data dir without a second link and
     without a runtime override in the shipped binary, which deliberately has
     none. The binary under test is otherwise byte-identical. Returns the paths
-    it replaced; a build with none compiled in (``standalone.mk``) returns [].
+    it replaced; a build with none compiled in returns [].
     """
     data = binary.read_bytes()
     found = [m.group(0).decode() for m in _DATADIR_RE.finditer(data)]

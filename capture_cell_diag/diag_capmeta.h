@@ -43,7 +43,7 @@
  *
  * The path derivation, JSON escaping and record formatting are libc-only (no
  * Kismet dependency) so they are unit-tested standalone in test_diag_capmeta.c
- * (`make -f standalone.mk check` in this directory), exactly as diag_rawlog is.
+ * (`make check` in this directory), exactly as diag_rawlog is.
  */
 #ifndef DIAG_CAPMETA_H
 #define DIAG_CAPMETA_H

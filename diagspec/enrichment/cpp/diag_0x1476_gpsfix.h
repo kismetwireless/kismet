@@ -149,9 +149,7 @@ const double kMaxPlausibleAltM = 9000.0;
 // every source lets an engine re-serving a PARKED position with fresh clocks
 // re-anchor the gate, which then refuses the real moving track (measured: 410
 // moving fixes refused on a CFW-3212 survey at 150 m/s). Pass a finite bound to
-// arm it; 150.0 is the working number. HUGE_VAL is +infinity on IEEE 754;
-// a macro, not a call, so check_binary_symbols.sh's header
-// scan does not read it as a declared function.
+// arm it; 150.0 is the working number. HUGE_VAL is +infinity on IEEE 754.
 const double kDefaultMaxSpeedMps = HUGE_VAL;
 // The jump gate's |dt| floor, so two engines emitting
 // ~0.3 s apart (or backwards in GNSS time) cannot turn jitter into a jump.

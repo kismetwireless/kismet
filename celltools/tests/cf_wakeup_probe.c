@@ -23,9 +23,9 @@
  *
  *   wait-while-pending
  *       The other half: with bytes STILL QUEUED the wait must NOT return on its
- *       own (a fix that simply never waits would pass wait-after-flush). The
- *       probe watches it stay parked for 300 ms, then flushes the way the I/O
- *       loop does and times the wake.
+ *       own (a fix that simply never waits would pass wait-after-flush). Each
+ *       wait is capped at 100 ms, so the probe watches it stay parked for
+ *       50 ms, then flushes the way the I/O loop does and times the wake.
  *
  *   race N
  *       The lost wakeup as it happens in the field. Per iteration: queue bytes, then one
@@ -361,7 +361,7 @@ static int mode_wait_while_pending(void) {
         return 2;
     }
     pthread_create(&t, NULL, waiter_thread, &w);
-    if (wait_done(&w, 300000)) {
+    if (wait_done(&w, 50000)) {
         printf("returned_while_pending=1\n");
         pthread_join(t, NULL);
         return 0;

@@ -52,9 +52,8 @@ reason named in the skip message** — never fails, and never passes vacuously.
 | `tests/celldiag_run.py` | the shared celldiag run harness: the discovered, staleness-checked binary, and one run of it over the datasource IPC |
 | `tests/test_celldiag_replay_ab.py` | drives the compiled `kismet_cap_cell_diag` over the datasource IPC with replay files built in the tree, and checks what it relays |
 | `tests/test_celldiag_native_only.py` | the decoder options that no longer exist are refused by name, and the census and GSMTAP tap give pinned answers on synthetic records |
-| `tests/test_celldiag_standalone_native.py` | `standalone.mk check-native`: the helper built with no autoconf, decoding the tree's own capture into exactly the committed expectation |
 | `tests/test_cellat_ipc.py` | drives `kismet_cap_cell_at` against a scripted AT responder on a pty — no modem, no server |
-| `tests/test_cell_binaries.py` | the discovery + skip-reason contract: the statuses must stay mutually distinguishable, each actionable one must carry **its own** remedy, and the no-configure builds stay where discovery looks |
+| `tests/test_cell_binaries.py` | the discovery + skip-reason contract: the statuses must stay mutually distinguishable, each actionable one must carry **its own** remedy |
 | `tests/test_celldiag_link_deps.py` | the makefile parser, against a synthetic tree: no build, no compiler |
 | `tests/test_binary_staleness.py` | the staleness predicate and the probe CLI, same synthetic tree |
 | `tests/test_celldiag_profile_target_codes.py` | `capture_cell_at/profiles/*.json` `diag.target_codes` vs `DIAG_TARGET_CODES` in `capture_cell_diag/diag_config.c` |
@@ -62,9 +61,8 @@ reason named in the skip message** — never fails, and never passes vacuously.
 
 Discovery, link-dep derivation, staleness and the profile check are pure
 introspection of this tree and run everywhere. The binary-driving harnesses
-need the binaries built (`make -C capture_cell_diag -f standalone.mk` builds
-the helper with no `./configure`), and name the command in their skip message
-when one is missing.
+need the binaries built (`./configure`, then `make`), and name the command in
+their skip message when one is missing.
 
 ### `kismet-host-preflight.sh`
 

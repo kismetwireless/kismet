@@ -49,6 +49,11 @@ class UnalignedPerReader {
       : data_(data, data + len), bit_pos_(0) {}
 
   size_t bit_pos() const { return bit_pos_; }
+  size_t bit_size() const { return data_.size() * 8; }
+  size_t bits_left() const { return bit_pos_ < bit_size() ? bit_size() - bit_pos_ : 0; }
+  // Past the end, as an over-long skip would leave it, so a later bounds check
+  // still sees the overrun
+  void skip_past_end() { if (bit_pos_ <= bit_size()) bit_pos_ = bit_size() + 1; }
 
   // -- core bit access (X.691 §3, MSB-first) --------------------------------
   // Reads n bits (0..64) as an unsigned integer. Bits past end-of-buffer read

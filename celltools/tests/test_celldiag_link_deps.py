@@ -21,7 +21,6 @@ compiler), so they pin the logic on every host.
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -458,132 +457,16 @@ def test_the_real_makefiles_resolve_and_include_the_shared_classifier(
         f"{sorted(n for n in names if n.startswith('test_'))}")
 
 
-# ── standalone.mk as a prerequisite source ────────────────────────────────────
-#
-# `Makefile` exists only after `./configure`. On a host that cannot configure
-# this tree, `standalone.mk` is the only prerequisite list on disk. Consulting
-# `Makefile` alone would make the glob the standing verdict for
-# `diag_logstream_dump`, so any edit to an unrelated .c in the directory would
-# report the binary stale while `make -f standalone.mk` says `is up to date`.
-
-#: mtime helpers, defined here rather than imported from
-#: ``test_binary_staleness`` — that module imports the ``tree`` fixture FROM
-#: this one, so the reverse import would be a cycle.
-def _age(path: Path, seconds: float) -> None:
-    st = path.stat()
-    os.utime(path, (st.st_atime, st.st_mtime - seconds))
-
-
-def _touch_newer(path: Path, binary: Path, seconds: float = 60.0) -> None:
-    st = binary.stat()
-    os.utime(path, (st.st_mtime + seconds, st.st_mtime + seconds))
-
-
-def _make_standalone_only(tree: Path) -> Path:
-    """Rename the fixture's Makefile to standalone.mk — the unconfigured host."""
-    (tree / "Makefile").rename(tree / "standalone.mk")
-    return tree
-
-
-def test_standalone_mk_answers_when_no_Makefile_exists(tree: Path):
-    """With only standalone.mk on disk the set is derived, not globbed."""
-    _make_standalone_only(tree)
-    deps = cell_binaries.link_dependencies(tree / "diag_logstream_dump")
-    assert deps.mode == "derived", deps.note
-    assert "standalone.mk" in deps.note
-
-
-def test_the_unconfigured_host_no_longer_reports_a_neighbour_as_a_dependency(tree: Path):
-    """An unconfigured tree does not sweep a neighbouring source into the set.
-
-    ``capture_cell_diag.c`` is the right control: it is a real, linked source of
-    the OTHER binary in this
-    directory, so a glob sweeps it in and a correct dependency set leaves it out.
-    An invented filename would pass against a fallback that merely narrowed.
-    """
-    _make_standalone_only(tree)
-    names = _names(tree / "diag_logstream_dump")
-    assert names == {"diag_logstream.c", "diag_logstream.h", "diag_stats.c"}
-    assert "capture_cell_diag.c" not in names
-    assert "celldiag_probe.c" not in names
-
-
-def test_a_neighbour_edit_no_longer_makes_the_logstream_driver_stale(tree: Path):
-    """End to end, through ``staleness()`` — the verdict, not just the deps.
-
-    Non-vacuous by construction: the SAME fixture with ``diag_logstream.c``
-    touched instead must still be stale, or this would pass against a guard that
-    had simply stopped working.
-    """
-    _make_standalone_only(tree)
-    binary = tree / "diag_logstream_dump"
-    for p in tree.rglob("*"):
-        if p.is_file() and p != binary:
-            _age(p, 3600)
-
-    _touch_newer(tree / "capture_cell_diag.c", binary)
-    assert cell_binaries.staleness("logstream", binary).stale is False, \
-        "an unlinked neighbour still fires the guard"
-
-    _touch_newer(tree / "diag_logstream.c", binary)
-    st = cell_binaries.staleness("logstream", binary)
-    assert st.stale and "diag_logstream.c" in st.summary(), \
-        "the guard no longer fires on a REAL prerequisite"
-
-
-def test_the_remedy_carries_dash_f_when_standalone_mk_answered(tree: Path):
-    """A ``make -C <dir> <target>`` with no ``-f`` finds no makefile at all here."""
-    _make_standalone_only(tree)
-    st = cell_binaries.staleness("logstream", tree / "diag_logstream_dump")
-    assert st.deps.makefile is not None
-    assert st.deps.makefile.name == "standalone.mk"
-    assert st.rebuild_cmd() == f"make -C {tree} -f standalone.mk diag_logstream_dump"
-
-
-def test_a_configured_tree_keeps_the_plain_make_form(tree: Path):
-    """Precedence, and the negative control on the ``-f``.
-
-    ``Makefile`` still wins where it exists, and the remedy must NOT sprout a
-    ``-f standalone.mk`` there — that would send an operator on a configured host
-    to a build that skips the capture framework.
-    """
-    (tree / "standalone.mk").write_text("bogus: ; true\n")
-    deps = cell_binaries.link_dependencies(tree / "diag_logstream_dump")
-    assert deps.makefile is not None and deps.makefile.name == "Makefile"
-    st = cell_binaries.staleness("logstream", tree / "diag_logstream_dump")
-    assert st.rebuild_cmd() == f"make -C {tree} diag_logstream_dump"
-
-
-def test_with_NEITHER_makefile_the_wide_glob_fallback_survives(tree: Path):
-    """Reading standalone.mk must not narrow the fallback itself.
+def test_without_a_makefile_the_wide_glob_fallback_survives(tree: Path):
+    """An unconfigured directory still globs, and says so.
 
     An over-broad fallback produces a spurious failure a human understands; a
-    narrow-to-empty one produces a guard that can never fire. Removing both
-    makefiles must still glob, and must still say so.
+    narrow-to-empty one produces a guard that can never fire.
     """
     (tree / "Makefile").unlink()
     deps = cell_binaries.link_dependencies(tree / "diag_logstream_dump")
     assert deps.mode == "glob"
     assert deps.makefile is None
-    assert "standalone.mk" in deps.note and "Makefile" in deps.note, (
-        f"the glob note must name every makefile that was looked for, or the "
-        f"next reader repeats this investigation: {deps.note}")
+    assert "Makefile" in deps.note, (
+        f"the glob note must name the makefile that was looked for: {deps.note}")
     assert "capture_cell_diag.c" in {p.name for p in deps.sources}
-
-
-def test_the_glob_note_is_not_reachable_on_this_repos_own_logstream_driver():
-    """The real tree's logstream driver resolves through standalone.mk.
-
-    Skips only where the directory itself is absent. The source tree ships
-    standalone.mk, so a tree with neither makefile cannot happen here, and it
-    is asserted rather than skipped.
-    """
-    srcdir = REPO_ROOT / "capture_cell_diag"
-    if not srcdir.is_dir():
-        pytest.skip("no capture_cell_diag/ on this host")
-    deps = cell_binaries.link_dependencies(srcdir / "diag_logstream_dump")
-    assert deps.mode == "derived", (
-        f"the shipped standalone.mk states this binary's prerequisites; a glob "
-        f"here means standalone.mk was not consulted: {deps.note}")
-    assert {p.name for p in deps.sources} == {
-        "diag_logstream.c", "diag_logstream.h", "diag_hdlc.c", "diag_hdlc.h"}

@@ -31,7 +31,6 @@
 #include "kis_datasource.h"
 #include "pcapng.h"
 #include "streamtracker.h"
-#include "version.h"
 
 // A streaming pcap generator that connects the packetchain to a buffer defined by the
 // future_chainbuf; registers as a stream handler in the streaming subsystem.
@@ -98,11 +97,7 @@ public:
     }
 
     virtual void start_stream() {
-        // shb_userappl travels inside every pcapng we write, so it names the
-        // PoC rather than plain "Kismet" -- same attribution argument as the
-        // WiGLE header.  (Upstream passes no version here at all; leaving that
-        // alone, the name is the part that identifies the fork.)
-        pcapng_make_shb("", "", VERSION_POC_NAME);
+        pcapng_make_shb("", "", "Kismet");
     }
 
     // Restart the chain on a new buffer; return that buffer once it is assigned
@@ -116,11 +111,7 @@ public:
 
         log_packets = 0;
         datasource_id_map.clear();
-        // shb_userappl travels inside every pcapng we write, so it names the
-        // PoC rather than plain "Kismet" -- same attribution argument as the
-        // WiGLE header.  (Upstream passes no version here at all; leaving that
-        // alone, the name is the part that identifies the fork.)
-        pcapng_make_shb("", "", VERSION_POC_NAME);
+        pcapng_make_shb("", "", "Kismet");
 
         return chainbuf;
     }

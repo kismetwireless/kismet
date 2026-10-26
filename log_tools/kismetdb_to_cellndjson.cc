@@ -306,7 +306,9 @@ int main(int argc, char *argv[]) {
                 n_bad++;
             }
 
-            fmt::print(ofile, "{}\n", rec.dump());
+            /* Replace, not throw: one bad string in the db must not end the export */
+            fmt::print(ofile, "{}\n",
+                    rec.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             n_rows++;
 
             if (verbose && n_data_db > 0 && n_rows % 5000 == 0)

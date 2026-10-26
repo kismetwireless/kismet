@@ -60,9 +60,10 @@
  * the same model), so a name may merge several sources; a uuid never does.
  *
  * Deliberately opens the db READONLY and never VACUUMs/mutates it: a captured
- * .kismet is an artifact of record. A blob that will not parse is emitted
- * verbatim anyway (fidelity first) but counted and reported, never fatal —
- * the same robustness rule as kismetdb_to_cellndjson.
+ * .kismet is an artifact of record. A blob that will not parse is skipped,
+ * counted and reported, never fatal: written verbatim it could inject lines
+ * into the transcript. A parsed record spread over several lines is written
+ * re-serialized onto one.
  */
 
 #include "config.h"
@@ -271,18 +272,18 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* One reconstructed record. `blob` is emitted verbatim (it already carries
-     * the trailing '\n' the emitter wrote). `mono` is parsed out for ordering;
-     * `mono_ok` false means the blob would not parse — kept for fidelity, sorted
-     * to the end, and counted. */
+    /* One reconstructed record. `line` is the stored blob verbatim when it is
+     * one line (it already carries the emitter's trailing '\n'). `mono_ok`
+     * false means no usable ts_mono_ns: kept, sorted to the end, and counted. */
     struct rec_t {
         uint64_t mono;
         bool mono_ok;
-        std::string blob;
+        std::string line;
     };
     std::vector<rec_t> recs;
 
     unsigned long n_bad = 0;
+    unsigned long n_unordered = 0;
 
     try {
         auto query = _SELECT(db, "data", {"datasource", "json"},
@@ -295,23 +296,32 @@ int main(int argc, char *argv[]) {
 
             auto blob = sqlite3_column_as<std::string>(row, 1);
 
+            auto j = nlohmann::json::parse(blob, nullptr, false);
+            if (j.is_discarded() || !j.is_object()) {
+                n_bad++;
+                continue;
+            }
+
             rec_t rec;
-            rec.blob = blob;
             rec.mono = 0;
             rec.mono_ok = false;
 
-            try {
-                auto j = nlohmann::json::parse(blob);
-                auto it = j.find("ts_mono_ns");
-                if (it != j.end() && it->is_number()) {
-                    rec.mono = it->get<uint64_t>();
-                    rec.mono_ok = true;
-                } else {
-                    n_bad++;
-                }
-            } catch (const std::exception&) {
-                n_bad++;
+            auto it = j.find("ts_mono_ns");
+            if (it != j.end() && it->is_number_unsigned()) {
+                rec.mono = it->get<uint64_t>();
+                rec.mono_ok = true;
+            } else {
+                n_unordered++;
             }
+
+            if (!blob.empty() && blob.back() == '\n')
+                blob.pop_back();
+
+            if (blob.find_first_of("\r\n") == std::string::npos)
+                rec.line = std::move(blob);
+            else
+                rec.line = j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+            rec.line += '\n';
 
             recs.push_back(std::move(rec));
         }
@@ -324,9 +334,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    /* Stable sort by ts_mono_ns; unparseable records (mono_ok == false) sort to
-     * the end in their original db order, so a corrupt blob never displaces a
-     * good record's position or aborts the run. */
+    /* Stable sort by ts_mono_ns; records without one sort to the end in their
+     * original db order. */
     std::stable_sort(recs.begin(), recs.end(),
             [](const rec_t& a, const rec_t& b) {
                 if (a.mono_ok != b.mono_ok)
@@ -338,11 +347,7 @@ int main(int argc, char *argv[]) {
 
     unsigned long n_rows = 0;
     for (const auto& rec : recs) {
-        /* Emit the stored blob verbatim: it already ends in '\n'. Guard the rare
-         * case of a blob missing its newline so lines never run together. */
-        fputs(rec.blob.c_str(), ofile);
-        if (rec.blob.empty() || rec.blob.back() != '\n')
-            fputc('\n', ofile);
+        fwrite(rec.line.data(), 1, rec.line.size(), ofile);
         n_rows++;
     }
 
@@ -350,13 +355,17 @@ int main(int argc, char *argv[]) {
         fclose(ofile);
     sqlite3_close(db);
 
+    if (n_bad)
+        fprintf(stderr, "WARNING: %lu " RAWLOG_TYPE " row(s) are not JSON records "
+                "and were skipped.\n", n_bad);
+
     if (verbose) {
         fprintf(stderr, "* KismetDB version %d\n", db_version);
         if (!source_filter.empty())
             fprintf(stderr, "* Source filter: '%s'\n", source_filter.c_str());
         fprintf(stderr, "* Wrote %lu " RAWLOG_NAME " record(s)", n_rows);
-        if (n_bad)
-            fprintf(stderr, " (%lu unparseable, emitted verbatim + sorted last)", n_bad);
+        if (n_unordered)
+            fprintf(stderr, " (%lu without ts_mono_ns, sorted last)", n_unordered);
         fprintf(stderr, "\n* Done!\n");
     }
 

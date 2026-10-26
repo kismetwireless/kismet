@@ -310,7 +310,6 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
         set_int_source_running(1);
         set_int_source_error(0);
-        // The reason goes with the flag (see the v3 open report).
         set_int_source_error_reason("");
 
         lock.unlock();
@@ -525,7 +524,6 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     set_int_source_running(true);
     set_int_source_definition(in_definition);
     set_int_source_error(false);
-    // The reason goes with the flag (see the v3 open report).
     set_int_source_error_reason("");
 
     set_source_uuid(uuid);
@@ -1899,6 +1897,13 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     }
     close_grace_ms = close_grace;
 
+    if (close_grace > 0 &&
+            Globalreg::globalreg->kismet_config->fetch_opt_bool("datasource_graceful_close", true)) {
+        auto packetchain = Globalreg::fetch_global_as<packet_chain>();
+        if (packetchain != nullptr)
+            packetchain->set_drain_at_shutdown();
+    }
+
     if (code == 0) {
         trigger_error(msg);
         set_int_source_error_reason(msg);
@@ -2153,13 +2158,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     set_int_source_running(code != 0);
     set_source_paused(0);
     set_int_source_error(code == 0);
-    // Fork patch: clear the human-readable reason with the flag.
-    // disable_source.cmd is disable_source(), which sets "Source disabled"
-    // (close_source.cmd is stop_source() and sets no reason); a re-open that
-    // cleared only the boolean would leave every disable -> open toggle with a
-    // flowing source reporting "Source disabled" for the rest of the run. THIS is the site a
-    // capture helper's open lands on; the passive and remote clears below and
-    // above are the same rule for the other two open paths.
+    // A successful open clears a stale reason such as "Source disabled"
     if (code != 0)
         set_int_source_error_reason("");
 
@@ -3140,7 +3139,6 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     set_int_source_running(report.success().success());
 
     set_int_source_error(!report.success().success());
-    // As in the v3 handler, the reason goes with the flag.
     if (report.success().success())
         set_int_source_error_reason("");
 

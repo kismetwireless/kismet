@@ -35,6 +35,10 @@ void skip_extension_additions(UnalignedPerReader& r) {
   for (uint64_t i = 0; i <= num_ext; ++i) {
     if (present[i]) {
       uint64_t length = read_open_type_length(r);
+      if (length > r.bits_left() / 8) {
+        r.skip_past_end();
+        return;
+      }
       r.skip_bits(static_cast<int>(length * 8));
     }
   }

@@ -1,6 +1,6 @@
 /* test_diag_rawpkt.c - standalone unit tests for the raw-stream slicer.
  *
- * Links diag_rawpkt.c and nothing else: `make -f standalone.mk check`. Covers
+ * Links diag_rawpkt.c and nothing else: `make check`. Covers
  * the slice header's exact bytes, whole-frame slicing, a partial frame held
  * across reads, the cut at the payload cap, the no-terminator FRAGMENT, a dropped slice
  * leaving an exact offset gap, the end-of-stream flush, the END slice and the

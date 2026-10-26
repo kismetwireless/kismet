@@ -85,48 +85,13 @@ TEST_STATS_BIN = test_cellat_stats
 TEST_OPTSET_BIN = test_cellat_optset
 # Band/RAT lock logic: what gets written to a modem's NV.
 TEST_LOCK_BIN = test_cellat_lock
+# CSURVC TAC=0 substitution + the "tac":<n>:0 regression guard.
+TEST_TACFIX_BIN = test_cellat_tacfix
 # The qmifeed= child: spawn, line framing, fd hygiene and a stop
 # that reaches the whole process group. libc-only; drives real /bin/sh children.
 TEST_QMIFEED_BIN = test_cellat_qmifeed
 
 all: $(MONITOR_BIN) $(PROBE_BIN)
-
-# Auto-regenerate this Makefile when its source template or config.status is newer.
-# config.status renders capture_*/Makefile from the committed Makefile.in;
-# without this rule a `git pull` that updates Makefile.in leaves the on-disk
-# generated Makefile stale, so newly-added targets/selftests (e.g. `make check`)
-# silently do not exist and a stale `make check` can read as green. make restarts
-# itself after rebuilding a Makefile, so the fresh rule set is used immediately.
-Makefile: Makefile.in ../config.status
-	cd .. && ./config.status capture_cell_at/Makefile
-
-# ../libkismetdatasource.a is a prerequisite of the binary, and without a rule
-# make treats an existing file with no rule as up to date, so this directory
-# would link whatever archive happened to be on disk and exit 0. The FORCE rule
-# below always delegates to the top-level build. capture_cell_diag has the same
-# rule: they are the only two capture sources with their own Makefiles, so the
-# only two that could link a stale framework.
-# Whenever the top-level archive target finds the archive out of date it
-# regenerates version.c and re-archives -- in practice after every new commit
-# in this tree -- and the rule above then leaves ../libkismetdatasource.a newer
-# than any binary linked before it, including the SIBLING capture binary,
-# which links the same archive. Left alone, that binary is then genuinely stale
-# (linked against the previous archive) and the celltools staleness guard
-# fails every test that pairs the two sources. So the sibling is
-# relinked here, but only if it is already built (an unbuilt sibling stays
-# unbuilt) and only if it is now older than the archive.
-# CELL_SIBLING_RELINK=no on the sub-make keeps the two directories from
-# recursing into each other.
-../libkismetdatasource.a: FORCE
-	@$(MAKE) --no-print-directory -C .. libkismetdatasource.a
-	@if [ "$(CELL_SIBLING_RELINK)" != no ] && [ -x ../capture_cell_diag/kismet_cap_cell_diag ] && \
-	    [ ../libkismetdatasource.a -nt ../capture_cell_diag/kismet_cap_cell_diag ]; then \
-	    echo "  relinking capture_cell_diag: it links the archive this build refreshed"; \
-	    $(MAKE) --no-print-directory -C ../capture_cell_diag CELL_SIBLING_RELINK=no kismet_cap_cell_diag; \
-	 fi
-
-FORCE:
-.PHONY: FORCE
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
@@ -165,7 +130,8 @@ TEST_SERIAL_PORT_BIN = test_at_serial_portability
 check: $(TEST_SERIAL_BIN) $(TEST_OPTIONS_BIN) $(TEST_WWANPORT_BIN) $(TEST_PORTSCAN_BIN) \
 	    $(TEST_QENG_BIN) $(TEST_CPSI_BIN) $(TEST_QSCAN_BIN) $(TEST_STD3GPP_BIN) $(TEST_SERIAL_PORT_BIN) $(TEST_ATLOG_BIN) \
 	    $(TEST_CLOCKANCHOR_BIN) $(TEST_STATS_BIN) $(TEST_OPTSET_BIN) $(TEST_PROBECLOSE_BIN) \
-	    $(TEST_MODEMIDENT_BIN) $(TEST_PORTADMIT_BIN) $(TEST_IDENTVOUCH_BIN) $(TEST_QMIFEED_BIN) $(TEST_LOCK_BIN)
+	    $(TEST_MODEMIDENT_BIN) $(TEST_PORTADMIT_BIN) $(TEST_IDENTVOUCH_BIN) $(TEST_QMIFEED_BIN) $(TEST_LOCK_BIN) \
+	    $(TEST_TACFIX_BIN)
 		./$(TEST_SERIAL_BIN)
 		./$(TEST_SERIAL_PORT_BIN)
 		./$(TEST_OPTIONS_BIN)
@@ -185,6 +151,7 @@ check: $(TEST_SERIAL_BIN) $(TEST_OPTIONS_BIN) $(TEST_WWANPORT_BIN) $(TEST_PORTSC
 		./$(TEST_OPTSET_BIN)
 		./$(TEST_QMIFEED_BIN)
 		./$(TEST_LOCK_BIN)
+		./$(TEST_TACFIX_BIN)
 
 $(TEST_LOCK_BIN):	test_cellat_lock.c cellat_lock.c cellat_lock.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_LOCK_BIN) test_cellat_lock.c cellat_lock.c
@@ -210,6 +177,9 @@ $(TEST_OPTSET_BIN):	test_cellat_optset.c cellat_optset.c cellat_optset.h \
 		    cellat_options.c cellat_options.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_OPTSET_BIN) \
 		    test_cellat_optset.c cellat_optset.c cellat_options.c
+
+$(TEST_TACFIX_BIN):	test_cellat_tacfix.c cellat_tacfix.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_TACFIX_BIN) test_cellat_tacfix.c
 
 $(TEST_QENG_BIN):	test_cellat_qeng.c cellat_qeng.inc
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QENG_BIN) test_cellat_qeng.c
@@ -313,6 +283,7 @@ clean:
 	@-rm -f $(TEST_PORTSCAN_BIN)
 	@-rm -f $(TEST_QENG_BIN)
 	@-rm -f $(TEST_QSCAN_BIN)
+	@-rm -f $(TEST_TACFIX_BIN)
 	@-rm -f $(TEST_ATLOG_BIN)
 	@-rm -f $(TEST_STATS_BIN)
 	@-rm -f $(TEST_OPTSET_BIN)

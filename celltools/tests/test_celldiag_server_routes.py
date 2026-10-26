@@ -89,11 +89,8 @@ def _helper_dir(capture_dir: str) -> Path:
 
     The directory of the binary ``cell_binaries.discover`` found (the same
     binary every staleness guard here inspects), not a fixed
-    ``KP_ROOT/<capture_dir>``. On a configured tree the two agree. On a tree
-    built only through ``standalone.mk`` (e.g. macOS) the binary is in its
-    standalone build directory (``build-native/`` for celldiag), and the fixed
-    path would make every real-server test fail "Unable to find driver". Roles
-    without an entry keep the fixed path.
+    ``KP_ROOT/<capture_dir>``, so a binary found through ``KP_*_BIN`` is the
+    one the server runs. Roles without an entry keep the fixed path.
     """
     role = _HELPER_ROLES.get(capture_dir)
     if role is not None:
@@ -155,17 +152,25 @@ class KismetServer:
         # any other tree (a worktree, a scratch copy) the server would launch
         # that checkout's helpers while every staleness guard here inspects
         # this tree's binaries. Point each capture dir at this tree's.
+        # A tree with no site conf of its own gets one naming its capture dirs,
+        # so the installed helpers are never the ones launched.
         site = self.conf / "kismet_site.conf"
+        text = site.read_text() if site.exists() else ""
+        if not re.search(r"(?m)^helper_binary_path=", text):
+            text = "".join(f"helper_binary_path={KP_ROOT / d}\n"
+                           for d in ("capture_cell_at", "capture_cell_diag")) + text
         text = re.sub(
             r"(?m)^helper_binary_path=\S*/(capture_[A-Za-z0-9_]+)\s*$",
             lambda m: f"helper_binary_path={_helper_dir(m.group(1))}",
-            site.read_text())
+            text)
         # Drop the site conf's own bind line (``0.0.0.0``: the operator's
         # LAN-reachable server). The first value of a key wins, so with it in
         # place the loopback line appended below is dead text and the harness
         # server listens on every interface with this class's fixed
         # USER/PASSWD.
-        site.write_text(re.sub(r"(?m)^[ \t]*httpd_bind_address[ \t]*=.*\n?", "", text))
+        # The server confines a cell source's file options to log_prefix, so
+        # the test's own directory is the log directory.
+        site.write_text(re.sub(r"(?m)^[ \t]*(httpd_bind_address|log_prefix)[ \t]*=.*\n?", "", text))
         with (self.conf / "kismet_site.conf").open("a") as fp:
             # `remote_capture_enabled=false` is required. The repo's site
             # conf listens on the fixed port 3501, and a server that cannot
@@ -173,6 +178,7 @@ class KismetServer:
             # back-to-back tests would race each other's lingering socket and
             # a developer's own running Kismet would fail the suite.
             fp.write(f"\nhttpd_port={self.port}\nhttpd_bind_address=127.0.0.1\n"
+                     f"log_prefix={tmp_path}/\n"
                      "enable_logging=false\n"
                      "remote_capture_enabled=false\n")
         self.srcdef = srcdef

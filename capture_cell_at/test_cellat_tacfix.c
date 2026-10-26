@@ -28,6 +28,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define JSON_BUF_MAX 4096
+
 #include "cellat_tacfix.inc"
 
 static int failures = 0;

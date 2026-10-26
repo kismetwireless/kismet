@@ -457,20 +457,32 @@ void decode_meas_config_extensions(UnalignedPerReader& r,
                                    const std::vector<int>& order,
                                    LteMeasConfig& out) {
   const uint64_t num_ext = r.read_bits(1) == 0 ? r.read_bits(6) : r.read_bits(8);
-  const uint64_t bitmap = r.read_bits(static_cast<int>(num_ext + 1));
+  // Bit by bit: an 8-bit count makes the bitmap wider than one read_bits
+  std::vector<uint8_t> present;
+  present.reserve(static_cast<size_t>(num_ext) + 1);
   for (uint64_t i = 0; i <= num_ext; ++i) {
-    if (!((bitmap >> (num_ext - i)) & 1)) {
+    present.push_back(static_cast<uint8_t>(r.read_bits(1)));
+  }
+  for (uint64_t i = 0; i <= num_ext; ++i) {
+    if (!present[i]) {
       continue;
     }
     const uint64_t length = asn1::read_open_type_length(r);
-    std::vector<uint8_t> body;
-    body.reserve(length);
-    for (uint64_t b = 0; b < length; ++b) {
-      body.push_back(static_cast<uint8_t>(r.read_bits(8)));
+    // A group longer than the rest of the PDU is corrupt: stop before reading it
+    if (length > r.bits_left() / 8) {
+      r.skip_past_end();
+      return;
     }
     if (i == 0) {
+      std::vector<uint8_t> body;
+      body.reserve(length);
+      for (uint64_t b = 0; b < length; ++b) {
+        body.push_back(static_cast<uint8_t>(r.read_bits(8)));
+      }
       UnalignedPerReader g(body);
       apply_v9e0(g, order, out);
+    } else {
+      r.skip_bits(static_cast<int>(length * 8));
     }
   }
 }

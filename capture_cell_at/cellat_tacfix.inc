@@ -16,10 +16,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifndef JSON_BUF_MAX
-#define JSON_BUF_MAX 4096
-#endif
-
 /* Substitute cached_tac for a "tac":0 whose observation matches cached_cell_id.
  * `obs` is a serialized observation JSON string, modified in place, bounded by
  * obssz. Returns 1 if a substitution was made, 0 otherwise (no "tac":0, or the
@@ -34,28 +30,34 @@ static int cellat_apply_survey_tac(char *obs, size_t obssz,
     if (!tac_p)
         return 0;
 
+    /* The whole cell_id value, so 12 does not match 123 */
     char cid_needle[32];
-    snprintf(cid_needle, sizeof(cid_needle), "\"cell_id\":%lu", cached_cell_id);
-    if (!strstr(obs, cid_needle))
-        return 0;
+    int cid_len = snprintf(cid_needle, sizeof(cid_needle), "\"cell_id\":%lu", cached_cell_id);
+    const char *cid_p = obs;
+    for (;;) {
+        cid_p = strstr(cid_p, cid_needle);
+        if (cid_p == NULL)
+            return 0;
+        if (cid_p[cid_len] == ',' || cid_p[cid_len] == '}')
+            break;
+        cid_p += cid_len;
+    }
 
     char new_tac[32];
     int new_tac_len = snprintf(new_tac, sizeof(new_tac), "\"tac\":%lu", cached_tac);
 
-    char fixed[JSON_BUF_MAX];
+    /* Replace the ENTIRE old `"tac":0` token -- 7 chars: " t a c " : 0.
+     * Done in place; an observation that would not fit is left unchanged
+     * rather than truncated into invalid JSON. */
+    const size_t old_len = 7;
+    size_t len = strlen(obs);
     size_t prefix_len = (size_t) (tac_p - obs);
-    if (prefix_len + (size_t) new_tac_len >= sizeof(fixed))
+    size_t tail_len = len - prefix_len - old_len;
+    if (len - old_len + (size_t) new_tac_len >= obssz)
         return 0;
 
-    memcpy(fixed, obs, prefix_len);
-    /* Skip the ENTIRE old `"tac":0` token — 7 chars: " t a c " : 0.
-     * `tac_p + 5` would land on the ':' and leave ":0" behind. */
-    char *old_end = tac_p + 7;
-    memcpy(fixed + prefix_len, new_tac, new_tac_len);
-    strcpy(fixed + prefix_len + new_tac_len, old_end);
-
-    strncpy(obs, fixed, obssz - 1);
-    obs[obssz - 1] = '\0';
+    memmove(tac_p + new_tac_len, tac_p + old_len, tail_len + 1);
+    memcpy(tac_p, new_tac, (size_t) new_tac_len);
     return 1;
 }
 

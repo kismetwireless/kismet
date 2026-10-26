@@ -98,9 +98,7 @@ ROLES = {
     "logstream": (
         "KP_CELLDIAG_LOGSTREAM_BIN",
         "capture_cell_diag/diag_logstream_dump",
-        # `diag_logstream_dump`, NOT `logstream-dump`. No target of the latter
-        # name exists in `standalone.mk` -- `make logstream-dump` exits "No
-        # rule to make target", so a remedy built from it cannot run.
+        # The binary's own rule; `logstream-dump` is only an alias for it.
         "diag_logstream_dump",
     ),
     #: The AT-side capture binary. Discovery is the same question as for the
@@ -113,79 +111,6 @@ ROLES = {
         "kismet_cap_cell_at",
     ),
 }
-
-
-#: role -> the ``standalone.mk`` invocation that builds THIS role's binary
-#: without ``./configure``, for the roles that have one. Absent means the role's
-#: binary cannot be built standalone at all.
-#:
-#: WHY THIS IS A TABLE AND NOT A SENTENCE. Interpolating a role's subdirectory
-#: into prose written about one particular binary produces advice like "build
-#: diag_logstream_dump inside capture_cell_at, overridden by KP_CELLAT_BIN" --
-#: three mismatched referents in one sentence. Templating a PATH into a sentence
-#: about a DIFFERENT BINARY silently re-attributes the escape hatch to whichever
-#: subdir is in play. Role-generic code cannot carry role-specific prose; the
-#: fact has to be per-role data.
-#:
-#: Each entry is ``(subdir, make target, output path within subdir)``. The output
-#: path is carried because it is NOT always the autoconf output path: the
-#: capture binaries' standalone targets write into a build directory of their
-#: own (``build-native/`` for the DIAG helper, ``build-baseline/`` for the AT
-#: one) so they can never clobber a configured tree's binary, and discovery has
-#: to look where the build actually wrote.
-#:
-#: ALL THREE roles have a standalone build. The capture binaries do not need
-#: libwebsockets: every lws include and member in the capture framework is
-#: under ``#ifdef HAVE_LIBWEBSOCKETS`` (an ``ldd`` showing lws only reflects a
-#: build CONFIGURED with it). With the no-autoconf config naming the real OS and
-#: lws optional, both link on Linux and on Darwin (libSystem alone).
-_STANDALONE_ESCAPE = {
-    "logstream": ("capture_cell_diag", "diag_logstream_dump", "diag_logstream_dump"),
-    "celldiag": ("capture_cell_diag", "native", "build-native/kismet_cap_cell_diag"),
-    "cellat": ("capture_cell_at", "baseline", "build-baseline/kismet_cap_cell_at"),
-}
-
-#: role -> the binary a role could NOT build without ./configure. Empty (see
-#: above); kept, because the two tables must partition ``ROLES`` and a future
-#: role has to be recorded in one of them.
-_NO_STANDALONE_ESCAPE: dict[str, str] = {}
-
-
-def _standalone_output(role: str, clone: Path) -> Path | None:
-    """Where ``role``'s no-configure build writes its binary, if it has one."""
-    esc = _STANDALONE_ESCAPE.get(role)
-    return None if esc is None else clone / esc[0] / esc[2]
-
-
-def _standalone_note(role: str, clone: Path) -> str:
-    """The `-f standalone.mk` escape, stated for THIS role or denied for it.
-
-    Every branch names the role's OWN binary. A reader must be able to act on
-    this sentence without first checking whether it was written about a
-    different driver.
-    """
-    if role in _STANDALONE_ESCAPE:
-        subdir, target, out = _STANDALONE_ESCAPE[role]
-        what = ("its binary links no capture framework" if role == "logstream"
-                else "the standalone build links on Linux or Darwin, "
-                     "libwebsockets optional")
-        return (f"THIS role escapes that: {what}, so build it with no "
-                f"configure at all via `make -C {clone / subdir} -f "
-                f"standalone.mk {target}` -> {subdir}/{out}.")
-    binary = _NO_STANDALONE_ESCAPE.get(role)
-    if binary is None:
-        return ("⚠️ whether this role has a no-configure build is unrecorded -- "
-                "add it to _STANDALONE_ESCAPE or _NO_STANDALONE_ESCAPE.")
-    esc_subdir, esc_target, _ = _STANDALONE_ESCAPE["logstream"]
-    return (
-        f"THIS role has NO standalone build and cannot be given one here: "
-        f"{binary} links ../libkismetdatasource.a and needs libwebsockets "
-        f"through the capture framework. Only the `logstream` role escapes: "
-        f"`make -C {clone / esc_subdir} -f standalone.mk {esc_target}`. "
-        f"That does NOT cover this role's tests; they need the capture binary. "
-        f"What IS runnable here without configure is this directory's "
-        f"framework-free selftests: `make -C {clone / _subdir_for(ROLES[role][1])} "
-        f"-f standalone.mk check`.")
 
 
 def _subdir_for(rel: str) -> str:
@@ -380,16 +305,6 @@ def discover(role: str, *, allow_build: bool | None = None) -> Discovery:
     if p.is_file() and os.access(p, os.X_OK):
         return Discovery(role, "discovered", p, f"found built at {p}")
 
-    # 2b. The no-configure build, where it writes somewhere else. The
-    #     autoconf path is checked FIRST: on a configured tree that is the
-    #     binary Linux users get, and preferring a side build would measure a
-    #     configuration the operator did not choose.
-    sp = _standalone_output(role, clone)
-    if sp is not None and sp != p and sp.is_file() and os.access(sp, os.X_OK):
-        return Discovery(role, "discovered", sp,
-                         f"found the no-configure build at {sp} "
-                         f"(standalone.mk `{_STANDALONE_ESCAPE[role][1]}`)")
-
     if allow_build is None:
         allow_build = os.environ.get("KP_CELL_BUILD") == "1"
 
@@ -399,27 +314,6 @@ def discover(role: str, *, allow_build: bool | None = None) -> Discovery:
     #    precedes `not-built`, whose remedy (`make -C ...`) would fail here
     #    for this same reason -- the remedy must be `./configure` first.
     if not is_configured(clone, subdir):
-        # 3a. Opted into a build, and this role has a no-configure one:
-        #     build THAT rather than reporting a remedy. Gated on standalone.mk
-        #     actually being on disk, so a tree without one (a synthetic test
-        #     tree, an older checkout) still gets the configure diagnosis below
-        #     instead of a `make` that cannot work.
-        if allow_build and sp is not None and \
-                (clone / _STANDALONE_ESCAPE[role][0] / "standalone.mk").is_file():
-            esc_subdir, esc_target, _ = _STANDALONE_ESCAPE[role]
-            ok, err = _build(clone, esc_target, esc_subdir,
-                             makefile="standalone.mk")
-            if not ok:
-                return Discovery(role, "build-failed", None,
-                                 f"`make -f standalone.mk {esc_target}` "
-                                 f"failed: {err}")
-            if sp.is_file() and os.access(sp, os.X_OK):
-                return Discovery(role, "built", sp,
-                                 f"built {sp} with no ./configure "
-                                 f"(standalone.mk `{esc_target}`)")
-            return Discovery(role, "build-failed", None,
-                             f"`make -f standalone.mk {esc_target}` succeeded "
-                             f"but {sp} is still absent")
         # Probe the configure-time deps BEFORE advising ./configure. On a host
         # missing one, that advice hard-fails, and a remedy that cannot work is
         # worse than no remedy: it is a silence whose stated cause is wrong.
@@ -429,8 +323,7 @@ def discover(role: str, *, allow_build: bool | None = None) -> Discovery:
             return Discovery(
                 role, "not-configurable", None,
                 f"the tree at {clone} cannot be ./configure'd on this host: "
-                f"missing {', '.join(missing)}. Install: {pkgs}. "
-                + _standalone_note(role, clone))
+                f"missing {', '.join(missing)}. Install: {pkgs}.")
         return Discovery(
             role, "not-configured", None,
             f"the tree at {clone} was never ./configure'd (Makefile.in "
@@ -512,12 +405,9 @@ class LinkDeps:
 
     ``makefile`` is WHICH makefile answered (``None`` in glob mode). It is
     carried for the same reason ``mode`` is, one step further on: the remedy a
-    caller prints has to be runnable on the host that got the verdict. On an
-    unconfigured host the deps come from ``standalone.mk``, and a ``make -C
-    <dir> <target>`` with no ``-f`` reaches a Makefile that is not there.
-    Deriving the remedy from the file that produced the verdict is
-    what keeps the guard and the build system from disagreeing about the same
-    binary.
+    caller prints has to be runnable on the host that got the verdict, and
+    deriving it from the file that produced the verdict is what keeps the guard
+    and the build system from disagreeing about the same binary.
     """
     sources: frozenset[Path]
     mode: str
@@ -779,46 +669,9 @@ def _glob_deps(srcdir: Path, note: str) -> LinkDeps:
 
 
 #: Makefiles to consult, in order, when deriving a binary's link closure.
-#:
-#: ``standalone.mk`` is NOT a second-class fallback that happens to work.
-#: ``Makefile`` exists only after ``./configure``, which many hosts cannot run
-#: -- so on those hosts the ONLY prerequisite list on disk is ``standalone.mk``,
-#: and consulting ``Makefile`` alone means globbing. The glob's over-breadth
-#: then turns any commit to an unrelated ``.c`` in the directory into a STALE
-#: report for a binary whose real prerequisites have not moved.
-#:
-#: The glob fallback itself stays, and stays WIDE (see ``link_dependencies``).
-#: The fallback being broad is fine; a directory with a perfectly good
-#: prerequisite list falling into it is not. Narrowing the fallback instead
-#: would make the guard under-broad.
-_MAKEFILE_NAMES = ("Makefile", "standalone.mk")
-
-
-#: build directory -> the ``standalone.mk`` target that writes into it. The
-#: capture binaries' standalone builds land here, away from the autoconf output
-#: path: ``build-native/`` for the DIAG helper (``native``; the default goal
-#: ``check-native`` builds it too), ``build-baseline/`` for the AT one. A
-#: binary in one was built by ``<its parent>/standalone.mk`` -- never by the
-#: generated ``Makefile``, whose rule for the same basename is a DIFFERENT build
-#: (autoconf config, ``libkismetdatasource.a``).
-_STANDALONE_BUILD_DIRS = {"build-native": "native", "build-baseline": "baseline"}
-
-
-def _standalone_build_of(binary: Path) -> tuple[Path, str] | None:
-    """``(srcdir, rule target)`` when ``binary`` is a standalone build output.
-
-    Without this the link closure of a ``build-native/`` binary would be asked
-    of ``build-native/`` itself: no makefile there, so the glob fallback --
-    which in that directory finds nothing the binary is built from. That is the
-    NARROW-to-empty direction this module exists to prevent: edit
-    ``capture_cell_diag.c`` and the guard stays green.
-    """
-    if binary.parent.name not in _STANDALONE_BUILD_DIRS:
-        return None
-    srcdir = binary.parent.parent
-    if not (srcdir / "standalone.mk").is_file():
-        return None
-    return srcdir, f"{binary.parent.name}/{binary.name}"
+#: ``Makefile`` exists only after ``./configure``; without it the link closure
+#: falls back to the directory glob (see ``link_dependencies``).
+_MAKEFILE_NAMES = ("Makefile",)
 
 
 def _rebuild_cmd(role: str, binary: Path, makefile: Path | None) -> str:
@@ -829,12 +682,6 @@ def _rebuild_cmd(role: str, binary: Path, makefile: Path | None) -> str:
     binary is built.
     """
     target = ROLES[role][2]
-    standalone = _standalone_build_of(binary)
-    if standalone is not None:
-        # A build-native/ or build-baseline/ binary is rebuilt by its PARENT's
-        # standalone.mk; `make -C build-native` names no makefile.
-        return (f"make -C {standalone[0]} -f standalone.mk "
-                f"{_STANDALONE_BUILD_DIRS[binary.parent.name]}")
     flag = ("" if makefile is None or makefile.name == "Makefile"
             else f" -f {makefile.name}")
     return f"make -C {binary.parent}{flag} {target}"
@@ -899,17 +746,11 @@ def link_dependencies(binary: Path) -> LinkDeps:
     narrow-to-empty one produces a guard that can never fire -- the exact
     silence being fixed.
 
-    "No makefile" means neither ``Makefile`` nor ``standalone.mk`` is present.
-    Asking only for ``Makefile`` would make the glob the *default* verdict on
-    every unconfigured host -- see ``_MAKEFILE_NAMES``.
+    "No makefile" means the directory was never ``./configure``'d.
     """
     srcdir = binary.parent
     rule_target = binary.name
     makefile = _find_makefile(srcdir)
-    standalone = _standalone_build_of(binary)
-    if standalone is not None:
-        srcdir, rule_target = standalone
-        makefile = srcdir / "standalone.mk"
     if makefile is None:
         return _glob_deps(
             srcdir,
@@ -994,18 +835,6 @@ def link_dependencies(binary: Path) -> LinkDeps:
         return _glob_deps(
             srcdir,
             f"resolved no sources for {binary.name}'s objects -- glob fallback")
-
-    # A standalone build's rule cannot name the headers each .c pulls in, and
-    # the AT one compiles its sources in ONE cc invocation, so it has no .d
-    # files either.
-    # The directory's own *.h / *.inc are added WIDE instead: an
-    # over-broad header set costs a spurious STALE a human reads in one line,
-    # while omitting them -- capture_cell_at.c compiles six .inc files -- lets a
-    # decode edit leave the binary reading "current". Out-of-directory headers
-    # are named in the rule itself (BASELINE_KISMET_HDRS / BASELINE_SHARED_HDRS).
-    if standalone is not None:
-        sources |= {h.resolve() for pat in ("*.h", "*.inc")
-                    for h in srcdir.glob(pat)}
 
     via = []
     if objects:

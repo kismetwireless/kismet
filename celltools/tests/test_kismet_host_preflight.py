@@ -58,14 +58,13 @@ CONF_FILES = [
     "kismet_wardrive.conf",
 ]
 # (name in conf/, name the SERVER opens under share/) — see the script's
-# DATA_FILES comment. The two spellings differ for the bluetooth pair because
-# bluetooth_ids.cc's built-in defaults omit .gz; kismet_uav.conf.yaml is absent
-# from this list entirely because it is a build input, not a host data file.
+# DATA_FILES comment. kismet_uav.conf.yaml is absent from this list because it
+# is a build input, not a host data file.
 DATA_FILES = [
     ("kismet_manuf.txt.gz", "kismet_manuf.txt.gz"),
     ("kismet_adsb_icao.txt.gz", "kismet_adsb_icao.txt.gz"),
-    ("kismet_bluetooth_ids.txt.gz", "kismet_bluetooth_ids.txt"),
-    ("kismet_bluetooth_manuf.txt.gz", "kismet_bluetooth_manuf.txt"),
+    ("kismet_bluetooth_ids.txt.gz", "kismet_bluetooth_ids.txt.gz"),
+    ("kismet_bluetooth_manuf.txt.gz", "kismet_bluetooth_manuf.txt.gz"),
 ]
 # Compiled from conf/kismet_uav.conf.yaml at build time and shipped as a config
 # symlink in [1/5]; the .yaml itself is never opened at runtime.
@@ -730,23 +729,14 @@ def test_every_data_file_consumer_resolves_share_and_not_etc(key):
 
 
 def test_the_served_names_are_the_ones_the_consumers_actually_OPEN():
-    """The `.gz`-vs-no-`.gz` asymmetry, DERIVED from source instead of asserted.
-
-    The preflight's DATA_FILES table installs the two bluetooth databases under
-    `...\\_ids.txt` while conf/ ships `...\\_ids.txt.gz`, and every comment in the
-    tree explains why (`bluetooth_ids.cc` opens with `gzopen()`, which reads gzip
-    content regardless of extension, but only at the name it was given).
-
-    An explanation is not a check. This asserts each served name equals the
-    basename the consumer's own default names -- so "rename these to match conf/",
-    which the Makefile comment calls the obvious-looking change that reintroduces
-    the bug, fails here rather than in a Bluetooth lookup nobody is watching.
-    """
+    """Each served name equals the basename the consumer's own default opens,
+    derived from source, so a rename on either side fails here rather than in a
+    lookup nobody is watching."""
     served_by_key = {
         "ouifile": "kismet_manuf.txt.gz",
         "icaofile": "kismet_adsb_icao.txt.gz",
-        "btoidfile": "kismet_bluetooth_ids.txt",
-        "btmanuffile": "kismet_bluetooth_manuf.txt",
+        "btoidfile": "kismet_bluetooth_ids.txt.gz",
+        "btmanuffile": "kismet_bluetooth_manuf.txt.gz",
     }
     known_served = {served for _src, served in DATA_FILES}
     assert set(served_by_key.values()) == known_served, (

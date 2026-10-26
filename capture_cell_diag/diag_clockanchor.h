@@ -40,7 +40,7 @@
  * This file is libc-only, like diag_capmeta.c and diag_rawlog.c: the request
  * builder, the reply scanner, the record formatter and the sidecar helpers are
  * unit-tested standalone in test_diag_clockanchor.c
- * (`make -f standalone.mk check` in this directory).
+ * (`make check` in this directory).
  */
 #ifndef DIAG_CLOCKANCHOR_H
 #define DIAG_CLOCKANCHOR_H

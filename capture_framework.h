@@ -368,20 +368,17 @@ struct kis_capture_handler {
     /* Lock for output buffer or output ws ring */
     pthread_mutex_t out_ringbuf_lock;
 
-    /* conditional waiter for ringbuf flushing data.  Broadcast with the mutex
-     * held (cf_handler_signal_flush), so a waiter that checked the ring under
-     * it cannot miss a flush. */
+    /* conditional waiter for ringbuf flushing data; broadcast with the mutex held */
     pthread_cond_t out_ringbuf_flush_cond;
     pthread_mutex_t out_ringbuf_flush_cond_mutex;
 
-    /* Self-pipe that wakes cf_handler_loop() out of select() when a frame is
-     * committed to out_ringbuf.  The loop decides its write set before
-     * it blocks, for up to 500 ms, so without this a frame committed while it
-     * is parked waits out the timeout -- and is lost if the source is
-     * stopped in the meantime.  [0] is in the loop's read set, [1] is written
-     * by every commit.  Both non-blocking and close-on-exec; -1 if pipe()
-     * failed, which falls back to waiting for the timeout. */
+    /* Self-pipe that wakes cf_handler_loop() out of select() when data is
+     * committed to out_ringbuf; -1 if pipe() failed */
     int out_ringbuf_wake[2];
+
+    /* Set while the loop may block in select(); a commit only writes the pipe
+     * when it clears this */
+    int out_ringbuf_wake_armed;
 
     /* Are we shutting down? */
     atomic_int shutdown;
@@ -626,8 +623,7 @@ void cf_handler_free(kis_capture_handler_t *caph);
  */
 extern const char *cf_version_extra;
 
-/* Render this binary's full version into buf: the fork name, the numeric triple,
- * the git revision (with -dirty when built from a modified tree), and
+/* Render this binary's full version into buf: the numeric triple, the git revision and
  * cf_version_extra when set.  Always NUL-terminated. */
 void cf_version_string(char *buf, size_t len);
 
@@ -765,11 +761,8 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph);
 
 
-/* Perform a blocking wait, waiting for the ringbuffer to free data.
- *
- * Returns at once if the ring is already empty: the flush this caller wanted
- * happened between its failed send and this call, and no later broadcast may
- * ever come. */
+/* Perform a blocking wait, waiting for the ringbuffer to free data; returns at
+ * once if the ring is empty, otherwise after a flush or at most 100ms */
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
 
 

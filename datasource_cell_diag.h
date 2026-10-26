@@ -28,13 +28,12 @@
 
 #include "kis_datasource.h"
 #include "datasource_cell_modemident.h"
+#include "datasource_cell_paths.h"
 
 // Do not #include a diagspec leg header here.  This translation unit is on the
 // server side of the capture fork, and no decodable DIAG record ever reaches
 // it.  (Raw stream slices do arrive, as DLT 147 packets, but only for the
 // loggers; see the decode-seam note in the protected section below.)
-// diagspec/check_binary_symbols.sh's `server` role fails the kismet link if a
-// leg symbol reappears in the binary.
 
 class kis_datasource_cell_diag;
 typedef std::shared_ptr<kis_datasource_cell_diag> shared_datasource_cell_diag;
@@ -48,6 +47,19 @@ protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;
 
+    virtual bool parse_source_definition(std::string in_definition) override;
+
+public:
+    virtual void set_channel(std::string in_channel, unsigned int in_transaction,
+            configure_callback_t in_cb) override;
+
+    virtual void set_channel_hop(double in_rate,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb) override;
+    using kis_datasource::set_channel_hop;
+
+protected:
     // The DIAG decode seam is not in this class, and cannot be.
     //
     //   * DIAG is decoded inside the capture helper (capture_cell_diag/), not
@@ -72,9 +84,7 @@ protected:
     // stream, not a record, and decoding one here would be a second decoder
     // racing the helper's.
     //
-    // If server-side decode is ever designed, re-add the seam here and flip
-    // check_binary_symbols.sh's `server` role back to a presence assertion.
-    // Re-adding one without the other fails the kismet link.
+    // If server-side decode is ever designed, re-add the seam here.
     //
     // A leg takes the code-specific bytes after the DIAG log-container header,
     // starting at the version byte, not the whole record.  Handing it the

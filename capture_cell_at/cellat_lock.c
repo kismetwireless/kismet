@@ -655,7 +655,7 @@ int cellat_lock_state_write(const char *path, const char *imei,
 int cellat_lock_state_read(const char *path, const char *imei, int backend,
                            cellat_lock_settings_t *orig, char *err, size_t err_sz) {
     /* Only a file this uid wrote: its contents are replayed to the modem */
-    FILE *f = cell_safe_fopen(path, "r", 0, 1);
+    FILE *f = cell_safe_fopen(path, "r", 0, CELL_SAFE_MUST_OWN);
     if (f == NULL) {
         if (errno == ENOENT)
             return 0;

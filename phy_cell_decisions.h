@@ -38,8 +38,7 @@
     devicelist mutex. Testing it whole means linking most of the server. What
     is pure is every decision made before that boundary, and those decisions
     determine whether a device appears at all, what MAC it gets, and what it
-    is called. So this header holds them, json_to_cell calls them, and
-    test_phy_cell_decisions links only this plus fmt.
+    is called. So this header holds them, and json_to_cell calls them.
 
     The split is between mutation and decision. Both of these are decisions
     and live here:

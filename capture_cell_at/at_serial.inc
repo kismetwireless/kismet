@@ -64,13 +64,39 @@ static void transcript_write(int fd, const char *direction, const char *data, in
                         tm.tm_hour, tm.tm_min, tm.tm_sec,
                         (long)(tv.tv_usec / 1000), direction);
 
-    /* Write header + data + newline atomically-ish */
+    /* The modem's bytes are escaped, so a response cannot start a forged line
+     * or send terminal controls to whoever reads the transcript. */
+    size_t n = len > 0 ? (size_t) len : strlen(data);
+    char out[1024];
+    size_t o = 0;
     write(fd, header, hlen);
-    if (len > 0)
-        write(fd, data, len);
-    else
-        write(fd, data, strlen(data));
-    write(fd, "\n", 1);
+    for (size_t i = 0; i < n; i++) {
+        unsigned char c = (unsigned char) data[i];
+        if (o + 5 > sizeof(out)) {
+            write(fd, out, o);
+            o = 0;
+        }
+        if (c == '\r') {
+            out[o++] = '\\';
+            out[o++] = 'r';
+        } else if (c == '\n') {
+            out[o++] = '\\';
+            out[o++] = 'n';
+        } else if (c == '\\') {
+            out[o++] = '\\';
+            out[o++] = '\\';
+        } else if (c < 0x20 || c == 0x7f) {
+            static const char hex[] = "0123456789abcdef";
+            out[o++] = '\\';
+            out[o++] = 'x';
+            out[o++] = hex[c >> 4];
+            out[o++] = hex[c & 0x0f];
+        } else {
+            out[o++] = (char) c;
+        }
+    }
+    out[o++] = '\n';
+    write(fd, out, o);
 }
 
 /* A final OK this fd may still owe. An info read that ended on the idle
@@ -115,11 +141,15 @@ static int serial_open(const char *path, int baudrate) {
      * plain open() block for the port's 30 s closing_wait, O_NONBLOCK or not,
      * which would consume Kismet's whole 30 s command deadline. An open that
      * has not returned by the deadline fails with ETIMEDOUT. */
-    fd = diag_probe_open(path, O_RDWR | O_NOCTTY | O_NONBLOCK,
+    char real[PATH_MAX];
+    dev_t rdev;
+    if (cell_port_path_ok(path, real, sizeof(real), &rdev) != 0)
+        return -1;
+    fd = diag_probe_open(real, O_RDWR | O_NOCTTY | O_NONBLOCK | O_NOFOLLOW,
                          DIAG_PROBE_OPEN_DEADLINE_MS);
     if (fd < 0)
         return -1;
-    if (cell_port_fd_ok(fd, path) != 0) {
+    if (cell_port_fd_ok(fd, real, rdev) != 0) {
         close(fd);
         errno = EPERM;
         return -1;
@@ -194,8 +224,7 @@ static int serial_open(const char *path, int baudrate) {
      * feature-test problem in diag_capture.c, no macro brings them back.
      * macOS's termios tops out at B230400; higher rates go through the
      * IOSSIOSPEED ioctl. Referenced unconditionally, they are a hard compile
-     * error, which would break `make -f standalone.mk check` (the
-     * framework-free selftest) on macOS.
+     * error on macOS.
      *
      * The `#ifdef` must NOT simply drop the arms. Falling through to
      * `default:` would run a 921600 modem at 115200 and report success, a

@@ -191,12 +191,6 @@
     a typo as a failure would end a running wardrive. See celldiag_chancontrol().
 */
 
-/* config.h comes from the include path, not from a hardcoded "../config.h".
- * A quoted include resolves against this file's own directory first, so a
- * hardcoded parent path cannot be redirected by -I, and the no-autoconf build
- * could not run without ./configure having first generated an (untracked)
- * ../config.h. standalone.mk supplies its own config.h on -I; the
- * autoconf build passes -I.. and still gets the generated one. */
 #include "config.h"
 
 #include <ctype.h>
@@ -637,45 +631,24 @@ typedef struct {
      * has no other reader before it issues the END anchor on it. */
     int capture_exited;
 
-    /* nativedecode=only's decoder liveness.
-     *
-     * `helper_alive` means "the decoder is alive". The decoder runs inside feed_bytes on the
-     * capture thread, so it is alive while that thread keeps passing the top
-     * of its read loop. The loop stamps `hb_ns` on every pass, idle poll
-     * timeouts included.
-     *
-     * The judge cannot be the capture thread. It prints the regular stats line
-     * and would only ever see its own fresh heartbeat; when it is stuck, it
-     * prints nothing at all. So a watchdog thread judges the heartbeat against
-     * DIAG_STATS_DECODER_STALL_SEC and is the ONLY writer of `stalled`. It sends
-     * a liveness-only diag_stats object on each transition (helper_alive 0 on
-     * a stall, 1 on recovery) and a DECODER-STALLED line on the stats cadence
-     * while the stall lasts.
-     *
-     * The capture thread's own lines say decoder=alive (stats.helper_alive 1,
-     * set at arm time) and that is a measurement, not a default: a line from
-     * the reader is proof the reader just passed its loop. It never says
-     * "stalled", because a stalled reader prints nothing; that word comes only
-     * from the watchdog. At teardown it says "stopped". */
-    struct {
-        uint64_t        hb_ns;      /* atomic: CLOCK_MONOTONIC ns of the reader
-                                     * loop's last pass; 0 = not armed */
-        int             armed;      /* capture thread only: stamp hb_ns */
-        /* Watchdog-thread only (and the capture thread's first, synchronous
-         * tick, which happens-before the thread starts). */
-        int             stalled;    /* the verdict: 1 = no pass for > the bound */
-        int             reported;   /* liveness last queued to the server, or -1 */
-        uint64_t        stall_hb_ns;    /* the heartbeat the stall was judged on */
-        uint64_t        last_line_ns;   /* last DECODER-STALLED line */
-        /* Guarded by lock: the start/stop handshake. The capture thread's
-         * teardown and main() may both stop the watchdog; one of them joins. */
-        pthread_mutex_t lock;
-        int             started;    /* a watchdog thread exists to be joined */
-        pthread_t       tid;
-        int             stop;       /* atomic: the watchdog leaves its loop */
-        kis_capture_handler_t *caph;
-    } live;
 } local_diag_t;
+
+/* rawlog_lock with cancellation off: the capture thread is cancelled
+ * asynchronously at stop, and must not die holding the lock main()'s END
+ * anchor takes after it.  The lock does not nest, so one saved state per thread. */
+static __thread int rawlog_lock_cancelstate;
+
+static void rawlog_lock_enter(local_diag_t *local) {
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &rawlog_lock_cancelstate);
+    pthread_mutex_lock(&local->rawlog_lock);
+}
+
+static void rawlog_lock_leave(local_diag_t *local) {
+    pthread_mutex_unlock(&local->rawlog_lock);
+    pthread_setcancelstate(rawlog_lock_cancelstate, NULL);
+    /* Act on a cancel that arrived while it was off */
+    pthread_testcancel();
+}
 
 /* -----------------------------------------------------------------------
  * f3= preset table
@@ -770,11 +743,15 @@ static int serial_open(const char *path, int baudrate) {
      * plain open() block for that port's whole 30 s closing_wait, O_NONBLOCK or
      * not. A port that has not opened by the deadline fails with ETIMEDOUT and
      * is skipped; it is never the target (an AT port reads what it is sent). */
-    fd = diag_probe_open(path, O_RDWR | O_NOCTTY | O_NONBLOCK,
+    char real[PATH_MAX];
+    dev_t rdev;
+    if (cell_port_path_ok(path, real, sizeof(real), &rdev) != 0)
+        return -1;
+    fd = diag_probe_open(real, O_RDWR | O_NOCTTY | O_NONBLOCK | O_NOFOLLOW,
                          DIAG_PROBE_OPEN_DEADLINE_MS);
     if (fd < 0)
         return -1;
-    if (cell_port_fd_ok(fd, path) != 0) {
+    if (cell_port_fd_ok(fd, real, rdev) != 0) {
         close(fd);
         errno = EPERM;
         return -1;
@@ -2240,8 +2217,8 @@ static void gsmtap_gate(local_diag_t *local, kis_capture_handler_t *caph) {
 
 /* The decoder's bring-up, at open: there is no process to start, but it still
  * says which decoder runs, so a harness that requires the report sees it
- * rather than silence. helper_alive means "the in-process decoder is alive",
- * judged from the reader's heartbeat (local_diag_t.live). F3 has no relay,
+ * rather than silence. helper_alive means "the in-process decoder is running".
+ * F3 has no relay,
  * so F3 is marked armed-not-relayed here. */
 static void decoder_bringup(kis_capture_handler_t *caph, local_diag_t *local) {
     if (local->f3_relay)
@@ -2871,8 +2848,7 @@ static void crc_census_row(kis_capture_handler_t *caph, local_diag_t *local) {
 
 static void fill_stats_extra(const local_diag_t *local, diag_stats_extra_t *sx) {
     memset(sx, 0, sizeof(*sx));
-    /* Which decoder produces what Kismet receives. helper_alive says whether
-     * that decoder is alive: the reader's heartbeat (local_diag_t.live). */
+    /* Which decoder produces what Kismet receives */
     sx->decode_mode = "native-only";
     /* Always known: the source either armed F3 or it did not. */
     /* Report the resolved preset name, not a boolean re-rendered as one.
@@ -3149,7 +3125,7 @@ static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
 
     if (o->rawlog_disable) {
         uint64_t wrote;
-        pthread_mutex_lock(&local->rawlog_lock);
+        rawlog_lock_enter(local);
         wrote = local->rawlog_bytes;
         if (local->rawlog_fd >= 0) {
             close(local->rawlog_fd);
@@ -3162,7 +3138,7 @@ static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
          * the operator would lose the answer to "where did the bytes I already
          * captured go?". The tee being closed is what rawlog_bytes ceasing to
          * advance reports. */
-        pthread_mutex_unlock(&local->rawlog_lock);
+        rawlog_lock_leave(local);
         snprintf(msg, STATUS_MAX,
                  "celldiag: raw DIAG tee stopped after %llu byte(s) to %s",
                  (unsigned long long) wrote,
@@ -3196,7 +3172,7 @@ static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
-    pthread_mutex_lock(&local->rawlog_lock);
+    rawlog_lock_enter(local);
     if (local->rawlog_fd >= 0)
         close(local->rawlog_fd);
     local->rawlog_fd = fd;
@@ -3207,7 +3183,7 @@ static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
      * only assertion that can prove a runtime tee actually works is "the
      * counter moved" -- zeroing it here would make a working redirect and a
      * dead one look the same to the test and to the web UI alike. */
-    pthread_mutex_unlock(&local->rawlog_lock);
+    rawlog_lock_leave(local);
 
     snprintf(msg, STATUS_MAX, "celldiag: raw DIAG tee now writing to %s", resolved);
     cf_send_message(caph, msg, MSGFLAG_INFO);
@@ -3406,7 +3382,7 @@ static void feed_bytes(kis_capture_handler_t *caph, local_diag_t *local,
      * the test and the write() would send capture bytes into whatever the
      * kernel handed that descriptor number to next. The write is bounded, so
      * so is the setter's wait. */
-    pthread_mutex_lock(&local->rawlog_lock);
+    rawlog_lock_enter(local);
     if (local->rawlog_fd >= 0) {
         if (diag_rawlog_write(local->rawlog_fd, buf, len) != 0) {
             char e[ERRBUF_MAX];
@@ -3415,13 +3391,13 @@ static void feed_bytes(kis_capture_handler_t *caph, local_diag_t *local,
                      local->name ? local->name : "celldiag", strerror(errno));
             close(local->rawlog_fd);
             local->rawlog_fd = -1;
-            pthread_mutex_unlock(&local->rawlog_lock);
+            rawlog_lock_leave(local);
             /* Off-lock: cf_send_message takes the framework's own locks, and
              * nesting ours inside those in one place and not the other is how a
              * lock-order inversion gets introduced. The state change is already
              * committed above; this is only the report. */
             cf_send_message(caph, e, MSGFLAG_ERROR);
-            pthread_mutex_lock(&local->rawlog_lock);
+            rawlog_lock_enter(local);
         } else {
             /* Counted only on a successful write, so the figure
              * the web UI shows is bytes on disk, not bytes offered to a sink
@@ -3429,7 +3405,7 @@ static void feed_bytes(kis_capture_handler_t *caph, local_diag_t *local,
             local->rawlog_bytes += (uint64_t)len;
         }
     }
-    pthread_mutex_unlock(&local->rawlog_lock);
+    rawlog_lock_leave(local);
 
     /* The same bytes, into Kismet as DLT 147 packets. After the file
      * tee (which stays the authoritative copy -- it cannot drop) and before the
@@ -3502,26 +3478,16 @@ static void anchor_request(local_diag_t *local, const char *edge,
 
 /* Append a finished record to <rawlog>.clock_anchor.jsonl while the tee is
  * open. The sidecar follows the current rawlog path, so a runtime rawlog=
- * redirect moves it along with the .hdlc it describes. `try_lock` is
- * for main()'s END path, where a cancelled capture thread may have died holding
- * the lock (see anchor_end): by then no other thread touches these fields. */
-static void anchor_sidecar_write(local_diag_t *local, const char *rec,
-                                 int try_lock) {
+ * redirect moves it along with the .hdlc it describes. */
+static void anchor_sidecar_write(local_diag_t *local, const char *rec) {
     char path[DIAG_OPTSET_VALUE_MAX + 64];
-    int locked;
 
-    if (try_lock) {
-        locked = (pthread_mutex_trylock(&local->rawlog_lock) == 0);
-    } else {
-        pthread_mutex_lock(&local->rawlog_lock);
-        locked = 1;
-    }
+    rawlog_lock_enter(local);
     if (local->rawlog_fd >= 0 && local->rawlog_path != NULL &&
         diag_clockanchor_sidecar_path(local->rawlog_path, path, sizeof(path)) == 0 &&
         diag_clockanchor_append(path, rec, strlen(rec)) != 0)
         local->anchor.sidecar_failed++;
-    if (locked)
-        pthread_mutex_unlock(&local->rawlog_lock);
+    rawlog_lock_leave(local);
 }
 
 /* Pair a reply with the host clock and deliver it. `caph` NULL means the END
@@ -3558,7 +3524,7 @@ static void anchor_complete(kis_capture_handler_t *caph, local_diag_t *local,
      * the thread is then cancelled and the row reaches Kismet but never the
      * file, leaving a seq gap in the sidecar. Written first, any row a
      * consumer has seen is already on disk. */
-    anchor_sidecar_write(local, rec, caph == NULL);
+    anchor_sidecar_write(local, rec);
 
     if (caph != NULL) {
         /* Sent from the read loop, so under ring_send_json's policy: a
@@ -3678,12 +3644,11 @@ static void anchor_drain_sync(local_diag_t *local) {
         }
         if (n == 0)
             continue;              /* VTIME idle tick */
-        int locked = (pthread_mutex_trylock(&local->rawlog_lock) == 0);
+        rawlog_lock_enter(local);
         if (local->rawlog_fd >= 0 &&
             diag_rawlog_write(local->rawlog_fd, rbuf, (size_t)n) == 0)
             local->rawlog_bytes += (uint64_t)n;
-        if (locked)
-            pthread_mutex_unlock(&local->rawlog_lock);
+        rawlog_lock_leave(local);
         anchor_on_bytes(NULL, local, rbuf, (size_t)n, recv);
     }
 }
@@ -5427,162 +5392,17 @@ static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
     }
 }
 
-/* -----------------------------------------------------------------------
- * Decoder liveness
- *
- * The contract is at local_diag_t.live. This block holds the watchdog: its
- * cadence, its judgment and what it tells the server. The heartbeat itself is
- * stamped at the top of the read loop in capture_thread_run.
- * ----------------------------------------------------------------------- */
+/* Report the decoder alive once it is armed; there is no stall watchdog, and
+ * the final stats at teardown report it stopped. */
+static void live_report(kis_capture_handler_t *caph, local_diag_t *local) {
+    char js[128];
+    struct timeval tv;
 
-/* The watchdog judges every LIVE_TICK_NS and sleeps in LIVE_SLICE_NS pieces,
- * so a stop is seen within one slice. A stall is reported within bound + one
- * tick of the reader's last pass. Slices, not a condition variable: a
- * monotonic timed wait has no portable spelling (Darwin has no
- * pthread_condattr_setclock), and a wall-clock one sleeps through a clock step. */
-#define LIVE_TICK_NS   500000000ULL
-#define LIVE_SLICE_NS  100000000L
-#define LIVE_BOUND_NS  ((uint64_t)DIAG_STATS_DECODER_STALL_SEC * 1000000000ULL)
-
-/* One judgment of the reader's heartbeat, and what the server is told about
- * it. Runs on the watchdog thread, and once on the capture thread at arm time,
- * before the watchdog exists -- never on both at once. */
-static void live_tick(kis_capture_handler_t *caph, local_diag_t *local) {
-    /* A source being stopped is not a stalled one. A graceful close spends its
-     * grace on the END exchange; a shutdown cancels the reader outright. */
-    if (caph->shutdown || cf_handler_close_requested(caph) ||
-            __atomic_load_n(&local->capture_exited, __ATOMIC_ACQUIRE))
-        return;
-
-    /* The heartbeat is read before the clock, so a reader that beats in
-     * between is judged fresh (diag_stats_heartbeat_stale: hb after now). */
-    uint64_t hb  = __atomic_load_n(&local->live.hb_ns, __ATOMIC_ACQUIRE);
-    uint64_t now = anchor_mono_ns();
-    int stale    = diag_stats_heartbeat_stale(hb, now, LIVE_BOUND_NS);
-    int stalled  = local->live.stalled;
-
-    if (stale && !stalled) {
-        stalled = 1;
-        local->live.stall_hb_ns = hb;
-        local->live.last_line_ns = 0;      /* the first line goes out now */
-    } else if (!stale && stalled) {
-        stalled = 0;
-        char m[STATUS_MAX];
-        snprintf(m, sizeof(m),
-                 "%s nativedecode=only: the decoder is alive again -- the DIAG "
-                 "reader advanced after %llu s without progress",
-                 local->name ? local->name : "celldiag",
-                 (unsigned long long)((hb - local->live.stall_hb_ns) /
-                                      1000000000ULL));
-        cf_send_message(caph, m, MSGFLAG_INFO);
+    diag_stats_set_helper_alive(&local->stats, 1);
+    if (diag_stats_format_liveness_json(1, "native-only", js, sizeof(js)) > 0) {
+        gettimeofday(&tv, NULL);
+        cf_send_json(caph, NULL, 0, NULL, NULL, tv, "diag_stats", js);
     }
-    local->live.stalled = stalled;
-
-    /* The panel's field, on each change of state. A send the ring will not
-     * take is not marked as reported, so it is retried next tick: an alarm
-     * lost to a full ring would leave the panel reading the last state it
-     * heard. */
-    int alive = !stalled;
-    if (alive != local->live.reported) {
-        char js[128];
-        if (diag_stats_format_liveness_json(alive, "native-only",
-                                            js, sizeof(js)) > 0) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL);
-            if (cf_send_json(caph, NULL, 0, NULL, NULL, tv, "diag_stats", js) > 0)
-                local->live.reported = alive;
-        }
-    }
-
-    /* The verdict line, at once and then on the stats cadence while the stall
-     * lasts. The reader prints the regular line and is the thread that is
-     * stuck, so without this the cadence would simply go quiet. A monitor
-     * keyed on the verdict word would read that silence as nothing at all. */
-    if (stalled) {
-        uint64_t every = local->stats_interval > 0
-                             ? (uint64_t)local->stats_interval * 1000000000ULL : 0;
-        if (local->live.last_line_ns == 0 ||
-                (every > 0 && now - local->live.last_line_ns >= every)) {
-            char m[STATUS_MAX];
-            if (diag_stats_format_decoder_stalled((now - hb) / 1000000ULL,
-                                                  LIVE_BOUND_NS / 1000000ULL,
-                                                  m, sizeof(m)) > 0 &&
-                    cf_send_message(caph, m, MSGFLAG_ERROR) > 0)
-                local->live.last_line_ns = now;
-        }
-    }
-}
-
-static void *live_thread(void *arg) {
-    local_diag_t *local = (local_diag_t *)arg;
-    uint64_t next = anchor_mono_ns() + LIVE_TICK_NS;
-    while (!__atomic_load_n(&local->live.stop, __ATOMIC_ACQUIRE)) {
-        struct timespec ts = { .tv_sec = 0, .tv_nsec = LIVE_SLICE_NS };
-        nanosleep(&ts, NULL);
-        if (__atomic_load_n(&local->live.stop, __ATOMIC_ACQUIRE))
-            break;
-        uint64_t now = anchor_mono_ns();
-        if (now < next)
-            continue;
-        next = now + LIVE_TICK_NS;
-        live_tick(local->live.caph, local);
-    }
-    return NULL;
-}
-
-/* Arm the heartbeat and start the watchdog. The first judgment runs here,
- * synchronously, so even a replay that finishes before the watchdog's first
- * tick has told the server its decoder was alive -- judged from the heartbeat
- * just stamped, by the same code that later reports a stall. Returns -1 when
- * the watchdog cannot be started: the source could then never report a stall,
- * and a liveness it cannot withdraw is the hard-coded 1 this replaces. */
-static int live_start(kis_capture_handler_t *caph, local_diag_t *local) {
-    local->live.caph = caph;
-    local->live.reported = -1;
-    local->live.stalled = 0;
-    local->live.stall_hb_ns = 0;
-    local->live.last_line_ns = 0;
-    __atomic_store_n(&local->live.stop, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&local->live.hb_ns, anchor_mono_ns(), __ATOMIC_RELEASE);
-    local->live.armed = 1;
-    live_tick(caph, local);
-    /* The reader's own lines: it prints only while it runs (local_diag_t.live). */
-    diag_stats_set_helper_alive(&local->stats, !local->live.stalled);
-
-    int old, rc;
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
-    pthread_mutex_lock(&local->live.lock);
-    rc = pthread_create(&local->live.tid, NULL, live_thread, local);
-    local->live.started = (rc == 0);
-    pthread_mutex_unlock(&local->live.lock);
-    pthread_setcancelstate(old, NULL);
-    if (rc != 0) {
-        local->live.armed = 0;
-        errno = rc;            /* pthread_create returns it; errno is untouched */
-        return -1;
-    }
-    return 0;
-}
-
-/* Stop and join the watchdog. Idempotent, and safe from either of the two
- * threads that call it (the capture thread's teardown, main() after the loop):
- * one of them joins, the other returns. Cancellation is held off around the
- * lock, because the capture thread is cancelled asynchronously at shutdown,
- * and a cancel inside the lock would leave main() waiting on it forever. */
-static void live_stop(local_diag_t *local) {
-    int old, started;
-    pthread_t tid;
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old);
-    pthread_mutex_lock(&local->live.lock);
-    started = local->live.started;
-    tid = local->live.tid;
-    local->live.started = 0;
-    pthread_mutex_unlock(&local->live.lock);
-    if (started) {
-        __atomic_store_n(&local->live.stop, 1, __ATOMIC_RELEASE);
-        pthread_join(tid, NULL);
-    }
-    pthread_setcancelstate(old, NULL);
 }
 
 /* The structured stats line for an enabled=false source.
@@ -5725,7 +5545,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
 
     src_fd = local->diag_fd;
     if (local->replay_path) {
-        replay_fd = open(local->replay_path, O_RDONLY);
+        replay_fd = cell_safe_op(CELL_SAFE_OPEN, local->replay_path, NULL, O_RDONLY, 0,
+                                  CELL_SAFE_FIFO_OK);
         if (replay_fd < 0) {
             snprintf(errstr, ERRBUF_MAX, "%s cannot open replay file %s: %s",
                      local->name, local->replay_path, strerror(errno));
@@ -5765,13 +5586,13 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
      * honoured here, and a sink a runtime rawlog=<path> opened is the tee, so
      * this open is skipped. Both are read under rawlog_lock, and read again
      * after the open, which a knob can also overtake. */
-    pthread_mutex_lock(&local->rawlog_lock);
+    rawlog_lock_enter(local);
     int tee_stopped = local->rawlog_stopped;
     int tee_redirected = local->rawlog_fd >= 0;
     char tee_path[1024];
     snprintf(tee_path, sizeof(tee_path), "%s",
              local->rawlog_path ? local->rawlog_path : "");
-    pthread_mutex_unlock(&local->rawlog_lock);
+    rawlog_lock_leave(local);
     if (tee_path[0] && tee_stopped) {
         snprintf(errstr, ERRBUF_MAX,
                  "%s rawlog=off was applied before the capture began; the raw "
@@ -5802,7 +5623,7 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                     close(replay_fd);
                 goto done;
             }
-            pthread_mutex_lock(&local->rawlog_lock);
+            rawlog_lock_enter(local);
             if (local->rawlog_stopped || local->rawlog_fd >= 0) {
                 /* A runtime rawlog= landed during the open, and it wins. */
                 close(tee_fd);
@@ -5821,15 +5642,15 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                     free(prev);
                 }
             }
-            pthread_mutex_unlock(&local->rawlog_lock);
+            rawlog_lock_leave(local);
         }
         if (diverted)
             cf_send_message(caph, errstr, MSGFLAG_INFO);
-        pthread_mutex_lock(&local->rawlog_lock);
+        rawlog_lock_enter(local);
         int tee_open = !local->rawlog_stopped && local->rawlog_fd >= 0;
         snprintf(tee_path, sizeof(tee_path), "%s",
                  local->rawlog_path ? local->rawlog_path : "");
-        pthread_mutex_unlock(&local->rawlog_lock);
+        rawlog_lock_leave(local);
         if (tee_open) {
             snprintf(errstr, ERRBUF_MAX, "%s teeing raw DIAG stream to %s%s",
                      local->name, tee_path,
@@ -6028,20 +5849,8 @@ tee_done:
     /* The CRC census window starts with the first byte fed below. */
     local->crc_watch.since = time(NULL);
 
-    /* The decoder is armed (the tap above), so its liveness starts being
-     * judged here -- before the first feed_bytes below, which can stall the
-     * same way the read loop can. */
-    if (live_start(caph, local) != 0) {
-        snprintf(errstr, ERRBUF_MAX,
-                 "%s could not start the decoder watchdog (%s); it is what "
-                 "reports a stalled decoder, and a source that cannot report "
-                 "one must not claim a live one",
-                 local->name, strerror(errno));
-        diag_report_error(caph, errstr);
-        if (replay_fd >= 0)
-            close(replay_fd);
-        goto done;
-    }
+    /* The decoder is armed (the tap above) */
+    live_report(caph, local);
 
     /* The DIAGID-table reply the qsh=on bring-up consumed. It was read
      * before the bytes still buffered below, so it goes first. In the stream,
@@ -6072,13 +5881,6 @@ tee_done:
 
     int closing = 0;
     while (!caph->shutdown) {
-        /* The decoder's heartbeat. Every pass stamps it,
-         * idle poll timeouts included, so a quiet port is not a stalled
-         * decoder; only a pass that never comes back is (local_diag_t.live). */
-        if (local->live.armed)
-            __atomic_store_n(&local->live.hb_ns, anchor_mono_ns(),
-                             __ATOMIC_RELEASE);
-
         /* Graceful close: stop reading once the END exchange is done,
          * then fall through to `done:` -- final stats, the END raw slice, the
          * QSH disarm -- all with the pipe still open. */
@@ -6176,11 +5978,6 @@ tee_done:
     goto done;
 
 done:
-    /* The reader has left its loop, so the watchdog's judgment ends here.
-     * Joined before the final stats below, so no liveness object can land
-     * after the "decoder stopped" one. */
-    live_stop(local);
-    local->live.armed = 0;
     local->emit_finishing = 1;     /* the port is no longer read */
     /* The native census's final snapshot, so a finished replay or a stopped
      * source leaves a complete census even when no interval elapsed. Ahead of
@@ -6336,7 +6133,6 @@ int main(int argc, char *argv[]) {
         .anchor = { .interval_ms = 30000 },   /* set for real in open_callback */
         .source_uuid = NULL,
         .capture_exited = 0,
-        .live = { .lock = PTHREAD_MUTEX_INITIALIZER, .reported = -1 },
     };
 
     /* A dead helper must not kill us with SIGPIPE mid-write; we detect the
@@ -6380,12 +6176,6 @@ int main(int argc, char *argv[]) {
     cf_drop_most_caps(caph);
 
     cf_handler_loop(caph);
-
-    /* The capture thread's teardown normally stopped the watchdog already.
-     * When the loop ended first (the server went away), stop it here, before
-     * the shutdown cancels the reader: a reader cancelled under a watchdog
-     * still running would be judged a stall on its way out. */
-    live_stop(&local);
 
     cf_handler_shutdown(caph);
 

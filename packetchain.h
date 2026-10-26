@@ -186,15 +186,18 @@ public:
 
     void start_processing();
 
-    // Finish every packet already queued, then stop the packet threads.
-    // Called at shutdown BEFORE the logs close, so what the sources delivered
-    // is processed and logged instead of abandoned.  Bounded: past `budget` the
-    // threads stop after the packet in hand and what is left is reported, not
-    // silently dropped.  Idempotent; returns how many packets were abandoned.
+    // When set_drain_at_shutdown() was called, finish every packet already queued,
+    // then stop the packet threads.  Called at shutdown before the logs close.
+    // Bounded: past `budget` the threads stop after the packet in hand and what is
+    // left is reported.  Idempotent; returns how many packets were abandoned.
     size_t drain_and_stop(std::chrono::milliseconds budget);
 
     // The same, with the budget from `kismet_packet_drain_ms` (default 2000)
     size_t drain_and_stop();
+
+    // A source with a graceful close is open: keep processing past spindown and
+    // drain at shutdown.  Otherwise the threads stop at spindown and draining does nothing.
+    void set_drain_at_shutdown() { drain_at_shutdown = true; }
 
     int register_packet_component(std::string in_component);
     std::string fetch_packet_component_name(int in_id);
@@ -334,6 +337,7 @@ protected:
 
     std::atomic<bool> packetchain_shutdown;
     std::atomic<bool> drain_started{false};
+    std::atomic<bool> drain_at_shutdown{false};
 
     // Warning and discard levels for packet queue being full
     unsigned int packet_queue_warning, packet_queue_drop;

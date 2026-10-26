@@ -98,9 +98,12 @@ bool walk_truncated(const std::string& p, const VersionGeom& g, uint32_t num_cc)
                 pos += kCellPrefix;
                 continue;
             }
-            const size_t stride = g.cell_size + g.beam_extra * (n_beams - 1);
-            if (pos + stride > n)
+            // Bounded before multiplying: n_beams is untrusted, and size_t is 32 bits on some hosts
+            const size_t extra_beams = n_beams - 1;
+            if (g.cell_size > n - pos ||
+                    (g.beam_extra != 0 && extra_beams > (n - pos - g.cell_size) / g.beam_extra))
                 return true;
+            const size_t stride = g.cell_size + g.beam_extra * extra_beams;
             pos += stride;
         }
     }

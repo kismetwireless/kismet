@@ -27,6 +27,7 @@
 
 #include "kis_datasource.h"
 #include "datasource_cell_modemident.h"
+#include "datasource_cell_paths.h"
 
 class kis_datasource_cell_at;
 typedef std::shared_ptr<kis_datasource_cell_at> shared_datasource_cell_at;
@@ -43,6 +44,8 @@ public:
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;
+
+    virtual bool parse_source_definition(std::string in_definition) override;
 
     // Intercept the helper's "cellat_stats" control line and SET the
     // registered fields from it; everything else (CellModem observations,
@@ -74,6 +77,12 @@ public:
     // operator touched; the helper's stats readback records WHAT actually ran.
     virtual void set_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb) override;
+
+    virtual void set_channel_hop(double in_rate,
+            std::shared_ptr<tracker_element_vector_string> in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb) override;
+    using kis_datasource::set_channel_hop;
 
     // The panel's Capture and whole-modem switches close through the
     // close_source route (stop_source()) or the disable_source route

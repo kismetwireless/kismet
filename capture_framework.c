@@ -76,9 +76,8 @@ int unshare(int);
 const char *cf_version_extra = NULL;
 
 void cf_version_string(char *buf, size_t len) {
-    snprintf(buf, len, "%s-%s.%s.%s-%s%s%s",
-            VERSION_POC_NAME, VERSION_MAJOR, VERSION_MINOR, VERSION_TINY,
-            VERSION_GIT_COMMIT,
+    snprintf(buf, len, "%s.%s.%s-%s%s%s",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT,
             cf_version_extra == NULL ? "" : "-",
             cf_version_extra == NULL ? "" : cf_version_extra);
 }
@@ -514,8 +513,6 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     pthread_cond_init(&(ch->out_ringbuf_flush_cond), NULL);
     pthread_mutex_init(&(ch->out_ringbuf_flush_cond_mutex), NULL);
 
-    /* The commit -> I/O loop wakeup.  Close-on-exec so a helper's exec'd
-     * children do not hold it open. */
     if (pipe(ch->out_ringbuf_wake) == 0) {
         fcntl(ch->out_ringbuf_wake[0], F_SETFL,
                 fcntl(ch->out_ringbuf_wake[0], F_GETFL, 0) | O_NONBLOCK);
@@ -527,6 +524,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
         ch->out_ringbuf_wake[0] = -1;
         ch->out_ringbuf_wake[1] = -1;
     }
+    ch->out_ringbuf_wake_armed = 0;
 
     ch->shutdown = 0;
     ch->spindown = 0;
@@ -582,10 +580,7 @@ void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable) {
     caph->remote_capable = in_capable;
 }
 
-/* Wake cf_handler_loop() out of select(): after every commit to
- * out_ringbuf, and on spindown / shutdown so the loop acts on them now rather
- * than at its next timeout.  The pipe is non-blocking; when it is full a wakeup
- * is already pending, which is all this needs. */
+/* Wake cf_handler_loop() out of select(); a full pipe already has a wakeup pending */
 static void cf_handler_wake_loop(kis_capture_handler_t *caph) {
     uint8_t b = 0;
     ssize_t r;
@@ -597,9 +592,14 @@ static void cf_handler_wake_loop(kis_capture_handler_t *caph) {
     (void) r;
 }
 
-/* Tell cf_handler_wait_ringbuffer() callers that the ring was flushed.  With
- * the mutex held: the waiter checks the ring and enters the wait under it, so
- * this cannot land in between and be lost. */
+/* Only wake a loop parked in select, so a busy source costs one write per loop
+ * pass instead of one per packet */
+static void cf_handler_wake_commit(kis_capture_handler_t *caph) {
+    if (__atomic_exchange_n(&caph->out_ringbuf_wake_armed, 0, __ATOMIC_SEQ_CST))
+        cf_handler_wake_loop(caph);
+}
+
+/* With the mutex held, so a waiter that checked the ring under it can't miss it */
 static void cf_handler_signal_flush(kis_capture_handler_t *caph) {
     pthread_mutex_lock(&(caph->out_ringbuf_flush_cond_mutex));
     pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
@@ -1442,11 +1442,7 @@ void *cf_int_capture_thread(void *arg) {
  * IPC termination callback is responsible for freeing the IPC record,
  * if not tracked elsewhere.
  *
- * SIGCHLD coalesces, so one signal may stand for several exited children:
- * reap until waitpid reports none ready (0) or no children at all (ECHILD),
- * then return so the signal thread goes back to sigwait.  The ring lock is
- * released on every path; other threads take it to send, including the
- * spindown flush.
+ * SIGCHLD coalesces, so reap until no child is ready, then return to sigwait.
  */
 void cf_process_child_signals(kis_capture_handler_t *caph) {
     while (1) {
@@ -1512,10 +1508,8 @@ void *cf_int_signal_thread(void *arg) {
     setitimer(ITIMER_REAL, &itval, NULL);
 #endif
 
-    /* Unblock signals, we handle them here.  The core set stays blocked:
-     * sigwait only takes a signal that is blocked, and an unblocked SIGCHLD
-     * arriving while we reap would be discarded (SIG_DFL), leaving that
-     * child unreaped until the next one exits. */
+    /* Unblock signals, we handle them here; the core set stays blocked so
+     * sigwait gets them instead of the default handlers */
     sigset_t unblock_mask;
     sigfillset(&unblock_mask);
     pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
@@ -1606,39 +1600,22 @@ void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
     int oldtype;
     int drained = 0;
 
-    /* The capture threads that call this are cancelled ASYNCHRONOUSLY at stop
-     * (cf_int_capture_thread), and an async cancel while the flush mutex is
-     * held would leave it locked for good -- the I/O loop takes it to
-     * broadcast.  Defer cancellation for the locked region: pthread_cond_wait
-     * is then its only cancellation point, and the cleanup handler releases the
-     * mutex the cancelled wait re-acquires. */
+    /* Capture threads are cancelled asynchronously; defer it while the flush
+     * mutex is held so a cancel can't leave it locked */
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
     pthread_mutex_lock(&(caph->out_ringbuf_flush_cond_mutex));
     pthread_cleanup_push(cf_unlock_mutex_cleanup, &(caph->out_ringbuf_flush_cond_mutex));
 
-    /* Check the ring before waiting, under the mutex.  A flush that finished
-     * between the caller's failed send and this call leaves the ring empty with
-     * no later write to broadcast, and an unconditional wait would park the
-     * caller (the thread reading the modem) until an unrelated write (a PONG)
-     * came along.  An empty ring means that flush already happened.  A ring that
-     * still holds bytes will be written again, and that write's broadcast
-     * needs this mutex, so it cannot slip in between the check and the wait.
-     *
-     * Only the ringbuffer transports have the predicate, and every flush of
-     * that ring broadcasts under this mutex, so their wait needs no bound.  The
-     * websocket ring broadcasts without the mutex and its wakeup can be missed,
-     * so that wait is bounded at 100ms; callers retry their send after it
-     * returns. */
+    /* A flush that finished before we got here leaves an empty ring and nothing
+     * left to broadcast; don't wait for one.  The wait stays bounded because the
+     * websocket path broadcasts without the mutex. */
     if (caph->out_ringbuf != NULL) {
         pthread_mutex_lock(&(caph->out_ringbuf_lock));
         drained = kis_simple_ringbuf_used(caph->out_ringbuf) == 0;
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
     }
 
-    if (!drained && caph->out_ringbuf != NULL) {
-        pthread_cond_wait(&(caph->out_ringbuf_flush_cond),
-                &(caph->out_ringbuf_flush_cond_mutex));
-    } else if (!drained) {
+    if (!drained) {
         struct timeval tv;
         struct timespec ts;
 
@@ -3109,13 +3086,13 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     max_fd = read_fd;
             }
 
-            /* A commit from here on wakes the select below.  The write set is
-             * decided next, BEFORE select() blocks; without this a frame
-             * committed after that check would wait out the whole timeout. */
+            /* Arm the wakeup before the write set is decided, so a commit after
+             * that check still ends the select */
             if (caph->out_ringbuf_wake[0] >= 0) {
                 FD_SET(caph->out_ringbuf_wake[0], &rset);
                 if (max_fd < caph->out_ringbuf_wake[0])
                     max_fd = caph->out_ringbuf_wake[0];
+                __atomic_store_n(&caph->out_ringbuf_wake_armed, 1, __ATOMIC_SEQ_CST);
             }
 
             /* Inspect the write buffer - do we have data? */
@@ -3151,10 +3128,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             if (ret == 0)
                 continue;
 
-            /* Consume the wakeups.  Whatever they announced is picked up by the
-             * write-set check at the top of the next pass, which runs after
-             * this drain -- so a commit landing now is either seen there or
-             * leaves a fresh byte that ends the next select at once. */
+            /* The next pass's write-set check picks up whatever these announced */
             if (ret > 0 && caph->out_ringbuf_wake[0] >= 0 &&
                     FD_ISSET(caph->out_ringbuf_wake[0], &rset)) {
                 uint8_t drain[64];
@@ -3409,10 +3383,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         break;
                     }
 
-                    /* Nothing was written; retry on the next pass.  Falling
-                     * through to the consume below with written_sz == -1, i.e.
-                     * (size_t) -1, would read -- and so DISCARD -- everything
-                     * queued, silently. */
+                    /* Nothing written; retry next pass instead of consuming (size_t) -1 */
                     kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                     continue;
@@ -3490,7 +3461,7 @@ int cf_send_rb_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
-    cf_handler_wake_loop(caph);
+    cf_handler_wake_commit(caph);
 
     return 1;
 }
@@ -3620,7 +3591,7 @@ int cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t 
             final_length + sizeof(kismet_external_frame_v3_t));
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
-    cf_handler_wake_loop(caph);
+    cf_handler_wake_commit(caph);
 
     return 1;
 }
@@ -3998,10 +3969,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     int n;
 
-    /* 96, not 64: the string carries a fork name, an optional -dirty and an
-     * optional per-binary suffix.  snprintf would truncate rather than
-     * overflow, which is safe but silent, and a truncated version is a quiet
-     * wrong answer. */
+    /* Room for the per-binary suffix */
     char version[96];
 
     cf_version_string(version, sizeof(version));
@@ -4231,10 +4199,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
-    /* 96, not 64: the string carries a fork name, an optional -dirty and an
-     * optional per-binary suffix.  snprintf would truncate rather than
-     * overflow, which is safe but silent, and a truncated version is a quiet
-     * wrong answer. */
+    /* Room for the per-binary suffix */
     char version[96];
 
     size_t i;
@@ -5140,20 +5105,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
             est_len += strlen(caph->channel_hop_list[i]) + 4;
         }
     } else if (caph->channel != NULL) {
-        /* NULL-guarded: without it this is a segfault.
-         *
-         * caph->channel is assigned in exactly one place: the CONFIGREQ handler,
-         * and only when chancontrol_cb returns > 0. So a source whose first
-         * channel-set is refused reaches here with it still NULL, and
-         * strlen(NULL) would kill the capture binary while it is trying to send
-         * the operator the message explaining why their setting was rejected.
-         * The server would see a source that vanished, not a setting that was
-         * declined.
-         *
-         * A wifi source never hits this, since it tunes successfully on its
-         * first request.  Any source that uses set_channel as a generic runtime
-         * option setter and can legitimately say "no" does, and "no" is the
-         * first thing such a source says to a typo. */
+        /* NULL until a channel set has succeeded, e.g. when refusing the first one */
         est_len += strlen(caph->channel);
     }
 
@@ -5212,15 +5164,6 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
 
         mpack_complete_map(&writer);
     } else if (caph->channel != NULL) {
-        /* The second half of the same NULL guard -- see the est_len
-         * computation above for how it is reached. mpack_write_cstr(NULL)
-         * errors the writer, mpack_writer_destroy() reports it, and the whole
-         * CONFIGREPORT is cancelled, so even past the crash the server would
-         * get silence instead of the refusal message.
-         *
-         * Omitted rather than written as "": the field is documented "string,
-         * if single channel" in kis_external_packet.h, and an empty string
-         * reads as a source that HAS a channel and it is blank. */
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
         mpack_write_cstr(&writer, caph->channel);
     }

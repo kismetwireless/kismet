@@ -9,8 +9,8 @@
  * that cannot `./configure` (macOS: no libwebsockets / libpcap / libmosquitto /
  * sensors.h):
  *
- *     make -C capture_cell_at  -f standalone.mk check
- *     make -C capture_cell_diag -f standalone.mk check
+ *     make -C capture_cell_at check
+ *     make -C capture_cell_diag check
  *
  * On macOS / Apple clang an unguarded at_serial.inc fails with:
  *

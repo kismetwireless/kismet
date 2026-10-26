@@ -258,7 +258,7 @@ packet_chain::~packet_chain() {
 }
 
 size_t packet_chain::drain_and_stop(std::chrono::milliseconds budget) {
-    if (drain_started.exchange(true) || packet_threads == nullptr)
+    if (!drain_at_shutdown || drain_started.exchange(true) || packet_threads == nullptr)
         return 0;
 
     // The sentinel goes to the TAIL of each queue: every thread finishes all
@@ -392,14 +392,11 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
         }
 
         for (auto& packet : batch) {
-            // NOT stopped by spindown.  Spindown is set the moment a signal arrives,
-            // well before the sources and logs close; stopping here would abandon
-            // every queued packet -- and, since non-802.11 packets go to a random
-            // thread, could log a later packet and drop an earlier one: a gap
-            // mid-stream.  At shutdown drain_and_stop() ends the threads instead, with
-            // a sentinel (nullptr) queued BEHIND everything already delivered.
+            // With a graceful-close source open, spindown doesn't stop the threads;
+            // drain_and_stop() ends them once the sources and their last records are in
             if (packet == nullptr ||
                     packetchain_shutdown ||
+                    (Globalreg::globalreg->spindown && !drain_at_shutdown) ||
                     Globalreg::globalreg->fatal_condition ||
                     Globalreg::globalreg->complete)
                 return;

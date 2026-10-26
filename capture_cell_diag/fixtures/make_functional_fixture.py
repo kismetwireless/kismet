@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the canned raw-HDLC replay fixture `standalone.mk check-native` replays.
+"""Generate the canned raw-HDLC replay fixture the celltools replay tests use.
 
     python3 fixtures/make_functional_fixture.py --out fixtures/functional.hdlc
 
@@ -23,7 +23,7 @@ nothing to miss.
 
 Concretely:
   * IMEI is stamped by the helper at replay time, not by this file, and
-    check-native passes the all-zero synthetic IMEI 000000000000000.
+    the replay tests pass the all-zero synthetic IMEI 000000000000000.
   * PCI / EARFCN are round decimal placeholders (111, 222, 333, 444; EARFCN
     2600 and 900), not values copied off a real cell.
   * No GNSS record is present at all, so the fixture carries no coordinate.
@@ -64,7 +64,7 @@ Each record is a DIAG_LOG_F (opcode 0x10) frame, HDLC-escaped, CRC-16 tailed and
 Both length fields matter. A deframer may reject a frame whose `outer_len`
 disagrees with its true length, and a fixture that gets this wrong decodes to
 zero records while every byte still looks plausible -- the silent-empty
-outcome check-native's replay exists to rule out.
+outcome the replay tests exist to rule out.
 
 The CRC is the reflected CRC-16-CCITT Qualcomm DIAG uses (poly 0x8408, register
 seeded 0xFFFF, LSB-first, output XOR 0xFFFF). It is implemented inline, so this
@@ -165,8 +165,7 @@ RECORDS = [
 ]
 
 #: Monotonic synthetic DIAG ticks. Arbitrary but FIXED, so the generator is
-#: deterministic -- regenerating must produce a byte-identical file or the
-#: round-trip test in tests/test_functional_fixture.py fails.
+#: deterministic -- regenerating must produce a byte-identical file.
 _TS0 = 1000
 _COUNTER0 = 44084
 

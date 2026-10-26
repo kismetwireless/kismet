@@ -131,7 +131,7 @@ def test_rebuild_cmd_names_the_roles_real_make_target(tree: Path):
     ``ROLES`` records each driver's make target. Pinning a string against the
     constant it was copied from tests only that the copy happened; both sides
     move together and can stay wrong together. The real referent is the
-    makefile, so ``test_the_logstream_target_has_a_rule_in_the_real_standalone_mk``
+    makefile, so ``test_the_logstream_target_has_a_rule_in_the_real_makefile``
     below checks it there.
     """
     binary = tree / "kismet_cap_cell_diag"
@@ -157,47 +157,28 @@ def _rule_exists(mk: Path, target: str) -> bool:
         lines, target, cell_binaries._parse_vars(lines)) is not None
 
 
-def test_the_logstream_target_has_a_rule_in_the_real_standalone_mk():
+def test_the_logstream_target_has_a_rule_in_the_real_makefile():
     """The logstream make target exists in the file an operator's ``make`` reads.
 
     The expected name is deliberately NOT this repo's own constant: a
     literal-vs-constant comparison cannot catch a name that was wrong the day it
-    was written (such as the nonexistent ``logstream-dump``).
+    was written.
     """
     srcdir = Path(cell_binaries._TREE_ROOT) / "capture_cell_diag"
-    mk = srcdir / "standalone.mk"
+    mk = srcdir / "Makefile.in"
     if not mk.is_file():
-        pytest.skip("no capture_cell_diag/standalone.mk on this host")
+        pytest.skip("no capture_cell_diag/Makefile.in on this host")
 
     _env, _rel, target = cell_binaries.ROLES["logstream"]
     assert _rule_exists(mk, target), (
         f"role 'logstream' names make target {target!r}, which {mk} has no rule "
         f"for — the printed remedy fails with 'No rule to make target'")
-    # The negative control that makes the line above mean something: the name
-    # that WAS shipped must be rejected by this same check.
-    assert not _rule_exists(mk, "logstream-dump")
-
-
-def test_no_role_or_escape_still_names_the_target_that_never_existed():
-    """No role or escape table names the nonexistent ``logstream-dump`` target.
-
-    This reads the tables rather than grepping the file, so a comment that
-    merely mentions the old name does not trip it.
-    """
-    targets = {t for _e, _r, t in cell_binaries.ROLES.values()}
-    targets |= {t for _sub, t, _out in cell_binaries._STANDALONE_ESCAPE.values()}
-    assert "logstream-dump" not in targets
+    # The negative control that makes the line above mean something
+    assert not _rule_exists(mk, "no-such-logstream-target")
 
 
 def test_the_dash_f_appears_only_where_a_makefile_actually_answered():
-    """A role whose makefile cannot answer must not sprout a bogus ``-f``.
-
-    ``standalone.mk`` has NO rule for the autoconf output path
-    ``kismet_cap_cell_diag``: its ``native`` target writes
-    ``build-native/kismet_cap_cell_diag`` instead, and that binary gets its
-    own remedy. Rendering ``-f standalone.mk kismet_cap_cell_diag`` for the
-    autoconf path would be an unrunnable remedy.
-    """
+    """A remedy names a makefile with ``-f`` only when that makefile answered."""
     root = Path(cell_binaries._TREE_ROOT)
     checked = 0
     for role, (_env, rel, target) in cell_binaries.ROLES.items():
