@@ -4449,8 +4449,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     if (dot11info->subtype == packet_sub_beacon) {
         bool dot11dmismatch = false;
 
-        if (ssid->get_dot11d_country().length() > 0 &&
-                ssid->get_dot11d_country() != dot11info->dot11d_country) {
+        // get_only_ doesn't create the field for APs without 802.11d
+        const auto prev_country = ssid->get_only_dot11d_country();
+
+        if (prev_country.length() > 0 && prev_country != dot11info->dot11d_country) {
             dot11dmismatch = true;
         }
 
@@ -4490,7 +4492,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             }
         }
 
-        ssid->set_dot11d_country(dot11info->dot11d_country);
+        if (dot11info->dot11d_country.length() > 0 || ssid->has_dot11d_country())
+            ssid->set_dot11d_country(dot11info->dot11d_country);
 
         if (process_11d_country_list) {
             if (dot11info->dot11d_vec.size() > 0 && ssid->has_dot11d_vec())
