@@ -128,6 +128,18 @@ CPPFLAGS += -DCELLDIAG_NATIVE_MODE=\"native\"
 
 MONITOR_BIN = kismet_cap_cell_diag
 
+CELL_USBSERIAL = @CELL_USBSERIAL@
+
+# Modems with no host driver, reached over libusb (cell_usbport.h on
+# ../usbserial); off with configure --disable-usbserial.
+MONITOR_OBJS += cell_usbport.c.o
+ifeq ($(CELL_USBSERIAL),1)
+MONITOR_OBJS += usbserial.c.o
+MONITOR_LIBS = $(LIBUSBLIBS)
+capture_cell_diag.c.o cell_usbport.c.o: CPPFLAGS += -DHAVE_CELL_USBSERIAL
+cell_usbport.c.o cell_usbport.c.d usbserial.c.o usbserial.c.d: CPPFLAGS += $(LIBUSBCFLAGS)
+endif
+
 # Standalone hardware-probe helper (no Kismet dependency); shares the DIAG
 # capture core. Built explicitly via `make probe`, not part of `all`/install.
 # diag_profile.c.o is here so the probe resolves diag.spc from the SAME
@@ -147,6 +159,13 @@ LOGSTREAM_DUMP_BIN = diag_logstream_dump
 
 all: $(MONITOR_BIN) $(PROBE_BIN) $(LOGSTREAM_DUMP_BIN)
 
+usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@
+
+usbserial.c.d:	../usbserial/usbserial.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../usbserial/usbserial.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
 # The C++ depfiles are listed HERE, beside the C ones, and that placement is the
 # working part. Making %.cpp.d a prerequisite of the %.cpp.o pattern rule
 # is not enough on a tree whose objects already exist: make finds them current
@@ -160,7 +179,7 @@ NATIVE_DEPS = $(patsubst %.cpp.o,%.cpp.d,$(filter %.cpp.o,$(NATIVE_OBJS))) \
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(NATIVE_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) $(NATIVE_DEPS) ../libkismetdatasource.a
 		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(NATIVE_OBJS) \
-		    ../libkismetdatasource.a $(DATASOURCE_LIBS) $(NATIVE_LIBS)
+		    ../libkismetdatasource.a $(DATASOURCE_LIBS) $(NATIVE_LIBS) $(MONITOR_LIBS)
 
 probe: $(PROBE_BIN)
 

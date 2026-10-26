@@ -49,6 +49,10 @@
                          name -- which is what --list and the web UI's Enable
                          click offer. Name it (with diagport=) when several
                          PCIe modems make the by-name pick ambiguous.
+      usb=auto|force|off modems over libusb, named usb:BUS-ADDR:IF in
+                         atport= / diagport=. auto (default) scans the ones
+                         no host driver has; force takes a modem from its
+                         host driver while the source runs; off scans none.
       nativedecode=only  the decoder: the native legs, in this process (the
                          only one, and the default). Any other value is
                          refused at open.
@@ -214,6 +218,7 @@
 #include "../capture_framework.h"
 
 #include "cell_safefile.h"
+#include "cell_usbport.h"
 #include "diag_capture.h"
 #include "diag_config.h"
 #include "diag_portdiag.h"
@@ -743,6 +748,13 @@ static int serial_open(const char *path, int baudrate) {
      * plain open() block for that port's whole 30 s closing_wait, O_NONBLOCK or
      * not. A port that has not opened by the deadline fails with ETIMEDOUT and
      * is skipped; it is never the target (an AT port reads what it is sent). */
+    if (cell_usbport_is_spec(path)) {
+        fd = cell_usbport_open(path);
+        if (fd >= 0)
+            diag_probe_termios_forget(fd);
+        return fd;
+    }
+
     char real[PATH_MAX];
     dev_t rdev;
     if (cell_port_path_ok(path, real, sizeof(real), &rdev) != 0)
@@ -837,6 +849,30 @@ static int serial_open(const char *path, int baudrate) {
     }
 
     return fd;
+}
+
+/* diag_capture_open_retry(), or for a libusb DIAG interface the bridge, with
+ * the same wait for a sibling's claim and the same lone-flag resync (see
+ * diag_capture.c) once it is held. */
+static int diag_port_open_retry(const char *port, int attempts, int delay_ms) {
+    if (!cell_usbport_is_spec(port))
+        return diag_capture_open_retry(port, attempts, delay_ms);
+
+    for (int i = 0; i < attempts; i++) {
+        int fd = cell_usbport_open(port);
+        if (fd >= 0) {
+            static const uint8_t flag = 0x7E;
+            ssize_t w = write(fd, &flag, 1);
+            (void)w;
+            return fd;
+        }
+        if (i + 1 < attempts && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+            usleep((useconds_t)delay_ms * 1000);
+            continue;
+        }
+        break;
+    }
+    return -1;
 }
 
 static void serial_close_fd(int *fd) {
@@ -1404,14 +1440,36 @@ static int find_modem_ports(char ports[][256], int max_ports, scan_scope_t scope
     count = add_suspected_modem_ports("/dev/ttyUSB*", ports, count, max_ports);
     count = add_suspected_modem_ports("/dev/ttyACM*", ports, count, max_ports);
 
+    /* Modems with no host driver, over libusb (usb= option): their AT-speaking
+     * interfaces, for the IMEI probe. The DIAG one is found from them. */
+    cell_usbport_info_t usb[CELL_USBPORT_MAX];
+    int n_usb = cell_usbport_scan(usb, CELL_USBPORT_MAX);
+    for (int u = 0; u < n_usb && count < max_ports; u++) {
+        if (strcmp(usb[u].role, "at") != 0 && strcmp(usb[u].role, "modem") != 0)
+            continue;
+        snprintf(ports[count], 256, "%s", usb[u].spec);
+        count++;
+    }
+
     return count;
 }
 
-/* Map a tty node to its parent USB device id ("2-1") via sysfs. 1 on success. */
+/* Map a tty node to its parent USB device id ("2-1") via sysfs, or a libusb
+ * port to its modem ("usb:1-4"). 1 on success. */
 static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_dev_sz) {
     char sysfs_path[512];
     char resolved[512];
     const char *port_name;
+
+    if (cell_usbport_is_spec(port_path)) {
+        const char *colon = strrchr(port_path, ':');
+        size_t n = colon ? (size_t)(colon - port_path) : 0;
+        if (cell_usbport_parse(port_path, NULL, NULL, NULL) != 0 || n >= usb_dev_sz)
+            return 0;
+        memcpy(usb_dev, port_path, n);
+        usb_dev[n] = '\0';
+        return 1;
+    }
 
     port_name = strrchr(port_path, '/');
     if (port_name)
@@ -1443,6 +1501,11 @@ static int get_usb_interface_num(const char *port_path) {
     char sysfs_path[512];
     char resolved[512];
     const char *port_name;
+
+    if (cell_usbport_is_spec(port_path)) {
+        int ifnum;
+        return cell_usbport_parse(port_path, NULL, NULL, &ifnum) == 0 ? ifnum : -1;
+    }
 
     port_name = strrchr(port_path, '/');
     if (port_name)
@@ -1534,6 +1597,17 @@ static int read_usb_iface_hex_attr(const char *port_path, const char *attr) {
  * descriptor rather than by the if00 convention. */
 static void get_usb_interface_desc(const char *port_path,
                                    int *cls, int *sub, int *prot) {
+    if (cell_usbport_is_spec(port_path)) {
+        cell_usbport_info_t ui;
+        if (cell_usbport_info(port_path, &ui)) {
+            *cls = ui.cls;
+            *sub = ui.sub;
+            *prot = ui.prot;
+        } else {
+            *cls = *sub = *prot = -1;
+        }
+        return;
+    }
     *cls  = read_usb_iface_hex_attr(port_path, "bInterfaceClass");
     *sub  = read_usb_iface_hex_attr(port_path, "bInterfaceSubClass");
     *prot = read_usb_iface_hex_attr(port_path, "bInterfaceProtocol");
@@ -2001,6 +2075,61 @@ static int find_diag_port(const char *sibling_port, char *out, size_t outsz,
         if (diag && diagsz)
             diag_portdiag_format_transport(imei, pd->transport, diag, diagsz);
         return 0;
+    }
+
+    /* A libusb sibling: the DIAG interface is one of the same modem's, chosen
+     * the way the tty path below chooses -- an exact profile pin, else the
+     * descriptor, else the interface the model table calls diag. */
+    if (cell_usbport_is_spec(sibling_port)) {
+        char udev[CELL_USBPORT_SPEC_MAX];
+        cell_usbport_info_t sib[CELL_USBPORT_MAX];
+        struct diag_ifcand ucands[CELL_USBPORT_MAX];
+        int n_sib = 0, n_uc = 0, upick = -1;
+        int pin_if = (pd && pd->has_interface && strcmp(pd->match, "interface") == 0)
+                     ? pd->interface : -1;
+
+        if (get_usb_device_id(sibling_port, udev, sizeof(udev)))
+            n_sib = cell_usbport_siblings(udev, sib, CELL_USBPORT_MAX);
+
+        for (int i = 0; i < n_sib; i++) {
+            struct diag_ifcand *c = &ucands[n_uc++];
+            memset(c, 0, sizeof(*c));
+            snprintf(c->path, sizeof(c->path), "%s", sib[i].spec);
+            c->if_num = sib[i].ifnum;
+            c->cls = sib[i].cls;
+            c->sub = sib[i].sub;
+            c->prot = sib[i].prot;
+        }
+
+        if (pin_if >= 0) {
+            for (int i = 0; i < n_uc; i++)
+                if (ucands[i].if_num == pin_if)
+                    upick = i;
+        } else {
+            upick = diag_ifclass_pick(ucands, n_uc);
+            for (int i = 0; upick < 0 && i < n_sib; i++)
+                if (strcmp(sib[i].role, "diag") == 0)
+                    upick = i;
+        }
+
+        if (upick < 0) {
+            if (diag && diagsz)
+                snprintf(diag, diagsz, "IMEI %s answered on %s, but none of the "
+                         "%d serial interface(s) of that modem is %s%s",
+                         imei ? imei : "?", sibling_port, n_uc,
+                         pin_if >= 0 ? "the profile's DIAG interface" :
+                         "a DIAG interface", pin_if >= 0 ? "" :
+                         "; pass diagport=usb:BUS-ADDR:IF");
+            return 0;
+        }
+
+        snprintf(out, outsz, "%s", ucands[upick].path);
+        if (diag && diagsz)
+            snprintf(diag, diagsz, "DIAG interface over libusb: %s [if%02d %s] "
+                     "on %s", ucands[upick].path, ucands[upick].if_num,
+                     diag_ifclass_label(ucands[upick].cls, ucands[upick].sub,
+                                        ucands[upick].prot), udev);
+        return 1;
     }
 
     char target_dev[64];
@@ -4455,10 +4584,15 @@ f3_default_done:
      * capture framework's "Remote side closed read pipe" path. 5 attempts x
      * 200 ms (~1 s max) absorbs the grab; a genuinely-wrong path (ENOENT)
      * still fails fast on the first attempt (see diag_open_errno_is_transient). */
-    local->diag_fd = diag_capture_open_retry(diag_port, 5, 200);
+    local->diag_fd = diag_port_open_retry(diag_port, 5, 200);
     if (local->diag_fd < 0) {
-        snprintf(msg, msg_sz, "Failed to open DIAG port %s: %s",
-                 diag_port, strerror(errno));
+        if (errno == EBUSY && cell_usbport_is_spec(diag_port))
+            snprintf(msg, msg_sz, "Failed to open DIAG port %s: a host driver "
+                     "has this interface (usb=force takes it from the driver)",
+                     diag_port);
+        else
+            snprintf(msg, msg_sz, "Failed to open DIAG port %s: %s",
+                     diag_port, strerror(errno));
         goto fail;
     }
     free(local->diag_path);
@@ -4708,6 +4842,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "replay", definition)) > 0)
         local->replay_path = strndup(placeholder, placeholder_len);
+
+    /* usb=auto|force|off: modems over libusb (cell_usbport.h), as for cellat */
+    if ((placeholder_len = cf_find_flag(&placeholder, "usb", definition)) > 0) {
+        char *v = strndup(placeholder, placeholder_len);
+        int mode = cell_usbport_mode_parse(v);
+        if (mode < 0) {
+            snprintf(msg, STATUS_MAX, "celldiag: usb=%s is not auto, force or off",
+                     v ? v : "");
+            free(v);
+            return -1;
+        }
+        free(v);
+        cell_usbport_set_mode((cell_usb_mode_t)mode);
+    }
 
     /* rawlog= spec is captured now but resolved after the model is known
      * (below), so %m can expand. */

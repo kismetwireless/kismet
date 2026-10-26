@@ -57,6 +57,7 @@ BUILD_CAPTURE_SNIFFLE_BLE=1
 BUILD_CAPTURE_LORAPIPE=1
 BUILD_CAPTURE_CELL_AT=0
 CELL_SELFTEST=0
+CELL_USBSERIAL=0
 BUILD_CAPTURE_CELL_DIAG=0
 CELL_LOGTOOL_BINS=""
 
@@ -1755,7 +1756,7 @@ fi
 
 want_usbserial="auto"
 AC_ARG_ENABLE([usbserial],
-    AS_HELP_STRING([--disable-usbserial], [Disable kismet_usbserial, which serves the serial ports of USB modems with no host driver (userspace via libusb); built by default when libusb is available]),
+    AS_HELP_STRING([--disable-usbserial], [Disable libusb serial ports for USB modems with no host driver: kismet_usbserial, and the cell capture sources reaching such modems over libusb; built by default when libusb is available]),
 	[case "${enableval}" in
           no) want_usbserial=no ;;
            *) want_usbserial=yes ;;
@@ -2065,6 +2066,9 @@ if test x"$want_cell" = x"yes"; then
     BUILD_CAPTURE_CELL_DIAG=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_DIAG)"
     CELL_LOGTOOL_BINS="\$(LOGTOOL_KISMETDB_CELLNDJSON) \$(LOGTOOL_KISMETDB_ATLOG) \$(LOGTOOL_KISMETDB_QMILOG) \$(LOGTOOL_KISMETDB_HDLC)"
+    if test "$BUILD_USBSERIAL" = 1; then
+        CELL_USBSERIAL=1
+    fi
 fi
 
 AC_ARG_ENABLE([cell-selftest],
@@ -2257,6 +2261,7 @@ AC_SUBST(BUILD_CAPTURE_CELL_AT)
 AC_SUBST(BUILD_CAPTURE_CELL_DIAG)
 AC_SUBST(CELL_LOGTOOL_BINS)
 AC_SUBST(CELL_SELFTEST)
+AC_SUBST(CELL_USBSERIAL)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -2608,7 +2613,9 @@ else
 	echo "no";
 fi
 printf " Cell modem (AT, DIAG): "
-if test "$BUILD_CAPTURE_CELL_AT" = 1; then
+if test "$BUILD_CAPTURE_CELL_AT" = 1 -a "$CELL_USBSERIAL" = 1; then
+	echo "yes (and over libusb)";
+elif test "$BUILD_CAPTURE_CELL_AT" = 1; then
 	echo "yes";
 else
 	echo "no (disabled)";

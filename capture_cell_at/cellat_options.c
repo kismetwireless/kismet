@@ -189,7 +189,7 @@ int cellat_strategy_parse(const char *value, const cellat_strategy_t **out,
 int cellat_option_is_known(const char *key) {
     static const char *known[] = {
         /* parsed by this helper */
-        "atport", "strategy", "debug", "transcript", "uuid",
+        "atport", "strategy", "debug", "transcript", "uuid", "usb",
         /* JSONL corpus tee of every AT exchange (distinct from the
          * human-readable `transcript=`). Registered here so a drive command
          * using it does not draw the "unknown option, IGNORED" warning that

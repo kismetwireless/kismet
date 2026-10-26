@@ -81,6 +81,34 @@ int identvouch_filename(const char *port, char *out, size_t out_sz) {
     return 0;
 }
 
+/* The node instance a record is bound to. A libusb port (cell_usbport.h) has
+ * no node; its name carries the address the modem was given when it
+ * enumerated, so the name alone is the instance and the fields stay 0. */
+static int node_instance(const char *port, unsigned long long *rdev,
+                         unsigned long long *ino, long long *ctime_out) {
+    if (strncmp(port, "usb:", 4) == 0) {
+        const char *p = port + 4;
+        if (!*p)
+            return -1;
+        for (; *p; p++) {
+            if (!isdigit((unsigned char) *p) && *p != '-' && *p != ':')
+                return -1;
+        }
+        *rdev = 0;
+        *ino = 0;
+        *ctime_out = 0;
+        return 0;
+    }
+
+    struct stat pst;
+    if (stat(port, &pst) != 0)
+        return -1;
+    *rdev = (unsigned long long) pst.st_rdev;
+    *ino = (unsigned long long) pst.st_ino;
+    *ctime_out = (long long) pst.st_ctime;
+    return 0;
+}
+
 static int record_path(const char *port, char *out, size_t out_sz) {
     const char *dir = identvouch_dir();
     char name[512];
@@ -116,8 +144,9 @@ int identvouch_publish(const char *port, const modemident_t *id) {
     if (port == NULL || !*port || id == NULL || !imei_ok(id->imei))
         return -1;
 
-    struct stat pst;
-    if (stat(port, &pst) != 0)
+    unsigned long long rdev, ino;
+    long long nctime;
+    if (node_instance(port, &rdev, &ino, &nctime) != 0)
         return -1;
 
     char path[1024], tmp[1100];
@@ -128,10 +157,8 @@ int identvouch_publish(const char *port, const modemident_t *id) {
     char rec[IDENTVOUCH_REC_MAX];
     int w = snprintf(rec, sizeof(rec),
                      "v=%d\nport=%s\nrdev=%llu\nino=%llu\nctime=%lld\npid=%ld\n",
-                     IDENTVOUCH_SCHEMA, port,
-                     (unsigned long long) pst.st_rdev,
-                     (unsigned long long) pst.st_ino,
-                     (long long) pst.st_ctime, (long) getpid());
+                     IDENTVOUCH_SCHEMA, port, rdev, ino, nctime,
+                     (long) getpid());
     if (w < 0 || (size_t) w >= sizeof(rec))
         return -1;
     size_t off = (size_t) w;
@@ -268,11 +295,10 @@ int identvouch_lookup(const char *port, modemident_t *id_out, pid_t *writer_pid)
         return 0;
 
     /* The same node INSTANCE the holder read -- not merely the same name. */
-    struct stat pst;
-    if (stat(port, &pst) != 0 ||
-        (unsigned long long) pst.st_rdev != r.rdev ||
-        (unsigned long long) pst.st_ino != r.ino ||
-        (long long) pst.st_ctime != r.ctime)
+    unsigned long long rdev, ino;
+    long long nctime;
+    if (node_instance(port, &rdev, &ino, &nctime) != 0 ||
+        rdev != r.rdev || ino != r.ino || nctime != r.ctime)
         return 0;
 
     if (kill((pid_t) r.pid, 0) != 0 && errno != EPERM)

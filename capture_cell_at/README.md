@@ -402,11 +402,14 @@ cd ..
 sudo make install
 ```
 
-`make install` installs `kismet_cap_cell_at` into the bin directory and its QMI
-feed (`qmifeed/`, below) into `<datadir>/kismet/cell/qmifeed/`, where
-`qmifeed=auto` finds it. The feed is Python: it runs only for a source that
-sets `qmifeed=` (off by default), so a host without `python3` runs every other
-cellat option ([4e](#4e-qmi-cell-feed-qmifeed)).
+`make install` installs `kismet_cap_cell_at` into the bin directory. The QMI
+feed (`qmifeed/`, below) is Python and is not installed; it runs only for a
+source that sets `qmifeed=` (off by default), so a host without `python3` runs
+every other cellat option ([4e](#4e-qmi-cell-feed-qmifeed)).
+
+With libusb (the default; `--disable-usbserial` turns it off) the helpers can
+also reach a modem that has no host serial driver, see
+[4f](#4f-modems-with-no-host-driver-usb).
 
 ## Quick Start
 
@@ -499,7 +502,7 @@ Append options to the source definition after a colon:
 
 | Option | Values | Default | Description |
 |--------|--------|---------|-------------|
-| `atport` | a `/dev/tty*` path | *(auto-detect by IMEI)* | Open this port instead of scanning. The IMEI is still verified — a mismatch is a hard open error, never a silent survey of the wrong modem. |
+| `atport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(auto-detect by IMEI)* | Open this port instead of scanning. The IMEI is still verified — a mismatch is a hard open error, never a silent survey of the wrong modem. |
 | `strategy` | `driving` (alias `wardrive`), `walking`, `stationary`, `serving_only` | `driving` | Scan profile (see below). An unknown value **refuses the open** and names the valid ones. |
 | `debug` | `true`, `false` | `false` | Debug mode: extra per-poll messages, the IMSI and ICCID read and logged at debug level, and, if `transcript=` is not set, an automatic AT transcript at `/tmp/kismet_cellat_<IMEI>_<random>.log` (`$TMPDIR` if set); the open message names it. `KISMET_CELLAT_DEBUG=1` in the environment turns it on for every source; `debug=` in the definition overrides that. |
 | `transcript` | a file path | *(off)* | Write a human-readable raw AT transcript (`[ISO8601] TX:/RX:` text, wall-clock). The file is created mode `0600`, since it carries the modem's identifiers. |
@@ -508,6 +511,7 @@ Append options to the source definition after a colon:
 | `bandlock` | `true`, `false` | `false` | Offer the band/RAT lock channels. A lock is written to the modem's saved configuration, so it is off unless asked for. A lock left by a crashed session is undone either way. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
 | `sierracnd` | `true`, `false` | `false` | Sierra only: unlock the advanced AT commands (`AT!ENTERCND`, default password) at open. Without it, a modem that keeps `AT!GSTATUS?` / `AT!LTEINFO?` locked reports less. |
 | `lockstate` | a file path | `$HOME/.kismet/cellat-lock-<imei>.state` (no default without a home directory: locking then needs `lockstate=`) | Where the modem's band/RAT settings **as found** are saved before a lock is written. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
+| `usb` | `auto`, `force`, `off` | `auto` | Modems reached over libusb. See [4f](#4f-modems-with-no-host-driver-usb). |
 | `channel` | a lock channel (`LTE`, `LTE-B66`, …) | `AUTO` | Kismet's own option: lock at bring-up. Only on a lock-capable modem, with `bandlock=true`. |
 
 **An option that is not in this table is ignored, and cellat says so.**
@@ -767,9 +771,9 @@ kismet -c 'cellat-<imei>:atport=/dev/ttyUSB2,qmifeed=auto -d /dev/cdc-wdm0 --int
   AT polling carries on. The binary reads its own location from
   `/proc/self/exe` (Linux) or dyld (macOS), so `auto` works from the build
   tree, or anywhere the binary is copied together with `qmifeed/`. A binary
-  built by `./configure && make` also looks, last, in the data directory
-  `make install` copies the feed to (`<datadir>/kismet/cell/qmifeed/`), so an
-  installed `kismet_cap_cell_at` finds it too.
+  built by `./configure && make` also looks, last, in
+  `<datadir>/kismet/cell/qmifeed/`, for a feed installed there by hand or by a
+  package; `make install` does not install it.
 - **Any other value is refused.** A source definition can come from anyone
   allowed to add a source, so it never names a program to run.
 
@@ -823,6 +827,32 @@ kismet -c 'cellat-<imei>:atport=/dev/ttyUSB2,qmifeed=auto -d /dev/cdc-wdm0 --int
   the direct child and `kismet_qmi_feed.py` exits once it is reparented.
 - Band is never emitted for QMI cells: QMI's 16-bit EARFCN TLV can wrap,
   so the prov block carries `"earfcn_ambiguous"` instead.
+
+### 4f. Modems with no host driver (`usb=`)
+
+A modem whose serial interfaces no host driver has (a Quectel module on
+macOS, or on Linux one the `option` driver does not bind) is reached over
+libusb. Its interfaces are named `usb:BUS-ADDR:IF` wherever a tty would be:
+the scan finds them, `--list` offers them, and `atport=` / celldiag's
+`diagport=` take them. Each helper claims only its own interface, so a cellat
+and a celldiag share the modem as they would its ttys.
+
+| `usb=` | |
+|---|---|
+| `auto` (default) | scan the supported modems' interfaces that no host driver has |
+| `force` | also take a modem's interfaces from its host driver while the source runs; the driver gets them back when the source closes |
+| `off` | no libusb ports |
+
+The address in the name changes when the modem re-enumerates, so a pinned
+`atport=usb:...` is for one session; the IMEI is the stable name. The supported
+models are listed in `usbserial/usbserial.c`. `kismet_usbserial` serves the same
+interfaces as pseudo-terminals for other serial tools.
+
+```bash
+kismet -c cellat-<imei>                      # found over libusb when no driver has it
+kismet -c cellat-<imei>:usb=force            # take it from option / qcserial
+kismet -c 'celldiag-<imei>:atport=usb:1-4:2,diagport=usb:1-4:0'
+```
 
 ### 5. Multiple Modems
 

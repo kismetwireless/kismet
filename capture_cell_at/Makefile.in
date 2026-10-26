@@ -33,6 +33,18 @@ MONITOR_OBJS = \
 	diag_identvouch.c.o
 MONITOR_BIN = kismet_cap_cell_at
 
+CELL_USBSERIAL = @CELL_USBSERIAL@
+
+# Modems with no host driver, reached over libusb (../capture_cell_diag/
+# cell_usbport.h on ../usbserial); off with configure --disable-usbserial.
+MONITOR_OBJS += cell_usbport.c.o
+ifeq ($(CELL_USBSERIAL),1)
+MONITOR_OBJS += usbserial.c.o
+MONITOR_LIBS = $(LIBUSBLIBS)
+capture_cell_at.c.o cell_usbport.c.o: CPPFLAGS += -DHAVE_CELL_USBSERIAL
+cell_usbport.c.o cell_usbport.c.d usbserial.c.o usbserial.c.d: CPPFLAGS += $(LIBUSBCFLAGS)
+endif
+
 # Standalone AT probe (no Kismet link) + selftest for the shared serial core.
 # Both #include at_serial.inc, so they exercise the exact serial_open/at_command
 # this binary runs, including the non-tty (MHI/wwan) transport. The
@@ -97,7 +109,7 @@ all: $(MONITOR_BIN) $(PROBE_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
-		    $(DATASOURCE_LIBS)
+		    $(DATASOURCE_LIBS) $(MONITOR_LIBS)
 
 # Every at_serial.inc includer links the shared probe module: serial_open()'s
 # open is the bounded diag_probe_open(), which runs on a worker thread.
@@ -165,6 +177,20 @@ diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag
 
 diag_probeclose.c.d:	../capture_cell_diag/diag_probeclose.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_probeclose.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+cell_usbport.c.o:	../capture_cell_diag/cell_usbport.c ../capture_cell_diag/cell_usbport.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_usbport.c -o $@
+
+cell_usbport.c.d:	../capture_cell_diag/cell_usbport.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_usbport.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@
+
+usbserial.c.d:	../usbserial/usbserial.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../usbserial/usbserial.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 # Selftests, built only by ./configure --enable-cell-selftest.  Run each
@@ -301,8 +327,8 @@ clean:
 	@-rm -f *.o
 	@-rm -f *.d
 
-# `qmifeed=auto`'s last candidate is where `make install` puts the feed
-# (the top-level commoninstall copies qmifeed/*.py to $(SHARE)cell/qmifeed/).
+# `qmifeed=auto`'s last candidate: a feed installed by hand or by a package
+# under the data directory (`make install` does not install it).
 # No DESTDIR here: it is a staging prefix, not where the binary will run.
 # datarootdir is named so config.status knows the data dir honours --datarootdir.
 datarootdir = @datarootdir@

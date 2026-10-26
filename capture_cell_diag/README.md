@@ -136,7 +136,8 @@ escalates on).
 
 | option | meaning |
 |---|---|
-| `diagport=/dev/ttyUSBx` | override DIAG-port auto-detection |
+| `diagport=/dev/ttyUSBx` | override DIAG-port auto-detection (or `usb:BUS-ADDR:IF`, a libusb interface) |
+| `usb=auto` | modems with no host driver, over libusb: `auto` (default) the ones no driver has, `force` takes them from the driver, `off` none. See [cellat's 4f](../capture_cell_at/README.md#4f-modems-with-no-host-driver-usb) |
 | `atport=<path>` | name the AT-identify node and skip the IMEI scan. Optional for an MHI/wwan modem (a bare `celldiag-<imei>` falls back to `/dev/mhi_DUN`, `/dev/wwan*at*`); name it, with `diagport=`, when several PCIe modems make the by-name pick ambiguous |
 | `spc=000000` | send a `DIAG_SPC_F` unlock (6 digits) before `LOG_CONFIG` — needed on SPC-gated modems (EG25-G / EC2x); harmless to omit on SDX24/SDX55 |
 | `mask=wardrive` | the default `LOG_CONFIG` subscription: the curated cell set (`0xB193`/`0xB0C0`/`0xB192`/`0xB195`/`0xB17F`/`0xB197`/`0xB821`/`0xB97F`), low volume |

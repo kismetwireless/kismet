@@ -119,6 +119,7 @@
 #include "clockanchor.h"
 #include "cellat_qmifeed.h"
 #include "../capture_cell_diag/cell_safefile.h"
+#include "../capture_cell_diag/cell_usbport.h"
 #include <sys/wait.h>
 
 /* Maximum AT response size (128 KB should handle even AT+COPS=? floods) */
@@ -2315,6 +2316,18 @@ static int find_modem_ports(char ports[][CELLAT_PORT_PATH_MAX], int max_ports) {
      * ). Space-separated chosen over colon-separated because device by-id
      * paths can contain colons (cf. RC400L SN:<hex> form). */
     const char *extra = cell_getenv("CELLAT_EXTRA_PORTS");
+
+    /* Modems with no host driver, reached over libusb (usb= option). Only their
+     * AT-speaking interfaces: the DIAG and NMEA ones are never AT-probed. */
+    cell_usbport_info_t usb[CELL_USBPORT_MAX];
+    int n_usb = cell_usbport_scan(usb, CELL_USBPORT_MAX);
+    for (int u = 0; u < n_usb && count < max_ports; u++) {
+        if (strcmp(usb[u].role, "at") != 0 && strcmp(usb[u].role, "modem") != 0)
+            continue;
+        cellat_scan_add(ports, &count, max_ports, CELLAT_SCAN_UNFILTERED,
+                        usb[u].spec);
+    }
+
     /* The operator named these paths, so it is not the scan's business to
      * second-guess them -- except under /dev/mhi_* and /dev/wwan*, where a
      * glob would also match the EDL channel. A duplicate is refused:
@@ -2337,6 +2350,17 @@ static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_de
     char sysfs_path[512];
     char resolved[512];
     const char *port_name;
+
+    /* usb:BUS-ADDR:IF -> usb:BUS-ADDR */
+    if (cell_usbport_is_spec(port_path)) {
+        const char *colon = strrchr(port_path, ':');
+        size_t n = colon ? (size_t)(colon - port_path) : 0;
+        if (cell_usbport_parse(port_path, NULL, NULL, NULL) != 0 || n >= usb_dev_sz)
+            return 0;
+        memcpy(usb_dev, port_path, n);
+        usb_dev[n] = '\0';
+        return 1;
+    }
 
     /* Extract port name: /dev/ttyUSB0 → ttyUSB0 */
     port_name = strrchr(port_path, '/');
@@ -2379,6 +2403,11 @@ static int get_usb_interface_num(const char *port_path) {
     char sysfs_path[512];
     char resolved[512];
     const char *port_name;
+
+    if (cell_usbport_is_spec(port_path)) {
+        int ifnum;
+        return cell_usbport_parse(port_path, NULL, NULL, &ifnum) == 0 ? ifnum : -1;
+    }
 
     port_name = strrchr(port_path, '/');
     if (port_name)
@@ -2781,7 +2810,7 @@ static void warn_one_unknown_option(const char *key, void *ctx) {
              "IGNORED. Kismet accepts unknown options silently, so this would "
              "otherwise look like it worked. Known options: atport=, "
              "strategy=, debug=, transcript=, atlog=, clock_anchor_sec=, "
-             "enabled=", key);
+             "usb=, enabled=", key);
     cf_send_warning(caph, buf);
 }
 
@@ -3199,6 +3228,23 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return 1;
     }
 
+    /* usb=auto|force|off -- modems reached over libusb. auto (the default)
+     * scans the ones no host driver has; force also takes a modem from its host
+     * driver (option, qcserial) while the source runs. */
+    if ((placeholder_len = cf_find_flag(&placeholder, "usb", definition)) > 0) {
+        char *v = strndup(placeholder, placeholder_len);
+        int mode = cell_usbport_mode_parse(v);
+        if (mode < 0) {
+            snprintf(msg, STATUS_MAX, "cellat: usb=%s is not auto, force or off",
+                     v ? v : "");
+            free(v);
+            free(interface);
+            return -1;
+        }
+        free(v);
+        cell_usbport_set_mode((cell_usb_mode_t)mode);
+    }
+
     /* atport=<path> -- explicit AT port, skipping auto-detect. Mirrors
      * celldiag's diagport=.
      *
@@ -3340,6 +3386,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             snprintf(msg, STATUS_MAX, "Failed to open %s: %s (held by another "
                      "process for the whole %ld ms wait)", device_path,
                      strerror(open_errno), claim_waited_ms);
+        else if (open_errno == EBUSY && cell_usbport_is_spec(device_path))
+            snprintf(msg, STATUS_MAX, "Failed to open %s: a host driver has "
+                     "this interface (usb=force takes it from the driver)",
+                     device_path);
         else
             snprintf(msg, STATUS_MAX, "Failed to open %s: %s",
                      device_path, strerror(open_errno));

@@ -44,6 +44,7 @@
  * diag_probeclose.c (and -pthread) for it. */
 #include "../capture_cell_diag/diag_probeclose.h"
 #include "../capture_cell_diag/cell_safefile.h"
+#include "../capture_cell_diag/cell_usbport.h"
 
 /* Write an ISO 8601 timestamp + direction tag + message to the transcript fd.
  * direction: "TX" for commands sent, "RX" for responses received.
@@ -141,6 +142,17 @@ static int serial_open(const char *path, int baudrate) {
      * plain open() block for the port's 30 s closing_wait, O_NONBLOCK or not,
      * which would consume Kismet's whole 30 s command deadline. An open that
      * has not returned by the deadline fails with ETIMEDOUT. */
+    /* A libusb port: the interface claim is the exclusive lock, and the fd is
+     * a raw non-tty pipe (cell_usbport.h). */
+    if (cell_usbport_is_spec(path)) {
+        fd = cell_usbport_open(path);
+        if (fd < 0)
+            return -1;
+        at_late_ok_take(fd);
+        diag_probe_termios_forget(fd);
+        return fd;
+    }
+
     char real[PATH_MAX];
     dev_t rdev;
     if (cell_port_path_ok(path, real, sizeof(real), &rdev) != 0)
