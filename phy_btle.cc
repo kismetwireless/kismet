@@ -319,14 +319,32 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info->btle_decode == nullptr)
         return 0;
 
-    // Remote ID and location trackers ride in 16-bit service data; both normally use
-    // random addresses, so they're kept even when other random devices are ignored
+    // Remote ID and location trackers ride in 16-bit service data (Apple Find My in
+    // manufacturer data); both normally use random addresses, so they're kept even when
+    // other random devices are ignored
     std::shared_ptr<uav_remoteid_packinfo> remoteid;
 
     btle_tracker::smarttag_info smarttag;
     bool is_smarttag = false;
+    btle_tracker::findmy_info findmy;
+    bool is_findmy = false;
+    btle_tracker::fmdn_info fmdn;
+    bool is_fmdn = false;
+    btle_tracker::dult_info dult;
+    bool is_dult = false;
 
     for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+        if (ad->type() == BTLE_ADVDATA_MANUFACTURER_DATA) {
+            const auto& md = ad->data();
+
+            // Apple devices other than trackers send the same frame when they are lost
+            if (!is_findmy)
+                is_findmy = btle_tracker::decode_apple_findmy((const uint8_t *) md.data(),
+                        md.length(), findmy) && findmy.location_tracker();
+
+            continue;
+        }
+
         if (ad->type() != BTLE_ADVDATA_SERVICE_DATA_UUID16)
             continue;
 
@@ -348,11 +366,18 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         if (!is_smarttag)
             is_smarttag = btle_tracker::decode_samsung_smarttag((const uint8_t *) sd.data(),
                     sd.length(), smarttag);
+        if (!is_fmdn)
+            is_fmdn = btle_tracker::decode_google_fmdn((const uint8_t *) sd.data(),
+                    sd.length(), fmdn);
+        if (!is_dult)
+            is_dult = btle_tracker::decode_dult((const uint8_t *) sd.data(), sd.length(), dult);
     }
+
+    bool is_tracker = is_smarttag || is_findmy || is_fmdn || is_dult;
 
     // Drop randoms
     if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random &&
-            remoteid == nullptr && !is_smarttag)
+            remoteid == nullptr && !is_tracker)
         return 0;
 
 #if 0
@@ -460,20 +485,62 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         }
     }
 
-    // Location trackers: decode only, the values are what the tracker advertises
-    if (is_smarttag) {
+    // Location trackers: decode only, the values are what the tracker advertises.  A
+    // tracker may send its vendor frame and the DULT frame in turns; the vendor frame
+    // names the type, the DULT frame adds the network ID and whether it is separated.
+    if (is_tracker) {
         auto tracker = btle_dev->get_tracker();
+        bool vendor_frame = true;
 
-        tracker->set_tracker_type(
-                btle_tracker::tracker_type_str(btle_tracker::tracker_type::samsung_smarttag));
-        tracker->set_state(smarttag.state);
-        tracker->set_state_name(btle_tracker::smarttag_state_str(smarttag.state));
-        tracker->set_separated(smarttag.separated());
-        tracker->set_battery(btle_tracker::battery_level_str(smarttag.battery()));
-        tracker->set_flags(smarttag.flags);
-        tracker->set_uwb(smarttag.uwb());
-        tracker->set_aging_counter(smarttag.aging_counter);
-        tracker->set_privacy_id(btle_bytes_to_hex(smarttag.privacy_id));
+        if (is_smarttag) {
+            tracker->set_tracker_type(
+                    btle_tracker::tracker_type_str(btle_tracker::tracker_type::samsung_smarttag));
+            tracker->set_state(smarttag.state);
+            tracker->set_state_name(btle_tracker::smarttag_state_str(smarttag.state));
+            tracker->set_separated(smarttag.separated());
+            tracker->set_battery(btle_tracker::battery_level_str(smarttag.battery()));
+            tracker->set_flags(smarttag.flags);
+            tracker->set_uwb(smarttag.uwb());
+            tracker->set_aging_counter(smarttag.aging_counter);
+            tracker->set_privacy_id(btle_bytes_to_hex(smarttag.privacy_id));
+        } else if (is_findmy) {
+            tracker->set_tracker_type(
+                    btle_tracker::tracker_type_str(btle_tracker::tracker_type::apple_findmy));
+            tracker->set_state(findmy.status);
+            tracker->set_state_name(btle_tracker::separated_state_str(findmy.separated()));
+            tracker->set_separated(findmy.separated());
+            tracker->set_battery(btle_tracker::battery_level_str(findmy.battery()));
+            tracker->set_flags(findmy.status);
+            tracker->set_subtype(btle_tracker::findmy_device_type_str(findmy.device_type()));
+        } else if (is_fmdn) {
+            // The FMDN frame does not say whether the tag is separated; see DULT below
+            tracker->set_tracker_type(
+                    btle_tracker::tracker_type_str(btle_tracker::tracker_type::google_fmdn));
+            tracker->set_state(fmdn.frame_type);
+            tracker->set_state_name(btle_tracker::fmdn_state_str(fmdn));
+            tracker->set_battery("unknown");
+            tracker->set_flags(0);
+            tracker->set_ephemeral_id(btle_bytes_to_hex(fmdn.ephemeral_id));
+        } else {
+            vendor_frame = false;
+        }
+
+        if (is_dult) {
+            tracker->set_network_id(dult.network_id);
+            tracker->set_separated(dult.separated());
+
+            const auto dult_type = btle_tracker::tracker_type_str(btle_tracker::tracker_type::dult);
+
+            if (!vendor_frame && (tracker->get_tracker_type().empty() ||
+                        tracker->get_tracker_type() == dult_type)) {
+                tracker->set_tracker_type(dult_type);
+                tracker->set_state(dult.status);
+                tracker->set_state_name(btle_tracker::separated_state_str(dult.separated()));
+                tracker->set_battery("unknown");
+                tracker->set_flags(dult.status);
+            }
+        }
+
         tracker->set_last_time(in_pack->ts.tv_sec);
 
         device->set_tracker_type_string(mphy->devtype_tracker);
@@ -483,6 +550,17 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         if (is_smarttag)
             _MSG_INFO("Detected new BTLE location tracker {} (Samsung SmartTag, {})",
                     in_pack->common_info.source, btle_tracker::smarttag_state_str(smarttag.state));
+        else if (is_findmy)
+            _MSG_INFO("Detected new BTLE location tracker {} (Apple Find My {}, {})",
+                    in_pack->common_info.source,
+                    btle_tracker::findmy_device_type_str(findmy.device_type()),
+                    btle_tracker::separated_state_str(findmy.separated()));
+        else if (is_fmdn)
+            _MSG_INFO("Detected new BTLE location tracker {} (Google FMDN, {})",
+                    in_pack->common_info.source, btle_tracker::fmdn_state_str(fmdn));
+        else if (is_dult)
+            _MSG_INFO("Detected new BTLE location tracker {} (DULT, {})",
+                    in_pack->common_info.source, btle_tracker::separated_state_str(dult.separated()));
         else if (device->get_devicename().length() > 0)
             _MSG_INFO("Detected new BTLE device {} {}",
                     in_pack->common_info.source, device->get_devicename());

@@ -133,21 +133,26 @@ public:
     __ProxyDynamic(uwb, uint8_t, bool, bool, uwb, uwb_id);
     __ProxyDynamic(aging_counter, uint32_t, uint32_t, uint32_t, aging_counter, aging_counter_id);
     __ProxyDynamic(privacy_id, std::string, std::string, std::string, privacy_id, privacy_id_id);
+    __ProxyDynamic(subtype, std::string, std::string, std::string, subtype, subtype_id);
+    __ProxyDynamic(ephemeral_id, std::string, std::string, std::string, ephemeral_id, ephemeral_id_id);
+    __ProxyDynamic(network_id, uint8_t, uint8_t, uint8_t, network_id, network_id_id);
 
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        register_field("btle.device.tracker.type", "Tracker type (samsung_smarttag)", &tracker_type);
+        register_field("btle.device.tracker.type",
+                "Tracker type (samsung_smarttag, apple_findmy, google_fmdn, dult)", &tracker_type);
         register_field("btle.device.tracker.state", "Raw operating state advertised by the tracker",
                 &state);
         register_field("btle.device.tracker.state_name",
-                "Operating state (premature_offline, offline, overmature_offline, connected, unknown)",
+                "Operating state (premature_offline, offline, overmature_offline, connected, "
+                "separated, near_owner, normal, unwanted_tracking_protection, unknown)",
                 &state_name);
         register_field("btle.device.tracker.separated",
                 "Tracker advertises that it is away from its owner", &separated);
-        register_field("btle.device.tracker.battery", "Battery level (full, medium, low, very_low)",
-                &battery);
+        register_field("btle.device.tracker.battery",
+                "Battery level (full, medium, low, very_low, unknown)", &battery);
         register_field("btle.device.tracker.flags", "Raw flags byte advertised by the tracker", &flags);
         register_field("btle.device.tracker.last_time", "Last time a tracker advertisement was seen",
                 &last_time);
@@ -160,6 +165,17 @@ protected:
         privacy_id_id =
             register_dynamic_field("btle.device.tracker.privacy_id",
                     "Rotating privacy ID advertised by the tracker (hex)", &privacy_id);
+        subtype_id =
+            register_dynamic_field("btle.device.tracker.subtype",
+                    "Kind of device within the tracker type (airtag, findmy_accessory, airpods)",
+                    &subtype);
+        ephemeral_id_id =
+            register_dynamic_field("btle.device.tracker.ephemeral_id",
+                    "Ephemeral identifier advertised by the tracker, rotates every 1024 seconds (hex)",
+                    &ephemeral_id);
+        network_id_id =
+            register_dynamic_field("btle.device.tracker.network_id",
+                    "Finding network ID from the DULT advertisement", &network_id);
     }
 
     std::shared_ptr<tracker_element_string> tracker_type;
@@ -176,6 +192,12 @@ protected:
     uint16_t aging_counter_id;
     std::shared_ptr<tracker_element_string> privacy_id;
     uint16_t privacy_id_id;
+    std::shared_ptr<tracker_element_string> subtype;
+    uint16_t subtype_id;
+    std::shared_ptr<tracker_element_string> ephemeral_id;
+    uint16_t ephemeral_id_id;
+    std::shared_ptr<tracker_element_uint8> network_id;
+    uint16_t network_id_id;
 };
 
 // Future btle attributes

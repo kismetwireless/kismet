@@ -32,6 +32,36 @@ want = {
         "btle.device.tracker.uwb": 1, "btle.device.tracker.flags": 5,
         "btle.device.tracker.aging_counter": 0x0a0b0c,
         "btle.device.tracker.privacy_id": "8877665544332211"},
+    "c2:00:00:4c:00:01": {"btle.device.tracker.type": "apple_findmy",
+        "btle.device.tracker.state": 0x50, "btle.device.tracker.state_name": "separated",
+        "btle.device.tracker.separated": 1, "btle.device.tracker.battery": "medium",
+        "btle.device.tracker.flags": 0x50, "btle.device.tracker.subtype": "airtag"},
+    "c2:00:00:4c:00:02": {"btle.device.tracker.type": "apple_findmy",
+        "btle.device.tracker.state": 0x30, "btle.device.tracker.state_name": "near_owner",
+        "btle.device.tracker.separated": 0, "btle.device.tracker.battery": "full",
+        "btle.device.tracker.flags": 0x30, "btle.device.tracker.subtype": "airpods"},
+    "c2:00:00:aa:fe:01": {"btle.device.tracker.type": "google_fmdn",
+        "btle.device.tracker.state": 0x41,
+        "btle.device.tracker.state_name": "unwanted_tracking_protection",
+        "btle.device.tracker.separated": 0, "btle.device.tracker.battery": "unknown",
+        "btle.device.tracker.flags": 0,
+        "btle.device.tracker.ephemeral_id": bytes(range(0x10, 0x24)).hex()},
+    "c2:00:00:b2:fc:01": {"btle.device.tracker.type": "dult",
+        "btle.device.tracker.state": 0, "btle.device.tracker.state_name": "separated",
+        "btle.device.tracker.separated": 1, "btle.device.tracker.battery": "unknown",
+        "btle.device.tracker.flags": 0, "btle.device.tracker.network_id": 7},
+    "c2:00:00:b2:fc:02": {"btle.device.tracker.type": "google_fmdn",
+        "btle.device.tracker.state": 0x40, "btle.device.tracker.state_name": "normal",
+        "btle.device.tracker.separated": 1, "btle.device.tracker.battery": "unknown",
+        "btle.device.tracker.network_id": 2,
+        "btle.device.tracker.ephemeral_id": bytes(range(0x10, 0x24)).hex()},
+}
+# Fields of other tracker types must not show up
+absent = {
+    "c2:00:00:5a:fd:01": ("subtype", "ephemeral_id", "network_id"),
+    "c2:00:00:4c:00:01": ("uwb", "aging_counter", "privacy_id", "ephemeral_id", "network_id"),
+    "c2:00:00:aa:fe:01": ("uwb", "aging_counter", "privacy_id", "subtype", "network_id"),
+    "c2:00:00:b2:fc:01": ("uwb", "aging_counter", "privacy_id", "subtype", "ephemeral_id"),
 }
 bad = []
 for mac, fields in want.items():
@@ -44,11 +74,14 @@ for mac, fields in want.items():
     for k, v in fields.items():
         if t.get(k) != v:
             bad.append("%s %s=%r, expected %r" % (mac, k, t.get(k), v))
+    for k in absent.get(mac, ()):
+        if "btle.device.tracker." + k in t:
+            bad.append("%s has %s" % (mac, k))
     if t.get("btle.device.tracker.last_time", 0) <= 0:
         bad.append(mac + " no last_time")
     if d.get("kismet.device.base.type") != "BTLE Tracker":
         bad.append("%s type %r" % (mac, d.get("kismet.device.base.type")))
-for mac in ("c2:00:00:5a:fd:03", "c2:00:00:00:00:99"):
+for mac in ("c2:00:00:5a:fd:03", "c2:00:00:4c:00:03", "c2:00:00:aa:fe:02", "c2:00:00:00:00:99"):
     d = devs.get(mac)
     if ignore_random:
         if d is not None:
