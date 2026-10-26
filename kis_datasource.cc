@@ -2508,7 +2508,9 @@ void kis_datasource::handle_packet_data_report_v3(uint32_t in_seqno, uint16_t co
 
     if (suppress_gps && !packet->gps_info.gps_info_ok) {
         packet->suppress_gps = true;
-    } else if (!packet->gps_info.gps_info_ok && device_gps != nullptr) {
+    } else if (!packet->gps_info.gps_info_ok && device_gps != nullptr &&
+            device_gps->get_location_valid()) {
+        // Only a current fix; a GPS that lost its fix keeps its last location
         auto gpsinfo = device_gps->get_location();
 
         if (gpsinfo != nullptr) {
@@ -3392,7 +3394,7 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
         handle_sub_gps(report->gps(), packet->gps_info);
     } else if (suppress_gps) {
         packet->suppress_gps = true;
-    } else if (device_gps != nullptr) {
+    } else if (device_gps != nullptr && device_gps->get_location_valid()) {
         auto gpsinfo = device_gps->get_location();
 
         if (gpsinfo != nullptr)

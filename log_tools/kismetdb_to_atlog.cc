@@ -16,34 +16,17 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* kismetdb_to_atlog — reconstruct the `atlog=` JSONL transcript (the atlog
- * record schema) from the raw AT exchanges a cellat source logged into a
- * kismetdb `data` table as type="RawAT".
+/* kismetdb_to_atlog — write the raw AT exchanges a cellat source logged into a
+ * kismetdb `data` table as type="RawAT", one JSON record per line.
  *
  * Sibling of kismetdb_to_cellndjson. That reader wraps each row in a
  * host-timestamped, geotagged NDJSON *envelope* ({ts_utc, lat, lon, …,
- * obs:<record>}) — a full transcript, but NOT the atlog= sidecar. This tool
- * emits the *bare* atlog record, one per line, so a "kismet-only" drive (one
- * that logged RawAT into the db but never wrote an atlog= sidecar) reconstructs a
- * transcript in the atlog= format, holding every record an atlog= sidecar of the
- * same run would have, byte for byte and in order. That lets an in-db drive and
- * a sidecar drive be ingested the same way, instead of maintaining two ingest
- * paths.
+ * obs:<record>}); this tool emits the *bare* record, as the cellat capture
+ * formatted it (atlog_format_record).
  *
- * Per RECORD, not per FILE: the reconstruction is an ordered SUPERSET of the
- * sidecar. RawAT is live from the source's open callback, and the tee arms
- * later, so the open-time capability probe (e.g. AT+QENG="servingcell", ATE0)
- * lands in the kismetdb and not in the sidecar; a source whose open FAILS emits
- * RawAT for every probe and never arms the tee at all. Typically the kismetdb
- * holds a couple of records more per source, every shared record byte-identical
- * and in order. Diff the two as a superset, never for equality.
- *
- * Per-record byte fidelity is free by construction: the cellat capture formats
- * each record ONCE (atlog_format_record) and feeds the SAME buffer to both the
- * atlog= file tee and the in-db cf_send_json(type="RawAT"). So the stored
- * `data.json` blob already IS the sidecar line, trailing '\n' included — this
- * tool emits it verbatim and never re-serializes (no %.2f rounding drift, no
- * key-order or escaping divergence).
+ * The stored `data.json` blob already is the record line, trailing '\n'
+ * included, so this tool emits it verbatim and never re-serializes (no %.2f
+ * rounding drift, no key-order or escaping divergence).
  *
  * Ordering: the record's own ts_mono_ns (host CLOCK_MONOTONIC, captured just
  * before each exchange) is the authoritative capture order. kismetdb rowid does
@@ -54,10 +37,9 @@
  * total order, so the merged (all-sources) output is a valid unified timeline
  * too.
  *
- * A single atlog= sidecar is per capture process (= per datasource uuid), so use
- * --source <uuid> to reconstruct one modem's sidecar exactly. --source also
- * accepts a datasource *name*, but names are not unique (a drive can run two of
- * the same model), so a name may merge several sources; a uuid never does.
+ * Use --source <uuid> for one modem's exchanges. --source also accepts a
+ * datasource *name*, but names are not unique (a drive can run two of the same
+ * model), so a name may merge several sources; a uuid never does.
  *
  * Deliberately opens the db READONLY and never VACUUMs/mutates it: a captured
  * .kismet is an artifact of record. A blob that will not parse is skipped,
@@ -92,31 +74,16 @@
 #include "nlohmann/json.hpp"
 #include "sqlite3_cpp11.h"
 
-/* kismetdb_to_qmilog is THIS reader with another row type
- * (it #defines these and #includes this file), so the two raw lanes share one
- * ordering / fidelity / robustness implementation instead of drifting apart. */
-#ifndef RAWLOG_TYPE
 #define RAWLOG_TYPE "RawAT"
 #define RAWLOG_NAME "atlog"
-#endif
 
 void print_help(char *argv) {
-#ifdef RAWLOG_HELP
-    printf(RAWLOG_HELP);
-#else
-    printf("Kismetdb to atlog= JSONL\n");
-    printf("Reconstruct the raw-AT `atlog=` transcript (the atlog record schema)\n"
-           "from a KismetDB log's type=\"RawAT\" `data` rows, one JSON\n"
-           "record per line, sorted by the record's ts_mono_ns (capture order).\n"
-           "Every record an atlog= sidecar holds is reproduced byte for byte and\n"
-           "in order, so a kismet-only drive onboards like a sidecar one. The\n"
-           "output is a SUPERSET of the sidecar, not identical to it: it also\n"
-           "holds the open-time probe exchanges (sent before the tee arms) and\n"
-           "every exchange of a source that never opened. Diff as a superset.\n"
+    printf("Kismetdb to raw AT JSONL\n");
+    printf("Write the raw AT command exchanges from a KismetDB log's\n"
+           "type=\"RawAT\" `data` rows, one JSON record per line, sorted by\n"
+           "the record's ts_mono_ns (capture order).\n"
            "\n"
-           "A single atlog= sidecar is per capture process (= per datasource);\n"
-           "pass --source <uuid> to reconstruct one modem's sidecar exactly.\n");
-#endif
+           "Pass --source <uuid> for one modem's exchanges.\n");
     printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output JSONL file ('-' for stdout)\n"
