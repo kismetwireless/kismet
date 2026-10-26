@@ -42,6 +42,7 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
+#include "randomized_alias.h"
 
 #include "bluetooth_parsers/btle_tracker.h"
 
@@ -518,6 +519,10 @@ public:
    __Proxy(manuf_company_id, std::string, std::string, std::string, manuf_company_id);
    __Proxy(manuf_data, std::string, std::string, std::string, manuf_data);
 
+   // Set when btle_link_randomized links this address to others of the same device
+   __ProxyDynamic(alias_group, std::string, std::string, std::string, alias_group, alias_group_id);
+   __ProxyDynamic(alias_method, std::string, std::string, std::string, alias_method, alias_method_id);
+
    // Only created for devices advertising as a location tracker
    __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
@@ -544,6 +549,14 @@ protected:
         register_field("btle.device.manuf_company_id", "manufacturer company ID", &manuf_company_id);
         register_field("btle.device.manuf_data", "manufacturer data payload", &manuf_data);
 
+        alias_group_id =
+            register_dynamic_field("btle.device.alias_group",
+                    "key of the first device in a chain of randomized addresses linked as one device",
+                    &alias_group);
+        alias_method_id =
+            register_dynamic_field("btle.device.alias_method",
+                    "how this address was linked to the previous one (payload)", &alias_method);
+
         tracker_id =
             register_dynamic_field("btle.device.tracker", "location tracker advertisement", &tracker);
         battery_id =
@@ -568,6 +581,11 @@ protected:
     uint16_t battery_id;
     std::shared_ptr<btle_tracked_ranging> ranging;
     uint16_t ranging_id;
+
+    std::shared_ptr<tracker_element_string> alias_group;
+    uint16_t alias_group_id;
+    std::shared_ptr<tracker_element_string> alias_method;
+    uint16_t alias_method_id;
 };
 
 class kis_btle_phy : public kis_phy_handler {
@@ -611,6 +629,10 @@ protected:
 
     bool ignore_random;
     double distance_exponent;
+
+    // Links a random address to the one before it when the advertising payload,
+    // which changes at other times than the address, carries over
+    std::unique_ptr<randomized_alias_linker> alias_linker;
 
     int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
 

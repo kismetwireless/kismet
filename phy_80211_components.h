@@ -1356,6 +1356,9 @@ public:
             __ImportField(datasize_retry, p);
 
             __ImportId(last_bssid_id, p);
+            __ImportId(randomized_mac_id, p);
+            __ImportId(alias_group_id, p);
+            __ImportId(alias_method_id, p);
 
             __ImportField(last_beacon_timestamp, p);
 
@@ -1404,9 +1407,11 @@ public:
     }
 
     static void attach_base_parent(std::shared_ptr<dot11_tracked_device> self,
-            std::shared_ptr<kis_tracked_device_base> parent) {
-        parent->insert(self);
-    }
+            std::shared_ptr<kis_tracked_device_base> parent);
+
+    // Flags a client with a locally administered (randomized) address, and clears the
+    // flag once the device acts as an AP; APs aren't flagged.  Caller holds the device lock.
+    void update_randomized_mac(kis_tracked_device_base& base);
 
     __Proxy(type_set, uint64_t, uint64_t, uint64_t, type_set);
     __ProxyBitset(type_set, uint64_t, type_set);
@@ -1473,6 +1478,13 @@ public:
     __ProxyIncDec(datasize_retry, uint64_t, uint64_t, datasize_retry);
 
     __ProxyDynamic(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid, last_bssid_id);
+
+    // Only present on devices with a locally administered address
+    __ProxyDynamic(randomized_mac, uint8_t, bool, bool, randomized_mac, randomized_mac_id);
+
+    // Set when dot11_link_randomized links this address to others of the same device
+    __ProxyDynamic(alias_group, std::string, std::string, std::string, alias_group, alias_group_id);
+    __ProxyDynamic(alias_method, std::string, std::string, std::string, alias_method, alias_method_id);
 
     __Proxy(last_beacon_timestamp, uint64_t, time_t,
             time_t, last_beacon_timestamp);
@@ -1661,6 +1673,17 @@ protected:
         last_bssid_id =
             register_dynamic_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
 
+        randomized_mac_id =
+            register_dynamic_field("dot11.device.randomized_mac",
+                    "locally administered MAC address, usually randomized for privacy", &randomized_mac);
+        alias_group_id =
+            register_dynamic_field("dot11.device.alias_group",
+                    "key of the first device in a chain of randomized addresses linked as one device",
+                    &alias_group);
+        alias_method_id =
+            register_dynamic_field("dot11.device.alias_method",
+                    "how this address was linked to the previous one (sequence, timing)", &alias_method);
+
         register_field("dot11.device.last_beacon_timestamp",
                 "unix timestamp of last beacon frame",
                 &last_beacon_timestamp);
@@ -1842,6 +1865,13 @@ protected:
 
     std::shared_ptr<tracker_element_mac_addr> last_bssid;
     uint16_t last_bssid_id;
+
+    std::shared_ptr<tracker_element_uint8> randomized_mac;
+    uint16_t randomized_mac_id;
+    std::shared_ptr<tracker_element_string> alias_group;
+    uint16_t alias_group_id;
+    std::shared_ptr<tracker_element_string> alias_method;
+    uint16_t alias_method_id;
 
     std::shared_ptr<tracker_element_uint64> last_beacon_timestamp;
 

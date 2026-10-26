@@ -58,6 +58,7 @@
 #include "devicetracker_component.h"
 #include "kis_net_beast_httpd.h"
 #include "phy_80211_components.h"
+#include "randomized_alias.h"
 #include "phy_80211_ssidtracker.h"
 
 #include "datasource_dot11_scan.h"
@@ -622,6 +623,13 @@ protected:
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
+    // Link the randomized addresses one client cycles through, by matching probe
+    // requests; called with no device locks held
+    void handle_randomized_alias(const std::shared_ptr<kis_tracked_device_base>& basedev,
+            const std::shared_ptr<dot11_tracked_device>& dot11dev,
+            const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<dot11_packinfo>& dot11info);
+
     // Map a device as a client of an access point, fill in any data in the
     // per-client records
     void process_client(const std::shared_ptr<kis_tracked_device_base>& bssiddev,
@@ -719,6 +727,9 @@ protected:
 
     kis_mutex wsc_frag_mutex;
     std::map<std::pair<mac_addr, mac_addr>, wsc_frag_state> wsc_frag_map;
+
+    bool link_randomized;
+    std::unique_ptr<randomized_alias_linker> alias_linker;
 
     int signal_too_loud_threshold;
 
