@@ -106,6 +106,7 @@ static char *eir_get_uuids_json(const uint8_t *eir, uint16_t eir_len);
 static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
         char **out_company_id_hex, char **out_data_hex);
 static char *eir_get_service_data_json(const uint8_t *eir, uint16_t eir_len);
+static int eir_get_txpower(const uint8_t *eir, uint16_t eir_len, int8_t *out_txpower);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
@@ -118,6 +119,8 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     char *uuids_json;
     char *service_data_json;
     char *manuf_company_id_hex, *manuf_data_hex;
+    char txpower_json[8];
+    int8_t txpower;
     uint16_t eirlen;
 
     int r;
@@ -145,6 +148,11 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     service_data_json = eir_get_service_data_json(dev->eir, eirlen);
     eir_get_manuf(dev->eir, eirlen, &manuf_company_id_hex, &manuf_data_hex);
 
+    if (eir_get_txpower(dev->eir, eirlen, &txpower))
+        snprintf(txpower_json, sizeof(txpower_json), "%d", txpower);
+    else
+        snprintf(txpower_json, sizeof(txpower_json), "null");
+
     snprintf(json, sizeof(json), "{"
             "\"addr\": \"%s\","
             "\"name\": \"%s\","
@@ -153,13 +161,15 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
             "\"service_uuids\": %s,"
             "\"service_data\": %s,"
             "\"manuf_company_id\": \"%s\","
-            "\"manuf_data\": \"%s\""
+            "\"manuf_data\": \"%s\","
+            "\"txpower\": %s"
             "}",
             address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1,
             uuids_json,
             service_data_json,
             manuf_company_id_hex != NULL ? manuf_company_id_hex : "",
-            manuf_data_hex != NULL ? manuf_data_hex : "");
+            manuf_data_hex != NULL ? manuf_data_hex : "",
+            txpower_json);
 
     if (safe_name != name) {
         free(safe_name);
@@ -574,6 +584,27 @@ static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
 
         eir += field_len + 1;
     }
+}
+
+/* The TX Power Level record, the radiated power in dBm; returns 1 if present */
+static int eir_get_txpower(const uint8_t *eir, uint16_t eir_len, int8_t *out_txpower) {
+    uint16_t parsed = 0;
+
+    while (parsed + 2 <= eir_len) {
+        uint8_t field_len = eir[parsed];
+
+        if (field_len == 0 || parsed + 1 + field_len > eir_len)
+            break;
+
+        if (eir[parsed + 1] == 0x0A && field_len == 2) {
+            *out_txpower = (int8_t) eir[parsed + 2];
+            return 1;
+        }
+
+        parsed += field_len + 1;
+    }
+
+    return 0;
 }
 
 /* 16-bit UUID service data records (such as Remote ID) as a JSON array of hex

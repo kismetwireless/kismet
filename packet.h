@@ -355,6 +355,10 @@ public:
     // Order the packet was queued for processing; bounds the dedupe lookback
     uint64_t arrival_no;
 
+    // When the server queued it, steady clock microseconds; dedupe compares this rather
+    // than ts, which comes from each source's own clock
+    int64_t arrival_us;
+
     // Do we know this is in error from the capture source itself?
     int error;
 

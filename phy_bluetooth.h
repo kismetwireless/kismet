@@ -41,6 +41,7 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
+#include "phy_btle.h"
 
 #ifndef KDLT_BT_H4_LINUX
 #define KDLT_BT_H4_LINUX        99
@@ -130,6 +131,11 @@ public:
     __Proxy(manuf_company_id, std::string, std::string, std::string, manuf_company_id);
     __Proxy(manuf_data, std::string, std::string, std::string, manuf_data);
 
+    // Only created for devices advertising as a location tracker
+    __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
+    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
+    __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -151,6 +157,15 @@ protected:
                 &service_uuid_strs);
         register_field("bluetooth.device.manuf_company_id", "manufacturer company ID", &manuf_company_id);
         register_field("bluetooth.device.manuf_data", "manufacturer data payload", &manuf_data);
+
+        tracker_id =
+            register_dynamic_field("bluetooth.device.tracker", "location tracker advertisement",
+                    &tracker);
+        battery_id =
+            register_dynamic_field("bluetooth.device.battery", "advertised battery level",
+                    &battery);
+        ranging_id =
+            register_dynamic_field("bluetooth.device.ranging", "estimated distance", &ranging);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -177,6 +192,13 @@ protected:
     std::shared_ptr<tracker_element_vector_string> service_uuid_strs;
     std::shared_ptr<tracker_element_string> manuf_company_id;
     std::shared_ptr<tracker_element_string> manuf_data;
+
+    std::shared_ptr<btle_tracked_tracker> tracker;
+    uint16_t tracker_id;
+    std::shared_ptr<btle_tracked_battery> battery;
+    uint16_t battery_id;
+    std::shared_ptr<btle_tracked_ranging> ranging;
+    uint16_t ranging_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
@@ -235,8 +257,11 @@ protected:
     std::shared_ptr<tracker_element_string> btdev_bredr;
     std::shared_ptr<tracker_element_string> btdev_btle;
     std::shared_ptr<tracker_element_string> btdev_bt;
+    std::shared_ptr<tracker_element_string> btdev_tracker;
 
-    int alert_flipper_ref;
+    int alert_flipper_ref, alert_trackerfollow_ref;
+
+    double distance_exponent;
 };
 
 #endif
