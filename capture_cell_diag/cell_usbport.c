@@ -56,7 +56,8 @@ int cell_usbport_parse(const char *spec, int *bus, int *addr, int *ifnum) {
 
     p = spec + strlen(CELL_USBPORT_PREFIX);
 
-    if (parse_field(&p, 1, 255, &b) != 0 || *p++ != '-')
+    /* macOS numbers a bus from 0 */
+    if (parse_field(&p, 0, 255, &b) != 0 || *p++ != '-')
         return -1;
     if (parse_field(&p, 1, 127, &a) != 0 || *p++ != ':')
         return -1;
