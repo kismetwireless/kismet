@@ -38,6 +38,8 @@
 
 #include "bluetooth_types.h"
 #include "bluetooth_parsers/btle_tracker.h"
+#include "bluetooth_parsers/btle_battery.h"
+#include "bluetooth_parsers/btle_ranging.h"
 
 
 #define h4_direction_sent                       0x00
@@ -96,6 +98,8 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     btdev_tracker = devicetracker->get_cached_devicetype("BTLE Tracker");
 
     alert_trackerfollow_ref = activate_tracker_follow_alert(alertracker, phyid);
+
+    distance_exponent = btle_distance_exponent();
 
     // The Bluetooth and BTLE phys both raise FLIPPERZERO; whichever loads second uses the
     // alert the first one registered, registering it again would fail and leave this phy
@@ -257,6 +261,20 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         // everything advertised.
         btle_tracker_frames frames;
 
+        btle_battery::info battery_info;
+        bool has_battery = false;
+
+        btle_ranging::info ranging_info;
+
+        auto txpower_j = json["txpower"];
+        if (txpower_j.is_number_integer()) {
+            auto tx = txpower_j.get<int>();
+            if (tx >= -127 && tx <= 127) {
+                btdev->set_txpower(tx);
+                ranging_info = btle_ranging::from_tx_power((int8_t) tx);
+            }
+        }
+
         auto uuids_j = json["service_uuids"];
         if (uuids_j.is_array()) {
             auto uuid_vec = btdev->get_service_uuid_strs();
@@ -306,6 +324,14 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                         ad.append(md);
 
                         frames.manuf_data((const uint8_t *) ad.data(), ad.length());
+
+                        has_battery = btle_battery::decode_manuf_data((const uint8_t *) ad.data(),
+                                ad.length(), battery_info);
+
+                        btle_ranging::info ri;
+                        if (btle_ranging::decode_manuf_data((const uint8_t *) ad.data(),
+                                    ad.length(), ri) && ri.src > ranging_info.src)
+                            ranging_info = ri;
                     }
                 }
             }
@@ -325,6 +351,15 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     continue;
 
                 auto raw = hex_to_bytes(sd_hex);
+
+                if (!has_battery)
+                    has_battery = btle_battery::decode_service_data((const uint8_t *) raw.data(),
+                            raw.length(), battery_info);
+
+                btle_ranging::info ri;
+                if (btle_ranging::decode_service_data((const uint8_t *) raw.data(), raw.length(),
+                            ri) && ri.src > ranging_info.src)
+                    ranging_info = ri;
 
                 frames.service_data((const uint8_t *) raw.data(), raw.length());
 
@@ -359,6 +394,15 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                         "FHSS", tracker_follow_text(*tracker));
             }
         }
+
+        if (has_battery)
+            apply_battery_info(*btdev->get_battery(), battery_info, in_pack->ts.tv_sec);
+
+        int rssi;
+        if (ranging_info.src != btle_ranging::source::none &&
+                btle_packet_rssi(in_pack.get(), rssi))
+            apply_ranging(*btdev->get_ranging(), ranging_info, rssi, btphy->distance_exponent,
+                    in_pack->ts.tv_sec);
 
     } catch (const std::exception& e) {
         in_pack->error = true;

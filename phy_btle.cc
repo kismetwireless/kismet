@@ -49,6 +49,8 @@
 #include "kaitai/kaitaistream.h"
 #include "bluetooth_parsers/btle.h"
 #include "bluetooth_parsers/btle_tracker.h"
+#include "bluetooth_parsers/btle_battery.h"
+#include "bluetooth_parsers/btle_ranging.h"
 
 #ifndef KDLT_BLUETOOTH_LE_LL
 #define KDLT_BLUETOOTH_LE_LL        251
@@ -77,6 +79,7 @@ public:
 #define BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE 0x06
 #define BTLE_ADVDATA_SERVICE_UUID128_COMPLETE   0x07
 #define BTLE_ADVDATA_DEVICE_NAME                0x09
+#define BTLE_ADVDATA_TX_POWER_LEVEL             0x0A
 #define BTLE_ADVDATA_SERVICE_DATA_UUID16        0x16
 #define BTLE_ADVDATA_MANUFACTURER_DATA          0xFF
 
@@ -191,6 +194,8 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
     if (ignore_random)
         _MSG_INFO("Ignoring BTLE devices with random MAC addresses (except Remote ID and "
                 "location trackers)");
+
+    distance_exponent = btle_distance_exponent();
 
     devtype_tracker = devicetracker->get_cached_devicetype("BTLE Tracker");
 
@@ -530,6 +535,91 @@ std::string tracker_follow_text(btle_tracked_tracker& tracker) {
             tracker.follow_points.size());
 }
 
+void apply_battery_info(btle_tracked_battery& battery, const btle_battery::info& info, time_t now) {
+    auto pct = [](const btle_battery::level& l) -> int8_t {
+        return l.known ? static_cast<int8_t>(l.percent) : -1;
+    };
+
+    battery.set_source(info.source != nullptr ? info.source : "unknown");
+    battery.set_percent(pct(info.main));
+    battery.set_charging(info.main.known && info.main.charging);
+    battery.set_last_time(now);
+
+    if (info.millivolts != 0)
+        battery.set_millivolts(info.millivolts);
+
+    if (info.has_parts) {
+        battery.set_left_percent(pct(info.left));
+        battery.set_left_charging(info.left.known && info.left.charging);
+        battery.set_right_percent(pct(info.right));
+        battery.set_right_charging(info.right.known && info.right.charging);
+        battery.set_case_percent(pct(info.case_));
+        battery.set_case_charging(info.case_.known && info.case_.charging);
+    }
+}
+
+// A worse power source only replaces a better one the device stopped sending
+constexpr time_t ranging_source_hold = 300;
+// Signal smoothing, restarted after a gap
+constexpr double ranging_rssi_alpha = 0.25;
+constexpr time_t ranging_rssi_gap = 30;
+
+void apply_ranging(btle_tracked_ranging& ranging, const btle_ranging::info& info, int rssi,
+        double exponent, time_t now) {
+    const auto rank = static_cast<uint8_t>(info.src);
+
+    if (rank == 0)
+        return;
+
+    if (rank >= ranging.src_rank || now - ranging.src_time > ranging_source_hold) {
+        ranging.src_rank = rank;
+        ranging.set_source(btle_ranging::source_str(info.src));
+        ranging.set_ref_power(static_cast<int16_t>(info.ref_1m));
+    }
+
+    if (rank == ranging.src_rank)
+        ranging.src_time = now;
+
+    double avg = rssi;
+    auto last = ranging.get_last_time();
+
+    if (last != 0 && now >= last && now - last <= ranging_rssi_gap)
+        avg = ranging.get_rssi() + ranging_rssi_alpha * (rssi - ranging.get_rssi());
+
+    ranging.set_rssi(avg);
+    ranging.set_distance(btle_ranging::estimate_distance(ranging.get_ref_power(), avg, exponent));
+    ranging.set_last_time(now);
+}
+
+bool btle_packet_rssi(const kis_packet *in_pack, int& rssi) {
+    const auto& sig = in_pack->signal_info;
+
+    // 0 is unset and 127 is the controller's "not available"
+    if (sig.signal_type != kis_l1_signal_type_dbm || sig.signal_dbm == 0 ||
+            sig.signal_dbm >= 20 || sig.signal_dbm < -127)
+        return false;
+
+    rssi = sig.signal_dbm;
+    return true;
+}
+
+double btle_distance_exponent() {
+    double e = 2.0;
+
+    try {
+        e = Globalreg::globalreg->kismet_config->fetch_opt_as<double>("btle_distance_exponent", 2.0);
+    } catch (const std::runtime_error&) {
+        _MSG_ERROR("Invalid btle_distance_exponent, using 2.0");
+    }
+
+    if (!(e >= 1.0 && e <= 6.0)) {
+        _MSG_ERROR("btle_distance_exponent must be between 1.0 and 6.0, using 2.0");
+        e = 2.0;
+    }
+
+    return e;
+}
+
 int activate_tracker_follow_alert(const std::shared_ptr<alert_tracker>& alertracker, int phyid) {
     auto ref = alertracker->find_activated_alert("TRACKERFOLLOW");
 
@@ -570,13 +660,30 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     btle_tracker_frames frames;
 
+    btle_battery::info battery_info;
+    bool has_battery = false;
+
+    btle_ranging::info ranging_info;
+
     for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+        if (ad->type() == BTLE_ADVDATA_TX_POWER_LEVEL && ad->data().length() == 1) {
+            if (ranging_info.src == btle_ranging::source::none)
+                ranging_info = btle_ranging::from_tx_power((int8_t) ad->data()[0]);
+            continue;
+        }
 
         if (ad->type() == BTLE_ADVDATA_MANUFACTURER_DATA) {
             const auto& md = ad->data();
             const auto mdp = (const uint8_t *) md.data();
 
             frames.manuf_data(mdp, md.length());
+
+            if (!has_battery)
+                has_battery = btle_battery::decode_manuf_data(mdp, md.length(), battery_info);
+
+            btle_ranging::info ri;
+            if (btle_ranging::decode_manuf_data(mdp, md.length(), ri) && ri.src > ranging_info.src)
+                ranging_info = ri;
 
             continue;
         }
@@ -593,6 +700,17 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
             continue;
 
         const auto& sd = ad->data();
+
+        if (!has_battery)
+            has_battery = btle_battery::decode_service_data((const uint8_t *) sd.data(),
+                    sd.length(), battery_info);
+
+        {
+            btle_ranging::info ri;
+            if (btle_ranging::decode_service_data((const uint8_t *) sd.data(), sd.length(), ri) &&
+                    ri.src > ranging_info.src)
+                ranging_info = ri;
+        }
 
         if (remoteid == nullptr) {
             auto rid = mphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
@@ -737,6 +855,14 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                     "FHSS", tracker_follow_text(*tracker));
         }
     }
+
+    if (has_battery)
+        apply_battery_info(*btle_dev->get_battery(), battery_info, in_pack->ts.tv_sec);
+
+    int rssi;
+    if (ranging_info.src != btle_ranging::source::none && btle_packet_rssi(in_pack.get(), rssi))
+        apply_ranging(*btle_dev->get_ranging(), ranging_info, rssi, mphy->distance_exponent,
+                in_pack->ts.tv_sec);
 
     if (new_dev) {
         if (is_tracker)

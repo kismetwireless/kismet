@@ -133,6 +133,8 @@ public:
 
     // Only created for devices advertising as a location tracker
     __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
+    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
+    __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
 
 protected:
     virtual void register_fields() override {
@@ -159,6 +161,11 @@ protected:
         tracker_id =
             register_dynamic_field("bluetooth.device.tracker", "location tracker advertisement",
                     &tracker);
+        battery_id =
+            register_dynamic_field("bluetooth.device.battery", "advertised battery level",
+                    &battery);
+        ranging_id =
+            register_dynamic_field("bluetooth.device.ranging", "estimated distance", &ranging);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -188,6 +195,10 @@ protected:
 
     std::shared_ptr<btle_tracked_tracker> tracker;
     uint16_t tracker_id;
+    std::shared_ptr<btle_tracked_battery> battery;
+    uint16_t battery_id;
+    std::shared_ptr<btle_tracked_ranging> ranging;
+    uint16_t ranging_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
@@ -249,6 +260,8 @@ protected:
     std::shared_ptr<tracker_element_string> btdev_tracker;
 
     int alert_flipper_ref, alert_trackerfollow_ref;
+
+    double distance_exponent;
 };
 
 #endif

@@ -274,6 +274,200 @@ std::string tracker_follow_text(btle_tracked_tracker& tracker);
 // Raised by the BTLE and Bluetooth phys
 int activate_tracker_follow_alert(const std::shared_ptr<alert_tracker>& alertracker, int phyid);
 
+// Battery level advertised in the clear (see bluetooth_parsers/btle_battery.h); only
+// present on devices which advertised one.  Percents are -1 when not known.
+class btle_tracked_battery : public tracker_component {
+public:
+    btle_tracked_battery() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_battery(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_battery(int in_id,
+            std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("btle_tracked_battery");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(source, std::string, std::string, std::string, source);
+    __Proxy(percent, int8_t, int8_t, int8_t, percent);
+    __Proxy(charging, uint8_t, bool, bool, charging);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    __ProxyDynamic(millivolts, uint16_t, uint16_t, uint16_t, millivolts, millivolts_id);
+    __ProxyDynamic(left_percent, int8_t, int8_t, int8_t, left_percent, left_percent_id);
+    __ProxyDynamic(left_charging, uint8_t, bool, bool, left_charging, left_charging_id);
+    __ProxyDynamic(right_percent, int8_t, int8_t, int8_t, right_percent, right_percent_id);
+    __ProxyDynamic(right_charging, uint8_t, bool, bool, right_charging, right_charging_id);
+    __ProxyDynamic(case_percent, int8_t, int8_t, int8_t, case_percent, case_percent_id);
+    __ProxyDynamic(case_charging, uint8_t, bool, bool, case_charging, case_charging_id);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("btle.device.battery.source",
+                "Where the level came from (apple_proximity, fast_pair, bthome, pvvx, atc1441, "
+                "eddystone_tlm, battery_service, ruuvi)", &source);
+        register_field("btle.device.battery.percent", "Battery percent, -1 if not known",
+                &percent);
+        register_field("btle.device.battery.charging", "Battery is charging", &charging);
+        register_field("btle.device.battery.last_time",
+                "Last time a battery level was advertised", &last_time);
+
+        millivolts_id =
+            register_dynamic_field("btle.device.battery.millivolts", "Battery voltage, mV",
+                    &millivolts);
+        left_percent_id =
+            register_dynamic_field("btle.device.battery.left_percent",
+                    "Left earbud battery percent, -1 if not known", &left_percent);
+        left_charging_id =
+            register_dynamic_field("btle.device.battery.left_charging", "Left earbud is charging",
+                    &left_charging);
+        right_percent_id =
+            register_dynamic_field("btle.device.battery.right_percent",
+                    "Right earbud battery percent, -1 if not known", &right_percent);
+        right_charging_id =
+            register_dynamic_field("btle.device.battery.right_charging",
+                    "Right earbud is charging", &right_charging);
+        case_percent_id =
+            register_dynamic_field("btle.device.battery.case_percent",
+                    "Earbud case battery percent, -1 if not known", &case_percent);
+        case_charging_id =
+            register_dynamic_field("btle.device.battery.case_charging", "Earbud case is charging",
+                    &case_charging);
+    }
+
+    std::shared_ptr<tracker_element_string> source;
+    std::shared_ptr<tracker_element_int8> percent;
+    std::shared_ptr<tracker_element_uint8> charging;
+    std::shared_ptr<tracker_element_uint64> last_time;
+
+    std::shared_ptr<tracker_element_uint16> millivolts;
+    uint16_t millivolts_id;
+    std::shared_ptr<tracker_element_int8> left_percent;
+    uint16_t left_percent_id;
+    std::shared_ptr<tracker_element_uint8> left_charging;
+    uint16_t left_charging_id;
+    std::shared_ptr<tracker_element_int8> right_percent;
+    uint16_t right_percent_id;
+    std::shared_ptr<tracker_element_uint8> right_charging;
+    uint16_t right_charging_id;
+    std::shared_ptr<tracker_element_int8> case_percent;
+    uint16_t case_percent_id;
+    std::shared_ptr<tracker_element_uint8> case_charging;
+    uint16_t case_charging_id;
+};
+
+// Estimated distance from the signal received and the power the device says it
+// transmits (see bluetooth_parsers/btle_ranging.h); only present on devices which
+// advertised a power level.  A rough guide only: walls, bodies, and antennas easily
+// move it by a factor of two or more.
+class btle_tracked_ranging : public tracker_component {
+public:
+    btle_tracked_ranging() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_ranging(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_ranging(int in_id,
+            std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("btle_tracked_ranging");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(source, std::string, std::string, std::string, source);
+    __Proxy(ref_power, int16_t, int16_t, int16_t, ref_power);
+    __Proxy(rssi, double, double, double, rssi);
+    __Proxy(distance, double, double, double, distance);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    // Not exported; see apply_ranging
+    uint8_t src_rank = 0;
+    time_t src_time = 0;
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("btle.device.ranging.source",
+                "Where the power level came from (ibeacon, altbeacon, eddystone, ruuvi, "
+                "tx_power_level)", &source);
+        register_field("btle.device.ranging.ref_power",
+                "Signal expected at 1 meter, dBm", &ref_power);
+        register_field("btle.device.ranging.rssi", "Smoothed signal used for the estimate, dBm",
+                &rssi);
+        register_field("btle.device.ranging.distance", "Estimated distance, meters", &distance);
+        register_field("btle.device.ranging.last_time", "Last time the estimate was updated",
+                &last_time);
+    }
+
+    std::shared_ptr<tracker_element_string> source;
+    std::shared_ptr<tracker_element_int16> ref_power;
+    std::shared_ptr<tracker_element_double> rssi;
+    std::shared_ptr<tracker_element_double> distance;
+    std::shared_ptr<tracker_element_uint64> last_time;
+};
+
+namespace btle_battery {
+struct info;
+}
+
+namespace btle_ranging {
+struct info;
+}
+
+void apply_battery_info(btle_tracked_battery& battery, const btle_battery::info& info, time_t now);
+
+// Takes the power level from the best source seen recently and smooths the signal;
+// rssi is the signal of this packet in dBm
+void apply_ranging(btle_tracked_ranging& ranging, const btle_ranging::info& info, int rssi,
+        double exponent, time_t now);
+
+// The packet's signal in dBm, or false when the capture didn't report one
+bool btle_packet_rssi(const kis_packet *in_pack, int& rssi);
+
+// btle_distance_exponent from the config, the path loss exponent: 2 in free space,
+// about 3 indoors
+double btle_distance_exponent();
 
 // Future btle attributes
 class btle_tracked_device : public tracker_component {
@@ -326,6 +520,8 @@ public:
 
    // Only created for devices advertising as a location tracker
    __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
+   __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
+   __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
 
 protected:
     virtual void register_fields() override {
@@ -350,6 +546,10 @@ protected:
 
         tracker_id =
             register_dynamic_field("btle.device.tracker", "location tracker advertisement", &tracker);
+        battery_id =
+            register_dynamic_field("btle.device.battery", "advertised battery level", &battery);
+        ranging_id =
+            register_dynamic_field("btle.device.ranging", "estimated distance", &ranging);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -364,6 +564,10 @@ protected:
 
     std::shared_ptr<btle_tracked_tracker> tracker;
     uint16_t tracker_id;
+    std::shared_ptr<btle_tracked_battery> battery;
+    uint16_t battery_id;
+    std::shared_ptr<btle_tracked_ranging> ranging;
+    uint16_t ranging_id;
 };
 
 class kis_btle_phy : public kis_phy_handler {
@@ -406,6 +610,7 @@ protected:
     std::unordered_map<uint16_t, std::shared_ptr<tracker_element_string>> btle_uuid_cache;
 
     bool ignore_random;
+    double distance_exponent;
 
     int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
 
