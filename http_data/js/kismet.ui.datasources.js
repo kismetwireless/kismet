@@ -300,7 +300,7 @@ const celldiag_rawlog_control = (source, f) => {
     /* Stated in the UI, not just in this comment. An operator who clicks and
      * sees nothing change needs to know where the reason went, or the honest
      * design above reads as a broken button. */
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('Result appears in the row above within one stats interval; ' +
               'a refusal is reported on the message bus, not here.'));
     return wrap;
@@ -393,7 +393,7 @@ const celldiag_mask_control = (source, f) => {
 
     /* Said in the UI, because a control whose result appears elsewhere reads
      * as broken otherwise -- the same reason the rawlog control carries one. */
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('The row above shows the preset the modem actually armed, ' +
               'within one stats interval after the source re-opens. ' +
               'A refusal is reported on the message bus, not here.'));
@@ -510,7 +510,7 @@ const celldiag_f3_control = (source, f) => {
              .always(() => $.get(base + 'open_source.cmd'));
         }));
 
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('The row above shows the preset the modem actually armed, ' +
               'within one stats interval after the source re-opens. ' +
               'The DIAG mask row also changes, because F3 arming decorates ' +
@@ -551,7 +551,7 @@ const celldiag_restart_control = (source) => {
     const wrap = $('<span>');
 
     if (!source['kismet.datasource.running']) {
-        wrap.append($('<span>', { style: 'color: #666;' })
+        wrap.append($('<span>', { style: 'color: var(--ds-muted-color);' })
             .text('Source is not running — use Activate on the ' +
                   'Active row rather than restarting.'));
         return wrap;
@@ -578,7 +578,7 @@ const celldiag_restart_control = (source) => {
              .then(() => $.get(base + 'open_source.cmd'));
         }));
 
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('The decode-helper and mask rows above report the outcome ' +
               'within one stats interval. A failure to re-open is reported ' +
               'on the message bus, not here.'));
@@ -640,7 +640,7 @@ const cell_capture_switch_control = (source, disabled_now) => {
              .always(() => $.get(base + 'open_source.cmd'));
         }));
 
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('Sets this source\'s enabled= option. Not the same as Disable on ' +
               'the Active row, which stops the source itself. The rows above ' +
               'report the new state within one stats interval; a failure is ' +
@@ -736,7 +736,7 @@ const celldiag_anchor_control = (source) => {
 const celldiag_bringup_text = (f) => {
     const phases = cell_unsanitize(f('bringup_phases') || '');
     if (f('bringup_error')) {
-        return $('<span>', { style: 'color: #b00;' })
+        return $('<span>', { style: 'color: var(--ds-error-color);' })
             .html('<i class="fa fa-exclamation-circle"></i> ')
             .append($('<span>').text('failed after ' + (f('bringup_ms') || 0) +
                 ' ms: ' + cell_unsanitize(f('bringup_error')) +
@@ -749,7 +749,7 @@ const celldiag_bringup_text = (f) => {
                 (phases ? ' — done so far: ' + phases : ' — no step finished yet')));
     }
     if (phases)
-        return $('<span>', { style: 'color: #666;' }).text(
+        return $('<span>', { style: 'color: var(--ds-muted-color);' }).text(
             'took ' + (f('bringup_ms') || 0) + ' ms: ' + phases);
     return null;
 }
@@ -942,7 +942,7 @@ const cell_enable_form = (idiv, iface, driver, on_done) => {
     if (form)
         return form;
 
-    const hint = (t) => $('<div>', { style: 'font-size: 0.85em; color: #666;' }).text(t);
+    const hint = (t) => $('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' }).text(t);
     const row = (label, ctl, help) => $('<div>', { style: 'margin: 3px 0;' })
         .append($('<label>', { style: 'display: inline-block; min-width: 11em;' }).text(label))
         .append(ctl).append(help ? hint(help) : null);
@@ -1016,10 +1016,10 @@ const cell_enable_form = (idiv, iface, driver, on_done) => {
             opts.push(['name', name.val()]);
             const d = cell_enable_definition(iface, driver, opts);
             if (d.error) {
-                status.css('color', '#b00').text(d.error);
+                status.css('color', 'var(--ds-error-color)').text(d.error);
                 return;
             }
-            status.css('color', '#666').text('Opening ' + d.definition + ' ...');
+            status.css('color', 'var(--ds-muted-color)').text('Opening ' + d.definition + ' ...');
             button.button('disable');
             ds_state['defer_command_progress'] = true;
             $.ajax({
@@ -1035,7 +1035,7 @@ const cell_enable_form = (idiv, iface, driver, on_done) => {
                  * server answers 500 "ERROR: unable to open ...: <why>". */
                 const why = ((xhr && xhr.responseText) || '').trim() ||
                     ('no answer from the server (' + ((xhr && xhr.statusText) || 'error') + ')');
-                status.css('color', '#b00').text(why);
+                status.css('color', 'var(--ds-error-color)').text(why);
                 button.button('enable');
             })
             .always(() => { ds_state['defer_command_progress'] = false; });
@@ -1121,7 +1121,7 @@ const cell_modem_group_row = (source, sdiv, set_row) => {
         wrap.append(go('false', 'Turn this modem off'));
     if (any_off)
         wrap.append(' ').append(go('true', 'Turn this modem on'));
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('Every capture source of this modem (the same IMEI). Off releases ' +
               'the ports and keeps the sources listed; on runs each bring-up in turn.'));
     set_row(sdiv, 'cell_modem_group', '<b>This modem</b>', wrap);
@@ -1142,7 +1142,7 @@ const cell_definition_row = (source, sdiv, set_row) => {
     set_row(sdiv, 'cell_definition', '<b>Definition</b>',
         $('<span>')
             .append($('<code>', { style: 'word-break: break-all;' }).text(def))
-            .append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+            .append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
                 .text('Changes made here last until Kismet restarts. To keep ' +
                       'them, put this in kismet_site.conf as source=' + def)));
 }
@@ -1166,7 +1166,7 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
      * turns capture on. */
     if (f('mask_preset') === 'disabled') {
         set_row(sdiv, 'celldiag_helper', '<b>Decoder</b>',
-            $('<span>', { style: 'color: #666;' })
+            $('<span>', { style: 'color: var(--ds-muted-color);' })
                 .html('<i class="fa fa-pause-circle"></i> ')
                 .append($('<span>').text('not running — capture is disabled ' +
                     '(enabled=false): no port opened, nothing is captured')));
@@ -1199,12 +1199,12 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
                 .append($('<span>').text('alive' +
                     (f('decode_mode') ? ' (' + f('decode_mode') + ')' : ''))) :
         f('bringup_error') ?
-            $('<span>', { style: 'color: #b60;' })
+            $('<span>', { style: 'color: var(--ds-warn-color);' })
                 .text('not started — the bring-up failed (see Bring-up above)') :
         f('mask_preset') === 'opening' ?
-            $('<span>', { style: 'color: #666;' })
+            $('<span>', { style: 'color: var(--ds-muted-color);' })
                 .text('not started yet — the bring-up is still running') :
-            $('<span>', { style: 'color: #b00;' })
+            $('<span>', { style: 'color: var(--ds-error-color);' })
                 .html('<i class="fa fa-exclamation-circle"></i> DEAD &mdash; ' +
                       'observations have stopped; this is not "no cells in range"'));
 
@@ -1222,7 +1222,7 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
     const obs_cell = $('<span>').text(f('obs_total') + ' total, ' +
         (f('obs_per_sec') || 0).toFixed(2) + '/sec');
     if (f('obs_ring_dropped') > 0)
-        obs_cell.append($('<span>', { style: 'color: #b00;' })
+        obs_cell.append($('<span>', { style: 'color: var(--ds-error-color);' })
             .text(', ' + f('obs_ring_dropped') + ' dropped (output ring full)'));
     set_row(sdiv, 'celldiag_obs', '<b>Cell observations</b>', obs_cell);
 
@@ -1244,11 +1244,11 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
         const crc = $('<span>').text(f('crc_ok') + ' of ' + f('crc_checked') +
             ' frames passed, ' + f('crc_bad') + ' failed');
         if (f('crc_damage_alerts') > 0) {
-            crc.css('color', '#b00');
+            crc.css('color', 'var(--ds-error-color)');
             crc.append($('<span>').text(' — this stream lost bytes (' +
                 f('crc_damage_alerts') + ' damaged check windows)'));
         } else if (f('crc_bad') > 0) {
-            crc.css('color', '#b60');
+            crc.css('color', 'var(--ds-warn-color)');
         }
         set_row(sdiv, 'celldiag_crc', '<b>DIAG frame CRC</b>', crc);
     } else {
@@ -1312,7 +1312,7 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
             rp.append($('<span>').text('on — ' + f('rawpackets_slices') +
                 ' slices into the kismetdb'));
             if (f('rawpackets_dropped') > 0)
-                rp.append($('<span>', { style: 'color: #b00;' })
+                rp.append($('<span>', { style: 'color: var(--ds-error-color);' })
                     .text(', ' + f('rawpackets_dropped') + ' dropped'));
         } else {
             rp.append(celldiag_nodata('off — the raw DIAG stream is not kept'));
@@ -1325,10 +1325,10 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
             if (!f('qsh_requested'))
                 q.append(celldiag_nodata('off'));
             else if (f('qsh_armed'))
-                q.append($('<span>', { style: 'color: #b60;' })
+                q.append($('<span>', { style: 'color: var(--ds-warn-color);' })
                     .text('armed — high volume'));
             else
-                q.append($('<span>', { style: 'color: #b60;' })
+                q.append($('<span>', { style: 'color: var(--ds-warn-color);' })
                     .text('requested, not armed yet (it is armed during the ' +
                           'bring-up; a part without QSH declines it)'));
             q.append(' ').append(celldiag_qsh_control(source, f));
@@ -1342,7 +1342,7 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
             else
                 a.append(celldiag_nodata('none yet'));
             if (f('anchor_ring_dropped') > 0)
-                a.append($('<span>', { style: 'color: #b60;' })
+                a.append($('<span>', { style: 'color: var(--ds-warn-color);' })
                     .text(', ' + f('anchor_ring_dropped') +
                           ' not delivered (output ring full; still in the sidecar)'));
             a.append(celldiag_anchor_control(source));
@@ -1370,9 +1370,9 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
          * depends on that parsed fine and produced nothing. `unrecognized` is
          * usually just new firmware. Colour follows that ranking. */
         if (f('inventory_silent') > 0)
-            inv.css('color', '#b00');
+            inv.css('color', 'var(--ds-error-color)');
         else if (f('inventory_unrecognized') > 0)
-            inv.css('color', '#b60');
+            inv.css('color', 'var(--ds-warn-color)');
         set_row(sdiv, 'celldiag_inventory', '<b>DIAG code census</b>', inv);
     } else {
         set_row(sdiv, 'celldiag_inventory', '<b>DIAG code census</b>',
@@ -1419,7 +1419,7 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
             if (c[6].indexOf('e') >= 0) why.push('enrich failed');
             var flagcell = $('<td>').text(why.join(', '));
             if (why.length > 0)
-                flagcell.css('color', c[6].indexOf('s') >= 0 ? '#b00' : '#b60');
+                flagcell.css('color', c[6].indexOf('s') >= 0 ? 'var(--ds-error-color)' : 'var(--ds-warn-color)');
             tr.append(flagcell);
             tbl.append(tr);
         });
@@ -1603,7 +1603,7 @@ const cellat_profile_control = (source, g) => {
             cell_release_row(sel);
             cellat_send_setting(uuid, 'strategy=' + want);
         }));
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('Applied at the next poll without restarting the source. The ' +
               'row above shows the profile the helper actually armed within ' +
               'one stats interval; a refusal is reported on the message bus, ' +
@@ -1642,7 +1642,7 @@ const cellat_atlog_control = (source, g) => {
                 cellat_send_setting(uuid, 'atlog=' + v);
             }));
     }
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('Every AT command and its full response, one JSON line each. ' +
               'The row above shows the file and its record count within one ' +
               'stats interval; a refusal is reported on the message bus.'));
@@ -1685,6 +1685,10 @@ const cellat_lock_control = (source, g) => {
     const uuid = source['kismet.datasource.uuid'];
     const chans = (source['kismet.datasource.channels'] || []).map(cell_unsanitize);
     const wrap = $('<div>');
+    if (chans.filter((c) => c !== 'AUTO').length == 0)
+        return wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
+            .text('Locking is off for this source; add bandlock=true to the source ' +
+                  'definition to enable it.  A lock changes the modem\'s saved settings.'));
     const post = (payload) => $.ajax({
         url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
         method: 'POST',
@@ -1728,7 +1732,7 @@ const cellat_lock_control = (source, g) => {
                 post({ channels: list, rate: 1.0 / s });
             }));
     wrap.append(hop);
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: #666;' })
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('Each lock re-registers the modem (a few seconds without service). ' +
               'Written to the modem\'s memory: the settings as found are saved ' +
               'first and restored on Unlock, on close, and after a crash at the ' +
@@ -1763,14 +1767,14 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
     /* --- state ----------------------------------------------------------- */
     let st;
     if (state === 'disabled') {
-        st = $('<span>', { style: 'color: #666;' })
+        st = $('<span>', { style: 'color: var(--ds-muted-color);' })
             .html('<i class="fa fa-pause-circle"></i> ')
             .append($('<span>').text('disabled (enabled=false) — no port ' +
                 'opened, nothing is being captured'));
     } else if (state === 'full_scan') {
         const ran = Math.max(0, now_s - g('fullscan_started_epoch'));
         if (ran > CELLAT_FULLSCAN_MAX_S + 30) {
-            st = $('<span>', { style: 'color: #b00;' })
+            st = $('<span>', { style: 'color: var(--ds-error-color);' })
                 .html('<i class="fa fa-exclamation-circle"></i> ')
                 .append($('<span>').text('full band scan started ' +
                     Math.round(ran) + ' s ago, longer than any supported ' +
@@ -1785,7 +1789,7 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
                     CELLAT_FULLSCAN_MAX_S / 60 + ' min)'));
         }
     } else if (age > 3 * iv) {
-        st = $('<span>', { style: 'color: #b60;' })
+        st = $('<span>', { style: 'color: var(--ds-warn-color);' })
             .html('<i class="fa fa-exclamation-triangle"></i> ')
             .append($('<span>').text('no status for ' + Math.round(age) +
                 ' s (expected every ' + iv + ' s) — the source may be stuck'));
@@ -1806,7 +1810,7 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
         prof.append(nodata('not reported'));
     }
     if (state !== 'disabled' && g('strategy')) {
-        prof.append($('<span>', { style: 'color: #666;' }).text(
+        prof.append($('<span>', { style: 'color: var(--ds-muted-color);' }).text(
             ' — serving ' + cellat_interval_human(g('serving_interval_ms')) +
             ', neighbors ' + cellat_interval_human(g('neighbor_interval_ms')) +
             ', full scan ' + (g('fullscan_interval_ms') ?
@@ -1815,7 +1819,7 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
         /* A profile that wants a scan this modem cannot run. The
          * helper also warns once on the message bus; this keeps it visible. */
         if (g('fullscan_interval_ms') > 0 && !g('fullscan_capable')) {
-            prof.append($('<div>', { style: 'color: #b60;' }).text(
+            prof.append($('<div>', { style: 'color: var(--ds-warn-color);' }).text(
                 'This modem has no full band scan command (AT+QSCAN / ' +
                 'AT#CSURVC), so the full scan will not run.'));
         }
@@ -1834,12 +1838,12 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
             lk.append($('<span>').text(ch === 'AUTO' ? 'AUTO — the settings as found' :
                                        ch ? 'locked to ' + ch : 'unknown'));
             if (source['kismet.datasource.hopping'])
-                lk.append($('<span>', { style: 'color: #666;' }).text(
+                lk.append($('<span>', { style: 'color: var(--ds-muted-color);' }).text(
                     ' — hopping ' + (source['kismet.datasource.hop_channels'] || []).length +
                     ' channels, ' + Math.round(1 / (source['kismet.datasource.hop_rate'] || 1)) +
                     ' s each'));
             if (g('lock_error'))
-                lk.append($('<div>', { style: 'color: #b00;' }).text(cell_unsanitize(g('lock_error'))));
+                lk.append($('<div>', { style: 'color: var(--ds-error-color);' }).text(cell_unsanitize(g('lock_error'))));
             lk.append(cellat_lock_control(source, g));
         }
         set_row(sdiv, 'cellat_lock', '<b>Band / RAT lock</b>', lk);
@@ -1871,7 +1875,7 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
     const rawat = $('<span>').text(g('rawat_records') +
         ' exchanges logged to the kismetdb (RawAT, always on)');
     if (g('rawat_dropped') > 0) {
-        rawat.append($('<span>', { style: 'color: #b00;' })
+        rawat.append($('<span>', { style: 'color: var(--ds-error-color);' })
             .text(', ' + g('rawat_dropped') + ' dropped'));
     }
     set_row(sdiv, 'cellat_rawat', '<b>Raw AT log</b>', rawat);
@@ -1887,7 +1891,7 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
             g('qmifeed_msgs') + ' notes');
         const lost = g('qmifeed_dropped') + g('qmifeed_dropped_imei') + g('rawqmi_dropped');
         if (lost > 0) {
-            qmi.append($('<span>', { style: 'color: #b00;' })
+            qmi.append($('<span>', { style: 'color: var(--ds-error-color);' })
                 .text(', ' + lost + ' dropped (' + g('qmifeed_dropped_imei') +
                       ' for IMEI, ' + g('rawqmi_dropped') + ' raw)'));
         }
@@ -2644,7 +2648,7 @@ function update_datasource2(data) {
                         /* A cell row is titled by the modem and
                          * the capture type ("Quectel RM520N-GL — DIAG"),
                          * filled below on every refresh, as .text(). */
-                        '<i class="fa fa-tower-cell" style="color: #33bb33; margin-right: 5px;"></i><span class="k-ds-cell-title"></span>' :
+                        '<span class="k-ds-cell-title"></span>' :
                         "Available Interface: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')')
                     /* For a cell source that is not open, which modem
                      * it is -- the list answer is read from the modem each
@@ -2653,7 +2657,6 @@ function update_datasource2(data) {
                      * below on every refresh, as .text(). */
                     .append($('<span>', {
                         class: 'k-ds-modem',
-                        style: 'color: #666; margin-left: 8px;',
                     }))
                 )
             ).append(
@@ -2720,7 +2723,7 @@ function update_datasource2(data) {
             $('.k-ds-modem', idiv).text(sub.join(' \u00b7 '));
             if (intf.cell_unlisted)
                 set_row(idiv, 'cell_unlisted', '<b>Availability</b>',
-                    $('<span>', { style: 'color: #b60;' })
+                    $('<span>', { style: 'color: var(--ds-warn-color);' })
                         .html('<i class="fa fa-exclamation-triangle"></i> ')
                         .append($('<span>').text(intf.cell_unlisted)));
             else
@@ -2815,12 +2818,11 @@ function update_datasource2(data) {
                     $('<span>', {
                         class: 'k-ds-source',
                     })
-                    .html((is_cell_driver(source['kismet.datasource.type_driver']['kismet.datasource.driver.type']) ? '<i class="fa fa-tower-cell" style="color: #33bb33; margin-right: 5px;"></i>' : '') + source['kismet.datasource.name'])
+                    .html(source['kismet.datasource.name'])
                     /* Which modem and what capture, beside the
                      * source name. Filled on every refresh, as .text(). */
                     .append($('<span>', {
                         class: 'k-ds-modem',
-                        style: 'color: #666; margin-left: 8px;',
                     }))
                 )
                 .append(
