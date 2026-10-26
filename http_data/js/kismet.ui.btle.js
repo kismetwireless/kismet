@@ -98,6 +98,9 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                             "apple_findmy": "Apple Find My",
                             "google_fmdn": "Google Find My Device network",
                             "dult": "DULT (unwanted tracking detection)",
+                            "tile": "Tile",
+                            "chipolo": "Chipolo",
+                            "pebblebee": "Pebblebee",
                         };
                         return types[opts['value']] || opts['value'];
                     },
@@ -166,7 +169,25 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                     field: "btle.device/btle.device.tracker/btle.device.tracker.ephemeral_id",
                     title: "Ephemeral ID",
                     filterOnEmpty: true,
-                    help: "Rotating identifier from the advertisement; it changes every 1024 seconds and does not identify the owner.",
+                    help: "Salted hash of the rotating identifier from the advertisement, which changes every 1024 seconds; it links advertisements within this run of Kismet only.",
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.maintained",
+                    title: "Owner Nearby Recently",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return opts['value'] ? "Yes" : "No";
+                    },
+                    help: "The tracker's owner connected to it within its current key period.",
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.follow_time",
+                    title: "Seen Separated",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        return Math.floor(opts['value'] / 60) + " minutes";
+                    },
+                    help: "How long the separated tracker has been seen without a long gap; with GPS, the TRACKERFOLLOW alert is raised once it has been seen this way for 30 minutes across several places.",
                 },
                 {
                     field: "btle.device/btle.device.tracker/btle.device.tracker.network_id",

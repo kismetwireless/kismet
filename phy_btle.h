@@ -43,6 +43,8 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 
+#include "bluetooth_parsers/btle_tracker.h"
+
 class btle_tracked_advertised_service : public tracker_component {
 public:
     btle_tracked_advertised_service() :
@@ -136,18 +138,29 @@ public:
     __ProxyDynamic(subtype, std::string, std::string, std::string, subtype, subtype_id);
     __ProxyDynamic(ephemeral_id, std::string, std::string, std::string, ephemeral_id, ephemeral_id_id);
     __ProxyDynamic(network_id, uint8_t, uint8_t, uint8_t, network_id, network_id_id);
+    __ProxyDynamic(maintained, uint8_t, bool, bool, maintained, maintained_id);
+    __ProxyDynamic(follow_time, uint64_t, uint64_t, uint64_t, follow_time, follow_time_id);
+    __ProxyDynamic(follow_locations, uint8_t, uint8_t, uint8_t, follow_locations, follow_locations_id);
+
+    // Following state, not exported; see tracker_follow_check
+    time_t follow_first = 0;
+    time_t follow_last = 0;
+    bool follow_alerted = false;
+    std::vector<std::pair<double, double>> follow_points;
 
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
         register_field("btle.device.tracker.type",
-                "Tracker type (samsung_smarttag, apple_findmy, google_fmdn, dult)", &tracker_type);
+                "Tracker type (samsung_smarttag, apple_findmy, google_fmdn, dult, tile, chipolo, "
+                "pebblebee)", &tracker_type);
         register_field("btle.device.tracker.state", "Raw operating state advertised by the tracker",
                 &state);
         register_field("btle.device.tracker.state_name",
                 "Operating state (premature_offline, offline, overmature_offline, connected, "
-                "separated, near_owner, normal, unwanted_tracking_protection, unknown)",
+                "separated, near_owner, normal, unwanted_tracking_protection, activated, "
+                "not_activated, unknown)",
                 &state_name);
         register_field("btle.device.tracker.separated",
                 "Tracker advertises that it is away from its owner", &separated);
@@ -164,18 +177,29 @@ protected:
                     "Aging counter advertised by the tracker", &aging_counter);
         privacy_id_id =
             register_dynamic_field("btle.device.tracker.privacy_id",
-                    "Rotating privacy ID advertised by the tracker (hex)", &privacy_id);
+                    "Rotating privacy ID advertised by the tracker (hex); a salted hash for "
+                    "Tile", &privacy_id);
         subtype_id =
             register_dynamic_field("btle.device.tracker.subtype",
                     "Kind of device within the tracker type (airtag, findmy_accessory, airpods)",
                     &subtype);
         ephemeral_id_id =
             register_dynamic_field("btle.device.tracker.ephemeral_id",
-                    "Ephemeral identifier advertised by the tracker, rotates every 1024 seconds (hex)",
+                    "Ephemeral identifier advertised by the tracker, rotates every 1024 seconds; "
+                    "a salted hash, never the identifier itself",
                     &ephemeral_id);
         network_id_id =
             register_dynamic_field("btle.device.tracker.network_id",
                     "Finding network ID from the DULT advertisement", &network_id);
+        maintained_id =
+            register_dynamic_field("btle.device.tracker.maintained",
+                    "Owner connected to the tracker within the current key period", &maintained);
+        follow_time_id =
+            register_dynamic_field("btle.device.tracker.follow_time",
+                    "Seconds the tracker has been seen continuously while separated", &follow_time);
+        follow_locations_id =
+            register_dynamic_field("btle.device.tracker.follow_locations",
+                    "Distinct locations the separated tracker was seen at", &follow_locations);
     }
 
     std::shared_ptr<tracker_element_string> tracker_type;
@@ -198,7 +222,58 @@ protected:
     uint16_t ephemeral_id_id;
     std::shared_ptr<tracker_element_uint8> network_id;
     uint16_t network_id_id;
+    std::shared_ptr<tracker_element_uint8> maintained;
+    uint16_t maintained_id;
+    std::shared_ptr<tracker_element_uint64> follow_time;
+    uint16_t follow_time_id;
+    std::shared_ptr<tracker_element_uint8> follow_locations;
+    uint16_t follow_locations_id;
 };
+
+// Every tracker advertisement in one packet, filled from its AD records by the BTLE and
+// Bluetooth (HCI) phys
+struct btle_tracker_frames {
+    btle_tracker::smarttag_info smarttag;
+    bool is_smarttag = false;
+    btle_tracker::findmy_info findmy;
+    bool is_findmy = false;
+    btle_tracker::fmdn_info fmdn;
+    bool is_fmdn = false;
+    btle_tracker::dult_info dult;
+    bool is_dult = false;
+    btle_tracker::identified_info identified;
+    bool is_identified = false;
+
+    // Manufacturer data and 16-bit service data: ID then payload
+    void manuf_data(const uint8_t *data, size_t len);
+    void service_data(const uint8_t *data, size_t len);
+    void service_uuid(uint16_t uuid);
+
+    bool any() const {
+        return is_smarttag || is_findmy || is_fmdn || is_dult || is_identified;
+    }
+
+    // For the new device message
+    std::string describe() const;
+};
+
+// Callers hold the device list lock
+void apply_tracker_frames(btle_tracked_tracker& tracker, const btle_tracker_frames& frames,
+        time_t now);
+
+// Hex of a truncated SHA-256 of the tracker type and identifier, salted with a value
+// picked once per run: it links advertisements within this run without exposing the
+// identifier or matching across logs
+std::string tracker_privacy_hash(btle_tracker::tracker_type type, const std::string& material);
+
+// Tracks how long and across how many places a separated tracker has been seen; true
+// while it is over the following thresholds and follow_alerted isn't set yet
+bool tracker_follow_check(btle_tracked_tracker& tracker, const kis_gps_packinfo& gps, time_t now);
+std::string tracker_follow_text(btle_tracked_tracker& tracker);
+
+// Raised by the BTLE and Bluetooth phys
+int activate_tracker_follow_alert(const std::shared_ptr<alert_tracker>& alertracker, int phyid);
+
 
 // Future btle attributes
 class btle_tracked_device : public tracker_component {
@@ -332,7 +407,7 @@ protected:
 
     bool ignore_random;
 
-    int alert_bleedingtooth_ref, alert_flipper_ref;
+    int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
 
     std::shared_ptr<tracker_element_string> devtype_tracker;
 };

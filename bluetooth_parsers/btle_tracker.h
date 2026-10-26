@@ -106,6 +106,10 @@
  * Location Trackers Accessory Protocol", draft-ietf-dult-accessory-protocol-00,
  * sections 3.4 to 3.9.
  *
+ * Tile (16-bit service data 0xFEED once activated, 0xFEEC before), Chipolo (0xFE33) and
+ * Pebblebee (service UUID 0xFA25) are only identified; they advertise no separated state
+ * in the clear.  Tile's 0xFEED payload is a rotating identifier.
+ *
  * The decoders only depend on the standard library and bounds check everything.
  */
 
@@ -121,6 +125,9 @@ enum class tracker_type : uint8_t {
     apple_findmy = 2,
     google_fmdn = 3,
     dult = 4,
+    tile = 5,
+    chipolo = 6,
+    pebblebee = 7,
 };
 
 enum class battery_level : uint8_t {
@@ -192,6 +199,11 @@ struct findmy_info {
         return static_cast<battery_level>(3 - ((status >> 6) & 0x03));
     }
 
+    /* The owner was seen within the current key period */
+    bool maintained() const {
+        return (status & 0x04) != 0;
+    }
+
     /* AirTags, Find My network accessories and AirPods; not iPhones, iPads or Macs */
     bool location_tracker() const {
         return device_type() != findmy_device_apple;
@@ -236,6 +248,20 @@ struct dult_info {
     }
 };
 
+constexpr uint16_t tile_service_uuid = 0xFEED;
+constexpr uint16_t tile_inactive_service_uuid = 0xFEEC;
+constexpr uint16_t chipolo_service_uuid = 0xFE33;
+constexpr uint16_t pebblebee_service_uuid = 0xFA25;
+
+/* Trackers which are identified but advertise no state */
+struct identified_info {
+    tracker_type type = tracker_type::none;
+    uint8_t state = 0;
+    const char *state_name = "unknown";
+    /* Tile's rotating identifier, raw */
+    std::string rotating_id;
+};
+
 /* 16-bit service data (the AD record after the 0x16 type byte: UUID, then payload).
  * Returns false unless it is a SmartTag frame of at least the documented length. */
 bool decode_samsung_smarttag(const uint8_t *data, size_t len, smarttag_info& out);
@@ -252,6 +278,12 @@ bool decode_google_fmdn(const uint8_t *data, size_t len, fmdn_info& out);
 /* 16-bit service data.  Returns false unless it is a DULT frame of at least the
  * documented length. */
 bool decode_dult(const uint8_t *data, size_t len, dult_info& out);
+
+/* 16-bit service data from a Tile or Chipolo */
+bool decode_identified_tracker(const uint8_t *data, size_t len, identified_info& out);
+
+/* An advertised 16-bit service UUID; Pebblebee only advertises its UUID */
+bool identify_service_uuid(uint16_t uuid, identified_info& out);
 
 const char *tracker_type_str(tracker_type type);
 const char *battery_level_str(battery_level level);

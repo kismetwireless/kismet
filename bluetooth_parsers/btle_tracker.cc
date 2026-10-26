@@ -112,6 +112,45 @@ bool decode_dult(const uint8_t *data, size_t len, dult_info& out) {
     return true;
 }
 
+bool decode_identified_tracker(const uint8_t *data, size_t len, identified_info& out) {
+    if (data == nullptr || len < 2)
+        return false;
+
+    uint16_t uuid = (uint16_t) data[0] | ((uint16_t) data[1] << 8);
+    const uint8_t *p = data + 2;
+    size_t plen = len - 2;
+
+    switch (uuid) {
+        case tile_service_uuid:
+        case tile_inactive_service_uuid:
+            out = identified_info{};
+            out.type = tracker_type::tile;
+            out.state_name = uuid == tile_service_uuid ? "activated" : "not_activated";
+            if (uuid == tile_service_uuid)
+                out.rotating_id.assign(reinterpret_cast<const char *>(p), plen);
+            return true;
+
+        case chipolo_service_uuid:
+            out = identified_info{};
+            out.type = tracker_type::chipolo;
+            if (plen >= 2)
+                out.state = p[1];
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool identify_service_uuid(uint16_t uuid, identified_info& out) {
+    if (uuid != pebblebee_service_uuid)
+        return false;
+
+    out = identified_info{};
+    out.type = tracker_type::pebblebee;
+    return true;
+}
+
 const char *tracker_type_str(tracker_type type) {
     switch (type) {
         case tracker_type::samsung_smarttag:
@@ -122,6 +161,12 @@ const char *tracker_type_str(tracker_type type) {
             return "google_fmdn";
         case tracker_type::dult:
             return "dult";
+        case tracker_type::tile:
+            return "tile";
+        case tracker_type::chipolo:
+            return "chipolo";
+        case tracker_type::pebblebee:
+            return "pebblebee";
         default:
             return "unknown";
     }

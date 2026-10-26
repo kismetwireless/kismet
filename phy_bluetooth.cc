@@ -37,6 +37,7 @@
 #include "alertracker.h"
 
 #include "bluetooth_types.h"
+#include "bluetooth_parsers/btle_tracker.h"
 
 
 #define h4_direction_sent                       0x00
@@ -92,6 +93,9 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     btdev_bredr = devicetracker->get_cached_devicetype("BR/EDR");
     btdev_btle = devicetracker->get_cached_devicetype("BTLE");
     btdev_bt = devicetracker->get_cached_devicetype("BT");
+    btdev_tracker = devicetracker->get_cached_devicetype("BTLE Tracker");
+
+    alert_trackerfollow_ref = activate_tracker_follow_alert(alertracker, phyid);
 
     // The Bluetooth and BTLE phys both raise FLIPPERZERO; whichever loads second uses the
     // alert the first one registered, registering it again would fail and leave this phy
@@ -251,6 +255,8 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         // UUIDs accumulate across reports, like phy_btle.cc's
         // service_uuid_vec, since one report's EIR budget may not carry
         // everything advertised.
+        btle_tracker_frames frames;
+
         auto uuids_j = json["service_uuids"];
         if (uuids_j.is_array()) {
             auto uuid_vec = btdev->get_service_uuid_strs();
@@ -258,6 +264,13 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                 if (!u.is_string())
                     continue;
                 auto uuid_str = u.get<std::string>();
+
+                if (uuid_str.length() == 4) {
+                    auto ub = hex_to_bytes(uuid_str);
+                    if (ub.length() == 2)
+                        frames.service_uuid((uint16_t) ((uint8_t) ub[0] << 8 | (uint8_t) ub[1]));
+                }
+
                 bool exists = false;
                 for (const auto& existing : *uuid_vec) {
                     if (existing == uuid_str) {
@@ -274,8 +287,28 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         if (manuf_company_id_j.is_string() && manuf_company_id_j.get<std::string>().length() > 0) {
             btdev->set_manuf_company_id(manuf_company_id_j.get<std::string>());
             auto manuf_data_j = json["manuf_data"];
-            if (manuf_data_j.is_string())
+            if (manuf_data_j.is_string()) {
                 btdev->set_manuf_data(manuf_data_j.get<std::string>());
+
+                // Reassemble the AD payload, little endian company ID then data
+                const auto& cid_hex = manuf_company_id_j.get_ref<const std::string&>();
+                const auto& md_hex = manuf_data_j.get_ref<const std::string&>();
+
+                if (cid_hex.length() == 4 && md_hex.length() % 2 == 0) {
+                    auto cid = hex_to_bytes(cid_hex);
+                    auto md = hex_to_bytes(md_hex);
+
+                    if (cid.length() == 2) {
+                        std::string ad;
+                        ad.reserve(2 + md.length());
+                        ad.push_back(cid[1]);
+                        ad.push_back(cid[0]);
+                        ad.append(md);
+
+                        frames.manuf_data((const uint8_t *) ad.data(), ad.length());
+                    }
+                }
+            }
         }
 
         // 16-bit service data, as hex of the UUID and data; Remote ID goes on to
@@ -288,11 +321,17 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
 
                 const auto& sd_hex = sd.get_ref<const std::string&>();
 
-                // UUID, app code, counter, and at least one message
-                if (sd_hex.length() % 2 != 0 || sd_hex.length() / 2 < 4 + odid::message_len)
+                if (sd_hex.length() % 2 != 0)
                     continue;
 
                 auto raw = hex_to_bytes(sd_hex);
+
+                frames.service_data((const uint8_t *) raw.data(), raw.length());
+
+                // UUID, app code, counter, and at least one message
+                if (raw.length() < 4 + odid::message_len)
+                    continue;
+
                 auto rid = btphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
 
                 if (odid::decode_ble_service_data((const uint8_t *) raw.data(), raw.length(),
@@ -302,6 +341,22 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     in_pack->insert(btphy->pack_comp_remoteid, rid);
                     break;
                 }
+            }
+        }
+
+        if (frames.any()) {
+            auto tracker = btdev->get_tracker();
+
+            apply_tracker_frames(*tracker, frames, in_pack->ts.tv_sec);
+
+            basedev->set_tracker_type_string(btphy->btdev_tracker);
+
+            if (tracker_follow_check(*tracker, in_pack->gps_info, in_pack->ts.tv_sec) &&
+                    btphy->alertracker->potential_alert(btphy->alert_trackerfollow_ref)) {
+                tracker->follow_alerted = true;
+                btphy->alertracker->raise_alert(btphy->alert_trackerfollow_ref, in_pack,
+                        mac_addr{}, basedev->get_macaddr(), mac_addr{}, mac_addr{},
+                        "FHSS", tracker_follow_text(*tracker));
             }
         }
 

@@ -19,6 +19,8 @@ check() {
 import sys, json
 ignore_random = sys.argv[1] == "true"
 devs = {d["kismet.device.base.macaddr"].lower(): d for d in json.load(sys.stdin)}
+# Rotating identifiers are kept as a salted hash, 16 hex digits, never as advertised
+HASHED = "<hashed>"
 want = {
     "c2:00:00:5a:fd:01": {"btle.device.tracker.type": "samsung_smarttag",
         "btle.device.tracker.state": 3, "btle.device.tracker.state_name": "overmature_offline",
@@ -45,7 +47,7 @@ want = {
         "btle.device.tracker.state_name": "unwanted_tracking_protection",
         "btle.device.tracker.separated": 0, "btle.device.tracker.battery": "unknown",
         "btle.device.tracker.flags": 0,
-        "btle.device.tracker.ephemeral_id": bytes(range(0x10, 0x24)).hex()},
+        "btle.device.tracker.ephemeral_id": HASHED},
     "c2:00:00:b2:fc:01": {"btle.device.tracker.type": "dult",
         "btle.device.tracker.state": 0, "btle.device.tracker.state_name": "separated",
         "btle.device.tracker.separated": 1, "btle.device.tracker.battery": "unknown",
@@ -54,7 +56,7 @@ want = {
         "btle.device.tracker.state": 0x40, "btle.device.tracker.state_name": "normal",
         "btle.device.tracker.separated": 1, "btle.device.tracker.battery": "unknown",
         "btle.device.tracker.network_id": 2,
-        "btle.device.tracker.ephemeral_id": bytes(range(0x10, 0x24)).hex()},
+        "btle.device.tracker.ephemeral_id": HASHED},
 }
 # Fields of other tracker types must not show up
 absent = {
@@ -72,6 +74,11 @@ for mac, fields in want.items():
     if not isinstance(t, dict):
         bad.append(mac + " has no tracker record"); continue
     for k, v in fields.items():
+        if v is HASHED:
+            h = t.get(k)
+            if not isinstance(h, str) or len(h) != 16 or h.strip("0123456789abcdef"):
+                bad.append("%s %s=%r, expected a hash" % (mac, k, h))
+            continue
         if t.get(k) != v:
             bad.append("%s %s=%r, expected %r" % (mac, k, t.get(k), v))
     for k in absent.get(mac, ()):
