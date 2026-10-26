@@ -17,13 +17,11 @@
 */
 
 /* kismetdb_to_hdlc — reconstruct a celldiag source's raw DIAG HDLC byte stream
- * (the `rawlog=` tee) from the kismetdb `packets` table: the parse side of the
- * celldiag raw-packet emitter.
+ * from the kismetdb `packets` table: the parse side of the celldiag raw-packet
+ * emitter.
  *
- * Sibling of kismetdb_to_atlog. That tool rebuilds the AT lane's sidecar from
- * `data` rows; this one rebuilds the DIAG lane's from `packets` rows, so a
- * drive whose raw DIAG lives only in the .kismet can be processed exactly like
- * a drive that also wrote a rawlog= .hdlc sidecar.
+ * Sibling of kismetdb_to_atlog, which rebuilds the AT exchanges from `data`
+ * rows; this one rebuilds the DIAG stream from `packets` rows.
  *
  * The input contract is capture_cell_diag/diag_rawpkt.h, and its constants are
  * included from there rather than restated. Each DLT-147 packet is a 24-byte
@@ -78,7 +76,7 @@
  *
  * A gap needs a delivered slice AFTER it, so the offsets alone cannot show
  * slices dropped after the last delivered one: under a flood on a slow host,
- * the delivered slices can run contiguously from offset 0 while the tee holds
+ * the delivered slices can run contiguously from offset 0 while the port gave
  * more than twice as many bytes, and an offsets-only reader would pass it under
  * --strict. Two witnesses close that (contract in diag_rawpkt.h):
  *   - END: a stream that reaches its teardown closes with an empty slice at its
@@ -139,10 +137,10 @@ constexpr int OPT_REQUIRE_END = 1001;
 
 void print_help(char *argv) {
     printf("Kismetdb to raw DIAG HDLC\n");
-    printf("Reconstruct a celldiag source's raw DIAG HDLC byte stream (the\n"
-           "`rawlog=` tee) from a KismetDB log's `packets` table: the DLT %u\n"
-           "\"CDRH\" slices of each celldiag datasource, ordered by their stream\n"
-           "offset, headers stripped, payloads concatenated. The output is a\n"
+    printf("Reconstruct a celldiag source's raw DIAG HDLC byte stream from a\n"
+           "KismetDB log's `packets` table: the DLT %u \"CDRH\" slices of each\n"
+           "celldiag datasource, ordered by their stream offset, headers\n"
+           "stripped, payloads concatenated. The output is a\n"
            "plain .hdlc capture for a DIAG decoder (e.g. kismet_cap_cell_diag's\n"
            "replay= option).\n"
            "\n"
@@ -157,9 +155,7 @@ void print_help(char *argv) {
            "                              exactly one stream\n"
            " -O, --out-dir [dir]          Write one .hdlc per stream into dir\n"
            " -l, --list                   List the streams: slices, bytes, gaps, END\n"
-           "                              and reported drops, and the source's rawlog=\n"
-           "                              spec (as configured: %%m/%%i/%%t are not\n"
-           "                              expanded)\n"
+           "                              and reported drops\n"
            " -s, --source [uuid|name]     Only this datasource\n"
            " -S, --session [id]           Only this session (from --list)\n"
            " -t, --type [typestring]      Datasource type to read (default: celldiag)\n"
@@ -196,7 +192,6 @@ struct source_t {
     std::string uuid;           /* as stored; queries use it */
     std::string uuid_disp;      /* the rest are terminal-safe */
     std::string name;
-    std::string rawlog;         /* rawlog= spec from the source definition, if any */
 
     /* Per-row problems that belong to no session (the header is unreadable). */
     uint64_t malformed = 0;
@@ -256,33 +251,6 @@ static uint64_t get_le64(const uint8_t *p) {
     return v;
 }
 
-/* The `rawlog=` value from a source definition "name:k=v,k=v", for --list, so
- * the operator can see which sidecar to diff the output against. It is the spec
- * as configured, so %m/%i/%t tokens are still unexpanded (the resolved name is
- * in the sidecar's .capture_meta.json). Kismet lets a value be double-quoted;
- * a bare value ends at the next ','. */
-static std::string rawlog_from_definition(const std::string& def) {
-    auto colon = def.find(':');
-    if (colon == std::string::npos)
-        return "";
-    auto opts = def.substr(colon + 1);
-    size_t pos = 0;
-    while (pos < opts.size()) {
-        auto end = opts.find(',', pos);
-        if (end == std::string::npos)
-            end = opts.size();
-        auto kv = opts.substr(pos, end - pos);
-        if (kv.compare(0, 7, "rawlog=") == 0) {
-            auto v = kv.substr(7);
-            if (v.size() >= 2 && v.front() == '"' && v.back() == '"')
-                v = v.substr(1, v.size() - 2);
-            return v;
-        }
-        pos = end + 1;
-    }
-    return "";
-}
-
 static std::string sanitize_filename(const std::string& in) {
     std::string out;
     for (char c : in) {
@@ -297,8 +265,7 @@ static std::string sanitize_filename(const std::string& in) {
     return out;
 }
 
-/* A session id is host CLOCK_REALTIME ns at stream start; render it the way
- * rawlog='s %t does, so an extracted file names itself like a tee. */
+/* A session id is host CLOCK_REALTIME ns at stream start, rendered as UTC */
 static std::string session_utc(uint64_t session_id) {
     time_t t = (time_t) (session_id / 1000000000ULL);
     struct tm tm;
@@ -943,7 +910,7 @@ int main(int argc, char *argv[]) {
     std::vector<source_t> sources;
     {
         sqlite3_stmt *stmt = nullptr;
-        if (sqlite3_prepare_v2(db, "SELECT uuid, name, definition FROM datasources "
+        if (sqlite3_prepare_v2(db, "SELECT uuid, name FROM datasources "
                     "WHERE typestring = ?1 ORDER BY uuid", -1, &stmt, nullptr) != SQLITE_OK) {
             fprintf(stderr, "ERROR:  Unable to read datasources: %s\n", sqlite3_errmsg(db));
             sqlite3_close(db);
@@ -962,7 +929,6 @@ int main(int argc, char *argv[]) {
                 continue;
             s.uuid_disp = term_safe(s.uuid);
             s.name = term_safe(s.name);
-            s.rawlog = term_safe(rawlog_from_definition(col(2)));
             sources.push_back(s);
         }
         sqlite3_finalize(stmt);
@@ -1012,8 +978,6 @@ int main(int argc, char *argv[]) {
             for (const auto& d : s.other_dlts)
                 tail += " dlt" + std::to_string(d.first) + "_rows=" +
                     std::to_string(d.second);
-            if (!s.rawlog.empty())
-                tail += " rawlog=" + s.rawlog;
 
             bool any = false;
             for (const auto& st : streams) {
@@ -1091,9 +1055,8 @@ int main(int argc, char *argv[]) {
     }
 
     /* Output paths, all checked before any is written, so a refusal never
-     * leaves half a set behind. <name>-<session UTC>.hdlc mirrors the name a
-     * rawlog= tee synthesizes (celldiag-<imei>-<ts>.hdlc); two sessions in the
-     * same second fall back to the full session id. */
+     * leaves half a set behind. Files are <name>-<session UTC>.hdlc; two
+     * sessions in the same second fall back to the full session id. */
     if (out_fname != "") {
         streams[0].path = out_fname;
     } else {
