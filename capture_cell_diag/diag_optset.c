@@ -26,7 +26,6 @@ static const struct {
     int               runtime;
     const char       *decline;   /* used iff !runtime */
 } OPTSET_KEYS[] = {
-    { "rawlog", DIAG_OPTSET_KEY_RAWLOG, 1, NULL },
     { "mask",   DIAG_OPTSET_KEY_MASK,   0,
       "the LOG mask is armed on the modem at open time; changing it means "
       "re-issuing the LOG_CONFIG handshake on the DIAG fd the capture thread "
@@ -42,8 +41,10 @@ static const struct {
 
 #define OPTSET_KEYS_N (sizeof(OPTSET_KEYS) / sizeof(OPTSET_KEYS[0]))
 
-const char *diag_optset_runtime_keys(void) { return "rawlog"; }
-const char *diag_optset_known_keys(void)   { return "rawlog|mask|f3|gsmtap"; }
+/* No key is runtime-settable in this build: every one is declined with its
+ * remedy. The `runtime` column stays so a future key cannot skip that choice. */
+const char *diag_optset_runtime_keys(void) { return "none"; }
+const char *diag_optset_known_keys(void)   { return "mask|f3|gsmtap"; }
 
 static void reset(diag_optset_t *out) {
     memset(out, 0, sizeof(*out));
@@ -52,8 +53,8 @@ static void reset(diag_optset_t *out) {
 }
 
 /* Trim ASCII whitespace in place. A knob arriving from a web form picks up a
- * trailing newline or a leading space more often than not, and "rawlog=off\n"
- * failing as an unknown value would be a lie about what the operator typed. */
+ * trailing newline or a leading space more often than not, and "mask=full\n"
+ * failing as an unknown key would be a lie about what the operator typed. */
 static void trim(char *s) {
     size_t len, i = 0;
     while (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')
@@ -122,8 +123,7 @@ void diag_optset_parse(const char *spec, diag_optset_t *out) {
         out->status = DIAG_OPTSET_BAD_VALUE;
         snprintf(out->err, DIAG_OPTSET_ERR_MAX,
                  "%s= value is %zu bytes, longer than the %d-byte maximum "
-                 "(not truncated: a shortened capture path writes a file "
-                 "nobody can find)",
+                 "(refused rather than truncated)",
                  out->key_str, vlen, DIAG_OPTSET_VALUE_MAX - 1);
         return;
     }
@@ -137,12 +137,10 @@ void diag_optset_parse(const char *spec, diag_optset_t *out) {
      * partial application reported as a whole one.
      *
      * But the test for it must be precise, not "the value contains ',' or ' '
-     * or '='". Every one of those is legal in a file path, and `rawlog=` takes a
-     * path: banning them would refuse `/captures/my run.hdlc` and `/a=b.hdlc`,
-     * which are files a person can actually create. So the rule is a delimiter
-     * followed by a KNOWN KEY followed by '=' -- the shape of a second setting,
-     * not the characters a second setting happens to use. The check runs after
-     * trim(), so "rawlog= off" is one pair, not two. */
+     * or '='": a value may legitimately carry any of them. So the rule is a
+     * delimiter followed by a KNOWN KEY followed by '=' -- the shape of a second
+     * setting, not the characters a second setting happens to use. The check
+     * runs after trim(), so "mask= full" is one pair, not two. */
     if (looks_like_a_second_setting(out->value)) {
         snprintf(out->err, DIAG_OPTSET_ERR_MAX,
                  "'%s' carries more than one setting; the runtime setter takes "
@@ -168,16 +166,8 @@ void diag_optset_parse(const char *spec, diag_optset_t *out) {
         if (out->value[0] == '\0') {
             out->status = DIAG_OPTSET_BAD_VALUE;
             snprintf(out->err, DIAG_OPTSET_ERR_MAX,
-                     "%s= needs a value; use '%s=off' to stop the tee",
-                     out->key_str, out->key_str);
+                     "%s= needs a value", out->key_str);
             return;
-        }
-
-        if (out->key == DIAG_OPTSET_KEY_RAWLOG) {
-            /* The same two spellings f3= uses for "not armed", so an operator
-             * does not have to remember which option spells it which way. */
-            out->rawlog_disable = (strcmp(out->value, "off") == 0 ||
-                                   strcmp(out->value, "none") == 0);
         }
 
         out->status = DIAG_OPTSET_OK;
@@ -188,8 +178,9 @@ void diag_optset_parse(const char *spec, diag_optset_t *out) {
     out->status = DIAG_OPTSET_UNKNOWN_KEY;
     snprintf(out->err, DIAG_OPTSET_ERR_MAX,
              "no celldiag option named '%s' (runtime-settable: %s; recognised "
-             "but open-time only: mask, f3)",
-             out->key_str, diag_optset_runtime_keys());
+             "but open-time only: %s)",
+             out->key_str, diag_optset_runtime_keys(),
+             diag_optset_known_keys());
 }
 
 void diag_optset_set_value_error(diag_optset_t *out, const char *accepted) {

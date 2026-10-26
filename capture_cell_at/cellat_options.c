@@ -189,25 +189,12 @@ int cellat_strategy_parse(const char *value, const cellat_strategy_t **out,
 int cellat_option_is_known(const char *key) {
     static const char *known[] = {
         /* parsed by this helper */
-        "atport", "strategy", "debug", "transcript", "uuid", "usb",
-        /* JSONL corpus tee of every AT exchange (distinct from the
-         * human-readable `transcript=`). Registered here so a drive command
-         * using it does not draw the "unknown option, IGNORED" warning that
-         * would otherwise make it look like it worked while doing nothing. */
-        "atlog",
+        "atport", "strategy", "debug", "uuid", "usb",
         /* Periodic cadence (seconds) for the host<->modem-RTC ClockAnchor.
          * Registered here so `clock_anchor_sec=` does not draw the "unknown
          * option, IGNORED" warning for an option that does change the anchor
          * cadence. */
         "clock_anchor_sec",
-        /* Spawn a QMI cell feed (qmifeed=auto: qmifeed/kismet_qmi_feed.py) and
-         * forward its NDJSON lines as CellModem records. Registered so a drive
-         * command using it does not draw the "IGNORED" warning for an option
-         * that works. */
-        "qmifeed",
-        /* Where the band/RAT settings AS FOUND are saved before a
-         * lock is written (default $HOME/.kismet/cellat-lock-<imei>.state). */
-        "lockstate",
         /* Offer the band/RAT lock channels; off by default, as a lock is
          * written to the modem's saved configuration. */
         "bandlock",

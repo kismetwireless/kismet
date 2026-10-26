@@ -89,35 +89,14 @@ int main(void) {
     }
     expect("strategy=", CELLAT_OPTSET_BAD_VALUE, "needs a value");
 
-    /* ── atlog= ────────────────────────────────────────────────────────── */
-    expect("atlog=/captures/", CELLAT_OPTSET_OK, NULL);
-    cellat_optset_parse("atlog=off", &o);
-    if (o.status != CELLAT_OPTSET_OK || !o.atlog_disable) {
-        fprintf(stderr, "  FAIL atlog=off is not a stop\n");
-        g_fails++;
-    }
-    cellat_optset_parse("atlog=none", &o);
-    if (!o.atlog_disable) {
-        fprintf(stderr, "  FAIL atlog=none is not a stop\n");
-        g_fails++;
-    }
-    cellat_optset_parse("atlog=/captures/off", &o);
-    if (o.atlog_disable) {
-        fprintf(stderr, "  FAIL a path ending in 'off' was read as a stop\n");
-        g_fails++;
-    }
-    /* Paths may legally contain ',' ' ' and '=' -- only a KNOWN key after a
-     * delimiter is a second setting. */
-    expect("atlog=/cap/my run,a=b.jsonl", CELLAT_OPTSET_OK, NULL);
-    expect("atlog=/x.jsonl,strategy=walking", CELLAT_OPTSET_BAD_SYNTAX,
-           "more than one setting");
-    expect("atlog=", CELLAT_OPTSET_BAD_VALUE, "atlog=off");
-    /* A web form's trailing newline is not part of the value. */
-    cellat_optset_parse("  atlog=off\n", &o);
-    if (o.status != CELLAT_OPTSET_OK || !o.atlog_disable) {
+    /* Whitespace around a setting is trimmed (a web form's newline). */
+    cellat_optset_parse("  strategy=walking\n", &o);
+    if (o.status != CELLAT_OPTSET_OK) {
         fprintf(stderr, "  FAIL whitespace around a setting was not trimmed\n");
         g_fails++;
     }
+    expect("strategy=walking,clock_anchor_sec=5", CELLAT_OPTSET_BAD_SYNTAX,
+           "more than one setting");
 
     /* ── clock_anchor_sec= ──────────────────────────────────────────────── */
     cellat_optset_parse("clock_anchor_sec=60", &o);
@@ -133,11 +112,12 @@ int main(void) {
     expect("atport=/dev/ttyUSB2", CELLAT_OPTSET_OPEN_TIME_ONLY, "not settable while");
     expect("enabled=true", CELLAT_OPTSET_OPEN_TIME_ONLY, "Enable/Disable capture");
     expect("debug=true", CELLAT_OPTSET_OPEN_TIME_ONLY, NULL);
-    expect("transcript=/tmp/t", CELLAT_OPTSET_OPEN_TIME_ONLY, "atlog=");
     expect("uuid=X", CELLAT_OPTSET_OPEN_TIME_ONLY, NULL);
 
     /* ── unknown: and the message says what IS settable ─────────────────── */
-    expect("strategi=walking", CELLAT_OPTSET_UNKNOWN_KEY, "strategy|atlog|clock_anchor_sec");
+    expect("strategi=walking", CELLAT_OPTSET_UNKNOWN_KEY, "strategy|clock_anchor_sec");
+    expect("atlog=/x", CELLAT_OPTSET_UNKNOWN_KEY, "no cellat option named 'atlog'");
+    expect("transcript=/x", CELLAT_OPTSET_UNKNOWN_KEY, NULL);
     expect("rawlog=/x", CELLAT_OPTSET_UNKNOWN_KEY, "no cellat option named 'rawlog'");
 
     /* ── no '=' is a CHANNEL, not a syntax error ───────────────────────── */
@@ -155,7 +135,7 @@ int main(void) {
     expect(NULL, CELLAT_OPTSET_BAD_SYNTAX, NULL);
     expect("=walking", CELLAT_OPTSET_BAD_SYNTAX, "no key");
 
-    if (strcmp(cellat_optset_runtime_keys(), "strategy|atlog|clock_anchor_sec") != 0) {
+    if (strcmp(cellat_optset_runtime_keys(), "strategy|clock_anchor_sec") != 0) {
         fprintf(stderr, "  FAIL runtime keys '%s'\n", cellat_optset_runtime_keys());
         g_fails++;
     }

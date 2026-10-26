@@ -1,27 +1,66 @@
 /* diag_clockanchor.c - host<->modem-ts64 clock anchor. See diag_clockanchor.h.
  *
  * libc-only. Framing and CRC ride diag_hdlc.c (one implementation of the DIAG
- * HDLC rules in this directory), JSON escaping rides diag_capmeta.c's escaper
- * (itself the byte-for-byte parallel of cellat's atlog.c), so the ClockAnchor
- * record escapes exactly like every other record this source writes.
+ * HDLC rules in this directory). The JSON escaper is a parallel of cellat's
+ * atlog.c, so the ClockAnchor record escapes exactly like cellat's.
  */
 
 #include "diag_clockanchor.h"
-#include "diag_capmeta.h"   /* diag_capmeta_json_escape */
 #include "diag_hdlc.h"
-#include "cell_safefile.h"
 
-#include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 /* DIAG error responses: <code> <echo of the offending request...>. */
 #define DIAG_BAD_CMD_F  0x13
 #define DIAG_BAD_PARM_F 0x14
 #define DIAG_BAD_LEN_F  0x15
+
+/* JSON-escape a NUL-terminated src (NULL -> "") into out, always terminated.
+ * '"' and '\\' and the C0 set are escaped; everything else passes through.
+ * Returns 0, or -1 on overflow. */
+static int json_escape(const char *src, char *out, size_t outsz) {
+    size_t pos = 0;
+
+    if (out == NULL || outsz == 0)
+        return -1;
+    out[0] = '\0';
+    for (size_t i = 0; src && src[i]; i++) {
+        unsigned char c = (unsigned char)src[i];
+        char esc[8];
+        const char *rep = NULL;
+        size_t n;
+        switch (c) {
+            case '"':  rep = "\\\""; break;
+            case '\\': rep = "\\\\"; break;
+            case '\b': rep = "\\b";  break;
+            case '\f': rep = "\\f";  break;
+            case '\n': rep = "\\n";  break;
+            case '\r': rep = "\\r";  break;
+            case '\t': rep = "\\t";  break;
+            default:   break;
+        }
+        if (rep == NULL && c < 0x20) {
+            snprintf(esc, sizeof(esc), "\\u%04x", c);
+            rep = esc;
+        }
+        if (rep == NULL) {
+            esc[0] = (char)c;
+            esc[1] = '\0';
+            rep = esc;
+        }
+        n = strlen(rep);
+        if (pos + n + 1 > outsz) {
+            out[0] = '\0';
+            return -1;
+        }
+        memcpy(out + pos, rep, n);
+        pos += n;
+        out[pos] = '\0';
+    }
+    return 0;
+}
 
 size_t diag_clockanchor_build_request(uint8_t *out, size_t cap) {
     return diag_hdlc_build(DIAG_TS_F_OPCODE, NULL, 0, out, cap);
@@ -110,12 +149,9 @@ int diag_clockanchor_format_record(char *out, size_t outsz,
     if (out == NULL || outsz == 0)
         return -1;
     out[0] = '\0';
-    if (diag_capmeta_json_escape(source_name, source_name ? strlen(source_name) : 0,
-                                 e_source, sizeof(e_source)) < 0 ||
-        diag_capmeta_json_escape(edge, edge ? strlen(edge) : 0,
-                                 e_edge, sizeof(e_edge)) < 0 ||
-        diag_capmeta_json_escape(host_utc, host_utc ? strlen(host_utc) : 0,
-                                 e_hostutc, sizeof(e_hostutc)) < 0)
+    if (json_escape(source_name, e_source, sizeof(e_source)) < 0 ||
+        json_escape(edge, e_edge, sizeof(e_edge)) < 0 ||
+        json_escape(host_utc, e_hostutc, sizeof(e_hostutc)) < 0)
         return -1;
 
     int n = snprintf(out, outsz,
@@ -134,37 +170,3 @@ int diag_clockanchor_format_record(char *out, size_t outsz,
     return 0;
 }
 
-int diag_clockanchor_sidecar_path(const char *rawlog_path, char *out,
-                                  size_t outsz) {
-    static const char suffix[] = ".clock_anchor.jsonl";
-
-    if (rawlog_path == NULL || out == NULL)
-        return -1;
-    size_t n = strlen(rawlog_path);
-    if (n + sizeof(suffix) > outsz)
-        return -1;
-    memcpy(out, rawlog_path, n);
-    memcpy(out + n, suffix, sizeof(suffix));
-    return 0;
-}
-
-int diag_clockanchor_append(const char *path, const char *buf, size_t len) {
-    int fd = cell_safe_open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-    size_t off = 0;
-
-    if (fd < 0)
-        return -1;
-    while (off < len) {
-        ssize_t w = write(fd, buf + off, len - off);
-        if (w < 0) {
-            if (errno == EINTR)
-                continue;
-            int saved = errno;
-            close(fd);
-            errno = saved;
-            return -1;
-        }
-        off += (size_t)w;
-    }
-    return close(fd);
-}

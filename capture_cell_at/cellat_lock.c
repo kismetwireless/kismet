@@ -741,7 +741,7 @@ int cellat_lock_state_read(const char *path, const char *imei, int backend,
 void cellat_lock_default_state_path(const char *imei, char *out, size_t out_sz) {
     char home[1024];
     /* No /tmp fallback: a fixed name there is one anyone could take first.
-     * Without a home, locking needs an explicit lockstate=. */
+     * Without a home there is nowhere to save the settings, so no lock. */
     if (cell_home_dir(home, sizeof(home)) == 0)
         snprintf(out, out_sz, "%s/.kismet/cellat-lock-%s.state", home, imei ? imei : "");
     else if (out_sz > 0)

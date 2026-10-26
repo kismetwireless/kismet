@@ -36,7 +36,6 @@ static const struct {
     const char          *decline;   /* NULL iff runtime-settable */
 } KEYS[] = {
     { "strategy",         CELLAT_OPTSET_KEY_STRATEGY,     NULL },
-    { "atlog",            CELLAT_OPTSET_KEY_ATLOG,        NULL },
     { "clock_anchor_sec", CELLAT_OPTSET_KEY_CLOCK_ANCHOR, NULL },
     { "atport",           CELLAT_OPTSET_KEY_OPEN_ONLY,
       "the AT port is found and IMEI-verified at open; close the source and "
@@ -47,9 +46,6 @@ static const struct {
       "exactly that" },
     { "debug",            CELLAT_OPTSET_KEY_OPEN_ONLY,
       "debug= is read at open; reopen the source to change it" },
-    { "transcript",       CELLAT_OPTSET_KEY_OPEN_ONLY,
-      "the transcript file is opened at open; reopen the source to change it "
-      "(atlog= is the runtime-switchable raw AT capture)" },
     { "uuid",             CELLAT_OPTSET_KEY_OPEN_ONLY,
       "a source's uuid is its identity in Kismet and cannot change while it "
       "exists" },
@@ -86,8 +82,7 @@ static void trim(char *s) {
 }
 
 /* A delimiter followed by a KNOWN key and '=' -- the shape of a second
- * setting. Not "contains ',' or '='": both are legal in the path atlog= takes
- * (diag_optset.c documents the version of this that refused real paths). */
+ * setting. */
 static int looks_like_a_second_setting(const char *value) {
     for (size_t i = 0; value[i] != '\0'; i++) {
         if (value[i] != ',' && value[i] != ' ' && value[i] != '\t')
@@ -169,7 +164,7 @@ void cellat_optset_parse(const char *spec, cellat_optset_t *out) {
         out->status = CELLAT_OPTSET_UNKNOWN_KEY;
         snprintf(out->err, sizeof(out->err),
                  "no cellat option named '%s' (runtime-settable: %s; open-time "
-                 "only: atport, enabled, debug, transcript, uuid)",
+                 "only: atport, enabled, debug, uuid)",
                  out->key_str, cellat_optset_runtime_keys());
         return;
     }
@@ -185,10 +180,8 @@ void cellat_optset_parse(const char *spec, cellat_optset_t *out) {
 
     if (out->value[0] == '\0') {
         out->status = CELLAT_OPTSET_BAD_VALUE;
-        snprintf(out->err, sizeof(out->err), "%s= needs a value%s",
-                 out->key_str,
-                 out->key == CELLAT_OPTSET_KEY_ATLOG ?
-                     "; use 'atlog=off' to stop the tee" : "");
+        snprintf(out->err, sizeof(out->err), "%s= needs a value",
+                 out->key_str);
         return;
     }
 
@@ -216,11 +209,6 @@ void cellat_optset_parse(const char *spec, cellat_optset_t *out) {
                          out->value, names);
                 return;
             }
-            break;
-        case CELLAT_OPTSET_KEY_ATLOG:
-            /* The same two "stop" spellings celldiag's rawlog= uses. */
-            out->atlog_disable = (strcmp(out->value, "off") == 0 ||
-                                  strcmp(out->value, "none") == 0);
             break;
         case CELLAT_OPTSET_KEY_CLOCK_ANCHOR: {
             char *endp = NULL;

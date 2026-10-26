@@ -1,11 +1,11 @@
-/* cell_safefile.h - open, rename and remove the files a source definition
- * names.
+/* cell_safefile.h - open, rename and remove the files the cell captures keep.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Both cell captures write files at paths from the source definition or its
- * defaults (transcript=, atlog=, rawlog=, capmeta, the clock anchor sidecar,
- * lockstate=). `make suidinstall` installs them setuid root, so under a suid
+ * The cell captures write only two kinds of file of their own: cellat's
+ * band/RAT lock state (~/.kismet/cellat-lock-<imei>.state) and the identity
+ * vouch records (diag_identvouch.c). `make suidinstall` installs them setuid
+ * root, so under a suid
  * install each of these operations runs in a forked child at the caller's own
  * ids (diag_child_drop_privs), and the opened fd is passed back: a path the
  * caller cannot write as themselves cannot be written through the capture.

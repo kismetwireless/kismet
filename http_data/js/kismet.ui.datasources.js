@@ -73,9 +73,9 @@ const hop_rate_to_input = (rate) => {
  * zero.
  *
  * The helper -> C stats path is careful about this: a key with no value is
- * omitted from the JSON rather than sent as ("", 0), because "rawlog_bytes: 0"
- * reads as "tee on, nothing written" and "inventory_unrecognized: 0" reads as
- * "every code recognised" -- both the opposite of the truth.
+ * omitted from the JSON rather than sent as ("", 0), because
+ * "inventory_unrecognized: 0" reads as "every code recognised" -- the opposite
+ * of the truth.
  *
  * That omission does not survive the trip to the browser. Kismet's tracker
  * serialises every registered field whether or not the source ever set it, so
@@ -83,21 +83,6 @@ const hop_rate_to_input = (rate) => {
  * therefore has to be re-derived JS-side, from sentinels that are actually
  * unambiguous:
  *
- *   rawlog_path === ""                 -> no tee was ever configured. A
- *                                         configured tee always resolves to a
- *                                         path, so the empty string cannot mean
- *                                         anything else. Do not read
- *                                         rawlog_bytes at all in this state.
- *   rawlog_active === 0, path !== ""   -> a tee that was configured and is
- *                                         stopped. `rawlog=off` closes the sink
- *                                         and keeps the path on purpose, so the
- *                                         operator can still find the file --
- *                                         which means the path answers "where
- *                                         did the bytes go?" and never "is it
- *                                         writing?". Reading the path for
- *                                         liveness would make this control a
- *                                         one-way toggle: once stopped, only
- *                                         "Stop tee" would ever render again.
  *   inventory_distinct_codes === 0     -> no census has counted anything yet.
  *                                         Any record at all creates a (code,
  *                                         version) key, so a census that has
@@ -231,85 +216,10 @@ export const is_celldiag_source = (source) => {
     return 'kismet.datasource.celldiag.helper_alive' in source;
 }
 
-/* The raw-save toggle.
- *
- * This control deliberately does not report its own success. Three
- * independent reasons:
- *
- * 1. A refused setting comes back with `success = 1`. The framework maps only a
- *    negative chancontrol_cb return to failure on the wire, and a negative
- *    return also sets `spindown` -- so reporting a typo through the status code
- *    would end a running wardrive. celldiag returns 0 and puts the reason in
- *    the message. A control that rendered the HTTP status would show every
- *    rejection as applied.
- * 2. The reason cannot reach us over HTTP anyway. `datasourcetracker.cc`'s
- *    set_channel route takes `(t, success, e)` from the completion callback and
- *    keeps only `success` -- `e`, the message, is discarded before the response
- *    is built. There is no field to read.
- * 3. What the reason does reach is the Kismet message bus, as a MSGFLAG_ERROR
- *    line (capture-side cf_send_message -> kis_datasource::handle_msg_proxy ->
- *    _MSG), which the operator already has open.
- *
- * So the control confirms itself from the fields instead: `rawlog_path` and
- * `rawlog_bytes` are re-reported on every stats interval, and the row above
- * renders them live. A tee that actually started shows a path and a rising byte
- * count within one interval; one that was refused does not change. That is a
- * measurement of the thing itself rather than an ack from the transport. */
-const celldiag_rawlog_control = (source, f) => {
-    const uuid = source['kismet.datasource.uuid'];
-    /* Liveness, not retention. `rawlog_path` is deliberately retained across
-     * a `rawlog=off` so the operator can still find the file, so keying on it
-     * would offer only "Stop tee" after one stop, forever. `rawlog_active` is
-     * the sink's fd, published for exactly this. An unreported field arrives as 0, which is the correct
-     * reading in the only state that produces it: no tee configured. */
-    const on = !!f('rawlog_active');
-
-    const send = (value) => {
-        const cmd = { "channel": value };
-        $.ajax({
-            url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
-            method: 'POST',
-            data: "json=" + encodeURIComponent(JSON.stringify(cmd)),
-            dataType: 'json',
-            timeout: 30000,
-        });
-    };
-
-    const wrap = $('<span>', { style: 'margin-left: 1em;' });
-
-    if (on) {
-        wrap.append($('<button>').text('Stop tee')
-            .on('click', (e) => { cell_release_row($(e.target)); send('rawlog=off'); }));
-    } else {
-        const inp = $('<input>', {
-            type: 'text', size: 28,
-            placeholder: '/path/or/dir/ (%i %m %t)',
-        });
-        cell_hold_row(inp, () => (inp.val() || '').trim() === '');
-        wrap.append(inp);
-        wrap.append($('<button>').text('Start tee')
-            .on('click', () => {
-                const v = (inp.val() || '').trim();
-                if (v === '')
-                    return;
-                cell_release_row(inp);
-                send('rawlog=' + v);
-            }));
-    }
-
-    /* Stated in the UI, not just in this comment. An operator who clicks and
-     * sees nothing change needs to know where the reason went, or the honest
-     * design above reads as a broken button. */
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
-        .text('Result appears in the row above within one stats interval; ' +
-              'a refusal is reported on the message bus, not here.'));
-    return wrap;
-}
-
 /* The mask-preset selector.
  *
- * Why this is not the rawlog toggle with a different string: `mask=` is
- * declined at runtime by the capture binary. Applying it re-issues a
+ * Why this is not a runtime setting: `mask=` is declined at runtime by the
+ * capture binary. Applying it re-issues a
  * LOG_CONFIG / SET_ALL_RT_MASKS handshake to the modem, on the same DIAG fd
  * `capture_thread` is blocked reading, from the framework's command thread. So
  * it is a bring-up option, and changing it means the source really does go
@@ -336,14 +246,14 @@ const celldiag_rawlog_control = (source, f) => {
  * successful Apply survives it.
  *
  * The steps chain because they are ordered -- you cannot update before the
- * close completes -- but the outcome is still not read from the transport. As
- * with the rawlog control, the answer is the `mask_preset` field re-reported
- * one row above on the next stats interval, which is the binary saying what it
- * actually armed ("wardrive", "full", "wardrive+f3", "passive") rather than
- * the server saying a request was accepted.
+ * close completes -- but the outcome is still not read from the transport: a
+ * refused setting answers success=1 and its reason goes to the message bus
+ * only. The answer is the `mask_preset` field re-reported one row above on the
+ * next stats interval, which is the binary saying what it actually armed
+ * ("wardrive", "full", "wardrive+f3", "passive") rather than the server saying
+ * a request was accepted.
  *
- * A confirmation prompt, which the rawlog toggle deliberately does not have:
- * this one interrupts capture. */
+ * A confirmation prompt, because this one interrupts capture. */
 const CELLDIAG_MASK_PRESETS = ['wardrive', 'full'];
 
 const celldiag_mask_control = (source, f) => {
@@ -392,7 +302,7 @@ const celldiag_mask_control = (source, f) => {
         }));
 
     /* Said in the UI, because a control whose result appears elsewhere reads
-     * as broken otherwise -- the same reason the rawlog control carries one. */
+     * as broken otherwise. */
     wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
         .text('The row above shows the preset the modem actually armed, ' +
               'within one stats interval after the source re-opens. ' +
@@ -958,17 +868,11 @@ const cell_enable_form = (idiv, iface, driver, on_done) => {
         const prof = $('<select>', { class: 'cell-enable-profile' });
         CELLAT_ENABLE_PROFILES.forEach(([v, l]) =>
             prof.append($('<option>', { value: v }).text(l + (v === 'driving' ? ' (default)' : ''))));
-        const atlog = $('<input>', { type: 'text', size: 28, class: 'cell-enable-atlog',
-                                     placeholder: 'off  (a /path or dir/, %i %m %t)' });
         form.append(row('Scan profile', prof,
             'Driving: serving cell every 2 s, neighbors every 5 s, no full band ' +
             'scan. Walking adds a full scan every 5 min, Stationary every 60 s. ' +
             'Can be changed later without a restart.'));
-        form.append(row('Raw AT log', atlog,
-            'Every AT command and response, one JSON line each. Empty = off; it ' +
-            'can be started later from the source panel.'));
-        get.push(() => [['strategy', prof.val() === 'driving' ? '' : prof.val()],
-                        ['atlog', atlog.val()]]);
+        get.push(() => [['strategy', prof.val() === 'driving' ? '' : prof.val()]]);
     } else {
         const mask = $('<select>', { class: 'cell-enable-mask' })
             .append($('<option>', { value: 'wardrive' }).text('wardrive (default)'))
@@ -979,8 +883,6 @@ const cell_enable_form = (idiv, iface, driver, on_done) => {
         const rawpk = $('<input>', { type: 'checkbox', class: 'cell-enable-rawpackets',
                                      checked: true });
         const qsh = $('<input>', { type: 'checkbox', class: 'cell-enable-qsh' });
-        const rawlog = $('<input>', { type: 'text', size: 28, class: 'cell-enable-rawlog',
-                                      placeholder: 'off  (e.g. /captures/%i-%t.hdlc)' });
         form.append(row('DIAG mask', mask,
             'wardrive subscribes to the cell-survey log codes; full to every code ' +
             'the modem advertises (diagnosis, not wardriving).'));
@@ -992,16 +894,10 @@ const cell_enable_form = (idiv, iface, driver, on_done) => {
         form.append(row('QSH / full F3 surface', qsh,
             'Off by default. Arms the QSH trace mask set and event stream: a ' +
             'development/corpus drive only, very high volume.'));
-        form.append(row('Raw DIAG tee file', rawlog,
-            'A copy of the DIAG byte stream on disk. Empty = off; it can be ' +
-            'started later from the source panel. A restart never overwrites ' +
-            'it: a session that finds the file already written tees to a ' +
-            'time-stamped sibling instead.'));
         get.push(() => [['mask', mask.val() === 'wardrive' ? '' : mask.val()],
                         ['f3', f3.val() === 'off' ? '' : f3.val()],
                         ['rawpackets', rawpk.prop('checked') ? '' : 'off'],
-                        ['qsh', qsh.prop('checked') ? 'on' : ''],
-                        ['rawlog', rawlog.val()]]);
+                        ['qsh', qsh.prop('checked') ? 'on' : '']]);
     }
     form.append(row('Clock anchor every (s)', anchor,
         'How often the modem clock is read against the host clock. Empty = the ' +
@@ -1171,7 +1067,7 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
                 .append($('<span>').text('not running — capture is disabled ' +
                     '(enabled=false): no port opened, nothing is captured')));
         ['celldiag_modem', 'celldiag_obs', 'celldiag_lastobs', 'celldiag_bytes', 'celldiag_crc',
-         'celldiag_mask', 'celldiag_f3', 'celldiag_lifecycle', 'celldiag_rawlog',
+         'celldiag_mask', 'celldiag_f3', 'celldiag_lifecycle',
          'celldiag_inventory', 'celldiag_census_table', 'celldiag_native',
          'celldiag_bringup', 'celldiag_rawpackets', 'celldiag_qsh', 'celldiag_anchor']
             .forEach((r) => $('tr#' + r, sdiv).remove());
@@ -1281,26 +1177,6 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
     set_row(sdiv, 'celldiag_capture', '<b>Capture</b>',
         cell_capture_switch_control(source, false));
     cell_definition_row(source, sdiv, set_row);
-
-    /* --- the raw tee -----------------------------------------------------
-     * The bytes count is read only inside the tee-on branch. Reading it
-     * unconditionally is the bug: an unconfigured tee would render
-     * "0 bytes written", which an operator correctly reads as "the tee is on
-     * and something is wrong", when in fact nothing was ever asked to write. */
-    var tee_cell = $('<span>');
-    if (f('rawlog_path')) {
-        /* The path alone cannot say whether this is a live capture or a
-         * finished one -- a stop retains it. Saying "stopped" here keeps the
-         * row and the control (which offers a restart) from visibly
-         * disagreeing. */
-        tee_cell.append($('<span>').text(cell_unsanitize(f('rawlog_path')) + '  (' +
-            celldiag_bytes_human(f('rawlog_bytes')) + ' written' +
-            (f('rawlog_active') ? '' : ', stopped') + ')'));
-    } else {
-        tee_cell.append(celldiag_nodata('off (no rawlog= configured)'));
-    }
-    tee_cell.append(celldiag_rawlog_control(source, f));
-    set_row(sdiv, 'celldiag_rawlog', '<b>Raw DIAG tee</b>', tee_cell);
 
     /* --- the stream switches ---------------------------------------------
      * Gated on switches_reported: an older helper reports none of these, and
@@ -1477,10 +1353,6 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
  *                                 neutral "disabled", never counters -- a row
  *                                 of zeros reads as "running and seeing
  *                                 nothing".
- *   atlog_path === ""          -> no atlog= tee was ever configured. Do not read
- *                                 atlog_records in this state.
- *   atlog_active === 0, path   -> a tee that ran and was stopped; the path is
- *                                 kept so the operator can find the file.
  *   last_obs_epoch === 0       -> no observation yet.
  *   anchor_last_epoch === 0    -> no clock anchor yet (the modem has not
  *                                 answered AT+CCLK?).
@@ -1531,14 +1403,13 @@ const CELLAT_FULLSCAN_MAX_S = 180;
  * reported) removes the rest instead of leaving the previous state's numbers
  * standing beside the new one. */
 const CELLAT_ROWS = ['cellat_state', 'cellat_profile', 'cellat_lock', 'cellat_obs',
-    'cellat_lastobs', 'cellat_rawat', 'cellat_atlog', 'cellat_anchor',
+    'cellat_lastobs', 'cellat_rawat', 'cellat_anchor',
     'cellat_modem', 'cellat_capture'];
 
 /* Send one runtime setting to a cellat source.
  *
- * Reads nothing back from the transport, for celldiag's three reasons
- * (see celldiag_rawlog_control): a refused setting answers success=1 (a
- * negative chancontrol return would also tear the source down), the
+ * Reads nothing back from the transport: a refused setting answers success=1
+ * (a negative chancontrol return would also tear the source down), the
  * set_channel route discards the message, and the reason reaches the message
  * bus instead. The panel row above is the confirmation: the helper sends a
  * stats line as soon as it applies a setting. */
@@ -1608,44 +1479,6 @@ const cellat_profile_control = (source, g) => {
               'row above shows the profile the helper actually armed within ' +
               'one stats interval; a refusal is reported on the message bus, ' +
               'not here.'));
-    return wrap;
-}
-
-/* The raw AT log (atlog=) toggle.
- *
- * Same shape as celldiag's raw-tee toggle, including its liveness rule:
- * liveness is `atlog_active`, not the path. A stop keeps the path so the
- * operator can find the file, so a control keyed on the path would offer only
- * "Stop" forever after the first stop. */
-const cellat_atlog_control = (source, g) => {
-    const uuid = source['kismet.datasource.uuid'];
-    const wrap = $('<div>');
-    if (g('atlog_active')) {
-        wrap.append($('<button>').text('Stop AT log')
-            .on('click', (e) => {
-                cell_release_row($(e.target));
-                cellat_send_setting(uuid, 'atlog=off');
-            }));
-    } else {
-        const inp = $('<input>', {
-            type: 'text', size: 28,
-            placeholder: '/path/or/dir/ (%i %m %t)',
-        });
-        cell_hold_row(inp, () => (inp.val() || '').trim() === '');
-        wrap.append(inp);
-        wrap.append($('<button>').text('Start AT log')
-            .on('click', () => {
-                const v = (inp.val() || '').trim();
-                if (v === '')
-                    return;
-                cell_release_row(inp);
-                cellat_send_setting(uuid, 'atlog=' + v);
-            }));
-    }
-    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
-        .text('Every AT command and its full response, one JSON line each. ' +
-              'The row above shows the file and its record count within one ' +
-              'stats interval; a refusal is reported on the message bus.'));
     return wrap;
 }
 
@@ -1879,39 +1712,6 @@ export const cellat_render_rows = (source, sdiv, set_row, now_s) => {
             .text(', ' + g('rawat_dropped') + ' dropped'));
     }
     set_row(sdiv, 'cellat_rawat', '<b>Raw AT log</b>', rawat);
-
-    /* --- the QMI feed and its raw log ----------------------------------
-     * Every qmifeed_* / rawqmi_* value is read only when a feed was
-     * configured, for the atlog_records reason below. */
-    if (g('qmifeed_configured')) {
-        const qmi = $('<span>').text(
-            (g('qmifeed_active') ? 'running' : 'exited') + ': ' +
-            g('qmifeed_sent') + ' QMI observations, ' +
-            g('rawqmi_records') + ' exchanges logged to the kismetdb (RawQMI), ' +
-            g('qmifeed_msgs') + ' notes');
-        const lost = g('qmifeed_dropped') + g('qmifeed_dropped_imei') + g('rawqmi_dropped');
-        if (lost > 0) {
-            qmi.append($('<span>', { style: 'color: var(--ds-error-color);' })
-                .text(', ' + lost + ' dropped (' + g('qmifeed_dropped_imei') +
-                      ' for IMEI, ' + g('rawqmi_dropped') + ' raw)'));
-        }
-        set_row(sdiv, 'cellat_qmifeed', '<b>QMI feed</b>', qmi);
-    }
-
-    /* --- the atlog= file tee ---------------------------------------------
-     * atlog_records is read only when a path exists: with no tee configured
-     * it is an unset default, and "0 records" would read as "the tee is on
-     * and writing nothing". */
-    const tee = $('<span>');
-    if (g('atlog_path')) {
-        tee.text(cell_unsanitize(g('atlog_path')) + '  (' + g('atlog_records') + ' records' +
-            (g('atlog_dropped') > 0 ? ', ' + g('atlog_dropped') + ' lost' : '') +
-            (g('atlog_active') ? '' : ', stopped') + ')');
-    } else {
-        tee.append(nodata('off (no atlog= configured)'));
-    }
-    tee.append(cellat_atlog_control(source, g));
-    set_row(sdiv, 'cellat_atlog', '<b>AT log file</b>', tee);
 
     /* --- clock anchors --------------------------------------------------- */
     const anc = $('<span>');

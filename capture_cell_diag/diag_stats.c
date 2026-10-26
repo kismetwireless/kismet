@@ -190,11 +190,8 @@ int diag_stats_format(const diag_stats_t *s, time_t now, time_t stall_after,
 /* JSON-escape `in` into `out`. Returns 0 on success, -1 if the escaped form
  * would not fit (out left unusable; callers must treat -1 as "omit the key").
  *
- * Unlike mask_preset -- a controlled label where an unsafe byte means
- * corruption and rendering it empty is right -- rawlog_path is an operator-
- * supplied filesystem path that may LEGITIMATELY contain a quote or backslash.
- * Blanking it would lie to the operator about where the tee is writing, so it
- * gets real escaping. Control bytes go to \uXXXX (the only correct JSON form;
+ * Used for strings that may legitimately carry a quote or backslash (bring-up
+ * phases and errors). Control bytes go to \uXXXX (the only correct JSON form;
  * a bare control byte in a string is invalid and would fail the consumer's
  * parse, taking every other field down with it). */
 static int json_escape(const char *in, char *out, size_t outsz) {
@@ -236,9 +233,8 @@ int diag_stats_format_json_ex(const diag_stats_t *s, const diag_stats_extra_t *x
      * field by key instead of scraping the human status line. The "type" marker
      * routes it like diag_inventory / diag_f3 (a structured control line, NOT a
      * cell_observation). Only the six diag_stats-owned counters are emitted here;
-     * the config-owned strings (f3_preset, rawlog_path, rawlog_bytes) and the
-     * census (inventory_*) are layered in by the emit site that
-     * owns them.
+     * the config-owned strings (decode_mode, f3_preset) and the census
+     * (inventory_*) are layered in by the emit site that owns them.
      *
      * mask_preset is a controlled label (wardrive/full/disabled/replay/"") so it
      * needs no JSON escaping; guard defensively anyway by refusing a preset that
@@ -255,148 +251,119 @@ int diag_stats_format_json_ex(const diag_stats_t *s, const diag_stats_extra_t *x
 
     long long last_obs_epoch = (s->last_obs_ts > 0) ? (long long)s->last_obs_ts : 0;
 
-    /* The extras are rendered into their own buffer first so the whole
-     * object can be re-rendered without the unbounded rawlog_path if it does
-     * not fit -- see the header's truncation contract. `drop_path` is the retry
-     * flag; the loop runs at most twice. */
-    for (int drop_path = 0; drop_path <= 1; drop_path++) {
-        char extra[DIAG_STATS_EXTRA_MAX];
-        size_t eo = 0;
-        int etrunc = 0;
+    /* Terminated up front: with x == NULL nothing is appended. */
+    char extra[DIAG_STATS_EXTRA_MAX];
+    size_t eo = 0;
+    int etrunc = 0;
+    extra[0] = '\0';
 
-        /* Append helper: on overflow set etrunc rather than emitting a partial
-         * key, so a clipped fragment can never reach the output object. */
-#define XAPPEND(...) do {                                                     \
-            int _r = snprintf(extra + eo, sizeof(extra) - eo, __VA_ARGS__);   \
-            if (_r < 0 || (size_t)_r >= sizeof(extra) - eo) { etrunc = 1; }   \
-            else { eo += (size_t)_r; }                                        \
-        } while (0)
+    /* Append helper: on overflow set etrunc rather than emitting a partial
+     * key, so a clipped fragment can never reach the output object. */
+#define XAPPEND(...) do {                                                 \
+        int _r = snprintf(extra + eo, sizeof(extra) - eo, __VA_ARGS__);   \
+        if (_r < 0 || (size_t)_r >= sizeof(extra) - eo) { etrunc = 1; }   \
+        else { eo += (size_t)_r; }                                        \
+    } while (0)
 
-        if (x && !etrunc) {
-            if (x->decode_mode)
-                XAPPEND(",\"decode_mode\":\"%s\"", x->decode_mode);
-            if (x->f3_preset) {
-                char f3e[DIAG_STATS_MASK_MAX * 6];
-                if (json_escape(x->f3_preset, f3e, sizeof(f3e)) == 0)
-                    XAPPEND(",\"f3_preset\":\"%s\"", f3e);
-            }
-            if (x->rawlog_path && !drop_path) {
-                char pe[DIAG_STATS_EXTRA_MAX];
-                if (json_escape(x->rawlog_path, pe, sizeof(pe)) == 0)
-                    XAPPEND(",\"rawlog_path\":\"%s\"", pe);
-                else
-                    etrunc = 1;   /* forces the drop_path retry */
-            }
-            /* rawlog_active ships WITH the bytes counter, not with the path:
-             * the drop_path retry above discards the one unbounded field, and
-             * a liveness flag that vanished with it would leave the panel
-             * counting bytes for a sink it can no longer say is open. */
-            if (x->rawlog_valid)
-                XAPPEND(",\"rawlog_bytes\":%llu,\"rawlog_active\":%s",
-                        (unsigned long long)x->rawlog_bytes,
-                        x->rawlog_active ? "true" : "false");
-            /* All three census keys or none -- see diag_stats_extra_t. */
-            if (x->inventory_valid) {
-                XAPPEND(",\"inventory_distinct_codes\":%llu,"
-                        "\"inventory_unrecognized\":%llu,"
-                        "\"inventory_silent\":%llu",
-                        (unsigned long long)x->inventory_distinct_codes,
-                        (unsigned long long)x->inventory_unrecognized,
-                        (unsigned long long)x->inventory_silent);
-                if (x->inventory_undecoded_valid)
-                    XAPPEND(",\"inventory_undecoded_native\":%llu",
-                            (unsigned long long)x->inventory_undecoded_native);
-            }
-            /* All seven native-tap keys or none. The denominator ships
-             * with the numerator on purpose -- see diag_stats_extra_t: a
-             * coverage figure is a RATIO, and half of it published alone is
-             * worse than none. An unarmed tap omits the group entirely, so
-             * apply_diag_stats_json leaves those fields at their defaults
-             * rather than stamping zeros that read as "native decoded nothing"
-             * when the truth is "native was never asked". */
-            if (x->native_valid) {
-                XAPPEND(",\"native_total_records\":%llu,"
-                        "\"native_records\":%llu,"
-                        "\"native_obs\":%llu,"
-                        "\"native_declined\":%llu,"
-                        "\"native_enriched\":%llu,"
-                        "\"native_gps_fixes\":%llu,"
-                        "\"native_fallback_records\":%llu",
-                        (unsigned long long)x->native_total_records,
-                        (unsigned long long)x->native_records,
-                        (unsigned long long)x->native_obs,
-                        (unsigned long long)x->native_declined,
-                        (unsigned long long)x->native_enriched,
-                        (unsigned long long)x->native_gps_fixes,
-                        (unsigned long long)x->native_fallback_records);
-            }
-            /* The stream-switch groups, each whole or not at all. */
-            if (x->rawpackets_valid)
-                XAPPEND(",\"rawpackets_on\":%s,\"rawpackets_slices\":%llu,"
-                        "\"rawpackets_dropped\":%llu",
-                        x->rawpackets_on ? "true" : "false",
-                        (unsigned long long)x->rawpackets_slices,
-                        (unsigned long long)x->rawpackets_dropped);
-            if (x->qsh_valid)
-                XAPPEND(",\"qsh_requested\":%s,\"qsh_armed\":%s",
-                        x->qsh_requested ? "true" : "false",
-                        x->qsh_armed ? "true" : "false");
-            /* The CRC census group, whole or not at all. */
-            if (x->crc_valid)
-                XAPPEND(",\"crc_checked\":%llu,\"crc_ok\":%llu,"
-                        "\"crc_bad\":%llu,\"crc_damage_alerts\":%llu",
-                        (unsigned long long)x->crc_checked,
-                        (unsigned long long)x->crc_ok,
-                        (unsigned long long)x->crc_bad,
-                        (unsigned long long)x->crc_damage_alerts);
-            if (x->anchor_valid) {
-                XAPPEND(",\"anchor_count\":%llu,\"anchor_ring_dropped\":%llu",
-                        (unsigned long long)x->anchor_count,
-                        (unsigned long long)x->anchor_ring_dropped);
-                if (x->anchor_last_epoch > 0)
-                    XAPPEND(",\"anchor_last_epoch\":%lld", x->anchor_last_epoch);
-            }
+    if (x && !etrunc) {
+        if (x->decode_mode)
+            XAPPEND(",\"decode_mode\":\"%s\"", x->decode_mode);
+        if (x->f3_preset) {
+            char f3e[DIAG_STATS_MASK_MAX * 6];
+            if (json_escape(x->f3_preset, f3e, sizeof(f3e)) == 0)
+                XAPPEND(",\"f3_preset\":\"%s\"", f3e);
         }
+        /* All three census keys or none -- see diag_stats_extra_t. */
+        if (x->inventory_valid) {
+            XAPPEND(",\"inventory_distinct_codes\":%llu,"
+                    "\"inventory_unrecognized\":%llu,"
+                    "\"inventory_silent\":%llu",
+                    (unsigned long long)x->inventory_distinct_codes,
+                    (unsigned long long)x->inventory_unrecognized,
+                    (unsigned long long)x->inventory_silent);
+            if (x->inventory_undecoded_valid)
+                XAPPEND(",\"inventory_undecoded_native\":%llu",
+                        (unsigned long long)x->inventory_undecoded_native);
+        }
+        /* All seven native-tap keys or none. The denominator ships
+         * with the numerator on purpose -- see diag_stats_extra_t: a
+         * coverage figure is a RATIO, and half of it published alone is
+         * worse than none. An unarmed tap omits the group entirely, so
+         * apply_diag_stats_json leaves those fields at their defaults
+         * rather than stamping zeros that read as "native decoded nothing"
+         * when the truth is "native was never asked". */
+        if (x->native_valid) {
+            XAPPEND(",\"native_total_records\":%llu,"
+                    "\"native_records\":%llu,"
+                    "\"native_obs\":%llu,"
+                    "\"native_declined\":%llu,"
+                    "\"native_enriched\":%llu,"
+                    "\"native_gps_fixes\":%llu,"
+                    "\"native_fallback_records\":%llu",
+                    (unsigned long long)x->native_total_records,
+                    (unsigned long long)x->native_records,
+                    (unsigned long long)x->native_obs,
+                    (unsigned long long)x->native_declined,
+                    (unsigned long long)x->native_enriched,
+                    (unsigned long long)x->native_gps_fixes,
+                    (unsigned long long)x->native_fallback_records);
+        }
+        /* The stream-switch groups, each whole or not at all. */
+        if (x->rawpackets_valid)
+            XAPPEND(",\"rawpackets_on\":%s,\"rawpackets_slices\":%llu,"
+                    "\"rawpackets_dropped\":%llu",
+                    x->rawpackets_on ? "true" : "false",
+                    (unsigned long long)x->rawpackets_slices,
+                    (unsigned long long)x->rawpackets_dropped);
+        if (x->qsh_valid)
+            XAPPEND(",\"qsh_requested\":%s,\"qsh_armed\":%s",
+                    x->qsh_requested ? "true" : "false",
+                    x->qsh_armed ? "true" : "false");
+        /* The CRC census group, whole or not at all. */
+        if (x->crc_valid)
+            XAPPEND(",\"crc_checked\":%llu,\"crc_ok\":%llu,"
+                    "\"crc_bad\":%llu,\"crc_damage_alerts\":%llu",
+                    (unsigned long long)x->crc_checked,
+                    (unsigned long long)x->crc_ok,
+                    (unsigned long long)x->crc_bad,
+                    (unsigned long long)x->crc_damage_alerts);
+        if (x->anchor_valid) {
+            XAPPEND(",\"anchor_count\":%llu,\"anchor_ring_dropped\":%llu",
+                    (unsigned long long)x->anchor_count,
+                    (unsigned long long)x->anchor_ring_dropped);
+            if (x->anchor_last_epoch > 0)
+                XAPPEND(",\"anchor_last_epoch\":%lld", x->anchor_last_epoch);
+        }
+    }
 #undef XAPPEND
 
-        if (etrunc) {
-            if (drop_path)
-                return -1;      /* even without the path it will not fit */
-            continue;           /* retry without rawlog_path */
-        }
+    /* A clipped fragment or object does not parse, and the consumer dropping
+     * it costs every field in this tick, so overflow refuses the whole line. */
+    if (etrunc)
+        return -1;
 
-        int n = snprintf(buf, buflen,
-            "{\"type\":\"diag_stats\","
-            "\"bytes_read\":%llu,"
-            "\"obs_total\":%llu,"
-            "\"obs_ring_dropped\":%llu,"
-            "\"obs_per_sec\":%.3f,"
-            "\"last_obs_epoch\":%lld,"
-            "\"helper_alive\":%d,"
-            "\"mask_preset\":\"%s\""
-            "%s}",
-            (unsigned long long)s->bytes_read,
-            (unsigned long long)s->obs_total,
-            (unsigned long long)s->obs_ring_dropped,
-            diag_stats_obs_per_sec(s, now),
-            last_obs_epoch,
-            s->helper_alive ? 1 : 0,
-            mp_safe ? mp : "",
-            extra);
+    int n = snprintf(buf, buflen,
+        "{\"type\":\"diag_stats\","
+        "\"bytes_read\":%llu,"
+        "\"obs_total\":%llu,"
+        "\"obs_ring_dropped\":%llu,"
+        "\"obs_per_sec\":%.3f,"
+        "\"last_obs_epoch\":%lld,"
+        "\"helper_alive\":%d,"
+        "\"mask_preset\":\"%s\""
+        "%s}",
+        (unsigned long long)s->bytes_read,
+        (unsigned long long)s->obs_total,
+        (unsigned long long)s->obs_ring_dropped,
+        diag_stats_obs_per_sec(s, now),
+        last_obs_epoch,
+        s->helper_alive ? 1 : 0,
+        mp_safe ? mp : "",
+        extra);
 
-        if (n < 0)
-            return -1;
-        if ((size_t)n >= buflen) {
-            /* Would be truncated. Retry without the one unbounded field; if we
-             * already did, refuse -- a clipped object does not parse, and the
-             * consumer dropping it costs every field in this tick. */
-            if (drop_path)
-                return -1;
-            continue;
-        }
-        return n;
-    }
-    return -1;
+    if (n < 0 || (size_t)n >= buflen)
+        return -1;
+    return n;
 }
 
 int diag_stats_format_bringup_json(const char *phases, long elapsed_ms,

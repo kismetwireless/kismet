@@ -2179,8 +2179,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             /* Cancel channel hopping when told a single channel.
              *
              * Not for a `key=value` string: the cell sources carry
-             * their runtime SETTINGS on this route (strategy=, atlog=,
-             * rawlog=), and a scan-profile switch must not silently end a
+             * their runtime SETTINGS on this route (strategy=,
+             * clock_anchor_sec=), and a scan-profile switch must not end a
              * band hop the operator started. No channel name of any driver
              * contains '='. */
             if (caph->hopping_running && strchr(channel, '=') == NULL) {

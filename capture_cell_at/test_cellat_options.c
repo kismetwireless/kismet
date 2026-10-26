@@ -79,8 +79,8 @@ int main(void) {
             "cellat-123456789012345:atport=/dev/ttyUSB21", "");
 
     /* Every option the helper actually parses. */
-    const char *parsed[] = { "atport", "strategy", "debug", "transcript",
-                             "atlog", "clock_anchor_sec", "uuid", NULL };
+    const char *parsed[] = { "atport", "strategy", "debug", "clock_anchor_sec",
+                             "uuid", "usb", "bandlock", "sierracnd", NULL };
     for (int i = 0; parsed[i]; i++) {
         if (!cellat_option_is_known(parsed[i])) {
             fprintf(stderr, "  FAIL '%s' is parsed by the helper but reported "
@@ -106,9 +106,15 @@ int main(void) {
      * from the browser -- the recommended path -- would warn that 'type' was
      * IGNORED. This is the definition the web UI produces. */
     expect_unknown("the web UI Enable definition has no unknown options",
-            "cellat-123456789012345:atlog=/tmp/a/,channel_hop=false,"
+            "cellat-123456789012345:channel_hop=false,"
             "strategy=walking,type=cellat,"
             "uuid=5fe308bd-0000-0000-0000-000000000000", "");
+
+    /* Removed options are named: a source that asked for a file no longer
+     * gets one, and must be told. */
+    expect_unknown("removed file options are named",
+            "cellat-123456789012345:atlog=/tmp/a/,transcript=/tmp/t,"
+            "qmifeed=auto,lockstate=/tmp/s", "atlog,transcript,qmifeed,lockstate");
 
     /* The typo case this exists for. `atprot=` is accepted silently by
      * Kismet and would open whatever auto-detect picked. */

@@ -545,9 +545,6 @@ static void test_format_json_ex_emits_all_fields(void) {
     diag_stats_extra_t x;
     memset(&x, 0, sizeof(x));
     x.f3_preset = "all";
-    x.rawlog_path = "/tmp/celldiag-123.hdlc";
-    x.rawlog_bytes = 8192;
-    x.rawlog_valid = 1;
     x.inventory_distinct_codes = 12;
     x.inventory_unrecognized = 3;
     x.inventory_silent = 1;
@@ -557,9 +554,6 @@ static void test_format_json_ex_emits_all_fields(void) {
     int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
     CHECK(n > 0, "ex format returned %d", n);
     CHECK(strstr(buf, "\"f3_preset\":\"all\"") != NULL, "f3_preset: %s", buf);
-    CHECK(strstr(buf, "\"rawlog_path\":\"/tmp/celldiag-123.hdlc\"") != NULL,
-          "rawlog_path: %s", buf);
-    CHECK(strstr(buf, "\"rawlog_bytes\":8192") != NULL, "rawlog_bytes: %s", buf);
     CHECK(strstr(buf, "\"inventory_distinct_codes\":12") != NULL, "distinct: %s", buf);
     CHECK(strstr(buf, "\"inventory_unrecognized\":3") != NULL, "unrec: %s", buf);
     CHECK(strstr(buf, "\"inventory_silent\":1") != NULL, "silent: %s", buf);
@@ -588,100 +582,45 @@ static void test_format_json_ex_omits_unreported(void) {
     diag_stats_extra_t x;
     memset(&x, 0, sizeof(x));
     x.f3_preset = "off";        /* always known; always emitted */
-    /* rawlog_valid = 0 (no rawlog= configured), inventory_valid = 0 (no census) */
+    /* inventory_valid = 0 (no census) */
 
     char buf[STATS_JSON_BUF];
     int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
     CHECK(n > 0, "ex format returned %d", n);
     CHECK(strstr(buf, "\"f3_preset\":\"off\"") != NULL, "f3_preset: %s", buf);
-    CHECK(strstr(buf, "rawlog_path") == NULL, "unset path must be omitted: %s", buf);
-    CHECK(strstr(buf, "rawlog_bytes") == NULL, "unset bytes must be omitted: %s", buf);
     CHECK(strstr(buf, "inventory_") == NULL, "no census => omit all three: %s", buf);
+    /* The raw file tee is gone: no rawlog_* key may ever be published. */
+    CHECK(strstr(buf, "rawlog") == NULL, "a removed rawlog key was emitted: %s", buf);
 }
 
-/* A path may legitimately contain a quote or backslash. Unlike mask_preset --
- * a controlled label where an unsafe byte means corruption -- blanking a path
- * would lie about where the tee is writing, so it is escaped, not dropped. */
-static void test_format_json_ex_escapes_path(void) {
+/* No extras at all: the object still closes cleanly, with no stray bytes
+ * from an unwritten extras buffer between the last key and the brace. */
+static void test_format_json_without_extras_is_clean(void) {
     diag_stats_t s;
     time_t t0 = base_now();
     diag_stats_init(&s, t0);
-
-    diag_stats_extra_t x;
-    memset(&x, 0, sizeof(x));
-    x.rawlog_path = "/tmp/we\"ird\\path.hdlc";
-    x.rawlog_valid = 1;
+    diag_stats_set_mask_preset(&s, "wardrive");
 
     char buf[STATS_JSON_BUF];
-    int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
-    CHECK(n > 0, "ex format returned %d", n);
-    CHECK(strstr(buf, "\\\"ird") != NULL, "quote not escaped: %s", buf);
-    CHECK(strstr(buf, "\\\\path") != NULL, "backslash not escaped: %s", buf);
-    /* The path survives -- it is escaped, not blanked. */
-    CHECK(strstr(buf, "\"rawlog_path\":\"\"") == NULL,
-          "path must not be blanked: %s", buf);
-    /* Every quote in the object is either a delimiter or escaped => the brace
-     * count outside strings is balanced and the object is well-formed. */
-    CHECK(buf[0] == '{' && buf[n - 1] == '}', "not one object: %s", buf);
+    int n = diag_stats_format_json_ex(&s, NULL, t0, buf, sizeof(buf));
+    CHECK(n > 0, "format returned %d", n);
+    CHECK(n >= 25 && strcmp(buf + n - 25, "\"mask_preset\":\"wardrive\"}") == 0,
+          "object does not end at mask_preset: %s", buf);
 }
 
-/* Overflow DEGRADES: the one unbounded field (the path) is dropped so the ten
- * bounded ones still arrive. Dropping the path costs the operator one string;
- * truncating the object costs them every field in the tick. */
-static void test_format_json_ex_overflow_drops_path_not_counters(void) {
-    diag_stats_t s;
-    time_t t0 = base_now();
-    diag_stats_init(&s, t0);
-    diag_stats_on_read(&s, 4096, t0);
-
-    char longpath[DIAG_STATS_EXTRA_MAX + 64];
-    memset(longpath, 'x', sizeof(longpath) - 1);
-    longpath[0] = '/';
-    longpath[sizeof(longpath) - 1] = '\0';
-
-    diag_stats_extra_t x;
-    memset(&x, 0, sizeof(x));
-    x.rawlog_path = longpath;
-    x.rawlog_bytes = 777;
-    x.rawlog_valid = 1;
-    x.inventory_distinct_codes = 9;
-    x.inventory_valid = 1;
-
-    char buf[STATS_JSON_BUF];
-    int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
-    CHECK(n > 0, "should degrade, not refuse; got %d", n);
-    CHECK(strstr(buf, "rawlog_path") == NULL,
-          "oversize path must be dropped: %s", buf);
-    CHECK(strstr(buf, "\"rawlog_bytes\":777") != NULL,
-          "bounded counters must survive the drop: %s", buf);
-    CHECK(strstr(buf, "\"inventory_distinct_codes\":9") != NULL,
-          "census must survive the drop: %s", buf);
-    CHECK(strstr(buf, "\"bytes_read\":4096") != NULL,
-          "base counters must survive the drop: %s", buf);
-    CHECK(buf[0] == '{' && buf[n - 1] == '}', "not one object: %s", buf);
-}
-
-/* Every group at once, every counter at its u64 maximum, and a 300-char tee
- * path. The emit site's buffer is 2048 (capture_cell_diag.c `fjbuf`). The extras
- * without the path are about 1,014 B, so DIAG_STATS_EXTRA_MAX must leave room
- * for this path; a new group must be sized in by raising it, not by eating the
- * path's budget. The path is deliberately long: an 80-char one would still fit
- * at a too-small limit and could not catch that. */
-static void test_format_json_ex_every_group_at_worst_case_keeps_the_path(void) {
+/* Every group at once, every counter at its u64 maximum. The emit site's
+ * buffer is 2048 (capture_cell_diag.c `fjbuf`) and the extras are bounded by
+ * DIAG_STATS_EXTRA_MAX; a new group must be sized in by raising it. */
+static void test_format_json_ex_every_group_at_worst_case_fits(void) {
     diag_stats_t s;
     time_t t0 = base_now();
     diag_stats_init(&s, t0);
     diag_stats_on_read(&s, 4096, t0);
 
     const uint64_t M = UINT64_MAX;
-    char path[301];
-    memset(path, 'p', 300);
-    memcpy(path, "/tee/", 5);
-    path[300] = '\0';
     diag_stats_extra_t x;
     memset(&x, 0, sizeof(x));
     x.f3_preset = "all";
-    x.rawlog_path = path; x.rawlog_bytes = M; x.rawlog_valid = 1; x.rawlog_active = 1;
     x.inventory_distinct_codes = M; x.inventory_unrecognized = M;
     x.inventory_silent = M; x.inventory_valid = 1;
     x.inventory_undecoded_native = M; x.inventory_undecoded_valid = 1;
@@ -698,7 +637,6 @@ static void test_format_json_ex_every_group_at_worst_case_keeps_the_path(void) {
     char buf[2048];
     int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
     CHECK(n > 0, "worst case refused: %d", n);
-    CHECK(strstr(buf, path) != NULL, "the tee path was dropped at worst case: %s", buf);
     CHECK(strstr(buf, "\"crc_damage_alerts\":18446744073709551615") != NULL,
           "crc group missing at worst case: %s", buf);
     CHECK(strstr(buf, "\"inventory_undecoded_native\":18446744073709551615") != NULL,
@@ -706,114 +644,6 @@ static void test_format_json_ex_every_group_at_worst_case_keeps_the_path(void) {
     CHECK(strstr(buf, "\"anchor_count\":18446744073709551615") != NULL,
           "the group after crc was cut: %s", buf);
     CHECK(n > 0 && buf[0] == '{' && buf[n - 1] == '}', "not one object: %s", buf);
-}
-
-/* A retained path is not a running tee.
- *
- * `rawlog=off` closes the sink and DELIBERATELY leaves `rawlog_path` set, so an
- * operator can still answer "where did the bytes I already captured go?"
- * (capture_cell_diag.c's runtime-disable arm says so in as many words). That
- * retention is right, and it means the path CANNOT carry the tee's live state:
- * after one stop, path-is-set and tee-is-running disagree forever.
- *
- * Without `rawlog_active` the only published difference between the two is
- * `rawlog_bytes` no longer rising -- a signal that requires a reader to watch
- * two consecutive ticks and to know what the number did last time. A web-UI
- * control that reads the path concludes the tee is on and offers only "Stop
- * tee"; the start input becomes unreachable for the rest of the source's life.
- * A one-way toggle.
- *
- * So the two states must be DISTINGUISHABLE IN ONE OBJECT, without history. */
-static void test_format_json_ex_distinguishes_a_stopped_tee_from_a_running_one(void) {
-    diag_stats_t s;
-    time_t t0 = base_now();
-    char running[STATS_JSON_BUF], stopped[STATS_JSON_BUF];
-
-    diag_stats_init(&s, t0);
-
-    diag_stats_extra_t x;
-    memset(&x, 0, sizeof(x));
-    x.rawlog_path = "/tmp/celldiag-123.hdlc";
-    x.rawlog_bytes = 8192;
-    x.rawlog_valid = 1;
-    x.rawlog_active = 1;
-    CHECK(diag_stats_format_json_ex(&s, &x, t0, running, sizeof(running)) > 0,
-          "running format failed");
-
-    /* The ONLY change is the sink closing. Same path, same byte total -- which
-     * is exactly the state a stop leaves behind, and exactly why the other two
-     * fields cannot be asked to report it. */
-    x.rawlog_active = 0;
-    CHECK(diag_stats_format_json_ex(&s, &x, t0, stopped, sizeof(stopped)) > 0,
-          "stopped format failed");
-
-    CHECK(strstr(running, "\"rawlog_active\":true") != NULL,
-          "running tee must say so: %s", running);
-    CHECK(strstr(stopped, "\"rawlog_active\":false") != NULL,
-          "stopped tee must say so: %s", stopped);
-
-    /* The control: both still report where the bytes went, identically. If a
-     * future edit "fixes" this by clearing the path on stop, this fails -- and
-     * it should, because that trades one lie for another. */
-    CHECK(strstr(stopped, "\"rawlog_path\":\"/tmp/celldiag-123.hdlc\"") != NULL,
-          "a stop must not erase where the bytes went: %s", stopped);
-    CHECK(strstr(stopped, "\"rawlog_bytes\":8192") != NULL,
-          "a stop must not erase the byte total: %s", stopped);
-    CHECK(strcmp(running, stopped) != 0,
-          "the two states rendered identically -- the object cannot express "
-          "a stopped tee: %s", stopped);
-}
-
-/* `rawlog_active` rides the `rawlog_valid` gate with `rawlog_bytes`, NOT the
- * path. That is load-bearing in the one direction it can be got wrong: the
- * overflow retry drops the unbounded path and keeps the bounded counters, and
- * a state flag that vanished with the path would leave the panel unable to say
- * whether the tee it is still counting bytes for is even open. */
-static void test_rawlog_active_survives_the_oversize_path_drop(void) {
-    diag_stats_t s;
-    time_t t0 = base_now();
-    diag_stats_init(&s, t0);
-
-    char longpath[DIAG_STATS_EXTRA_MAX + 64];
-    memset(longpath, 'x', sizeof(longpath) - 1);
-    longpath[0] = '/';
-    longpath[sizeof(longpath) - 1] = '\0';
-
-    diag_stats_extra_t x;
-    memset(&x, 0, sizeof(x));
-    x.rawlog_path = longpath;
-    x.rawlog_bytes = 777;
-    x.rawlog_valid = 1;
-    x.rawlog_active = 1;
-
-    char buf[STATS_JSON_BUF];
-    int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
-    CHECK(n > 0, "should degrade, not refuse; got %d", n);
-    CHECK(strstr(buf, "rawlog_path") == NULL,
-          "oversize path must still be dropped: %s", buf);
-    CHECK(strstr(buf, "\"rawlog_active\":true") != NULL,
-          "the tee's state must survive the path drop: %s", buf);
-}
-
-/* No `rawlog=` at all: the key is OMITTED, not sent as false. `false` reads as
- * "a tee exists and is stopped" and would render a Start-tee control beside a
- * path row that says "off (no rawlog= configured)". Same omission rule the rest
- * of this struct obeys, applied to the field most tempting to default. */
-static void test_rawlog_active_is_omitted_when_no_tee_was_ever_configured(void) {
-    diag_stats_t s;
-    time_t t0 = base_now();
-    diag_stats_init(&s, t0);
-
-    diag_stats_extra_t x;
-    memset(&x, 0, sizeof(x));
-    x.f3_preset = "off";
-    /* rawlog_valid = 0 => no rawlog= was given */
-
-    char buf[STATS_JSON_BUF];
-    int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
-    CHECK(n > 0, "ex format returned %d", n);
-    CHECK(strstr(buf, "rawlog_active") == NULL,
-          "an unconfigured tee must omit the key, not publish false: %s", buf);
 }
 
 /* The switches an operator flips from the panel read back as fields.
@@ -948,12 +778,8 @@ int main(void) {
     test_format_json_refuses_to_truncate();
     test_format_json_ex_emits_all_fields();
     test_format_json_ex_omits_unreported();
-    test_format_json_ex_distinguishes_a_stopped_tee_from_a_running_one();
-    test_rawlog_active_survives_the_oversize_path_drop();
-    test_rawlog_active_is_omitted_when_no_tee_was_ever_configured();
-    test_format_json_ex_escapes_path();
-    test_format_json_ex_overflow_drops_path_not_counters();
-    test_format_json_ex_every_group_at_worst_case_keeps_the_path();
+    test_format_json_without_extras_is_clean();
+    test_format_json_ex_every_group_at_worst_case_fits();
     test_format_json_ex_reports_the_stream_switches();
     test_format_json_ex_omits_unreported_switches();
     test_bringup_json_reports_progress();

@@ -47,20 +47,14 @@
  * before the decoder counts as stalled. The reader loop advances it on every
  * pass, and every pass is poll()-bounded at 250 ms, so an idle port still
  * beats four times a second. Silence therefore means the thread is stuck, not
- * that the modem is quiet. 10 s is 40 missed beats: room for slow storage
- * under rawlog=, without letting a dead decoder read alive for long. */
+ * that the modem is quiet. 10 s is 40 missed beats: room for a slow pass,
+ * without letting a dead decoder read alive for long. */
 #define DIAG_STATS_DECODER_STALL_SEC 10
 
 /* Room for the whole extras suffix (config strings, census counters, the
  * native-tap group, the switch groups and the CRC census) inside the JSON
- * object, with enough left over for an escaped
- * rawlog_path. A path too long to fit degrades to "path omitted, counters
- * still sent" rather than to a clipped object that parses as nothing.
- *
- * Grow this whenever a new group is added. If the bounded keys eat the path
- * budget, the drop_path retry makes the output LOOK correct (valid JSON,
- * counters present) while rawlog_path silently goes dead on every emit. The
- * retry is a last-resort degradation, not a sizing strategy. */
+ * object. Every extra is bounded, so an overflow is a sizing bug: the line is
+ * refused rather than clipped. Grow this whenever a new group is added. */
 #define DIAG_STATS_EXTRA_MAX        1440
 
 /* The JSON row type the source sends once at end-of-stream with the CRC
@@ -194,7 +188,7 @@ int diag_stats_format_liveness_json(int alive, const char *decode_mode,
  *
  * Every registered kismet.datasource.celldiag.* tracker field needs a producer;
  * one nobody emits sits at a permanent zero/"" that the web UI renders as a
- * healthy reading ("rawlog_bytes: 0" reads as "on, nothing written yet"). This
+ * healthy reading ("anchor_count: 0" reads as "on, none yet"). This
  * struct carries the config-owned strings and the census, passed
  * in by the emit site that owns them, so one JSON object carries all of them.
  *
@@ -212,27 +206,6 @@ typedef struct {
                                  * one: a severity floor reported as "all" tells
                                  * the operator they see the full trace while
                                  * part of it is silenced at the modem */
-    const char *rawlog_path;    /* resolved tee path; escaped, may contain "\ */
-    uint64_t    rawlog_bytes;   /* bytes actually written to the tee sink */
-    int         rawlog_valid;   /* 1 = emit rawlog_bytes (tee configured) */
-    int         rawlog_active;  /* 1 = the sink is OPEN RIGHT NOW (rawlog_fd
-                                 * >= 0). Not inferable from the two fields
-                                 * above, and that is the point: a runtime
-                                 * `rawlog=off` closes the sink and KEEPS
-                                 * rawlog_path, deliberately, so the operator
-                                 * can still find where the bytes went. Path
-                                 * retention and tee liveness therefore diverge
-                                 * permanently after the first stop, and a
-                                 * consumer reading the path for liveness (such
-                                 * as a web-UI toggle) can never offer to
-                                 * restart. The bytes counter cannot answer it
-                                 * either -- "stopped rising" needs two ticks
-                                 * and a memory of the last one, which is a
-                                 * derivative, not a state. Rides the
-                                 * rawlog_valid gate WITH rawlog_bytes rather
-                                 * than with the path, so the overflow retry
-                                 * that drops the unbounded path still reports
-                                 * whether the sink it is counting for is open */
 
     /* The census. All three keys emit together or not at all --
      * a distinct-code count without its unrecognized/silent companions invites
@@ -301,7 +274,7 @@ typedef struct {
     int         anchor_valid;          /* 1 = the ClockAnchor stream is live */
     uint64_t    anchor_count;          /* anchors completed */
     uint64_t    anchor_ring_dropped;   /* rows a full output ring would not
-                                        * take (still in the sidecar) */
+                                        * take */
     long long   anchor_last_epoch;     /* wall time of the last one; 0 = none
                                         * yet, and then the key is OMITTED */
     /* Which decoder renders the observations: "native-only". A controlled
@@ -320,11 +293,7 @@ typedef struct {
  *
  * Truncation is a FAILURE, not a shorter update. A clipped JSON object does
  * not parse, so the consumer drops it and every field in that tick goes
- * unupdated -- strictly worse than emitting less. `rawlog_path` is the only
- * unbounded input (a filesystem path against a 1 KiB status buffer), so on
- * overflow this retries once WITHOUT that key; the ten bounded fields still get
- * through and the consumer keeps the path's prior value. Returns -1 (write
- * nothing) only if even the reduced object will not fit.
+ * unupdated -- so on overflow nothing is written.
  *
  * Returns the strlen written (>0), or -1 on bad args / unfixable overflow.
  * Does NOT mutate `s`. */

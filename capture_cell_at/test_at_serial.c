@@ -302,7 +302,7 @@ static void test_timing_splits_think_and_transfer(void) {
     at_timing_t tm;
     char resp[256];
     uint64_t t0 = at_mono_ns();
-    int n = at_command_log(sv[0], "AT+QENG", resp, sizeof(resp), 2000, -1, &tm);
+    int n = at_command_log(sv[0], "AT+QENG", resp, sizeof(resp), 2000, &tm);
     uint64_t t1 = at_mono_ns();
 
     check(n > 0 && strstr(resp, "+QENG: 1") != NULL, "timed exchange still returns the body");
@@ -332,7 +332,7 @@ static void test_timing_bare_ok(void) {
 
     at_timing_t tm;
     char resp[64];
-    int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 2000, -1, &tm);
+    int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 2000, &tm);
     check(n >= 0 && strcmp(resp, "OK") == 0, "bare OK returned");
     check(tm.first_rx_ns != 0 && tm.rx_done_ns != 0, "bare OK: first_rx and rx_done set");
     check(tm.first_rx_ns - tm.tx_done_ns >= 70 * MS_NS, "bare OK: think-time is the 80 ms, not the echo");
@@ -355,7 +355,7 @@ static void test_timing_timeout_has_no_rx_done(void) {
 
     at_timing_t tm;
     char resp[128];
-    int n = at_command_log(sv[0], "AT+COPS=?", resp, sizeof(resp), 300, -1, &tm);
+    int n = at_command_log(sv[0], "AT+COPS=?", resp, sizeof(resp), 300, &tm);
     check(n > 0, "timed-out exchange keeps the partial body");
     check(tm.tx_done_ns != 0, "timeout: tx_done set");
     check(tm.first_rx_ns != 0, "timeout: first_rx set (a line did arrive)");
@@ -376,7 +376,7 @@ static void test_timing_silent_and_failed_write(void) {
 
     at_timing_t tm;
     char resp[64];
-    (void)at_command_log(sv[0], "AT", resp, sizeof(resp), 200, -1, &tm);
+    (void)at_command_log(sv[0], "AT", resp, sizeof(resp), 200, &tm);
     check(tm.tx_done_ns != 0 && tm.first_rx_ns == 0 && tm.rx_done_ns == 0,
           "silent modem: tx_done only");
     close(sv[0]);
@@ -385,14 +385,14 @@ static void test_timing_silent_and_failed_write(void) {
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) { perror("socketpair"); fail = 1; return; }
     close(sv[1]);                                   /* peer gone: write() fails EPIPE */
     tm.tx_done_ns = tm.first_rx_ns = tm.rx_done_ns = 12345;
-    int n = at_command_log(sv[0], "AT", resp, sizeof(resp), 200, -1, &tm);
+    int n = at_command_log(sv[0], "AT", resp, sizeof(resp), 200, &tm);
     check(n == -1, "failed write returns -1");
     check(tm.tx_done_ns == 0 && tm.first_rx_ns == 0 && tm.rx_done_ns == 0,
           "failed write: all three 0, caller's stale values cleared");
     close(sv[0]);
 
     tm.tx_done_ns = tm.first_rx_ns = tm.rx_done_ns = 12345;
-    n = at_command_log(-1, "AT", resp, sizeof(resp), 200, -1, &tm);
+    n = at_command_log(-1, "AT", resp, sizeof(resp), 200, &tm);
     check(n == -1 && tm.tx_done_ns == 0 && tm.first_rx_ns == 0 && tm.rx_done_ns == 0,
           "fd < 0: -1 and all three 0");
 }
@@ -419,7 +419,7 @@ static void test_timing_burst_reply_reads_as_zero_transfer(void) {
     at_timing_t tm;
     static char resp[4096];
     int n = at_command_log(sv[0], "AT+QENG=\"neighbourcell\"", resp, sizeof(resp),
-                           2000, -1, &tm);
+                           2000, &tm);
     uint64_t t1 = at_mono_ns();
     check(n > 2900 && strcmp(resp + n - 3, "\nOK") == 0,
           "burst: the whole ~3 KB reply came back, OK last");
@@ -466,9 +466,9 @@ static void test_urc_after_ok_is_not_the_next_reply(void) {
 
     char resp[256];
     at_timing_t tm;
-    int n = at_command_log(sv[0], "AT+CFUN?", resp, sizeof(resp), 2000, -1, NULL);
+    int n = at_command_log(sv[0], "AT+CFUN?", resp, sizeof(resp), 2000, NULL);
     check(n >= 0 && strcmp(resp, "OK") == 0, "URC after OK: the first reply is just OK");
-    n = at_command_log(sv[0], "AT", resp, sizeof(resp), 2000, -1, &tm);
+    n = at_command_log(sv[0], "AT", resp, sizeof(resp), 2000, &tm);
     check(n >= 0 && strcmp(resp, "OK") == 0,
           "URC after OK: the next reply is its own OK, not the leftover URC");
     check(tm.first_rx_ns != 0 && tm.first_rx_ns - tm.tx_done_ns >= 50 * MS_NS,
@@ -489,7 +489,7 @@ static void test_timing_split_line_keeps_the_first_reads_instant(void) {
 
     at_timing_t tm;
     char resp[256];
-    int n = at_command_log(sv[0], "AT+QENG", resp, sizeof(resp), 2000, -1, &tm);
+    int n = at_command_log(sv[0], "AT+QENG", resp, sizeof(resp), 2000, &tm);
     check(n > 0 && strstr(resp, "+QENG: partone") != NULL,
           "split line: the two reads join into one line");
     check(tm.first_rx_ns != 0 && tm.first_rx_ns - tm.tx_done_ns < 100 * MS_NS,
@@ -517,7 +517,7 @@ static void test_info_unterminated_value_ends_on_the_gap(void) {
     char resp[256];
     struct timeval a, b;
     gettimeofday(&a, NULL);
-    int n = at_command_log_ex(sv[0], "AT+CGMR", resp, sizeof(resp), 3000, -1, &tm, 200);
+    int n = at_command_log_ex(sv[0], "AT+CGMR", resp, sizeof(resp), 3000, &tm, 200);
     gettimeofday(&b, NULL);
 
     check(n > 0 && strstr(resp, "T99W175.F0.1.0.0.9.GC.004") != NULL,
@@ -567,7 +567,7 @@ static void test_info_late_ok_is_not_the_end_of_the_reply(void) {
     char resp[256];
     struct timeval a, b;
     gettimeofday(&a, NULL);
-    int n = at_command_log_ex(sv[0], "AT+CGMI", resp, sizeof(resp), 3000, -1, &tm, 200);
+    int n = at_command_log_ex(sv[0], "AT+CGMI", resp, sizeof(resp), 3000, &tm, 200);
     gettimeofday(&b, NULL);
 
     check(n > 0 && strstr(resp, "QUALCOMM") != NULL,
@@ -613,7 +613,7 @@ static void test_info_terminated_reply_is_read_as_before(void) {
     char resp[256];
     struct timeval a, b;
     gettimeofday(&a, NULL);
-    int n = at_command_log_ex(sv[0], "AT+CGSN", resp, sizeof(resp), 3000, -1, &tm, 200);
+    int n = at_command_log_ex(sv[0], "AT+CGSN", resp, sizeof(resp), 3000, &tm, 200);
     gettimeofday(&b, NULL);
 
     check(n > 0 && strstr(resp, "860000000000000") != NULL && strstr(resp, "OK") != NULL,
@@ -666,7 +666,7 @@ static void test_late_ok_does_not_end_the_next_ordinary_read(void) {
     check(n > 0 && strstr(resp, "Quectel") != NULL, "late OK: the info read took its value");
 
     at_timing_t tm;
-    n = at_command_log(sv[0], "AT+QENG=\"servingcell\"", resp, sizeof(resp), 3000, -1, &tm);
+    n = at_command_log(sv[0], "AT+QENG=\"servingcell\"", resp, sizeof(resp), 3000, &tm);
     check(n > 0 && strstr(resp, "+QENG:") != NULL,
           "late OK: the next ORDINARY read did not end on the previous exchange's OK");
     check(strncmp(resp, "+QENG:", 6) == 0,
@@ -691,7 +691,7 @@ static void test_late_ok_then_a_bare_ok_reply(void) {
     (void)at_info_command(sv[0], "AT+CGMI", resp, sizeof(resp), 3000, 200);
 
     at_timing_t tm;
-    int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 3000, -1, &tm);
+    int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 3000, &tm);
     check(n >= 0 && strcmp(resp, "OK") == 0, "late OK + bare OK: the reply reads as one OK");
     check(tm.rx_done_ns != 0 && tm.rx_done_ns - tm.tx_done_ns >= 200 * MS_NS,
           "late OK + bare OK: ended on the real OK (~230 ms), not the late one (~130 ms)");
@@ -719,7 +719,7 @@ static void test_no_late_ok_the_next_bare_ok_costs_only_the_gap(void) {
     at_timing_t tm;
     struct timeval a, b;
     gettimeofday(&a, NULL);
-    int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 3000, -1, &tm);
+    int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 3000, &tm);
     gettimeofday(&b, NULL);
     check(n >= 0 && strcmp(resp, "OK") == 0, "no late OK: the bare OK is the reply");
     check(elapsed_ms(a, b) < 700, "no late OK: it costs the gap, not the 3 s deadline");

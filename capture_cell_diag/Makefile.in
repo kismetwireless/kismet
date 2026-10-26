@@ -11,8 +11,6 @@ MONITOR_OBJS = \
 	diag_hdlc.c.o \
 	diag_config.c.o \
 	diag_capture.c.o \
-	diag_rawlog.c.o \
-	diag_capmeta.c.o \
 	diag_clockanchor.c.o \
 	diag_rawpkt.c.o \
 	diag_profile.c.o \
@@ -187,14 +185,9 @@ $(PROBE_BIN):	$(PROBE_OBJS) $(patsubst %c.o,%c.d,$(PROBE_OBJS))
 		$(CCLD) $(LDFLAGS) -o $(PROBE_BIN) $(PROBE_OBJS)
 
 # Standalone unit tests for the module cores (libc only, no Kismet link).
-TEST_RAWLOG_BIN = test_diag_rawlog
-# diag_capmeta writes the rawlog capture-config provenance sidecar:
-# sidecar-path derivation, JSON escaping, and the whole-object formatter, all
-# libc-only. Its selftest is a separate test_*.c driver like rawlog's.
-TEST_CAPMETA_BIN = test_diag_capmeta
 # diag_clockanchor is the host<->modem-ts64 anchor core: the DIAG_TS_F
-# request, the reply scanner over the live stream, the ClockAnchor record and
-# its sidecar. libc-only; links the hdlc + capmeta cores it reuses.
+# request, the reply scanner over the live stream and the ClockAnchor record.
+# libc-only; links the hdlc core it reuses.
 TEST_CLOCKANCHOR_BIN = test_diag_clockanchor
 # diag_rawpkt is the slicer: the raw DIAG stream cut into offset-stamped
 # whole-frame slices for the kismetdb packets table, and the slice-header codec.
@@ -285,8 +278,6 @@ ifeq ($(CELL_SELFTEST),1)
 SELFTEST_BINS = $(TEST_HDLC_BIN) \
 	$(TEST_CONFIG_BIN) \
 	$(TEST_CAPTURE_BIN) \
-	$(TEST_RAWLOG_BIN) \
-	$(TEST_CAPMETA_BIN) \
 	$(TEST_CLOCKANCHOR_BIN) \
 	$(TEST_RAWPKT_BIN) \
 	$(TEST_STATS_BIN) \
@@ -338,18 +329,10 @@ $(TEST_CAPTURE_BIN):	diag_capture.c diag_capture.h diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_CAPTURE_SELFTEST -o $(TEST_CAPTURE_BIN) \
 		    diag_capture.c diag_hdlc.c
 
-$(TEST_RAWLOG_BIN):	test_diag_rawlog.c diag_rawlog.c diag_rawlog.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_RAWLOG_BIN) \
-		    test_diag_rawlog.c diag_rawlog.c
-
-$(TEST_CAPMETA_BIN):	test_diag_capmeta.c diag_capmeta.c diag_capmeta.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CAPMETA_BIN) \
-		    test_diag_capmeta.c diag_capmeta.c
-
 $(TEST_CLOCKANCHOR_BIN):	test_diag_clockanchor.c diag_clockanchor.c diag_clockanchor.h \
-			diag_hdlc.c diag_hdlc.h diag_capmeta.c diag_capmeta.h
+			diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CLOCKANCHOR_BIN) \
-		    test_diag_clockanchor.c diag_clockanchor.c diag_hdlc.c diag_capmeta.c
+		    test_diag_clockanchor.c diag_clockanchor.c diag_hdlc.c
 
 $(TEST_RAWPKT_BIN):	test_diag_rawpkt.c diag_rawpkt.c diag_rawpkt.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_RAWPKT_BIN) \
@@ -416,11 +399,9 @@ clean:
 	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o diag_native_decode.cpp.o
 	@-rm -f $(MONITOR_BIN)
 	@-rm -f $(PROBE_BIN)
-	@-rm -f $(TEST_CAPMETA_BIN)
 	@-rm -f $(TEST_CLOCKANCHOR_BIN)
 	@-rm -f $(TEST_RAWPKT_BIN)
 	@-rm -f $(REPLAY_NDJSON_BIN)
-	@-rm -f $(TEST_RAWLOG_BIN)
 	@-rm -f $(TEST_OPTSET_BIN)
 	@-rm -f $(TEST_INVENTORY_BIN)
 	@-rm -f $(TEST_GPSFIX_BIN)

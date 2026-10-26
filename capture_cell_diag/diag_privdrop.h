@@ -1,31 +1,19 @@
 /* diag_privdrop.h - drop a setuid/setgid install's elevated ids in a forked
- * child, before it execs a command the caller chose.
+ * child.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * `make suidinstall` installs kismet_cap_cell_at and kismet_cap_cell_diag
- * setuid root, mode 4550, like every other Kismet capture. Unlike the others,
- * cellat starts a child: `qmifeed=auto` (the shipped feed under a system
- * python3, with arguments from the SOURCE DEFINITION). (celldiag starts no
- * child; this header lives beside it because the two capture drivers share it.)
- * Without a drop, a member
- * of the suid group gets a shell at the binary's effective uid.
- *
- * None of those children needs the elevated ids. The capture binary opens the
- * modem itself and hands the child a pipe; the child only decodes. So the
- * child gives them up -- real ids become all three of real/effective/saved --
- * and a caller-chosen command runs as the caller, exactly as it would have
- * without the suid bit.
- *
- * One consequence, stated because it is the intended one: under a suid
- * install, `qmifeed=`'s qmicli runs as the invoking user, so it needs its own
- * access to /dev/cdc-wdm* (a udev rule, or run Kismet's capture as root). A
- * suid bit is not a way to lend qmicli root.
+ * setuid root, mode 4550, like every other Kismet capture. The few files the
+ * captures write themselves (cell_safefile.h) are opened in a child that has
+ * given the elevated ids up -- real ids become all three of
+ * real/effective/saved -- so a path the caller cannot write as themselves
+ * cannot be written through the capture.
  *
  * Not suid (ruid == euid, rgid == egid): a no-op, returns 0.
  *
  * FAILS CLOSED: if an id cannot be dropped, or can be regained afterwards,
- * this returns -1 and writes why into err. Callers _exit() rather than exec.
+ * this returns -1 and writes why into err. Callers _exit().
  * Header-only (static inline), so both captures and their selftests share one
  * implementation with no new object in either build. */
 

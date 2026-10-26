@@ -137,7 +137,7 @@ escalates on).
 | option | meaning |
 |---|---|
 | `diagport=/dev/ttyUSBx` | override DIAG-port auto-detection (or `usb:BUS-ADDR:IF`, a libusb interface) |
-| `usb=auto` | modems with no host driver, over libusb: `auto` (default) the ones no driver has, `force` takes them from the driver, `off` none. See [cellat's 4f](../capture_cell_at/README.md#4f-modems-with-no-host-driver-usb) |
+| `usb=auto` | modems with no host driver, over libusb: `auto` (default) the ones no driver has, `force` takes them from the driver, `off` none. See [cellat's 4e](../capture_cell_at/README.md#4e-modems-with-no-host-driver-usb) |
 | `atport=<path>` | name the AT-identify node and skip the IMEI scan. Optional for an MHI/wwan modem (a bare `celldiag-<imei>` falls back to `/dev/mhi_DUN`, `/dev/wwan*at*`); name it, with `diagport=`, when several PCIe modems make the by-name pick ambiguous |
 | `spc=000000` | send a `DIAG_SPC_F` unlock (6 digits) before `LOG_CONFIG` — needed on SPC-gated modems (EG25-G / EC2x); harmless to omit on SDX24/SDX55 |
 | `mask=wardrive` | the default `LOG_CONFIG` subscription: the curated cell set (`0xB193`/`0xB0C0`/`0xB192`/`0xB195`/`0xB17F`/`0xB197`/`0xB821`/`0xB97F`), low volume |
@@ -148,11 +148,10 @@ escalates on).
 | `qsh=on` | full F3 surface — arm the QSH-trace `0x9001` maskset (`0x9D`/`0x92`) + `0x60` events + a `diag_id` binding request as a **gated tier** over the same DIAG fd. Off by default; for debug captures only. QSH emits no cell observations: its value is in the raw stream. Non-fatal on parts that don't implement it (SDX20 status≠0 / MDM9607 `BAD_CMD`). **Disarmed on stop**, on a REST close or a Ctrl-C: the QSH-trace latch (it survives reboots), F3, and the `0x60` event stream the arm turned on. A passive `celldiag_probe --no-mask` tap after the stop confirms it |
 | `profiles=<dir>` | `capture_cell_at` profile JSONs supplying per-modem defaults for `mask=` (`diag.mask_default`), `f3=` (`diag.f3_default`) and `spc=` (`diag.spc`), matched on firmware. An explicit option always wins. Default `$CELLDIAG_PROFILES`, else compiled-in (empty: not consulted) |
 | `replay=<file>` | decode a saved raw-HDLC capture instead of a live port (no modem opened, no mask sent) |
-| `rawlog=<spec>` | tee the raw DIAG stream to disk (`%m` = model, `%i` = IMEI, `%t` = UTC stamp; a directory gets a synthesized `celldiag-<imei>-<ts>.hdlc`). The file is replay-compatible. **One tee per capture session, never truncated:** a reopen (a restart-to-apply toggle, the whole-modem switch, Kismet's error reopen) that finds the file non-empty tees to `<stem>-<UTC ts><ext>` instead, and the `.capture_meta.json` / `.clock_anchor.jsonl` companions follow it. Each tee then matches exactly one kismetdb DIAG stream |
 | `rawpackets=off` | stop sending the raw DIAG stream into Kismet as DLT 147 packets (default **on**; see [below](#raw-diag-in-the-kismetdb-rawpackets)) |
 | `gsmtap=on` | live GSMTAP out: every LTE RRC (`0xB0C0`) and LTE NAS (`0xB0Ex`) record is also sent as a UDP datagram to `127.0.0.1:4729`, for a Wireshark beside Kismet. `gsmtap=<ipv4>[:<port>]` sends elsewhere; default **off**. See [below](#live-sibs-in-wireshark-gsmtap) |
 | `stats_interval=<s>` | seconds between [health lines](#health-helper_alive-means-the-decoder-is-alive) (default 30; `0` disables) |
-| `clock_anchor_sec=<s>` | cadence of the host↔modem clock anchor: a `DIAG_TS_F` request at start, every `<s>` seconds (default 30; `0` = periodic off) and at end, each reply paired with the host clock as a `type="ClockAnchor"` kismetdb row and a line of `<rawlog>.clock_anchor.jsonl`, so a GNSS-off drive can still put absolute UTC on every frame. Live modems only |
+| `clock_anchor_sec=<s>` | cadence of the host↔modem clock anchor: a `DIAG_TS_F` request at start, every `<s>` seconds (default 30; `0` = periodic off) and at end, each reply paired with the host clock as a `type="ClockAnchor"` kismetdb row, so a GNSS-off drive can still put absolute UTC on every frame. Live modems only |
 | `enabled=false` | register the source but leave it idle (no port opened, no handshake, no decoder started) |
 | `debug=true` | verbose message-bus logging |
 | `nativedecode=only`, `census=native` | accepted, and the default; any other value is refused (see [Decoder](#decoder)) |
@@ -161,37 +160,16 @@ escalates on).
 
 Kismet ships exactly **one** generic runtime setter for a datasource —
 `POST /datasource/by-uuid/<uuid>/set_channel` — so every knob multiplexes
-through that single string, in the same `key=value` spelling used above:
-
-| runtime setting | effect |
-|---|---|
-| `rawlog=<spec>` | start or **redirect** the tee mid-capture. The new sink is opened *before* the old one is closed, so a bad path costs you nothing |
-| `rawlog=off` / `rawlog=none` | stop the tee. `rawlog_path` is deliberately **retained** — a stopped tee must stay distinguishable from one that was never configured |
-
-**The retention above is why `rawlog_active` exists.** Keeping the
-path across a stop is right — it answers *"where did the bytes I already
-captured go?"* — but it means the path answers only that, and never *"is it
-writing?"*. `rawlog_active` reports the sink's fd directly, and the three
-states are read from the pair:
-
-| `rawlog_path` | `rawlog_active` | meaning |
-|---|---|---|
-| absent / `""` | absent / `0` | no `rawlog=` was ever configured |
-| set | `true` | the tee is open and writing |
-| set | `false` | the tee **stopped**; the file named is complete |
-
-A consumer that derives liveness from the path alone collapses the last two
-rows and can never offer to restart. `rawlog_bytes` no longer rising is the same
-information, but it is a *derivative*: it needs two ticks and a memory of the
-previous one, so nothing renderable from a single object can use it.
+through that single string, in the same `key=value` spelling used above. No
+celldiag option is settable at runtime.
 
 `mask=`, `f3=` and `gsmtap=` are **recognised and refused** at runtime, with a
 message saying so: `mask=` and `f3=` mean re-issuing a `LOG_CONFIG` /
 `SET_ALL_RT_MASKS` handshake on the DIAG fd the capture thread is blocked
 reading, and the GSMTAP sink is opened with the decoder at open time. Use
-`close_source` + `open_source` with a new definition instead. An unknown key is
-refused *differently*, so "not settable now" and "no such option" never look
-alike — the operator's next action differs.
+`close_source` + `open_source` with a new definition instead. An unknown key
+(including the removed `rawlog=`) is refused *differently*, so "not settable
+now" and "no such option" never look alike — the operator's next action differs.
 
 **A refused setting is reported in the MESSAGE, not the status code.** The
 framework maps only a *negative* `chancontrol_cb` return to failure on the
@@ -200,12 +178,9 @@ the status code would end a running wardrive. celldiag returns 0 (not fatal,
 and the bogus string is not adopted as the source's "channel") and sends the
 reason as a `MSGFLAG_ERROR` bus line.
 
-**An APPLIED setting returns 0 too**, as in cellat. A return above 0 records
-the string as the source's **channel**, so the server would display
-`rawlog=/x` as `kismet.datasource.channel` and **replay** it after an error
-re-open, re-arming a tee the operator may have stopped since. A runtime setting
-is a one-time change to a running process; "channel" is reserved for band/RAT
-locks (cellat's).
+A `rawlog=` in the source definition is likewise not silently ignored: the
+open succeeds and a source warning says the file tee was removed and the raw
+stream is in the kismetdb (`rawpackets=on`).
 
 The web panel has a switch for `rawpackets=` and `qsh=` and a cadence field for
 `clock_anchor_sec=`. Each is a close, `update_definition`, and re-open: none
@@ -302,8 +277,7 @@ By default celldiag sends the raw DIAG byte stream itself into Kismet, not only
 the observations decoded from it. The stream arrives as packets with link type
 **147 (`LINKTYPE_USER0`)**, and the server logs them like any link frame:
 they land in the kismetdb **`packets`** table, and in a pcapng log if one is
-enabled. A drive's `.kismet` therefore carries the raw stream, and `rawlog=` is
-not the only copy. `rawlog=` remains as the external file tee;
+enabled. A drive's `.kismet` therefore carries the raw stream;
 `rawpackets=off` turns the in-db copy off.
 
 **Each packet is a slice of the stream, not a single frame.** The full contract
@@ -320,8 +294,8 @@ is in `diag_rawpkt.h`:
 | 24– | payload | the bytes exactly as read from the DIAG port (HDLC-escaped, CRC and `0x7E` included) |
 
 For one `(datasource, session_id)`, sort the slices by `offset` and
-concatenate the payloads. The result is the stream, byte for byte: the same bytes
-a `rawlog=` tee opened at the start of the capture writes. A gap between one
+concatenate the payloads. The result is the stream, byte for byte, exactly as
+read from the DIAG port from the start of the capture. A gap between one
 slice's end and the next slice's offset is exactly the bytes that were not
 delivered.
 
@@ -329,18 +303,18 @@ delivered.
 The server asks the helper to close and waits for its teardown, so the residual,
 the `END` slice and the `END` clock anchor all land. Whether the stop is a REST
 `close_source`, a server SIGTERM or a terminal Ctrl-C (SIGINT to the whole
-process group), the in-db stream is byte-identical to its `rawlog=` tee and
-ends in a confirmed `END` with no gaps. The rest of this note is about a stop
+process group), the in-db stream is byte-identical to what the port produced
+and ends in a confirmed `END` with no gaps. The rest of this note is about a stop
 WITHOUT it: an older helper, a close that ran out of its grace, or
 `datasource_graceful_close=false`.
 
 **Without the graceful close, the in-db stream can end one read before the
-stop.** Every delivered slice still equals the tee at its offset, but the read
+stop.** Every delivered slice still equals the port's bytes at its offset, but the read
 in flight when the server closes its pipe is lost: nothing carries it to the
 server after that. A SIGTERM to the server can therefore leave a stream short
 by the frames read in the last few hundred milliseconds. Helpers built before
 the capture framework woke its I/O loop on commit can lose up to about a second
-of tail. Keep `rawlog=` when the last frame matters.
+of tail.
 
 **How a reader sees the end of a stream.** A gap needs a delivered slice
 after it. So a slice dropped after the last delivered one leaves no gap, and
@@ -379,9 +353,7 @@ witnesses:
   - `delivered_end` is one past the highest stream byte the server received.
     The rest of the stream is gone, and no offset can show how much.
   - A server stall long enough to trip the watchdog writes one row per lost
-    session, with `delivered_end` matching the delivered slices exactly. A
-    `rawlog=` tee, if one was running, holds the bytes the row says are
-    missing.
+    session, with `delivered_end` matching the delivered slices exactly.
   - A stop the server asked for is not a death and writes no row.
 
 **Order comes from `offset`, never from row order.** Kismet hands packets to
@@ -404,13 +376,12 @@ for src, blob in db.execute("SELECT datasource, packet FROM packets WHERE dlt = 
     magic, ver, flags, hlen, session, offset = struct.unpack_from("<4sBBHQQ", blob)
     streams[(src, session)].append((offset, blob[hlen:]))
 for key, slices in streams.items():
-    hdlc = b"".join(p for _, p in sorted(slices))   # == the rawlog= .hdlc
+    hdlc = b"".join(p for _, p in sorted(slices))   # the raw-HDLC stream
 ```
 
 For real use, `log_tools/kismetdb_to_hdlc` does this properly:
 
-- It reads only celldiag sources, and writes one `.hdlc` per stream, named like
-  a `rawlog=` tee.
+- It reads only celldiag sources, and writes one `.hdlc` per stream.
 - It reports gaps, overlaps, and malformed, truncated or unaligned slices on
   every run. It also reports tail loss before an `END`, a bad `END`, and any
   `RawDiagDrop` row. `--strict` refuses to write anything if any are present.
@@ -437,7 +408,7 @@ not just dropped.
 - **Live source:** when Kismet's capture ring is full, the source drops the
   slice. It writes one `RawDiagDrop` row, then one ERROR line, and counts later
   drops. Waiting would stop the DIAG read, and the overflow would then cost
-  `rawlog=` and decoding too.
+  decoding too.
 - **Replay:** the source waits instead, so replaying an `.hdlc` into a
   `.kismet` is lossless.
 - **Teardown:** nothing reads the port any more, so the residual and `END` wait
@@ -455,8 +426,8 @@ kismetdb entirely.
 
 `f3=` arms F3 debug messages on the modem, but this source has **no F3 relay**:
 it sends no `diag_f3` record and puts no prints on the message bus. The prints
-are still captured — they are in the DIAG byte stream, so read them from a
-`rawlog=` tee or from the kismetdb's raw DIAG packets (`rawpackets=on`;
+are still captured — they are in the DIAG byte stream, so read them from the
+kismetdb's raw DIAG packets (`rawpackets=on`;
 `kismetdb_to_hdlc` extracts them) with an offline F3 decoder. At open the
 source says so at ERROR (`f3=<preset>: ARMED BUT NOT RELAYED …`), and its
 reported F3 preset reads **`<preset>+norelay`** (e.g. `all+norelay`), so the

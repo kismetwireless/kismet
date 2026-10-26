@@ -137,7 +137,7 @@ static void process_frame(diag_logstream_t *s, const uint8_t *raw, size_t rawlen
 
     /* Every other opcode (0x79/0x99 F3, 0x80 QShrink4, 0x9E secure log, command
      * responses) is not a LOG record: counted, and nothing yielded. The raw
-     * stream (rawlog=, the kismetdb raw packets) still carries them for an
+     * stream (the kismetdb raw packets) still carries them for an
      * offline reader -- this extractor is a TAP on the byte stream, not a
      * filter in front of it. */
 }

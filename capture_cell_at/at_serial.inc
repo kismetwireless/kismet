@@ -46,60 +46,6 @@
 #include "../capture_cell_diag/cell_safefile.h"
 #include "../capture_cell_diag/cell_usbport.h"
 
-/* Write an ISO 8601 timestamp + direction tag + message to the transcript fd.
- * direction: "TX" for commands sent, "RX" for responses received.
- * Safe to call with fd < 0 (no-op). */
-static void transcript_write(int fd, const char *direction, const char *data, int len) {
-    if (fd < 0 || !data)
-        return;
-
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    struct tm tm;
-    gmtime_r(&tv.tv_sec, &tm);
-
-    char header[64];
-    int hlen = snprintf(header, sizeof(header),
-                        "[%04d-%02d-%02dT%02d:%02d:%02d.%03ldZ] %s: ",
-                        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                        tm.tm_hour, tm.tm_min, tm.tm_sec,
-                        (long)(tv.tv_usec / 1000), direction);
-
-    /* The modem's bytes are escaped, so a response cannot start a forged line
-     * or send terminal controls to whoever reads the transcript. */
-    size_t n = len > 0 ? (size_t) len : strlen(data);
-    char out[1024];
-    size_t o = 0;
-    write(fd, header, hlen);
-    for (size_t i = 0; i < n; i++) {
-        unsigned char c = (unsigned char) data[i];
-        if (o + 5 > sizeof(out)) {
-            write(fd, out, o);
-            o = 0;
-        }
-        if (c == '\r') {
-            out[o++] = '\\';
-            out[o++] = 'r';
-        } else if (c == '\n') {
-            out[o++] = '\\';
-            out[o++] = 'n';
-        } else if (c == '\\') {
-            out[o++] = '\\';
-            out[o++] = '\\';
-        } else if (c < 0x20 || c == 0x7f) {
-            static const char hex[] = "0123456789abcdef";
-            out[o++] = '\\';
-            out[o++] = 'x';
-            out[o++] = hex[c >> 4];
-            out[o++] = hex[c & 0x0f];
-        } else {
-            out[o++] = (char) c;
-        }
-    }
-    out[o++] = '\n';
-    write(fd, out, o);
-}
-
 /* A final OK this fd may still owe. An info read that ended on the idle
  * gap read no terminator, and a modem that terminates LATE sends that
  * OK after the reader has moved on -- into the NEXT exchange, ahead of its
@@ -427,14 +373,14 @@ static uint64_t at_mono_ns(void) {
  * at_late_ok_gap_ms). The next exchange on the fd pays it: in the ordinary
  * form, a bare OK that is its first line is HELD rather than taken as the
  * reply. If anything follows it within the same gap, it was the previous
- * exchange's OK: it is dropped (the transcript records it as RX-LATE) and the
+ * exchange's OK: it is dropped and the
  * read goes on for this one's answer. If the port stays quiet, it was this
  * reply after all -- an echo-off modem answers ATE0 with nothing else -- and it
  * is returned, stamped with the read that delivered it. Either way the cost is
  * at most one gap, once; with nothing owed the ordinary form is unchanged.
  */
 static int at_command_log_ex(int fd, const char *cmd, char *resp_buf,
-                             size_t resp_max, int timeout_ms, int transcript_fd,
+                             size_t resp_max, int timeout_ms,
                              at_timing_t *timing, int info_idle_ms) {
     char line_buf[1024];
     ssize_t n;
@@ -501,8 +447,6 @@ static int at_command_log_ex(int fd, const char *cmd, char *resp_buf,
         return -1;
     if (timing)
         timing->tx_done_ns = at_mono_ns();
-
-    transcript_write(transcript_fd, "TX", cmd, 0);
 
     /* Calculate deadline */
     gettimeofday(&deadline, NULL);
@@ -591,10 +535,8 @@ static int at_command_log_ex(int fd, const char *cmd, char *resp_buf,
                 /* A line after the held OK -- even this command's echo,
                  * which a modem sends before it has answered anything -- means
                  * the held OK was the previous exchange's. */
-                if (held) {
+                if (held)
                     held = 0;
-                    transcript_write(transcript_fd, "RX-LATE", "OK", 2);
-                }
 
                 /* Skip echo of the command */
                 if (strncmp(line_buf, cmd, strlen(cmd)) == 0) {
@@ -685,24 +627,21 @@ static int at_command_log_ex(int fd, const char *cmd, char *resp_buf,
     if (gap_ended)
         at_late_ok_owe(fd, info_idle_ms);
 
-    transcript_write(transcript_fd, "RX", resp_buf, (int)resp_len);
-
     return (int)resp_len;
 }
 
 /* The ordinary form: reads until OK / ERROR / +CME ERROR / timeout. */
 static int at_command_log(int fd, const char *cmd, char *resp_buf,
-                          size_t resp_max, int timeout_ms, int transcript_fd,
+                          size_t resp_max, int timeout_ms,
                           at_timing_t *timing) {
     return at_command_log_ex(fd, cmd, resp_buf, resp_max, timeout_ms,
-                             transcript_fd, timing, 0);
+                             timing, 0);
 }
 
-/* Original signature — no transcript, used during probe/identify before
- * the transcript file is opened. */
+/* The plain form, with no timing */
 static int at_command(int fd, const char *cmd, char *resp_buf,
                       size_t resp_max, int timeout_ms) {
-    return at_command_log(fd, cmd, resp_buf, resp_max, timeout_ms, -1, NULL);
+    return at_command_log(fd, cmd, resp_buf, resp_max, timeout_ms, NULL);
 }
 
 /* A single-line info read (AT+CGMR / +CGSN / +CGMI / +CGMM) in the info form
@@ -710,7 +649,7 @@ static int at_command(int fd, const char *cmd, char *resp_buf,
  * after its value. Never for a command whose answer may legitimately pause. */
 static int at_info_command(int fd, const char *cmd, char *resp_buf,
                            size_t resp_max, int timeout_ms, int idle_ms) {
-    return at_command_log_ex(fd, cmd, resp_buf, resp_max, timeout_ms, -1, NULL,
+    return at_command_log_ex(fd, cmd, resp_buf, resp_max, timeout_ms, NULL,
                              idle_ms);
 }
 

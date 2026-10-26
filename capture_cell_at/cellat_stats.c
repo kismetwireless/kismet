@@ -137,24 +137,6 @@ int cellat_stats_format_json(const cellat_stats_t *s, char *out, size_t outsz) {
         jw_u64(&w, "rawat_records", s->rawat_records);
         jw_u64(&w, "rawat_dropped", s->rawat_dropped);
 
-        if (s->has_qmifeed) {
-            jw_bool(&w, "qmifeed_configured", 1);
-            jw_bool(&w, "qmifeed_active", s->qmifeed_active);
-            jw_u64(&w, "qmifeed_sent", s->qmifeed_sent);
-            jw_u64(&w, "qmifeed_dropped", s->qmifeed_dropped);
-            jw_u64(&w, "qmifeed_dropped_imei", s->qmifeed_dropped_imei);
-            jw_u64(&w, "qmifeed_msgs", s->qmifeed_msgs);
-            jw_u64(&w, "rawqmi_records", s->rawqmi_records);
-            jw_u64(&w, "rawqmi_dropped", s->rawqmi_dropped);
-        }
-
-        if (s->atlog_path != NULL && s->atlog_path[0] != '\0') {
-            jw_str(&w, "atlog_path", s->atlog_path);
-            jw_bool(&w, "atlog_active", s->atlog_active);
-            jw_u64(&w, "atlog_records", s->atlog_records);
-            jw_u64(&w, "atlog_dropped", s->atlog_dropped);
-        }
-
         jw_u64(&w, "anchor_count", s->anchor_count);
         if (s->anchor_last_epoch > 0)
             jw_u64(&w, "anchor_last_epoch", (uint64_t)s->anchor_last_epoch);

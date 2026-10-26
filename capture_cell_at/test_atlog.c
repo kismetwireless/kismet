@@ -1,24 +1,17 @@
-/* test_atlog.c - standalone unit tests for the atlog JSONL tee core.
+/* test_atlog.c - standalone unit tests for the RawAT record.
  *
- * Links only atlog.c (libc, no Kismet, no serial), so it runs off the capture
- * framework: `--enable-cell-selftest`. Mirrors test_diag_rawlog.c for the
- * shared path-templating property, and adds the atlog-specific surface that has
- * the real branching logic: JSON escaping (AT responses are full of CRLF,
- * quotes and control bytes) and the one-record-per-exchange formatter whose
- * schema the DIAG/AT-poll correlation tooling must ingest without a shim.
+ * Links only atlog.c (libc, no Kismet, no serial): `--enable-cell-selftest`.
+ * Covers JSON escaping (AT responses are full of CRLF, quotes and control
+ * bytes) and the one-record-per-exchange formatter.
  */
 
 #ifdef CELL_SELFTEST
 
 #include "atlog.h"
 
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
 
 static int failures = 0;
 
@@ -30,74 +23,6 @@ static int failures = 0;
         failures++; \
     } \
 } while (0)
-
-/* A fixed, known instant so %t is deterministic: 2026-07-17T18:19:20Z. */
-static time_t fixed_now(void) {
-    struct tm tmv;
-    memset(&tmv, 0, sizeof(tmv));
-    tmv.tm_year = 2026 - 1900;
-    tmv.tm_mon  = 7 - 1;
-    tmv.tm_mday = 17;
-    tmv.tm_hour = 18;
-    tmv.tm_min  = 19;
-    tmv.tm_sec  = 20;
-    return timegm(&tmv);
-}
-
-/* ---- path resolution (mirrors the rawlog contract, .jsonl name) ---- */
-
-static void test_resolve_literal(void) {
-    char out[256];
-    int r = atlog_resolve("/tmp/cellat.jsonl", "123456789012345",
-                          "RM520N-GL", fixed_now(), out, sizeof(out));
-    CHECK(r == 0, "literal resolve returned %d", r);
-    CHECK(strcmp(out, "/tmp/cellat.jsonl") == 0, "literal got '%s'", out);
-}
-
-static void test_resolve_tokens(void) {
-    char out[256];
-    int r = atlog_resolve("/cap/%i-%t.jsonl", "123456789012345",
-                          "RM520N-GL", fixed_now(), out, sizeof(out));
-    CHECK(r == 0, "token resolve returned %d", r);
-    CHECK(strcmp(out, "/cap/123456789012345-20260717T181920Z.jsonl") == 0,
-          "tokens got '%s'", out);
-}
-
-static void test_resolve_model_sanitized(void) {
-    char out[256];
-    int r = atlog_resolve("/cap/%m.jsonl", "123456789012345",
-                          "RM520N-GL R03A04 M/N", fixed_now(),
-                          out, sizeof(out));
-    CHECK(r == 0, "model resolve returned %d", r);
-    CHECK(strcmp(out, "/cap/RM520N-GL_R03A04_M_N.jsonl") == 0,
-          "sanitized model got '%s'", out);
-}
-
-static void test_resolve_dir_synthesizes_cellat_jsonl(void) {
-    char out[256];
-    /* Trailing '/' -> directory mode: synthesize cellat-<imei>-<ts>.jsonl. */
-    int r = atlog_resolve("/cap/", "123456789012345", "m", fixed_now(),
-                          out, sizeof(out));
-    CHECK(r == 0, "dir resolve returned %d", r);
-    CHECK(strcmp(out, "/cap/cellat-123456789012345-20260717T181920Z.jsonl") == 0,
-          "dir synth got '%s'", out);
-}
-
-static void test_resolve_dir_imei_sanitized(void) {
-    char out[256];
-    /* The dir-mode auto-filename embeds the IMEI; a '/' in it must not inject
-     * a separator. */
-    int r = atlog_resolve("/cap/", "aa/bb", "m", fixed_now(), out, sizeof(out));
-    CHECK(r == 0, "dir imei resolve returned %d", r);
-    CHECK(strchr(out + 5, '/') == NULL, "no injected separator: '%s'", out);
-}
-
-static void test_resolve_overflow(void) {
-    char out[8];
-    int r = atlog_resolve("/a/very/long/path/that/does/not/fit.jsonl",
-                          "1", "m", fixed_now(), out, sizeof(out));
-    CHECK(r == -1, "overflow should return -1, got %d", r);
-}
 
 /* ---- JSON escaping (the new, high-risk surface) ---- */
 
@@ -255,39 +180,7 @@ static void test_format_record_timing_overflow(void) {
     CHECK(r == -1, "overflow in the instants should return -1, got %d", r);
 }
 
-/* ---- whole-buffer write round-trip ---- */
-
-static void test_write_roundtrip(void) {
-    char tmpl[] = "/tmp/atlog_test_XXXXXX";
-    int fd = mkstemp(tmpl);
-    CHECK(fd >= 0, "mkstemp failed");
-    if (fd < 0) return;
-
-    const char *line = "{\"cmd\": \"AT\", \"err\": null}\n";
-    int w = atlog_write(fd, line, strlen(line));
-    CHECK(w == 0, "atlog_write returned %d", w);
-    close(fd);
-
-    FILE *f = fopen(tmpl, "rb");
-    CHECK(f != NULL, "reopen failed");
-    if (f) {
-        char buf[128] = {0};
-        size_t got = fread(buf, 1, sizeof(buf) - 1, f);
-        fclose(f);
-        CHECK(got == strlen(line), "read back %zu of %zu", got, strlen(line));
-        CHECK(memcmp(buf, line, strlen(line)) == 0, "round-trip mismatch");
-    }
-    unlink(tmpl);
-}
-
 int main(void) {
-    test_resolve_literal();
-    test_resolve_tokens();
-    test_resolve_model_sanitized();
-    test_resolve_dir_synthesizes_cellat_jsonl();
-    test_resolve_dir_imei_sanitized();
-    test_resolve_overflow();
-
     test_escape_plain();
     test_escape_quote_and_backslash();
     test_escape_crlf_tab();
@@ -301,8 +194,6 @@ int main(void) {
     test_format_record_timing_exact_line();
     test_format_record_timing_nulls();
     test_format_record_timing_overflow();
-
-    test_write_roundtrip();
 
     if (failures) {
         fprintf(stderr, "test_atlog: %d FAILURE(S)\n", failures);

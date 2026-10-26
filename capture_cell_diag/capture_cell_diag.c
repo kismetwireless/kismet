@@ -60,16 +60,6 @@
                          the default). Any other value is refused at open.
       replay=<file>      decode a raw-HDLC capture file instead of a live modem
                          (offline test hook; no modem opened, no mask sent)
-      rawlog=<path>      tee the raw HDLC DIAG byte stream to <path> while it is
-                         also decoded (write-side mirror of replay=). The file
-                         is a replay-compatible raw-HDLC capture, written
-                         uncompressed (compress it afterwards if wanted).
-                         Path tokens: %i=IMEI, %m=model, %t=UTC-timestamp; a
-                         directory (or trailing '/') gets a synthesized
-                         celldiag-<imei>-<ts>.hdlc filename. Never truncated:
-                         if the file already holds an earlier session's
-                         bytes, this session tees to a sibling
-                         <stem>-<UTC ts><ext> (then -2, -3 ...) and says so.
       enabled=true|false per-source lifecycle switch. false leaves the
                          source defined-but-idle: registered and visible, but no
                          DIAG port opened, no mask/F3 handshake, no decoder
@@ -131,7 +121,8 @@
                          second datasource). off (default) so a lean wardrive
                          never pays the QSH volume; on is a development drive
                          that captures every F3 type. Composes with f3= and mask=. QSH emits no
-                         cell observations; its value is in the rawlog= tee.
+                         cell observations; its value is in the raw stream
+                         (rawpackets=).
                          Disarmed on stop, REST close or Ctrl-C: the QSH-trace
                          latch (it survives reboots, so it must be cleared),
                          F3, and the 0x60 event stream the arm turned on.
@@ -145,15 +136,14 @@
                          DIAG_TS_F request at START,
                          every <s> seconds (default 30; 0 = periodic off) and at
                          END, each reply paired with the host clock as a
-                         type="ClockAnchor" kismetdb row and a line of
-                         <rawlog>.clock_anchor.jsonl -- so a GNSS-off drive can
+                         type="ClockAnchor" kismetdb row -- so a GNSS-off drive can
                          still put absolute UTC on every frame. Live modems only.
       rawpackets=on|off  send the raw DIAG stream to Kismet as packets:
                          DLT 147 (LINKTYPE_USER0) offset-stamped slices the
                          server logs into the kismetdb `packets` table, so the
                          .kismet carries the stream itself, not only what was
-                         decoded from it. Default on; independent of rawlog=
-                         (the file tee). Contract: diag_rawpkt.h. A live source
+                         decoded from it. Default on. Contract: diag_rawpkt.h.
+                         A live source
                          DROPS a slice when Kismet's ring is full rather than
                          stall the port, and records the first drop as a
                          type="RawDiagDrop" row; a replay waits and stays
@@ -173,19 +163,11 @@
                          is counted as declined, and named at open.
       debug=true|false   verbose message-bus logging
 
-    Runtime-settable options. Kismet's one generic runtime setter for a
-    datasource is `POST /datasource/by-uuid/<uuid>/set_channel`, so every knob
-    multiplexes through that single string, in the same key=value spelling:
-
-      rawlog=<path>      start or REDIRECT the tee while capturing. The new sink
-                         is opened before the old one is closed, so a bad path
-                         costs you nothing.
-      rawlog=off|none    stop the tee. rawlog_path is deliberately RETAINED so a
-                         stopped tee stays distinguishable from one that was
-                         never configured.
-
-    Everything else is open-time only and says so by name when set at runtime --
-    `mask=` and `f3=` because applying either means re-issuing a handshake on
+    Runtime options. Kismet's one generic runtime setter for a datasource is
+    `POST /datasource/by-uuid/<uuid>/set_channel`, so every knob multiplexes
+    through that single string, in the same key=value spelling. No option is
+    runtime-settable: each is open-time only and says so by name when set at
+    runtime -- `mask=` and `f3=` because applying either means re-issuing a handshake on
     the DIAG fd the capture thread is blocked reading. Use Kismet's
     close_source / open_source with a new definition instead.
 
@@ -226,8 +208,6 @@
 #include "diag_wwanport.h"
 #include "diag_profile.h"
 #include "diag_optset.h"
-#include "diag_rawlog.h"
-#include "diag_capmeta.h"
 #include "diag_clockanchor.h"
 #include "diag_rawpkt.h"
 #include "diag_stats.h"
@@ -272,8 +252,6 @@
 typedef struct {
     char *diag_path;        /* DIAG /dev/tty node (NULL in replay mode) */
     char *replay_path;      /* replay= file, or NULL for a live modem */
-    char *rawlog_spec;      /* rawlog= spec as given (pre-templating), or NULL */
-    char *rawlog_path;      /* resolved rawlog file path, or NULL */
     char *modem_imei;      /* 15-digit IMEI, stamped into prov.imei */
     char *modem_firmware;
     char *modem_model;
@@ -294,27 +272,7 @@ typedef struct {
     char ident_at_port[512];
 
     int   diag_fd;          /* open DIAG port, or -1 (replay) */
-    int   rawlog_fd;        /* open rawlog tee sink, or -1 */
-    /* A runtime rawlog=off was applied, and no runtime rawlog=<path> since.
-     * Recorded as intent, because the stop can land before the capture
-     * thread has opened the tee at all: that open must honour it rather than
-     * start the tee the operator was told had stopped. Under rawlog_lock. */
-    int   rawlog_stopped;
-
-    /* Guards rawlog_fd / rawlog_path / rawlog_bytes only.
-     *
-     * The runtime option setter runs on the framework's command thread while
-     * capture_thread is blocked reading the DIAG fd, and both touch the tee:
-     * the setter opens/closes the sink, the reader writes to it and advances
-     * the byte counter. Without this the setter could close an fd between the
-     * reader's `>= 0` test and its write() -- into a descriptor number the
-     * kernel has since handed to something else.
-     *
-     * Deliberately not a lock over local_diag_t as a whole. Everything else in
-     * here is written once at open and read after, so a wider lock would buy
-     * nothing and would have to be taken on paths that currently cannot block. */
-    pthread_mutex_t rawlog_lock;
-    int   no_mask;          /* skip LOG_CONFIG (passive tap) */
+    int   no_mask;         /* skip LOG_CONFIG (passive tap) */
     int   f3_relay;         /* f3 != off: the operator asked for DIAG MSG/EXT_MSG
                              * F3 prints. The severity floor is applied by the
                              * MODEM at arm time, so a replay source's floor is
@@ -333,7 +291,7 @@ typedef struct {
      *
      * Armed-only is not a failure state, which is why it is a third value
      * rather than a refusal: the F3 prints are still in the byte stream and so
-     * still land in any `rawlog=` tee for offline analysis. Only the
+     * still reach the kismetdb raw packets for offline analysis. Only the
      * message-bus relay is impossible. */
     int   f3_norelay;       /* armed, but not relayed */
     char  f3_preset_buf[32];/* "<preset>+norelay", pointed at by f3_preset */
@@ -359,7 +317,7 @@ typedef struct {
                              * parse, like f3_relay. */
     /* The qsh=on DIAGID-table reply, as its wire bytes. The bring-up
      * handshake reader consumes it, so the capture thread feeds it into the
-     * stream (tee, raw packets, decoder) ahead of everything read after it.
+     * stream (raw packets, decoder) ahead of everything read after it.
      * 0 = none to relay (qsh off, BAD_CMD/timeout, or already fed). */
     uint8_t diagid_wire[DIAG_DIAGID_WIRE_MAX];
     size_t  diagid_wire_len;
@@ -382,12 +340,6 @@ typedef struct {
      * config-owned strings and the census, layered into the same
      * diag_stats JSON object so all eleven registered datasource fields get a
      * real value instead of a permanent zero. See diag_stats_extra_t. */
-    uint64_t rawlog_bytes;         /* bytes actually written to the tee.
-                                    * Deliberately not stats.bytes_read: the two
-                                    * diverge the moment a write error drops the
-                                    * sink mid-capture, and "how much did the tee
-                                    * actually land on disk" is the question the
-                                    * operator is asking. */
     struct {                       /* last diag_inventory census */
         int      valid;            /* 0 until the first census line --
                                     * not the same as a census reporting zero */
@@ -578,7 +530,7 @@ typedef struct {
     /* Host<->modem-ts64 clock anchor (the DIAG instance of the shared
      * clock-anchor contract). A DIAG_TS_F request goes out at capture START, every
      * interval_ms, and at END; each reply is paired with the host clock and
-     * emitted as a type="ClockAnchor" row + a <rawlog>.clock_anchor.jsonl line
+     * emitted as a type="ClockAnchor" row
      * (see diag_clockanchor.h for the record and why its host stamp is the
      * request/reply MIDPOINT).
      *
@@ -595,8 +547,7 @@ typedef struct {
         uint64_t        seq;            /* per-source anchor counter */
         int             started;        /* the START request went out -- the END
                                          * path keys on this, not on diag_fd */
-        int             end_requested;  /* END asked in-band by a graceful close;
-                                         * main()'s anchor_end skips */
+        int             end_requested;  /* END asked in-band by a graceful close */
         int             pending;
         const char     *edge;           /* "start" | "periodic" | "end" */
         struct timeval  send_tv;
@@ -605,11 +556,10 @@ typedef struct {
         diag_tsf_scan_t scan;
         int             off;            /* stop asking: rejected, or never answered */
         unsigned        consecutive_timeouts;
-        uint64_t        emitted;        /* anchors completed (row and/or sidecar) */
+        uint64_t        emitted;        /* anchors completed */
         time_t          last_wall;      /* host wall time of the last completed
                                          * anchor, for the panel */
         uint64_t        timed_out;
-        uint64_t        sidecar_failed;
     } anchor;
     char *source_uuid;                  /* composed datasource uuid -> source_name */
 
@@ -618,8 +568,7 @@ typedef struct {
      * Contract in diag_rawpkt.h; delivery and loss policy at rawpkt_emit.
      *
      * Capture-thread only: feed_bytes and the teardown at `done:` both run
-     * there, and main()'s END-anchor drain after the cancel does not touch it
-     * (those bytes reach the rawlog= tee only -- the pipe is closed by then). */
+     * there. */
     struct {
         int            on;              /* rawpackets= (default on) */
         diag_rawpkt_t *s;               /* heap (~12 KiB); NULL until streaming */
@@ -629,31 +578,7 @@ typedef struct {
         int            drop_reported;   /* first-drop ERROR sent */
     } rawpkt;
 
-    /* Set by a cleanup handler when capture_thread exits or is cancelled.
-     * cf_handler_shutdown() cancels the capture thread asynchronously
-     * (capture_framework.c sets PTHREAD_CANCEL_ASYNCHRONOUS) and it is
-     * detached, so main() cannot join it; this is how main() knows the DIAG fd
-     * has no other reader before it issues the END anchor on it. */
-    int capture_exited;
-
 } local_diag_t;
-
-/* rawlog_lock with cancellation off: the capture thread is cancelled
- * asynchronously at stop, and must not die holding the lock main()'s END
- * anchor takes after it.  The lock does not nest, so one saved state per thread. */
-static __thread int rawlog_lock_cancelstate;
-
-static void rawlog_lock_enter(local_diag_t *local) {
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &rawlog_lock_cancelstate);
-    pthread_mutex_lock(&local->rawlog_lock);
-}
-
-static void rawlog_lock_leave(local_diag_t *local) {
-    pthread_mutex_unlock(&local->rawlog_lock);
-    pthread_setcancelstate(rawlog_lock_cancelstate, NULL);
-    /* Act on a cancel that arrived while it was off */
-    pthread_testcancel();
-}
 
 /* -----------------------------------------------------------------------
  * f3= preset table
@@ -1228,7 +1153,7 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
     if (n > 0)
         at_first_value_line(resp, fw_buf, fw_sz);
 
-    /* The firmware string doubles as the model (rawlog %m, prov.model).
+    /* The firmware string doubles as the model (prov.model).
      * On an IMEI-targeted scan the IMEI already matched on this open port, so
      * the modem is here and responsive — an empty AT+CGMR is a transient read
      * (a busy/slow tty under concurrent multi-source opens), not "no
@@ -1254,8 +1179,8 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
      * one modem, and a --list adds them per modem, which is exactly the answer
      * the Sources panel needs to show which modem each candidate is. The
      * firmware is fw_buf's value with any "+CGMR: " response code stripped
-     * (fw_buf itself is left as it was: the profile selector and the rawlog
-     * name already consume it). */
+     * (fw_buf itself is left as it was: the profile selector already
+     * consumes it). */
     if (id != NULL) {
         /* A firmware that arrived only by timing out marks a port that never
          * sends the final OK on info replies (the T99W175): read make/model
@@ -2278,7 +2203,7 @@ static int find_diag_port(const char *sibling_port, char *out, size_t outsz,
  *
  * Errors raised from open_callback do not need this: they ride out on the open
  * report's return code. Without it, post-open failures (deferred bring-up,
- * replay/rawlog open, a decoder that cannot be armed) would surface only as a bare
+ * replay open, a decoder that cannot be armed) would surface only as a bare
  * "IPC connection closed".
  *
  * cf_send_error() is still called after it: it is the protocol-correct thing to
@@ -2302,7 +2227,7 @@ static void f3_mark_norelay(local_diag_t *local, kis_capture_handler_t *caph) {
     snprintf(buf, sizeof(buf),
              "%s f3=%s: ARMED BUT NOT RELAYED -- this source does not relay "
              "F3 prints to the message bus, so no diag_f3 record is sent. The prints are still captured: they "
-             "are in the DIAG byte stream, so read them from a rawlog= tee or "
+             "are in the DIAG byte stream, so read them "
              "from the kismetdb's raw DIAG packets (rawpackets=on; "
              "kismetdb_to_hdlc extracts them) with an offline F3 decoder. The "
              "health readout says \"%s\" so this is not mistaken for a "
@@ -2432,7 +2357,7 @@ static int write_all(int fd, const uint8_t *buf, size_t len) {
 /* A JSON record from the DIAG reader thread, under rawpkt_emit's per-source
  * loss policy (see there). Live: a full ring drops the record, because
  * waiting would stop this thread reading the port, and the modem's bytes
- * then overrun and are lost to decoding, rawlog= and the raw stream alike.
+ * then overrun and are lost to decoding and the raw stream alike.
  * Replay: a file can wait, so a full ring is retried for up to ~30 s.
  * Teardown: retried briefly. Never cf_handler_wait_ringbuffer(): it has no
  * timeout, and it can miss the wakeup.
@@ -2490,7 +2415,7 @@ static void announce_ring_drops(kis_capture_handler_t *caph, local_diag_t *local
              "%s is DROPPING %ss: Kismet is not draining this source's output "
              "ring. They are dropped (and counted, obs_ring_dropped) so the "
              "DIAG port keeps being read; waiting would overrun the modem "
-             "and lose its bytes from rawlog= and the raw stream too.",
+             "and lose its bytes from the raw stream too.",
              local->name ? local->name : "celldiag", what);
     if (cf_send_message(caph, m, MSGFLAG_ERROR) > 0)
         local->obs_drop_announced = 1;
@@ -2887,8 +2812,8 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
  * Every group is gated on having actually been reported. Omission is a
  * deliberate signal, not a shortcut: apply_diag_stats_json() leaves a missing
  * key's tracker field untouched, so an unreported source keeps its default
- * instead of publishing a zero that reads as a healthy measurement ("tee on,
- * nothing written yet"; "every code recognized"). */
+ * instead of publishing a zero that reads as a healthy measurement ("anchors on,
+ * none yet"; "every code recognized"). */
 static int anchor_live(const local_diag_t *local);   /* defined with the anchors */
 
 /* The counters the CRC census reads: the native decoder's own stream, which
@@ -2985,18 +2910,6 @@ static void fill_stats_extra(const local_diag_t *local, diag_stats_extra_t *sx) 
      * and the web-UI panel would show a stream the operator did not arm. */
     sx->f3_preset = local->f3_preset ? local->f3_preset :
                     (local->f3_relay ? "all" : "off");
-    if (local->rawlog_path) {
-        sx->rawlog_path  = local->rawlog_path;
-        sx->rawlog_bytes = local->rawlog_bytes;
-        sx->rawlog_valid = 1;
-        /* Read the fd, not the path. The runtime-disable arm below
-         * closes the sink and leaves rawlog_path set on purpose, so the path
-         * answers "where did the bytes go?" and only the fd answers "is it
-         * still writing?". Publishing the second question's answer is what
-         * lets the web-UI control offer a restart after a stop instead of
-         * rendering a permanently-on toggle. */
-        sx->rawlog_active = (local->rawlog_fd >= 0);
-    }
     if (local->inventory.valid) {
         sx->inventory_distinct_codes = local->inventory.distinct;
         sx->inventory_unrecognized   = local->inventory.unrecognized;
@@ -3162,12 +3075,6 @@ static int native_tap_format(const local_diag_t *local, char *out, size_t outsz)
  * long note beside it in datasource_cell_diag.h. It is what the generic
  * datasource UI keys on to render channel affordances, and celldiag has no
  * channels. Owned there, deliberately, rather than left implicit here.
- *
- * One visible side effect worth stating: on success the framework stores the
- * knob string as the source's `channel` (capture_framework.c, `caph->channel =
- * strdup(channel)`), so the generic UI's channel column will read
- * `rawlog=/path.hdlc`. That is informative rather than wrong -- it is the last
- * runtime setting applied -- but it is not something this file can suppress.
  */
 
 /* Translate: parse the knob into a heap struct the control callback applies.
@@ -3198,7 +3105,7 @@ static void *celldiag_chantranslate(kis_capture_handler_t *caph,
  * 0 "cannot tune this channel", 1+ success -- and CONFIGRESP is sent as
  * `cbret < 0 ? 0 : 1`. So the only return that reports failure on the wire is
  * also the one that tears the source down: capture_framework.c's lws receive
- * path sets `spindown` on any negative return. Reporting "you typed rawlog
+ * path sets `spindown` on any negative return. Reporting "you typed mask=
  * wrong" through the status code would end a running wardrive over a typo,
  * and the source would shut down before the response flushed.
  *
@@ -3211,10 +3118,7 @@ static void *celldiag_chantranslate(kis_capture_handler_t *caph,
  * the text. -1 is reserved for conditions that really are fatal. */
 static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
                                 void *privchan, char *msg) {
-    local_diag_t *local = (local_diag_t *) caph->userdata;
     diag_optset_t *o = (diag_optset_t *) privchan;
-    char resolved[PATH_MAX];
-    int fd;
 
     (void) seqno;
 
@@ -3225,106 +3129,21 @@ static int celldiag_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
 
     /* BAD_SYNTAX / UNKNOWN_KEY / OPEN_TIME_ONLY / BAD_VALUE all land here with
      * a message the parse already composed. Reporting the parser's own words
-     * keeps the three outcomes distinguishable at the operator, which is the
-     * entire point of the classification. */
+     * keeps the outcomes distinguishable at the operator, which is the entire
+     * point of the classification. */
     if (o->status != DIAG_OPTSET_OK) {
         snprintf(msg, STATUS_MAX, "celldiag: %s", o->err);
         cf_send_message(caph, msg, MSGFLAG_ERROR);
         return 0;
     }
 
-    if (o->key != DIAG_OPTSET_KEY_RAWLOG) {
-        /* Unreachable while rawlog is the only runtime key -- and it is here so
-         * that adding a key to OPTSET_KEYS with no apply path fails loudly
-         * instead of returning success and doing nothing. */
-        snprintf(msg, STATUS_MAX,
-                 "celldiag: '%s' is runtime-settable but has no apply path in "
-                 "this build -- this is a bug, please report it", o->key_str);
-        cf_send_message(caph, msg, MSGFLAG_ERROR);
-        return 0;
-    }
-
-    if (local->disabled) {
-        snprintf(msg, STATUS_MAX,
-                 "celldiag: source is enabled=false; nothing is being captured, "
-                 "so there is no tee to change");
-        cf_send_message(caph, msg, MSGFLAG_ERROR);
-        return 0;
-    }
-
-    if (o->rawlog_disable) {
-        uint64_t wrote;
-        rawlog_lock_enter(local);
-        wrote = local->rawlog_bytes;
-        if (local->rawlog_fd >= 0) {
-            close(local->rawlog_fd);
-            local->rawlog_fd = -1;
-        }
-        local->rawlog_stopped = 1;
-        /* rawlog_path is deliberately left set. The stats object reports
-         * `rawlog_path` + `rawlog_bytes` from it, and clearing it would make a
-         * stopped tee indistinguishable from one that was never configured --
-         * the operator would lose the answer to "where did the bytes I already
-         * captured go?". The tee being closed is what rawlog_bytes ceasing to
-         * advance reports. */
-        rawlog_lock_leave(local);
-        snprintf(msg, STATUS_MAX,
-                 "celldiag: raw DIAG tee stopped after %llu byte(s) to %s",
-                 (unsigned long long) wrote,
-                 local->rawlog_path ? local->rawlog_path : "(no file)");
-        cf_send_message(caph, msg, MSGFLAG_INFO);
-        return 0;   /* applied -- and still not a channel: see below */
-    }
-
-    /* Resolve with the same function and the same %-token vocabulary the
-     * open-time path uses, so a runtime path cannot expand differently from an
-     * identical spec given at open. */
-    if (diag_rawlog_resolve(o->value, local->modem_imei ? local->modem_imei :
-                            DIAG_IMEI_UNKNOWN, local->modem_model, time(NULL),
-                            resolved, sizeof(resolved)) != 0) {
-        snprintf(msg, STATUS_MAX,
-                 "celldiag: rawlog path from '%s' is too long to resolve",
-                 o->value);
-        cf_send_message(caph, msg, MSGFLAG_ERROR);
-        return 0;
-    }
-
-    /* Opened before the old sink is closed. If the new path is unwritable, an
-     * operator redirecting a live tee keeps the one they had rather than losing
-     * capture to a typo -- the failure mode of a close-then-open. */
-    fd = cell_safe_open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
-    if (fd < 0) {
-        snprintf(msg, STATUS_MAX,
-                 "celldiag: cannot open rawlog file %s: %s (the previous tee, "
-                 "if any, is untouched)", resolved, strerror(errno));
-        cf_send_message(caph, msg, MSGFLAG_ERROR);
-        return 0;
-    }
-
-    rawlog_lock_enter(local);
-    if (local->rawlog_fd >= 0)
-        close(local->rawlog_fd);
-    local->rawlog_fd = fd;
-    local->rawlog_stopped = 0;
-    free(local->rawlog_path);
-    local->rawlog_path = strdup(resolved);
-    /* rawlog_bytes is not reset. It is a per-source lifetime total, and the
-     * only assertion that can prove a runtime tee actually works is "the
-     * counter moved" -- zeroing it here would make a working redirect and a
-     * dead one look the same to the test and to the web UI alike. */
-    rawlog_lock_leave(local);
-
-    snprintf(msg, STATUS_MAX, "celldiag: raw DIAG tee now writing to %s", resolved);
-    cf_send_message(caph, msg, MSGFLAG_INFO);
-    /* 0, not 1 -- the convention cellat also follows. A return > 0 records
-     * the string as the source's channel (`caph->channel = strdup(...)`), so
-     * the server would show "rawlog=/x" as kismet.datasource.channel and
-     * replay it after an error re-open -- quietly re-arming a tee the operator
-     * may have stopped since, while forgetting any other setting. A runtime
-     * setting is a one-time change to a running process; "channel" is reserved
-     * for band/RAT locks. The cost is the one cellat pays: CONFIGRESP's
-     * success bit is 1 for applied and refused alike, so the truth travels in
-     * `msg`, the bus and the stats line. */
+    /* Unreachable while no key is runtime-settable -- and it is here so that
+     * adding one to OPTSET_KEYS with no apply path fails loudly instead of
+     * returning success and doing nothing. */
+    snprintf(msg, STATUS_MAX,
+             "celldiag: '%s' is runtime-settable but has no apply path in "
+             "this build -- this is a bug, please report it", o->key_str);
+    cf_send_message(caph, msg, MSGFLAG_ERROR);
     return 0;
 }
 
@@ -3364,8 +3183,8 @@ typedef struct {
  * Live: a full ring drops the slice. It is counted, and the hole is exact and
  * visible in the next slice's offset. Waiting instead would stop this thread
  * reading the DIAG port; the tty buffer then overflows and the bytes are lost
- * from rawlog= and from decoding as well. The in-db copy is a tee, and a tee
- * must never cost the primary product anything. (The decoded observations are
+ * from decoding as well. The in-db copy must never cost the primary product
+ * anything. (The decoded observations are
  * not at risk from the raw stream filling the ring: their path waits for room
  * rather than dropping.)
  *
@@ -3436,7 +3255,7 @@ static void rawpkt_report(kis_capture_handler_t *caph, local_diag_t *local) {
                  "%s raw DIAG slice DROPPED: Kismet's capture ring was full, so the "
                  "kismetdb copy of the stream now has a gap (first at stream offset "
                  "%llu; %llu slice(s) so far; recorded as a RawDiagDrop row, which "
-                 "kismetdb_to_hdlc reports). rawlog= and decoding are unaffected; "
+                 "kismetdb_to_hdlc reports). Decoding is unaffected; "
                  "further drops are counted, not reported",
                  local->name ? local->name : "celldiag",
                  (unsigned long long)s->first_drop_offset,
@@ -3488,11 +3307,8 @@ static void rawpkt_finish(kis_capture_handler_t *caph, local_diag_t *local) {
     local->rawpkt.s = NULL;
 }
 
-/* The single DIAG-read -> decode seam. Tees `buf` to the rawlog sink (if
- * enabled) and the raw-packet stream, then decodes it. Teeing first means a
- * decode that fails mid-stream still leaves every byte we read on disk. A
- * rawlog write error is non-fatal to decoding: warn once, drop the sink, keep
- * decoding. */
+/* The single DIAG-read -> decode seam. Sends `buf` to the raw-packet stream,
+ * then decodes it. */
 static void feed_bytes(kis_capture_handler_t *caph, local_diag_t *local,
                       const uint8_t *buf, size_t len) {
     /* Every byte the decoder sees passed through here (live reads and the
@@ -3500,46 +3316,14 @@ static void feed_bytes(kis_capture_handler_t *caph, local_diag_t *local,
      * from the source for the health readout. */
     diag_stats_on_read(&local->stats, len, time(NULL));
 
-    /* The raw packets' timestamp is the host receipt time of this read, so it
-     * is taken before the rawlog write below, whose disk latency is not. */
+    /* The raw packets' timestamp is the host receipt time of this read. */
     struct timeval rx_tv = { 0, 0 };
     if (local->rawpkt.s != NULL)
         gettimeofday(&rx_tv, NULL);
 
-    /* Held across the write, not merely across the fd read: the runtime setter
-     * may close this sink from the command thread, and a close between
-     * the test and the write() would send capture bytes into whatever the
-     * kernel handed that descriptor number to next. The write is bounded, so
-     * so is the setter's wait. */
-    rawlog_lock_enter(local);
-    if (local->rawlog_fd >= 0) {
-        if (diag_rawlog_write(local->rawlog_fd, buf, len) != 0) {
-            char e[ERRBUF_MAX];
-            snprintf(e, ERRBUF_MAX,
-                     "%s rawlog write failed (%s); stopping tee, decode continues",
-                     local->name ? local->name : "celldiag", strerror(errno));
-            close(local->rawlog_fd);
-            local->rawlog_fd = -1;
-            rawlog_lock_leave(local);
-            /* Off-lock: cf_send_message takes the framework's own locks, and
-             * nesting ours inside those in one place and not the other is how a
-             * lock-order inversion gets introduced. The state change is already
-             * committed above; this is only the report. */
-            cf_send_message(caph, e, MSGFLAG_ERROR);
-            rawlog_lock_enter(local);
-        } else {
-            /* Counted only on a successful write, so the figure
-             * the web UI shows is bytes on disk, not bytes offered to a sink
-             * that has since gone away. */
-            local->rawlog_bytes += (uint64_t)len;
-        }
-    }
-    rawlog_lock_leave(local);
-
-    /* The same bytes, into Kismet as DLT 147 packets. After the file
-     * tee (which stays the authoritative copy -- it cannot drop) and before the
-     * decode, for the tee's reason: a decode problem must not take these bytes
-     * with it. Never fails the seam; a lost slice is a counted gap. */
+    /* The same bytes, into Kismet as DLT 147 packets. Before the decode, so a
+     * decode problem cannot take these bytes with it. Never fails the seam; a
+     * lost slice is a counted gap. */
     if (local->rawpkt.s != NULL)
         rawpkt_feed(caph, local, &rx_tv, buf, len);
 
@@ -3553,7 +3337,7 @@ static void feed_bytes(kis_capture_handler_t *caph, local_diag_t *local,
 /* -----------------------------------------------------------------------
  * Host<->modem-ts64 clock anchor (DIAG instance)
  *
- * Record format, midpoint pairing and sidecar: diag_clockanchor.h. This block
+ * Record format and midpoint pairing: diag_clockanchor.h. This block
  * is the scheduling: when a DIAG_TS_F request goes out, how its reply is
  * recognised in the live stream, and where the paired record is delivered.
  * ----------------------------------------------------------------------- */
@@ -3605,23 +3389,7 @@ static void anchor_request(local_diag_t *local, const char *edge,
     local->anchor.deadline_mono_ns = local->anchor.send_mono_ns + timeout_ns;
 }
 
-/* Append a finished record to <rawlog>.clock_anchor.jsonl while the tee is
- * open. The sidecar follows the current rawlog path, so a runtime rawlog=
- * redirect moves it along with the .hdlc it describes. */
-static void anchor_sidecar_write(local_diag_t *local, const char *rec) {
-    char path[DIAG_OPTSET_VALUE_MAX + 64];
-
-    rawlog_lock_enter(local);
-    if (local->rawlog_fd >= 0 && local->rawlog_path != NULL &&
-        diag_clockanchor_sidecar_path(local->rawlog_path, path, sizeof(path)) == 0 &&
-        diag_clockanchor_append(path, rec, strlen(rec)) != 0)
-        local->anchor.sidecar_failed++;
-    rawlog_lock_leave(local);
-}
-
-/* Pair a reply with the host clock and deliver it. `caph` NULL means the END
- * path in main(): the Kismet pipe is closed by then, so the sidecar is the only
- * place the record can go. */
+/* Pair a reply with the host clock and deliver it as a ClockAnchor row. */
 static void anchor_complete(kis_capture_handler_t *caph, local_diag_t *local,
                             uint64_t ts64, uint64_t recv_mono_ns) {
     struct timeval mid_tv;
@@ -3647,19 +3415,10 @@ static void anchor_complete(kis_capture_handler_t *caph, local_diag_t *local,
     local->anchor.emitted++;
     local->anchor.last_wall = mid_tv.tv_sec;
 
-    /* The sidecar first, then the relay. Relaying first lets a reader that
-     * stops on the relayed row (a test harness, or a server closing the
-     * source) close the pipe while this thread sits between the two calls;
-     * the thread is then cancelled and the row reaches Kismet but never the
-     * file, leaving a seq gap in the sidecar. Written first, any row a
-     * consumer has seen is already on disk. */
-    anchor_sidecar_write(local, rec);
-
     if (caph != NULL) {
         /* Sent from the read loop, so under ring_send_json's policy: a
          * live source drops the row on a full ring rather than stop reading
-         * the port. The sidecar above already has it, so the skew
-         * measurement survives on disk; the drop is counted. */
+         * the port; the drop is counted. */
         if (ring_send_json(caph, local, NULL, mid_tv, "ClockAnchor", rec) == 0) {
             local->anchor_ring_dropped++;
             report_ring_drop(caph, local, "ClockAnchor row");
@@ -3737,91 +3496,11 @@ static void anchor_tick(kis_capture_handler_t *caph, local_diag_t *local) {
     }
 }
 
-/* Synchronously read the DIAG port until the outstanding request is answered or
- * its deadline passes -- the END path only, where there is no capture loop left
- * to do it. Every byte read is still teed to rawlog=, so the .hdlc stays a
- * complete record of what the port produced; nothing is fed to the decoder,
- * which has already stopped. */
-static void anchor_drain_sync(local_diag_t *local) {
-    static uint8_t rbuf[65536];
-
-    while (local->anchor.pending) {
-        uint64_t now = anchor_mono_ns();
-        if (now >= local->anchor.deadline_mono_ns) {
-            local->anchor.pending = 0;
-            local->anchor.timed_out++;
-            return;
-        }
-        struct pollfd pf = { .fd = local->diag_fd, .events = POLLIN, .revents = 0 };
-        int pr = poll(&pf, 1,
-                      (int)((local->anchor.deadline_mono_ns - now) / 1000000ULL) + 1);
-        if (pr < 0 && errno == EINTR)
-            continue;
-        if (pr <= 0)
-            continue;              /* the deadline check above ends it */
-        if (!(pf.revents & POLLIN)) {
-            local->anchor.pending = 0;
-            return;                /* HUP/ERR: the modem is gone */
-        }
-        ssize_t n = read(local->diag_fd, rbuf, sizeof(rbuf));
-        uint64_t recv = anchor_mono_ns();
-        if (n < 0 && (errno == EINTR || errno == EAGAIN))
-            continue;
-        if (n < 0) {
-            local->anchor.pending = 0;
-            return;
-        }
-        if (n == 0)
-            continue;              /* VTIME idle tick */
-        rawlog_lock_enter(local);
-        if (local->rawlog_fd >= 0 &&
-            diag_rawlog_write(local->rawlog_fd, rbuf, (size_t)n) == 0)
-            local->rawlog_bytes += (uint64_t)n;
-        rawlog_lock_leave(local);
-        anchor_on_bytes(NULL, local, rbuf, (size_t)n, recv);
-    }
-}
-
-/* The END anchor (the clock-anchor contract makes it mandatory at capture END).
- *
- * It cannot live in capture_thread's teardown, though that is where it reads
- * naturally -- and where cellat's END anchor sits. A plain (non-graceful)
- * close never reaches that code: Kismet closes the IPC pipe, the
- * framework's loop exits, main() calls cf_handler_shutdown(), and that
- * pthread_cancel()s the capture thread, which capture_framework.c runs with
- * PTHREAD_CANCEL_ASYNCHRONOUS. The thread dies wherever it is -- normally
- * parked in poll() -- and nothing after its read loop runs.
- *
- * So the END anchor runs here, in main(), after the cancel: the DIAG fd is
- * still open (the thread's own close never ran) and is now ours alone. It can
- * only be written to the sidecar -- the pipe it would have travelled to the
- * kismetdb is exactly what closed. The kismetdb therefore holds START +
- * periodic rows (>= 2 for any drive longer than one clock_anchor_sec=), and
- * the sidecar additionally holds the END pair.
- *
- * Ordering: wait for capture_exited (the cleanup handler's mark) before touching
- * the fd, so the cancelled reader is gone; let a request that was in flight at
- * cancel time land under its own edge, so its reply is not paired with the END
- * send; then ask once more. Bounded: at most ~0.5 s + 2 reply timeouts. */
-static void anchor_end(local_diag_t *local) {
-    if (!local->anchor.started || local->anchor.end_requested)
-        return;
-    for (int i = 0; i < 50 &&
-             !__atomic_load_n(&local->capture_exited, __ATOMIC_ACQUIRE); i++)
-        usleep(10000);
-    if (!__atomic_load_n(&local->capture_exited, __ATOMIC_ACQUIRE) ||
-        !anchor_live(local))
-        return;
-    anchor_drain_sync(local);
-    anchor_request(local, "end", ANCHOR_END_TIMEOUT_NS);
-    anchor_drain_sync(local);
-}
-
-/* The END anchor on a graceful close -- the path anchor_end's comment above
- * says a plain close cannot take. The server's CLOSEREQ leaves the
- * pipe open and waits for us to exit, so END is asked from inside the capture
- * loop: its reply is read, teed, sliced and scanned by the ordinary read path
- * and lands as an in-band ClockAnchor row as well as a sidecar line.
+/* The END anchor on a graceful close. The server's CLOSEREQ leaves the pipe
+ * open and waits for us to exit, so END is asked from inside the capture
+ * loop: its reply is read, sliced and scanned by the ordinary read path and
+ * lands as an in-band ClockAnchor row. A plain close cancels the capture
+ * thread with the pipe already gone, so it has no END row.
  *
  * One call per loop pass once the close is requested. Returns 1 while an
  * exchange is still in flight (keep reading), 0 when the loop may end. A
@@ -4164,8 +3843,7 @@ static void bringup_phase_format(const struct diag_bringup_phases *p,
  * port a sibling is probing is skipped -- its claim is taken, and sharing it
  * would split the reply bytes. The target modem's own AT ports can all be
  * mid-probe at that instant; DIAG capture would still proceed on an explicit
- * diagport=, but the model would read 'unknown' in the rawlog name and
- * prov.model.
+ * diagport=, but the model would read 'unknown' in prov.model.
  *
  * So: report the first pass's detail before this pass overwrites it, pause
  * 250-775 ms -- jittered by pid so siblings that collided do not collide again
@@ -4228,7 +3906,7 @@ static void diag_fd_release(local_diag_t *local) {
 
 /* Live-modem device bring-up: AT IMEI scan -> profile defaults -> DIAG
  * port resolve -> port open -> SPC unlock -> LOG_CONFIG mask -> F3 arm ->
- * rawlog resolve -> decoder arm. Everything here touches hardware and is
+ * decoder arm. Everything here touches hardware and is
  * multi-second; it is the work kept off Kismet's open-command critical path.
  *
  * Reads its parameters from local->bringup (stashed by open_callback) and, on
@@ -4429,9 +4107,8 @@ static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
     /* Backstop: never let the model be silently empty. If the bring-up
      * proceeded without an AT identity (an MHI diagport= with no atport=, or a
      * ttyUSB scan that could not read the firmware even after the retry above),
-     * fw_buf is "" and the rawlog %m would expand to the ambiguous literal
-     * 'modem' while prov.model went blank — losing which modem a raw DIAG tee
-     * came from. Stamp an explicit 'unknown' sentinel and say so, so the
+     * fw_buf is "" and prov.model would go blank -- losing which modem a
+     * capture came from. Stamp an explicit 'unknown' sentinel and say so, so the
      * fallback is visible in the log and distinguishable from a modem that is
      * literally named 'modem'. INFO, not ERROR: proceeding without AT identity
      * is the intended path for a fused cellat+celldiag MHI capture (the AT node
@@ -4441,7 +4118,7 @@ static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
         local->modem_model = strdup("unknown");
         snprintf(buf, sizeof(buf),
                  "%s IMEI %s: model/firmware unresolved (opened without AT "
-                 "identity); rawlog %%m and prov.model will read 'unknown', "
+                 "identity); prov.model will read 'unknown', "
                  "not a silent 'modem'",
                  local->name ? local->name : "celldiag", imei_def);
         cf_send_message(caph, buf, MSGFLAG_INFO);
@@ -4735,21 +4412,6 @@ f3_default_done:
         diag_stats_set_mask_preset(&local->stats, preset_label);
     }
 
-    /* Now the model is known, so a rawlog= spec's %m can expand. */
-    if (local->rawlog_spec) {
-        char resolved[1024];
-        if (diag_rawlog_resolve(local->rawlog_spec, imei_def, local->modem_model,
-                                time(NULL), resolved, sizeof(resolved)) != 0) {
-            snprintf(msg, msg_sz,
-                     "rawlog path from '%s' is too long to resolve",
-                     local->rawlog_spec);
-            diag_fd_release(local);
-            goto fail;
-        }
-        free(local->rawlog_path);
-        local->rawlog_path = strdup(resolved);
-    }
-
     decoder_bringup(caph, local);
     bringup_phase_lap(&phases, "decoder_start");
     bringup_phase_format(&phases, local->bringup.phase_detail,
@@ -4857,10 +4519,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cell_usbport_set_mode((cell_usb_mode_t)mode);
     }
 
-    /* rawlog= spec is captured now but resolved after the model is known
-     * (below), so %m can expand. */
-    if ((placeholder_len = cf_find_flag(&placeholder, "rawlog", definition)) > 0)
-        local->rawlog_spec = strndup(placeholder, placeholder_len);
+    /* rawlog= (the raw file tee) was removed. Warned rather than refused, so
+     * an existing definition still opens, but never silently ignored: Kismet
+     * accepts unknown options without a word, which would look like it
+     * worked. The raw stream is in the kismetdb (rawpackets=). */
+    if (cf_find_flag(&placeholder, "rawlog", definition) > 0) {
+        char wbuf[STATUS_MAX];
+        snprintf(wbuf, sizeof(wbuf),
+                 "celldiag: source option 'rawlog' is not recognised and is "
+                 "being IGNORED: the raw DIAG file tee was removed. The raw "
+                 "stream is logged to the kismetdb instead (rawpackets=on; "
+                 "kismetdb_to_hdlc extracts it). Known options: diagport=, "
+                 "atport=, usb=, nativedecode=, census=, replay=, enabled=, "
+                 "nomask=, mask=, profiles=, spc=, f3=, qsh=, stats_interval=, "
+                 "clock_anchor_sec=, rawpackets=, gsmtap=, defer=, debug=");
+        cf_send_warning(caph, wbuf);
+    }
 
     char diagport_override[512] = "";
     if ((placeholder_len = cf_find_flag(&placeholder, "diagport", definition)) > 0) {
@@ -5064,7 +4738,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      * most modems expose one DIAG interface). Off by default so a lean WiGLE
      * wardrive stays lean; only a development drive pays the QSH volume. QSH
      * emits no cell observations, so this never changes the phy_cell stream --
-     * its value is in the rawlog= tee. Composes with f3=. */
+     * its value is in the raw stream (rawpackets=). Composes with f3=. */
     int qsh_on = 0;
     if ((placeholder_len = cf_find_flag(&placeholder, "qsh", definition)) > 0) {
         char *v = strndup(placeholder, placeholder_len);
@@ -5090,9 +4764,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* rawpackets=on|off -- the raw DIAG stream into Kismet as DLT 147 packets
      * On by default: the .kismet is meant to be the drive's complete record,
      * and the raw stream is its most important part.
-     * Independent of rawlog= (the external file tee), as cellat's RawAT is
-     * of atlog=. Off exists for a host that cannot afford the volume -- the
-     * kismetdb grows by what the rawlog= .hdlc would. An unknown value refuses
+     * Off exists for a host that cannot afford the volume -- the kismetdb
+     * grows by the whole raw stream. An unknown value refuses
      * the open, like qsh=: a typo must not silently flip the in-db copy off. */
     local->rawpkt.on = 1;
     if ((placeholder_len = cf_find_flag(&placeholder, "rawpackets", definition)) > 0) {
@@ -5275,8 +4948,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(hw_desc, sizeof(hw_desc), "%s", local->name);
     }
 
-    /* --- rawlog + helper for the non-live paths (the live path does both
-     *     inside diag_bringup_run, where the model is known) --- */
+    /* --- decoder for the non-live paths (the live path arms it
+     *     inside diag_bringup_run) --- */
     /* `!local->disabled` is load-bearing.
      *
      * The disabled branch above sets diag_fd = -1 and the "disabled" mask
@@ -5292,18 +4965,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      *
      * Pinned by the celltools enabled=false replay tests. */
     if (!local->bringup.pending && local->replay_path && !local->disabled) {
-        if (local->rawlog_spec) {
-            char resolved[1024];
-            if (diag_rawlog_resolve(local->rawlog_spec, imei_def,
-                                    local->modem_model, time(NULL),
-                                    resolved, sizeof(resolved)) != 0) {
-                snprintf(msg, STATUS_MAX,
-                         "rawlog path from '%s' is too long to resolve",
-                         local->rawlog_spec);
-                return -1;
-            }
-            local->rawlog_path = strdup(resolved);
-        }
         decoder_bringup(caph, local);
     }
 
@@ -5486,15 +5147,11 @@ static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
      *
      * It cannot ride diag_stats: 24 rows of a realistic census
      * render to ~620 bytes against DIAG_STATS_EXTRA_MAX = 768,
-     * worst case 2,880. Adding it would blow the budget and trip
-     * diag_stats' drop_path retry -- which degrades by silently
-     * dropping rawlog_path: valid JSON, all counters present, one
-     * registered field permanently dead, and it would look correct.
-     * diag_stats.h already warns that "the retry is a last-resort
-     * degradation, not a sizing strategy".
+     * worst case 2,880. Adding it would blow the budget, and an
+     * overflowing diag_stats line is refused whole.
      *
      * Extracted with the existing diag_profile_json_string(), the
-     * same way status / mask_preset / rawlog_path already travel --
+     * same way status / mask_preset already travel --
      * no JSON parser enters this binary for the web UI's benefit. */
     {
         char tbl[DIAG_CENSUS_TABLE_MAX];
@@ -5518,7 +5175,7 @@ static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
                  * mpack type is what the datasource dispatches on;
                  * the body copy is what makes the line
                  * self-describing to anything holding the JSON
-                 * alone -- a tee'd log, a human. A control line indistinguishable from an
+                 * alone -- a log, a human. A control line indistinguishable from an
                  * observation by its own content is how one ends up
                  * silently counted as one. */
                 int n = snprintf(cbuf, sizeof(cbuf),
@@ -5609,7 +5266,7 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
     char errstr[ERRBUF_MAX];
 
     /* enabled=false: idle until the server closes/reaps us. Nothing was
-     * opened (no port, no helper, no rawlog), so there is nothing to read or
+     * opened (no port, no helper), so there is nothing to read or
      * tear down - just tick the health cadence so an operator sees the source
      * is intentionally disabled, and spin down cleanly on shutdown. */
     if (local->disabled) {
@@ -5725,154 +5382,20 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
         src_fd = replay_fd;
     }
 
-    /* Open the raw-DIAG tee sink (rawlog=). Failing to create the file the
-     * operator explicitly asked for is a hard error - better than silently
-     * decoding without the capture they wanted.
-     *
-     * The runtime setter can act before this point: the source answers its
-     * open before the device work that precedes this. A stop it applied is
-     * honoured here, and a sink a runtime rawlog=<path> opened is the tee, so
-     * this open is skipped. Both are read under rawlog_lock, and read again
-     * after the open, which a knob can also overtake. */
-    rawlog_lock_enter(local);
-    int tee_stopped = local->rawlog_stopped;
-    int tee_redirected = local->rawlog_fd >= 0;
-    char tee_path[1024];
-    snprintf(tee_path, sizeof(tee_path), "%s",
-             local->rawlog_path ? local->rawlog_path : "");
-    rawlog_lock_leave(local);
-    if (tee_path[0] && tee_stopped) {
-        snprintf(errstr, ERRBUF_MAX,
-                 "%s rawlog=off was applied before the capture began; the raw "
-                 "DIAG tee to %s is not opened", local->name, tee_path);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
-    } else if (tee_path[0]) {
-        /* Never O_TRUNC. Every reopen of this source is a new
-         * helper, so a fixed rawlog= path would be truncated by each one,
-         * leaving only the last session's tee beside a kismetdb holding all
-         * of them. A non-empty file is an earlier session's tee, and this
-         * session gets its own stamped sibling -- one tee per kismetdb DIAG
-         * stream, so the two can be compared. The companion and clock-anchor
-         * sidecars key off
-         * rawlog_path, so they follow the diverted name. */
-        char session_path[1024];
-        int diverted = 0;
-        int overtaken = 0;
-        if (!tee_redirected) {
-            int tee_fd = diag_rawlog_open_session(tee_path, time(NULL),
-                                                  session_path,
-                                                  sizeof(session_path),
-                                                  &diverted);
-            if (tee_fd < 0) {
-                snprintf(errstr, ERRBUF_MAX, "%s cannot open rawlog file %s: %s",
-                         local->name, tee_path, strerror(errno));
-                diag_report_error(caph, errstr);
-                if (replay_fd >= 0)
-                    close(replay_fd);
-                goto done;
-            }
-            rawlog_lock_enter(local);
-            if (local->rawlog_stopped || local->rawlog_fd >= 0) {
-                /* A runtime rawlog= landed during the open, and it wins. */
-                close(tee_fd);
-                overtaken = 1;
-                diverted = 0;
-            } else {
-                local->rawlog_fd = tee_fd;
-                if (diverted) {
-                    char *prev = local->rawlog_path;
-                    local->rawlog_path = strdup(session_path);
-                    snprintf(errstr, ERRBUF_MAX,
-                             "%s rawlog file %s already holds an earlier "
-                             "session's tee; this session tees to %s so "
-                             "neither is overwritten",
-                             local->name, prev, session_path);
-                    free(prev);
-                }
-            }
-            rawlog_lock_leave(local);
-        }
-        if (diverted)
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
-        rawlog_lock_enter(local);
-        int tee_open = !local->rawlog_stopped && local->rawlog_fd >= 0;
-        snprintf(tee_path, sizeof(tee_path), "%s",
-                 local->rawlog_path ? local->rawlog_path : "");
-        rawlog_lock_leave(local);
-        if (tee_open) {
-            snprintf(errstr, ERRBUF_MAX, "%s teeing raw DIAG stream to %s%s",
-                     local->name, tee_path,
-                     (tee_redirected || overtaken) ?
-                         " (the runtime rawlog= that preceded the capture)" : "");
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
-        } else {
-            snprintf(errstr, ERRBUF_MAX,
-                     "%s rawlog=off was applied while the tee was opening; "
-                     "the raw DIAG tee to %s is not running",
-                     local->name, tee_path);
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
-        }
-
-        if (!tee_open)
-            goto tee_done;   /* no tee, so no provenance to write beside it */
-
-        /* Companion capture-config provenance sidecar:
-         * <rawlog>.capture_meta.json next to the .hdlc, recording the host
-         * clock at open + the arm-time config only celldiag knows. Not a
-         * vendor-attribution source; this is open-time provenance. The
-         * ts64<->UTC anchors arrive all capture long and go to their own
-         * <rawlog>.clock_anchor.jsonl (see anchor_complete).
-         *
-         * Non-fatal: a failed sidecar must never kill the capture the operator
-         * asked for. Warn and continue -- the .hdlc is the deliverable. */
-        char capmeta_path[1024];
-        /* 1536: make + product_model ride beside the 256-byte
-         * firmware; a record that does not fit is not written at all. */
-        char capmeta_rec[1536];
-        if (diag_capmeta_sidecar_path(local->rawlog_path, capmeta_path,
-                                      sizeof(capmeta_path)) == 0 &&
-            diag_capmeta_format(
-                capmeta_rec, sizeof(capmeta_rec), time(NULL),
-                local->modem_imei, local->modem_model, local->modem_firmware,
-                local->ident.make, local->ident.model,
-                strcmp(local->ident_method, MODEMIDENT_METHOD_AT) == 0 ?
-                    DIAG_CAPMETA_IDENTITY_AT :
-                strcmp(local->ident_method, MODEMIDENT_METHOD_VOUCHED) == 0 ?
-                    DIAG_CAPMETA_IDENTITY_VOUCHED :
-                local->ident_held ? DIAG_CAPMETA_IDENTITY_HELD :
-                                    DIAG_CAPMETA_IDENTITY_NONE,
-                local->stats.mask_preset, local->f3_preset, local->diag_path,
-                diag_capmeta_basename(local->rawlog_path)) == 0 &&
-            diag_capmeta_write(capmeta_path, capmeta_rec,
-                               strlen(capmeta_rec)) == 0) {
-            snprintf(errstr, ERRBUF_MAX, "%s wrote capture_meta sidecar %s",
-                     local->name, capmeta_path);
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
-        } else {
-            snprintf(errstr, ERRBUF_MAX,
-                     "%s could not write the capture_meta sidecar for %s "
-                     "(provenance only; capture continues)",
-                     local->name, local->rawlog_path);
-            cf_send_message(caph, errstr, MSGFLAG_ERROR);
-        }
-    }
-tee_done:
-
     diag_stats_set_port_open(&local->stats, 1);
 
     /* The raw-packet slicer. Started here -- before the handshake
-     * flush below -- so offset 0 is the first byte feed_bytes sees, the same
-     * first byte a rawlog= tee opened just above writes. The session id is the
-     * host clock now: it tells two streams of one datasource apart (Kismet
+     * flush below -- so offset 0 is the first byte feed_bytes sees. The
+     * session id is the host clock now: it tells two streams of one datasource apart (Kismet
      * re-spawns a failed source, and each spawn starts again at offset 0).
-     * Not fatal if the allocation fails: capture and rawlog= go on without it. */
+     * Not fatal if the allocation fails: capture goes on without it. */
     if (local->rawpkt.on) {
         local->rawpkt.s = (diag_rawpkt_t *)malloc(sizeof(diag_rawpkt_t));
         if (local->rawpkt.s == NULL) {
             snprintf(errstr, ERRBUF_MAX,
                      "%s could not allocate the raw-packet slicer; the kismetdb "
-                     "will carry no raw DIAG stream this capture (rawlog= and "
-                     "decoding are unaffected)", local->name);
+                     "will carry no raw DIAG stream this capture (decoding "
+                     "is unaffected)", local->name);
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
         } else {
             struct timespec rt;
@@ -6002,7 +5525,7 @@ tee_done:
 
     /* The DIAGID-table reply the qsh=on bring-up consumed. It was read
      * before the bytes still buffered below, so it goes first. In the stream,
-     * an offline HDLC walk finds it in both the rawlog tee and the kismetdb
+     * an offline HDLC walk finds it in the kismetdb
      * raw packets -- without it a drive's diag_id_binding would be empty. */
     if (!local->replay_path && local->diagid_wire_len > 0) {
         size_t n = local->diagid_wire_len;
@@ -6056,7 +5579,7 @@ tee_done:
             char jbuf[2048];   /* > STATUS_MAX (see DIAG_STATS_EXTRA_MAX) */
             /* Config- and census-owned fields are layered in by the site
              * that owns them -- diag_stats.c is pure libc and knows nothing
-             * of the f3 option, the rawlog sink, or the helper's census. */
+             * of the f3 option or the helper's census. */
             crc_damage_check(caph, local, snow);   /* before the JSON */
             diag_stats_extra_t sx;
             fill_stats_extra(local, &sx);
@@ -6213,10 +5736,6 @@ done:
     /* Before spindown, while the pipe can still carry the residual slice and
      * the totals line. */
     rawpkt_finish(caph, local);
-    if (local->rawlog_fd >= 0) {
-        close(local->rawlog_fd);
-        local->rawlog_fd = -1;
-    }
     /* Disarm the QSH-trace latch if this capture armed it. The latch
      * survives reboots, so leaving it set floods the next capture on
      * this modem with QSH/event frames (~1,322 per cell frame on SDX62, see the
@@ -6234,18 +5753,8 @@ done:
     cf_handler_spindown(caph);
 }
 
-/* Cleanup handler: runs when capture_thread_run returns and when the thread is
- * cancelled. An atomic store is all it does -- async-signal-safe, which
- * matters because the cancel is asynchronous. main()'s END anchor waits on it
- * before reading the DIAG fd itself. */
-static void capture_thread_mark_exited(void *arg) {
-    __atomic_store_n(&((local_diag_t *)arg)->capture_exited, 1, __ATOMIC_RELEASE);
-}
-
 void capture_thread(kis_capture_handler_t *caph) {
-    pthread_cleanup_push(capture_thread_mark_exited, caph->userdata);
     capture_thread_run(caph);
-    pthread_cleanup_pop(1);
 }
 
 /* -----------------------------------------------------------------------
@@ -6262,25 +5771,17 @@ int main(int argc, char *argv[]) {
     local_diag_t local = {
         .diag_path = NULL,
         .replay_path = NULL,
-        .rawlog_spec = NULL,
-        .rawlog_path = NULL,
         .modem_imei = NULL,
         .modem_firmware = NULL,
         .modem_model = NULL,
         .name = NULL,
         .diag_fd = -1,
-        .rawlog_fd = -1,
         .no_mask = 0,
         .disabled = 0,
         .debug = 0,
         .gsmtap_native = { .fd = -1 },
-        /* Static initialiser rather than a pthread_mutex_init() call: `local`
-         * is a stack object in main() with a whole-program lifetime, and an
-         * initialiser cannot be forgotten on a path that returns early. */
-        .rawlog_lock = PTHREAD_MUTEX_INITIALIZER,
         .anchor = { .interval_ms = 30000 },   /* set for real in open_callback */
         .source_uuid = NULL,
-        .capture_exited = 0,
     };
 
     /* A dead helper must not kill us with SIGPIPE mid-write; we detect the
@@ -6327,15 +5828,10 @@ int main(int argc, char *argv[]) {
 
     cf_handler_shutdown(caph);
 
-    /* END clock anchor -- here, not in capture_thread; see anchor_end(). */
-    anchor_end(&local);
-
     if (local.diag_fd >= 0)
         close(local.diag_fd);
     free(local.diag_path);
     free(local.replay_path);
-    free(local.rawlog_spec);
-    free(local.rawlog_path);
     free(local.modem_imei);
     free(local.modem_firmware);
     free(local.modem_model);

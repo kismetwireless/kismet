@@ -12,8 +12,7 @@
  * DIVISION OF LABOUR -- why the AT+CCLK? exchange and the ClockAnchor row are
  * two separate products:
  *   - The raw AT+CCLK? exchange rides the normal at_command_t() seam, so it is
- *     already teed into the atlog= file AND the RawAT kismetdb row,
- *     host-timestamped. That raw exchange is the primary record.
+ *     already in the RawAT kismetdb row, host-timestamped. That raw exchange is the primary record.
  *   - This ClockAnchor row is the STRUCTURED metadata layer: it lifts the parsed
  *     modem reading next to the host clock in one uniform schema shared with the
  *     DIAG transport, so downstream skew analysis needs no per-transport

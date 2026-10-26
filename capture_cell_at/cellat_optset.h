@@ -24,8 +24,6 @@
     in the same `key=value` spelling the source definition uses at open:
 
         strategy=walking            switch the scan profile, no restart
-        atlog=/captures/            start or redirect the raw AT file tee
-        atlog=off                   stop it (the path is kept for the panel)
         clock_anchor_sec=60         change the ClockAnchor cadence (0 = off)
 
     The grammar reserves the rest of the string space for CHANNELS. A string
@@ -68,7 +66,6 @@ typedef enum {
 typedef enum {
     CELLAT_OPTSET_KEY_NONE = 0,
     CELLAT_OPTSET_KEY_STRATEGY,
-    CELLAT_OPTSET_KEY_ATLOG,
     CELLAT_OPTSET_KEY_CLOCK_ANCHOR,
     CELLAT_OPTSET_KEY_OPEN_ONLY,   /* any open-time-only key; key_str says which */
 } cellat_optset_key_t;
@@ -82,7 +79,6 @@ typedef struct {
 
     /* Parsed facts, so the caller never re-derives them: */
     const cellat_strategy_t *strategy;       /* KEY_STRATEGY */
-    int atlog_disable;                       /* KEY_ATLOG: value was off|none */
     unsigned long clock_anchor_ms;           /* KEY_CLOCK_ANCHOR */
 } cellat_optset_t;
 
@@ -90,7 +86,7 @@ typedef struct {
  * populated `err`, and `out` is fully initialised on every path. */
 void cellat_optset_parse(const char *spec, cellat_optset_t *out);
 
-/* "strategy|atlog|clock_anchor_sec" -- for help text and messages. */
+/* "strategy|clock_anchor_sec" -- for help text and messages. */
 const char *cellat_optset_runtime_keys(void);
 
 #ifdef __cplusplus

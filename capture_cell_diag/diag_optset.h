@@ -4,10 +4,8 @@
  * `POST /datasource/by-uuid/:uuid/set_channel`, which arrives here as the
  * CONFIGURE frame's channel string. So every runtime knob celldiag wants has to
  * multiplex through one opaque string, in the same `key=value` spelling the
- * source definition uses at open time:
- *
- *     rawlog=/captures/run.hdlc     start (or redirect) the raw DIAG tee
- *     rawlog=off                    stop the tee
+ * source definition uses at open time. No key is runtime-settable in this
+ * build; every recognised one is declined with the way to change it.
  *
  * The classification is the point, not the parse. Three outcomes must stay
  * distinguishable, because an operator's next action differs for each:
@@ -38,10 +36,8 @@
 
 #include <stddef.h>
 
-/* Longest value we will carry. A rawlog= spec is a path with %-tokens; PATH_MAX
- * plus room for the tokens, rounded. A longer one is a named error rather than
- * a truncation -- silently shortening a capture path is how you write a file
- * nobody can find. */
+/* Longest value we will carry. A longer one is a named error rather than a
+ * truncation. */
 #define DIAG_OPTSET_VALUE_MAX 1024
 #define DIAG_OPTSET_ERR_MAX   256
 
@@ -55,7 +51,6 @@ typedef enum {
 
 typedef enum {
     DIAG_OPTSET_KEY_NONE = 0,
-    DIAG_OPTSET_KEY_RAWLOG,
     DIAG_OPTSET_KEY_MASK,
     DIAG_OPTSET_KEY_F3,
     DIAG_OPTSET_KEY_GSMTAP,
@@ -67,10 +62,6 @@ typedef struct {
     char key_str[64];                       /* the key as spelled, for messages */
     char value[DIAG_OPTSET_VALUE_MAX];      /* the value as spelled */
     char err[DIAG_OPTSET_ERR_MAX];          /* operator-facing; empty iff OK */
-    /* rawlog only: the value asked for the tee to STOP. Kept as a parsed fact
-     * rather than re-derived by the caller, so "off" and "none" cannot come to
-     * mean different things in two places. */
-    int  rawlog_disable;
 } diag_optset_t;
 
 /* Parse one runtime knob string. Never fails: every outcome is a status plus a

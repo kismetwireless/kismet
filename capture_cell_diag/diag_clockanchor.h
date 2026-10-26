@@ -33,13 +33,10 @@
  *     guess.
  *
  * WHERE THE RECORDS GO. Every anchor is a type="ClockAnchor" kismetdb `data`
- * row (cf_send_json) AND a line appended to `<rawlog>.clock_anchor.jsonl` next
- * to the .hdlc tee -- the same bytes -- so a forked-out .hdlc can be
- * wall-clocked without the kismetdb.
+ * row (cf_send_json).
  *
- * This file is libc-only, like diag_capmeta.c and diag_rawlog.c: the request
- * builder, the reply scanner, the record formatter and the sidecar helpers are
- * unit-tested standalone in test_diag_clockanchor.c
+ * This file is libc-only: the request builder, the reply scanner and the
+ * record formatter are unit-tested standalone in test_diag_clockanchor.c
  * (`--enable-cell-selftest`).
  */
 #ifndef DIAG_CLOCKANCHOR_H
@@ -107,14 +104,5 @@ int diag_clockanchor_format_record(char *out, size_t outsz,
                                    const char *edge, const char *host_utc,
                                    uint64_t host_mono_ns, uint64_t ts64,
                                    uint64_t host_rtt_ns);
-
-/* `<rawlog_path>.clock_anchor.jsonl`. Returns 0, or -1 on NULL / overflow. */
-int diag_clockanchor_sidecar_path(const char *rawlog_path, char *out,
-                                  size_t outsz);
-
-/* Append buf to path (O_APPEND|O_CREAT, 0644), open-write-close per record:
- * anchors are rare (one per clock_anchor_sec=), and reopening by NAME is what
- * makes the sidecar follow a runtime rawlog= redirect. Returns 0, -1 on error. */
-int diag_clockanchor_append(const char *path, const char *buf, size_t len);
 
 #endif /* DIAG_CLOCKANCHOR_H */

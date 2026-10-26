@@ -94,31 +94,6 @@ const cellat_field_spec CELLAT_FIELDS[] = {
         "raw AT exchanges written to the kismetdb as RawAT rows" },
     { "kismet.datasource.cellat.rawat_dropped", cellat_ft::u64,
         "RawAT rows dropped (send/format failure or full ring)" },
-    { "kismet.datasource.cellat.qmifeed_configured", cellat_ft::flag,
-        "1 if a qmifeed= command was configured; every qmifeed_* / "
-        "rawqmi_* field is meaningful only when this is 1" },
-    { "kismet.datasource.cellat.qmifeed_active", cellat_ft::flag,
-        "1 while the qmifeed child is running; 0 with qmifeed_configured = it exited" },
-    { "kismet.datasource.cellat.qmifeed_sent", cellat_ft::u64,
-        "QMI cell observations relayed as CellModem rows" },
-    { "kismet.datasource.cellat.qmifeed_dropped", cellat_ft::u64,
-        "QMI observations lost to a send failure or full ring" },
-    { "kismet.datasource.cellat.qmifeed_dropped_imei", cellat_ft::u64,
-        "QMI observations dropped for another/no IMEI" },
-    { "kismet.datasource.cellat.qmifeed_msgs", cellat_ft::u64,
-        "feed notes forwarded to the message bus (capped)" },
-    { "kismet.datasource.cellat.rawqmi_records", cellat_ft::u64,
-        "raw qmicli exchanges written to the kismetdb as RawQMI rows" },
-    { "kismet.datasource.cellat.rawqmi_dropped", cellat_ft::u64,
-        "RawQMI rows dropped (send failure or full ring)" },
-    { "kismet.datasource.cellat.atlog_path", cellat_ft::str,
-        "atlog= JSONL tee path; empty if no tee was ever configured" },
-    { "kismet.datasource.cellat.atlog_active", cellat_ft::flag,
-        "1 if the atlog= tee is open now; a retained path with 0 is a stopped tee" },
-    { "kismet.datasource.cellat.atlog_records", cellat_ft::u64,
-        "records written to the atlog= tee" },
-    { "kismet.datasource.cellat.atlog_dropped", cellat_ft::u64,
-        "atlog= records lost to a write/format failure" },
     { "kismet.datasource.cellat.anchor_count", cellat_ft::u64,
         "ClockAnchor rows sent" },
     { "kismet.datasource.cellat.anchor_last_epoch", cellat_ft::u64,
@@ -213,9 +188,8 @@ void kis_datasource_cell_at::apply_cellat_stats_json(const std::string& json_str
                         ->set(it->get<uint64_t>());
                 break;
             case cellat_ft::flag:
-                // Boolean on the wire -- is_boolean(), NOT is_number().  As
-                // with celldiag's rawlog_active, the wrong type test silently
-                // skips every emit and pins the field at 0.
+                // Boolean on the wire -- is_boolean(), NOT is_number(); the
+                // wrong type test silently skips every emit and pins it at 0.
                 if (it->is_boolean())
                     std::static_pointer_cast<tracker_element_uint8>(fi->second)
                         ->set(it->get<bool>() ? 1 : 0);
@@ -239,12 +213,6 @@ void kis_datasource_cell_at::apply_cellat_stats_json(const std::string& json_str
         auto s = j.find("strategy");
         if (s != j.end() && s->is_string())
             runtime.strategy = s->get<std::string>();
-        auto ap = j.find("atlog_path");
-        if (ap != j.end() && ap->is_string())
-            runtime.atlog_path = ap->get<std::string>();
-        auto aa = j.find("atlog_active");
-        if (aa != j.end() && aa->is_boolean())
-            runtime.atlog_active = aa->get<bool>();
         auto lc = j.find("lock_channel");
         if (lc != j.end() && lc->is_string())
             runtime.lock_channel = lc->get<std::string>();
@@ -252,61 +220,8 @@ void kis_datasource_cell_at::apply_cellat_stats_json(const std::string& json_str
     }
 }
 
-namespace {
-    const std::vector<cell_paths::file_opt> cellat_file_opts = {
-        { "atlog", true, true },
-        { "transcript", false, false },
-        { "lockstate", false, false },
-    };
-}
-
-bool kis_datasource_cell_at::parse_source_definition(std::string in_definition) {
-    if (!kis_datasource::parse_source_definition(in_definition))
-        return false;
-
-    if (get_source_remote())
-        return true;
-
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "cellat parse_source_definition");
-
-    std::string err;
-    if (!cell_paths::confine_definition(cellat_file_opts, source_definition_opts, err)) {
-        _MSG_ERROR("Source '{}': {}", get_source_name(), err);
-        return false;
-    }
-
-    set_int_source_definition(generate_source_definition());
-    return true;
-}
-
-void kis_datasource_cell_at::set_channel_hop(double in_rate,
-        std::shared_ptr<tracker_element_vector_string> in_chans,
-        bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
-        configure_callback_t in_cb) {
-    if (!get_source_remote()) {
-        std::string err;
-        in_chans = cell_paths::confine_hop(cellat_file_opts, in_chans, err);
-
-        if (!err.empty()) {
-            if (in_cb != nullptr)
-                in_cb(in_transaction, false, err);
-            return;
-        }
-    }
-
-    kis_datasource::set_channel_hop(in_rate, in_chans, in_shuffle, in_offt, in_transaction, in_cb);
-}
-
 void kis_datasource_cell_at::set_channel(std::string in_channel,
         unsigned int in_transaction, configure_callback_t in_cb) {
-    std::string err;
-    if (!get_source_remote() &&
-            !cell_paths::confine_setting(cellat_file_opts, in_channel, err)) {
-        if (in_cb != nullptr)
-            in_cb(in_transaction, false, err);
-        return;
-    }
-
     // Which runtime keys the operator touched. The VALUE is not kept:
     // the success bit is 1 for applied and refused settings alike, so
     // what gets restored is the helper's readback of what actually ran.
@@ -314,8 +229,6 @@ void kis_datasource_cell_at::set_channel(std::string in_channel,
         std::lock_guard<std::mutex> lk(runtime_mutex);
         if (in_channel.rfind("strategy=", 0) == 0)
             runtime.touched_strategy = true;
-        else if (in_channel.rfind("atlog=", 0) == 0)
-            runtime.touched_atlog = true;
     }
     kis_datasource::set_channel(in_channel, in_transaction, in_cb);
 }
@@ -446,13 +359,6 @@ static std::string cellat_uuid_for_imei(const std::string& imei) {
 
 void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
-    std::string path_err;
-    if (!cell_paths::check_definition(cellat_file_opts, in_definition, path_err)) {
-        if (in_cb != nullptr)
-            in_cb(in_transaction, false, path_err);
-        return;
-    }
-
     // Set a unique, port-stable UUID BEFORE the IPC open (see the detailed
     // rationale in datasource_cell_diag.cc). Kismet merges a datasource into the
     // tracker even when its open fails, and the failed-open report path does not
@@ -494,7 +400,7 @@ void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned 
     }
 
     // Re-apply the operator's runtime choices after a reopen.
-    //   - profile and AT log: after every successful open of an enabled
+    //   - profile: after every successful open of an enabled
     //     definition, unless the definition itself changed that key since the
     //     last open (an update_definition is the operator re-specifying it);
     //   - the band/RAT lock: after an error reopen only.  An explicit Capture
@@ -530,7 +436,6 @@ void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned 
         std::string en = get_definition_opt("enabled");
         bool enabled = !(en == "false" || en == "0" || en == "no" || en == "off");
         std::string def_strategy = get_definition_opt("strategy");
-        std::string def_atlog = get_definition_opt("atlog");
 
         std::vector<std::string> restore;
         bool error_reopen;
@@ -543,19 +448,13 @@ void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned 
             if (opened_before) {
                 if (def_strategy != last_open_strategy)
                     runtime.touched_strategy = false;
-                if (def_atlog != last_open_atlog)
-                    runtime.touched_atlog = false;
             }
             last_open_strategy = def_strategy;
-            last_open_atlog = def_atlog;
             opened_before = true;
 
             if (enabled && runtime.valid) {
                 if (runtime.touched_strategy && !runtime.strategy.empty())
                     restore.push_back("strategy=" + runtime.strategy);
-                if (runtime.touched_atlog && !runtime.atlog_path.empty())
-                    restore.push_back(runtime.atlog_active ?
-                            "atlog=" + runtime.atlog_path : std::string("atlog=off"));
                 if (error_reopen && !runtime.lock_channel.empty() &&
                         runtime.lock_channel != "AUTO")
                     restore.push_back(runtime.lock_channel);

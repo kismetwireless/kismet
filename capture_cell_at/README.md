@@ -208,8 +208,8 @@ the server re-types it on the way into the log:
   attaches a packet metablob typed `"Cellular"` (`phy_cell.cc`
   `set_data("Cellular", …)`), and `kis_databaselogfile.cc` logs a metablob **in
   preference to** the source's own JSON type. Nearly every decoded cell lands
-  here: every serving cell, every QMI (`qmifeed`) row, every DIAG row, and every
-  neighbour that carried a PCI.
+  here: every serving cell, every DIAG row, and every neighbour that carried a
+  PCI.
 - **`CellModem`** — phy_cell **rejected** the observation (no metablob), so it
   keeps the type the source sent. In practice these are `AT+QENG="neighbourcell"`
   lines that report an EARFCN but **no PCI**: with neither a full identity nor a
@@ -221,17 +221,17 @@ the server re-types it on the way into the log:
 
 **A kismetdb consumer must read all of these types, not one.** Filtering
 `type='CellModem'` alone sees only the un-keyable EARFCN-only neighbour sightings
-and **none** of the serving / QMI / DIAG / PCI-bearing-neighbour stream; filtering
+and **none** of the serving / DIAG / PCI-bearing-neighbour stream; filtering
 `type='Cellular'` alone silently drops those EARFCN-only neighbours. The blessed
 predicate that spans the full stream is `cell_types_where()` in
 `log_tools/kismetdb_to_cellndjson.cc` (`Cellular` OR `CellModem` OR `Cell` OR
 `RawAT` OR `ClockAnchor`); its count query and export query share the one
 predicate so they cannot disagree.
 
-On a typical EG25-G drive with `qmifeed` enabled, roughly half of the
+On a typical EG25-G drive, roughly half of the
 `AT+QENG="neighbourcell"` rows are promoted to `Cellular` (they carried a PCI)
 and the rest stay `CellModem` (EARFCN+RAT only, no PCI), while every
-serving-cell, QMI and DIAG row is `Cellular`. The split is lossless and intentional:
+serving-cell and DIAG row is `Cellular`. The split is lossless and intentional:
 `CellModem` marks exactly the observations the PHY could not key, so flattening the
 two would destroy the accept/reject signal `cell_types_where()` relies on.
 
@@ -402,14 +402,11 @@ cd ..
 sudo make install
 ```
 
-`make install` installs `kismet_cap_cell_at` into the bin directory. The QMI
-feed (`qmifeed/`, below) is Python and is not installed; it runs only for a
-source that sets `qmifeed=` (off by default), so a host without `python3` runs
-every other cellat option ([4e](#4e-qmi-cell-feed-qmifeed)).
+`make install` installs `kismet_cap_cell_at` into the bin directory.
 
 With libusb (the default; `--disable-usbserial` turns it off) the helpers can
 also reach a modem that has no host serial driver, see
-[4f](#4f-modems-with-no-host-driver-usb).
+[4e](#4e-modems-with-no-host-driver-usb).
 
 ## Quick Start
 
@@ -504,14 +501,10 @@ Append options to the source definition after a colon:
 |--------|--------|---------|-------------|
 | `atport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(auto-detect by IMEI)* | Open this port instead of scanning. The IMEI is still verified — a mismatch is a hard open error, never a silent survey of the wrong modem. |
 | `strategy` | `driving` (alias `wardrive`), `walking`, `stationary`, `serving_only` | `driving` | Scan profile (see below). An unknown value **refuses the open** and names the valid ones. |
-| `debug` | `true`, `false` | `false` | Debug mode: extra per-poll messages, the IMSI and ICCID read and logged at debug level, and, if `transcript=` is not set, an automatic AT transcript at `/tmp/kismet_cellat_<IMEI>_<random>.log` (`$TMPDIR` if set); the open message names it. `KISMET_CELLAT_DEBUG=1` in the environment turns it on for every source; `debug=` in the definition overrides that. |
-| `transcript` | a file path | *(off)* | Write a human-readable raw AT transcript (`[ISO8601] TX:/RX:` text, wall-clock). The file is created mode `0600`, since it carries the modem's identifiers. |
-| `atlog` | a file path or directory spec | *(off)* | Write a machine-ingestable **raw AT capture** as JSONL, one host-timestamped record per exchange. See [Raw AT capture](#raw-at-capture-atlog) below. |
-| `qmifeed` | `auto`, or `auto <feed options>` | *(off)* | Spawn a QMI cell feed and relay its NDJSON lines as `CellModem` observations beside the AT ones. `auto` runs the feed that ships in `qmifeed/`. **Needs `python3`**: the only cell-source option that starts one. See [QMI cell feed](#4e-qmi-cell-feed-qmifeed) below. |
+| `debug` | `true`, `false` | `false` | Debug mode: extra per-poll messages, and the IMSI and ICCID read and logged at debug level. `KISMET_CELLAT_DEBUG=1` in the environment turns it on for every source; `debug=` in the definition overrides that. |
 | `bandlock` | `true`, `false` | `false` | Offer the band/RAT lock channels. A lock is written to the modem's saved configuration, so it is off unless asked for. A lock left by a crashed session is undone either way. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
 | `sierracnd` | `true`, `false` | `false` | Sierra only: unlock the advanced AT commands (`AT!ENTERCND`, default password) at open. Without it, a modem that keeps `AT!GSTATUS?` / `AT!LTEINFO?` locked reports less. |
-| `lockstate` | a file path | `$HOME/.kismet/cellat-lock-<imei>.state` (no default without a home directory: locking then needs `lockstate=`) | Where the modem's band/RAT settings **as found** are saved before a lock is written. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
-| `usb` | `auto`, `force`, `off` | `auto` | Modems reached over libusb. See [4f](#4f-modems-with-no-host-driver-usb). |
+| `usb` | `auto`, `force`, `off` | `auto` | Modems reached over libusb. See [4e](#4e-modems-with-no-host-driver-usb). |
 | `channel` | a lock channel (`LTE`, `LTE-B66`, …) | `AUTO` | Kismet's own option: lock at bring-up. Only on a lock-capable modem, with `bandlock=true`. |
 
 **An option that is not in this table is ignored, and cellat says so.**
@@ -532,31 +525,12 @@ kismet -c cellat-ttyUSB3:strategy=walking,debug=true
 kismet -c cellat-123456789012345:atport=/dev/ttyUSB28
 ```
 
-### 4a. Raw AT capture (`atlog=`)
+### 4a. Raw AT exchanges (`RawAT`)
 
-`atlog=<spec>` tees **every AT command and its full response** to disk as JSONL
-— one host-timestamped record per exchange — while cellat is decoding those
-same responses into Kismet observations. It exists so that **when a drive goes
-wrong you can go back and see exactly what the modem was asked and what it
-answered**, byte for byte.
-
-This is a **self-contained, DIAG-independent capture.** You do NOT need a
-`celldiag` source, a concurrent DIAG capture, or anything else — an AT-only
-drive arms `atlog=` and gets the complete raw record on its own:
-
-```bash
-# Pure AT drive: write a raw AT capture and nothing else. No DIAG anywhere.
-kismet -c cellat-123456789012345:atlog=/captures/
-
-# A directory spec (trailing '/') synthesizes cellat-<imei>-<ts>.jsonl inside it,
-# so multiple modems never collide. A full path or %i/%m/%t template also works:
-kismet -c cellat-ttyUSB3:atlog=/captures/cellat-%i-%t.jsonl
-```
-
-Path templating: `%i` → IMEI, `%m` → model (sanitized), `%t` → UTC
-`YYYYmmddTHHMMSSZ`, `%%` → literal `%`.
-
-Each line is one record:
+Every AT command and its full response goes to the kismetdb as a `RawAT` data
+row, one host-timestamped record per exchange, always on. cellat writes no file
+of its own; `log_tools/kismetdb_to_atlog` gives the rows back as JSONL. Each
+line is one record:
 
 ```json
 {"ts_mono_ns": 402931118273, "ts_utc": "2026-09-21T16:51:03.412887Z",
@@ -569,18 +543,6 @@ Each line is one record:
 - `ts_utc` — wall-clock (ISO 8601, microseconds), secondary.
 - `cmd` / `response` — the exact command sent and the full raw response, JSON-escaped.
 - `duration_ms` — exchange wall time. `err` — `null`, or an error string.
-
-**Why JSONL and not `transcript=`?** `transcript=` is a human-readable debug log
-(TX:/RX: text). `atlog=` is a **data product** — every consumer reads it with a
-one-line `json.loads` per line, no parser. It is written uncompressed live;
-`post_capture.py` compresses it to `.zst` afterward (do not gzip inline).
-
-**Bonus — DIAG correlation.** The record schema matches
-the offline DIAG/AT correlator, so *if* you happened to run a DIAG capture at
-the same time, the shared `ts_mono_ns` lets the offline correlator align AT
-exchanges to DIAG frames (which carry no host clock) with no shim. That is an
-optional consumer of an already-complete AT capture — never a requirement for
-producing one.
 
 ### 4b. What the source reports about itself (`cellat_stats`)
 
@@ -597,7 +559,6 @@ web UI renders them on the source's detail panel.
 | `fullscan_capable` | the modem has a full-scan command |
 | `obs_total`, `obs_per_sec`, `last_obs_epoch` | observations **sent** to Kismet |
 | `rawat_records`, `rawat_dropped` | RawAT rows into the kismetdb |
-| `atlog_path`, `atlog_active`, `atlog_records`, `atlog_dropped` | the `atlog=` tee |
 | `anchor_count`, `anchor_last_epoch` | ClockAnchor rows |
 | `lock_capable`, `lock_channel`, `lock_error` | band/RAT lock: whether the modem has it, the lock **in force** (`AUTO` = the settings as found), and why the last lock or restore failed (`""` = none) |
 | `at_port`, `model`, `firmware` | what was opened |
@@ -605,23 +566,21 @@ web UI renders them on the source's detail panel.
 
 **A value the helper has not measured is omitted, never sent as 0.** Kismet
 still serialises every registered field, so an unmeasured one shows up as its
-default (`""` / `0`). Read `stats_epoch == 0` as "nothing reported yet",
-`atlog_path == ""` as "no tee configured", and `last_obs_epoch == 0` as "no
-observation yet". The web panel applies the same rules.
+default (`""` / `0`). Read `stats_epoch == 0` as "nothing reported yet", and
+`last_obs_epoch == 0` as "no observation yet". The web panel applies the same rules.
 
 ### 4c. Changing settings on a running source
 
-Three settings can change **without restarting** the source, through Kismet's
+Two settings can change **without restarting** the source, through Kismet's
 runtime setter (`POST /datasource/by-uuid/<uuid>/set_channel.cmd` with
 `{"channel": "<key>=<value>"}`) or the web panel's controls:
 
 | Setting | Effect |
 |---|---|
 | `strategy=<profile>` | switch the scan profile at the next poll; the last-run stamps are cleared, so a switch to `stationary` scans at once |
-| `atlog=<path or dir/>` / `atlog=off` | start, redirect or stop the raw AT log. A stop keeps the path; a redirect to an unwritable path keeps the log already running |
 | `clock_anchor_sec=<n>` | change the ClockAnchor cadence (`0` = periodic off) |
 
-`atport=`, `enabled=`, `debug=`, `transcript=` and `uuid=` are open-time only.
+`atport=`, `enabled=`, `debug=` and `uuid=` are open-time only.
 Sent at runtime they are refused *with that reason*, not as unknown options.
 Change them by closing the source, updating its definition
 (`update_definition.cmd`), and re-opening it. The panel's **Enable/Disable
@@ -642,10 +601,10 @@ capture framework cancels a hop only for a channel).
 **A runtime choice survives a reopen, and lasts until Kismet restarts.**
 After any reopen of an enabled source — the panel's
 Capture switch, the whole-modem switch, or Kismet's automatic re-open after a
-helper error — the server re-sends the `strategy=` and `atlog=` state the
+helper error — the server re-sends the `strategy=` the
 operator changed at runtime, and says so on the bus (`re-applying its runtime
 choices …`). What it re-sends is the helper's **readback** of what
-actually ran (`cellat.strategy`, `atlog_path`, `atlog_active`), never the last
+actually ran (`cellat.strategy`), never the last
 string sent, because a refused setting also answers success: `strategy=bogus`
 after `strategy=walking` restores `walking`. An `update_definition` of the same
 key is the operator re-specifying it, and the definition wins.
@@ -713,8 +672,9 @@ On a Quectel the open reports these **channels**:
 **Every lock is written to the modem's NV and survives a reboot.** So:
 
 1. Nothing is written at open. `AUTO` writes nothing until something else has.
-2. Before the first write, the settings as found go to the `lockstate=` file.
-   If that file cannot be written, the lock is refused.
+2. Before the first write, the settings as found go to
+   `$HOME/.kismet/cellat-lock-<imei>.state`. If that file cannot be written
+   (or there is no home directory), the lock is refused.
 3. `AUTO`, and every close (a graceful Kismet close, and the error exit),
    restore the settings as found and remove the file.
 4. A helper that was killed (Kismet's hard stop sends SIGTERM, which runs no
@@ -730,105 +690,7 @@ levers report no channels yet. Telit `AT#BND` band locks need a
 CFUN cycle and a 30 s read; SIMCom band locks (`AT+CNBP` / `AT+CBANDCFG`)
 are not wired up.
 
-### 4e. QMI cell feed (`qmifeed=`)
-
-QMI carries cell data AT cannot: the NR Cell Identity Telit's `AT#RFSTS` omits,
-and full cell identity on Sierra parts whose `AT+CEREG` / `AT+CSQ`
-return ERROR. `qmifeed=auto` spawns a child that writes one
-`build_cell_json`-shaped observation per stdout line; each line is relayed to
-the server as a `CellModem` record, exactly like an AT observation. The feed
-stamps `"prov":{"src":"qmi",...}`, so `phy_cell` merges it with the AT and DIAG
-sightings of the same tower (`seen_via`) with no server change.
-
-> ⚠️ **`qmifeed=` needs Python.** It is the one
-> option on either cell source that starts a `python3`: the feed below is a
-> Python program. cellat's default (no `qmifeed=`) starts none, and
-> `kismet_cap_cell_diag`'s default (`nativedecode=only`) starts none either, so
-> a host with no `python3` runs both sources and loses only the QMI rows. The
-> feed is outside the zero-Python path on purpose, not by omission; porting it
-> to C is not planned.
-
-The feed ships in this directory as `qmifeed/kismet_qmi_feed.py`. It
-needs only `python3` (standard library) and `qmicli` (libqmi) on `$PATH`, and
-polls `--nas-get-cell-location-info` + `--nas-get-signal-info`, opened with
-`--device-open-proxy` so it shares the port with ModemManager.
-`qmifeed=auto` runs it:
-
-```bash
-kismet -c 'cellat-<imei>:atport=/dev/ttyUSB2,qmifeed=auto'
-kismet -c 'cellat-<imei>:atport=/dev/ttyUSB2,qmifeed=auto -d /dev/cdc-wdm0 --interval 5'
-```
-
-- **`auto` (or `1`)** looks for `qmifeed/kismet_qmi_feed.py` beside
-  `kismet_cap_cell_at`, or `capture_cell_at/qmifeed/` beside it, in the
-  binary's directory or up to 3 parents, and runs it with the first `python3`
-  in `/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin` or `/opt/local/bin`.
-  Anything after `auto ` is split on spaces and passed to the feed directly,
-  with no shell; only `-d`, `--device`, `--interval`, `--imei`, `--once` and
-  `--no-signal` are accepted. With no `-d`, the
-  feed picks the `cdc-wdm` whose IMEI matches the source (below). If no feed is
-  found, `auto` is refused with a message bus ERROR naming where it looked;
-  AT polling carries on. The binary reads its own location from
-  `/proc/self/exe` (Linux) or dyld (macOS), so `auto` works from the build
-  tree, or anywhere the binary is copied together with `qmifeed/`. A binary
-  built by `./configure && make` also looks, last, in
-  `<datadir>/kismet/cell/qmifeed/`, for a feed installed there by hand or by a
-  package; `make install` does not install it.
-- **Any other value is refused.** A source definition can come from anyone
-  allowed to add a source, so it never names a program to run.
-
-- **Whose cells these are is checked, twice.** The feed stamps
-  `prov.imei` with the IMEI its QMI device reports (DMS), and `cdc-wdm`
-  numbering on a multi-modem host is not stable, so `-d` alone could put
-  another modem's cells under this source.
-  - The capture child exports `CELLAT_IMEI=<the IMEI verified on the AT port>`
-    to the feed. `kismet_qmi_feed.py` then polls only a device whose DMS IMEI
-    matches: `-d` first, then every detected `cdc-wdm`. A `-d` on another modem
-    is re-routed with a note on stderr, and no match exits 3. An inherited
-    `CELLAT_IMEI` is replaced, and an unverified source exports none.
-  - Every line is checked anyway. A line stamped with another IMEI, or with
-    none, is **dropped** and reported once on the message bus (ERROR). The
-    feed-exited message counts them. A source with no verified IMEI relays
-    unchecked and says so once (INFO). A third-party feed must stamp
-    `prov.imei` or relay nothing.
-  - `--imei` on the feed is an operator assertion that skips the DMS read; it
-    is refused (exit 3) when it contradicts `CELLAT_IMEI`.
-  - The feed's re-route note and its refusals reach the **message bus**
-    (`#msg` lines, below), prefixed with the source's name; stderr
-    still gets them for the console log. A feed that notes every poll is capped
-    at 32 bus notes; the rest stay in the console log, and the feed-exited
-    message counts them.
-- **Raw QMI in the kismetdb.** Every qmicli call the feed makes
-  becomes a `RawQMI` row in the `.kismet` `data` table, always on (like
-  `RawAT`): argv, rc, stdout, stderr and host-monotonic instants on the same
-  clock as `atlog=`. `log_tools/kismetdb_to_qmilog` gives them back as the
-  feed's `--qmilog` JSONL, sorted by `ts_mono_ns`; for one source its output
-  equals that source's `--qmilog` file record for record, byte for byte. `--qmilog <dir>/` on the feed command still writes the file
-  tee, as a debug-outside copy. `--qmilog-wire` adds each QMUX frame's full
-  bytes via `qmicli --verbose-full`, in both sinks; it carries the IMEI and
-  costs about 10 KB per call. The Sources panel's **QMI feed** row shows
-  observations, RawQMI rows, notes and drops (`qmifeed_*` / `rawqmi_*`).
-- **The line protocol.** `qmifeed_start()` exports
-  `CELLAT_QMIFEED_PROTO=2`. A feed that sees it may also write
-  `#rawqmi {json}` (a `RawQMI` row) and `#msg info|error <text>` (a bus note).
-  A feed that does not know the protocol never writes them, and an older
-  capture binary exports nothing, so either side can be the older one.
-- The value runs via `/bin/sh -c`. Kismet splits source options on commas and a
-  quoted value ends at the next `"`, so the command may contain **neither** —
-  wrap anything more complex in a script and pass `/bin/sh /path/script.sh`.
-- Only lines that look like a JSON object (`{...}`) are relayed as
-  observations; blank lines, banners and any observation over 4 KiB are
-  dropped whole. Tagged lines may run to 64 KiB. Diagnostics belong on stderr
-  (the Kismet log) or, for the operator, in a `#msg` line.
-- The feed starts with the capture (never during a probe/list), and a feed that
-  exits is reported once on the message bus; AT polling carries on.
-- Stopping works in layers (`cellat_qmifeed.h`): Kismet's close kills the feed's
-  whole process group; if the capture child is killed outright, PDEATHSIG ends
-  the direct child and `kismet_qmi_feed.py` exits once it is reparented.
-- Band is never emitted for QMI cells: QMI's 16-bit EARFCN TLV can wrap,
-  so the prov block carries `"earfcn_ambiguous"` instead.
-
-### 4f. Modems with no host driver (`usb=`)
+### 4e. Modems with no host driver (`usb=`)
 
 A modem whose serial interfaces no host driver has (a Quectel module on
 macOS, or on Linux one the `option` driver does not bind) is reached over

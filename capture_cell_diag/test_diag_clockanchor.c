@@ -1,10 +1,10 @@
 /* test_diag_clockanchor.c - standalone unit tests for the DIAG clock anchor.
  *
- * Links diag_clockanchor.c + its two libc-only dependencies (diag_hdlc.c,
- * diag_capmeta.c) and nothing else: `--enable-cell-selftest`. Covers the
+ * Links diag_clockanchor.c + its libc-only dependency diag_hdlc.c and nothing
+ * else: `--enable-cell-selftest`. Covers the
  * request frame, the reply scanner (split reads, stuffed bytes, interleaved
  * flood, partial in-flight frame, rejection, CRC failure), the midpoint, the
- * record's exact bytes, and the sidecar path + append.
+ * record's exact bytes and its JSON escaping.
  */
 
 #ifdef CELL_SELFTEST
@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static int failures = 0;
 
@@ -213,6 +212,16 @@ static void test_record_escapes_and_null(void) {
     CHECK(strstr(rec, "\"edge\": \"\"") != NULL, "NULL edge not \"\": %s", rec);
 }
 
+static void test_record_escapes_control_bytes(void) {
+    char rec[768];
+    const char src[] = { 'a', '\n', 0x01, '/', '\0' };
+    int r = diag_clockanchor_format_record(rec, sizeof(rec), src, 0, "start",
+                                           "t", 0, 0, 0);
+    CHECK(r == 0, "format returned %d", r);
+    CHECK(strstr(rec, "\"source_name\": \"a\\n\\u0001/\"") != NULL,
+          "control bytes not escaped: %s", rec);
+}
+
 static void test_record_overflow(void) {
     char rec[40];
     CHECK(diag_clockanchor_format_record(rec, sizeof(rec), "x", 0, "start", "t",
@@ -225,35 +234,6 @@ static void test_iso8601_matches_cellat_format(void) {
     struct timeval tv = { .tv_sec = 1790000000, .tv_usec = 42 };  /* 2026-09-21 */
     diag_clockanchor_iso8601(out, sizeof(out), &tv);
     CHECK(strcmp(out, "2026-09-21T14:13:20.000042Z") == 0, "iso '%s'", out);
-}
-
-/* ---- sidecar ---- */
-
-static void test_sidecar_path(void) {
-    char out[128];
-    CHECK(diag_clockanchor_sidecar_path("/cap/celldiag-1-2.hdlc", out, sizeof(out)) == 0,
-          "path failed");
-    CHECK(strcmp(out, "/cap/celldiag-1-2.hdlc.clock_anchor.jsonl") == 0, "path '%s'", out);
-    CHECK(diag_clockanchor_sidecar_path("/cap/x.hdlc", out, 8) == -1, "overflow not -1");
-    CHECK(diag_clockanchor_sidecar_path(NULL, out, sizeof(out)) == -1, "NULL not -1");
-}
-
-static void test_append_accumulates_lines(void) {
-    char path[] = "/tmp/test_diag_clockanchor_XXXXXX";
-    int fd = mkstemp(path);
-    CHECK(fd >= 0, "mkstemp");
-    if (fd < 0)
-        return;
-    close(fd);
-    CHECK(diag_clockanchor_append(path, "one\n", 4) == 0, "append 1");
-    CHECK(diag_clockanchor_append(path, "two\n", 4) == 0, "append 2");
-    FILE *f = fopen(path, "r");
-    char buf[32] = { 0 };
-    size_t n = f ? fread(buf, 1, sizeof(buf) - 1, f) : 0;
-    if (f)
-        fclose(f);
-    CHECK(n == 8 && strcmp(buf, "one\ntwo\n") == 0, "sidecar holds '%s'", buf);
-    unlink(path);
 }
 
 int main(void) {
@@ -270,10 +250,9 @@ int main(void) {
     test_midpoint_backwards_mono_is_zero_window();
     test_record_exact_bytes();
     test_record_escapes_and_null();
+    test_record_escapes_control_bytes();
     test_record_overflow();
     test_iso8601_matches_cellat_format();
-    test_sidecar_path();
-    test_append_accumulates_lines();
 
     if (failures) {
         fprintf(stderr, "test_diag_clockanchor: %d FAILED\n", failures);

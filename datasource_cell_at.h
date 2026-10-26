@@ -27,7 +27,6 @@
 
 #include "kis_datasource.h"
 #include "datasource_cell_modemident.h"
-#include "datasource_cell_paths.h"
 
 class kis_datasource_cell_at;
 typedef std::shared_ptr<kis_datasource_cell_at> shared_datasource_cell_at;
@@ -44,8 +43,6 @@ public:
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;
-
-    virtual bool parse_source_definition(std::string in_definition) override;
 
     // Intercept the helper's "cellat_stats" control line and SET the
     // registered fields from it; everything else (CellModem observations,
@@ -78,12 +75,6 @@ public:
     virtual void set_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb) override;
 
-    virtual void set_channel_hop(double in_rate,
-            std::shared_ptr<tracker_element_vector_string> in_chans,
-            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
-            configure_callback_t in_cb) override;
-    using kis_datasource::set_channel_hop;
-
     // The panel's Capture and whole-modem switches close through the
     // close_source route (stop_source()) or the disable_source route
     // (disable_source()); Kismet's error re-open calls neither.  That is how an
@@ -95,16 +86,13 @@ public:
 protected:
     struct cellat_runtime_t {
         bool touched_strategy = false;   // set_channel("strategy=...") was sent
-        bool touched_atlog = false;      // set_channel("atlog=...") was sent
         bool valid = false;              // a capturing stats line has arrived
         std::string strategy;            // readback: the profile in force
-        std::string atlog_path;          // readback: the tee path
-        bool atlog_active = false;       // readback: the tee is open
         std::string lock_channel;        // readback: the band/RAT lock in force
     };
     std::mutex runtime_mutex;
     cellat_runtime_t runtime;
-    std::string last_open_strategy, last_open_atlog;
+    std::string last_open_strategy;
     bool opened_before = false;
     bool explicit_close = false;
     uint64_t open_generation = 0;
@@ -154,7 +142,7 @@ public:
          * set_channel is Kismet's only generic runtime setter, and
          * kis_datasource::set_channel() refuses a source whose builder is not
          * tune-capable before anything reaches the helper.  cellat needs it for
-         * the runtime scan-profile switch and the atlog= toggle.
+         * the runtime scan-profile switch.
          *
          * A lock-capable modem also has channels: its band/RAT lock presets
          * (capture_cell_at/cellat_lock.h).  A key=value setting still never

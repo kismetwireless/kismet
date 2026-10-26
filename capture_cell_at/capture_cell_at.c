@@ -21,9 +21,8 @@
     parses serving cell, neighbor cell, and network scan responses, and
     forwards cell observations as JSON to Kismet via cf_send_json()
     (type="Cell"/"CellModem"). It also emits every raw AT exchange into the
-    kismetdb `data` table as type="RawAT" -- the same JSONL record the
-    atlog= file tee writes -- so a Kismet drive's .kismet carries the full raw
-    AT transcript inside it, read back by kismetdb_to_cellndjson.
+    kismetdb `data` table as type="RawAT", so a Kismet drive's .kismet carries
+    the full raw AT transcript inside it, read back by kismetdb_to_cellndjson.
 
     It also self-anchors its clock: at capture start,
     end and every clock_anchor_sec= seconds it issues AT+CCLK? and emits a
@@ -31,8 +30,8 @@
     AT-only drive (no DIAG ts64, no GNSS 0x1476) can still detect host<->modem
     clock skew from a single transport. AT+CCLK? is 3GPP TS 27.007, common to
     every vendor below, so the anchor is issued once in the shared poll loop
-    rather than per driver. (The raw AT+CCLK? exchange also flows into atlog= and
-    RawAT via the normal seam -- that raw reading is the primary dataset product;
+    rather than per driver. (The raw AT+CCLK? exchange also flows into RawAT
+    via the normal seam -- that raw reading is the primary dataset product;
     the ClockAnchor row is the structured layer.)
 
     Supported vendors and command references:
@@ -117,7 +116,6 @@
 #include "../capture_cell_diag/diag_modemident.h"
 #include "../capture_cell_diag/diag_identvouch.h"
 #include "clockanchor.h"
-#include "cellat_qmifeed.h"
 #include "../capture_cell_diag/cell_safefile.h"
 #include "../capture_cell_diag/cell_usbport.h"
 #include <sys/wait.h>
@@ -212,41 +210,6 @@ typedef struct {
      * sources' lifecycle switch. No port scan, no AT I/O, no serial fd. */
     int disabled;
 
-    /* Transcript file descriptor for AT I/O logging (-1 = disabled).
-     * When enabled, every AT command sent and response received is
-     * written with ISO 8601 timestamps for post-hoc analysis. */
-    int transcript_fd;
-
-    /* atlog=<spec>: JSONL tee of every AT exchange. -1 = off.
-     * Distinct from transcript_fd (human-readable debug text): this is the
-     * machine-ingestable data product, one record per exchange. It is a
-     * self-contained raw AT capture that needs no DIAG source: an AT-only drive
-     * arms it and gets the full "what did we ask, what did it answer" record.
-     * Its per-record ts_mono_ns orders the AT capture on a monotonic axis; the
-     * schema also matches the DIAG/AT-poll correlator, so if a DIAG capture ran
-     * concurrently the two can be aligned with no shim (DIAG frames carry no
-     * host clock). */
-    int atlog_fd;
-    char *atlog_path;         /* resolved atlog file path, or NULL */
-
-    /* `qmifeed=auto` -- a child that polls qmicli and writes one
-     * cell_observation JSON per stdout line (qmifeed/kismet_qmi_feed.py in this tree).
-     * Parsed at open, spawned at capture start (never during probe/list),
-     * drained non-blocking by capture_thread, stopped in its teardown. */
-    char     *qmifeed_cmd;    /* NULL = no feed */
-    qmifeed_t qmifeed;
-    uint64_t  qmifeed_sent;   /* lines handed to cf_send_json as CellModem */
-    uint64_t  qmifeed_dropped;/* lines lost to a send failure / full ringbuffer */
-    uint64_t  qmifeed_dropped_imei; /* stamped with another/no IMEI */
-    int       qmifeed_warned;       /* bit per verdict already reported */
-    uint64_t  rawqmi_records;       /* RawQMI rows handed to cf_send_json */
-    uint64_t  rawqmi_dropped;       /* lost to a send failure / full ring */
-    int       rawqmi_oversize_said; /* the one bus note is out */
-    uint64_t  qmifeed_msgs;         /* #msg notes forwarded to the bus */
-    uint64_t  qmifeed_msgs_muted;   /* notes past QMIFEED_MSG_BUDGET */
-    uint64_t atlog_records;   /* exchanges successfully written */
-    uint64_t atlog_dropped;   /* format/alloc/write failures (counted, not per-event logged) */
-
     /* Back-pointer to the capture handler, set once open_callback runs.
      * The AT-exchange seam at_command_t() carries only `local`, but the RawAT
      * in-db emit needs the handler for cf_send_json(). NULL until the capture
@@ -258,18 +221,15 @@ typedef struct {
     /* The modem's own identity: AT+CGMI / +CGMM / +CGMR / +CGSN as read
      * at open, verbatim. Sent once per capture as a ModemIdentity record and
      * used as the source's hardware label. Distinct from modem_model, which
-     * stays the per-vendor display string the atlog %m template and the
-     * cellat_stats `model` field already carry (for Quectel it is derived from
+     * stays the per-vendor display string the cellat_stats `model` field
+     * already carries (for Quectel it is derived from
      * the FIRMWARE, so it cannot stand in for the model). Empty imei = unset. */
     modemident_t ident;
 
     /* RawAT: raw AT exchanges emitted into the kismetdb `data` table as
-     * type="RawAT", the emit-side counterpart of kismetdb_to_cellndjson. This
-     * is independent of atlog= (the file tee): whenever a capture is open every
-     * exchange is sent to the server, which persists it iff kismetdb logging is
-     * on -- so the raw AT transcript lives inside the .kismet with no sidecar
-     * needed. The in-db row is byte-for-byte the SAME JSONL record atlog= writes
-     * (both consume one atlog_build_record() output). */
+     * type="RawAT", the emit-side counterpart of kismetdb_to_cellndjson.
+     * Whenever a capture is open every exchange is sent to the server, which
+     * persists it iff kismetdb logging is on. */
     uint64_t rawat_records;   /* RawAT rows successfully handed to cf_send_json */
     uint64_t rawat_dropped;   /* RawAT send/format/alloc failures (counted, not per-event logged) */
     int      rawat_oversize_said;  /* the one bus note is out */
@@ -279,7 +239,7 @@ typedef struct {
      * A ClockAnchor fires at capture START, at END (in the capture-thread
      * teardown), and every clock_anchor_interval_ms in between. The AT+CCLK?
      * exchange itself rides the at_command_t() seam, so the raw host-timestamped
-     * reading also lands in the atlog= file tee and the RawAT kismetdb row -- that
+     * reading also lands in the RawAT kismetdb row -- that
      * raw exchange is the primary dataset deliverable; the ClockAnchor row is the
      * structured metadata layer on top (see clockanchor.h). CCLK works on every
      * vendor driver (3GPP TS 27.007), so it is issued once in the shared poll loop
@@ -304,10 +264,7 @@ typedef struct {
      * thread. optset_lock guards the hand-off:
      *   - strategy= and clock_anchor_sec= are QUEUED here and applied by the
      *     capture thread at the top of its next loop, because they rewrite
-     *     capture-thread state (intervals, last-run stamps).
-     *   - atlog= is applied AT ONCE under the lock, because a stop must work
-     *     even while the capture thread sits in a 3-minute full scan; the lock
-     *     also covers atlog_fd/atlog_path/atlog_records wherever they are read. */
+     *     capture-thread state (intervals, last-run stamps). */
     pthread_mutex_t optset_lock;
     const cellat_strategy_t *pending_strategy;   /* NULL = nothing queued */
     int           pending_anchor_set;
@@ -351,7 +308,7 @@ static unsigned long now_ms(void) {
     return (unsigned long)(tv.tv_sec) * 1000 + (unsigned long)(tv.tv_usec) / 1000;
 }
 
-/* Host CLOCK_MONOTONIC in nanoseconds -- the atlog record's ordering axis.
+/* Host CLOCK_MONOTONIC in nanoseconds -- the RawAT record's ordering axis.
  * Monotonic, not wall-clock, so an NTP step during a drive cannot
  * reorder exchanges within the AT capture (and, as a bonus, keeps them
  * alignable to a concurrent DIAG capture should one exist). */
@@ -362,8 +319,8 @@ static uint64_t now_mono_ns(void) {
 }
 
 /* Wall-clock UTC as ISO 8601 with microseconds from a caller-supplied timeval.
- * Split from atlog_now_iso8601 so the RawAT emit can stamp the record's ts_utc
- * and the cf_send_json packet timestamp from the same instant. Matches
+ * The RawAT emit stamps the record's ts_utc and the cf_send_json packet
+ * timestamp from the same instant. Matches
  * Python's isoformat(timespec="us"), which the correlator uses. */
 static void atlog_iso8601_from_tv(char *out, size_t outsz, const struct timeval *tv) {
     struct tm tm;
@@ -380,10 +337,7 @@ static void atlog_iso8601_from_tv(char *out, size_t outsz, const struct timeval 
  * so the response text is unreliable and recorded empty with a non-null err).
  * tx_done/first_rx/rx_done are the exchange's inner instants at_command_log
  * reported (0 = never reached, recorded as null).
- *
- * The file tee (atlog_write_record) and the in-db RawAT emit (rawat_emit)
- * format the record once and share the exact same bytes, so there is no
- * second schema to keep in sync. */
+ */
 static char *atlog_build_record(uint64_t t0_mono, const char *ts_utc,
                                 const char *cmd, const char *response, int rc,
                                 uint64_t tx_done, uint64_t first_rx,
@@ -405,27 +359,11 @@ static char *atlog_build_record(uint64_t t0_mono, const char *ts_utc,
     return rec;
 }
 
-/* Append a pre-built record to the atlog= file tee. A write error closes the
- * sink so a full disk degrades to "no more atlog" rather than a wedged capture
- * -- mirroring diag_rawlog's tee-error handling. Failures are counted in
- * atlog_dropped, not logged per-event (an AT poll runs every few seconds; a
- * per-event log would bury the signal). */
-static void atlog_write_record(local_cell_t *local, const char *rec) {
-    /* Under optset_lock: a runtime atlog= may swap or close the fd from the
-     * framework's command thread, so the check and the write must
-     * see the same fd. */
-    pthread_mutex_lock(&local->optset_lock);
-    if (local->atlog_fd >= 0) {
-        if (atlog_write(local->atlog_fd, rec, strlen(rec)) != 0) {
-            close(local->atlog_fd);
-            local->atlog_fd = -1;
-            local->atlog_dropped++;
-        } else {
-            local->atlog_records++;
-        }
-    }
-    pthread_mutex_unlock(&local->optset_lock);
-}
+/* The largest JSON payload a cellat `data` row (RawAT) may carry. Kismet
+ * refuses any IPC frame over MAX_EXTERNAL_FRAME_LEN (16384, kis_external.h);
+ * 4 KiB is left for the v3 header, the msgpack map, the type string and any
+ * fixed-GPS block, the same budget as DIAG_RAWPKT_PAYLOAD_MAX. */
+#define CELLAT_ROW_JSON_MAX 12288
 
 /* A `data` row the server would refuse. Kismet errors the whole
  * SOURCE over a frame past MAX_EXTERNAL_FRAME_LEN and reopens it into the same
@@ -449,7 +387,7 @@ static int cellat_row_oversize(local_cell_t *local, const char *type,
 }
 
 /* Emit a pre-built record into the kismetdb `data` table as type="RawAT".
- * Best-effort and INDEPENDENT of atlog=: a send failure degrades to a
+ * Best-effort: a send failure degrades to a
  * counted drop, never a wedged or errored-out capture, because raw AT is a tee
  * and not the datasource's primary product. `tv` is the exchange's wall-clock
  * instant (same one the record's ts_utc was formatted from), used as the
@@ -475,7 +413,7 @@ static void rawat_emit(local_cell_t *local, struct timeval tv, const char *rec) 
     }
 }
 
-/* The AT-over-serial core -- transcript_write, serial_open, serial_close,
+/* The AT-over-serial core -- serial_open, serial_close,
  * at_command_log, at_command -- lives in at_serial.inc so the standalone
  * cellat_serial_probe binary and the test_at_serial selftest share the exact
  * code this capture binary runs (the AT-side analogue of the DIAG side's
@@ -484,8 +422,8 @@ static void rawat_emit(local_cell_t *local, struct timeval tv, const char *rec) 
  * symbol-collision risk against the Kismet framework library. */
 #include "at_serial.inc"
 
-/* Transcript-enabled wrapper — used in capture thread and open callback
- * where local_cell_t is available.  Routes through transcript_fd.
+/* The exchange seam for the capture thread and open callback, where
+ * local_cell_t is available; each exchange becomes a RawAT row.
  * `info_idle_ms` > 0 selects at_serial.inc's info form. */
 static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
                            size_t resp_max, int timeout_ms, int info_idle_ms) {
@@ -494,15 +432,11 @@ static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
     struct timeval tv0;
     at_timing_t tm = {0, 0, 0};
 
-    /* Two sinks want the exchange record: the atlog= file tee (armed via
-     * atlog_fd) and the RawAT kismetdb emit (live whenever a capture is open, so
-     * gated on caph). Build the record when either is live, and stamp
-     * the start on both clocks before the (possibly multi-second) command so
-     * ts_mono_ns marks when the command left the host, not when the response
-     * landed. When it landed is at_command_log's to report: the tx_done /
-     * first_rx / rx_done instants in `tm`. Off both sinks, we pay
-     * nothing. */
-    int want_record = (local->atlog_fd >= 0) || (local->caph != NULL);
+    /* The RawAT record is built only while a capture is open.  Stamp the
+     * start on both clocks before the (possibly multi-second) command so
+     * ts_mono_ns marks when the command left the host; when the response
+     * landed is at_command_log's to report, in `tm`. */
+    int want_record = (local->caph != NULL);
     if (want_record) {
         gettimeofday(&tv0, NULL);
         t0 = now_mono_ns();
@@ -510,8 +444,7 @@ static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
     }
 
     int rc = at_command_log_ex(local->serial_fd, cmd, resp_buf, resp_max,
-                               timeout_ms, local->transcript_fd,
-                               want_record ? &tm : NULL, info_idle_ms);
+                               timeout_ms, want_record ? &tm : NULL, info_idle_ms);
 
     /* This exchange as its RawAT row will name it (tm stays zero when
      * no record is built). */
@@ -521,19 +454,13 @@ static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
     local->last_x_rx_done_ns  = tm.rx_done_ns;
 
     if (want_record) {
-        /* One record, both sinks -- the file line and the in-db RawAT row are
-         * byte-for-byte identical because they consume the same buffer. */
         char *rec = atlog_build_record(t0, ts_utc, cmd, resp_buf, rc,
                                        tm.tx_done_ns, tm.first_rx_ns,
                                        tm.rx_done_ns);
         if (rec == NULL) {
-            pthread_mutex_lock(&local->optset_lock);
-            if (local->atlog_fd >= 0) local->atlog_dropped++;
-            pthread_mutex_unlock(&local->optset_lock);
-            if (local->caph != NULL)  local->rawat_dropped++;
+            local->rawat_dropped++;
         } else {
-            atlog_write_record(local, rec);   /* checks the fd under the lock */
-            if (local->caph != NULL)  rawat_emit(local, tv0, rec);
+            rawat_emit(local, tv0, rec);
             free(rec);
         }
     }
@@ -592,8 +519,8 @@ static int cellat_no_vendor_cmd(const local_cell_t *local) {
  * the modem RTC, so a single transport can detect clock skew.
  *
  * `edge` is "start" | "periodic" | "end". Two products come out of one call:
- *   1. The raw AT+CCLK? exchange, via at_command_t()'s seam -> the atlog= file
- *      tee and the RawAT kismetdb row. This host-timestamped raw reading is the
+ *   1. The raw AT+CCLK? exchange, via at_command_t()'s seam -> the RawAT
+ *      kismetdb row. This host-timestamped raw reading is the
  *      primary dataset product and happens for every edge.
  *   2. This structured ClockAnchor `data` row (schema clock-anchor/1), the same
  *      shape the DIAG transport emits, so downstream skew analysis is
@@ -621,7 +548,7 @@ static void clock_anchor_emit(local_cell_t *local, const char *edge) {
     uint64_t host_mono = now_mono_ns();
     atlog_iso8601_from_tv(host_utc, sizeof(host_utc), &tv);
 
-    /* The raw exchange is teed to atlog=/RawAT here regardless of what we parse. */
+    /* The raw exchange goes to RawAT here regardless of what we parse. */
     int n = at_command_t(local, "AT+CCLK?", resp, sizeof(resp), 3000);
     if (n <= 0 || cclk_extract(resp, cclk, sizeof(cclk)) != 0)
         return;
@@ -677,7 +604,6 @@ static void cellat_stats_emit(local_cell_t *local, const char *state) {
     cellat_stats_t s;
     char vocab[512];
     char json[2048];
-    char atlog_path_copy[1024];
     struct timeval tv;
 
     if (local->caph == NULL)
@@ -720,29 +646,7 @@ static void cellat_stats_emit(local_cell_t *local, const char *state) {
         }
 
         s.rawat_records = local->rawat_records;
-        if (local->qmifeed_cmd != NULL) {
-            s.has_qmifeed = 1;
-            s.qmifeed_active = local->qmifeed.pid > 0 && !local->qmifeed.eof;
-            s.qmifeed_sent = local->qmifeed_sent;
-            s.qmifeed_dropped = local->qmifeed_dropped;
-            s.qmifeed_dropped_imei = local->qmifeed_dropped_imei;
-            s.qmifeed_msgs = local->qmifeed_msgs;
-            s.rawqmi_records = local->rawqmi_records;
-            s.rawqmi_dropped = local->rawqmi_dropped;
-        }
         s.rawat_dropped = local->rawat_dropped;
-        /* Copied under the lock: a runtime atlog= can free and replace the
-         * path while this thread formats it. */
-        pthread_mutex_lock(&local->optset_lock);
-        if (local->atlog_path != NULL) {
-            snprintf(atlog_path_copy, sizeof(atlog_path_copy), "%s",
-                     local->atlog_path);
-            s.atlog_path = atlog_path_copy;
-        }
-        s.atlog_active = local->atlog_fd >= 0;
-        s.atlog_records = local->atlog_records;
-        s.atlog_dropped = local->atlog_dropped;
-        pthread_mutex_unlock(&local->optset_lock);
         s.anchor_count = local->anchor_sent;
         s.anchor_last_epoch = local->anchor_last_epoch;
         s.at_port = local->device_path;
@@ -2809,7 +2713,7 @@ static void warn_one_unknown_option(const char *key, void *ctx) {
              "cellat: source option '%s' is not recognised and is being "
              "IGNORED. Kismet accepts unknown options silently, so this would "
              "otherwise look like it worked. Known options: atport=, "
-             "strategy=, debug=, transcript=, atlog=, clock_anchor_sec=, "
+             "strategy=, debug=, clock_anchor_sec=, bandlock=, sierracnd=, "
              "usb=, enabled=", key);
     cf_send_warning(caph, buf);
 }
@@ -2897,8 +2801,6 @@ static void cellat_lock_open(local_cell_t *local, kis_capture_handler_t *caph,
                              const char *imei, char *definition,
                              cf_params_interface_t *iface) {
     char resp[2048], buf[STATUS_MAX], err[512];
-    char *placeholder = NULL;
-    int placeholder_len;
     cellat_lock_settings_t now;
 
     local->lock_capable = 0;
@@ -2912,12 +2814,8 @@ static void cellat_lock_open(local_cell_t *local, kis_capture_handler_t *caph,
     local->lock_enabled = cellat_flag_true(definition, "bandlock");
     memset(&now, 0, sizeof(now));
 
-    if ((placeholder_len = cf_find_flag(&placeholder, "lockstate", definition)) > 0)
-        snprintf(local->lock_state_path, sizeof(local->lock_state_path), "%.*s",
-                 placeholder_len, placeholder);
-    else
-        cellat_lock_default_state_path(imei, local->lock_state_path,
-                                       sizeof(local->lock_state_path));
+    cellat_lock_default_state_path(imei, local->lock_state_path,
+                                   sizeof(local->lock_state_path));
 
     /* Probed, never asserted from the vendor: only a modem that answers
      * the reads with usable values gets channels. The vendor picks which
@@ -3720,8 +3618,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (void)identvouch_publish(device_path, &local->ident);
 
     /* Parse debug option.
-     * Default: off.  Debug mode reads the IMSI and ICCID and, with no
-     * transcript= path, writes an AT transcript under /tmp, so it is opt-in:
+     * Default: off.  Debug mode reads the IMSI and ICCID, so it is opt-in:
      * KISMET_CELLAT_DEBUG=1 (or true) in the environment, or debug=true in the
      * source definition.  The definition overrides the environment. */
     local->debug = 0;
@@ -3749,87 +3646,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local->name = strdup(hw_desc);
 
-    /* Parse transcript file option — logs all AT I/O with timestamps.
-     * If debug is on and no transcript path specified, auto-create one
-     * in $TMPDIR or /tmp/ under a random name.  Either file is created 0600:
-     * it holds the modem's identifiers, and /tmp is shared.
-     *
-     * This block must stay below the `local->name` assignment above: all
-     * four messages here prefix with `local->name`, and above the assignment
-     * each would pass a NULL pointer to `%s` -- undefined behavior, not a
-     * cosmetic `(null)`. No `at_command_t()` call may move above this block
-     * either, or the transcript would miss AT I/O it should log. */
-    if ((placeholder_len = cf_find_flag(&placeholder, "transcript", definition)) > 0) {
-        char *path = strndup(placeholder, placeholder_len);
-        local->transcript_fd = cell_safe_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
-        if (local->transcript_fd >= 0) {
-            snprintf(buf, sizeof(buf), "%s AT transcript logging to %s",
-                     local->name, path);
-            cf_send_message(caph, buf, MSGFLAG_INFO);
-            transcript_write(local->transcript_fd, "INFO",
-                             "transcript opened — capture starting", 0);
-        } else {
-            snprintf(buf, sizeof(buf), "%s failed to open transcript file %s: %s",
-                     local->name, path, strerror(errno));
-            cf_send_message(caph, buf, MSGFLAG_ERROR);
-        }
-        free(path);
-    } else if (local->debug && local->transcript_fd < 0) {
-        /* Auto-transcript in debug mode, under a fresh random name */
-        char auto_path[1024], prefix[96];
-        const char *tmpdir = cell_getenv("TMPDIR");
-        snprintf(prefix, sizeof(prefix), "kismet_cellat_%s_",
-                 local->modem_imei ? local->modem_imei : "unknown");
-        local->transcript_fd = cell_safe_open_unique(tmpdir && tmpdir[0] ? tmpdir : "/tmp",
-                                                     prefix, ".log", O_WRONLY | O_APPEND,
-                                                     0600, auto_path, sizeof(auto_path));
-        if (local->transcript_fd >= 0) {
-            snprintf(buf, sizeof(buf), "%s AT transcript (auto) to %s",
-                     local->name, auto_path);
-            cf_send_message(caph, buf, MSGFLAG_INFO);
-            transcript_write(local->transcript_fd, "INFO",
-                             "transcript opened (debug auto) — capture starting", 0);
-        }
-    }
-
-    /* Parse atlog= option -- JSONL tee of every AT exchange, a self-contained
-     * raw AT capture that needs no DIAG source (the AT-side analogue of
-     * celldiag rawlog=, but either runs alone). Distinct from transcript=
-     * above: transcript is a human-readable debug log; atlog is the machine-
-     * ingestable data product (the DIAG/AT-poll correlator's schema).
-     * Path templating (%i/%m/%t) + directory-spec synthesis of
-     * cellat-<imei>-<ts>.jsonl come from atlog_resolve(). Opened here, below the
-     * local->name assignment and before any at_command_t() in the capture
-     * thread, for the same reasons the transcript block documents. A runtime
-     * atlog= change is handled by the optset path. If a DIAG capture happens
-     * to be running too, the shared ts_mono_ns axis lets an offline
-     * correlator align the two. */
-    if ((placeholder_len = cf_find_flag(&placeholder, "atlog", definition)) > 0) {
-        char *spec = strndup(placeholder, placeholder_len);
-        char resolved[1024];
-        if (spec != NULL &&
-            atlog_resolve(spec, local->modem_imei, local->modem_model,
-                          time(NULL), resolved, sizeof(resolved)) == 0) {
-            local->atlog_fd = cell_safe_open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
-            if (local->atlog_fd >= 0) {
-                local->atlog_path = strdup(resolved);
-                snprintf(buf, sizeof(buf), "%s AT corpus tee (atlog JSONL) to %s",
-                         local->name, resolved);
-                cf_send_message(caph, buf, MSGFLAG_INFO);
-            } else {
-                snprintf(buf, sizeof(buf), "%s failed to open atlog file %s: %s",
-                         local->name, resolved, strerror(errno));
-                cf_send_message(caph, buf, MSGFLAG_ERROR);
-            }
-        } else {
-            snprintf(buf, sizeof(buf),
-                     "%s atlog path from '%s' is too long to resolve",
-                     local->name, spec ? spec : "(null)");
-            cf_send_message(caph, buf, MSGFLAG_ERROR);
-        }
-        free(spec);
-    }
-
     /* Parse clock_anchor_sec= -- periodic cadence for the host<->modem-RTC
      * ClockAnchor. Default 30s (shared with celldiag);
      * `0` disables the periodic tick, but the mandatory start and end anchors
@@ -3852,17 +3668,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
             free(cav);
         }
-    }
-
-    /* qmifeed=auto for the feed that ships in this tree
-     * (qmifeed/kismet_qmi_feed.py; see qmifeed_resolve_command).
-     * Only recorded here -- open also serves transient probes, and a probe must
-     * never spawn a poller. Quote the value if it has feed options:
-     *   qmifeed=auto
-     *   qmifeed="auto -d /dev/cdc-wdm0 --interval 5" */
-    if ((placeholder_len = cf_find_flag(&placeholder, "qmifeed", definition)) > 0) {
-        free(local->qmifeed_cmd);
-        local->qmifeed_cmd = strndup(placeholder, placeholder_len);
     }
 
     /* Band/RAT lock presets as this source's channels. */
@@ -4110,9 +3915,9 @@ static void *cellat_chantranslate(kis_capture_handler_t *caph, const char *chans
  * this returns > 0 (`caph->channel = strdup(channel)`), and the server then
  * reports it as kismet.datasource.channel -- and, after an error re-open,
  * replays it with set_channel(get_source_channel()) (kis_datasource.cc). So a
- * `return 1` for `atlog=/tmp/x` would (a) show "atlog=/tmp/x" as the source's
- * channel on the panel and (b) quietly re-arm that tee after every crash
- * recovery, while an earlier `strategy=` was forgotten because only the last
+ * `return 1` for `strategy=walking` would (a) show "strategy=walking" as the
+ * source's channel on the panel and (b) quietly re-apply it after every crash
+ * recovery, while an earlier setting was forgotten because only the last
  * string is kept. Returning 0 keeps "channel" free for the band/RAT channels
  * it names and makes a runtime setting what it looks like: a
  * one-time change to a running process.
@@ -4121,8 +3926,7 @@ static void *cellat_chantranslate(kis_capture_handler_t *caph, const char *chans
  * (`cbret < 0 ? 0 : 1`), as it is for celldiag's refusals -- and -1 is not an
  * option, because a negative return also tears the source down. The truth
  * travels in `msg`, the message bus, and the stats line the panel reads
- * within one interval. Note that celldiag returns 1 for an applied rawlog=,
- * so the two drivers differ on this. */
+ * within one interval. */
 static int cellat_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
                               void *privchan, char *msg) {
     local_cell_t *local = (local_cell_t *) caph->userdata;
@@ -4216,69 +4020,8 @@ static int cellat_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
             cf_send_message(caph, msg, MSGFLAG_INFO);
             return 0;
 
-        case CELLAT_OPTSET_KEY_ATLOG: {
-            if (o->atlog_disable) {
-                pthread_mutex_lock(&local->optset_lock);
-                uint64_t wrote = local->atlog_records;
-                int was_open = local->atlog_fd >= 0;
-                if (was_open) {
-                    close(local->atlog_fd);
-                    local->atlog_fd = -1;
-                }
-                /* atlog_path is KEPT, like celldiag's rawlog_path: a stopped
-                 * tee must still say where the records it wrote went. */
-                local->stats_now = 1;
-                pthread_mutex_unlock(&local->optset_lock);
-                if (was_open)
-                    snprintf(msg, STATUS_MAX,
-                             "cellat: AT log stopped after %llu record(s) to %s",
-                             (unsigned long long) wrote,
-                             local->atlog_path ? local->atlog_path : "(no file)");
-                else
-                    snprintf(msg, STATUS_MAX,
-                             "cellat: AT log was not running (%llu record(s) "
-                             "written this session)", (unsigned long long) wrote);
-                cf_send_message(caph, msg, MSGFLAG_INFO);
-                return 0;
-            }
-
-            /* The SAME resolver and %-token vocabulary as the open-time path. */
-            char resolved[1024];
-            if (atlog_resolve(o->value, local->modem_imei, local->modem_model,
-                              time(NULL), resolved, sizeof(resolved)) != 0) {
-                snprintf(msg, STATUS_MAX,
-                         "cellat: atlog path from '%s' is too long to resolve",
-                         o->value);
-                cf_send_message(caph, msg, MSGFLAG_ERROR);
-                return 0;
-            }
-            /* Opened BEFORE the old sink is closed: a redirect to an
-             * unwritable path keeps the tee the operator already had. */
-            int fd = cell_safe_open(resolved, O_WRONLY | O_CREAT | O_APPEND, 0644);
-            if (fd < 0) {
-                snprintf(msg, STATUS_MAX,
-                         "cellat: cannot open atlog file %s: %s (the previous "
-                         "AT log, if any, is untouched)", resolved, strerror(errno));
-                cf_send_message(caph, msg, MSGFLAG_ERROR);
-                return 0;
-            }
-            pthread_mutex_lock(&local->optset_lock);
-            if (local->atlog_fd >= 0)
-                close(local->atlog_fd);
-            local->atlog_fd = fd;
-            free(local->atlog_path);
-            local->atlog_path = strdup(resolved);
-            /* atlog_records is NOT reset: a lifetime total, so "the counter
-             * moved" is what proves a redirect works (celldiag's rule). */
-            local->stats_now = 1;
-            pthread_mutex_unlock(&local->optset_lock);
-            snprintf(msg, STATUS_MAX, "cellat: AT log now writing to %s", resolved);
-            cf_send_message(caph, msg, MSGFLAG_INFO);
-            return 0;
-        }
-
         default:
-            /* Unreachable while the three keys above are the only runtime
+            /* Unreachable while the keys above are the only runtime
              * ones -- here so that a key added to cellat_optset.c with no
              * apply path fails loudly instead of doing nothing. */
             snprintf(msg, STATUS_MAX,
@@ -4373,147 +4116,6 @@ static void cellat_send_modem_identity(local_cell_t *local) {
     }
 }
 
-/* One qmifeed line -> one CellModem record. The feed stamps its own
- * {"src":"qmi",...} prov block, so no inject_prov_x here: phy_cell keys
- * seen_via on prov.src and merges it beside the AT and DIAG sightings.
- * A full ringbuffer gets one wait-and-retry, like the AT path; a line that
- * still cannot be sent is counted, since the next poll supersedes it. */
-static void cellat_qmifeed_line(const char *line, void *ctx) {
-    local_cell_t *local = (local_cell_t *)ctx;
-    struct timeval tv;
-
-    /* Relay only this modem's cells. The feed stamps prov.imei from
-     * its QMI device's own DMS answer; a feed on another modem's cdc-wdm would
-     * otherwise file that modem's towers under this source. Each verdict is
-     * reported once -- a wrong device fails every line, not just the first. */
-    char got[64];
-    qmifeed_imei_verdict_t v = qmifeed_imei_check(line, local->modem_imei,
-                                                  got, sizeof(got));
-    if (!(local->qmifeed_warned & (1 << v)) && v != QMIFEED_IMEI_MATCH) {
-        char msg[ERRBUF_MAX];
-        local->qmifeed_warned |= 1 << v;
-        if (v == QMIFEED_IMEI_MISMATCH)
-            snprintf(msg, sizeof(msg),
-                     "%s qmifeed line is stamped IMEI %s, but this source's modem "
-                     "is %s: DROPPED, with every later line like it. The feed is "
-                     "polling another modem's QMI device -- check its -d",
-                     local->name, got, local->modem_imei);
-        else if (v == QMIFEED_IMEI_UNSTAMPED)
-            snprintf(msg, sizeof(msg),
-                     "%s qmifeed line carries no prov.imei, so nothing says whose "
-                     "cells it holds: DROPPED, with every later line like it. The "
-                     "feed must stamp its QMI device's IMEI",
-                     local->name);
-        else
-            snprintf(msg, sizeof(msg),
-                     "%s has no verified IMEI, so qmifeed lines are relayed "
-                     "UNCHECKED -- nothing confirms they come from this modem",
-                     local->name);
-        cf_send_message(local->caph, msg,
-                        v == QMIFEED_IMEI_UNCHECKED ? MSGFLAG_INFO : MSGFLAG_ERROR);
-    }
-    if (v == QMIFEED_IMEI_MISMATCH || v == QMIFEED_IMEI_UNSTAMPED) {
-        local->qmifeed_dropped_imei++;
-        return;
-    }
-
-    gettimeofday(&tv, NULL);
-    int r = cf_send_json(local->caph, NULL, 0, NULL, NULL, tv, "CellModem", line);
-    if (r == 0) {
-        cf_handler_wait_ringbuffer(local->caph);
-        r = cf_send_json(local->caph, NULL, 0, NULL, NULL, tv, "CellModem", line);
-    }
-    if (r > 0) {
-        local->qmifeed_sent++;
-        local->obs_total++;
-        local->last_obs_epoch = tv.tv_sec;
-    } else {
-        local->qmifeed_dropped++;
-    }
-}
-
-/* A feed that fails every poll would otherwise put one note per
- * poll on the bus for the whole drive. The first QMIFEED_MSG_BUDGET notes are
- * forwarded; the rest are counted, and the console log keeps them all (the
- * feed also writes each note to stderr). */
-#define QMIFEED_MSG_BUDGET 32
-
-/* One tagged line from the feed.
- *  #rawqmi -> a `RawQMI` row in the kismetdb `data` table: the same record the
- *             feed's --qmilog file tee writes, so kismetdb_to_qmilog can
- *             rebuild that tee from the .kismet alone. Best-effort, like RawAT:
- *             a full ring costs this record, never the poll loop.
- *  #msg    -> the Kismet message bus, prefixed with this source's name. */
-static void cellat_qmifeed_tag(qmifeed_tag_t tag, const char *payload, void *ctx) {
-    local_cell_t *local = (local_cell_t *)ctx;
-    struct timeval tv;
-
-    if (tag == QMIFEED_TAG_RAWQMI) {
-        if (cellat_row_oversize(local, "RawQMI", "rawqmi_dropped", strlen(payload),
-                                &local->rawqmi_oversize_said)) {
-            local->rawqmi_dropped++;
-            return;
-        }
-        gettimeofday(&tv, NULL);
-        int r = cf_send_json(local->caph, NULL, 0, NULL, NULL, tv, "RawQMI", payload);
-        if (r > 0) {
-            local->rawqmi_records++;
-        } else {
-            if (r == 0)
-                cf_handler_wait_ringbuffer(local->caph);
-            local->rawqmi_dropped++;
-        }
-        return;
-    }
-
-    if (local->qmifeed_msgs >= QMIFEED_MSG_BUDGET) {
-        local->qmifeed_msgs_muted++;
-        return;
-    }
-    char msg[ERRBUF_MAX];
-    local->qmifeed_msgs++;
-    if (local->qmifeed_msgs == QMIFEED_MSG_BUDGET)
-        snprintf(msg, sizeof(msg), "%s qmifeed: %s [note %d of %d: later notes "
-                 "go to the Kismet console log only]", local->name, payload,
-                 QMIFEED_MSG_BUDGET, QMIFEED_MSG_BUDGET);
-    else
-        snprintf(msg, sizeof(msg), "%s qmifeed: %s", local->name, payload);
-    cf_send_message(local->caph, msg,
-                    tag == QMIFEED_TAG_MSG_ERROR ? MSGFLAG_ERROR : MSGFLAG_INFO);
-}
-
-/* Drain the feed; say once, loudly, when it ends -- a feed that died is a
- * source that silently lost its QMI half while still looking healthy. */
-static int cellat_qmifeed_drain(local_cell_t *local) {
-    if (local->qmifeed.fd < 0)
-        return 0;
-    int n = qmifeed_poll(&local->qmifeed, cellat_qmifeed_line, local);
-    if (local->qmifeed.eof) {
-        char msg[ERRBUF_MAX];
-        int st = qmifeed_stop(&local->qmifeed, 0);
-        char how[48];
-        /* The framework's signal thread reaps ANY child (waitpid(-1)), so it
-         * often collects the feed first and the status is simply gone. */
-        if (st >= 0 && WIFSIGNALED(st))
-            snprintf(how, sizeof(how), "signal %d", WTERMSIG(st));
-        else if (st >= 0 && WIFEXITED(st))
-            snprintf(how, sizeof(how), "status %d", WEXITSTATUS(st));
-        else
-            snprintf(how, sizeof(how), "status unknown");
-        snprintf(msg, sizeof(msg),
-                 "%s qmifeed exited (%s) after %llu line(s), %llu dropped for "
-                 "IMEI; %llu RawQMI row(s), %llu dropped; %llu note(s) kept off "
-                 "the bus; QMI cells stop here, AT polling continues",
-                 local->name, how, (unsigned long long)local->qmifeed.lines,
-                 (unsigned long long)local->qmifeed_dropped_imei,
-                 (unsigned long long)local->rawqmi_records,
-                 (unsigned long long)local->rawqmi_dropped,
-                 (unsigned long long)local->qmifeed_msgs_muted);
-        cf_send_message(local->caph, msg, MSGFLAG_ERROR);
-    }
-    return n;
-}
-
 void capture_thread(kis_capture_handler_t *caph) {
     local_cell_t *local = (local_cell_t *)caph->userdata;
     char resp[AT_RESP_MAX];
@@ -4556,27 +4158,6 @@ void capture_thread(kis_capture_handler_t *caph) {
     /* The first stats line goes out now, so the panel has a profile
      * and a port to show before the first poll interval has elapsed. */
     cellat_stats_emit(local, "surveying");
-
-    /* Start the QMI feed only now, in a real capture. */
-    if (local->qmifeed_cmd != NULL) {
-        char qerr[ERRBUF_MAX];
-        /* Tell the feed which modem it must be on. */
-        qmifeed_set_expect_imei(&local->qmifeed, local->modem_imei);
-        /* Raw QMI rows and operator notes, in-band. */
-        qmifeed_set_tag_cb(&local->qmifeed, cellat_qmifeed_tag);
-        qmifeed_cmd_t qcmd;
-        if (qmifeed_resolve_command(local->qmifeed_cmd, qmifeed_exe_dir(),
-                                    &qcmd, qerr, sizeof(qerr)) == 0
-                && qmifeed_start(&local->qmifeed, qcmd.argv, qerr, sizeof(qerr)) == 0) {
-            snprintf(errstr, sizeof(errstr), "%s qmifeed started (pid %d): %s %s",
-                     local->name, (int)local->qmifeed.pid, qcmd.argv[3],
-                     local->qmifeed_cmd);
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
-        } else {
-            snprintf(errstr, sizeof(errstr), "%s %s", local->name, qerr);
-            cf_send_message(caph, errstr, MSGFLAG_ERROR);
-        }
-    }
 
     /* A graceful close ends the loop the same way a clean shutdown
      * would, but with the pipe still open -- so the end anchor below reaches
@@ -5030,10 +4611,6 @@ void capture_thread(kis_capture_handler_t *caph) {
             did_work = 1;
         }
 
-        /* --- QMI feed lines, non-blocking --- */
-        if (cellat_qmifeed_drain(local) > 0)
-            did_work = 1;
-
         /* Avoid busy loop — sleep 250ms if no work was done */
         if (!did_work) {
             usleep(250000);
@@ -5062,7 +4639,6 @@ done:
          memcmp(&local->lock_cur, &local->lock_orig, sizeof(local->lock_cur)) != 0))
         cellat_lock_apply(local, caph, "AUTO");
 
-    qmifeed_stop(&local->qmifeed, 1000);   /* no-op without a feed */
     if (local->device_path && local->device_path[0])
         identvouch_withdraw(local->device_path);
     serial_close(&local->serial_fd);
@@ -5105,9 +4681,6 @@ int main(int argc, char *argv[]) {
         .cached_valid = 0,
         .strategy = NULL,   /* resolved in open_callback */
         .debug = 0,
-        .transcript_fd = -1,
-        .atlog_fd = -1,
-        .qmifeed_cmd = NULL,
         .clock_anchor_interval_ms = 30000,  /* set for real in open_callback */
         .clock_anchor_last_ms = 0,
         .clock_anchor_seq = 0,
@@ -5123,10 +4696,6 @@ int main(int argc, char *argv[]) {
                 "is very low on RAM or something is wrong.\n");
         return -1;
     }
-
-    /* The initializer above zeroes qmifeed's pid/fd, and 0 is stdin, not
-     * "none" -- qmifeed_init() sets the -1 sentinels its stop/poll rely on. */
-    qmifeed_init(&local.qmifeed);
 
     cf_handler_set_userdata(caph, &local);
     cf_handler_set_open_cb(caph, open_callback);
@@ -5177,11 +4746,6 @@ int main(int argc, char *argv[]) {
     /* Cleanup */
     if (local.serial_fd >= 0)
         close(local.serial_fd);
-    if (local.transcript_fd >= 0)
-        close(local.transcript_fd);
-    if (local.atlog_fd >= 0)
-        close(local.atlog_fd);
-    free(local.atlog_path);
     free(local.device_path);
     free(local.modem_imei);
     free(local.modem_firmware);

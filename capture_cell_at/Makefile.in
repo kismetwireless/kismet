@@ -25,7 +25,6 @@ MONITOR_OBJS = \
 	cellat_portscan.c.o \
 	atlog.c.o \
 	clockanchor.c.o \
-	cellat_qmifeed.c.o \
 	diag_wwanport.c.o \
 	diag_probeclose.c.o \
 	diag_modemident.c.o \
@@ -54,9 +53,9 @@ TEST_SERIAL_BIN = test_at_serial
 # Source-option recognition. Links only cellat_options.c -- no capture
 # framework -- so the scanner is testable without a modem or an IPC harness.
 TEST_OPTIONS_BIN = test_cellat_options
-# atlog JSONL tee core. Links only atlog.c -- libc, no Kismet, no serial
-# -- so path templating, JSON escaping and the record formatter are drivable on
-# a host with no modem, exactly like the DIAG side's test_diag_rawlog.
+# RawAT record core. Links only atlog.c -- libc, no Kismet, no serial
+# -- so JSON escaping and the record formatter are drivable on a host with no
+# modem.
 TEST_ATLOG_BIN = test_atlog
 # Clock-anchor core. Links clockanchor.c + atlog.c (for
 # the shared JSON escaping) -- libc, no Kismet, no serial -- so cclk_extract()
@@ -101,9 +100,6 @@ TEST_OPTSET_BIN = test_cellat_optset
 TEST_LOCK_BIN = test_cellat_lock
 # CSURVC TAC=0 substitution + the "tac":<n>:0 regression guard.
 TEST_TACFIX_BIN = test_cellat_tacfix
-# The qmifeed= child: spawn, line framing, fd hygiene and a stop
-# that reaches the whole process group. libc-only; drives real /bin/sh children.
-TEST_QMIFEED_BIN = test_cellat_qmifeed
 
 all: $(MONITOR_BIN) $(PROBE_BIN)
 
@@ -213,7 +209,6 @@ SELFTEST_BINS = $(TEST_SERIAL_BIN) \
 	$(TEST_MODEMIDENT_BIN) \
 	$(TEST_PORTADMIT_BIN) \
 	$(TEST_IDENTVOUCH_BIN) \
-	$(TEST_QMIFEED_BIN) \
 	$(TEST_LOCK_BIN) \
 	$(TEST_TACFIX_BIN)
 
@@ -223,11 +218,6 @@ $(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
 
 $(TEST_LOCK_BIN):	test_cellat_lock.c cellat_lock.c cellat_lock.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_LOCK_BIN) test_cellat_lock.c cellat_lock.c
-
-$(TEST_QMIFEED_BIN):	test_cellat_qmifeed.c cellat_qmifeed.c cellat_qmifeed.h \
-		    ../capture_cell_diag/diag_privdrop.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QMIFEED_BIN) \
-		    test_cellat_qmifeed.c cellat_qmifeed.c
 
 $(TEST_ATLOG_BIN):	test_atlog.c atlog.c atlog.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_ATLOG_BIN) test_atlog.c atlog.c
@@ -323,16 +313,8 @@ clean:
 	@-rm -f $(TEST_STATS_BIN)
 	@-rm -f $(TEST_OPTSET_BIN)
 	@-rm -f $(TEST_LOCK_BIN)
-	@-rm -f $(TEST_QMIFEED_BIN)
 	@-rm -f *.o
 	@-rm -f *.d
-
-# `qmifeed=auto`'s last candidate: a feed installed by hand or by a package
-# under the data directory (`make install` does not install it).
-# No DESTDIR here: it is a staging prefix, not where the binary will run.
-# datarootdir is named so config.status knows the data dir honours --datarootdir.
-datarootdir = @datarootdir@
-cellat_qmifeed.c.o: CPPFLAGS += -DQMIFEED_DATADIR='"@datadir@/kismet/cell"'
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

@@ -64,14 +64,11 @@ int main(void) {
     expect_has("fresh", out, "\"state\":\"surveying\"");
     expect_has("fresh", out, "\"obs_total\":0");
     expect_has("fresh", out, "\"rawat_records\":0");
-    expect_lacks("fresh: no feed, no qmifeed keys", out, "qmifeed_");
-    expect_lacks("fresh: no feed, no rawqmi keys", out, "rawqmi_");
     expect_has("fresh", out, "\"stats_epoch\":1760000000");
     expect_has("fresh", out, "\"stats_interval_s\":5");
     /* The omission rule, one line per sentinel. */
     expect_lacks("fresh: no observation yet", out, "last_obs_epoch");
     expect_lacks("fresh: throughput not measured", out, "obs_per_sec");
-    expect_lacks("fresh: no atlog= configured", out, "atlog");
     expect_lacks("fresh: no anchor yet", out, "anchor_last_epoch");
     expect_lacks("fresh: capability not probed", out, "fullscan_capable");
     expect_lacks("fresh: no port known", out, "at_port");
@@ -99,16 +96,13 @@ int main(void) {
     s.last_obs_epoch = 1760000099;
     s.rawat_records = 7;
     s.rawat_dropped = 1;
-    /* A path that needs escaping, because the formatter is the only thing
-     * between an operator-supplied path and the server's JSON parser. */
-    s.atlog_path = "/cap/a\"b\\c.jsonl";
-    s.atlog_active = 1;
-    s.atlog_records = 6;
     s.anchor_count = 3;
     s.anchor_last_epoch = 1760000090;
     s.at_port = "/dev/ttyUSB2";
     s.model = "Quectel RM520N";
-    s.firmware = "RM520NGLAAR03A03M4G";
+    /* Modem text that needs escaping: the formatter is the only thing
+     * between it and the server's JSON parser. */
+    s.firmware = "RM520N\"A\\B";
     s.stats_epoch = 1760000100;
     if (cellat_stats_format_json(&s, out, sizeof(out)) <= 0) {
         fprintf(stderr, "  FAIL the full stats object did not format\n");
@@ -125,40 +119,12 @@ int main(void) {
     expect_has("full", out, "\"obs_per_sec\":0.500");
     expect_has("full", out, "\"last_obs_epoch\":1760000099");
     expect_has("full", out, "\"rawat_dropped\":1");
-    expect_has("full: path escaped", out, "\"atlog_path\":\"/cap/a\\\"b\\\\c.jsonl\"");
-    expect_has("full", out, "\"atlog_active\":true");
-    expect_has("full", out, "\"atlog_records\":6");
-    expect_has("full", out, "\"atlog_dropped\":0");
+    expect_has("full: firmware escaped", out, "\"firmware\":\"RM520N\\\"A\\\\B\"");
     expect_has("full", out, "\"anchor_count\":3");
     expect_has("full", out, "\"anchor_last_epoch\":1760000090");
     expect_has("full", out, "\"at_port\":\"/dev/ttyUSB2\"");
     expect_has("full", out, "\"model\":\"Quectel RM520N\"");
     expect_has("full", out, "\"strategies\":\"driving,Driving,0;walking,Walking,300;");
-    /* A configured feed reports all its counters. */
-    s.has_qmifeed = 1;
-    s.qmifeed_active = 1;
-    s.qmifeed_sent = 11;
-    s.qmifeed_dropped_imei = 2;
-    s.qmifeed_msgs = 4;
-    s.rawqmi_records = 23;
-    s.rawqmi_dropped = 5;
-    cellat_stats_format_json(&s, out, sizeof(out));
-    expect_has("qmifeed", out, "\"qmifeed_configured\":true");
-    expect_has("qmifeed", out, "\"qmifeed_active\":true");
-    expect_has("qmifeed", out, "\"qmifeed_sent\":11");
-    expect_has("qmifeed", out, "\"qmifeed_dropped\":0");
-    expect_has("qmifeed", out, "\"qmifeed_dropped_imei\":2");
-    expect_has("qmifeed", out, "\"qmifeed_msgs\":4");
-    expect_has("qmifeed", out, "\"rawqmi_records\":23");
-    expect_has("qmifeed", out, "\"rawqmi_dropped\":5");
-    s.qmifeed_active = 0;
-    cellat_stats_format_json(&s, out, sizeof(out));
-    expect_has("an exited feed says so", out, "\"qmifeed_active\":false");
-    /* A stopped tee keeps its path and says so. */
-    s.atlog_active = 0;
-    cellat_stats_format_json(&s, out, sizeof(out));
-    expect_has("stopped tee", out, "\"atlog_active\":false");
-    expect_has("stopped tee keeps its path", out, "\"atlog_path\"");
 
     /* ── The full scan: a long blocking window, and how the panel sees it ── */
     s.state = "full_scan";

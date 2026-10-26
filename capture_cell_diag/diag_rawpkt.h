@@ -3,9 +3,8 @@
  * celldiag emits the raw DIAG stream INTO Kismet as ordinary packets
  * (cf_send_data) with a private link type, so the server's kismetdb `packets`
  * table -- and a pcapng log, if one is enabled -- carries the stream itself, not
- * only the decoded observations. `rawlog=` stays as the debug-outside file tee;
- * this is the in-db copy (raw AT goes to `data`/RawAT, raw DIAG to
- * `packets`/DLT).
+ * only the decoded observations. This is the in-db copy (raw AT goes to
+ * `data`/RawAT, raw DIAG to `packets`/DLT).
  *
  * ---------------------------------------------------------------------------
  * THE CONTRACT (what a reader of the `packets` table may rely on)
@@ -32,8 +31,8 @@
  *
  * The invariant: for one (datasource, session_id), sorting the slices by
  * `offset` and concatenating their payloads reproduces the stream byte for
- * byte -- the same bytes a `rawlog=` tee opened at the start of the capture
- * writes. A gap between one slice's (offset + payload length) and the next
+ * byte, exactly as read from the DIAG port from the start of the capture.
+ * A gap between one slice's (offset + payload length) and the next
  * slice's offset is EXACTLY the bytes that were not delivered.
  *
  * END. A gap needs a delivered slice AFTER it, so without a marker a

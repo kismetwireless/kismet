@@ -164,8 +164,8 @@ protected:
     // realistic 241-key census render to 619 bytes against a
     // DIAG_STATS_EXTRA_MAX of 768, and the worst case is 2,880.  Adding it to
     // the extras would blow the budget on every emit and trip diag_stats'
-    // drop_path retry, which degrades by silently dropping rawlog_path: valid
-    // JSON, all counters present, one registered field permanently dead.
+    // drop_path retry: valid JSON, all counters present, one registered field
+    // permanently dead.
     void apply_diag_census_json(const std::string& json_str);
 
     // Register the celldiag runtime-counter fields (the schema the web UI's
@@ -197,9 +197,9 @@ protected:
     //
     // If you add a field here, add its emit site in the helper in the same
     // change.  A registered field with no emitter sits at a permanent zero/""
-    // that is indistinguishable from a real reading ("rawlog_bytes: 0" reads as
-    // "tee on, nothing written yet"; "inventory_unrecognized: 0" reads as "every
-    // code recognized"), and registration coverage stays green the whole time.
+    // that is indistinguishable from a real reading ("inventory_unrecognized: 0"
+    // reads as "every code recognized"), and registration coverage stays green
+    // the whole time.
     //
     // Fields whose source has not reported yet are OMITTED from the JSON rather
     // than sent as zeros, so a never-reported field keeps its default instead of
@@ -212,9 +212,6 @@ protected:
     std::shared_ptr<tracker_element_string> diag_mask_preset;
     std::shared_ptr<tracker_element_string> diag_decode_mode;
     std::shared_ptr<tracker_element_string> diag_f3_preset;
-    std::shared_ptr<tracker_element_string> diag_rawlog_path;
-    std::shared_ptr<tracker_element_uint64> diag_rawlog_bytes;
-    std::shared_ptr<tracker_element_uint8>  diag_rawlog_active;
     std::shared_ptr<tracker_element_uint32> diag_inv_distinct;
     std::shared_ptr<tracker_element_uint32> diag_inv_unrecognized;
     std::shared_ptr<tracker_element_uint32> diag_inv_silent;
@@ -228,7 +225,7 @@ protected:
     // A STRING and not a nested tracker vector, because the only consumer
     // between the helper and this field is a C relay that does not parse JSON --
     // it lifts named string fields with diag_profile_json_string(), the same way
-    // status, mask_preset and rawlog_path already travel. Every character is a
+    // status and mask_preset already travel. Every character is a
     // hex digit, a decimal digit, or from `x/v,;-` plus the flag alphabet, so it
     // needs no JSON escaping and cannot put the relay's string reader out of
     // phase.
@@ -343,8 +340,8 @@ public:
          * keys on this to render channel affordances on the source row, so a
          * source with no channels gets a channel control.  Hiding it in
          * kismet.ui.datasources.js would hide the only surface through which
-         * the runtime knob (`rawlog=<path>` / `rawlog=off`) can be driven until
-         * the celldiag panel grows a purpose-built control.  Once it does, the
+         * the runtime settings (diag_optset.h) can be driven until the
+         * celldiag panel grows purpose-built controls.  Once it does, the
          * generic one becomes redundant and can be suppressed. */
         set_tune_capable(true);
         set_hop_capable(false);

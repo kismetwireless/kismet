@@ -19,9 +19,9 @@
 
     WHY THIS EXISTS. Without it a cellat source has no readback: it registers
     no datasource fields, so the web UI can say only "running" while the helper
-    counts RawAT rows, atlog records and clock anchors internally. This line
-    tells the operator which scan profile is armed, whether observations are
-    flowing, and whether the raw AT tee is writing.
+    counts RawAT rows and clock anchors internally. This line tells the
+    operator which scan profile is armed and whether observations are
+    flowing.
     celldiag solves the same problem with its `diag_stats` line; this
     is cellat's equivalent, routed as its own JSON type so the datasource
     intercepts it and phy_cell never builds a device from it.
@@ -29,8 +29,8 @@
     THE ONE RULE: A VALUE NEVER MEASURED IS OMITTED, NOT SENT AS ZERO. Kismet
     serialises every registered field whether or not it was set, so the web UI
     re-derives "unreported" from sentinels -- and a helper that sends
-    `last_obs_epoch: 0` or `atlog_records: 0` for "no atlog= configured" hands
-    it a healthy-looking zero instead. See cellat_stats_t for which fields are
+    `last_obs_epoch: 0` for "nothing yet" hands it a healthy-looking zero
+    instead. See cellat_stats_t for which fields are
     optional and what absence means for each.
 
     Pure libc (plus atlog.c's JSON escaper), so test_cellat_stats drives it on a
@@ -95,27 +95,6 @@ typedef struct {
      * always sent (a disabled source sends neither). */
     uint64_t rawat_records;
     uint64_t rawat_dropped;
-
-    /* qmifeed= and its in-band raw QMI.
-     * has_qmifeed 0 -> no feed configured -> ALL qmifeed_* and rawqmi_* keys
-     * are omitted, for the atlog_* reason below. qmifeed_active is whether
-     * the child is still running. */
-    int has_qmifeed;
-    int qmifeed_active;
-    uint64_t qmifeed_sent;          /* CellModem rows relayed */
-    uint64_t qmifeed_dropped;       /* send failure / full ringbuffer */
-    uint64_t qmifeed_dropped_imei;  /* prov.imei is not this source's */
-    uint64_t qmifeed_msgs;          /* #msg notes forwarded */
-    uint64_t rawqmi_records;        /* RawQMI rows into the kismetdb */
-    uint64_t rawqmi_dropped;
-
-    /* atlog= file tee. atlog_path NULL -> no tee was configured ->
-     * ALL atlog_* keys are omitted, because "0 records" would read as "the tee
-     * is on and nothing is being written". */
-    const char *atlog_path;
-    int atlog_active;
-    uint64_t atlog_records;
-    uint64_t atlog_dropped;
 
     /* ClockAnchor rows sent. anchor_last_epoch 0 -> none yet ->
      * omitted; the count is always sent while capturing. */

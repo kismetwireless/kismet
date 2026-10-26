@@ -114,33 +114,6 @@ void kis_datasource_cell_diag::register_celldiag_fields() {
                 "active F3 debug-log preset"));
     insert(diag_f3_preset);
 
-    diag_rawlog_path =
-        std::make_shared<tracker_element_string>(
-            et->register_field("kismet.datasource.celldiag.rawlog_path",
-                tracker_element_factory<tracker_element_string>(),
-                "raw DIAG tee-to-disk path, empty if disabled"));
-    insert(diag_rawlog_path);
-
-    diag_rawlog_bytes =
-        std::make_shared<tracker_element_uint64>(
-            et->register_field("kismet.datasource.celldiag.rawlog_bytes",
-                tracker_element_factory<tracker_element_uint64>(),
-                "bytes written to the raw DIAG tee file"));
-    insert(diag_rawlog_bytes);
-
-    /* Not inferable from rawlog_path.  A runtime `rawlog=off` closes
-     * the sink and keeps the path, deliberately, so that a source which has
-     * stopped teeing can still tell the operator where the bytes it already
-     * wrote went. Liveness therefore needs its own field, or every consumer
-     * re-derives it from the path and gets it wrong the same way. */
-    diag_rawlog_active =
-        std::make_shared<tracker_element_uint8>(
-            et->register_field("kismet.datasource.celldiag.rawlog_active",
-                tracker_element_factory<tracker_element_uint8>(),
-                "1 if the raw DIAG tee sink is open right now; a retained "
-                "rawlog_path with rawlog_active=0 is a stopped tee"));
-    insert(diag_rawlog_active);
-
     diag_inv_distinct =
         std::make_shared<tracker_element_uint32>(
             et->register_field("kismet.datasource.celldiag.inventory_distinct_codes",
@@ -296,7 +269,7 @@ void kis_datasource_cell_diag::register_celldiag_fields() {
     diag_anchor_count = reg_u64("kismet.datasource.celldiag.anchor_count",
         "ClockAnchor rows completed this session");
     diag_anchor_ring_dropped = reg_u64("kismet.datasource.celldiag.anchor_ring_dropped",
-        "ClockAnchor rows a full output ring would not take (still in the sidecar)");
+        "ClockAnchor rows a full output ring would not take");
     diag_obs_ring_dropped = reg_u64("kismet.datasource.celldiag.obs_ring_dropped",
         "cell observations dropped because the output ring was full; a live "
         "source drops rather than stop reading the DIAG port");
@@ -347,7 +320,7 @@ static uint32_t celldiag_adler32(const char *buf) {
 // True if the definition carries an explicit `uuid=` SOURCE OPTION. Options in a
 // Kismet source definition are `interface:k=v,k=v`, so a real option token is
 // always preceded by ':' or ','. A plain substring search would also fire on a
-// value that happens to contain "uuid=" (e.g. rawlog=/cap/uuid=x.hdlc) and would
+// value that happens to contain "uuid=" (e.g. replay=uuid=x.hdlc) and would
 // then skip the injection, leaving the source back on the all-zeros UUID the
 // injection exists to prevent.
 static bool celldiag_definition_has_uuid_opt(const std::string& def) {
@@ -373,7 +346,6 @@ static std::string celldiag_uuid_for_imei(const std::string& imei) {
 
 namespace {
     const std::vector<cell_paths::file_opt> celldiag_file_opts = {
-        { "rawlog", true, true },
         { "replay", false, false },
         { "profiles", true, false },
     };
@@ -868,22 +840,12 @@ void kis_datasource_cell_diag::apply_diag_stats_json(const std::string& json_str
 
     // Each key is optional, and that is load-bearing rather than just
     // defensive: the emit site omits a key whose source has not reported (no
-    // rawlog= configured, no census received yet). "Missing key leaves the prior
+    // census received yet). "Missing key leaves the prior
     // value intact" is therefore the correct behavior -- it keeps a
     // never-reported field at its default instead of stamping a zero that reads
     // as a healthy measurement.
     if (j.contains("f3_preset") && j["f3_preset"].is_string())
         diag_f3_preset->set(j["f3_preset"].get<std::string>());
-    if (j.contains("rawlog_path") && j["rawlog_path"].is_string())
-        diag_rawlog_path->set(j["rawlog_path"].get<std::string>());
-    if (j.contains("rawlog_bytes") && j["rawlog_bytes"].is_number_unsigned())
-        diag_rawlog_bytes->set(j["rawlog_bytes"].get<uint64_t>());
-    // Boolean on the wire, so is_boolean() -- NOT is_number_unsigned(), which
-    // would silently skip every emit and leave this at the default 0 while
-    // rawlog_path arrived normally, presenting as a tee that always reads
-    // stopped.
-    if (j.contains("rawlog_active") && j["rawlog_active"].is_boolean())
-        diag_rawlog_active->set(j["rawlog_active"].get<bool>() ? 1 : 0);
     if (j.contains("inventory_distinct_codes") &&
             j["inventory_distinct_codes"].is_number_unsigned())
         diag_inv_distinct->set(
