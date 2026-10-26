@@ -40,6 +40,7 @@
 kis_packet::kis_packet() {
     packet_no = 0;
     arrival_no = 0;
+    arrival_us = 0;
 	error = 0;
     crc_ok = 0;
     checksum_valid = false;
@@ -72,6 +73,7 @@ void kis_packet::reset() {
     assignment_id = 0;
     packet_no = 0;
     arrival_no = 0;
+    arrival_us = 0;
     error = 0;
     crc_ok = false;
     checksum_valid = false;

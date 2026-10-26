@@ -369,6 +369,10 @@ protected:
     // packets which arrived within this many packets of each other
     static constexpr size_t dedupe_list_sz = 1024;
 
+    // and which reached the server within this many microseconds of each other; a frame
+    // repeated later, such as an unchanging BTLE advertisement, is a new packet
+    static constexpr int64_t dedupe_max_age_us = 1000000;
+
     // A packet goes to its assigned thread unless that thread is this far behind, then to
     // its key's alternate thread if that one is less busy
     static constexpr size_t assignment_spill_backlog = 1024;

@@ -411,6 +411,15 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
     }
 }
 
+namespace {
+
+int64_t arrival_distance_us(const kis_packet& a, const kis_packet& b) {
+    const int64_t d = a.arrival_us - b.arrival_us;
+    return d < 0 ? -d : d;
+}
+
+}
+
 void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
     // Earlier packets sharing this hash; per thread so we don't allocate per packet
     thread_local std::vector<std::shared_ptr<kis_packet>> candidates;
@@ -432,12 +441,13 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
             const auto a = window.arrival_no[i];
             const auto dist = a > packet->arrival_no ? a - packet->arrival_no : packet->arrival_no - a;
 
-            if (dist <= dedupe_list_sz)
+            if (dist <= dedupe_list_sz &&
+                    arrival_distance_us(*window.pkt[i], *packet) <= dedupe_max_age_us)
                 candidates.push_back(window.pkt[i]);
         }
 
         for (const auto& p : window.pending) {
-            if (p->hash == packet->hash)
+            if (p->hash == packet->hash && arrival_distance_us(*p, *packet) <= dedupe_max_age_us)
                 candidates.push_back(p);
         }
 
@@ -645,6 +655,8 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
 
     // Queue the packet to the target thread
     in_pack->arrival_no = arrival_packet_no.fetch_add(1, std::memory_order_relaxed);
+    in_pack->arrival_us = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
     packet_threads[processing_id]->packet_queue.enqueue(in_pack);
     packet_queue_rrd->add_sample(qsize, now);
 
