@@ -502,6 +502,19 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     pthread_cond_init(&(ch->out_ringbuf_flush_cond), NULL);
     pthread_mutex_init(&(ch->out_ringbuf_flush_cond_mutex), NULL);
 
+    if (pipe(ch->out_ringbuf_wake) == 0) {
+        fcntl(ch->out_ringbuf_wake[0], F_SETFL,
+                fcntl(ch->out_ringbuf_wake[0], F_GETFL, 0) | O_NONBLOCK);
+        fcntl(ch->out_ringbuf_wake[1], F_SETFL,
+                fcntl(ch->out_ringbuf_wake[1], F_GETFL, 0) | O_NONBLOCK);
+        fcntl(ch->out_ringbuf_wake[0], F_SETFD, FD_CLOEXEC);
+        fcntl(ch->out_ringbuf_wake[1], F_SETFD, FD_CLOEXEC);
+    } else {
+        ch->out_ringbuf_wake[0] = -1;
+        ch->out_ringbuf_wake[1] = -1;
+    }
+    ch->out_ringbuf_wake_armed = 0;
+
     ch->shutdown = 0;
     ch->spindown = 0;
 
@@ -552,6 +565,36 @@ void cf_set_remote_capable(kis_capture_handler_t *caph, int in_capable) {
     caph->remote_capable = in_capable;
 }
 
+/* Wake cf_handler_loop() out of select(); a full pipe already has a wakeup pending */
+static void cf_handler_wake_loop(kis_capture_handler_t *caph) {
+    uint8_t b = 0;
+    ssize_t r;
+
+    if (caph->out_ringbuf_wake[1] < 0)
+        return;
+
+    r = write(caph->out_ringbuf_wake[1], &b, 1);
+    (void) r;
+}
+
+/* Only wake a loop parked in select, so a busy source costs one write per loop
+ * pass instead of one per packet */
+static void cf_handler_wake_commit(kis_capture_handler_t *caph) {
+    if (__atomic_exchange_n(&caph->out_ringbuf_wake_armed, 0, __ATOMIC_SEQ_CST))
+        cf_handler_wake_loop(caph);
+}
+
+/* With the mutex held, so a waiter that checked the ring under it can't miss it */
+static void cf_handler_signal_flush(kis_capture_handler_t *caph) {
+    pthread_mutex_lock(&(caph->out_ringbuf_flush_cond_mutex));
+    pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
+    pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
+}
+
+static void cf_unlock_mutex_cleanup(void *arg) {
+    pthread_mutex_unlock((pthread_mutex_t *) arg);
+}
+
 void cf_handler_free(kis_capture_handler_t *caph) {
     size_t szi;
 
@@ -578,6 +621,12 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 
     if (caph->tcp_fd >= 0)
         close(caph->tcp_fd);
+
+    if (caph->out_ringbuf_wake[0] >= 0)
+        close(caph->out_ringbuf_wake[0]);
+
+    if (caph->out_ringbuf_wake[1] >= 0)
+        close(caph->out_ringbuf_wake[1]);
 
     if (caph->in_ringbuf != NULL)
         kis_simple_ringbuf_free(caph->in_ringbuf);
@@ -707,7 +756,8 @@ void cf_handler_shutdown(kis_capture_handler_t *caph) {
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
     /* Kill anything pending */
-    pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
+    cf_handler_signal_flush(caph);
+    cf_handler_wake_loop(caph);
 
     pthread_mutex_unlock(&(caph->handler_lock));
 }
@@ -719,6 +769,8 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
     pthread_mutex_lock(&(caph->handler_lock));
     caph->spindown = 1;
     pthread_mutex_unlock(&(caph->handler_lock));
+
+    cf_handler_wake_loop(caph);
 }
 
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
@@ -1349,6 +1401,8 @@ void *cf_int_capture_thread(void *arg) {
  *
  * IPC termination callback is responsible for freeing the IPC record,
  * if not tracked elsewhere.
+ *
+ * SIGCHLD coalesces, so reap until no child is ready, then return to sigwait.
  */
 void cf_process_child_signals(kis_capture_handler_t *caph) {
     while (1) {
@@ -1357,36 +1411,43 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
         cf_ipc_t *prev_ipc = NULL;
         cf_ipc_t *ipc = NULL;
 
-        if ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
-            pthread_mutex_lock(&(caph->out_ringbuf_lock));
+        caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED);
 
-            if (caph->shutdown) {
-                continue;
-            }
+        if (caught_pid < 0 && errno == EINTR)
+            continue;
 
-            ipc = caph->ipc_list;
+        if (caught_pid <= 0)
+            return;
 
-            while (ipc != NULL) {
-                if (ipc->pid == caught_pid) {
-                    if (ipc == caph->ipc_list) {
-                        caph->ipc_list = ipc->next;
-                    } else {
-                        prev_ipc->next = ipc->next;
-                    }
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-                    if (ipc->term_callback != NULL) {
-                        ipc->term_callback(caph, ipc, pid_status);
-                    }
+        if (caph->shutdown) {
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            continue;
+        }
 
-                    break;
+        ipc = caph->ipc_list;
+
+        while (ipc != NULL) {
+            if (ipc->pid == caught_pid) {
+                if (ipc == caph->ipc_list) {
+                    caph->ipc_list = ipc->next;
+                } else {
+                    prev_ipc->next = ipc->next;
                 }
 
-                prev_ipc = ipc;
-                ipc = ipc->next;
+                if (ipc->term_callback != NULL) {
+                    ipc->term_callback(caph, ipc, pid_status);
+                }
+
+                break;
             }
 
-            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            prev_ipc = ipc;
+            ipc = ipc->next;
         }
+
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
     }
 }
 
@@ -1407,10 +1468,12 @@ void *cf_int_signal_thread(void *arg) {
     setitimer(ITIMER_REAL, &itval, NULL);
 #endif
 
-    /* Unblock signals, we handle them here */
+    /* Unblock signals, we handle them here; the core set stays blocked so
+     * sigwait gets them instead of the default handlers */
     sigset_t unblock_mask;
     sigfillset(&unblock_mask);
     pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
+    pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
 
     while (!caph->spindown && !caph->shutdown) {
         r = sigwait(&cf_core_signal_mask, &sig_caught);
@@ -1494,24 +1557,43 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
-    /* Flushes broadcast without holding the mutex, so a wakeup can be missed; wait at
-     * most 100ms, callers retry their send after this returns */
-    struct timeval tv;
-    struct timespec ts;
+    int oldtype;
+    int drained = 0;
 
-    gettimeofday(&tv, NULL);
-    ts.tv_sec = tv.tv_sec;
-    ts.tv_nsec = ((long) tv.tv_usec * 1000) + (100 * 1000 * 1000);
+    /* Capture threads are cancelled asynchronously; defer it while the flush
+     * mutex is held so a cancel can't leave it locked */
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+    pthread_mutex_lock(&(caph->out_ringbuf_flush_cond_mutex));
+    pthread_cleanup_push(cf_unlock_mutex_cleanup, &(caph->out_ringbuf_flush_cond_mutex));
 
-    if (ts.tv_nsec >= 1000000000L) {
-        ts.tv_sec += 1;
-        ts.tv_nsec -= 1000000000L;
+    /* A flush that finished before we got here leaves an empty ring and nothing
+     * left to broadcast; don't wait for one.  The wait stays bounded because the
+     * websocket path broadcasts without the mutex. */
+    if (caph->out_ringbuf != NULL) {
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
+        drained = kis_simple_ringbuf_used(caph->out_ringbuf) == 0;
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
     }
 
-    pthread_mutex_lock(&(caph->out_ringbuf_flush_cond_mutex));
-    pthread_cond_timedwait(&(caph->out_ringbuf_flush_cond),
-            &(caph->out_ringbuf_flush_cond_mutex), &ts);
-    pthread_mutex_unlock(&(caph->out_ringbuf_flush_cond_mutex));
+    if (!drained) {
+        struct timeval tv;
+        struct timespec ts;
+
+        gettimeofday(&tv, NULL);
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = ((long) tv.tv_usec * 1000) + (100 * 1000 * 1000);
+
+        if (ts.tv_nsec >= 1000000000L) {
+            ts.tv_sec += 1;
+            ts.tv_nsec -= 1000000000L;
+        }
+
+        pthread_cond_timedwait(&(caph->out_ringbuf_flush_cond),
+                &(caph->out_ringbuf_flush_cond_mutex), &ts);
+    }
+
+    pthread_cleanup_pop(1);
+    pthread_setcanceltype(oldtype, NULL);
 }
 
 /* Internal capture thread which drives channel hopping
@@ -2924,6 +3006,15 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     max_fd = read_fd;
             }
 
+            /* Arm the wakeup before the write set is decided, so a commit after
+             * that check still ends the select */
+            if (caph->out_ringbuf_wake[0] >= 0) {
+                FD_SET(caph->out_ringbuf_wake[0], &rset);
+                if (max_fd < caph->out_ringbuf_wake[0])
+                    max_fd = caph->out_ringbuf_wake[0];
+                __atomic_store_n(&caph->out_ringbuf_wake_armed, 1, __ATOMIC_SEQ_CST);
+            }
+
             /* Inspect the write buffer - do we have data? */
             pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
@@ -2942,7 +3033,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             tm.tv_sec = 0;
             tm.tv_usec = 500000;
 
-            if ((ret = select(max_fd + 1, &rset, &wset, NULL, &tm)) < 0) {
+            ret = select(max_fd + 1, &rset, &wset, NULL, &tm);
+
+            __atomic_store_n(&caph->out_ringbuf_wake_armed, 0, __ATOMIC_SEQ_CST);
+
+            if (ret < 0) {
                 if (errno != EINTR && errno != EAGAIN) {
                     fprintf(stderr, "FATAL:  Error during select(): %s\n", strerror(errno));
                     rv = -1;
@@ -2952,6 +3047,15 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             if (ret == 0)
                 continue;
+
+            /* The next pass's write-set check picks up whatever these announced */
+            if (ret > 0 && caph->out_ringbuf_wake[0] >= 0 &&
+                    FD_ISSET(caph->out_ringbuf_wake[0], &rset)) {
+                uint8_t drain[64];
+
+                while (read(caph->out_ringbuf_wake[0], drain, sizeof(drain)) > 0)
+                    ;
+            }
 
             pthread_mutex_lock(&caph->handler_lock);
 
@@ -3077,8 +3181,9 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                             written_sz = write(ipc_iter->in_fd, peek_buf, peeked_sz);
 
                             if (written_sz < 0) {
+                                kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+
                                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                                    kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
                                     if (ipc_iter->term_callback != NULL) {
                                         ipc_iter->term_callback(caph, ipc_iter, -1);
                                     }
@@ -3197,6 +3302,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         rv = -1;
                         break;
                     }
+
+                    /* Nothing written; retry next pass instead of consuming (size_t) -1 */
+                    kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
+                    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+                    continue;
                 }
 
                 /* Flag it as consumed */
@@ -3210,7 +3320,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
                 /* Signal to any waiting IO that the buffer has some
                  * headroom */
-                pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
+                cf_handler_signal_flush(caph);
             }
         }
     } else if (caph->use_ws) {
@@ -3250,7 +3360,7 @@ cap_loop_fail:
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
     /* Kill anything pending */
-    pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
+    cf_handler_signal_flush(caph);
     return rv;
 }
 
@@ -3270,6 +3380,8 @@ int cf_send_rb_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
     }
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    cf_handler_wake_commit(caph);
 
     return 1;
 }
@@ -3398,6 +3510,8 @@ int cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t 
     kis_simple_ringbuf_commit(caph->out_ringbuf, frame,
             final_length + sizeof(kismet_external_frame_v3_t));
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    cf_handler_wake_commit(caph);
 
     return 1;
 }
@@ -4900,7 +5014,8 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         for (i = 0; i < caph->channel_hop_list_sz; i++) {
             est_len += strlen(caph->channel_hop_list[i]) + 4;
         }
-    } else {
+    } else if (caph->channel != NULL) {
+        /* NULL until a channel set has succeeded, e.g. when refusing the first one */
         est_len += strlen(caph->channel);
     }
 
@@ -4958,7 +5073,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         mpack_write_uint(&writer, true);
 
         mpack_complete_map(&writer);
-    } else {
+    } else if (caph->channel != NULL) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
         mpack_write_cstr(&writer, caph->channel);
     }
