@@ -915,8 +915,14 @@ device_tracker::device_tracker() :
                     return 1;
                 });
 
+    // kismet_filter.conf documents the _dbm spelling; the original one is still read
     device_location_signal_threshold =
-        Globalreg::globalreg->kismet_config->fetch_opt_as<int>("device_location_signal_threshold", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_as<int>("device_location_signal_threshold_dbm",
+                Globalreg::globalreg->kismet_config->fetch_opt_as<int>("device_location_signal_threshold", 0));
+
+    if (device_location_signal_threshold != 0)
+        _MSG_INFO("Device locations will only use packets at or above {} dBm; packets "
+                "without a signal level are always used.", device_location_signal_threshold);
 
     // httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
@@ -1574,8 +1580,8 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
     if (((in_flags & UCD_UPDATE_LOCATION) ||
          ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location())) &&
             in_pack->gps_info.gps_info_ok && (device_location_signal_threshold == 0 ||
-                ( device_location_signal_threshold != 0 && in_pack->signal_info.data_ok &&
-                  in_pack->signal_info.signal_dbm >= device_location_signal_threshold))) {
+                !in_pack->signal_info.data_ok ||
+                in_pack->signal_info.signal_dbm >= device_location_signal_threshold)) {
         update_location_set(device->get_location(), in_pack->gps_info, in_pack,
                 [&device]() { return device->get_location_cloud(); });
     }

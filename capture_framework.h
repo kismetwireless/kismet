@@ -358,9 +358,17 @@ struct kis_capture_handler {
     /* Lock for output buffer or output ws ring */
     pthread_mutex_t out_ringbuf_lock;
 
-    /* conditional waiter for ringbuf flushing data */
+    /* conditional waiter for ringbuf flushing data; broadcast with the mutex held */
     pthread_cond_t out_ringbuf_flush_cond;
     pthread_mutex_t out_ringbuf_flush_cond_mutex;
+
+    /* Self-pipe that wakes cf_handler_loop() out of select() when data is
+     * committed to out_ringbuf; -1 if pipe() failed */
+    int out_ringbuf_wake[2];
+
+    /* Set while the loop may block in select(); a commit only writes the pipe
+     * when it clears this */
+    int out_ringbuf_wake_armed;
 
     /* Are we shutting down? */
     atomic_int shutdown;
@@ -708,7 +716,8 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph);
 int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph);
 
 
-/* Perform a blocking wait, waiting for the ringbuffer to free data */
+/* Perform a blocking wait, waiting for the ringbuffer to free data; returns at
+ * once if the ring is empty, otherwise after a flush or at most 100ms */
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
 
 

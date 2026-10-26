@@ -43,6 +43,7 @@
 
 #include "kaitai/kaitaistream.h"
 #include "bluetooth_parsers/btle.h"
+#include "bluetooth_parsers/btle_tracker.h"
 
 #ifndef KDLT_BLUETOOTH_LE_LL
 #define KDLT_BLUETOOTH_LE_LL        251
@@ -181,7 +182,10 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_ignore_random", false);
 
     if (ignore_random)
-        _MSG_INFO("Ignoring BTLE devices with random MAC addresses");
+        _MSG_INFO("Ignoring BTLE devices with random MAC addresses (except Remote ID and "
+                "location trackers)");
+
+    devtype_tracker = devicetracker->get_cached_devicetype("BTLE Tracker");
 
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
@@ -315,29 +319,40 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info->btle_decode == nullptr)
         return 0;
 
-    // Remote ID rides in 16-bit service data; Remote ID transmitters normally use random
-    // addresses, so they're kept even when other random devices are ignored
+    // Remote ID and location trackers ride in 16-bit service data; both normally use
+    // random addresses, so they're kept even when other random devices are ignored
     std::shared_ptr<uav_remoteid_packinfo> remoteid;
+
+    btle_tracker::smarttag_info smarttag;
+    bool is_smarttag = false;
 
     for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
         if (ad->type() != BTLE_ADVDATA_SERVICE_DATA_UUID16)
             continue;
 
-        auto rid = mphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
         const auto& sd = ad->data();
 
-        if (odid::decode_ble_service_data((const uint8_t *) sd.data(), sd.length(),
-                    rid->counter, rid->messages)) {
-            rid->transport = btle_info->btle_decode->is_extended() ? "BLE extended" : "BLE legacy";
-            rid->device_mac = in_pack->common_info.source;
-            in_pack->insert(mphy->pack_comp_remoteid, rid);
-            remoteid = rid;
-            break;
+        if (remoteid == nullptr) {
+            auto rid = mphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
+
+            if (odid::decode_ble_service_data((const uint8_t *) sd.data(), sd.length(),
+                        rid->counter, rid->messages)) {
+                rid->transport = btle_info->btle_decode->is_extended() ? "BLE extended" : "BLE legacy";
+                rid->device_mac = in_pack->common_info.source;
+                in_pack->insert(mphy->pack_comp_remoteid, rid);
+                remoteid = rid;
+                continue;
+            }
         }
+
+        if (!is_smarttag)
+            is_smarttag = btle_tracker::decode_samsung_smarttag((const uint8_t *) sd.data(),
+                    sd.length(), smarttag);
     }
 
     // Drop randoms
-    if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random && remoteid == nullptr)
+    if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random &&
+            remoteid == nullptr && !is_smarttag)
         return 0;
 
 #if 0
@@ -445,8 +460,30 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         }
     }
 
+    // Location trackers: decode only, the values are what the tracker advertises
+    if (is_smarttag) {
+        auto tracker = btle_dev->get_tracker();
+
+        tracker->set_tracker_type(
+                btle_tracker::tracker_type_str(btle_tracker::tracker_type::samsung_smarttag));
+        tracker->set_state(smarttag.state);
+        tracker->set_state_name(btle_tracker::smarttag_state_str(smarttag.state));
+        tracker->set_separated(smarttag.separated());
+        tracker->set_battery(btle_tracker::battery_level_str(smarttag.battery()));
+        tracker->set_flags(smarttag.flags);
+        tracker->set_uwb(smarttag.uwb());
+        tracker->set_aging_counter(smarttag.aging_counter);
+        tracker->set_privacy_id(btle_bytes_to_hex(smarttag.privacy_id));
+        tracker->set_last_time(in_pack->ts.tv_sec);
+
+        device->set_tracker_type_string(mphy->devtype_tracker);
+    }
+
     if (new_dev) {
-        if (device->get_devicename().length() > 0)
+        if (is_smarttag)
+            _MSG_INFO("Detected new BTLE location tracker {} (Samsung SmartTag, {})",
+                    in_pack->common_info.source, btle_tracker::smarttag_state_str(smarttag.state));
+        else if (device->get_devicename().length() > 0)
             _MSG_INFO("Detected new BTLE device {} {}",
                     in_pack->common_info.source, device->get_devicename());
         else

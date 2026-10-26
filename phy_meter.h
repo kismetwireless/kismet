@@ -44,24 +44,8 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-        int64_t max = default_val();
-
-        for (auto i : *e) {
-            if (i == default_val())
-                continue;
-
-            if (i < max)
-                continue;
-
-            max = i;
-
-        }
-
-        return max;
-    }
-
-    static int64_t combine_vector(const tracker_element_vector_double::vector_t& e) {
+    template<typename C>
+    static int64_t combine_vector(const C& e) {
         int64_t max = default_val();
 
         for (auto i : e) {

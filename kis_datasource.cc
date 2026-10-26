@@ -289,6 +289,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
         set_int_source_running(1);
         set_int_source_error(0);
+        set_int_source_error_reason("");
 
         lock.unlock();
         if (in_cb != NULL) {
@@ -502,6 +503,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     set_int_source_running(true);
     set_int_source_definition(in_definition);
     set_int_source_error(false);
+    set_int_source_error_reason("");
 
     set_source_uuid(uuid);
 
@@ -1978,6 +1980,9 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     set_int_source_running(code != 0);
     set_source_paused(0);
     set_int_source_error(code == 0);
+    // A successful open clears a stale reason such as "Source disabled"
+    if (code != 0)
+        set_int_source_error_reason("");
 
     handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
 }
@@ -2956,6 +2961,8 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     set_int_source_running(report.success().success());
 
     set_int_source_error(!report.success().success());
+    if (report.success().success())
+        set_int_source_error_reason("");
 
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);

@@ -87,6 +87,97 @@ protected:
     std::shared_ptr<tracker_element_byte_array> advertised_data;
 };
 
+// Location tracker (item finder) state decoded from the advertisements; only present
+// on devices which advertised as a known tracker.  Vendor specific values are dynamic
+// so a tracker type only carries the fields it advertises.
+class btle_tracked_tracker : public tracker_component {
+public:
+    btle_tracked_tracker() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_tracker(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_tracker(int in_id,
+            std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("btle_tracked_tracker");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(tracker_type, std::string, std::string, std::string, tracker_type);
+    __Proxy(state, uint8_t, uint8_t, uint8_t, state);
+    __Proxy(state_name, std::string, std::string, std::string, state_name);
+    __Proxy(separated, uint8_t, bool, bool, separated);
+    __Proxy(battery, std::string, std::string, std::string, battery);
+    __Proxy(flags, uint8_t, uint8_t, uint8_t, flags);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    __ProxyDynamic(uwb, uint8_t, bool, bool, uwb, uwb_id);
+    __ProxyDynamic(aging_counter, uint32_t, uint32_t, uint32_t, aging_counter, aging_counter_id);
+    __ProxyDynamic(privacy_id, std::string, std::string, std::string, privacy_id, privacy_id_id);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("btle.device.tracker.type", "Tracker type (samsung_smarttag)", &tracker_type);
+        register_field("btle.device.tracker.state", "Raw operating state advertised by the tracker",
+                &state);
+        register_field("btle.device.tracker.state_name",
+                "Operating state (premature_offline, offline, overmature_offline, connected, unknown)",
+                &state_name);
+        register_field("btle.device.tracker.separated",
+                "Tracker advertises that it is away from its owner", &separated);
+        register_field("btle.device.tracker.battery", "Battery level (full, medium, low, very_low)",
+                &battery);
+        register_field("btle.device.tracker.flags", "Raw flags byte advertised by the tracker", &flags);
+        register_field("btle.device.tracker.last_time", "Last time a tracker advertisement was seen",
+                &last_time);
+
+        uwb_id =
+            register_dynamic_field("btle.device.tracker.uwb", "Tracker supports UWB ranging", &uwb);
+        aging_counter_id =
+            register_dynamic_field("btle.device.tracker.aging_counter",
+                    "Aging counter advertised by the tracker", &aging_counter);
+        privacy_id_id =
+            register_dynamic_field("btle.device.tracker.privacy_id",
+                    "Rotating privacy ID advertised by the tracker (hex)", &privacy_id);
+    }
+
+    std::shared_ptr<tracker_element_string> tracker_type;
+    std::shared_ptr<tracker_element_uint8> state;
+    std::shared_ptr<tracker_element_string> state_name;
+    std::shared_ptr<tracker_element_uint8> separated;
+    std::shared_ptr<tracker_element_string> battery;
+    std::shared_ptr<tracker_element_uint8> flags;
+    std::shared_ptr<tracker_element_uint64> last_time;
+
+    std::shared_ptr<tracker_element_uint8> uwb;
+    uint16_t uwb_id;
+    std::shared_ptr<tracker_element_uint32> aging_counter;
+    uint16_t aging_counter_id;
+    std::shared_ptr<tracker_element_string> privacy_id;
+    uint16_t privacy_id_id;
+};
+
 // Future btle attributes
 class btle_tracked_device : public tracker_component {
 public:
@@ -136,6 +227,9 @@ public:
    __Proxy(manuf_company_id, std::string, std::string, std::string, manuf_company_id);
    __Proxy(manuf_data, std::string, std::string, std::string, manuf_data);
 
+   // Only created for devices advertising as a location tracker
+   __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -156,6 +250,9 @@ protected:
         register_field("btle.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("btle.device.manuf_company_id", "manufacturer company ID", &manuf_company_id);
         register_field("btle.device.manuf_data", "manufacturer data payload", &manuf_data);
+
+        tracker_id =
+            register_dynamic_field("btle.device.tracker", "location tracker advertisement", &tracker);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -167,6 +264,9 @@ protected:
     std::shared_ptr<tracker_element_vector_string> service_uuid_vec;
     std::shared_ptr<tracker_element_string> manuf_company_id;
     std::shared_ptr<tracker_element_string> manuf_data;
+
+    std::shared_ptr<btle_tracked_tracker> tracker;
+    uint16_t tracker_id;
 };
 
 class kis_btle_phy : public kis_phy_handler {
@@ -211,6 +311,8 @@ protected:
     bool ignore_random;
 
     int alert_bleedingtooth_ref, alert_flipper_ref;
+
+    std::shared_ptr<tracker_element_string> devtype_tracker;
 };
 
 #endif

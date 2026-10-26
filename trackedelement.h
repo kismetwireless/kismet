@@ -1787,6 +1787,9 @@ public:
         tracker_type::tracker_map>(p) { }
 
     shared_tracker_element get_sub(int id) {
+        if (present_set & 0x04)
+            return get_lazy_sub(id);
+
         auto v = map.find(id);
 
         if (v == map.end())
@@ -1797,6 +1800,9 @@ public:
 
     template<typename T>
     std::shared_ptr<T> get_sub_as(int id) {
+        if (present_set & 0x04)
+            return std::static_pointer_cast<T>(get_lazy_sub(id));
+
         auto v = map.find(id);
 
         if (v == map.end())
@@ -1863,6 +1869,17 @@ public:
     }
 
     virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override;
+
+protected:
+    // Maps which only build their children while serializing resolve get_sub through
+    // get_lazy_sub, so paths into them still work
+    void set_lazy_sub() {
+        present_set |= 0x04;
+    }
+
+    virtual shared_tracker_element get_lazy_sub(int) {
+        return nullptr;
+    }
 };
 
 // int::element
