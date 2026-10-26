@@ -95,8 +95,24 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                     draw: function(opts) {
                         var types = {
                             "samsung_smarttag": "Samsung SmartTag",
+                            "apple_findmy": "Apple Find My",
+                            "google_fmdn": "Google Find My Device network",
+                            "dult": "DULT (unwanted tracking detection)",
                         };
                         return types[opts['value']] || opts['value'];
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.subtype",
+                    title: "Device",
+                    filterOnEmpty: true,
+                    draw: function(opts) {
+                        var subtypes = {
+                            "airtag": "AirTag",
+                            "findmy_accessory": "Find My network accessory",
+                            "airpods": "AirPods",
+                        };
+                        return subtypes[opts['value']] || opts['value'];
                     },
                 },
                 {
@@ -145,6 +161,18 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                     title: "Privacy ID",
                     filterOnEmpty: true,
                     help: "Rotating identifier from the advertisement.  It does not identify the owner; a separated tracker keeps it across several address changes.",
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.ephemeral_id",
+                    title: "Ephemeral ID",
+                    filterOnEmpty: true,
+                    help: "Rotating identifier from the advertisement; it changes every 1024 seconds and does not identify the owner.",
+                },
+                {
+                    field: "btle.device/btle.device.tracker/btle.device.tracker.network_id",
+                    title: "Network ID",
+                    filterOnEmpty: true,
+                    help: "Finding network the tracker reports to, from its DULT advertisement.",
                 },
                 {
                     field: "btle.device/btle.device.tracker/btle.device.tracker.last_time",

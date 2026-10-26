@@ -47,7 +47,66 @@
  * the field offsets match the SamsungTracker decoder of SEEMOO's AirGuard
  * (github.com/seemoo-lab/AirGuard).  This is an independent implementation.
  *
- * The decoder only depends on the standard library and bounds checks everything.
+ * Apple Find My (offline finding), manufacturer data with Apple's company ID 0x004C.
+ * The payload after the company ID starts with Apple's type 0x12 and a length byte:
+ *
+ *   0       type 0x12
+ *   1       length: 0x19 while separated from the owner, 0x02 while near it
+ *   2       status: device type in bits 4-5 (0 Apple device such as an iPhone or Mac,
+ *           1 AirTag, 2 Find My network accessory, 3 AirPods), battery level in bits 6-7
+ *           (0 full, 1 medium, 2 low, 3 very low)
+ *   3-24    separated frame: bytes 6-27 of the rotating public key; together with the
+ *           address, which holds key bytes 0-5, this is the whole key
+ *   25      separated frame: the two top bits of key byte 0
+ *   26      separated frame: hint
+ *
+ * The device type and battery bits are not decoded from any other part of the frame.
+ * Apple devices (type 0) send the same frame when they are lost or switched off; they
+ * are not location trackers and are not reported as such.
+ *
+ * Sources: A. Heinrich, M. Stute, T. Kornhuber, M. Hollick, "Who Can Find My Devices?
+ * Security and Privacy of Apple's Crowd-Sourced Bluetooth Location Tracking System",
+ * PETS 2021, and the advertisement of SEEMOO's OpenHaystack firmware
+ * (github.com/seemoo-lab/openhaystack) for the separated frame; the status bits as
+ * used by AirGuard (AppleFindMy, DeviceManager).  The near-owner frame is not in these
+ * sources; it was checked against a real AirTag near its owner's iPhone.
+ *
+ * Google Find My Device network (FMDN, Find Hub), 16-bit service data with the
+ * Eddystone UUID 0xFEAA and an FMDN frame type:
+ *
+ *   0       frame type: 0x40, or 0x41 in unwanted tracking protection mode
+ *   1-20    ephemeral identifier (160-bit curve), or
+ *   1-32    ephemeral identifier (256-bit curve, extended advertising only)
+ *   21/33   hashed flags (optional): battery level and unwanted tracking protection
+ *           mode, xor-ed with a byte derived from the ephemeral key; not decodable
+ *           without the key and not decoded
+ *
+ * The ephemeral identifier rotates every 1024 seconds.  Unwanted tracking protection
+ * mode is switched on through the Find Hub network so that phones nearby can detect
+ * the tag; the tag then rotates its address only once a day.  The frame does not say
+ * in the clear whether the tag is away from its owner: FMDN tags follow DULT (below)
+ * for that.
+ *
+ * Source: Google, "Find My Device Network Accessory Specification" (Fast Pair
+ * extension, developers.google.com/nearby/fast-pair/specifications/extensions/fmdn),
+ * advertised frames and unwanted tracking protection mode.
+ *
+ * Detecting Unwanted Location Trackers (DULT), 16-bit service data with the UUID
+ * 0xFCB2, the platform-independent payload a location tracker has to advertise while
+ * it is separated from its owner, and may advertise while near it:
+ *
+ *   0       network ID of the finding network; the registry is not published yet
+ *   1       near-owner bit in bit 0 (1 near owner, 0 separated), bits 1-7 reserved
+ *   2-      proprietary company payload; not decoded
+ *
+ * While near the owner the tag rotates its address every 15 minutes, while separated
+ * once every 24 hours.
+ *
+ * Source: B. Ledvina, D. Lazarov, B. Detwiler, S. P. Polatkan, "Detecting Unwanted
+ * Location Trackers Accessory Protocol", draft-ietf-dult-accessory-protocol-00,
+ * sections 3.4 to 3.9.
+ *
+ * The decoders only depend on the standard library and bounds check everything.
  */
 
 #include <cstddef>
@@ -59,6 +118,9 @@ namespace btle_tracker {
 enum class tracker_type : uint8_t {
     none = 0,
     samsung_smarttag = 1,
+    apple_findmy = 2,
+    google_fmdn = 3,
+    dult = 4,
 };
 
 enum class battery_level : uint8_t {
@@ -100,15 +162,111 @@ struct smarttag_info {
     }
 };
 
+/* Apple's company ID and the Find My (offline finding) type and lengths */
+constexpr uint16_t apple_company_id = 0x004C;
+constexpr uint8_t findmy_type = 0x12;
+constexpr uint8_t findmy_len_separated = 0x19;
+constexpr uint8_t findmy_len_near_owner = 0x02;
+
+/* Find My device types in bits 4-5 of the status byte */
+constexpr uint8_t findmy_device_apple = 0;
+constexpr uint8_t findmy_device_airtag = 1;
+constexpr uint8_t findmy_device_accessory = 2;
+constexpr uint8_t findmy_device_airpods = 3;
+
+struct findmy_info {
+    uint8_t status = 0;
+    /* The long frame, sent while away from the owner */
+    bool separated_frame = false;
+
+    bool separated() const {
+        return separated_frame;
+    }
+
+    uint8_t device_type() const {
+        return (status >> 4) & 0x03;
+    }
+
+    /* Apple counts the battery level down from 0 (full) */
+    battery_level battery() const {
+        return static_cast<battery_level>(3 - ((status >> 6) & 0x03));
+    }
+
+    /* AirTags, Find My network accessories and AirPods; not iPhones, iPads or Macs */
+    bool location_tracker() const {
+        return device_type() != findmy_device_apple;
+    }
+};
+
+/* Eddystone's 16-bit service UUID, which FMDN shares, and the FMDN frame types */
+constexpr uint16_t google_fmdn_service_uuid = 0xFEAA;
+constexpr uint8_t fmdn_frame = 0x40;
+constexpr uint8_t fmdn_frame_utp = 0x41;
+constexpr size_t fmdn_eid_len_160 = 20;
+constexpr size_t fmdn_eid_len_256 = 32;
+
+struct fmdn_info {
+    uint8_t frame_type = 0;
+    /* Raw bytes, fmdn_eid_len_160 or fmdn_eid_len_256 long */
+    std::string ephemeral_id;
+    bool hashed_flags = false;
+
+    bool unwanted_tracking_protection() const {
+        return frame_type == fmdn_frame_utp;
+    }
+};
+
+/* DULT 16-bit service UUID */
+constexpr uint16_t dult_service_uuid = 0xFCB2;
+
+/* Payload bytes up to and including the near-owner byte */
+constexpr size_t dult_min_len = 2;
+
+struct dult_info {
+    uint8_t network_id = 0;
+    /* Near-owner bit and the reserved bits, raw */
+    uint8_t status = 0;
+
+    bool near_owner() const {
+        return (status & 0x01) != 0;
+    }
+
+    bool separated() const {
+        return !near_owner();
+    }
+};
+
 /* 16-bit service data (the AD record after the 0x16 type byte: UUID, then payload).
  * Returns false unless it is a SmartTag frame of at least the documented length. */
 bool decode_samsung_smarttag(const uint8_t *data, size_t len, smarttag_info& out);
+
+/* Manufacturer data (the AD record after the 0xFF type byte: company ID, then payload).
+ * Returns false unless it is an Apple Find My frame of one of the two known lengths;
+ * check location_tracker() before treating the sender as a tracker. */
+bool decode_apple_findmy(const uint8_t *data, size_t len, findmy_info& out);
+
+/* 16-bit service data.  Returns false unless it is an FMDN frame of a documented length;
+ * Eddystone frames in the same UUID are not FMDN frames. */
+bool decode_google_fmdn(const uint8_t *data, size_t len, fmdn_info& out);
+
+/* 16-bit service data.  Returns false unless it is a DULT frame of at least the
+ * documented length. */
+bool decode_dult(const uint8_t *data, size_t len, dult_info& out);
 
 const char *tracker_type_str(tracker_type type);
 const char *battery_level_str(battery_level level);
 
 /* premature_offline, offline, overmature_offline, connected, or unknown */
 const char *smarttag_state_str(uint8_t state);
+
+/* apple_device, airtag, findmy_accessory, or airpods */
+const char *findmy_device_type_str(uint8_t device_type);
+
+/* separated or near_owner, for the Apple Find My and the DULT frames */
+const char *separated_state_str(bool separated);
+
+/* unwanted_tracking_protection or normal */
+const char *fmdn_state_str(const fmdn_info& info);
 
 }
 
