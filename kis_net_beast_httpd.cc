@@ -153,7 +153,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
     auto user_config_path =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_auth_file",
-                "%h/.kismetkismet_httpd.conf");
+                "%h/.kismet/kismet_httpd.conf");
 
     if (admin_username != "" || admin_password != "") {
         if (admin_username == "") {
