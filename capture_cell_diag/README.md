@@ -153,7 +153,7 @@ escalates on).
 | `stats_interval=<s>` | seconds between [health lines](#health-helper_alive-means-the-decoder-is-alive) (default 30; `0` disables) |
 | `clock_anchor_sec=<s>` | cadence of the host↔modem clock anchor: a `DIAG_TS_F` request at start, every `<s>` seconds (default 30; `0` = periodic off) and at end, each reply paired with the host clock as a `type="ClockAnchor"` kismetdb row, so a GNSS-off drive can still put absolute UTC on every frame. Live modems only |
 | `enabled=false` | register the source but leave it idle (no port opened, no handshake, no decoder started) |
-| `debug=true` | verbose message-bus logging |
+| `debug=false` | debug is **on** by default: verbose message-bus logging, and the [configuration exchanges](#session-and-debug-log-celllog) in the kismetdb. `debug=false` or `KISMET_CELLDIAG_DEBUG=0` turns both off |
 | `nativedecode=only`, `census=native` | accepted, and the default; any other value is refused (see [Decoder](#decoder)) |
 
 ## Runtime options
@@ -470,6 +470,24 @@ capture: `f3=high|error` on a `replay=` source changes nothing in the file.
   Pass `spc=000000` (factory default), or set `diag.spc` in the model profile so
   it arms automatically. LM960 (SDX24) and RM500Q (SDX55) do not gate it — omit
   `spc=` there.
+
+## Session and debug log (`CellLog`)
+
+Each open sends one `CellLog` session row, what the capture was set up to
+collect and from which modem: live or replay, the DIAG node, the IMEI, the
+firmware id and firmware, the AT make and model, how the identity was
+resolved (`at`, `vouched`, `unresolved-held-by-sibling`, `unresolved`), the
+mask and F3 presets, and `debug`.
+
+With debug on, every configuration request (`LOG_CONFIG`, F3, QSH, events,
+`diag_id`, SPC) is logged as it was sent (`TX`) and the answer the handshake
+took (`RX`), as hex, with a count of the unrelated frames read past on the way
+and a `note` when no answer came. The SPC unlock's code is never logged: its
+request body is zeroed and its answer cut to two bytes. Frames past 2 KiB are
+cut.
+
+`log_tools/kismetdb_to_celllog` reads the rows back; see
+[cellat's 4f](../capture_cell_at/README.md#4f-session-and-debug-log-celllog).
 
 ## Debugging with a raw capture
 

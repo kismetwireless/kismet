@@ -466,8 +466,12 @@ static void test_urc_after_ok_is_not_the_next_reply(void) {
 
     char resp[256];
     at_timing_t tm;
-    int n = at_command_log(sv[0], "AT+CFUN?", resp, sizeof(resp), 2000, NULL);
+    int n = at_command_log(sv[0], "AT+CFUN?", resp, sizeof(resp), 2000, &tm);
     check(n >= 0 && strcmp(resp, "OK") == 0, "URC after OK: the first reply is just OK");
+    check(tm.trail_len >= 15 && tm.trail_len <= sizeof(tm.trail) &&
+          memmem(tm.trail, tm.trail_len, "+QIND: SMS DONE", 15) != NULL,
+          "URC after OK: the dropped bytes are reported");
+    check(!tm.late_ok_dropped, "URC after OK: no late OK");
     n = at_command_log(sv[0], "AT", resp, sizeof(resp), 2000, &tm);
     check(n >= 0 && strcmp(resp, "OK") == 0,
           "URC after OK: the next reply is its own OK, not the leftover URC");
@@ -672,6 +676,7 @@ static void test_late_ok_does_not_end_the_next_ordinary_read(void) {
     check(strncmp(resp, "+QENG:", 6) == 0,
           "late OK: the previous exchange's OK is not part of this reply");
     check(tm.rx_done_ns != 0, "late OK: the reply ended on its OWN OK");
+    check(tm.late_ok_dropped, "late OK: the dropped OK is reported");
     check(tm.first_rx_ns != 0 && tm.first_rx_ns - tm.tx_done_ns >= 200 * MS_NS,
           "late OK: first_rx is the real answer (~230 ms), not the late OK (~130 ms)");
 
@@ -693,6 +698,7 @@ static void test_late_ok_then_a_bare_ok_reply(void) {
     at_timing_t tm;
     int n = at_command_log(sv[0], "ATE0", resp, sizeof(resp), 3000, &tm);
     check(n >= 0 && strcmp(resp, "OK") == 0, "late OK + bare OK: the reply reads as one OK");
+    check(tm.late_ok_dropped, "late OK + bare OK: the dropped OK is reported");
     check(tm.rx_done_ns != 0 && tm.rx_done_ns - tm.tx_done_ns >= 200 * MS_NS,
           "late OK + bare OK: ended on the real OK (~230 ms), not the late one (~130 ms)");
     /* One late OK is owed, not two: the real OK ends the read when it is read,

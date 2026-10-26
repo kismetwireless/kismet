@@ -215,8 +215,9 @@ the server re-types it on the way into the log:
   lines that report an EARFCN but **no PCI**: with neither a full identity nor a
   PCI+EARFCN partial, `cell_decisions::derive_key()` returns invalid and the row
   is logged, un-promoted, as `CellModem`.
-- **`Cell`** / **`RawAT`** / **`ClockAnchor`** — the PHY's
-  pre-rename name, raw AT exchanges, and host↔modem clock anchors. None pass
+- **`Cell`** / **`RawAT`** / **`ClockAnchor`** / **`CellLog`** — the PHY's
+  pre-rename name, raw AT exchanges, host↔modem clock anchors, and the
+  session/debug log ([4f](#4f-session-and-debug-log-celllog)). None pass
   through phy_cell, so each keeps its own type.
 
 **A kismetdb consumer must read all of these types, not one.** Filtering
@@ -501,7 +502,7 @@ Append options to the source definition after a colon:
 |--------|--------|---------|-------------|
 | `atport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(auto-detect by IMEI)* | Open this port instead of scanning. The IMEI is still verified — a mismatch is a hard open error, never a silent survey of the wrong modem. |
 | `strategy` | `driving` (alias `wardrive`), `walking`, `stationary`, `serving_only` | `driving` | Scan profile (see below). An unknown value **refuses the open** and names the valid ones. |
-| `debug` | `true`, `false` | `false` | Debug mode: extra per-poll messages, and the IMSI and ICCID read and logged at debug level. `KISMET_CELLAT_DEBUG=1` in the environment turns it on for every source; `debug=` in the definition overrides that. |
+| `debug` | `true`, `false` | `false` | Debug mode: extra per-poll messages, the IMSI and ICCID read and logged at debug level, and the [debug log](#4f-session-and-debug-log-celllog). `KISMET_CELLAT_DEBUG=1` in the environment turns it on for every source; `debug=` in the definition overrides that. |
 | `bandlock` | `true`, `false` | `false` | Offer the band/RAT lock channels. A lock is written to the modem's saved configuration, so it is off unless asked for. A lock left by a crashed session is undone either way. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
 | `sierracnd` | `true`, `false` | `false` | Sierra only: unlock the advanced AT commands (`AT!ENTERCND`, default password) at open. Without it, a modem that keeps `AT!GSTATUS?` / `AT!LTEINFO?` locked reports less. |
 | `usb` | `auto`, `force`, `off` | `auto` | Modems reached over libusb. See [4e](#4e-modems-with-no-host-driver-usb). |
@@ -715,6 +716,28 @@ kismet -c cellat-<imei>                      # found over libusb when no driver 
 kismet -c cellat-<imei>:usb=force            # take it from option / qcserial
 kismet -c 'celldiag-<imei>:atport=usb:1-4:2,diagport=usb:1-4:0'
 ```
+
+### 4f. Session and debug log (`CellLog`)
+
+Each capture sends one `CellLog` session row: the AT port, the profile, the
+clock anchor cadence, `bandlock`, `debug`, and the modem's own make, model,
+firmware and IMEI. With `debug=true` it also logs what an AT exchange threw
+away, which its `RawAT` row cannot show: a late `OK` that belonged to the
+previous exchange (`RX-LATE`), and bytes that followed a reply's final line in
+the same read (`RX-DROP`, the first 128). The record format is in
+`capture_cell_diag/cell_log.h`; celldiag writes the same rows.
+
+`log_tools/kismetdb_to_celllog` reads them back, merged with the source's
+`RawAT` exchanges into one transcript per datasource, in capture order:
+
+```bash
+kismetdb_to_celllog --in drive.kismet --out -                  # every cell source
+kismetdb_to_celllog --in drive.kismet --out - --source <uuid>  # one source
+kismetdb_to_celllog --in drive.kismet --out - --sessions       # session records only
+kismetdb_to_celllog --in drive.kismet --out log.jsonl --json   # JSON lines
+```
+
+`--no-rawat` leaves the `RawAT` exchanges out.
 
 ### 5. Multiple Modems
 

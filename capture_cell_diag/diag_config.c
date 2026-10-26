@@ -28,6 +28,8 @@
 #define LOG_CFG_SET_MASK         3
 #define LOG_CFG_SUCCESS          0
 
+#define DIAG_SPC_F               0x41
+
 /* DIAG_LOG_CONFIG_F frame layout (deframed, opcode byte kept at [0]):
  *   [0]      cmd echo (0x73)
  *   [1..3]   3 pad bytes (they follow the opcode)
@@ -266,23 +268,51 @@ static int is_rejection_of(const uint8_t *f, size_t n, uint8_t expect_cmd,
  * queued across close) would otherwise pass as the RETRIEVE_RANGES reply and
  * fail the open. A LOG_CONFIG reply echoes its "<3xI" header, so matching
  * those 7 bytes skips it like any other frame. */
+static diag_config_trace_fn g_trace;
+static void *g_trace_ctx;
+
+void diag_config_set_trace(diag_config_trace_fn fn, void *ctx) {
+    g_trace = fn;
+    g_trace_ctx = ctx;
+}
+
 static int read_response(int fd, diag_reader_t *r, uint8_t expect_cmd,
                          const uint8_t *req, size_t reqlen, size_t echo_len,
                          uint8_t *out, size_t outcap, size_t *out_len) {
     double deadline = monotonic_s() + DIAG_RESP_TIMEOUT_S;
+    unsigned skipped = 0;
+    int rc;
     if (echo_len > reqlen)
         echo_len = reqlen;
     for (;;) {
-        if (diag_read_frame(fd, r, out, outcap, out_len) != 0)
-            return -1;
+        if (diag_read_frame(fd, r, out, outcap, out_len) != 0) {
+            rc = -1;
+            break;
+        }
         if (*out_len >= 1 + echo_len && out[0] == expect_cmd &&
-            (echo_len == 0 || memcmp(out + 1, req, echo_len) == 0))
-            return 0;
-        if (is_rejection_of(out, *out_len, expect_cmd, req, reqlen))
-            return 1;
-        if (monotonic_s() > deadline)
-            return -1;
+            (echo_len == 0 || memcmp(out + 1, req, echo_len) == 0)) {
+            rc = 0;
+            break;
+        }
+        if (is_rejection_of(out, *out_len, expect_cmd, req, reqlen)) {
+            rc = 1;
+            break;
+        }
+        skipped++;
+        if (monotonic_s() > deadline) {
+            rc = -1;
+            break;
+        }
     }
+    if (g_trace != NULL) {
+        size_t tlen = rc < 0 ? 0 : *out_len;
+        /* An SPC answer, or a rejection echoing the request, past its first
+         * two bytes would repeat the code. */
+        if (expect_cmd == DIAG_SPC_F && tlen > 2)
+            tlen = 2;
+        g_trace(g_trace_ctx, "RX", rc < 0 ? NULL : out, tlen, skipped);
+    }
+    return rc;
 }
 
 static int send_cmd(int fd, uint8_t cmd, const uint8_t *body, size_t bodylen) {
@@ -292,6 +322,17 @@ static int send_cmd(int fd, uint8_t cmd, const uint8_t *body, size_t bodylen) {
 
     if (wlen == 0)
         return -1;
+    if (g_trace != NULL) {
+        uint8_t payload[sizeof(wire)];
+        if (bodylen < sizeof(payload)) {
+            payload[0] = cmd;
+            if (cmd == DIAG_SPC_F)
+                memset(payload + 1, 0, bodylen);
+            else if (bodylen > 0)
+                memcpy(payload + 1, body, bodylen);
+            g_trace(g_trace_ctx, "TX", payload, bodylen + 1, 0);
+        }
+    }
     while (off < wlen) {
         ssize_t n = write(fd, wire + off, wlen - off);
         if (n < 0) {
@@ -454,7 +495,6 @@ int diag_config_enable_all_f3(int fd, diag_reader_t *r) {
 
 /* ---- SPC unlock (DIAG_SPC_F, gates SET_MASK on EC2x/EG2x) ---- */
 
-#define DIAG_SPC_F   0x41
 #define SPC_LEN      6
 
 size_t diag_config_build_spc(uint8_t *out, size_t cap, const char *spc) {
@@ -771,6 +811,30 @@ static pid_t fake_modem(int fd, const uint8_t *a, size_t al,
         usleep(50000);
     }
     _exit(0);
+}
+
+/* The debug trace, as diag_config_set_trace hands it over. */
+static struct {
+    char dir[8];
+    uint8_t frame[64];
+    size_t len;
+    int had_frame;
+} g_seen[8];
+static size_t g_nseen;
+
+static void record_trace(void *ctx, const char *dir, const uint8_t *frame,
+                         size_t len, unsigned skipped) {
+    (void)ctx;
+    (void)skipped;
+    if (g_nseen >= sizeof(g_seen) / sizeof(g_seen[0]))
+        return;
+    snprintf(g_seen[g_nseen].dir, sizeof(g_seen[g_nseen].dir), "%s", dir);
+    g_seen[g_nseen].had_frame = frame != NULL;
+    g_seen[g_nseen].len = len;
+    if (frame != NULL)
+        memcpy(g_seen[g_nseen].frame, frame,
+               len < sizeof(g_seen[g_nseen].frame) ? len : sizeof(g_seen[g_nseen].frame));
+    g_nseen++;
 }
 
 static void stop_fake_modem(pid_t pid) {
@@ -1472,6 +1536,39 @@ int main(void) {
             }
             free(rd);
         }
+    }
+
+    /* The trace never carries the SPC: the request body is zeroed, and the
+     * modem's rejection, which echoes it, is cut to two bytes. */
+    {
+        static const uint8_t rej[] = { DIAG_BAD_PARM_F, DIAG_SPC_F,
+                                       '1', '2', '3', '4', '5', '6' };
+        uint8_t wire[64];
+        size_t wl = diag_hdlc_build(rej[0], rej + 1, sizeof(rej) - 1, wire, sizeof(wire));
+        int sv[2];
+        diag_reader_t *rd = calloc(1, sizeof(*rd));
+        if (rd != NULL && wl > 0 && socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0) {
+            pid_t modem = fake_modem(sv[1], wire, wl, NULL, 0);
+            g_nseen = 0;
+            diag_config_set_trace(record_trace, NULL);
+            (void)diag_config_send_spc(sv[0], rd, "123456");
+            diag_config_set_trace(NULL, NULL);
+            stop_fake_modem(modem);
+            check(g_nseen == 2 && strcmp(g_seen[0].dir, "TX") == 0 &&
+                  strcmp(g_seen[1].dir, "RX") == 0, "trace: one TX, one RX");
+            static const uint8_t zero_spc[] = { DIAG_SPC_F, 0, 0, 0, 0, 0, 0 };
+            check(g_nseen >= 1 && g_seen[0].len == sizeof(zero_spc) &&
+                  memcmp(g_seen[0].frame, zero_spc, sizeof(zero_spc)) == 0,
+                  "trace: the SPC request body is zeroed");
+            check(g_nseen >= 2 && g_seen[1].had_frame && g_seen[1].len == 2 &&
+                  g_seen[1].frame[0] == DIAG_BAD_PARM_F,
+                  "trace: the SPC rejection is cut to two bytes");
+            close(sv[0]);
+            close(sv[1]);
+        } else {
+            check(0, "trace: fixture");
+        }
+        free(rd);
     }
 
     if (fail) {

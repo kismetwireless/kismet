@@ -114,6 +114,7 @@
  * the AT value extraction, the label and the JSON, so the two sources of one
  * modem describe it identically in the .kismet. */
 #include "../capture_cell_diag/diag_modemident.h"
+#include "../capture_cell_diag/cell_log.h"
 #include "../capture_cell_diag/diag_identvouch.h"
 #include "clockanchor.h"
 #include "../capture_cell_diag/cell_safefile.h"
@@ -413,6 +414,31 @@ static void rawat_emit(local_cell_t *local, struct timeval tv, const char *rec) 
     }
 }
 
+/* A CellLog row (cell_log.h); best-effort, like RawAT. */
+static void cellat_log_send(local_cell_t *local, const struct timeval *tv,
+                            const char *rec) {
+    if (local->caph == NULL)
+        return;
+    if (cf_send_json(local->caph, NULL, 0, NULL, NULL, *tv, CELL_LOG_TYPE, rec) == 0) {
+        cf_handler_wait_ringbuffer(local->caph);
+        (void)cf_send_json(local->caph, NULL, 0, NULL, NULL, *tv, CELL_LOG_TYPE, rec);
+    }
+}
+
+static void cellat_log_entry(local_cell_t *local, const char *dir,
+                             const char *text, size_t textlen) {
+    struct timeval tv;
+    char *rec;
+
+    if (local->caph == NULL || (rec = malloc(CELL_LOG_ROW_MAX)) == NULL)
+        return;
+    gettimeofday(&tv, NULL);
+    if (cell_log_entry_json(rec, CELL_LOG_ROW_MAX, "cellat", &tv, now_mono_ns(),
+                            dir, text, textlen) == 0)
+        cellat_log_send(local, &tv, rec);
+    free(rec);
+}
+
 /* The AT-over-serial core -- serial_open, serial_close,
  * at_command_log, at_command -- lives in at_serial.inc so the standalone
  * cellat_serial_probe binary and the test_at_serial selftest share the exact
@@ -430,7 +456,9 @@ static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
     uint64_t t0 = 0;
     char ts_utc[40];
     struct timeval tv0;
-    at_timing_t tm = {0, 0, 0};
+    at_timing_t tm;
+
+    memset(&tm, 0, sizeof(tm));
 
     /* The RawAT record is built only while a capture is open.  Stamp the
      * start on both clocks before the (possibly multi-second) command so
@@ -463,6 +491,22 @@ static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
             rawat_emit(local, tv0, rec);
             free(rec);
         }
+    }
+
+    /* debug=true: what the exchange threw away, which its RawAT row
+     * cannot show. */
+    if (local->debug && want_record) {
+        if (tm.late_ok_dropped) {
+            char note[128 + 64];
+            snprintf(note, sizeof(note),
+                     "OK before the reply to %.120s: the previous exchange's, dropped",
+                     cmd);
+            cellat_log_entry(local, "RX-LATE", note, strlen(note));
+        }
+        if (tm.trail_len > 0)
+            cellat_log_entry(local, "RX-DROP", tm.trail,
+                             tm.trail_len < sizeof(tm.trail) ? tm.trail_len :
+                                                               sizeof(tm.trail));
     }
 
     return rc;
@@ -4116,6 +4160,31 @@ static void cellat_send_modem_identity(local_cell_t *local) {
     }
 }
 
+/* The session CellLog row, once per capture: the port, profile and modem. */
+static void cellat_send_session_log(local_cell_t *local) {
+    struct timeval tv;
+    char rec[2048], anchor[24];
+
+    snprintf(anchor, sizeof(anchor), "%lu", local->clock_anchor_interval_ms / 1000);
+    cell_log_kv_t kv[] = {
+        { "at_port",       local->device_path },
+        { "vendor_model",  local->modem_model },
+        { "imei",          local->ident.imei },
+        { "make",          local->ident.make },
+        { "product_model", local->ident.model },
+        { "firmware",      local->ident.firmware },
+        { "strategy",      local->strategy != NULL ? local->strategy->name : NULL },
+        { "clock_anchor_sec", anchor },
+        { "bandlock",      local->lock_enabled ? "true" : "false" },
+        { "debug",         local->debug ? "true" : "false" },
+    };
+
+    gettimeofday(&tv, NULL);
+    if (cell_log_session_json(rec, sizeof(rec), "cellat", &tv, now_mono_ns(),
+                              kv, sizeof(kv) / sizeof(kv[0])) == 0)
+        cellat_log_send(local, &tv, rec);
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_cell_t *local = (local_cell_t *)caph->userdata;
     char resp[AT_RESP_MAX];
@@ -4154,6 +4223,7 @@ void capture_thread(kis_capture_handler_t *caph) {
      * anchor: the server installs its label as this source's hardware and
      * kismetdb keeps it as a data row, so the container names its modem. */
     cellat_send_modem_identity(local);
+    cellat_send_session_log(local);
 
     /* The first stats line goes out now, so the panel has a profile
      * and a port to show before the first poll interval has elapsed. */

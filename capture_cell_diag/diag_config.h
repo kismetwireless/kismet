@@ -338,4 +338,18 @@ size_t diag_config_build_spc(uint8_t *out, size_t cap, const char *spc);
  * (incl. a wrong SPC, which never echoes 0x41 and so trips the deadline). */
 int diag_config_send_spc(int fd, diag_reader_t *r, const char *spc);
 
+/* ---- debug trace ---- */
+
+/* Called with each configuration request as sent and each answer the
+ * matcher took: the DIAG payload, opcode first, no HDLC framing. `frame` is
+ * NULL when no answer came. `skipped` counts the unrelated frames read past
+ * on the way. The SPC unlock's code is never passed: its request body is
+ * zeroed and its answer cut to two bytes. */
+typedef void (*diag_config_trace_fn)(void *ctx, const char *dir,
+                                     const uint8_t *frame, size_t len,
+                                     unsigned skipped);
+
+/* Process-wide; NULL (the default) is off. */
+void diag_config_set_trace(diag_config_trace_fn fn, void *ctx);
+
 #endif /* DIAG_CONFIG_H */

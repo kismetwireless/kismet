@@ -16,6 +16,7 @@ CELL_SELFTEST = @CELL_SELFTEST@
 # GNSS receiver or USB-UART bridge is opened by neither.
 # diag_identvouch.c.o too: cellat writes the vouch for the AT port it
 # holds, celldiag reads it, so the record has one reader and one writer module.
+# cell_log.c.o too: one CellLog record format for both sources.
 MONITOR_OBJS = \
 	capture_cell_at.c.o \
 	cellat_options.c.o \
@@ -29,7 +30,8 @@ MONITOR_OBJS = \
 	diag_probeclose.c.o \
 	diag_modemident.c.o \
 	diag_portadmit.c.o \
-	diag_identvouch.c.o
+	diag_identvouch.c.o \
+	cell_log.c.o
 MONITOR_BIN = kismet_cap_cell_at
 
 CELL_USBSERIAL = @CELL_USBSERIAL@
@@ -159,6 +161,13 @@ diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag
 
 diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+cell_log.c.o:	../capture_cell_diag/cell_log.c ../capture_cell_diag/cell_log.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_log.c -o $@
+
+cell_log.c.d:	../capture_cell_diag/cell_log.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_log.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h

@@ -260,6 +260,11 @@ LOGTOOL_KISMETDB_QMILOG_O = \
 	log_tools/kismetdb_to_qmilog.cc.o \
 	sqlite3_cpp11.cc.o
 
+LOGTOOL_KISMETDB_CELLLOG = log_tools/kismetdb_to_celllog
+LOGTOOL_KISMETDB_CELLLOG_O = \
+	log_tools/kismetdb_to_celllog.cc.o \
+	sqlite3_cpp11.cc.o
+
 LOGTOOL_KISMETDB_HDLC = log_tools/kismetdb_to_hdlc
 LOGTOOL_KISMETDB_HDLC_O = \
 	log_tools/kismetdb_to_hdlc.cc.o
@@ -415,6 +420,9 @@ $(LOGTOOL_KISMETDB_ATLOG):	$(LOGTOOL_KISMETDB_ATLOG_O) $(patsubst %c.o,%c.d,$(LO
 
 $(LOGTOOL_KISMETDB_QMILOG):	$(LOGTOOL_KISMETDB_QMILOG_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_QMILOG_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_QMILOG) $(LOGTOOL_KISMETDB_QMILOG_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_CELLLOG):	$(LOGTOOL_KISMETDB_CELLLOG_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLLOG_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_CELLLOG) $(LOGTOOL_KISMETDB_CELLLOG_O) $(LIBS) $(CXXLIBS) -rdynamic
 
 $(LOGTOOL_KISMETDB_HDLC):	$(LOGTOOL_KISMETDB_HDLC_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_HDLC_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_HDLC) $(LOGTOOL_KISMETDB_HDLC_O) $(LIBS) $(CXXLIBS) -rdynamic
@@ -682,6 +690,7 @@ commoninstall: $(INSTBINS)
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CELLNDJSON) $(BIN)/`basename $(LOGTOOL_KISMETDB_CELLNDJSON)`; \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_ATLOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_ATLOG)`; \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_QMILOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_QMILOG)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CELLLOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_CELLLOG)`; \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_HDLC) $(BIN)/`basename $(LOGTOOL_KISMETDB_HDLC)`; \
 	fi;
 
@@ -1136,6 +1145,7 @@ include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLNDJSON_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_ATLOG_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_QMILOG_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLLOG_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_HDLC_O)))
 
 

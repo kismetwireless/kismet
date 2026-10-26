@@ -327,6 +327,12 @@ typedef struct {
     uint64_t tx_done_ns;
     uint64_t first_rx_ns;
     uint64_t rx_done_ns;
+    /* What the exchange discarded: a held OK that proved to be the previous
+     * exchange's, and the bytes that followed the terminal line in its read
+     * (the first sizeof(trail) of them; trail_len counts them all). */
+    int      late_ok_dropped;
+    size_t   trail_len;
+    char     trail[128];
 } at_timing_t;
 
 /* Bytes asked of one read() in at_command_log(). A read returns what
@@ -535,8 +541,11 @@ static int at_command_log_ex(int fd, const char *cmd, char *resp_buf,
                 /* A line after the held OK -- even this command's echo,
                  * which a modem sends before it has answered anything -- means
                  * the held OK was the previous exchange's. */
-                if (held)
+                if (held) {
                     held = 0;
+                    if (timing)
+                        timing->late_ok_dropped = 1;
+                }
 
                 /* Skip echo of the command */
                 if (strncmp(line_buf, cmd, strlen(cmd)) == 0) {
@@ -586,8 +595,13 @@ static int at_command_log_ex(int fd, const char *cmd, char *resp_buf,
                         line_pos = 0;
                         continue;
                     }
-                    if (timing)
+                    if (timing) {
                         timing->rx_done_ns = t_read;
+                        timing->trail_len = (size_t)(n - i - 1);
+                        size_t keep = timing->trail_len < sizeof(timing->trail) ?
+                                      timing->trail_len : sizeof(timing->trail);
+                        memcpy(timing->trail, rbuf + i + 1, keep);
+                    }
                     done = 1;
                     break;
                 }

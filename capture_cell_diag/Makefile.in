@@ -22,6 +22,7 @@ MONITOR_OBJS = \
 	diag_optset.c.o \
 	diag_probeclose.c.o \
 	diag_modemident.c.o \
+	cell_log.c.o \
 	diag_portadmit.c.o \
 	diag_identvouch.c.o \
 	diag_inventory.c.o \
@@ -238,6 +239,8 @@ TEST_PROBECLOSE_BIN = test_diag_probeclose
 # The ModemIdentity record: AT value extraction over the observed
 # CGMI/CGMM/CGMR spellings, the display label, and the JSON object. Pure libc.
 TEST_MODEMIDENT_BIN = test_diag_modemident
+# The CellLog kismetdb record (cell_log.h). Pure libc.
+TEST_CELL_LOG_BIN = test_cell_log
 # diag_portadmit decides, from sysfs and before any open(), which USB serial ttys
 # a scan may probe at all. Pure libc; its selftest is in-file behind
 # -DDIAG_PORTADMIT_SELFTEST and builds a fake sysfs tree, so it needs no device.
@@ -287,6 +290,7 @@ SELFTEST_BINS = $(TEST_HDLC_BIN) \
 	$(TEST_WWANPORT_BIN) \
 	$(TEST_PROBECLOSE_BIN) \
 	$(TEST_MODEMIDENT_BIN) \
+	$(TEST_CELL_LOG_BIN) \
 	$(TEST_PORTADMIT_BIN) \
 	$(TEST_IDENTVOUCH_BIN) \
 	$(TEST_LOGSTREAM_BIN) \
@@ -366,6 +370,9 @@ $(TEST_MODEMIDENT_BIN):	test_diag_modemident.c diag_modemident.c diag_modemident
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_MODEMIDENT_BIN) \
 		    test_diag_modemident.c diag_modemident.c
 
+$(TEST_CELL_LOG_BIN):	test_cell_log.c cell_log.c cell_log.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CELL_LOG_BIN) test_cell_log.c cell_log.c
+
 $(TEST_PROBECLOSE_BIN):	diag_probeclose.c diag_probeclose.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -pthread -DDIAG_PROBECLOSE_SELFTEST \
 		    -o $(TEST_PROBECLOSE_BIN) diag_probeclose.c
@@ -408,6 +415,7 @@ clean:
 	@-rm -f $(TEST_GSMTAP_SINK_BIN)
 	@-rm -f $(TEST_STATS_BIN)
 	@-rm -f $(TEST_MODEMIDENT_BIN)
+	@-rm -f $(TEST_CELL_LOG_BIN)
 	@-rm -f $(TEST_PROFILE_BIN)
 	@-rm -f $(TEST_PORTDIAG_BIN)
 	@-rm -f $(TEST_IFCLASS_BIN)

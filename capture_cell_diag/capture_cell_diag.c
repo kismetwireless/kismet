@@ -212,6 +212,7 @@
 #include "diag_rawpkt.h"
 #include "diag_stats.h"
 #include "diag_modemident.h"
+#include "cell_log.h"
 #include "diag_identvouch.h"
 #include "diag_logstream.h"
 #include "diag_native_decode.h"
@@ -3917,6 +3918,9 @@ static void diag_fd_release(local_diag_t *local) {
  *
  * Runs exactly once per open, from a single thread -- either open_callback or
  * capture_thread, never both -- so no locking is needed around local->. */
+static void celldiag_trace(void *ctx, const char *dir, const uint8_t *frame,
+                           size_t len, unsigned skipped);
+
 static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
                             char *msg, size_t msg_sz) {
     char buf[STATUS_MAX];
@@ -3933,6 +3937,9 @@ static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
     const char *f3_preset = local->bringup.f3_preset ?
                             local->bringup.f3_preset : "off";
     int f3_set    = local->bringup.f3_set;
+
+    if (local->debug)
+        diag_config_set_trace(celldiag_trace, caph);
     int qsh_on    = local->bringup.qsh_on;   /* gated full-F3 tier */
     int spc_set   = local->bringup.spc_set;
     char spc_val[8];
@@ -5261,6 +5268,87 @@ static void send_modem_identity(kis_capture_handler_t *caph, local_diag_t *local
     }
 }
 
+/* A CellLog row (cell_log.h). Best-effort like the RawAT tee: a full ring
+ * is waited on once, then the row is dropped. */
+static void celldiag_log_send(kis_capture_handler_t *caph, const struct timeval *tv,
+                              const char *rec) {
+    if (caph == NULL || rec == NULL || rec[0] == '\0')
+        return;
+    if (cf_send_json(caph, NULL, 0, NULL, NULL, *tv, CELL_LOG_TYPE, rec) == 0) {
+        cf_handler_wait_ringbuffer(caph);
+        (void)cf_send_json(caph, NULL, 0, NULL, NULL, *tv, CELL_LOG_TYPE, rec);
+    }
+}
+
+static void celldiag_log_entry(kis_capture_handler_t *caph, const char *dir,
+                               const char *text) {
+    struct timeval tv;
+    char *rec = malloc(CELL_LOG_ROW_MAX);
+
+    if (rec == NULL)
+        return;
+    gettimeofday(&tv, NULL);
+    if (cell_log_entry_json(rec, CELL_LOG_ROW_MAX, "celldiag", &tv,
+                            anchor_mono_ns(), dir, text, strlen(text)) == 0)
+        celldiag_log_send(caph, &tv, rec);
+    free(rec);
+}
+
+/* The debug=true trace of the configuration exchanges (diag_config.h).
+ * Frames past 2 KiB are cut; the length says so. */
+#define CELLDIAG_TRACE_BYTES 2048
+static void celldiag_trace(void *ctx, const char *dir, const uint8_t *frame,
+                           size_t len, unsigned skipped) {
+    char text[2 * CELLDIAG_TRACE_BYTES + 128];
+    size_t off;
+
+    if (frame == NULL) {
+        snprintf(text, sizeof(text), "no answer (%u unrelated frames read past)",
+                 skipped);
+        celldiag_log_entry((kis_capture_handler_t *)ctx, "note", text);
+        return;
+    }
+    size_t done = cell_log_hex(frame, len < CELLDIAG_TRACE_BYTES ? len :
+                               CELLDIAG_TRACE_BYTES, text, sizeof(text));
+    off = strlen(text);
+    if (done < len)
+        off += (size_t)snprintf(text + off, sizeof(text) - off, " ... (%zu bytes)", len);
+    if (skipped > 0 && off < sizeof(text))
+        snprintf(text + off, sizeof(text) - off, " [after %u unrelated frames]",
+                 skipped);
+    celldiag_log_entry((kis_capture_handler_t *)ctx, dir, text);
+}
+
+/* The session CellLog row, once per open: what this capture was configured
+ * to collect and from which modem -- what the capture_meta sidecar held. */
+static void send_session_log(kis_capture_handler_t *caph, local_diag_t *local) {
+    struct timeval tv;
+    char rec[2048];
+    const char *identity =
+        strcmp(local->ident_method, MODEMIDENT_METHOD_AT) == 0 ? "at" :
+        strcmp(local->ident_method, MODEMIDENT_METHOD_VOUCHED) == 0 ? "vouched" :
+        local->ident_held ? "unresolved-held-by-sibling" : "unresolved";
+    cell_log_kv_t kv[] = {
+        { "mode",          local->replay_path ? "replay" : "live" },
+        { "diag_node",     local->replay_path ? NULL : local->diag_path },
+        { "imei",          local->modem_imei },
+        /* a replay's are placeholders, the firmware its path */
+        { "firmware_id",   local->replay_path ? NULL : local->modem_model },
+        { "firmware",      local->replay_path ? NULL : local->modem_firmware },
+        { "make",          local->ident.make },
+        { "product_model", local->ident.model },
+        { "identity",      identity },
+        { "mask_preset",   local->stats.mask_preset },
+        { "f3_preset",     local->f3_preset },
+        { "debug",         local->debug ? "true" : "false" },
+    };
+
+    gettimeofday(&tv, NULL);
+    if (cell_log_session_json(rec, sizeof(rec), "celldiag", &tv, anchor_mono_ns(),
+                              kv, sizeof(kv) / sizeof(kv[0])) == 0)
+        celldiag_log_send(caph, &tv, rec);
+}
+
 static void capture_thread_run(kis_capture_handler_t *caph) {
     local_diag_t *local = (local_diag_t *)caph->userdata;
     char errstr[ERRBUF_MAX];
@@ -5347,6 +5435,7 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
     /* After the bring-up, deferred (just above) or inline (open_callback,
      * defer=false): either way the identity is resolved by now. */
     send_modem_identity(caph, local);
+    send_session_log(caph, local);
 
     src_fd = local->diag_fd;
     if (local->replay_path) {

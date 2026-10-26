@@ -30,7 +30,7 @@
  *
  * Routing matches CellDiagRun: rows whose sub-JSON TYPE is a control or witness
  * type (ClockAnchor, RawAT, RawDiagDrop, DiagCrcCensus, cellat_stats,
- * ModemIdentity), and diag_stats / diag_census lines, are not observations and
+ * ModemIdentity, CellLog), and diag_stats / diag_census lines, are not observations and
  * are not printed. Status MESSAGEs go to stderr as "message: <text>", so a
  * caller can check the "decoder: " line, and each
  * diag_census line goes there as "census: <canonical JSON>".
@@ -673,7 +673,7 @@ static int send_frame(int fd, unsigned type, unsigned seq, const uint8_t *pl, si
 
 static const char *const kNotObservationTypes[] = {
     "ClockAnchor", "RawAT", "RawDiagDrop", "DiagCrcCensus",
-    "cellat_stats", "ModemIdentity",
+    "cellat_stats", "ModemIdentity", "CellLog",
 };
 
 typedef struct {

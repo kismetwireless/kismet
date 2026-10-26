@@ -114,6 +114,7 @@ log_tools/kismetdb_to_pcap
 log_tools/kismetdb_to_cellndjson
 log_tools/kismetdb_to_atlog
 log_tools/kismetdb_to_qmilog
+log_tools/kismetdb_to_celllog
 log_tools/kismetdb_to_hdlc
 
 tools/kismet_discovery
