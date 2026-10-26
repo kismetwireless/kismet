@@ -64,6 +64,9 @@ struct usbserial_port {
     /* CDC style port which takes the line state request */
     int acm;
     int claimed;
+    /* Qualcomm DIAG: one HDLC frame per transfer; the modem drops the rest of a
+     * transfer after its first frame */
+    int one_frame;
 
     struct libusb_transfer *rx[USBSERIAL_RX_XFERS];
     struct libusb_transfer *intr;
@@ -173,12 +176,14 @@ static int iface_driver(libusb_device_handle *h, uint8_t ifnum) {
 
     r = libusb_kernel_driver_active(h, ifnum);
 
-    if (r == 0 || r == 1)
-        return r;
 #ifdef __APPLE__
-    if (r == LIBUSB_ERROR_NOT_SUPPORTED)
+    /* macOS also reports an interface another program has claimed as driver
+     * active, and these interfaces have no host driver there; the claim tells */
+    if (r == 1 || r == LIBUSB_ERROR_NOT_SUPPORTED)
         return 0;
 #endif
+    if (r == 0 || r == 1)
+        return r;
     return -1;
 }
 
@@ -478,6 +483,7 @@ usbserial_dev_t *usbserial_open_ports(uint16_t vid, uint16_t pid, int bus, int a
         port->dev = dev;
         port->ifnum = id->bInterfaceNumber;
         port->role = role;
+        port->one_frame = strcmp(role, "diag") == 0;
 
         if (port_endpoints(port, id) < 0)
             continue;
@@ -513,6 +519,11 @@ usbserial_dev_t *usbserial_open_ports(uint16_t vid, uint16_t pid, int bus, int a
                     "; is another program using the device?" : "");
             free_dev(dev);
             errno = r == LIBUSB_ERROR_BUSY ? EAGAIN : errno_of(r);
+#ifdef __APPLE__
+            /* macOS refuses an interface another program holds as ACCESS */
+            if (r == LIBUSB_ERROR_ACCESS)
+                errno = EAGAIN;
+#endif
             return NULL;
         }
 
@@ -580,6 +591,19 @@ static void tx_next_locked(usbserial_port_t *port) {
     len = port->txq_len;
     if (len > USBSERIAL_TX_XFER_SIZE)
         len = USBSERIAL_TX_XFER_SIZE;
+
+    /* End the transfer at the first frame's closing flag; a leading lone flag
+     * goes with the frame after it */
+    if (port->one_frame) {
+        size_t i;
+
+        for (i = 1; i < len; i++) {
+            if (port->txq[(port->txq_head + i) % USBSERIAL_TXQ_SIZE] == 0x7e) {
+                len = i + 1;
+                break;
+            }
+        }
+    }
 
     first = USBSERIAL_TXQ_SIZE - port->txq_head;
     if (first > len)
