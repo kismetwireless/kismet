@@ -712,12 +712,13 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     create_ft.wait();
 
-                    if (success) {
+                    if (success)
                         return r;
-                    } else {
-                        con->set_status(500);
-                        return std::make_shared<tracker_element_map>();
-                    }
+
+                    // Becomes a 500 with the reason, instead of an empty map
+                    throw std::runtime_error(fmt::format("unable to open '{}': {}",
+                                definition, error_reason.empty() ?
+                                "the open failed and gave no reason" : error_reason));
                 }));
 
     httpd->register_route("/datasource/by-uuid/:uuid/set_channel", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
