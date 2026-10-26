@@ -1499,6 +1499,281 @@ static bool check_nr_cell_config(void) {
     return ok;
 }
 
+/* ---- Cell security events -------------------------------------------------
+ *
+ * PDUs are built bit by bit from the TS 36.331 / 24.301 layouts and framed in
+ * a v20 0xB0C0 header (PCI 100, EARFCN 5230) or a 4-byte EMM OTA header. The
+ * SIB1 uses the 001/01 test PLMN. */
+typedef struct {
+    uint8_t b[64];
+    size_t bits;
+} bitw_t;
+
+static void bw(bitw_t *w, uint64_t v, int n) {
+    for (int i = n - 1; i >= 0; i--) {
+        if (w->bits / 8 >= sizeof(w->b))
+            return;
+        if ((v >> i) & 1)
+            w->b[w->bits / 8] |= (uint8_t)(0x80 >> (w->bits % 8));
+        w->bits++;
+    }
+}
+
+static size_t bw_len(const bitw_t *w, size_t min_len) {
+    size_t n = (w->bits + 7) / 8;
+    return n < min_len ? min_len : n;
+}
+
+static size_t b0c0_v20(uint8_t chan, const uint8_t *pdu, size_t pdu_len,
+                       uint8_t *out, size_t out_sz) {
+    static const uint8_t head[12] = {0x14, 0x0e, 0x00, 0x00, 0x64, 0x00, 0x6e, 0x14,
+                                     0x00, 0x00, 0x00, 0x00};
+    if (19 + pdu_len > out_sz)
+        return 0;
+    memcpy(out, head, 12);
+    out[12] = chan;
+    memset(out + 13, 0, 4);
+    out[17] = (uint8_t)(pdu_len & 0xff);
+    out[18] = (uint8_t)(pdu_len >> 8);
+    memcpy(out + 19, pdu, pdu_len);
+    return 19 + pdu_len;
+}
+
+#define V20_BCCH_DL_SCH 2
+#define V20_DL_DCCH     7
+#define V20_UL_CCCH     8
+
+static char sec_lines[8][1024];
+static int sec_count;
+
+static void sec_collect(void *ctx, const char *json) {
+    (void)ctx;
+    if (sec_count < 8)
+        snprintf(sec_lines[sec_count], sizeof(sec_lines[0]), "%s", json);
+    sec_count++;
+}
+
+static int sec_feed(diag_native_security_t *st, uint16_t code, const uint8_t *p, size_t n) {
+    sec_count = 0;
+    memset(sec_lines, 0, sizeof(sec_lines));
+    return diag_native_security_feed(st, code, p, n, "000000000000000", 1.5, 7,
+                                     sec_collect, NULL);
+}
+
+static size_t smc_pdu(uint8_t *out, int cipher, int integ) {
+    bitw_t w;
+    memset(&w, 0, sizeof(w));
+    bw(&w, 0, 1); bw(&w, 6, 4);          /* DL-DCCH c1 securityModeCommand */
+    bw(&w, 1, 2);                        /* transaction id */
+    bw(&w, 0, 1); bw(&w, 0, 2);          /* c1, securityModeCommand-r8 */
+    bw(&w, 0, 1);                        /* no nonCriticalExtension */
+    bw(&w, 0, 1);                        /* SecurityConfigSMC extension bit */
+    bw(&w, 0, 1); bw(&w, (uint64_t)cipher, 3);
+    bw(&w, 0, 1); bw(&w, (uint64_t)integ, 3);
+    size_t n = bw_len(&w, 3);
+    memcpy(out, w.b, n);
+    return n;
+}
+
+static size_t release_pdu(uint8_t *out, int rat_choice, uint64_t arfcn, int arfcn_bits) {
+    bitw_t w;
+    memset(&w, 0, sizeof(w));
+    bw(&w, 0, 1); bw(&w, 5, 4);          /* DL-DCCH c1 rrcConnectionRelease */
+    bw(&w, 0, 2);
+    bw(&w, 0, 1); bw(&w, 0, 2);          /* c1, rrcConnectionRelease-r8 */
+    bw(&w, rat_choice >= 0 ? 4 : 0, 3);  /* redirectedCarrierInfo present */
+    bw(&w, 1, 2);                        /* releaseCause other */
+    if (rat_choice >= 0) {
+        bw(&w, 0, 1); bw(&w, (uint64_t)rat_choice, 3);
+        bw(&w, arfcn, arfcn_bits);
+        if (rat_choice == 1) {
+            bw(&w, 0, 1);                /* dcs1800 */
+            bw(&w, 0, 2);                /* followingARFCNs explicitList */
+            bw(&w, 0, 5);                /* empty */
+        }
+    }
+    size_t n = bw_len(&w, 4);
+    memcpy(out, w.b, n);
+    return n;
+}
+
+static size_t sib1_pdu(uint8_t *out, int sched_count) {
+    bitw_t w;
+    memset(&w, 0, sizeof(w));
+    bw(&w, 0, 1); bw(&w, 1, 1);          /* BCCH-DL-SCH c1 SIB1 */
+    bw(&w, 0, 3);                        /* no p-Max, tdd-Config, extension */
+    bw(&w, 0, 1);                        /* no csg-Identity */
+    bw(&w, 0, 3);                        /* one PLMN */
+    bw(&w, 1, 1); bw(&w, 0, 4); bw(&w, 0, 4); bw(&w, 1, 4);   /* MCC 001 */
+    bw(&w, 0, 1); bw(&w, 0, 4); bw(&w, 1, 4);                 /* MNC 01 */
+    bw(&w, 1, 1);                        /* notReserved */
+    bw(&w, 0x1234, 16);                  /* TAC */
+    bw(&w, 0x0ABCDE1, 28);               /* cellIdentity */
+    bw(&w, 1, 1); bw(&w, 0, 1); bw(&w, 0, 1);
+    bw(&w, 0, 1); bw(&w, 6, 6);          /* cellSelectionInfo */
+    bw(&w, 1, 6);                        /* band 2 */
+    bw(&w, (uint64_t)(sched_count - 1), 5);
+    for (int i = 0; i < 8; i++)
+        bw(&w, 0, 8);                    /* the SchedulingInfo bodies and the rest */
+    size_t n = bw_len(&w, 10);
+    memcpy(out, w.b, n);
+    return n;
+}
+
+static size_t emm_record(const uint8_t *nas, size_t nas_len, uint8_t *out) {
+    static const uint8_t head[4] = {0x01, 0x09, 0x05, 0x00};
+    memcpy(out, head, 4);
+    memcpy(out + 4, nas, nas_len);
+    return 4 + nas_len;
+}
+
+static bool sec_expect(const char *what, int got, int want, const char *needle) {
+    if (got != want || sec_count != want) {
+        printf("  FAIL security %s: %d events (%d emitted), want %d\n", what, got,
+               sec_count, want);
+        return false;
+    }
+    if (needle != NULL && strstr(sec_lines[0], needle) == NULL) {
+        printf("  FAIL security %s: '%s' not in %s\n", what, needle, sec_lines[0]);
+        return false;
+    }
+    return true;
+}
+
+static bool check_security_events(void) {
+    bool ok = true;
+    uint8_t pdu[64], rec[128];
+    size_t n;
+
+    diag_native_security_t *st = diag_native_security_new();
+    if (st == NULL) {
+        printf("  FAIL security: allocation\n");
+        return false;
+    }
+
+    ok &= diag_native_is_security_source(0xB0C0) && diag_native_is_security_source(0xB0EC) &&
+          diag_native_is_security_source(0xB0ED) && !diag_native_is_security_source(0xB193);
+    ok &= diag_native_security_feed(NULL, 0xB0C0, pdu, 1, "", 0, 0, sec_collect, NULL) == -1;
+    ok &= sec_feed(st, 0xB193, pdu, 1) == 0;
+
+    /* RRC SecurityModeCommand */
+    n = b0c0_v20(V20_DL_DCCH, pdu, smc_pdu(pdu, 0, 2), rec, sizeof(rec));
+    ok &= sec_expect("rrc eea0", sec_feed(st, 0xB0C0, rec, n), 1,
+            "{\"schema\":\"cell-security/1\",\"event\":\"null_security\",\"layer\":\"rrc\","
+            "\"rat\":\"LTE\",\"pci\":100,\"earfcn\":5230,\"ciphering\":\"eea0\","
+            "\"integrity\":\"eia2\",\"prov\":{\"src\":\"diag\",\"origin\":\"0xB0C0\"");
+    n = b0c0_v20(V20_DL_DCCH, pdu, smc_pdu(pdu, 2, 0), rec, sizeof(rec));
+    ok &= sec_expect("rrc eia0", sec_feed(st, 0xB0C0, rec, n), 1,
+                     "\"ciphering\":\"eea2\",\"integrity\":\"eia0\"");
+    n = b0c0_v20(V20_DL_DCCH, pdu, smc_pdu(pdu, 2, 2), rec, sizeof(rec));
+    ok &= sec_expect("rrc eea2/eia2", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+    /* A PDU cut before the algorithms would read them as zeros: eea0/eia0 */
+    smc_pdu(pdu, 2, 2);
+    n = b0c0_v20(V20_DL_DCCH, pdu, 1, rec, sizeof(rec));
+    ok &= sec_expect("rrc truncated smc", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+    /* The same bits on another channel are not an SMC */
+    n = b0c0_v20(V20_UL_CCCH + 1, pdu, smc_pdu(pdu, 0, 0), rec, sizeof(rec));
+    ok &= sec_expect("smc on UL-DCCH", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+
+    /* RRCConnectionRelease */
+    n = b0c0_v20(V20_DL_DCCH, pdu, release_pdu(pdu, 1, 512, 10), rec, sizeof(rec));
+    ok &= sec_expect("geran redirect", sec_feed(st, 0xB0C0, rec, n), 1,
+            "\"event\":\"redirect\",\"layer\":\"rrc\",\"rat\":\"LTE\",\"pci\":100,"
+            "\"earfcn\":5230,\"redirect\":\"geran\",\"release_cause\":\"other\","
+            "\"redirect_arfcn\":512");
+    n = b0c0_v20(V20_DL_DCCH, pdu, release_pdu(pdu, 0, 5230, 16), rec, sizeof(rec));
+    ok &= sec_expect("eutra redirect", sec_feed(st, 0xB0C0, rec, n), 1,
+                     "\"redirect\":\"eutra\",\"release_cause\":\"other\",\"redirect_arfcn\":5230");
+    n = b0c0_v20(V20_DL_DCCH, pdu, release_pdu(pdu, -1, 0, 0), rec, sizeof(rec));
+    ok &= sec_expect("plain release", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+
+    /* SIB1 schedulingInfoList, reported once per cell */
+    n = b0c0_v20(V20_BCCH_DL_SCH, pdu, sib1_pdu(pdu, 1), rec, sizeof(rec));
+    ok &= sec_expect("sib1 one SI", sec_feed(st, 0xB0C0, rec, n), 1,
+            "\"event\":\"incomplete_sib1\",\"layer\":\"rrc\",\"rat\":\"LTE\",\"pci\":100,"
+            "\"earfcn\":5230,\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":4660,"
+            "\"cell_id\":11259361,\"scheduling_info_count\":1");
+    ok &= sec_expect("sib1 repeat", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+    n = b0c0_v20(V20_BCCH_DL_SCH, pdu, sib1_pdu(pdu, 4), rec, sizeof(rec));
+    ok &= sec_expect("sib1 four SIs", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+
+    /* Real SIB1s schedule several SI messages */
+    n = unhex(kHex_b0c0_ident_eg25g_v20, rec, sizeof(rec));
+    ok &= sec_expect("real sib1 v20", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+    n = unhex(kHex_b0c0_ident_rm520ngl, rec, sizeof(rec));
+    ok &= sec_expect("real sib1 v27", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+
+    /* NAS: SMC, plain and inside an integrity-protected header */
+    static const uint8_t nas_smc_eea0[] = {0x07, 0x5D, 0x02, 0x00, 0x02, 0xE0, 0xE0};
+    n = emm_record(nas_smc_eea0, sizeof(nas_smc_eea0), rec);
+    ok &= sec_expect("nas eea0", sec_feed(st, 0xB0EC, rec, n), 1,
+            "\"event\":\"null_security\",\"layer\":\"nas\",\"rat\":\"LTE\",\"pci\":100,"
+            "\"earfcn\":5230,\"ciphering\":\"eea0\",\"integrity\":\"eia2\"");
+    static const uint8_t nas_smc_prot[] = {0x37, 0x11, 0x22, 0x33, 0x44, 0x00,
+                                           0x07, 0x5D, 0x20, 0x00, 0x02, 0xE0, 0xE0};
+    n = emm_record(nas_smc_prot, sizeof(nas_smc_prot), rec);
+    ok &= sec_expect("nas protected eia0", sec_feed(st, 0xB0EC, rec, n), 1,
+                     "\"ciphering\":\"eea2\",\"integrity\":\"eia0\"");
+    static const uint8_t nas_smc_ok[] = {0x07, 0x5D, 0x22, 0x00, 0x02, 0xE0, 0xE0};
+    n = emm_record(nas_smc_ok, sizeof(nas_smc_ok), rec);
+    ok &= sec_expect("nas eea2", sec_feed(st, 0xB0EC, rec, n), 0, NULL);
+    n = emm_record(nas_smc_eea0, 4, rec);
+    ok &= sec_expect("nas short smc", sec_feed(st, 0xB0EC, rec, n), 0, NULL);
+    /* An uplink SMC is not one the network sent */
+    n = emm_record(nas_smc_eea0, sizeof(nas_smc_eea0), rec);
+    ok &= sec_expect("nas uplink smc", sec_feed(st, 0xB0ED, rec, n), 0, NULL);
+
+    /* Identity requests. The plain release above left the state disconnected. */
+    static const uint8_t id_req_imsi[] = {0x07, 0x55, 0x01};
+    static const uint8_t auth_resp[] = {0x07, 0x53, 0x08, 0, 0, 0, 0, 0, 0, 0, 0};
+    static const uint8_t attach_req[] = {0x07, 0x41, 0x71, 0x0b};
+    static const uint8_t attach_rej_8[] = {0x07, 0x44, 0x08};
+    static const uint8_t conn_req[] = {0x40, 0x00, 0x00, 0x00, 0x00, 0x00};
+    n = emm_record(id_req_imsi, sizeof(id_req_imsi), rec);
+    ok &= sec_expect("id after disconnect", sec_feed(st, 0xB0EC, rec, n), 1,
+            "\"event\":\"identity_request\",\"layer\":\"nas\",\"rat\":\"LTE\",\"pci\":100,"
+            "\"earfcn\":5230,\"reason\":\"no_connection_request\",\"identity_type\":\"IMSI\"");
+
+    n = b0c0_v20(V20_UL_CCCH, conn_req, sizeof(conn_req), rec, sizeof(rec));
+    ok &= sec_expect("connection request", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
+    n = emm_record(attach_req, sizeof(attach_req), rec);
+    ok &= sec_expect("attach request", sec_feed(st, 0xB0ED, rec, n), 0, NULL);
+    n = emm_record(id_req_imsi, sizeof(id_req_imsi), rec);
+    ok &= sec_expect("id during attach", sec_feed(st, 0xB0EC, rec, n), 0, NULL);
+    n = emm_record(auth_resp, sizeof(auth_resp), rec);
+    ok &= sec_expect("auth response", sec_feed(st, 0xB0ED, rec, n), 0, NULL);
+    n = emm_record(id_req_imsi, sizeof(id_req_imsi), rec);
+    ok &= sec_expect("id after auth", sec_feed(st, 0xB0EC, rec, n), 1,
+                     "\"reason\":\"after_auth\",\"identity_type\":\"IMSI\"");
+    /* Still in the identity request: a release now is a disconnect without auth */
+    n = b0c0_v20(V20_DL_DCCH, pdu, release_pdu(pdu, -1, 0, 0), rec, sizeof(rec));
+    ok &= sec_expect("release after id", sec_feed(st, 0xB0C0, rec, n), 1,
+                     "\"reason\":\"disconnect_without_auth\"");
+
+    n = b0c0_v20(V20_UL_CCCH, conn_req, sizeof(conn_req), rec, sizeof(rec));
+    sec_feed(st, 0xB0C0, rec, n);
+    n = emm_record(id_req_imsi, sizeof(id_req_imsi), rec);
+    sec_feed(st, 0xB0EC, rec, n);
+    n = emm_record(attach_rej_8, sizeof(attach_rej_8), rec);
+    ok &= sec_expect("attach reject #8", sec_feed(st, 0xB0EC, rec, n), 1,
+                     "\"reason\":\"attach_reject_without_auth\"");
+
+    /* Garbage never decodes to an event */
+    for (size_t len = 0; len < 40; len++) {
+        uint8_t junk[40];
+        for (size_t i = 0; i < len; i++)
+            junk[i] = (uint8_t)(i * 37 + len);
+        sec_feed(st, 0xB0C0, junk, len);
+        sec_feed(st, 0xB0EC, junk, len);
+        sec_feed(st, 0xB0ED, junk, len);
+    }
+
+    diag_native_security_free(st);
+    if (ok)
+        printf("  ok security events\n");
+    return ok;
+}
+
 int main(void) {
     bool ok = true;
 
@@ -1549,6 +1824,7 @@ int main(void) {
     ok &= check_cell_config_and_beams();
     ok &= check_nr_cell_config();
     ok &= check_gsmtap_frame();
+    ok &= check_security_events();
 
     printf("%s\n", ok ? "PASS: all diag_native_decode tests"
                       : "FAIL: diag_native_decode tests");

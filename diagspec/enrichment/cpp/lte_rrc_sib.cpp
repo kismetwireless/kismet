@@ -17,8 +17,13 @@
 //       intraFreqReselection ENUMERATED { allowed, notAllowed },
 //       csg-Indication       BOOLEAN,
 //       csg-Identity         OPTIONAL, not decoded },
-//     p-Max, tdd-Config, nonCriticalExtension  -- 3 OPTIONALs, not decoded
-//     ... }
+//     cellSelectionInfo    SEQUENCE { q-RxLevMin (-70..-22),
+//                                     q-RxLevMinOffset (1..8) OPTIONAL },
+//     p-Max                (-30..33) OPTIONAL,
+//     freqBandIndicator    (1..64),
+//     schedulingInfoList   SEQUENCE (SIZE (1..32)) OF SchedulingInfo,
+//                          -- only the count is read
+//     tdd-Config, si-WindowLength, ... -- not decoded }
 #include "lte_rrc_sib.h"
 
 #include <cstdint>
@@ -49,8 +54,8 @@ bool decode_sib1_cell_access(const std::vector<uint8_t>& msg_data,
   // after csg-Indication, not read). The two presence bitmaps are adjacent:
   // p-Max | tdd-Config | nonCriticalExtension | csg-Identity (verified with
   // stock tshark; there is no leading extension bit before the 3 optionals).
-  r.read_bits(3);  // SIB1 presence bitmap
-  r.read_bits(1);  // cellAccessRelatedInfo presence bitmap (csg-Identity)
+  const uint64_t sib1_opts = r.read_bits(3);  // SIB1 presence bitmap
+  const bool has_csg_identity = r.read_bool();  // cellAccessRelatedInfo bitmap
 
   // plmn-IdentityList: SEQUENCE (SIZE (1..6)) OF PLMN-IdentityInfo.
   const uint64_t num_plmns = r.read_length(1, 6);
@@ -70,6 +75,18 @@ bool decode_sib1_cell_access(const std::vector<uint8_t>& msg_data,
   decoded.cell_barred = (r.read_enum(2) == 0);  // barred(0) / notBarred(1)
   r.read_enum(2);                               // intraFreqReselection (skipped)
   decoded.csg_indication = r.read_bool();
+
+  if (has_csg_identity) r.skip_bits(27);  // CSG-Identity BIT STRING (SIZE (27))
+  const bool has_rxlev_offset = r.read_bool();
+  r.read_constrained_int(-70, -22);       // q-RxLevMin
+  if (has_rxlev_offset) r.read_constrained_int(1, 8);
+  if (sib1_opts & 0x4) r.read_constrained_int(-30, 33);  // p-Max
+  r.read_constrained_int(1, 64);          // freqBandIndicator
+  const uint64_t n_sched = r.read_length(1, 32);
+  // Reads past the end are zeros, so a count is only trusted when its own
+  // bits were inside the PDU.
+  if (r.bit_pos() <= r.bit_size())
+    decoded.scheduling_info_count = static_cast<int>(n_sched);
 
   // Sanity: a valid SIB1 has a 3-digit MCC on the first
   // PLMN and non-zero TAC + CellID. These reject a non-SIB1 body that happened

@@ -126,6 +126,11 @@
                          Disarmed on stop, REST close or Ctrl-C: the QSH-trace
                          latch (it survives reboots, so it must be cleared),
                          F3, and the 0x60 event stream the arm turned on.
+      nas=true|false     also subscribe the LTE EMM plain OTA codes
+                         (0xB0EC/0xB0ED), which the NAS cell security alerts
+                         (null NAS cipher, identity requests) read. Off by
+                         default: they carry the subscriber's own IMSI and GUTI
+                         into the raw stream. mask=full already includes them.
       stats_interval=<s> seconds between "is data flowing?" health status lines
                          on the message bus (default 30; 0 disables). The line
                          reports a health verdict, bytes read, observation count
@@ -458,6 +463,7 @@ typedef struct {
                                      * caller must not emit a truncated line, so
                                      * these are dropped rather than corrupted */
         uint64_t gps_emitted;       /* gps_fix status lines sent */
+        uint64_t security_events;   /* CellSecurity records sent */
     } native_tap;
     /* The cache behind those counters -- heap-allocated with the decoder's
      * stream, so an unarmed source pays nothing. NULL means enrichment is unavailable
@@ -469,6 +475,9 @@ typedef struct {
      * source, allocated with the tap, freed at its end. NULL means the
      * staleness gate is OFF (allocation failed, and the open said so). */
     diag_native_gnss_tracker_t *native_gnss_tracker;
+    /* The cell security event state (CellSecurity), same lifecycle. NULL
+     * means no security events this run. */
+    diag_native_security_t *native_security;
 
     /* Last DIAG GNSS fix: cached from the 0x1476/0x14D8 records so each
      * outgoing cell_observation can be stamped with a GPS location, letting
@@ -518,6 +527,7 @@ typedef struct {
         const char *f3_preset;          /* static name for the resolved mask */
         int   f3_set;                   /* f3= given explicitly */
         int   qsh_on;                   /* qsh= gated full-F3 tier */
+        int   nas_on;                   /* nas= EMM OTA codes for the alerts */
         long  elapsed_ms;               /* how long the bring-up actually took
                                          * (time that would otherwise be spent
                                          * inside Kismet's open deadline) */
@@ -2426,29 +2436,33 @@ static void announce_ring_drops(kis_capture_handler_t *caph, local_diag_t *local
  * through here, so the geo-stamp, the staleness gate, the health counter and
  * the ring-full policy are one behaviour, not one per call site.
  * Returns 0 on success, -1 if the send failed (the caller's contract). */
+/* The last DIAG GNSS fix, if fresh, so Kismet geo-tags what is sent with it.
+ * A stale or absent fix -> NULL (ungeotagged). The native GNSS leg in
+ * native_tap_cb feeds `last_gps`. */
+static struct cf_params_gps *last_gps_params(local_diag_t *local,
+                                             const struct timeval *tv,
+                                             struct cf_params_gps *gps) {
+    if (!local->last_gps.valid ||
+            (tv->tv_sec - local->last_gps.ts) > DIAG_GPS_MAX_AGE_S)
+        return NULL;
+    memset(gps, 0, sizeof(*gps));
+    gps->lat = local->last_gps.lat;
+    gps->lon = local->last_gps.lon;
+    gps->alt = local->last_gps.alt;
+    gps->fix = 3;   /* 3D; both decoders gate out no-fix records */
+    gps->ts_sec = (uint64_t)local->last_gps.ts;
+    gps->gps_type = (char *)"celldiag";
+    return gps;
+}
+
 static int emit_observation(kis_capture_handler_t *caph, local_diag_t *local,
                             const char *line) {
     struct timeval tv;
     char errstr[ERRBUF_MAX];
     gettimeofday(&tv, NULL);
 
-    /* Stamp the observation with the last DIAG GNSS fix if we have a fresh one
-     * so Kismet geo-tags the resulting device. A stale or absent fix
-     * -> NULL gps (ungeotagged). The native GNSS leg in native_tap_cb feeds
-     * `last_gps`. */
     struct cf_params_gps gps;
-    struct cf_params_gps *gpsp = NULL;
-    if (local->last_gps.valid &&
-            (tv.tv_sec - local->last_gps.ts) <= DIAG_GPS_MAX_AGE_S) {
-        memset(&gps, 0, sizeof(gps));
-        gps.lat = local->last_gps.lat;
-        gps.lon = local->last_gps.lon;
-        gps.alt = local->last_gps.alt;
-        gps.fix = 3;   /* 3D; both decoders gate out no-fix records */
-        gps.ts_sec = (uint64_t)local->last_gps.ts;
-        gps.gps_type = (char *)"celldiag";
-        gpsp = &gps;
-    }
+    struct cf_params_gps *gpsp = last_gps_params(local, &tv, &gps);
 
     int r = ring_send_json(caph, local, gpsp, tv, "CellModem", line);
     if (r > 0) {
@@ -2480,6 +2494,23 @@ typedef struct {
     kis_capture_handler_t *caph;
     local_diag_t          *local;
 } native_tap_ctx_t;
+
+/* A CellSecurity event (diag_native_security_feed), geo-tagged like an
+ * observation. Kismet raises its cell alerts from these. */
+static void emit_security(void *user, const char *json) {
+    native_tap_ctx_t *ctx = (native_tap_ctx_t *)user;
+    local_diag_t *local = ctx->local;
+    struct timeval tv;
+    struct cf_params_gps gps;
+
+    gettimeofday(&tv, NULL);
+    int r = ring_send_json(ctx->caph, local, last_gps_params(local, &tv, &gps), tv,
+                           DIAG_SECURITY_TYPE, json);
+    if (r > 0)
+        local->native_tap.security_events++;
+    else if (r == 0)
+        report_ring_drop(ctx->caph, local, "cell security event");
+}
 
 static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
                               const char *line);
@@ -2683,6 +2714,19 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
              fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_UNPARSEABLE) ? 0 : 1,
             (g > 0 && fix.valid) ? 1 : 0);
         return;
+    }
+
+    /* Security events read RRC and NAS records the cell legs ignore, so they
+     * run before the leg dispatch below. */
+    if (local->native_security != NULL &&
+            diag_native_is_security_source(rec->log_code)) {
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        (void)diag_native_security_feed(local->native_security, rec->log_code,
+                rec->payload, rec->payload_len,
+                local->modem_imei ? local->modem_imei : DIAG_IMEI_UNKNOWN,
+                (double)now.tv_sec + (double)now.tv_usec / 1e6, rec->ts64,
+                emit_security, ctx);
     }
 
     /* Learn identity before decoding this record's observations. It is not
@@ -3941,6 +3985,7 @@ static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
     if (local->debug)
         diag_config_set_trace(celldiag_trace, caph);
     int qsh_on    = local->bringup.qsh_on;   /* gated full-F3 tier */
+    int nas_on    = local->bringup.nas_on;
     int spc_set   = local->bringup.spc_set;
     char spc_val[8];
     snprintf(spc_val, sizeof(spc_val), "%s", local->bringup.spc_val);
@@ -4319,11 +4364,20 @@ f3_default_done:
          * re-arms F3 for callers that want it. */
         (void)diag_config_disarm_latched(local->diag_fd);
         bringup_phase_lap(&phases, "disarm");
+        /* nas= adds the EMM plain OTA codes the NAS security alerts read.
+         * They carry the subscriber's own identities, so they are opt-in. */
+        uint16_t codes[DIAG_MAX_TARGET_CODES];
+        size_t ncodes = 0;
+        for (size_t i = 0; i < DIAG_TARGET_CODES_COUNT && ncodes < DIAG_MAX_TARGET_CODES; i++)
+            codes[ncodes++] = DIAG_TARGET_CODES[i];
+        if (nas_on && ncodes + 2 <= DIAG_MAX_TARGET_CODES) {
+            codes[ncodes++] = 0xB0EC;
+            codes[ncodes++] = 0xB0ED;
+        }
         int rc = mask_full
                  ? diag_config_apply_full_mask(local->diag_fd, &local->reader)
                  : diag_config_apply_narrow_mask(local->diag_fd, &local->reader,
-                                                 DIAG_TARGET_CODES,
-                                                 DIAG_TARGET_CODES_COUNT);
+                                                 codes, ncodes);
         if (rc != 0) {
             snprintf(msg, msg_sz,
                      "DIAG LOG_CONFIG handshake failed on %s "
@@ -4407,6 +4461,7 @@ f3_default_done:
                            (mask_full ? "full" : "wardrive");
         char f3_tag[24] = "";
         char qsh_tag[8] = "";
+        const char *nas_tag = (nas_on && !mask_full && !local->no_mask) ? "+nas" : "";
         char preset_label[DIAG_STATS_MASK_MAX];
         if (f3_levels == DIAG_F3_LEVELS_ALL)
             snprintf(f3_tag, sizeof(f3_tag), "+f3");
@@ -4414,8 +4469,8 @@ f3_default_done:
             snprintf(f3_tag, sizeof(f3_tag), "+f3:%s", f3_preset);
         if (qsh_on)                       /* gated full-F3 tier */
             snprintf(qsh_tag, sizeof(qsh_tag), "+qsh");
-        snprintf(preset_label, sizeof(preset_label), "%s%s%s", base, f3_tag,
-                 qsh_tag);
+        snprintf(preset_label, sizeof(preset_label), "%s%s%s%s", base, nas_tag,
+                 f3_tag, qsh_tag);
         diag_stats_set_mask_preset(&local->stats, preset_label);
     }
 
@@ -4763,6 +4818,26 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
         free(v);
     }
+
+    /* nas=true subscribes the EMM plain OTA codes (0xB0EC/0xB0ED) for the NAS
+     * cell security alerts. Off by default: those records carry the
+     * subscriber's IMSI and GUTI into the raw stream. */
+    int nas_on = 0;
+    if ((placeholder_len = cf_find_flag(&placeholder, "nas", definition)) > 0) {
+        char *v = strndup(placeholder, placeholder_len);
+        if (strcmp(v, "true") == 0 || strcmp(v, "on") == 0 || strcmp(v, "1") == 0) {
+            nas_on = 1;
+        } else if (strcmp(v, "false") == 0 || strcmp(v, "off") == 0 ||
+                   strcmp(v, "0") == 0) {
+            nas_on = 0;
+        } else {
+            snprintf(msg, STATUS_MAX,
+                     "Unknown nas value '%s' (expected true|false)", v);
+            free(v);
+            return -1;
+        }
+        free(v);
+    }
     /* Seed on both paths from the parse, mirroring f3_relay -- arming itself is
      * live-only (needs the open fd), but the flag must be visible to the health
      * readout and the replay/disabled branches regardless. */
@@ -4934,6 +5009,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local->bringup.f3_preset = f3_preset;
         local->bringup.f3_set    = f3_set;
         local->bringup.qsh_on    = qsh_on;   /* gated full-F3 tier */
+        local->bringup.nas_on    = nas_on;
         local->bringup.pending   = 1;
         local->bringup.deferred  = defer;
     }
@@ -5545,6 +5621,13 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                          "fixes this run", local->name);
                 cf_send_message(caph, errstr, MSGFLAG_ERROR);
             }
+            local->native_security = diag_native_security_new();
+            if (local->native_security == NULL) {
+                snprintf(errstr, ERRBUF_MAX,
+                         "%s could not allocate the cell security state; no "
+                         "cell security alerts this run", local->name);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            }
             /* The census, armed with the decoder that feeds it, on the stats
              * interval when set, else 30 s. A failed allocation is loud rather
              * than fatal, as above -- but it is a lost census, not a degraded
@@ -5809,6 +5892,8 @@ done:
         /* After native_tap_format for the same reason: it prints unjudged=. */
         diag_native_gnss_tracker_free(local->native_gnss_tracker);
         local->native_gnss_tracker = NULL;
+        diag_native_security_free(local->native_security);
+        local->native_security = NULL;
         diag_inventory_free(local->native_inv);
         local->native_inv = NULL;
         /* GsmtapLive.report(): the tap's three counts, once, at the end. */

@@ -142,6 +142,7 @@ escalates on).
 | `spc=000000` | send a `DIAG_SPC_F` unlock (6 digits) before `LOG_CONFIG` — needed on SPC-gated modems (EG25-G / EC2x); harmless to omit on SDX24/SDX55 |
 | `mask=wardrive` | the default `LOG_CONFIG` subscription: the curated cell set (`0xB193`/`0xB0C0`/`0xB192`/`0xB195`/`0xB17F`/`0xB197`/`0xB821`/`0xB97F`), low volume |
 | `mask=full` | subscribe to every advertised LOG code — HIGH volume, diagnosis not wardriving. Whichever mask the capture armed is **cleared when it lets go of the port** — on a REST close, a Ctrl-C, or an open that fails after the handshake — with `LOG_CONFIG` DISABLE, so a `mask=full` stop does not leave the modem streaming megabytes per minute at the next DIAG client. `nomask=true` arms nothing and clears nothing |
+| `nas=true` | also subscribe the LTE EMM plain OTA codes (`0xB0EC`/`0xB0ED`) for the NAS [cell security alerts](#cell-security-alerts-cellsecurity). Off by default: those records carry the subscriber's own IMSI and GUTI into the raw stream. `mask=full` includes them already |
 | `nomask=true` | passive LOG tap — skip the `LOG_CONFIG` handshake (whatever a prior tool enabled) |
 | `f3=all` | arm every F3 debug subsystem at every severity (`0x79`/`0x99` flood) — diagnosis not wardriving. **Armed, not relayed**: see [F3](#f3-armed-not-relayed) |
 | `f3=high` / `f3=error` | as `f3=all`, minus sites that only ever print below HIGH / below ERROR — ~94% / ~68% of records kept ([why subtractive](#f3-severity-floors)) |
@@ -488,6 +489,32 @@ cut.
 
 `log_tools/kismetdb_to_celllog` reads the rows back; see
 [cellat's 4f](../capture_cell_at/README.md#4f-session-and-debug-log-celllog).
+
+## Cell security alerts (`CellSecurity`)
+
+The decoder watches the RRC and NAS signalling for the patterns a cell-site
+simulator (an "IMSI catcher") shows, following the heuristics of EFF's
+[Rayhunter](https://github.com/EFForg/rayhunter). Each match is sent as a
+`CellSecurity` row (schema `cell-security/1`), kept in the kismetdb, and the
+Cellular phy raises a Kismet alert from it, naming the cell's device:
+
+| Alert | Severity | Raised when | Needs |
+|---|---|---|---|
+| `CELLNULLCIPHER` | high | an RRC or NAS security mode command selects EEA0 | RRC: default mask. NAS: `nas=true` |
+| `CELLNULLINTEGRITY` | high | an RRC or NAS security mode command selects EIA0 | as above |
+| `CELL2GREDIRECT` | high | an `RRCConnectionRelease` redirects the modem to a GERAN (2G) carrier | default mask |
+| `CELLINCOMPLETESIB` | low | a SIB1 schedules fewer than two SI messages (once per cell per capture) | default mask |
+| `CELLIDREQUEST` | high | an identity request after authentication completed, or after a disconnect with no new connection request | `nas=true` |
+| `CELLIDREQNOAUTH` | low | an identity request followed by a disconnect or attach reject without authentication; often a roaming or inactive SIM | `nas=true` |
+
+A redirect to a carrier other than GERAN is logged as a `CellSecurity` row but
+raises no alert. A circuit-switched fallback for a voice call, on a network
+without VoLTE, also redirects to 2G; the alert text says so.
+
+Not implemented: Rayhunter's SIB6/SIB7 reselection-priority downgrade needs a
+decoder for the SystemInformation messages, and its null-cipher check of a
+handover's `securityConfigHO` needs a full `RRCConnectionReconfiguration`
+decode; neither is in the native decoder.
 
 ## Debugging with a raw capture
 

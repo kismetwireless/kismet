@@ -74,6 +74,9 @@ DIAGSPEC_SRCS = \
 	../diagspec/enrichment/cpp/lte_rrc_reconfig.cpp \
 	../diagspec/enrichment/cpp/lte_rrc_meas_report.cpp \
 	../diagspec/enrichment/cpp/lte_meas_join.cpp \
+	../diagspec/enrichment/cpp/lte_rrc_security.cpp \
+	../diagspec/enrichment/cpp/lte_nas_emm.cpp \
+	../diagspec/enrichment/cpp/lte_security_events.cpp \
 	../diagspec/enrichment/cpp/asn1_helpers.cpp \
 	../diagspec/enrichment/cpp/uper.cpp \
 	../diagspec/generated/cpp/diag_0xb97f.cpp \

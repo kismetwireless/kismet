@@ -30,15 +30,15 @@ namespace diagspec {
 namespace lte_rrc {
 
 // SystemInformationBlockType1.cellAccessRelatedInfo, the surfaced fields
-// (TS 36.331 §6.2.2). The remaining SIB1 fields (p-Max, tdd-Config,
-// schedulingInfoList, …) are not decoded — the decode deliberately stops at
-// this seam.
+// (TS 36.331 §6.2.2), plus the schedulingInfoList entry count. The remaining
+// SIB1 fields (tdd-Config, the SchedulingInfo contents, …) are not decoded.
 struct Sib1CellIdentity {
   std::vector<asn1::PlmnIdentity> plmn_list;
   uint32_t tracking_area_code = 0;  // TrackingAreaCode BIT STRING (SIZE (16))
   uint32_t cell_identity = 0;       // CellIdentity BIT STRING (SIZE (28))
   bool cell_barred = false;         // cellBarred == ENUMERATED barred(0)
   bool csg_indication = false;      // csg-Indication BOOLEAN
+  int scheduling_info_count = -1;   // schedulingInfoList entries; -1 if truncated
 };
 
 // Decode SIB1 cellAccessRelatedInfo from a BCCH-DL-SCH UPER bitstream. Returns

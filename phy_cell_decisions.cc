@@ -30,6 +30,7 @@
 
 #include "fmt.h"
 
+#include <initializer_list>
 #include <vector>
 
 namespace cell_decisions {
@@ -579,6 +580,130 @@ map_claim_t pci_map_claim(bool slot_occupied, bool holder_is_self) {
     if (holder_is_self)
         return map_claim_t::reaffirm;
     return map_claim_t::ambiguous;
+}
+
+namespace {
+
+/* A string field that is one of `allowed`, or "" */
+std::string sec_enum(const nlohmann::json& j, const char *key,
+        std::initializer_list<const char *> allowed) {
+    auto it = j.find(key);
+    if (it == j.end() || !it->is_string())
+        return "";
+    const auto& v = it->get_ref<const std::string&>();
+    for (const char *a : allowed)
+        if (v == a)
+            return v;
+    return "";
+}
+
+int64_t sec_int(const nlohmann::json& j, const char *key, int64_t lo, int64_t hi) {
+    auto it = j.find(key);
+    if (it == j.end() || !it->is_number_integer())
+        return -1;
+    auto v = it->get<int64_t>();
+    return (v < lo || v > hi) ? -1 : v;
+}
+
+std::string sec_cell(const nlohmann::json& j) {
+    auto pci = sec_int(j, "pci", 0, 1007);
+    auto earfcn = sec_int(j, "earfcn", 0, 3279165);
+    if (pci < 0 || earfcn < 0)
+        return "an unknown cell";
+    return fmt::format("LTE PCI {} EARFCN {}", pci, earfcn);
+}
+
+}  // namespace
+
+std::vector<security_alert_t> security_alerts(const nlohmann::json& j) {
+    std::vector<security_alert_t> out;
+
+    if (!j.is_object() || sec_enum(j, "schema", {"cell-security/1"}).empty())
+        return out;
+
+    const auto event = sec_enum(j, "event",
+            {"null_security", "redirect", "incomplete_sib1", "identity_request"});
+    const auto layer = sec_enum(j, "layer", {"rrc", "nas"});
+    const std::string layer_name = layer == "nas" ? "NAS" : "RRC";
+    const auto cell = sec_cell(j);
+    auto cell_start = cell;
+    if (!cell_start.empty() && cell_start[0] == 'a')
+        cell_start[0] = 'A';
+
+    if (event == "null_security") {
+        const auto cipher = sec_enum(j, "ciphering", {"eea0", "eea1", "eea2", "eea3", "other"});
+        const auto integ = sec_enum(j, "integrity", {"eia0", "eia1", "eia2", "eia3", "other"});
+        if (cipher == "eea0")
+            out.push_back({alert_null_cipher, fmt::format(
+                    "An LTE {} security mode command from {} selected the null "
+                    "cipher (EEA0, integrity {}), so the connection is unencrypted. "
+                    "Commercial networks do not normally do this; it is typical of "
+                    "a cell-site simulator.", layer_name, cell,
+                    integ.empty() ? "unknown" : integ)});
+        if (integ == "eia0")
+            out.push_back({alert_null_integrity, fmt::format(
+                    "An LTE {} security mode command from {} selected null "
+                    "integrity protection (EIA0, ciphering {}), which is only "
+                    "valid for unauthenticated emergency calls.", layer_name, cell,
+                    cipher.empty() ? "unknown" : cipher)});
+    } else if (event == "redirect") {
+        if (sec_enum(j, "redirect", {"geran"}).empty())
+            return out;
+        const auto cause = sec_enum(j, "release_cause",
+                {"load_balancing_tau", "other", "cs_fallback_high_priority", "rrc_suspend"});
+        const auto arfcn = sec_int(j, "redirect_arfcn", 0, 1023);
+        out.push_back({alert_2g_redirect, fmt::format(
+                "{} released the connection and redirected the modem to a 2G "
+                "(GERAN) carrier{} (release cause {}). Forcing a phone onto 2G, "
+                "where encryption is weak or absent, is a known cell-site "
+                "simulator technique; a circuit-switched fallback for a voice "
+                "call on a network without VoLTE looks similar.", cell_start,
+                arfcn >= 0 ? fmt::format(", ARFCN {}", arfcn) : "",
+                cause.empty() ? "unknown" : cause)});
+    } else if (event == "incomplete_sib1") {
+        const auto count = sec_int(j, "scheduling_info_count", 0, 32);
+        if (count < 0 || count >= 2)
+            return out;
+        const auto plmn = plmn_from_json(j);
+        const auto tac = sec_int(j, "tac", 0, 65535);
+        const auto cid = sec_int(j, "cell_id", 0, 0x0FFFFFFF);
+        std::string ident;
+        if (plmn.present && tac >= 0 && cid >= 0)
+            ident = fmt::format(" ({}-{} TAC {} cell {})", plmn.mcc, plmn.mnc, tac, cid);
+        out.push_back({alert_incomplete_sib, fmt::format(
+                "{}{} broadcasts a SIB1 that schedules only {} system information "
+                "message{}; commercial cells schedule several. A minimal SIB set "
+                "is typical of a cell-site simulator, but some small cells do "
+                "the same.", cell_start, ident, count, count == 1 ? "" : "s")});
+    } else if (event == "identity_request") {
+        const auto reason = sec_enum(j, "reason",
+                {"after_auth", "no_connection_request", "disconnect_without_auth",
+                 "attach_reject_without_auth"});
+        auto idtype = sec_enum(j, "identity_type", {"IMSI", "IMEI", "IMEISV", "TMSI"});
+        if (idtype.empty())
+            idtype = "identity";
+        if (reason == "after_auth")
+            out.push_back({alert_identity_request, fmt::format(
+                    "{} asked the modem for its {} after authentication had "
+                    "completed. A network that has authenticated the subscriber "
+                    "has no need to ask; IMSI catchers do.", cell_start, idtype)});
+        else if (reason == "no_connection_request")
+            out.push_back({alert_identity_request, fmt::format(
+                    "{} asked the modem for its {} without a preceding connection "
+                    "or attach request, as an IMSI catcher does.", cell_start, idtype)});
+        else if (reason == "disconnect_without_auth")
+            out.push_back({alert_identity_noauth, fmt::format(
+                    "{} asked the modem for its {} and then disconnected without "
+                    "authenticating it, as an IMSI catcher does. A roaming or "
+                    "provisioning failure can look the same.", cell_start, idtype)});
+        else if (reason == "attach_reject_without_auth")
+            out.push_back({alert_identity_noauth, fmt::format(
+                    "{} asked the modem for its {} and rejected the attach "
+                    "without authenticating it. This is normal for a SIM with no "
+                    "active plan.", cell_start, idtype)});
+    }
+
+    return out;
 }
 
 }  // namespace cell_decisions

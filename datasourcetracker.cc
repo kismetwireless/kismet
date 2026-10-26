@@ -1013,8 +1013,8 @@ void datasource_tracker::trigger_deferred_startup() {
                     static constexpr std::array<std::string_view, 5> at_opts{
                         "enabled", "strategy", "debug", "bandlock", "clock_anchor_sec"
                     };
-                    static constexpr std::array<std::string_view, 6> diag_opts{
-                        "enabled", "mask", "f3", "qsh", "rawpackets", "clock_anchor_sec"
+                    static constexpr std::array<std::string_view, 7> diag_opts{
+                        "enabled", "mask", "f3", "qsh", "nas", "rawpackets", "clock_anchor_sec"
                     };
 
                     auto is_at = ds_type == "cellat";
@@ -1030,7 +1030,7 @@ void datasource_tracker::trigger_deferred_startup() {
                                     "unsupported option; update_definition accepts "
                                     "enabled, strategy, debug, bandlock, clock_anchor_sec" :
                                     "unsupported option; update_definition accepts "
-                                    "enabled, mask, f3, qsh, rawpackets, clock_anchor_sec");
+                                    "enabled, mask, f3, qsh, nas, rawpackets, clock_anchor_sec");
 
                         if (!kv.value().is_string())
                             throw std::runtime_error(fmt::format("option '{}' must "

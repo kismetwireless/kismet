@@ -421,6 +421,29 @@ map_claim_t pci_map_claim(bool slot_occupied, bool holder_is_self);
  * not match the FNV-1a one. */
 void cell_key_to_mac_bytes(const std::string& cell_key, uint8_t out[6]);
 
+/* ------------------------------------------------------------------------
+ * Cell security alerts, from the DIAG helper's CellSecurity records
+ * (schema "cell-security/1"; see capture_cell_diag/diag_native_decode.h).
+ * The heuristics are EFF Rayhunter's.
+ * ------------------------------------------------------------------------ */
+
+inline constexpr const char *alert_null_cipher = "CELLNULLCIPHER";
+inline constexpr const char *alert_null_integrity = "CELLNULLINTEGRITY";
+inline constexpr const char *alert_2g_redirect = "CELL2GREDIRECT";
+inline constexpr const char *alert_incomplete_sib = "CELLINCOMPLETESIB";
+inline constexpr const char *alert_identity_request = "CELLIDREQUEST";
+inline constexpr const char *alert_identity_noauth = "CELLIDREQNOAUTH";
+
+struct security_alert_t {
+    const char *alert;
+    std::string text;
+};
+
+/* The alerts one CellSecurity record raises; none for a record that is
+ * malformed or reports nothing alert-worthy. Only the known enumerated values
+ * and range-checked numbers reach the text. */
+std::vector<security_alert_t> security_alerts(const nlohmann::json& j);
+
 }  // namespace cell_decisions
 
 #endif /* __PHY_CELL_DECISIONS_H__ */

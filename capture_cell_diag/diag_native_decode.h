@@ -495,6 +495,31 @@ int diag_native_gsmtap_frame(uint16_t log_code, const uint8_t *payload,
 /* True iff diag_native_gsmtap_frame would not return -1 for `log_code`. */
 bool diag_native_has_gsmtap_framer(uint16_t log_code);
 
+/* ---- Cell security events (CellSecurity) ----------------------------------
+ *
+ * The signalling patterns of a cell-site simulator, after EFF Rayhunter's
+ * heuristics: null ciphering or integrity, a 2G (or other) redirect, an
+ * incomplete SIB1, and an identity request outside a normal attach. The
+ * decisions are in diagspec/enrichment/cpp/lte_security_events.*; Kismet
+ * raises its alerts from the records.
+ *
+ * Fed 0xB0C0 and, when subscribed, the EMM plain OTA codes 0xB0EC / 0xB0ED.
+ * The state is per source, like the sib1 map. Each event is rendered as one
+ * JSON line, schema "cell-security/1", and handed to `emit`; a line that does
+ * not fit is dropped. Returns the number of events, or -1 for a NULL state. */
+#define DIAG_SECURITY_TYPE "CellSecurity"
+
+typedef struct diag_native_security diag_native_security_t;
+typedef void (*diag_native_security_emit_fn)(void *ctx, const char *json);
+
+diag_native_security_t *diag_native_security_new(void);
+void diag_native_security_free(diag_native_security_t *st);
+bool diag_native_is_security_source(uint16_t log_code);
+int diag_native_security_feed(diag_native_security_t *st, uint16_t log_code,
+        const uint8_t *payload, size_t payload_len, const char *imei,
+        double captured_at, uint64_t log_tick,
+        diag_native_security_emit_fn emit, void *ctx);
+
 #ifdef __cplusplus
 }
 #endif

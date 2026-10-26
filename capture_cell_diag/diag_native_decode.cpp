@@ -47,6 +47,8 @@
 #include "diag_0xb821_observation.h"
 #include "diag_0x1476_gpsfix.h"
 #include "lte_meas_join.h"
+#include "lte_nas_emm.h"
+#include "lte_security_events.h"
 #include "lte_band.h"
 #include "lte_cell_config.h"
 #include "diag_0xb0c0_gsmtap.h"
@@ -1091,6 +1093,115 @@ extern "C" int diag_native_gsmtap_frame(uint16_t log_code, const uint8_t *payloa
             return 0;
         std::memcpy(out, frame.data(), frame.size());
         return static_cast<int>(frame.size());
+    } catch (...) {
+        return 0;
+    }
+}
+
+// ---- Cell security events ----------------------------------------------------
+
+struct diag_native_security {
+    lte_security_events::State state;
+};
+
+namespace {
+
+const char *cipher_name(int alg) {
+    static const char *const names[] = {"eea0", "eea1", "eea2", "eea3"};
+    return alg >= 0 && alg < 4 ? names[alg] : "other";
+}
+
+const char *integrity_name(int alg) {
+    static const char *const names[] = {"eia0", "eia1", "eia2", "eia3"};
+    return alg >= 0 && alg < 4 ? names[alg] : "other";
+}
+
+const char *release_cause_name(int cause) {
+    static const char *const names[] = {"load_balancing_tau", "other",
+                                        "cs_fallback_high_priority", "rrc_suspend"};
+    return cause >= 0 && cause < 4 ? names[cause] : "unknown";
+}
+
+int security_to_json(const lte_security_events::Event& ev, const char *imei,
+        uint16_t log_code, double captured_at, uint64_t log_tick,
+        char *out, size_t out_len) {
+    using lte_security_events::Kind;
+    struct jbuf j = { out, out_len, 0 };
+
+    japp(&j, "{\"schema\":\"cell-security/1\",\"event\":\"%s\",\"layer\":\"%s\","
+             "\"rat\":\"LTE\"", lte_security_events::kind_name(ev.kind),
+         ev.layer == lte_security_events::Layer::kNas ? "nas" : "rrc");
+    if (ev.has_cell)
+        japp(&j, ",\"pci\":%d,\"earfcn\":%d", (int)ev.pci, (int)ev.earfcn);
+
+    switch (ev.kind) {
+        case Kind::kNullSecurity:
+            japp(&j, ",\"ciphering\":\"%s\",\"integrity\":\"%s\"",
+                 cipher_name(ev.ciphering), integrity_name(ev.integrity));
+            break;
+        case Kind::kRedirect:
+            japp(&j, ",\"redirect\":\"%s\",\"release_cause\":\"%s\"",
+                 diagspec::lte_rrc::redirect_rat_name(ev.redirect),
+                 release_cause_name(ev.release_cause));
+            if (ev.redirect_arfcn >= 0)
+                japp(&j, ",\"redirect_arfcn\":%d", (int)ev.redirect_arfcn);
+            break;
+        case Kind::kIncompleteSib1:
+            if (ev.has_identity) {
+                char mcc[8], mnc[8];
+                copy_plmn_field(mcc, sizeof(mcc), ev.mcc);
+                copy_plmn_field(mnc, sizeof(mnc), ev.mnc);
+                japp(&j, ",\"mcc\":\"%s\",\"mnc\":\"%s\",\"tac\":%u,\"cell_id\":%u",
+                     mcc, mnc, (unsigned)ev.tac, (unsigned)ev.cell_id);
+            }
+            japp(&j, ",\"scheduling_info_count\":%d", ev.scheduling_info_count);
+            break;
+        case Kind::kIdentityRequest:
+            japp(&j, ",\"reason\":\"%s\",\"identity_type\":\"%s\"",
+                 lte_security_events::reason_name(ev.reason),
+                 diagspec::lte_nas::identity_type_name(ev.identity_type));
+            break;
+    }
+
+    japp_prov(&j, log_code, imei, captured_at, log_tick);
+    japp(&j, "}");
+    return j.total;
+}
+
+}  // namespace
+
+extern "C" diag_native_security_t *diag_native_security_new(void) {
+    return new (std::nothrow) diag_native_security();
+}
+
+extern "C" void diag_native_security_free(diag_native_security_t *st) {
+    delete st;
+}
+
+extern "C" bool diag_native_is_security_source(uint16_t log_code) {
+    return log_code == 0xB0C0 || log_code == 0xB0EC || log_code == 0xB0ED;
+}
+
+extern "C" int diag_native_security_feed(diag_native_security_t *st,
+        uint16_t log_code, const uint8_t *payload, size_t payload_len,
+        const char *imei, double captured_at, uint64_t log_tick,
+        diag_native_security_emit_fn emit, void *ctx) {
+    if (st == nullptr)
+        return -1;
+    if (payload == nullptr || !diag_native_is_security_source(log_code))
+        return 0;
+
+    try {
+        const std::string blob(reinterpret_cast<const char *>(payload), payload_len);
+        auto events = lte_security_events::process(st->state, log_code, blob);
+        for (const auto& ev : events) {
+            char line[1024];
+            int n = security_to_json(ev, imei != nullptr ? imei : "", log_code,
+                                     captured_at, log_tick, line, sizeof(line));
+            if (n > 0 && (size_t)n < sizeof(line) && emit != nullptr)
+                emit(ctx, line);
+        }
+        return static_cast<int>(events.size());
     } catch (...) {
         return 0;
     }

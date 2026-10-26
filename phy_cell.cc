@@ -21,6 +21,7 @@
 
 #include <string>
 #include <sstream>
+#include <tuple>
 
 #include "phy_cell.h"
 #include "phy_cell_decisions.h"
@@ -28,6 +29,7 @@
 #include "macaddr.h"
 #include "kis_httpd_registry.h"
 #include "messagebus.h"
+#include "alertracker.h"
 
 kis_cellular_phy::kis_cellular_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -62,6 +64,38 @@ kis_cellular_phy::kis_cellular_phy(int in_phyid) :
     // "Cell (Partial)" has only PCI+EARFCN (observed via signal, no global cell identity).
     devtype_cell = devicetracker->get_cached_devicetype("Cell");
     devtype_cell_partial = devicetracker->get_cached_devicetype("Cell (Partial)");
+
+    alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
+
+    const std::vector<std::tuple<const char *, kis_alert_severity, const char *>> sec_alerts = {
+        {cell_decisions::alert_null_cipher, kis_alert_severity::high,
+            "An LTE cell selected the null cipher (EEA0) in a security mode command, "
+            "leaving the connection unencrypted.  Commercial networks do not normally "
+            "do this; cell-site simulators (IMSI catchers) do."},
+        {cell_decisions::alert_null_integrity, kis_alert_severity::high,
+            "An LTE cell selected null integrity protection (EIA0) in a security mode "
+            "command, which is only valid for unauthenticated emergency calls."},
+        {cell_decisions::alert_2g_redirect, kis_alert_severity::high,
+            "An LTE cell released the connection and redirected the modem to a 2G "
+            "(GERAN) carrier, a known cell-site simulator downgrade."},
+        {cell_decisions::alert_incomplete_sib, kis_alert_severity::low,
+            "An LTE cell broadcasts a SIB1 scheduling fewer than two system "
+            "information messages, as minimal cell-site simulators do."},
+        {cell_decisions::alert_identity_request, kis_alert_severity::high,
+            "An LTE cell requested the modem's identity (IMSI or IMEI) outside a "
+            "normal attach.  Requires nas=true on a DIAG cell source."},
+        {cell_decisions::alert_identity_noauth, kis_alert_severity::low,
+            "An LTE cell requested the modem's identity and disconnected it without "
+            "authenticating.  Often a roaming or inactive SIM, sometimes an IMSI "
+            "catcher.  Requires nas=true on a DIAG cell source."},
+    };
+
+    for (const auto& a : sec_alerts) {
+        auto ref = alertracker->activate_configured_alert(std::get<0>(a), "CELLULAR",
+                std::get<1>(a), std::get<2>(a), phyid);
+        if (ref >= 0)
+            security_alert_refs[std::get<0>(a)] = ref;
+    }
 
     packetchain->register_handler(&packet_handler, this, CHAINPOS_CLASSIFIER, -100);
 
@@ -124,6 +158,15 @@ int kis_cellular_phy::packet_handler(CHAINCALL_PARMS) {
     if (json == NULL)
         return 0;
 
+    if (json->type == "CellSecurity") {
+        try {
+            cell_phy->security_to_alerts(nlohmann::json::parse(json->json_string), in_pack);
+        } catch (const std::exception& e) {
+            _MSG_DEBUG("Cellular security JSON error: {}", e.what());
+        }
+        return 0;
+    }
+
     if (json->type != "CellModem" && json->type != "Cellular")
         return 0;
 
@@ -143,6 +186,46 @@ int kis_cellular_phy::packet_handler(CHAINCALL_PARMS) {
     }
 
     return 1;
+}
+
+void kis_cellular_phy::security_to_alerts(const nlohmann::json& json,
+        const std::shared_ptr<kis_packet>& packet) {
+    auto alerts = cell_decisions::security_alerts(json);
+    if (alerts.empty())
+        return;
+
+    // The alert names the cell's device: the full identity where the record has
+    // one, else the PCI + EARFCN partial
+    mac_addr cellmac;
+    std::string channel;
+    auto pci = json.find("pci");
+    auto earfcn = json.find("earfcn");
+    if (pci != json.end() && pci->is_number_integer() &&
+            earfcn != json.end() && earfcn->is_number_unsigned()) {
+        int64_t tac = -1, cid = -1;
+        auto ti = json.find("tac");
+        auto ci = json.find("cell_id");
+        if (ti != json.end() && ti->is_number_integer())
+            tac = ti->get<int64_t>();
+        if (ci != json.end() && ci->is_number_integer())
+            cid = ci->get<int64_t>();
+        auto e = earfcn->get<uint64_t>();
+        if (e <= UINT32_MAX) {
+            auto key = cell_decisions::derive_key("LTE", cell_decisions::plmn_from_json(json),
+                    tac, cid, pci->get<int64_t>(), true, static_cast<uint32_t>(e));
+            if (key.valid)
+                cellmac = cellkey_to_mac(key.key);
+            channel = std::to_string(e);
+        }
+    }
+
+    for (const auto& a : alerts) {
+        auto ref = security_alert_refs.find(a.alert);
+        if (ref == security_alert_refs.end())
+            continue;
+        alertracker->raise_alert(ref->second, packet, mac_addr{}, cellmac,
+                mac_addr{}, mac_addr{}, channel, a.text);
+    }
 }
 
 /* Collect the observation fields this JSON object actually carried, so a

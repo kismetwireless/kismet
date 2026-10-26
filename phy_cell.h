@@ -288,6 +288,8 @@ protected:
     std::shared_ptr<tracker_element_string_map> cell_seen_via;
 };
 
+class alert_tracker;
+
 class kis_cellular_phy : public kis_phy_handler {
 public:
     kis_cellular_phy() :
@@ -304,6 +306,9 @@ public:
     static int packet_handler(CHAINCALL_PARMS);
 
     bool json_to_cell(nlohmann::json& json, const std::shared_ptr<kis_packet>& packet);
+
+    // Raise the cell security alerts for one CellSecurity record
+    void security_to_alerts(const nlohmann::json& json, const std::shared_ptr<kis_packet>& packet);
 
     static mac_addr cellkey_to_mac(const std::string& cell_key);
 
@@ -329,6 +334,10 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<alert_tracker> alertracker;
+
+    // Security alert refs, by alert name
+    std::map<std::string, int> security_alert_refs;
 
     int cell_device_entry_id;
 
