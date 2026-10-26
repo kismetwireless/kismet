@@ -33,8 +33,7 @@
  * The header parse below repeats diag_rawpkt_parse()'s checks, but the tool
  * does not link diag_rawpkt.c: that object belongs to capture_cell_diag's own
  * sub-make, and building it here as well would put one object path under two
- * makefiles with different flags. The celltools test that replays through the
- * real emitter pins that the two agree.
+ * makefiles with different flags.
  *
  * Order comes from `offset` only, never from rowid, packetid or the
  * timestamps. Kismet hands every celldiag packet to a random worker thread

@@ -5044,9 +5044,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      *
      * Only replay is affected: a live disabled source has no replay_path and
      * never reaches here. But replay is exactly the configuration offline
-     * tests use to verify the disabled path.
-     *
-     * Pinned by the celltools enabled=false replay tests. */
+     * tests use to verify the disabled path. */
     if (!local->bringup.pending && local->replay_path && !local->disabled) {
         decoder_bringup(caph, local);
     }

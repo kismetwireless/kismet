@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the canned raw-HDLC replay fixture the celltools replay tests use.
+"""Generate the canned raw-HDLC replay fixture.
 
     python3 fixtures/make_functional_fixture.py --out fixtures/functional.hdlc
 
