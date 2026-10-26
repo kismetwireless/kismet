@@ -226,7 +226,9 @@ datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<t
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
-    cancelled {false} { }
+    cancelled {false},
+    cancel_event_id {-1},
+    launching {false} { }
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
     kis_unique_lock<kis_mutex> lk(list_lock, "~dstlist");
@@ -245,10 +247,16 @@ void datasource_tracker_source_list::cancel() {
     cancelled = true;
 
     // The timer holds this list and calls cancel(), which needs list_lock
-    timetracker->cancel_timer(cancel_event_id);
+    if (cancel_event_id >= 0)
+        timetracker->cancel_timer(cancel_event_id);
 
-    if (ipc_list_map.size() == 0 && list_cb) {
-        list_cb(listed_sources);
+    // Answer with whatever has arrived; a lister still running at the deadline
+    // would otherwise leave the request waiting forever.  Cleared so nothing
+    // answers twice.
+    if (list_cb) {
+        auto cb = list_cb;
+        list_cb = nullptr;
+        cb(listed_sources);
     }
 
     // Abort anything already underway
@@ -291,8 +299,8 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
 
     source->close_source_async([]() {});
 
-    // If we've emptied the vec, end
-    if (ipc_list_map.size() == 0) {
+    // If we've emptied the vec, end, unless the remaining listers aren't launched yet
+    if (ipc_list_map.size() == 0 && !launching) {
         cancel();
         return;
     }
@@ -307,7 +315,7 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
     std::vector<shared_datasource_builder> remote_builders;
 
-    bool created_ipc = false;
+    launching = true;
 
     for (const auto& i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -322,7 +330,6 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 
         ipc_list_map[transaction] = pds;
         list_vec.push_back(pds);
-        created_ipc = true;
 
         pds->list_interfaces(transaction,
             [self = shared_from_this()] (std::shared_ptr<kis_datasource> src, unsigned int transaction,
@@ -331,11 +338,21 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
             });
     }
 
-    if (!created_ipc)
+    launching = false;
+
+    // Every lister already answered, or none launched
+    if (ipc_list_map.size() == 0) {
         cancel();
+        return;
+    }
+
+    auto list_timeout_s =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("datasource_list_timeout", 10);
+    if (list_timeout_s == 0)
+        list_timeout_s = 10;
 
     cancel_event_id =
-        timetracker->register_timer(std::chrono::seconds(2), false,
+        timetracker->register_timer(std::chrono::seconds(list_timeout_s), false,
             [self = shared_from_this()] (int) mutable -> int {
                 self->cancel();
                 return 0;

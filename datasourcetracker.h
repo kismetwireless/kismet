@@ -160,7 +160,8 @@ typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe
 //
 // IPC sources spawned concurrently, and results aggregated.
 //
-// List requests cancelled after 5 seconds
+// List requests end after datasource_list_timeout seconds (default 10), answering
+// with whatever listers have reported
 class datasource_tracker_source_list : public std::enable_shared_from_this<datasource_tracker_source_list> {
 public:
     datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec);
@@ -205,6 +206,10 @@ protected:
     std::atomic<int> cancel_event_id;
 
     std::vector<shared_interface> listed_sources;
+
+    // Set while list_sources() is launching listers; a lister whose helper is
+    // missing answers inline and would otherwise end the list early
+    bool launching;
 };
 
 typedef std::shared_ptr<datasource_tracker_source_list> shared_dst_source_list;
