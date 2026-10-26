@@ -1486,6 +1486,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 dot11info->bssid_dev->set_tracker_type_string(d11phy->devtype_adhoc);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+                dot11info->bssid_dot11->update_randomized_mac(*dot11info->bssid_dev);
             } else {
                 dot11info->bssid_dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_AP);
 
@@ -1503,10 +1504,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 						in_pack, dot11info);
                 dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+                dot11info->bssid_dot11->update_randomized_mac(*dot11info->bssid_dev);
             } else if (dot11info->subtype == packet_sub_probe_resp) {
                 d11phy->handle_ssid(dot11info->bssid_dev, dot11info->bssid_dot11,
 						in_pack, dot11info);
                 dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_PROBE_AP);
+                dot11info->bssid_dot11->update_randomized_mac(*dot11info->bssid_dev);
             }
 
             if (dot11info->subtype == packet_sub_beacon ||
@@ -1576,6 +1579,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 dot11info->source_dev->set_tracker_type_string(d11phy->devtype_adhoc);
                 dot11info->source_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+                dot11info->source_dot11->update_randomized_mac(*dot11info->source_dev);
             } else {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of
                 // some sort and not just bridged
@@ -1583,6 +1587,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
                 dot11info->source_dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_CLIENT);
+                dot11info->source_dot11->update_randomized_mac(*dot11info->source_dev);
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
@@ -1634,6 +1639,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 return d11phy->devtype_client;
             }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             dot11info->dest_dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_CLIENT);
+            dot11info->dest_dot11->update_randomized_mac(*dot11info->dest_dev);
 
             d11phy->devicetracker->update_view_device(dot11info->dest_dev);
         }
@@ -1991,6 +1997,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
                 dot11info->source_dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_CLIENT);
+                dot11info->source_dot11->update_randomized_mac(*dot11info->source_dev);
             } else if (dot11info->distrib == distrib_inter) {
                 // If it's from the ess, we're some sort of wired device; set the type
                 // accordingly
@@ -2013,6 +2020,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     return d11phy->devtype_client;
                 }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
                 dot11info->source_dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_CLIENT);
+                dot11info->source_dot11->update_randomized_mac(*dot11info->source_dev);
 
             }
 
@@ -2290,6 +2298,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 					in_pack, dot11info);
             dot11info->bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
             dot11info->bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+            dot11info->bssid_dot11->update_randomized_mac(*dot11info->bssid_dev);
         }
 
     }

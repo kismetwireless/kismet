@@ -547,6 +547,42 @@ void dot11_tracked_ietag::set_from_tag(const dot11_ie::dot11_ie_tag& tag) {
     set_unique_tag_id(tag.tag_num());
 }
 
+void dot11_tracked_device::attach_base_parent(std::shared_ptr<dot11_tracked_device> self,
+        std::shared_ptr<kis_tracked_device_base> parent) {
+    parent->insert(self);
+}
+
+void dot11_tracked_device::update_randomized_mac(kis_tracked_device_base& base) {
+    const auto& manufdb = Globalreg::globalreg->manufdb;
+    const bool ap = (get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
+                DOT11_DEVICE_TYPE_ADHOC)) != 0;
+
+    if (ap) {
+        // A client which started acting as an AP, such as a phone hotspot
+        if (has_randomized_mac() && get_randomized_mac()) {
+            set_randomized_mac(false);
+            if (manufdb != nullptr && base.get_manuf() == manufdb->get_random_manuf())
+                base.set_manuf(manufdb->lookup_oui(base.get_macaddr()));
+        }
+        return;
+    }
+
+    if (has_randomized_mac())
+        return;
+
+    // The locally administered bit set on a unicast MAC-48: not from the vendor's OUI,
+    // which for clients almost always means a privacy randomized address
+    const auto& mac = base.get_macaddr();
+
+    if (mac.length() != 6 || (mac[0] & 0x01) || !(mac[0] & 0x02))
+        return;
+
+    set_randomized_mac(true);
+
+    if (manufdb != nullptr && (base.get_manuf() == nullptr || manufdb->is_unknown_manuf(base.get_manuf())))
+        base.set_manuf(manufdb->get_random_manuf());
+}
+
 std::mutex& dot11_tracked_device::serialize_count_mutex(const dot11_tracked_device *dev) {
     static std::array<std::mutex, 64> stripes;
     return stripes[(reinterpret_cast<uintptr_t>(dev) >> 6) % stripes.size()];
