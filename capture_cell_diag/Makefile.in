@@ -1,5 +1,7 @@
 include ../Makefile.inc
 
+CELL_SELFTEST = @CELL_SELFTEST@
+
 # The parent tree is on the include path so `#include "config.h"` resolves to
 # the configure-generated ../config.h.
 CPPFLAGS += -I..
@@ -141,7 +143,6 @@ PROBE_OBJS = \
 PROBE_BIN = celldiag_probe
 # Debug driver: dumps the extracted record stream for a raw-HDLC capture, one
 # (log_code, ts64, payload) per line, for a diff against another extractor.
-# Not part of check (it needs a capture, which is not shipped in the source tree).
 LOGSTREAM_DUMP_BIN = diag_logstream_dump
 
 all: $(MONITOR_BIN) $(PROBE_BIN) $(LOGSTREAM_DUMP_BIN)
@@ -186,8 +187,7 @@ TEST_PROFILE_BIN = test_diag_profile
 TEST_PORTDIAG_BIN = test_diag_portdiag
 TEST_IFCLASS_BIN = test_diag_ifclass
 # HDLC has no separate test_*.c: its selftest lives in-file behind
-# -DDIAG_HDLC_SELFTEST (see diag_hdlc.c header). Compile that main() so the
-# standard check target actually exercises the framing/CRC core.
+# -DDIAG_HDLC_SELFTEST (see diag_hdlc.c header); this builds that main().
 TEST_HDLC_BIN = test_diag_hdlc
 # diag_config's mask math (narrow/full/SPC/F3) also lives behind an in-file
 # selftest (-DDIAG_CONFIG_SELFTEST); it links the pure hdlc+capture cores it
@@ -244,43 +244,68 @@ TEST_GPSFIX_BIN = test_diag_gpsfix
 # The native live GSMTAP UDP sink, against a real loopback receiver. libc.
 TEST_GSMTAP_SINK_BIN = test_diag_gsmtap_sink
 # The replay driver: runs the binary over a replay and prints canonical NDJSON
-# of what Kismet receives. Its canonical-form selftest is part of `check`, and
-# needs no capture. Pure libc.
+# of what Kismet receives. Its canonical-form selftest (--selftest) needs no
+# capture. Pure libc.
 REPLAY_NDJSON_BIN = celldiag_replay_ndjson
-# The generated C++ closure the shim forwards to. Compiled from source here rather
-# than reusing the top-level ../diagspec/**.cpp.o, so `make check` in this
-# directory stands alone and does not silently test whatever a previous
-# top-level build happened to leave behind.
-check: $(TEST_HDLC_BIN) $(TEST_CONFIG_BIN) $(TEST_CAPTURE_BIN) $(TEST_RAWLOG_BIN) $(TEST_CAPMETA_BIN) $(TEST_CLOCKANCHOR_BIN) $(TEST_RAWPKT_BIN) $(TEST_STATS_BIN) $(TEST_PROFILE_BIN) $(TEST_PORTDIAG_BIN) $(TEST_IFCLASS_BIN) $(TEST_WWANPORT_BIN) $(TEST_PROBECLOSE_BIN) $(TEST_MODEMIDENT_BIN) $(TEST_PORTADMIT_BIN) $(TEST_IDENTVOUCH_BIN) $(TEST_LOGSTREAM_BIN) $(TEST_NATIVE_BIN) $(TEST_OPTSET_BIN) $(TEST_INVENTORY_BIN) $(TEST_GPSFIX_BIN) $(TEST_GSMTAP_SINK_BIN) $(REPLAY_NDJSON_BIN)
-		./$(TEST_HDLC_BIN)
-		./$(TEST_CONFIG_BIN)
-		./$(TEST_CAPTURE_BIN)
-		./$(TEST_RAWLOG_BIN)
-		./$(TEST_CAPMETA_BIN)
-		./$(TEST_CLOCKANCHOR_BIN)
-		./$(TEST_RAWPKT_BIN)
-		./$(TEST_OPTSET_BIN)
-		./$(TEST_STATS_BIN)
-		./$(TEST_PROFILE_BIN)
-		./$(TEST_PORTDIAG_BIN)
-		./$(TEST_IFCLASS_BIN)
-		./$(TEST_WWANPORT_BIN)
-		./$(TEST_PROBECLOSE_BIN)
-		./$(TEST_MODEMIDENT_BIN)
-		./$(TEST_PORTADMIT_BIN)
-		./$(TEST_IDENTVOUCH_BIN)
-		./$(TEST_LOGSTREAM_BIN)
-		./$(TEST_INVENTORY_BIN)
-		./$(TEST_GPSFIX_BIN)
-		./$(TEST_GSMTAP_SINK_BIN)
-		./$(REPLAY_NDJSON_BIN) --selftest
-		./$(TEST_NATIVE_BIN)
 
 $(REPLAY_NDJSON_BIN):	celldiag_replay_ndjson.c
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(REPLAY_NDJSON_BIN) celldiag_replay_ndjson.c
 
 .PHONY: replay-ndjson
 replay-ndjson: $(REPLAY_NDJSON_BIN)
+
+logstream-dump: $(LOGSTREAM_DUMP_BIN)
+
+$(LOGSTREAM_DUMP_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_DUMP \
+		    -o $(LOGSTREAM_DUMP_BIN) diag_logstream.c diag_hdlc.c
+
+# Selftests, built only by ./configure --enable-cell-selftest.  Run each
+# binary directly; every one exits non-zero on a failure.
+ifeq ($(CELL_SELFTEST),1)
+SELFTEST_BINS = $(TEST_HDLC_BIN) \
+	$(TEST_CONFIG_BIN) \
+	$(TEST_CAPTURE_BIN) \
+	$(TEST_RAWLOG_BIN) \
+	$(TEST_CAPMETA_BIN) \
+	$(TEST_CLOCKANCHOR_BIN) \
+	$(TEST_RAWPKT_BIN) \
+	$(TEST_STATS_BIN) \
+	$(TEST_PROFILE_BIN) \
+	$(TEST_PORTDIAG_BIN) \
+	$(TEST_IFCLASS_BIN) \
+	$(TEST_WWANPORT_BIN) \
+	$(TEST_PROBECLOSE_BIN) \
+	$(TEST_MODEMIDENT_BIN) \
+	$(TEST_PORTADMIT_BIN) \
+	$(TEST_IDENTVOUCH_BIN) \
+	$(TEST_LOGSTREAM_BIN) \
+	$(TEST_NATIVE_BIN) \
+	$(TEST_OPTSET_BIN) \
+	$(TEST_INVENTORY_BIN) \
+	$(TEST_GPSFIX_BIN) \
+	$(TEST_GSMTAP_SINK_BIN)
+
+all: $(SELFTEST_BINS)
+
+$(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
+
+# The C caller compiles with $(CC); the shim and the legs it forwards to are C++,
+# so they compile with $(CXX) and the link needs $(CXXLIBS) (-lstdc++). This is
+# the same object set the kismet server links, not a second copy.
+# $(DIAGSPEC_SRCS) and the diagspec headers are prerequisites, not just link
+# inputs: without them a `--sync` of ../diagspec rebuilt nothing, and the
+# PREVIOUS selftest binary ran against the old legs and read green.
+DIAGSPEC_HDRS = $(wildcard ../diagspec/enrichment/cpp/*.h ../diagspec/generated/cpp/*.h)
+$(TEST_NATIVE_BIN):	test_diag_native_decode.c diag_native_decode.cpp diag_native_decode.h \
+			$(DIAGSPEC_SRCS) $(DIAGSPEC_HDRS)
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c test_diag_native_decode.c \
+		    -o test_diag_native_decode.c.o
+		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -c diag_native_decode.cpp \
+		    -o diag_native_decode.cpp.o
+		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. \
+		    -o $(TEST_NATIVE_BIN) test_diag_native_decode.c.o \
+		    diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS)
 
 $(TEST_HDLC_BIN):	diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_HDLC_SELFTEST -o $(TEST_HDLC_BIN) \
@@ -366,34 +391,15 @@ $(TEST_PORTADMIT_BIN):	diag_portadmit.c diag_portadmit.h
 $(TEST_LOGSTREAM_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_SELFTEST \
 		    -o $(TEST_LOGSTREAM_BIN) diag_logstream.c diag_hdlc.c
-
-logstream-dump: $(LOGSTREAM_DUMP_BIN)
-
-$(LOGSTREAM_DUMP_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_DUMP \
-		    -o $(LOGSTREAM_DUMP_BIN) diag_logstream.c diag_hdlc.c
-
-# The C caller compiles with $(CC); the shim and the legs it forwards to are C++,
-# so they compile with $(CXX) and the link needs $(CXXLIBS) (-lstdc++). This is
-# the same object set the kismet server links, not a second copy.
-# $(DIAGSPEC_SRCS) and the diagspec headers are prerequisites, not just link
-# inputs: without them a `--sync` of ../diagspec rebuilt nothing, and `make check`
-# ran the PREVIOUS selftest binary against the old legs and read green.
-DIAGSPEC_HDRS = $(wildcard ../diagspec/enrichment/cpp/*.h ../diagspec/generated/cpp/*.h)
-$(TEST_NATIVE_BIN):	test_diag_native_decode.c diag_native_decode.cpp diag_native_decode.h \
-			$(DIAGSPEC_SRCS) $(DIAGSPEC_HDRS)
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c test_diag_native_decode.c \
-		    -o test_diag_native_decode.c.o
-		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -c diag_native_decode.cpp \
-		    -o diag_native_decode.cpp.o
-		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. \
-		    -o $(TEST_NATIVE_BIN) test_diag_native_decode.c.o \
-		    diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS)
+endif
 
 clean:
 	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o diag_native_decode.cpp.o
 	@-rm -f $(MONITOR_BIN)
 	@-rm -f $(PROBE_BIN)
+	@-rm -f $(TEST_CAPMETA_BIN)
+	@-rm -f $(TEST_CLOCKANCHOR_BIN)
+	@-rm -f $(TEST_RAWPKT_BIN)
 	@-rm -f $(REPLAY_NDJSON_BIN)
 	@-rm -f $(TEST_RAWLOG_BIN)
 	@-rm -f $(TEST_OPTSET_BIN)

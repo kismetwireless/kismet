@@ -61,7 +61,7 @@
  *
  * The path templating, JSON escaping, and record formatting are libc-only (no
  * Kismet, no serial, no DIAG) so they are unit-tested standalone in test_atlog.c
- * (`make check` in this directory), the same factoring as diag_rawlog.
+ * (`--enable-cell-selftest`), the same factoring as diag_rawlog.
  */
 #ifndef ATLOG_H
 #define ATLOG_H

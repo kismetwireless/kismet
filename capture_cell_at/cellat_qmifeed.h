@@ -75,7 +75,7 @@
 
     Like clockanchor.c and cellat_options.c this is a libc-only translation unit
     (no Kismet, no serial), so the spawn / line framing / teardown are tested
-    standalone in test_cellat_qmifeed.c (`make check` in this directory).
+    standalone in test_cellat_qmifeed.c (`--enable-cell-selftest`).
 */
 
 #ifndef __CELLAT_QMIFEED_H__
@@ -102,9 +102,7 @@ extern "C" {
  * by erroring the whole SOURCE -- which it reopens 5 s later into the same row.
  * The frame also carries the v3 header, the msgpack map, the type string and
  * any fixed-GPS block, so 4 KiB is left for those, the same budget the DIAG
- * raw slices keep (DIAG_RAWPKT_PAYLOAD_MAX). A longer row is a counted drop.
- * celltools/tests/test_cellat_rawqmi_frame_limit.py pins it against
- * kis_external.h. */
+ * raw slices keep (DIAG_RAWPKT_PAYLOAD_MAX). A longer row is a counted drop. */
 #define CELLAT_ROW_JSON_MAX 12288
 
 /* Exported to the feed, so it trims a raw record to what this reader will

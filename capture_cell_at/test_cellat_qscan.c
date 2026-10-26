@@ -38,6 +38,8 @@
     all recorded captures) never coincides with a valid LTE RB count.
 */
 
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -169,3 +171,5 @@ int main(void) {
     printf("\n%s: %d check(s) failed\n", g_fails ? "FAIL" : "PASS", g_fails);
     return g_fails ? 1 : 0;
 }
+
+#endif /* CELL_SELFTEST */

@@ -9,7 +9,7 @@
  *
  * Self-test build (diag_capture.c is needed for diag_read_frame, used by the
  * live read_response helper linked into the same TU):
- *   cc -DDIAG_CONFIG_SELFTEST -Wall -Wextra -Werror \
+ *   cc -DCELL_SELFTEST -DDIAG_CONFIG_SELFTEST -Wall -Wextra -Werror \
  *      diag_config.c diag_hdlc.c diag_capture.c -o /tmp/diag_config_selftest
  */
 #include "diag_config.h"
@@ -735,7 +735,7 @@ int diag_config_request_diag_id_binding(int fd, diag_reader_t *r,
     return 0;
 }
 
-#ifdef DIAG_CONFIG_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_CONFIG_SELFTEST)
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>

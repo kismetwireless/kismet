@@ -23,6 +23,8 @@
     gets named out loud.
 */
 
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <string.h>
 
@@ -356,3 +358,5 @@ int main(void) {
                                 : "FAIL: cellat option tests");
     return g_fails == 0 ? 0 : 1;
 }
+
+#endif /* CELL_SELFTEST */

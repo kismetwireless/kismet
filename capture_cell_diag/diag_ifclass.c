@@ -40,7 +40,7 @@
  *   1-2       1a86:7523    00  ff/01/02       ch341 USB-serial, NOT a modem
  *
  * and every AT / modem / NMEA / QMI-ish sibling on those same devices carried
- * ff/00/00, ff/00/40 or ff/fe/ff -- never ff/ff/*.
+ * ff/00/00, ff/00/40 or ff/fe/ff -- never ff/ff/xx.
  *
  * Hence: DIAG == class 0xff AND subclass 0xff AND protocol in {0xff, 0x30}.
  *   - ff/ff/ff is the classic QCDM function.

@@ -1,5 +1,7 @@
 include ../Makefile.inc
 
+CELL_SELFTEST = @CELL_SELFTEST@
+
 # diag_wwanport.c.o is built from ../capture_cell_diag/ rather than copied: it is
 # the single classifier that knows BOTH non-USB node-naming conventions, and
 # celldiag asks it for the DIAG node while cellat asks it for the AT node.
@@ -127,31 +129,71 @@ TEST_IDENTVOUCH_BIN = test_diag_identvouch
 # there.
 TEST_SERIAL_PORT_BIN = test_at_serial_portability
 
-check: $(TEST_SERIAL_BIN) $(TEST_OPTIONS_BIN) $(TEST_WWANPORT_BIN) $(TEST_PORTSCAN_BIN) \
-	    $(TEST_QENG_BIN) $(TEST_CPSI_BIN) $(TEST_QSCAN_BIN) $(TEST_STD3GPP_BIN) $(TEST_SERIAL_PORT_BIN) $(TEST_ATLOG_BIN) \
-	    $(TEST_CLOCKANCHOR_BIN) $(TEST_STATS_BIN) $(TEST_OPTSET_BIN) $(TEST_PROBECLOSE_BIN) \
-	    $(TEST_MODEMIDENT_BIN) $(TEST_PORTADMIT_BIN) $(TEST_IDENTVOUCH_BIN) $(TEST_QMIFEED_BIN) $(TEST_LOCK_BIN) \
-	    $(TEST_TACFIX_BIN)
-		./$(TEST_SERIAL_BIN)
-		./$(TEST_SERIAL_PORT_BIN)
-		./$(TEST_OPTIONS_BIN)
-		./$(TEST_WWANPORT_BIN)
-		./$(TEST_PROBECLOSE_BIN)
-		./$(TEST_MODEMIDENT_BIN)
-		./$(TEST_PORTADMIT_BIN)
-		./$(TEST_IDENTVOUCH_BIN)
-		./$(TEST_PORTSCAN_BIN)
-		./$(TEST_QENG_BIN)
-		./$(TEST_CPSI_BIN)
-		./$(TEST_QSCAN_BIN)
-		./$(TEST_STD3GPP_BIN)
-		./$(TEST_ATLOG_BIN)
-		./$(TEST_CLOCKANCHOR_BIN)
-		./$(TEST_STATS_BIN)
-		./$(TEST_OPTSET_BIN)
-		./$(TEST_QMIFEED_BIN)
-		./$(TEST_LOCK_BIN)
-		./$(TEST_TACFIX_BIN)
+# Explicit rules for the cross-directory object: the %.c.o pattern below matches
+# only sources in THIS directory, so without these the link fails on a missing
+# prerequisite it does not know how to build.
+diag_wwanport.c.o:	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_wwanport.c -o $@
+
+diag_wwanport.c.d:	../capture_cell_diag/diag_wwanport.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_wwanport.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+diag_modemident.c.o:	../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_modemident.c -o $@
+
+diag_modemident.c.d:	../capture_cell_diag/diag_modemident.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_modemident.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_identvouch.c -o $@
+
+diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_portadmit.c -o $@
+
+diag_portadmit.c.d:	../capture_cell_diag/diag_portadmit.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_portadmit.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_probeclose.c -o $@
+
+diag_probeclose.c.d:	../capture_cell_diag/diag_probeclose.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_probeclose.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+# Selftests, built only by ./configure --enable-cell-selftest.  Run each
+# binary directly; every one exits non-zero on a failure.
+ifeq ($(CELL_SELFTEST),1)
+SELFTEST_BINS = $(TEST_SERIAL_BIN) \
+	$(TEST_OPTIONS_BIN) \
+	$(TEST_WWANPORT_BIN) \
+	$(TEST_PORTSCAN_BIN) \
+	$(TEST_QENG_BIN) \
+	$(TEST_CPSI_BIN) \
+	$(TEST_QSCAN_BIN) \
+	$(TEST_STD3GPP_BIN) \
+	$(TEST_SERIAL_PORT_BIN) \
+	$(TEST_ATLOG_BIN) \
+	$(TEST_CLOCKANCHOR_BIN) \
+	$(TEST_STATS_BIN) \
+	$(TEST_OPTSET_BIN) \
+	$(TEST_PROBECLOSE_BIN) \
+	$(TEST_MODEMIDENT_BIN) \
+	$(TEST_PORTADMIT_BIN) \
+	$(TEST_IDENTVOUCH_BIN) \
+	$(TEST_QMIFEED_BIN) \
+	$(TEST_LOCK_BIN) \
+	$(TEST_TACFIX_BIN)
+
+all: $(SELFTEST_BINS)
+
+$(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
 
 $(TEST_LOCK_BIN):	test_cellat_lock.c cellat_lock.c cellat_lock.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_LOCK_BIN) test_cellat_lock.c cellat_lock.c
@@ -190,9 +232,6 @@ $(TEST_CPSI_BIN):	test_cellat_cpsi.c cellat_cpsi.inc cellat_qeng.inc
 $(TEST_QSCAN_BIN):	test_cellat_qscan.c cellat_qscan.inc cellat_qeng.inc
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QSCAN_BIN) test_cellat_qscan.c
 
-$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_qeng.inc
-		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STD3GPP_BIN) test_cellat_std3gpp.c
-
 $(TEST_WWANPORT_BIN):	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_WWANPORT_SELFTEST \
 		    -o $(TEST_WWANPORT_BIN) ../capture_cell_diag/diag_wwanport.c
@@ -224,55 +263,25 @@ $(TEST_PORTADMIT_BIN):	../capture_cell_diag/diag_portadmit.c ../capture_cell_dia
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_PORTADMIT_SELFTEST \
 		    -o $(TEST_PORTADMIT_BIN) ../capture_cell_diag/diag_portadmit.c
 
-# Explicit rules for the cross-directory object: the %.c.o pattern below matches
-# only sources in THIS directory, so without these the link fails on a missing
-# prerequisite it does not know how to build.
-diag_wwanport.c.o:	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_wwanport.c -o $@
-
-diag_wwanport.c.d:	../capture_cell_diag/diag_wwanport.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_wwanport.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-diag_modemident.c.o:	../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_modemident.c -o $@
-
-diag_modemident.c.d:	../capture_cell_diag/diag_modemident.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_modemident.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
 $(TEST_MODEMIDENT_BIN):	../capture_cell_diag/test_diag_modemident.c ../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_MODEMIDENT_BIN) \
 		    ../capture_cell_diag/test_diag_modemident.c ../capture_cell_diag/diag_modemident.c
-
-diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_identvouch.c -o $@
-
-diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
 
 $(TEST_IDENTVOUCH_BIN):	../capture_cell_diag/test_diag_identvouch.c ../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.c
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_IDENTVOUCH_BIN) \
 		    ../capture_cell_diag/test_diag_identvouch.c ../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_modemident.c
 
-diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_portadmit.c -o $@
-
-diag_portadmit.c.d:	../capture_cell_diag/diag_portadmit.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_portadmit.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_probeclose.c -o $@
-
-diag_probeclose.c.d:	../capture_cell_diag/diag_probeclose.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_probeclose.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
+$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_qeng.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STD3GPP_BIN) test_cellat_std3gpp.c
+endif
 
 clean:
 	@-rm -f $(MONITOR_BIN)
 	@-rm -f $(PROBE_BIN)
+	@-rm -f $(TEST_CLOCKANCHOR_BIN)
+	@-rm -f $(TEST_CPSI_BIN)
+	@-rm -f $(TEST_SERIAL_PORT_BIN)
+	@-rm -f $(TEST_STD3GPP_BIN)
 	@-rm -f $(TEST_SERIAL_BIN)
 	@-rm -f $(TEST_OPTIONS_BIN)
 	@-rm -f $(TEST_WWANPORT_BIN)

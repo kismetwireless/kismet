@@ -1,13 +1,15 @@
 /* test_diag_identvouch.c - standalone tests for the holder's identity vouch.
  *
- * Links diag_identvouch.c + diag_modemident.c (libc, no Kismet): `make check`
- * here, and the cellat directory's `make check` runs it too, because both
+ * Links diag_identvouch.c + diag_modemident.c (libc, no Kismet): built by
+ * `--enable-cell-selftest` here and in the cellat directory, because both
  * helpers link it.
  *
  * The "port" is a regular file in a private temp directory: every rule the
  * module enforces is about the node's identity (rdev / inode / ctime) and the
  * writer's liveness, and a regular file exercises all of them without a modem.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_identvouch.h"
 
@@ -224,3 +226,5 @@ int main(void) {
     printf("test_diag_identvouch: all checks passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

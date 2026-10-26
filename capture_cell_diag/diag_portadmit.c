@@ -363,7 +363,7 @@ int diag_portadmit_log_once(FILE *f, const char *who, const char *dev_path,
     return 1;
 }
 
-#ifdef DIAG_PORTADMIT_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_PORTADMIT_SELFTEST)
 
 #include <errno.h>
 #include <limits.h>

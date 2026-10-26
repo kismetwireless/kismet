@@ -1,11 +1,13 @@
 /* test_diag_rawlog.c - standalone unit tests for the rawlog sink core.
  *
  * Links only diag_rawlog.c (libc, no Kismet), so it runs off the capture
- * framework: `make check` in this directory. Covers the two pieces of the
+ * framework: `--enable-cell-selftest`. Covers the two pieces of the
  * rawlog= feature with real branching logic - path templating
  * (diag_rawlog_resolve) and the whole-buffer tee write (diag_rawlog_write) -
  * plus a byte-fidelity round-trip that is the property rawlog= exists for.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_rawlog.h"
 
@@ -429,3 +431,5 @@ int main(void) {
     fprintf(stderr, "FAILED: %d diag_rawlog test check(s)\n", failures);
     return 1;
 }
+
+#endif /* CELL_SELFTEST */

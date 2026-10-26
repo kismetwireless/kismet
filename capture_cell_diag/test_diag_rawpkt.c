@@ -1,6 +1,6 @@
 /* test_diag_rawpkt.c - standalone unit tests for the raw-stream slicer.
  *
- * Links diag_rawpkt.c and nothing else: `make check`. Covers
+ * Links diag_rawpkt.c and nothing else: `--enable-cell-selftest`. Covers
  * the slice header's exact bytes, whole-frame slicing, a partial frame held
  * across reads, the cut at the payload cap, the no-terminator FRAGMENT, a dropped slice
  * leaving an exact offset gap, the end-of-stream flush, the END slice and the
@@ -8,6 +8,8 @@
  * everything else serves: slices sorted by
  * offset and concatenated ARE the stream, under every read chunking.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_rawpkt.h"
 
@@ -562,3 +564,5 @@ int main(void) {
     printf("test_diag_rawpkt: all 17 cases passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

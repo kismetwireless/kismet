@@ -164,7 +164,7 @@ int cellat_scan_add_named(char ports[][CELLAT_PORT_PATH_MAX], int *count,
     return scan_append(ports, count, path);
 }
 
-#ifdef CELLAT_PORTSCAN_SELFTEST
+#if defined(CELL_SELFTEST) && defined(CELLAT_PORTSCAN_SELFTEST)
 
 #include <stdio.h>
 #include <stdlib.h>

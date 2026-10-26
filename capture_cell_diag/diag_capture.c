@@ -20,7 +20,7 @@
  *
  * `_DARWIN_C_SOURCE` is unknown to glibc and inert there, so this is one
  * definition for both rather than an `#ifdef __APPLE__` at each call site. */
-#ifdef DIAG_CAPTURE_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_CAPTURE_SELFTEST)
 #define _XOPEN_SOURCE 600
 #define _DARWIN_C_SOURCE
 #endif
@@ -254,9 +254,9 @@ int diag_read_frame(int fd, diag_reader_t *r,
     }
 }
 
-#ifdef DIAG_CAPTURE_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_CAPTURE_SELFTEST)
 /* Build:
- *   cc -DDIAG_CAPTURE_SELFTEST -Wall -Wextra -Werror \
+ *   cc -DCELL_SELFTEST -DDIAG_CAPTURE_SELFTEST -Wall -Wextra -Werror \
  *      diag_capture.c diag_hdlc.c -o /tmp/diag_capture_selftest && /tmp/diag_capture_selftest
  *
  * Exercises diag_read_frame() over a socketpair -- a NON-tty fd, the exact

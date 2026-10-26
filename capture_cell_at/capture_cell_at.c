@@ -72,6 +72,10 @@
       AT, ATE0, AT+CGMI, AT+CGMM, AT+CGMR, AT+CGSN, AT+COPS=?
 */
 
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE   /* strcasestr */
+#endif
+
 #include "../config.h"
 
 #include <ctype.h>

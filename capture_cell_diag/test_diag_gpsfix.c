@@ -9,6 +9,8 @@
  *                                 another renderer.
  */
 
+#ifdef CELL_SELFTEST
+
 #include "diag_gpsfix.h"
 
 #include <stdio.h>
@@ -66,3 +68,5 @@ int main(int argc, char **argv) {
     printf("test_diag_gpsfix: all tests passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

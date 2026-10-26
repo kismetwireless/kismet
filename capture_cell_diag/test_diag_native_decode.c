@@ -33,8 +33,10 @@
     Expected values are generated from the committed real-capture fixtures via the
     helper-side A/B harness, not hand-transcribed.
 
-    Build: see the check target in Makefile.in (links the C++ legs + -lstdc++).
+    Build: see the selftest rule in Makefile.in (links the C++ legs + -lstdc++).
 */
+
+#ifdef CELL_SELFTEST
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -1552,3 +1554,5 @@ int main(void) {
                       : "FAIL: diag_native_decode tests");
     return ok ? 0 : 1;
 }
+
+#endif /* CELL_SELFTEST */

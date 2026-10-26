@@ -21,7 +21,8 @@
         process_frame()         one frame -> at most one record
         extract_log_f()         one LOG_F body -> the record's fields
 
-    Selftest: build with -DDIAG_LOGSTREAM_SELFTEST (see the check target).
+    Selftest: build with -DCELL_SELFTEST -DDIAG_LOGSTREAM_SELFTEST
+    (see Makefile.in).
 */
 
 #include <string.h>
@@ -200,7 +201,7 @@ void diag_logstream_flush(diag_logstream_t *s, diag_logstream_cb cb, void *user)
 /* -----------------------------------------------------------------------
  * Selftest
  * ----------------------------------------------------------------------- */
-#ifdef DIAG_LOGSTREAM_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_LOGSTREAM_SELFTEST)
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -24,6 +24,8 @@
     The `no stray ':0'` check below fails on that form.
 */
 
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -88,3 +90,5 @@ int main(void) {
     printf("ALL PASS\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

@@ -20,6 +20,8 @@
  * symbols remain visible. Only a strict macro (`_XOPEN_SOURCE`,
  * `_POSIX_C_SOURCE`) switches that default off, which is what breaks a
  * selftest build on Darwin. */
+#ifdef CELL_SELFTEST
+
 #define _GNU_SOURCE
 
 #include <stdio.h>
@@ -876,3 +878,5 @@ int main(void) {
     printf("test_at_serial: all passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

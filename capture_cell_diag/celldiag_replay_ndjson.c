@@ -2,9 +2,9 @@
  * fixtures.
  *
  * Runs a built kismet_cap_cell_diag over a replay file by speaking the same
- * subset of the kismet_external v3 datasource protocol the pytest harness
- * (celltools/tests/kismet_capture_ipc.py) speaks, and prints what Kismet would
- * receive as CANONICAL NDJSON on stdout: one line per relayed cell observation,
+ * subset of the kismet_external v3 datasource protocol Kismet speaks, and
+ * prints what Kismet would receive as CANONICAL NDJSON on stdout: one line per
+ * relayed cell observation,
  *
  *   {"gps":null,"obs":{...}}
  *   {"gps":{"fix":3,"lat":12.345678,"lon":-98.765432},"obs":{...}}
@@ -940,8 +940,8 @@ static int run_replay(const char *binary, const char *definition, double timeout
         return 3;
     }
     if (!r.opened || r.open_code != 1) {
-        /* OPENREPORT code 1 is success; the pytest harness also accepts None
-         * (no report at all), which a replay that relayed rows never is. */
+        /* OPENREPORT code 1 is success; no report at all is accepted only
+         * when the replay relayed rows. */
         if (!(r.opened == 0 && r.rows > 0)) {
             fprintf(stderr, "error: the source did not open (code=%d)\n", r.open_code);
             return 2;

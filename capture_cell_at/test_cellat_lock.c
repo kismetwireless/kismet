@@ -15,6 +15,8 @@
     AT survey and an RM500Q command enumeration).
 */
 
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -587,3 +589,5 @@ int main(void) {
     printf("PASS: all cellat_lock checks\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

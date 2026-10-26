@@ -1,11 +1,13 @@
 /* test_diag_clockanchor.c - standalone unit tests for the DIAG clock anchor.
  *
  * Links diag_clockanchor.c + its two libc-only dependencies (diag_hdlc.c,
- * diag_capmeta.c) and nothing else: `make check`. Covers the
+ * diag_capmeta.c) and nothing else: `--enable-cell-selftest`. Covers the
  * request frame, the reply scanner (split reads, stuffed bytes, interleaved
  * flood, partial in-flight frame, rejection, CRC failure), the midpoint, the
  * record's exact bytes, and the sidecar path + append.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_clockanchor.h"
 #include "diag_hdlc.h"
@@ -280,3 +282,5 @@ int main(void) {
     printf("test_diag_clockanchor: all checks passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

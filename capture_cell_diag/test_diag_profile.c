@@ -1,12 +1,14 @@
 /* test_diag_profile.c - standalone unit tests for the celldiag profile reader.
  *
  * Links only diag_profile.c (libc, no Kismet), so it runs off the capture
- * framework: `make check` in this directory. Covers the narrow JSON string /
+ * framework: `--enable-cell-selftest`. Covers the narrow JSON string /
  * object extraction, the firmware_match glob, and the end-to-end
  * firmware -> profile -> diag.<key> lookup against on-disk fixture profiles
  * (written to a temp dir), so the mask_default and f3_default per-modem
  * defaults are proven offline.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_profile.h"
 
@@ -352,7 +354,7 @@ static void test_lookup_end_to_end(void) {
 #define SHIPPED_FIRMWARE_COUNT 5
 
 static void test_shipped_profiles(void) {
-    /* `make check` runs from capture_cell_diag/; the profiles live next door.
+    /* Run from capture_cell_diag/; the profiles live next door.
      * Overridable so an out-of-tree build can point at its own copy. */
     const char *dir = getenv("KP_PROFILES_DIR");
     if (!dir || !*dir)
@@ -453,3 +455,5 @@ int main(void) {
     fprintf(stderr, "FAILED: %d diag_profile test check(s)\n", failures);
     return 1;
 }
+
+#endif /* CELL_SELFTEST */

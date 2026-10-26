@@ -35,7 +35,7 @@
  *
  * Like atlog.c and cellat_options.c, this is a libc-only translation unit (no
  * Kismet, no serial) so cclk_extract() and the record formatter are unit-tested
- * standalone in test_clockanchor.c (`make check` in this directory).
+ * standalone in test_clockanchor.c (`--enable-cell-selftest`).
  */
 #ifndef CLOCKANCHOR_H
 #define CLOCKANCHOR_H

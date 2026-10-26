@@ -1,7 +1,7 @@
 /* test_diag_optset.c - standalone unit tests for the runtime option parse.
  *
  * Links only diag_optset.c (libc, no Kismet), so it runs off the capture
- * framework: `make check` in this directory.
+ * framework: `--enable-cell-selftest`.
  *
  * What is worth testing here is the CLASSIFICATION, not the string splitting.
  * `mask=full` and `mask=banana` and `masc=full` must land in three different
@@ -9,6 +9,8 @@
  * source, fix the value, fix the spelling. The failure mode this guards is a
  * knob that answers "ok" and changes nothing.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_optset.h"
 
@@ -295,3 +297,5 @@ int main(void) {
     fprintf(stderr, "FAILED: %d diag_optset test check(s)\n", failures);
     return 1;
 }
+
+#endif /* CELL_SELFTEST */

@@ -1,10 +1,12 @@
 /*
-    Selftest for cellat_qmifeed.c -- `make check` in this directory.
+    Selftest for cellat_qmifeed.c -- `--enable-cell-selftest`.
 
     Drives real child processes (/bin/sh -c ... as the argv), since the unit's whole job is
     process plumbing: line framing across reads, the overlong-line drop, EOF,
     fd hygiene, and a stop that reaches the child's whole process group.
 */
+
+#ifdef CELL_SELFTEST
 
 #if defined(__linux__) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE   /* setresuid/setresgid: the suid-state simulation */
@@ -768,9 +770,8 @@ static void read_ids(const char *key, char *out, size_t outsz) {
  * and bash and dash drop privileges by themselves when started with
  * euid != ruid (no -p) -- so on Debian this passes even with the drop in
  * qmifeed_start() deleted. The real feed is python3 with no shell in between,
- * so the drop is what protects it; test_privdrop_cannot_be_undone() below exercises the drop itself,
- * and celltools/tests/test_celldiag_suid_privdrop.py measures celldiag's
- * execv(python), where no shell stands in between. */
+ * so the drop is what protects it; test_privdrop_cannot_be_undone() below
+ * exercises the drop itself. */
 static void test_qmifeed_child_runs_as_the_caller_under_suid(void) {
     if (geteuid() != 0) {
         printf("  SKIP qmifeed suid drop: needs root to simulate a suid install\n");
@@ -896,3 +897,5 @@ int main(void) {
     printf("test_cellat_qmifeed: all passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

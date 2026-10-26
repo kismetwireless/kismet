@@ -8,7 +8,7 @@
  * ptsname), which glibc declares only under an XSI feature macro. Scoped to the
  * selftest build so the shipping objects compile exactly as before; macOS
  * declares them by default. */
-#if defined(DIAG_PROBECLOSE_SELFTEST) && defined(__linux__) && !defined(_GNU_SOURCE)
+#if defined(CELL_SELFTEST) && defined(DIAG_PROBECLOSE_SELFTEST) && defined(__linux__) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif
 
@@ -413,7 +413,7 @@ void diag_probeclose_note_label(char *buf, size_t bufsz, const char *port,
 /* -----------------------------------------------------------------------
  * Selftest
  * ----------------------------------------------------------------------- */
-#ifdef DIAG_PROBECLOSE_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_PROBECLOSE_SELFTEST)
 
 #include <poll.h>
 #include <sys/socket.h>

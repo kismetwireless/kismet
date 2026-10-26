@@ -17,6 +17,8 @@
  * Compile: includes cellat_qeng.inc (shared helpers) then cellat_std3gpp.inc,
  * exactly as the shipping binary does.
  */
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -236,3 +238,5 @@ int main(void) {
     printf("\n%s: %d failure(s)\n", g_fails ? "FAIL" : "PASS", g_fails);
     return g_fails ? 1 : 0;
 }
+
+#endif /* CELL_SELFTEST */

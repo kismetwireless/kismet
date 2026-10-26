@@ -7,6 +7,8 @@
  * celldiag_probe LOG_CONFIG handshake outcome for that node -- so the tests
  * assert measured ground truth, not a guessed table. See diag_ifclass.c.
  */
+#ifdef CELL_SELFTEST
+
 #include "diag_ifclass.h"
 
 #include <stdio.h>
@@ -186,3 +188,5 @@ int main(void) {
     printf("PASS: all diag_ifclass tests\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

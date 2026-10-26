@@ -1,11 +1,13 @@
 /* test_diag_stats.c - standalone unit tests for the celldiag health-stats core.
  *
  * Links only diag_stats.c (libc, no Kismet), so it runs off the capture
- * framework: `make check` in this directory. Covers the pieces with real
+ * framework: `--enable-cell-selftest`. Covers the pieces with real
  * branching logic - the rolling observations/sec window, the
  * health verdict, the cadence gate, and the status-line formatting/reset - with
  * a fixed clock so every assertion is deterministic.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_stats.h"
 
@@ -965,3 +967,5 @@ int main(void) {
     fprintf(stderr, "FAILED: %d diag_stats test check(s)\n", failures);
     return 1;
 }
+
+#endif /* CELL_SELFTEST */

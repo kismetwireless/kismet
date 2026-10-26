@@ -3,7 +3,7 @@
  * See diag_hdlc.h for the wire format.
  *
  * Compile the self-test with:
- *   cc -DDIAG_HDLC_SELFTEST -Wall -Wextra -Werror diag_hdlc.c -o /tmp/diag_hdlc_selftest
+ *   cc -DCELL_SELFTEST -DDIAG_HDLC_SELFTEST -Wall -Wextra -Werror diag_hdlc.c -o /tmp/diag_hdlc_selftest
  */
 #include "diag_hdlc.h"
 
@@ -114,7 +114,7 @@ size_t diag_hdlc_build(uint8_t cmd, const uint8_t *body, size_t bodylen,
     return off;
 }
 
-#ifdef DIAG_HDLC_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_HDLC_SELFTEST)
 #include <stdio.h>
 
 static int fail;

@@ -654,8 +654,7 @@ const cell_capture_switch_control = (source, disabled_now) => {
  * mask/F3 selectors and the Capture switch spell out: close first
  * (update_definition refuses a running source), and the reopen is `.always()`
  * so a rejected update can never leave the source down. Nothing is read from
- * the transport; the panel rows report the outcome on the next stats line.
- * Pinned by celltools/tests/test_cell_enable_form.py. */
+ * the transport; the panel rows report the outcome on the next stats line. */
 const cell_reopen_with_options = (uuid, options) => {
     const base = `${local_uri_prefix}datasource/by-uuid/${uuid}/`;
     $.get(base + 'close_source.cmd')
@@ -904,9 +903,8 @@ export const cell_sort_key = (iface) => {
 }
 
 /* The scan profiles cellat accepts, in the order the panel offers them.
- * Mirrors STRATEGIES[] in capture_cell_at/cellat_options.c; pinned by
- * celltools/tests/test_cell_enable_form.py, because two lists that must
- * agree drift. A running source reports its own table instead
+ * Mirrors STRATEGIES[] in capture_cell_at/cellat_options.c; keep the two in
+ * step. A running source reports its own table instead
  * (cellat_profile_control); this list exists only for a source not yet open. */
 export const CELLAT_ENABLE_PROFILES = [
     ['driving', 'Driving'],

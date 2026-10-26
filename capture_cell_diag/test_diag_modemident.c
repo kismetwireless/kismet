@@ -1,7 +1,8 @@
 /* test_diag_modemident.c - standalone tests for the ModemIdentity record.
  *
- * Links only diag_modemident.c (libc, no Kismet): `make check` here, and the
- * cellat directory's `make check` runs it too, because both helpers link it.
+ * Links only diag_modemident.c (libc, no Kismet): built by
+ * `--enable-cell-selftest` here and in the cellat directory, because both
+ * helpers link it.
  *
  * Every AT reply below is a MEASURED one, verbatim, from a module survey or a
  * live drive -- not a constructed string. The value extraction has to be right
@@ -9,6 +10,8 @@
  * the ways that matter (a response-code prefix on one vendor, a colon inside a
  * firmware string on another).
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_modemident.h"
 
@@ -271,3 +274,5 @@ int main(void) {
     printf("test_diag_modemident: all checks passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

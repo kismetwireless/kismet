@@ -123,8 +123,7 @@
  * leaves 4 KiB for all of that and is still larger than the largest DIAG frame
  * observed (8,050 B), so real frames are never fragmented. Do not size it to
  * pcapng's 65535-byte snaplen: offline tests pass, and a real server kills the
- * source on the first slice. celltools/tests/test_celldiag_raw_packets.py pins
- * the budget against kis_external.h.
+ * source on the first slice.
  *
  * libc-only (no Kismet dependency): unit-tested standalone in test_diag_rawpkt.c.
  */

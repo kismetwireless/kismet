@@ -4,6 +4,8 @@
  * socket, so what is checked is what a Wireshark on the port would receive.
  */
 
+#ifdef CELL_SELFTEST
+
 #include "diag_gsmtap_sink.h"
 
 #include <arpa/inet.h>
@@ -133,3 +135,5 @@ int main(void) {
     printf("test_diag_gsmtap_sink: all tests passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

@@ -8,7 +8,7 @@
  *
  * All of this is pure libc (no Kismet dependency) so the branching logic - the
  * rolling observations/sec window, the health verdict, and the cadence gate -
- * is unit-tested standalone in test_diag_stats.c (`make check`).
+ * is unit-tested standalone in test_diag_stats.c (`--enable-cell-selftest`).
  *
  * The formatted line is a stable KEY=VALUE form so it is both human-glanceable
  * and trivially parseable. The web UI gets the same counters through the JSON

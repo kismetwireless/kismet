@@ -1,5 +1,7 @@
 /* test_diag_portdiag.c - standalone unit tests for the DIAG-port failure
- * diagnostic. Links only diag_portdiag.c (libc). `make check`. */
+ * diagnostic. Links only diag_portdiag.c (libc). `--enable-cell-selftest`. */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_portdiag.h"
 
@@ -173,3 +175,5 @@ int main(void) {
     fprintf(stderr, "FAILED: %d diag_portdiag test check(s)\n", failures);
     return 1;
 }
+
+#endif /* CELL_SELFTEST */

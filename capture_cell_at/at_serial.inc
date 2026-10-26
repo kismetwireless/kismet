@@ -3,7 +3,7 @@
  * Textually #included (not separately compiled) by:
  *   - capture_cell_at.c        (the Kismet capture binary)
  *   - cellat_serial_probe.c    (standalone hardware probe, no Kismet)
- *   - test_at_serial.c         (socketpair selftest, `make check`)
+ *   - test_at_serial.c         (socketpair selftest, `--enable-cell-selftest`)
  *
  * The functions stay `static` so each including TU gets its own copy — no
  * external linkage, so no symbol-collision risk against the Kismet framework

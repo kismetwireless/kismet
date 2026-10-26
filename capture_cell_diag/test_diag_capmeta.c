@@ -1,12 +1,14 @@
 /* test_diag_capmeta.c - standalone unit tests for the capture_meta sidecar core.
  *
  * Links only diag_capmeta.c (libc, no Kismet), so it runs off the capture
- * framework: `make check` in this directory. Covers the three
+ * framework: `--enable-cell-selftest`. Covers the three
  * pieces with real branching logic - sidecar path derivation
  * (diag_capmeta_sidecar_path / _basename), JSON escaping
  * (diag_capmeta_json_escape) and the whole-object formatter
  * (diag_capmeta_format) - plus the one-shot write round-trip.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_capmeta.h"
 
@@ -225,3 +227,5 @@ int main(void) {
     fprintf(stderr, "FAILED: %d diag_capmeta test check(s)\n", failures);
     return 1;
 }
+
+#endif /* CELL_SELFTEST */

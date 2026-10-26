@@ -9,9 +9,8 @@
  *                                    wire lines.
  *   ./test_diag_inventory --trace    a trace driver, for a differential test
  *                                    of the census against another
- *                                    implementation fed the same records
- *                                    (celltools/tests/test_celldiag_native_census.py
- *                                    drives it). Reads one command per stdin line:
+ *                                    implementation fed the same records.
+ *                                    Reads one command per stdin line:
  *                                      C <max_codes> <max_versions_per_code>
  *                                      N              (arm native coverage)
  *                                      U <code> <ver> (an undecoded record)
@@ -23,6 +22,8 @@
  * produces it is written out beside it (record(code, ver, decoded, ...,
  * emitted=, enrich_failed=), then the wire line at `now`).
  */
+
+#ifdef CELL_SELFTEST
 
 #include "diag_inventory.h"
 
@@ -363,3 +364,5 @@ int main(int argc, char **argv) {
     printf("test_diag_inventory: all tests passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

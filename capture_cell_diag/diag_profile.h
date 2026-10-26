@@ -15,12 +15,13 @@
  * same selection path.
  *
  * Deliberately libc-only (no Kismet link, no JSON library) so it unit-tests
- * standalone in test_diag_profile.c (`make check`). The JSON reader is a narrow
- * string-value extractor scoped to the flat "diag" object of a controlled,
- * repo-authored config file - NOT a general JSON parser. It handles the subset
- * these profiles use (object nesting, string values, // no comments) and treats
- * anything it does not understand as "key absent" (return 0), so a malformed or
- * unexpected profile degrades to the compiled-in default rather than misparsing.
+ * standalone in test_diag_profile.c (`--enable-cell-selftest`). The JSON reader
+ * is a narrow string-value extractor scoped to the flat "diag" object of a
+ * controlled, repo-authored config file - NOT a general JSON parser. It handles
+ * the subset these profiles use (object nesting, string values, // no comments)
+ * and treats anything it does not understand as "key absent" (return 0), so a
+ * malformed or unexpected profile degrades to the compiled-in default rather
+ * than misparsing.
  */
 #ifndef DIAG_PROFILE_H
 #define DIAG_PROFILE_H

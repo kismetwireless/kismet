@@ -1,13 +1,15 @@
 /* test_clockanchor.c - standalone unit tests for the clock-anchor core.
  *
  * Links clockanchor.c + atlog.c (libc, no Kismet, no serial), so it runs off the
- * capture framework on a modem-less host: `make check` in this directory. The
+ * capture framework on a modem-less host: `--enable-cell-selftest`. The
  * real branching lives in cclk_extract() (tolerant parse of the AT+CCLK?
  * response across the firmware variants observed on real modems) and in the
  * record formatter (whose schema must match the clock-anchor/1 contract
  * field-for-field so the DIAG and AT transports produce uniform ClockAnchor
  * rows).
  */
+
+#ifdef CELL_SELFTEST
 
 #include "clockanchor.h"
 
@@ -213,3 +215,5 @@ int main(void) {
     printf("test_clockanchor: all tests passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

@@ -56,6 +56,7 @@ BUILD_CAPTURE_ANTSDR_DRONEID=1
 BUILD_CAPTURE_SNIFFLE_BLE=1
 BUILD_CAPTURE_LORAPIPE=1
 BUILD_CAPTURE_CELL_AT=0
+CELL_SELFTEST=0
 BUILD_CAPTURE_CELL_DIAG=0
 CELL_LOGTOOL_BINS=""
 
@@ -2023,6 +2024,19 @@ if test x"$want_cell" = x"yes"; then
     CELL_LOGTOOL_BINS="\$(LOGTOOL_KISMETDB_CELLNDJSON) \$(LOGTOOL_KISMETDB_ATLOG) \$(LOGTOOL_KISMETDB_QMILOG) \$(LOGTOOL_KISMETDB_HDLC)"
 fi
 
+AC_ARG_ENABLE([cell-selftest],
+    AS_HELP_STRING([--enable-cell-selftest], [Build the cellular capture selftests]),
+	[case "${enableval}" in
+          yes) want_cell_selftest=yes ;;
+            *) want_cell_selftest=no ;;
+	 esac],
+         [want_cell_selftest=no]
+)
+
+if test x"$want_cell" = x"yes" -a x"$want_cell_selftest" = x"yes"; then
+    CELL_SELFTEST=1
+fi
+
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
     BUILD_CAPTURE_OSX_COREWLAN=1
@@ -2199,6 +2213,7 @@ AC_SUBST(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)
 AC_SUBST(BUILD_CAPTURE_CELL_AT)
 AC_SUBST(BUILD_CAPTURE_CELL_DIAG)
 AC_SUBST(CELL_LOGTOOL_BINS)
+AC_SUBST(CELL_SELFTEST)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -2547,6 +2562,12 @@ if test "$BUILD_CAPTURE_CELL_AT" = 1; then
 	echo "yes";
 else
 	echo "no (disabled)";
+fi
+printf "  Cell modem selftests: "
+if test "$CELL_SELFTEST" = 1; then
+	echo "yes";
+else
+	echo "no";
 fi
 
 printf " lm-sensors monitoring: "

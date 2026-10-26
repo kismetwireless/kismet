@@ -31,7 +31,7 @@
  * `diag_optset_set_value_error()` for how a caller reports that back.
  *
  * Pure libc, no Kismet dependency, so it is unit-tested standalone in
- * test_diag_optset.c (`make check` in this directory).
+ * test_diag_optset.c (`--enable-cell-selftest`).
  */
 #ifndef DIAG_OPTSET_H
 #define DIAG_OPTSET_H

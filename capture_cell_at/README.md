@@ -912,9 +912,7 @@ CELLAT_SCAN_PORTS="/dev/ttyUSB2 /dev/ttyUSB3" kismet -c cellat-<imei>
 
 Use it to keep the scan off a port it must not probe (a non-target modem's NMEA
 tty) while still addressing by IMEI. An operator naming one AT node wants
-`atport=`, which skips the scan. The offline harness
-(`celltools/tests/test_cellat_scan_ports.py`) drives the real scan against
-PTY fake modems this way, and asserts that no host tty is opened.
+`atport=`, which skips the scan.
 
 A path named in either variable is trusted, **except** under `/dev/mhi_*`
 and `/dev/wwan*`. There the shared classifier still decides, because

@@ -30,6 +30,8 @@
     registered, so every +CPSI? on it reads NO SERVICE).
 */
 
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -281,3 +283,5 @@ int main(void) {
     printf("\n%s (%d failures)\n", g_fails ? "FAILED" : "PASSED", g_fails);
     return g_fails ? 1 : 0;
 }
+
+#endif /* CELL_SELFTEST */

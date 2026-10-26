@@ -1,12 +1,14 @@
 /* test_atlog.c - standalone unit tests for the atlog JSONL tee core.
  *
  * Links only atlog.c (libc, no Kismet, no serial), so it runs off the capture
- * framework: `make check` in this directory. Mirrors test_diag_rawlog.c for the
+ * framework: `--enable-cell-selftest`. Mirrors test_diag_rawlog.c for the
  * shared path-templating property, and adds the atlog-specific surface that has
  * the real branching logic: JSON escaping (AT responses are full of CRLF,
  * quotes and control bytes) and the one-record-per-exchange formatter whose
  * schema the DIAG/AT-poll correlation tooling must ingest without a shim.
  */
+
+#ifdef CELL_SELFTEST
 
 #include "atlog.h"
 
@@ -309,3 +311,5 @@ int main(void) {
     printf("test_atlog: all tests passed\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

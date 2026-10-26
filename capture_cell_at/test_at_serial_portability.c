@@ -9,8 +9,7 @@
  * that cannot `./configure` (macOS: no libwebsockets / libpcap / libmosquitto /
  * sensors.h):
  *
- *     make -C capture_cell_at check
- *     make -C capture_cell_diag check
+ *     ./configure --enable-cell-selftest
  *
  * On macOS / Apple clang an unguarded at_serial.inc fails with:
  *
@@ -41,6 +40,8 @@
  * constants are really absent, because on Linux the refusal branch is
  * preprocessed away (which is the correct behaviour there).
  */
+#ifdef CELL_SELFTEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -64,3 +65,5 @@ int main(void) {
            "(the darwin case)\n");
     return 0;
 }
+
+#endif /* CELL_SELFTEST */

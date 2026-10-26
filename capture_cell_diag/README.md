@@ -14,7 +14,7 @@ that modem's DIAG interface is opened for the tap.
 
 ```sh
 make -C capture_cell_diag            # configured tree: the helper, native decode legs linked
-make -C capture_cell_diag check      # build and run every selftest
+./configure --enable-cell-selftest  # optional: also build the test_* selftests
 kismet -c celldiag-<IMEI>
 ```
 

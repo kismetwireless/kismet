@@ -11,7 +11,7 @@
  *
  * The path templating and the whole-buffer write are libc-only (no Kismet
  * dependency) so they are unit-tested standalone in test_diag_rawlog.c
- * (`make check` in this directory).
+ * (`--enable-cell-selftest`).
  */
 #ifndef DIAG_RAWLOG_H
 #define DIAG_RAWLOG_H

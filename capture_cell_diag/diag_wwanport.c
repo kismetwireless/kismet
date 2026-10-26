@@ -264,7 +264,7 @@ void diag_wwan_format(int rc, const char *const *nodes, int n,
 /* -----------------------------------------------------------------------
  * Selftest
  * ----------------------------------------------------------------------- */
-#ifdef DIAG_WWANPORT_SELFTEST
+#if defined(CELL_SELFTEST) && defined(DIAG_WWANPORT_SELFTEST)
 
 static int failures = 0;
 
