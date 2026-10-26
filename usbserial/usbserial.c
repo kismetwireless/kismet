@@ -40,6 +40,9 @@ static const usbserial_model_t models[] = {
     { 0x2c7c, 0x0195, "Quectel EG95", quectel_roles },
     { 0x2c7c, 0x0296, "Quectel BG96", quectel_roles },
     { 0x2c7c, 0x0306, "Quectel EP06 / EG06 / EM06", quectel_roles },
+    { 0x2c7c, 0x0512, "Quectel EG12 / EM12 / EG18", quectel_roles },
+    { 0x2c7c, 0x0800, "Quectel RM500Q / RM502Q", quectel_roles },
+    { 0x2c7c, 0x0801, "Quectel RM520N", quectel_roles },
 };
 
 #define CDC_SET_CONTROL_LINE_STATE  0x22
@@ -61,6 +64,9 @@ struct usbserial_port {
     /* CDC style port which takes the line state request */
     int acm;
     int claimed;
+    /* Qualcomm DIAG: one HDLC frame per transfer; the modem drops the rest of a
+     * transfer after its first frame */
+    int one_frame;
 
     struct libusb_transfer *rx[USBSERIAL_RX_XFERS];
     struct libusb_transfer *intr;
@@ -160,6 +166,103 @@ int usbserial_list(FILE *out) {
     return found;
 }
 
+/* Whether a host driver has an interface; macOS can't say, and there a claim
+ * simply fails when one does */
+static int iface_driver(libusb_device_handle *h, uint8_t ifnum) {
+    int r;
+
+    if (h == NULL)
+        return -1;
+
+    r = libusb_kernel_driver_active(h, ifnum);
+
+#ifdef __APPLE__
+    /* macOS also reports an interface another program has claimed as driver
+     * active, and these interfaces have no host driver there; the claim tells */
+    if (r == 1 || r == LIBUSB_ERROR_NOT_SUPPORTED)
+        return 0;
+#endif
+    if (r == 0 || r == 1)
+        return r;
+    return -1;
+}
+
+int usbserial_enum(usbserial_enum_cb_t cb, void *aux) {
+    libusb_context *ctx = NULL;
+    libusb_device **list = NULL;
+    ssize_t n, i;
+    int found = 0;
+
+    if (libusb_init(&ctx) != 0)
+        return -1;
+
+    if ((n = libusb_get_device_list(ctx, &list)) < 0) {
+        libusb_exit(ctx);
+        return -1;
+    }
+
+    for (i = 0; i < n; i++) {
+        struct libusb_device_descriptor dd;
+        struct libusb_config_descriptor *cd = NULL;
+        libusb_device_handle *h = NULL;
+        const usbserial_model_t *model;
+        int f;
+
+        if (libusb_get_device_descriptor(list[i], &dd) != 0)
+            continue;
+
+        if ((model = usbserial_find_model(dd.idVendor, dd.idProduct)) == NULL)
+            continue;
+
+        if (libusb_get_active_config_descriptor(list[i], &cd) != 0)
+            continue;
+
+        /* Only to ask about host drivers; opening doesn't disturb them */
+        if (libusb_open(list[i], &h) != 0)
+            h = NULL;
+
+        for (f = 0; f < cd->bNumInterfaces; f++) {
+            const struct libusb_interface_descriptor *id;
+            usbserial_portinfo_t info;
+            const char *role;
+
+            if (cd->interface[f].num_altsetting < 1)
+                continue;
+
+            id = &cd->interface[f].altsetting[0];
+
+            if ((role = model_role(model, id->bInterfaceNumber)) == NULL)
+                continue;
+
+            memset(&info, 0, sizeof(info));
+            info.vid = dd.idVendor;
+            info.pid = dd.idProduct;
+            info.bus = libusb_get_bus_number(list[i]);
+            info.addr = libusb_get_device_address(list[i]);
+            info.model = model->name;
+            info.ifnum = id->bInterfaceNumber;
+            info.role = role;
+            info.cls = id->bInterfaceClass;
+            info.sub = id->bInterfaceSubClass;
+            info.prot = id->bInterfaceProtocol;
+            info.driver = iface_driver(h, id->bInterfaceNumber);
+
+            if (cb != NULL)
+                cb(&info, aux);
+            found++;
+        }
+
+        if (h != NULL)
+            libusb_close(h);
+        libusb_free_config_descriptor(cd);
+    }
+
+    libusb_free_device_list(list, 1);
+    libusb_exit(ctx);
+
+    return found;
+}
+
 /* Find the bulk pair, and the interrupt endpoint if there is one */
 static int port_endpoints(usbserial_port_t *port,
         const struct libusb_interface_descriptor *id) {
@@ -199,6 +302,22 @@ static int port_endpoints(usbserial_port_t *port,
     }
 
     return 0;
+}
+
+static int errno_of(int r) {
+    switch (r) {
+        case LIBUSB_ERROR_ACCESS:
+            return EACCES;
+        case LIBUSB_ERROR_NO_DEVICE:
+        case LIBUSB_ERROR_NOT_FOUND:
+            return ENODEV;
+        case LIBUSB_ERROR_BUSY:
+            return EBUSY;
+        case LIBUSB_ERROR_NO_MEM:
+            return ENOMEM;
+        default:
+            return EIO;
+    }
 }
 
 static void free_dev(usbserial_dev_t *dev) {
@@ -257,6 +376,11 @@ static struct libusb_transfer *alloc_transfer(size_t len) {
 
 usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
         char *err, size_t errlen) {
+    return usbserial_open_ports(vid, pid, bus, addr, 0, USBSERIAL_DETACH, err, errlen);
+}
+
+usbserial_dev_t *usbserial_open_ports(uint16_t vid, uint16_t pid, int bus, int addr,
+        uint32_t ifmask, int flags, char *err, size_t errlen) {
     usbserial_dev_t *dev;
     libusb_device **list = NULL;
     libusb_device *match = NULL;
@@ -266,6 +390,7 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
 
     if ((dev = (usbserial_dev_t *) calloc(1, sizeof(*dev))) == NULL) {
         snprintf(err, errlen, "out of memory");
+        errno = ENOMEM;
         return NULL;
     }
 
@@ -275,12 +400,14 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
         snprintf(err, errlen, "libusb init failed: %s", libusb_strerror(r));
         dev->ctx = NULL;
         free_dev(dev);
+        errno = EIO;
         return NULL;
     }
 
     if ((n = libusb_get_device_list(dev->ctx, &list)) < 0) {
         snprintf(err, errlen, "could not list USB devices: %s", libusb_strerror((int) n));
         free_dev(dev);
+        errno = EIO;
         return NULL;
     }
 
@@ -311,6 +438,7 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
         snprintf(err, errlen, "no supported USB serial device found");
         libusb_free_device_list(list, 1);
         free_dev(dev);
+        errno = ENODEV;
         return NULL;
     }
 
@@ -324,12 +452,14 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
     if (r != 0) {
         snprintf(err, errlen, "could not open %s: %s", dev->model->name, libusb_strerror(r));
         free_dev(dev);
+        errno = errno_of(r);
         return NULL;
     }
 
     /* On Linux the option driver owns these interfaces; take them back from it while
      * we hold them */
-    libusb_set_auto_detach_kernel_driver(dev->handle, 1);
+    if (flags & USBSERIAL_DETACH)
+        libusb_set_auto_detach_kernel_driver(dev->handle, 1);
 
     for (f = 0; f < cd->bNumInterfaces && dev->num_ports < USBSERIAL_MAX_PORTS; f++) {
         const struct libusb_interface_descriptor *id;
@@ -344,11 +474,16 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
         if ((role = model_role(dev->model, id->bInterfaceNumber)) == NULL)
             continue;
 
+        if (ifmask != 0 && (id->bInterfaceNumber >= 32 ||
+                    !(ifmask & (1u << id->bInterfaceNumber))))
+            continue;
+
         port = &dev->ports[dev->num_ports];
         memset(port, 0, sizeof(*port));
         port->dev = dev;
         port->ifnum = id->bInterfaceNumber;
         port->role = role;
+        port->one_frame = strcmp(role, "diag") == 0;
 
         if (port_endpoints(port, id) < 0)
             continue;
@@ -362,11 +497,20 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
         snprintf(err, errlen, "%s has none of its expected serial interfaces",
                 dev->model->name);
         free_dev(dev);
+        errno = ENODEV;
         return NULL;
     }
 
     for (i = 0; i < (ssize_t) dev->num_ports; i++) {
         usbserial_port_t *port = &dev->ports[i];
+
+        if (!(flags & USBSERIAL_DETACH) && iface_driver(dev->handle, port->ifnum) == 1) {
+            snprintf(err, errlen, "interface %u (%s) of %s has a host driver",
+                    port->ifnum, port->role, dev->model->name);
+            free_dev(dev);
+            errno = EBUSY;
+            return NULL;
+        }
 
         if ((r = libusb_claim_interface(dev->handle, port->ifnum)) != 0) {
             snprintf(err, errlen, "could not claim interface %u (%s) of %s: %s%s",
@@ -374,6 +518,12 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
                     r == LIBUSB_ERROR_ACCESS || r == LIBUSB_ERROR_BUSY ?
                     "; is another program using the device?" : "");
             free_dev(dev);
+            errno = r == LIBUSB_ERROR_BUSY ? EAGAIN : errno_of(r);
+#ifdef __APPLE__
+            /* macOS refuses an interface another program holds as ACCESS */
+            if (r == LIBUSB_ERROR_ACCESS)
+                errno = EAGAIN;
+#endif
             return NULL;
         }
 
@@ -394,6 +544,7 @@ usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
                 (port->ep_intr != 0 && port->intr_maxpkt != 0 && port->intr == NULL)) {
             snprintf(err, errlen, "out of memory");
             free_dev(dev);
+            errno = ENOMEM;
             return NULL;
         }
     }
@@ -440,6 +591,19 @@ static void tx_next_locked(usbserial_port_t *port) {
     len = port->txq_len;
     if (len > USBSERIAL_TX_XFER_SIZE)
         len = USBSERIAL_TX_XFER_SIZE;
+
+    /* End the transfer at the first frame's closing flag; a leading lone flag
+     * goes with the frame after it */
+    if (port->one_frame) {
+        size_t i;
+
+        for (i = 1; i < len; i++) {
+            if (port->txq[(port->txq_head + i) % USBSERIAL_TXQ_SIZE] == 0x7e) {
+                len = i + 1;
+                break;
+            }
+        }
+    }
 
     first = USBSERIAL_TXQ_SIZE - port->txq_head;
     if (first > len)

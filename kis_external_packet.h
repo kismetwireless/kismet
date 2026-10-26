@@ -208,6 +208,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_CONFIGREQ                           17
 #define KIS_EXTERNAL_V3_KDS_CONFIGREPORT                        18
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE                           19
+/* Graceful close request, server -> datasource.  See below. */
+#define KIS_EXTERNAL_V3_KDS_CLOSEREQ                            20
 
 /* eventbus commands */
 #define KIS_EXTERNAL_V3_EVT_REGISTER                            32
@@ -501,6 +503,29 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_MSG                9
 /* string */
 #define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION            10
+/* uint32, optional: the datasource supports a graceful close and needs at
+ * most this many ms to finish it.  Absent = not supported; the server then keeps
+ * the plain close (pipe close + SIGTERM) for this source. */
+#define KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CLOSEGRACE         11
+
+
+
+/* KIS_EXTERNAL_V3_KDS_CLOSEREQ
+ *
+ * KS -> Datasource
+ * No content.
+ *
+ * Asks an opened datasource to stop capturing and close ITSELF: finish its
+ * teardown (end-of-capture records, device cleanup), send everything it still
+ * has queued, then exit.  Sent only to a datasource that advertised
+ * OPENREPORT_FIELD_CLOSEGRACE.  The server keeps the connection open until the
+ * datasource closes it (a clean close, not an error), or until the grace plus a
+ * margin has passed, when it falls back to the plain close.
+ *
+ * Without it, the server's only stop is closing the pipe and SIGTERMing the
+ * helper in the same call -- so no teardown, and nothing sent from one, can
+ * ever reach the server.
+ * */
 
 
 

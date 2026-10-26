@@ -1,0 +1,103 @@
+{
+    "vendor": "quectel",
+    "model": "rm500q",
+    "firmware_match": "RM500Q*",
+    "applicable_models": ["RM500Q-AE", "RM500Q-GL", "RM502Q-AE", "RM505Q-AE", "RM510Q-GL",
+                          "RG500Q-EA", "RG502Q-EA"],
+    "command_reference": {
+        "document": "RG50xQ&RM5xxQ Series AT Commands Manual",
+        "filename": "Quectel_RG50xQ_RM5xxQ_Series_AT_Commands_Manual_V1.2.pdf",
+        "version": "V1.2",
+        "date": "2021-08-09"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE", "NR"],
+        "has_qeng": true,
+        "has_qscan": true,
+        "has_neighbourcell": true,
+        "has_cops_scan": true
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "verify engineering mode available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT+QENG=\"servingcell\"",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "qeng_serving",
+            "notes": "Returns LTE or NR5G-SA/NSA serving cell. Field order differs by RAT."
+        },
+        "neighbor": {
+            "cmd": "AT+QENG=\"neighbourcell\"",
+            "interval_ms": 5000,
+            "timeout_ms": 10000,
+            "parser": "qeng_neighbor",
+            "notes": "Returns intra-frequency and inter-frequency LTE neighbors."
+        },
+        "full_scan": {
+            "cmd": "AT+QSCAN=3,1",
+            "interval_ms": 60000,
+            "timeout_ms": 120000,
+            "parser": "qscan",
+            "notes": "Full band scan. Can take up to 2 minutes. Returns all visible cells with MCC/MNC."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan. 30-120 seconds. Returns operator names and RATs."
+        }
+    },
+    "diag": {
+        "usb_id": "2c7c:0800",
+        "port": "QCDM/DM diagnostic on USB interface if00 (ttyUSB+0 in the runtime-default composition 0x0800: DIAG/NMEA/AT/AT/QMI/ADB). capture_cell_diag auto-detects it by matching the IMEI from an AT probe on a sibling port; diagport=<path> overrides.",
+        "port_detect": {
+            "transport": "ttyUSB",
+            "match": "interface",
+            "interface": 0,
+            "driver_path_glob": null
+        },
+        "mask_default": "wardrive",
+        "f3_default": "off",
+        "target_codes": [
+            "0xB193",
+            "0xB0C0",
+            "0xB192",
+            "0xB195",
+            "0xB17F",
+            "0xB197",
+            "0xB821",
+            "0xB97F",
+            "0x1476",
+            "0x14D8"
+        ],
+        "notes": "SDX55 5G NR SA/NSA (sub-6). Full DIAG_TARGET_CODES set applies (capture_cell_diag/diag_config.c is the single source of truth): LTE ML1 serving 0xB193, LTE RRC OTA/SIB1 0xB0C0, LTE ML1 idle neighbors 0xB192, LTE ML1 connected neighbors 0xB195, LTE ML1 per-cell measurement 0xB17F (per-cell RSSI with RSRP/RSRQ), NR5G RRC OTA/SIB1 0xB821, NR5G ML1 measurement DB 0xB97F. interface=0 pins if00 (documented DIAG interface, README USB Interface Map) rather than the 'lowest ttyUSB' default. The 67 switchable compositions keep DIAG on if00; diagport= overrides for any non-default composition. GNSS position 0x1476 (LTE ML1 / gpsOne position report) and 0x14D8 (GNSS engine state) complete the set: the capture helper turns 0x1476 into a gps_fix and geo-tags every cell_observation from it. 0x14D8 is subscribed but yields no position (its parser hardcodes lat/lon/alt to 0.0 and no firmware populates those bytes), so it contributes engine state only. This list documents intent; the device decides what is actually subscribed, because diag_config_filter_supported narrows the shared set to each modem's advertised subset at handshake time. 0xB17F is emitted with version byte 5 while camped on LTE and not at all while camped on NR5G-SA. It is an LTE ML1 code, so an SA-camped unit emitting none is RAT state, not a missing capability. LTE ML1 serving cell information 0xB197 (per-cell DL bandwidth RB + Tx antenna ports) is emitted with version byte 2 after an AT+CFUN=4->1 re-camp with mode_pref pinned to LTE, and not during an idle window before it. Like 0xB17F it is an LTE ML1 code, so an SA-camped unit reading 0 is RAT state."
+    }
+}

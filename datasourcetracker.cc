@@ -21,6 +21,8 @@
 #include <string.h>
 #include <getopt.h>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 
 #include <string_view>
@@ -948,6 +950,120 @@ void datasource_tracker::trigger_deferred_startup() {
                     }
                 }));
 
+    /* Override source-definition options, to take effect on the NEXT open.
+     *
+     * Why this route exists: close_source + open_source cannot carry a new
+     * definition.  open_source re-opens with `ds->get_source_definition()`,
+     * the string the source already had, so close-then-reopen faithfully
+     * restores the same options (for example, the same DIAG mask).  Upstream,
+     * `update_source_definition()` has no callers outside its own header and
+     * `append_source_definition()` is called only from two wifi datasource
+     * constructors at build time.
+     *
+     * The machinery underneath is the existing one, not a new path:
+     * parse_source_definition() already folds source_override_opts over the
+     * parsed definition (kis_datasource.cc) and then re-synthesises
+     * source_definition, so a later open_source picks the override up. This
+     * route only supplies the caller that was missing.
+     *
+     * Refuses while the source is RUNNING rather than silently deferring. A
+     * 200 on a request whose effect does not appear until some later reopen is
+     * an acknowledgement that is not a measurement; the operator is told to
+     * close the source first. */
+    httpd->register_route("/datasource/by-uuid/:uuid/update_definition", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    // Only the cell sources' restart-time settings; file, command and
+                    // identity options can't be changed through here
+                    auto builder = ds->get_source_builder();
+                    auto ds_type = builder == nullptr ? std::string() :
+                        str_lower(builder->get_source_type());
+                    if (ds_type != "cellat" && ds_type != "celldiag")
+                        throw std::runtime_error("update_definition only applies to cell sources");
+
+                    if (ds->get_source_running())
+                        throw std::runtime_error("source is running; close_source "
+                                "first, then update_definition, then open_source "
+                                "-- an option applied at bring-up cannot take "
+                                "effect on a live source");
+
+                    if (con->json()["options"].is_null())
+                        throw std::runtime_error("expected an 'options' object of "
+                                "definition key/value pairs");
+
+                    auto opts = con->json()["options"];
+
+                    if (!opts.is_object())
+                        throw std::runtime_error("'options' must be an object");
+
+                    if (opts.size() == 0)
+                        throw std::runtime_error("'options' is empty; an update "
+                                "that changes nothing would report success");
+
+                    static constexpr std::array<std::string_view, 5> at_opts{
+                        "enabled", "strategy", "debug", "bandlock", "clock_anchor_sec"
+                    };
+                    static constexpr std::array<std::string_view, 7> diag_opts{
+                        "enabled", "mask", "f3", "qsh", "nas", "rawpackets", "clock_anchor_sec"
+                    };
+
+                    auto is_at = ds_type == "cellat";
+
+                    // Validate everything before applying anything
+                    for (auto& kv : opts.items()) {
+                        auto ok = is_at ?
+                            std::find(at_opts.begin(), at_opts.end(), kv.key()) != at_opts.end() :
+                            std::find(diag_opts.begin(), diag_opts.end(), kv.key()) != diag_opts.end();
+
+                        if (!ok)
+                            throw std::runtime_error(is_at ?
+                                    "unsupported option; update_definition accepts "
+                                    "enabled, strategy, debug, bandlock, clock_anchor_sec" :
+                                    "unsupported option; update_definition accepts "
+                                    "enabled, mask, f3, qsh, nas, rawpackets, clock_anchor_sec");
+
+                        if (!kv.value().is_string())
+                            throw std::runtime_error(fmt::format("option '{}' must "
+                                        "be a string", kv.key()));
+
+                        // Values are folded into the comma-separated definition
+                        const auto& v = kv.value().get_ref<const std::string&>();
+                        if (v.empty() || v.length() > 64)
+                            throw std::runtime_error(fmt::format("option '{}' has an "
+                                        "invalid value", kv.key()));
+
+                        for (auto c : v) {
+                            if (!isalnum(static_cast<unsigned char>(c)) && c != '_' &&
+                                    c != '-' && c != '.')
+                                throw std::runtime_error(fmt::format("option '{}' has an "
+                                            "invalid value", kv.key()));
+                        }
+                    }
+
+                    for (auto& kv : opts.items()) {
+
+                        _MSG_INFO("Source '{}' ({}) definition override {}={} "
+                                "(applies on next open)",
+                                ds->get_source_name(), ds->get_source_uuid(),
+                                kv.key(), kv.value().get<std::string>());
+
+                        ds->set_source_definition_override(kv.key(),
+                                kv.value().get<std::string>());
+                    }
+
+                    return ds;
+                }));
+
     httpd->register_route("/datasource/by-uuid/:uuid/pause_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
@@ -1274,10 +1390,51 @@ void datasource_tracker::launch_configured_sources() {
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
-    kis_lock_guard<kis_mutex> lk(dst_lock, "dst trigger_deferred_shutdown");
+    std::vector<std::shared_ptr<kis_datasource>> sources;
 
-    for (auto i : *datasource_vec) {
-        std::static_pointer_cast<kis_datasource>(i)->close_source();
+    {
+        kis_lock_guard<kis_mutex> lk(dst_lock, "dst trigger_deferred_shutdown");
+
+        for (auto i : *datasource_vec)
+            sources.push_back(std::static_pointer_cast<kis_datasource>(i));
+    }
+
+    // Unlocked from here: a source finishing its close reports back through
+    // the IO threads, and nothing here may hold what they need.
+
+    unsigned int wait_ms = 0;
+
+    for (const auto& s : sources) {
+        s->close_source();
+        wait_ms = std::max(wait_ms, s->get_graceful_close_wait_ms());
+    }
+
+    // Graceful closes: wait for them here, bounded.  The IO threads are
+    // still running, so what a closing source sends now -- its end-of-capture
+    // records -- is still received and queued for the packet chain; the log
+    // tracker's deferred shutdown runs after this one and drains the chain
+    // before it closes the logs.
+    if (wait_ms > 0) {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(wait_ms);
+
+        while (std::chrono::steady_clock::now() < deadline) {
+            bool pending = false;
+
+            for (const auto& s : sources) {
+                if (s->get_graceful_close_pending()) {
+                    pending = true;
+                    break;
+                }
+            }
+
+            if (!pending)
+                break;
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        for (const auto& s : sources)
+            s->abort_graceful_close("did not finish closing before Kismet shut down");
     }
 }
 

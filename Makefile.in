@@ -193,6 +193,12 @@ BUILD_CAPTURE_LORAPIPE = @BUILD_CAPTURE_LORAPIPE@
 CAPTURE_WCH_BLE_ANALYZER_PRO = capture_wch_ble_analyzer_pro/kismet_cap_wch_ble_analyzer_pro
 BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO = @BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO@
 
+CAPTURE_CELL_AT = capture_cell_at/kismet_cap_cell_at
+BUILD_CAPTURE_CELL_AT = @BUILD_CAPTURE_CELL_AT@
+
+CAPTURE_CELL_DIAG = capture_cell_diag/kismet_cap_cell_diag
+BUILD_CAPTURE_CELL_DIAG = @BUILD_CAPTURE_CELL_DIAG@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -201,9 +207,14 @@ LOGTOOL_KISMETDB_STRIP_O = \
 	log_tools/kismetdb_strip_packet_content.c.o
 
 LOGTOOL_KISMETDB_WIGLE = log_tools/kismetdb_to_wiglecsv
+# phy_cell_decisions.cc.o: the offline exporter builds the SAME cell key the
+# live PHY does, from the same function, so the two WiGLE writers cannot drift
+# apart. It is deliberately free of tracker/Globalreg deps for
+# exactly this reason -- see phy_cell_decisions.h.
 LOGTOOL_KISMETDB_WIGLE_O = \
 	version.c.o \
 	log_tools/kismetdb_to_wiglecsv.cc.o \
+	phy_cell_decisions.cc.o \
 	sqlite3_cpp11.cc.o 
 
 LOGTOOL_KISMETDB_JSON = log_tools/kismetdb_dump_devices
@@ -234,7 +245,31 @@ LOGTOOL_KISMETDB_CLEAN_O = \
 LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
 LOGTOOL_KISMETDB_PCAP_O = \
 	log_tools/kismetdb_to_pcap.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o
+
+LOGTOOL_KISMETDB_CELLNDJSON = log_tools/kismetdb_to_cellndjson
+LOGTOOL_KISMETDB_CELLNDJSON_O = \
+	log_tools/kismetdb_to_cellndjson.cc.o \
+	sqlite3_cpp11.cc.o
+
+LOGTOOL_KISMETDB_ATLOG = log_tools/kismetdb_to_atlog
+LOGTOOL_KISMETDB_ATLOG_O = \
+	log_tools/kismetdb_to_atlog.cc.o \
+	sqlite3_cpp11.cc.o
+
+LOGTOOL_KISMETDB_QMILOG = log_tools/kismetdb_to_qmilog
+LOGTOOL_KISMETDB_QMILOG_O = \
+	log_tools/kismetdb_to_qmilog.cc.o \
+	sqlite3_cpp11.cc.o
+
+LOGTOOL_KISMETDB_CELLLOG = log_tools/kismetdb_to_celllog
+LOGTOOL_KISMETDB_CELLLOG_O = \
+	log_tools/kismetdb_to_celllog.cc.o \
+	sqlite3_cpp11.cc.o
+
+LOGTOOL_KISMETDB_HDLC = log_tools/kismetdb_to_hdlc
+LOGTOOL_KISMETDB_HDLC_O = \
+	log_tools/kismetdb_to_hdlc.cc.o
 
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \
@@ -244,7 +279,10 @@ LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_KML) \
 	$(LOGTOOL_KISMETDB_GPX) \
 	$(LOGTOOL_KISMETDB_CLEAN) \
-	$(LOGTOOL_KISMETDB_PCAP)
+	$(LOGTOOL_KISMETDB_PCAP) \
+	$(CELL_LOGTOOL_BINS)
+
+CELL_LOGTOOL_BINS = @CELL_LOGTOOL_BINS@
 
 TOOL_KISMET_DISCOVERY = tools/kismet_discovery
 TOOL_KISMET_DISCOVERY_O = \
@@ -269,12 +307,13 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
-	datasource_catsniffer_zigbee.cc.o datasource_sniffle_ble.cc.o \
+	datasource_catsniffer_zigbee.cc.o datasource_cell_at.cc.o datasource_cell_diag.cc.o \
+	datasource_sniffle_ble.cc.o \
 	datasource_lorapipe.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea_v3.cc.o gpsubx_v1.cc.o gpssirf_v1.cc.o gpsframer_v1.cc.o gpsserial_v3.cc.o gpstcp_v2.cc.o \
-	gpsgpsd_v3.cc.o gpsfake.cc.o gpsweb.cc.o gpsmeta.cc.o \
+	gpsgpsd_v3.cc.o gpsfake.cc.o gpsweb.cc.o gpsmeta.cc.o gpscellmodem.cc.o \
 	packetchain.cc.o packet_filter.cc.o class_filter.cc.o \
 	trackedelement.cc.o trackedelement_workers.cc.o trackedcomponent.cc.o entrytracker.cc.o \
 	trackedlocation.cc.o devicetracker_component.cc.o \
@@ -295,6 +334,7 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	phy_sensor.cc.o phy_meter.cc.o phy_adsb.cc.o phy_ais.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
+	phy_cell.cc.o phy_cell_decisions.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -374,6 +414,21 @@ $(LOGTOOL_KISMETDB_CLEAN):	$(LOGTOOL_KISMETDB_CLEAN_O) $(patsubst %c.o,%c.d,$(LO
 
 $(LOGTOOL_KISMETDB_PCAP): 	$(LOGTOOL_KISMETDB_PCAP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)) version.c.o
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_PCAP) $(LOGTOOL_KISMETDB_PCAP_O) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_CELLNDJSON):	$(LOGTOOL_KISMETDB_CELLNDJSON_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLNDJSON_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_CELLNDJSON) $(LOGTOOL_KISMETDB_CELLNDJSON_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_ATLOG):	$(LOGTOOL_KISMETDB_ATLOG_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_ATLOG_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_ATLOG) $(LOGTOOL_KISMETDB_ATLOG_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_QMILOG):	$(LOGTOOL_KISMETDB_QMILOG_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_QMILOG_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_QMILOG) $(LOGTOOL_KISMETDB_QMILOG_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_CELLLOG):	$(LOGTOOL_KISMETDB_CELLLOG_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLLOG_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_CELLLOG) $(LOGTOOL_KISMETDB_CELLLOG_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_HDLC):	$(LOGTOOL_KISMETDB_HDLC_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_HDLC_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_HDLC) $(LOGTOOL_KISMETDB_HDLC_O) $(LIBS) $(CXXLIBS) -rdynamic
 
 
 
@@ -483,6 +538,12 @@ $(CAPTURE_ANTSDR_DRONEID): $(DATASOURCE_COMMON_A) FORCE
 
 $(CAPTURE_WCH_BLE_ANALYZER_PRO): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_wch_ble_analyzer_pro && $(MAKE))
+
+$(CAPTURE_CELL_AT): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_cell_at && $(MAKE))
+
+$(CAPTURE_CELL_DIAG): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_cell_diag && $(MAKE))
 
 $(TOOL_USBSERIAL): FORCE
 	(cd usbserial && $(MAKE))
@@ -628,6 +689,13 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_GPX) $(BIN)/`basename $(LOGTOOL_KISMETDB_GPX)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CLEAN) $(BIN)/`basename $(LOGTOOL_KISMETDB_CLEAN)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_PCAP) $(BIN)/`basename $(LOGTOOL_KISMETDB_PCAP)`;
+	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CELLNDJSON) $(BIN)/`basename $(LOGTOOL_KISMETDB_CELLNDJSON)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_ATLOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_ATLOG)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_QMILOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_QMILOG)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CELLLOG) $(BIN)/`basename $(LOGTOOL_KISMETDB_CELLLOG)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_HDLC) $(BIN)/`basename $(LOGTOOL_KISMETDB_HDLC)`; \
+	fi;
 
 	# Install the other tools
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(TOOL_KISMET_DISCOVERY) $(BIN)/`basename $(TOOL_KISMET_DISCOVERY)`;
@@ -767,6 +835,14 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_CELL_AT)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_AT) $(BIN)/`basename $(CAPTURE_CELL_AT)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_CELL_DIAG)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_DIAG) $(BIN)/`basename $(CAPTURE_CELL_DIAG)`; \
 	fi;
 
 	mkdir -p $(LIB)/pkgconfig
@@ -1069,6 +1145,11 @@ include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_KML_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_GPX_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CLEAN_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLNDJSON_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_ATLOG_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_QMILOG_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CELLLOG_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_HDLC_O)))
 
 
 include $(wildcard $(patsubst %c.o,%c.d,$(TOOL_KISMET_DISCOVERY_O)))

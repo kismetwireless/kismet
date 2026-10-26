@@ -92,6 +92,7 @@ kis_datasource::~kis_datasource() {
     // cancelled since the callbacks take ext_mutex, which those callers hold
     timetracker->remove_timer(error_timer_id);
     timetracker->remove_timer(ping_timer_id);
+    timetracker->remove_timer(graceful_close_timer_id);
 
     kis_unique_lock<kis_mutex> lk(ext_mutex, "~kisdatasource");
     cancel_all_commands("source deleted");
@@ -245,6 +246,26 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
 void kis_datasource::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource open_interface");
+
+    // The previous capture binary is still finishing a graceful close.
+    // Open once it has; see pending_open.  At most one open waits.
+    if (graceful_close_pending) {
+        if (pending_open != nullptr) {
+            lock.unlock();
+            if (in_cb != nullptr)
+                in_cb(in_transaction, false, "Source is already re-opening");
+            return;
+        }
+
+        pending_open = [this, in_definition, in_transaction, in_cb](bool run) {
+            if (run)
+                open_interface(in_definition, in_transaction, in_cb);
+            else if (in_cb != nullptr)
+                in_cb(in_transaction, false, "Kismet is shutting down");
+        };
+
+        return;
+    }
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -556,6 +577,11 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         return 1;
     });
 
+    // A remote capture reconnecting replaces whatever was closing
+    graceful_close_pending = false;
+    cancel_graceful_close_timer();
+    pending_open = nullptr;
+
     // Unlock before attaching sockets
     lk.unlock();
 
@@ -633,6 +659,22 @@ void kis_datasource::resume_source() {
 }
 
 void kis_datasource::handle_error(const std::string& in_error) {
+    // The capture binary closing its end is how a graceful close
+    // COMPLETES -- a requested stop, not a failure: no error state, and no
+    // retry.
+    if (graceful_close_pending.exchange(false)) {
+        {
+            kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_error graceful");
+            cancel_graceful_close_timer();
+        }
+
+        _MSG_INFO("Data source '{} / {}' closed cleanly ({})", get_source_name(),
+                get_source_interface(), in_error);
+
+        close_external();
+        return;
+    }
+
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource handle_error");
 
     if (!quiet_errors && in_error.length()) {
@@ -659,7 +701,99 @@ void kis_datasource::handle_error(const std::string& in_error) {
 
 void kis_datasource::close_source() {
 	set_int_source_running(false);
+
+    // Ask the capture binary to finish up and close itself; the plain
+    // close follows its EOF, or the grace deadline.
+    if (begin_graceful_close())
+        return;
+
     return close_external();
+}
+
+bool kis_datasource::begin_graceful_close() {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource begin_graceful_close");
+
+    // Already closing: a second close must not cut the first one short.
+    if (graceful_close_pending)
+        return true;
+
+    auto grace = close_grace_ms.load();
+
+    if (grace == 0 || io_ == nullptr || io_->stopped() || cancelled)
+        return false;
+
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("datasource_graceful_close", true))
+        return false;
+
+    grace = std::min(grace, graceful_close_max_ms);
+
+    if (send_packet_v3(KIS_EXTERNAL_V3_KDS_CLOSEREQ, 0, 1, "") == 0)
+        return false;
+
+    graceful_close_pending = true;
+
+    auto wait_ms = grace + graceful_close_margin_ms;
+
+    _MSG_DEBUG("Data source '{}' is closing; waiting up to {} ms for it to finish",
+            get_source_name(), wait_ms);
+
+    cancel_graceful_close_timer();
+    auto gen = graceful_close_gen;
+    // Weak, so a callback still running after a cancel can't outlive the source
+    std::weak_ptr<kis_external_interface> weak = shared_from_this();
+    graceful_close_timer_id =
+        timetracker->register_timer(static_cast<int>((wait_ms + 99) / 100), nullptr, 0,
+                [this, gen, weak](int) -> int {
+                    auto self = weak.lock();
+                    if (self == nullptr)
+                        return 0;
+
+                    abort_graceful_close("did not finish closing within its grace", &gen);
+                    return 0;
+                });
+
+    return true;
+}
+
+void kis_datasource::cancel_graceful_close_timer() {
+    graceful_close_gen++;
+
+    if (graceful_close_timer_id >= 0)
+        timetracker->cancel_timer(graceful_close_timer_id);
+
+    graceful_close_timer_id = -1;
+}
+
+unsigned int kis_datasource::get_graceful_close_wait_ms() const {
+    if (!graceful_close_pending)
+        return 0;
+
+    return std::min(close_grace_ms.load(), graceful_close_max_ms) + graceful_close_margin_ms;
+}
+
+void kis_datasource::abort_graceful_close(const std::string& in_reason) {
+    abort_graceful_close(in_reason, nullptr);
+}
+
+void kis_datasource::abort_graceful_close(const std::string& in_reason,
+        const uint64_t *only_gen) {
+    {
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource abort_graceful_close");
+
+        // A grace timer cancelled while its callback was already running
+        if (only_gen != nullptr && *only_gen != graceful_close_gen)
+            return;
+
+        if (!graceful_close_pending.exchange(false))
+            return;
+
+        cancel_graceful_close_timer();
+    }
+
+    _MSG_ERROR("Data source '{} / {}' {}; closing it without the rest of its teardown",
+            get_source_name(), get_source_interface(), in_reason);
+
+    close_external();
 }
 
 void kis_datasource::close_source_async(std::function<void (void)> in_callback) {
@@ -696,6 +830,13 @@ void kis_datasource::close_external_impl() {
         ping_timer_id = -1;
     }
 
+    // Whatever closed us, nothing is pending any more
+    graceful_close_pending = false;
+    cancel_graceful_close_timer();
+
+    auto reopen = std::move(pending_open);
+    pending_open = nullptr;
+
     set_int_source_running(false);
 
     lk.unlock();
@@ -707,6 +848,21 @@ void kis_datasource::close_external_impl() {
     cancel_all_commands("source closed");
 
     kis_external_interface::close_external_impl();
+
+    // An open that waited on this close.  Posted rather than run here:
+    // we may be inside the old connection's strand, and the open must start
+    // from a clean stack.  Failed, not run, while Kismet is shutting down.
+    if (reopen != nullptr) {
+        if (Globalreg::globalreg->spindown) {
+            reopen(false);
+        } else {
+            boost::asio::post(Globalreg::globalreg->io,
+                    [weak = weak_from_this(), reopen = std::move(reopen)]() mutable {
+                        auto self = weak.lock();
+                        reopen(self != nullptr);
+                    });
+        }
+    }
 }
 
 void kis_datasource::set_device_gps(std::shared_ptr<kis_gps> in_gps) {
@@ -1724,6 +1880,28 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         }
 
         set_int_datasource_version(std::string(ver_s, ver_sz));
+    }
+
+    // Graceful close support, per open: a capture binary that does not
+    // send it -- any older build, any other source -- keeps the plain close.
+    unsigned int close_grace = 0;
+    auto grace_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CLOSEGRACE);
+    if (!mpack_node_is_missing(grace_n)) {
+        close_grace = mpack_node_u32(grace_n);
+
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
+            trigger_error("invalid v3 OPENREPORT");
+            return;
+        }
+    }
+    close_grace_ms = close_grace;
+
+    if (close_grace > 0 &&
+            Globalreg::globalreg->kismet_config->fetch_opt_bool("datasource_graceful_close", true)) {
+        auto packetchain = Globalreg::fetch_global_as<packet_chain>();
+        if (packetchain != nullptr)
+            packetchain->set_drain_at_shutdown();
     }
 
     if (code == 0) {

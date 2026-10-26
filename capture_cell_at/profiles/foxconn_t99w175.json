@@ -1,0 +1,95 @@
+{
+    "vendor": "foxconn",
+    "model": "t99w175",
+    "firmware_match": "T99W175*",
+    "applicable_models": ["T99W175"],
+    "command_reference": {
+        "document": "Foxconn T99W175 (Microsoft Generic Mobile Broadband Adapter) — Qualcomm SDX55 AT set observed via AT+CLAC",
+        "filename": null,
+        "version": null,
+        "date": "2026-08-21"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE", "NR"],
+        "has_qeng": false,
+        "has_qscan": false,
+        "has_neighbourcell": true,
+        "has_cops_scan": true,
+        "notes": "Foxconn/Microsoft SDX55 firmware exposes NO Quectel/Telit/Sierra engineering verbs (AT+QENG, AT#SERVINFO, AT^SCELLINFO, AT+XMCI, AT+CGED all ERROR — confirmed via AT+CLAC, 183 cmds). Cell visibility comes from the Qualcomm proprietary AT$QCRSRP? / AT$QCRSRQ? multi-cell reports (same parser as the Orbic RC400L path, parse_qcrsrp). AT+CESQ also ERRORs; use AT$QCSQ / AT+CSQ for signal. NR-capable (SDX55) but AT surfaces cells only on the serving RAT."
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT$QCRSRP?",
+                "expect": "$QCRSRP:",
+                "purpose": "verify Qualcomm multi-cell report available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT$QCRSRP?",
+                "expect": "$QCRSRP:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT$QCRSRP?",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "qcrsrp",
+            "notes": "Qualcomm multi-cell RSRP report: repeated (pci,earfcn,rsrp_dbm) triplets, first is the serving cell. LTE-only field layout observed on T99W175.F0.1.0.0.9.GC.004. Same parser as the Orbic RC400L (parse_qcrsrp in capture_cell_at.c)."
+        },
+        "neighbor": {
+            "cmd": "AT$QCRSRP?",
+            "interval_ms": 5000,
+            "timeout_ms": 5000,
+            "parser": "qcrsrp",
+            "notes": "$QCRSRP? returns serving + neighbor cells in one report; the neighbor rows are the 2nd..Nth triplets. There is no separate neighbour-only verb on this firmware (AT+QENG=\"neighbourcell\" ERRORs)."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "3GPP operator scan. Returns operator names and RATs."
+        }
+    },
+    "diag": {
+        "usb_id": "05c6:90ad",
+        "port": "QCDM/DM diagnostic on USB interface if00 (ttyUSB, driver=option; ttyUSB19 in the observed composition). capture_cell_diag auto-detects it by matching the IMEI from an AT probe on a sibling port; diagport=<path> overrides.",
+        "port_detect": {
+            "transport": "ttyUSB",
+            "match": "interface",
+            "interface": 0,
+            "driver_path_glob": null
+        },
+        "mask_default": "wardrive",
+        "f3_default": "off",
+        "target_codes": [
+            "0xB193",
+            "0xB0C0",
+            "0xB192",
+            "0xB195",
+            "0xB17F",
+            "0xB821",
+            "0xB97F",
+            "0x1476",
+            "0x14D8"
+        ],
+        "notes": "SDX55 5G NR SA/NSA (sub-6) — same silicon family as the Quectel RM500Q (2c7c:0800), so the full DIAG_TARGET_CODES set applies (capture_cell_diag/diag_config.c is the single source of truth): LTE ML1 serving 0xB193, LTE RRC OTA/SIB1 0xB0C0, LTE ML1 idle neighbors 0xB192, LTE ML1 connected neighbors 0xB195, LTE ML1 per-cell measurement 0xB17F (per-cell RSSI with RSRP/RSRQ), NR5G RRC OTA/SIB1 0xB821, NR5G ML1 measurement DB 0xB97F, GNSS 0x1476/0x14D8. interface=0 pins if00 (DIAG). SPC is not gated on SDX55 (drop --spc). diag_config_filter_supported narrows this intended set to the T99W175's advertised subset at handshake time, so the device decides what is actually subscribed. This part emits 0xB17F with version byte 5 across several firmware builds."
+    }
+}

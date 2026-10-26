@@ -36,6 +36,10 @@
 #define USBSERIAL_TX_XFER_SIZE  16384
 #define USBSERIAL_TXQ_SIZE      (256 * 1024)
 
+/* usbserial_open_ports flags: take interfaces from the host driver that owns
+ * them, and give them back on close */
+#define USBSERIAL_DETACH        0x01
+
 typedef struct {
     uint8_t ifnum;
     const char *role;
@@ -48,6 +52,25 @@ typedef struct {
     /* Terminated by a NULL role */
     const usbserial_role_t *roles;
 } usbserial_model_t;
+
+/* One serial interface of an attached device, from usbserial_enum */
+typedef struct {
+    uint16_t vid;
+    uint16_t pid;
+    uint8_t bus;
+    uint8_t addr;
+    const char *model;
+    uint8_t ifnum;
+    const char *role;
+    int cls;
+    int sub;
+    int prot;
+    /* 1 when a host driver has the interface, 0 when none does, -1 when it
+     * can't be told */
+    int driver;
+} usbserial_portinfo_t;
+
+typedef void (*usbserial_enum_cb_t)(const usbserial_portinfo_t *info, void *aux);
 
 typedef struct usbserial_dev usbserial_dev_t;
 typedef struct usbserial_port usbserial_port_t;
@@ -65,10 +88,22 @@ const usbserial_model_t *usbserial_find_model(uint16_t vid, uint16_t pid);
 /* Print the known devices that are attached, one per line */
 int usbserial_list(FILE *out);
 
+/* Call cb for each serial interface of each known device attached; returns the
+ * number of interfaces, or -1 when USB can't be read */
+int usbserial_enum(usbserial_enum_cb_t cb, void *aux);
+
 /* Open a device and claim its serial interfaces.  vid/pid 0 picks the first known
  * model attached; a bus or addr of -1 matches any.  Returns NULL with err filled in. */
 usbserial_dev_t *usbserial_open(uint16_t vid, uint16_t pid, int bus, int addr,
         char *err, size_t errlen);
+
+/* As usbserial_open, claiming only the interfaces set in ifmask (bit n for
+ * interface n; 0 for all of them).  Without USBSERIAL_DETACH an interface a
+ * host driver owns isn't taken.  On failure errno is ENODEV when there's no such
+ * device, EBUSY when a host driver has an interface, EAGAIN when another program
+ * has claimed one, and EACCES without permission. */
+usbserial_dev_t *usbserial_open_ports(uint16_t vid, uint16_t pid, int bus, int addr,
+        uint32_t ifmask, int flags, char *err, size_t errlen);
 
 /* Start transfers and the event thread */
 int usbserial_start(usbserial_dev_t *dev, usbserial_rx_cb_t rx_cb,

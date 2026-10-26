@@ -144,6 +144,8 @@ kis_wiglecsv_logfile::kis_wiglecsv_logfile(shared_log_builder in_builder) :
         static_cast<kis_bluetooth_phy *>(devicetracker->fetch_phy_handler_by_name("Bluetooth"));
     btle_phy =
         static_cast<kis_btle_phy *>(devicetracker->fetch_phy_handler_by_name("BTLE"));
+    cell_phy =
+        dynamic_cast<kis_cellular_phy *>(devicetracker->fetch_phy_handler_by_name("Cellular"));
 
     if (dot11_phy == nullptr || bt_phy == nullptr || btle_phy == nullptr) {
         _MSG_FATAL("Could not initialize wigle log, phys not available");
@@ -257,8 +259,11 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (in_pack->common_info.type != packet_basic_mgmt)
         return 1;
 
-    // Find the record for the origin device, the only one we care about
-    const auto& d_k = devs->devrefs.find(in_pack->common_info.source);
+    // Find the record for the origin device; the cell phy files its cell under dest
+    auto d_k = devs->devrefs.find(in_pack->common_info.source);
+    if (d_k == devs->devrefs.end() && wigle->cell_phy != nullptr &&
+            in_pack->common_info.phyid == wigle->cell_phy->fetch_phy_id())
+        d_k = devs->devrefs.find(in_pack->common_info.dest);
     if (d_k == devs->devrefs.end())
         return 1;
 
@@ -418,6 +423,72 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 "", // rcoi blank
                 "", // todo - fill bt mfgr id
                 type);
+
+    } else if (wigle->cell_phy != nullptr && wigle->cell_phy->device_is_a(dev)) {
+        auto cell = wigle->cell_phy->fetch_cell_record(dev);
+        if (cell == nullptr)
+            return 1;
+
+        // Export full-identity cells directly. A PCI-only (partial) observation
+        // is exported ONLY once it has been resolved to a known serving cell via
+        // PCI→identity promotion — i.e. resolved_key is non-empty. The
+        // resolved row borrows the serving cell's MAC/operator/plmn while keeping
+        // the partial's OWN arfcn/rat/rsrp (the neighbour's measured signal is the
+        // point). Mirrors the offline exporter's resolved row.
+        bool is_full = (cell->get_cell_identity_level() == "full");
+        bool is_resolved = (!is_full && !cell->get_cell_resolved_key().empty());
+        if (!is_full && !is_resolved)
+            return 1;
+
+        std::string emit_key = is_resolved ?
+            cell->get_cell_resolved_key() : cell->get_cell_key();
+        std::string emit_operator = is_resolved ?
+            cell->get_cell_resolved_operator() : cell->get_cell_operator();
+        std::string emit_plmn = is_resolved ?
+            cell->get_cell_resolved_plmn() : cell->get_cell_plmn();
+
+        auto timestamp = dev->get_last_time();
+
+        std::time_t timet(timestamp);
+        std::tm tm;
+        std::stringstream ts;
+
+        gmtime_r(&timet, &tm);
+
+        char tmstr[256];
+        strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+        ts << tmstr;
+
+        // AuthMode: RAT;MCCMNC
+        //
+        // The operator token is the PLMN AS BROADCAST -- read off the device,
+        // never re-assembled here.  Formatting "{:03d}{:03d}" over two uint16
+        // fields would zero-pad every MNC to three digits and so write
+        // `234015` for the network WiGLE calls `23415`.  WiGLE's importer keys
+        // on this string; a padded one is a different operator to it, for
+        // every 2-digit-MNC PLMN.
+        std::string authmode = fmt::format("{};{}",
+                cell->get_cell_rat(), emit_plmn);
+
+        int signal = cell->get_cell_rsrp();
+
+        // WiGLE v1.6:
+        // [MAC],[SSID],[AuthMode],[FirstSeen],[Channel],[Frequency],[RSSI],
+        //   [CurrentLatitude],[CurrentLongitude],[AltitudeMeters],[AccuracyMeters],
+        //   [RCOIs],[MfgrId],[Type]
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
+                munge_for_csv(emit_key),
+                munge_for_csv(emit_operator),
+                munge_for_csv(authmode),
+                ts.str(),
+                munge_for_csv(dev->get_channel()),
+                (uint32_t) cell->get_cell_arfcn(),
+                signal,
+                in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
+                0,
+                "",
+                "",
+                munge_for_csv(cell->get_cell_rat()));
     }
 
     {

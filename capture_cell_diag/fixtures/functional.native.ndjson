@@ -1,0 +1,4 @@
+{"gps":null,"obs":{"band":5,"duplex":"FDD","earfcn":2600,"is_serving":true,"observation_type":"serving","pci":111,"prov":{"imei":"000000000000000","log_tick":1000,"origin":"0xB193","src":"diag"},"rat":"LTE","rsrp":-85.0,"rsrq":-10.0}}
+{"gps":null,"obs":{"band":5,"duplex":"FDD","earfcn":2600,"is_serving":true,"observation_type":"serving","pci":222,"prov":{"imei":"000000000000000","log_tick":1001,"origin":"0xB193","src":"diag"},"rat":"LTE","rsrp":-97.5,"rsrq":-12.5}}
+{"gps":null,"obs":{"band":5,"duplex":"FDD","earfcn":2600,"is_serving":true,"observation_type":"serving","pci":333,"prov":{"imei":"000000000000000","log_tick":1002,"origin":"0xB193","src":"diag"},"rat":"LTE","rsrp":-105.25,"rsrq":-14.75}}
+{"gps":null,"obs":{"band":2,"duplex":"FDD","earfcn":900,"is_serving":true,"observation_type":"serving","pci":444,"prov":{"imei":"000000000000000","log_tick":1003,"origin":"0xB193","src":"diag"},"rat":"LTE","rsrp":-70.75,"rsrq":-8.25}}

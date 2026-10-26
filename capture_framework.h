@@ -344,6 +344,16 @@ struct kis_capture_handler {
     /* Die when we hit the end of our write buffer */
     atomic_int spindown;
 
+    /* Graceful close.  close_grace_ms > 0 means the source opted in with
+     * cf_handler_set_close_grace() and advertises it in its OPENREPORT.  When the
+     * server's CLOSEREQ arrives, close_requested is set; the capture thread is
+     * expected to leave its loop, run its teardown, and cf_handler_spindown().
+     * If it has not by close_deadline_ms (CLOCK_MONOTONIC), the loop spins down
+     * by itself so a stuck capture thread cannot hold the source open. */
+    unsigned int close_grace_ms;
+    int close_requested;
+    uint64_t close_deadline_ms;
+
     /* TCP/IPC buffers */
     kis_simple_ringbuf_t *in_ringbuf;
     kis_simple_ringbuf_t *out_ringbuf;
@@ -597,6 +607,27 @@ kis_capture_handler_t *cf_handler_init(const char *in_type);
 void cf_handler_free(kis_capture_handler_t *caph);
 
 
+/* Optional per-binary suffix on the reported version string, or NULL (default).
+ *
+ * version.c is generated once at the top level and linked into the server, every
+ * capture binary and the log tools alike, so it cannot describe anything that
+ * varies BETWEEN those binaries.  The celldiag helper's decoder is exactly such
+ * a thing: it is a property of capture_cell_diag's own build, and changing it
+ * does not (and must not) regenerate the shared version.c.
+ *
+ * A capture binary that has such a distinction sets this before parsing argv;
+ * cf_version_string() then appends it.  The server stores whatever the helper
+ * reports as that source's kismet.datasource.probed.datasource_version, so the
+ * distinction lands PER SOURCE in /datasource/all_sources.json -- which is where
+ * "which decoder produced these packets?" is actually asked.
+ */
+extern const char *cf_version_extra;
+
+/* Render this binary's full version into buf: the numeric triple, the git revision and
+ * cf_version_extra when set.  Always NUL-terminated. */
+void cf_version_string(char *buf, size_t len);
+
+
 /* Initialize an interface param
  *
  * Returns:
@@ -633,6 +664,20 @@ void cf_handler_shutdown(kis_capture_handler_t *caph);
  * loop has exited.
  */
 void cf_handler_spindown(kis_capture_handler_t *caph);
+
+/* Graceful close.
+ *
+ * cf_handler_set_close_grace() opts a source in: its OPENREPORT advertises
+ * grace_ms, and the server then stops it with a CLOSEREQ instead of closing the
+ * pipe.  Call it before cf_handler_loop().  grace_ms must cover the source's
+ * whole teardown; it is also the helper-side deadline after which the loop
+ * spins down on its own.
+ *
+ * cf_handler_close_requested() is what a capture loop polls, next to
+ * caph->shutdown: once it is true, leave the loop, run the teardown (anything
+ * sent now still reaches the server), and finish with cf_handler_spindown(). */
+void cf_handler_set_close_grace(kis_capture_handler_t *caph, unsigned int grace_ms);
+int cf_handler_close_requested(kis_capture_handler_t *caph);
 
 /* Pivot into a new namespace and remount root as read-only - this should be
  * used whenever possible by data sources on Linux which can be installed as suidroot;

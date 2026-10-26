@@ -32,6 +32,7 @@
 #include "gpsfake.h"
 #include "gpsweb.h"
 #include "gpsmeta.h"
+#include "gpscellmodem.h"
 #include "kis_databaselogfile.h"
 
 gps_tracker::gps_tracker() :
@@ -103,6 +104,7 @@ void gps_tracker::trigger_deferred_startup() {
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));
     register_gps_builder(shared_gps_builder(new gps_web_builder()));
     register_gps_builder(shared_gps_builder(new gps_meta_builder()));
+    register_gps_builder(shared_gps_builder(new gps_cellmodem_builder()));
 
     // Process any gps options in the config file
     std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->fetch_opt_vec("gps");

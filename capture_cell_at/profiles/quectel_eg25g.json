@@ -1,0 +1,95 @@
+{
+    "vendor": "quectel",
+    "model": "eg25g",
+    "firmware_match": "EG25*",
+    "applicable_models": ["EG25-G", "EG25-GL", "EC25-AF", "EC25-AU", "EC25-E",
+                          "EG91", "EG95", "EM05-G", "EM05-CE"],
+    "command_reference": {
+        "document": "EC2x&EG2x&EG9x&EM05 Series AT Commands Manual",
+        "filename": "Quectel_EC2xEG2xEG9xEM05_Series_AT_Commands_Manual_V2.1.pdf",
+        "version": "V2.1",
+        "date": "2025-03-21"
+    },
+    "identify": {
+        "manufacturer": "AT+CGMI",
+        "model": "AT+CGMM",
+        "firmware": "AT+CGMR",
+        "imei": "AT+CGSN"
+    },
+    "capabilities": {
+        "rats": ["LTE"],
+        "has_qeng": true,
+        "has_qscan": false,
+        "has_neighbourcell": true,
+        "has_cops_scan": true
+    },
+    "lifecycle": {
+        "setup": [
+            {
+                "cmd": "ATE0",
+                "expect": "OK",
+                "purpose": "disable echo"
+            },
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "verify engineering mode available"
+            }
+        ],
+        "verify": [
+            {
+                "cmd": "AT+QENG=\"servingcell\"",
+                "expect": "+QENG:",
+                "purpose": "confirm serving cell readable"
+            }
+        ],
+        "shutdown": []
+    },
+    "scans": {
+        "serving": {
+            "cmd": "AT+QENG=\"servingcell\"",
+            "interval_ms": 2000,
+            "timeout_ms": 5000,
+            "parser": "qeng_serving",
+            "notes": "LTE only. Field order: MCC,MNC,cellID,PCID,EARFCN,band,UL_BW,DL_BW,TAC,RSRP,RSRQ,RSSI,SINR,CQI"
+        },
+        "neighbor": {
+            "cmd": "AT+QENG=\"neighbourcell\"",
+            "interval_ms": 5000,
+            "timeout_ms": 10000,
+            "parser": "qeng_neighbor",
+            "notes": "Returns intra-frequency and inter-frequency LTE neighbors with EARFCN, PCI, RSRP, RSRQ."
+        },
+        "plmn_scan": {
+            "cmd": "AT+COPS=?",
+            "interval_ms": 300000,
+            "timeout_ms": 180000,
+            "parser": "cops_scan",
+            "notes": "WARNING: Has hung the EG25-G requiring power cycle. Use with caution."
+        }
+    },
+    "diag": {
+        "usb_id": "2c7c:0125",
+        "port": "DIAG/DM on USB interface if00 (ttyUSB0 in the default composition: DIAG/NMEA/AT/Modem). capture_cell_diag auto-detects it by matching the IMEI from an AT probe on a sibling port; diagport=<path> overrides.",
+        "port_detect": {
+            "transport": "ttyUSB",
+            "match": "interface",
+            "interface": 0,
+            "driver_path_glob": null
+        },
+        "mask_default": "wardrive",
+        "f3_default": "off",
+        "spc": "000000",
+        "target_codes": [
+            "0xB193",
+            "0xB0C0",
+            "0xB192",
+            "0xB195",
+            "0xB17F",
+            "0xB197",
+            "0x1476",
+            "0x14D8"
+        ],
+        "notes": "LTE-only (Cat 4, no NR radio). spc=000000 (factory default) is sent as a DIAG_SPC_F unlock before LOG_CONFIG — EC2x/EG2x (MDM9607) gate SET_MASK behind SPC, so without it the mask is silently refused and no codes emit. SDX20/SDX55 siblings (LM960/RM500Q) omit diag.spc because they don't gate DIAG. A unit with a non-default SPC overrides with spc=<code> on the source line. Subscribes the LTE subset of DIAG_TARGET_CODES (capture_cell_diag/diag_config.c is the single source of truth): LTE ML1 serving 0xB193, LTE RRC OTA/SIB1 0xB0C0, LTE ML1 idle neighbors 0xB192, LTE ML1 connected neighbors 0xB195, LTE ML1 per-cell measurement 0xB17F (per-cell RSSI with RSRP/RSRQ). The NR5G codes in the shared target set (0xB821 NR RRC, 0xB97F NR ML1) never fire on this part. interface=0 pins if00 rather than trusting the 'lowest ttyUSB' default, so a shifted composition surfaces an actionable diagnostic instead of silently opening the wrong port. GNSS position 0x1476 (LTE ML1 / gpsOne position report) and 0x14D8 (GNSS engine state) complete the set: the capture helper turns 0x1476 into a gps_fix and geo-tags every cell_observation from it. 0x14D8 is subscribed but yields no position (its parser hardcodes lat/lon/alt to 0.0 and no firmware populates those bytes), so it contributes engine state only. This list documents intent; the device decides what is actually subscribed, because diag_config_filter_supported narrows the shared set to each modem's advertised subset at handshake time. 0xB17F is emitted with version byte 5, including on a SIM-less unit. LTE ML1 serving cell information 0xB197 (per-cell DL bandwidth RB + Tx antenna ports, forwarded as bandwidth / bandwidth_rb / tx_antennas) is event-driven, not periodic: an idle window yields none, while a camp after power-on yields a few records (version byte 2; e.g. B12 5035 = 25 RB, B4 2300 = 100 RB, 2 antennas), SIM or no SIM. A 90 s window is too short: this part can take about 2.5 min to camp after power-on."
+    }
+}

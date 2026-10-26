@@ -1,10 +1,86 @@
 :root {
     --devices-modal-background-color: rgba(0,0,0,0.4);
     --devices-modal-content-color: #fefefe;
+    --ds-muted-color: #666;
+    --ds-error-color: #b00;
+    --ds-warn-color: #b60;
+    --ds-control-color: #454545;
+    --ds-control-background: #f6f6f6;
+    --ds-control-border: #c5c5c5;
+    --ds-control-hover-color: #2b2b2b;
+    --ds-control-hover-background: #ededed;
+    --ds-control-hover-border: #ccc;
+    --ds-field-color: #000;
+    --ds-field-background: #fff;
 }
 
 [data-theme="dark"] {
     --devices-modal-content-color: #BBB;
+    --ds-muted-color: #aaa;
+    --ds-error-color: #ff6b6b;
+    --ds-warn-color: #f0a040;
+    --ds-control-color: #eee;
+    --ds-control-background: #555;
+    --ds-control-border: #666;
+    --ds-control-hover-color: #fff;
+    --ds-control-hover-background: #0078a3;
+    --ds-control-hover-border: #59b4d4;
+    --ds-field-color: #fff;
+    --ds-field-background: #444;
+}
+
+/* The cell sources' rows use plain controls; match the jQuery UI ones */
+table.k-ds-table button:not(.ui-button) {
+    font: inherit;
+    padding: .2em .8em;
+    border: 1px solid var(--ds-control-border);
+    border-radius: 3px;
+    background: var(--ds-control-background);
+    color: var(--ds-control-color);
+    cursor: pointer;
+}
+
+table.k-ds-table button:not(.ui-button):hover:not(:disabled) {
+    border-color: var(--ds-control-hover-border);
+    background: var(--ds-control-hover-background);
+    color: var(--ds-control-hover-color);
+}
+
+table.k-ds-table button:not(.ui-button):disabled {
+    opacity: .5;
+    cursor: default;
+}
+
+/* A gap between a field or menu and the control after it, for every source */
+table.k-ds-table select + button,
+table.k-ds-table input + button,
+table.k-ds-table textarea + button,
+table.k-ds-table .ui-selectmenu-button + button,
+table.k-ds-table input + select + .ui-selectmenu-button,
+table.k-ds-table input + .ui-selectmenu-button {
+    margin-left: .4em;
+}
+
+table.k-ds-table select,
+table.k-ds-table textarea,
+table.k-ds-table input:not([type="checkbox"]):not([type="radio"]) {
+    font: inherit;
+    border: 1px solid var(--ds-control-border);
+    border-radius: 3px;
+    background: var(--ds-field-background);
+    color: var(--ds-field-color);
+}
+
+table.k-ds-table input::placeholder,
+table.k-ds-table textarea::placeholder {
+    color: var(--ds-muted-color);
+}
+
+span.k-ds-modem {
+    display: block;
+    font-size: 0.85em;
+    font-weight: normal;
+    opacity: 0.8;
 }
 
 div.k-cc-main {

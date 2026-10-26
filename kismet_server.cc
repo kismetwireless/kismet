@@ -100,6 +100,8 @@
 #include "datasource_catsniffer_zigbee.h"
 #include "datasource_sniffle_ble.h"
 #include "datasource_wch_ble_analyzer_pro.h"
+#include "datasource_cell_at.h"
+#include "datasource_cell_diag.h"
 #include "datasource_lorapipe.h"
 
 #include "logtracker.h"
@@ -137,6 +139,7 @@
 #include "phy_meshtastic.h"
 #include "phy_meshcore.h"
 #include "phy_radiation.h"
+#include "phy_cell.h"
 #include "phy_sensor.h"
 #include "phy_uav_drone.h"
 #include "phy_zwave.h"
@@ -213,6 +216,12 @@ void SpindownKismet() {
     // shutdown everything
     globalregistry->shutdown_deferred();
     globalregistry->spindown = 1;
+
+    // When draining, the log tracker normally drained and stopped the packet threads
+    // above, and this is a no-op; stop them here regardless before the globals go
+    auto packetchain = Globalreg::fetch_global_as<packet_chain>();
+    if (packetchain != nullptr)
+        packetchain->drain_and_stop();
 
     // Start a short shutdown cycle for 2 seconds
     if (daemonize == 0)
@@ -935,6 +944,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_ais_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_802154_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_radiation_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_cellular_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshtastic_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshcore_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_ant_phy()));
@@ -975,6 +985,8 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_catsniffer_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_sniffle_ble_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wch_ble_pro_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_at_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_diag_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_lorapipe_builder()));
 
     // Virtual sources get a special meta-builder

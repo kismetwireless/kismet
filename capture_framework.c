@@ -42,6 +42,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 
 #ifdef HAVE_CAPABILITY
 #include <sys/capability.h>
@@ -70,6 +71,16 @@
 #include "version.h"
 
 int unshare(int);
+
+/* Default: no per-binary suffix.  See capture_framework.h. */
+const char *cf_version_extra = NULL;
+
+void cf_version_string(char *buf, size_t len) {
+    snprintf(buf, len, "%s.%s.%s-%s%s%s",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT,
+            cf_version_extra == NULL ? "" : "-",
+            cf_version_extra == NULL ? "" : cf_version_extra);
+}
 
 uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
     size_t i;
@@ -518,6 +529,10 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->shutdown = 0;
     ch->spindown = 0;
 
+    ch->close_grace_ms = 0;
+    ch->close_requested = 0;
+    ch->close_deadline_ms = 0;
+
     pthread_mutex_init(&(ch->handler_lock), &mutexattr);
 
     ch->listdevices_cb = NULL;
@@ -773,6 +788,29 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
     cf_handler_wake_loop(caph);
 }
 
+static uint64_t cf_mono_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t) ts.tv_sec * 1000ULL + (uint64_t) ts.tv_nsec / 1000000ULL;
+}
+
+void cf_handler_set_close_grace(kis_capture_handler_t *caph, unsigned int grace_ms) {
+    if (caph == NULL)
+        return;
+
+    caph->close_grace_ms = grace_ms;
+}
+
+/* Lock-free on purpose: capture loops poll this, and the capture thread is
+ * cancelled asynchronously -- a thread killed while holding handler_lock would
+ * deadlock cf_handler_shutdown(). */
+int cf_handler_close_requested(kis_capture_handler_t *caph) {
+    if (caph == NULL)
+        return 0;
+
+    return __atomic_load_n(&caph->close_requested, __ATOMIC_ACQUIRE);
+}
+
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
         void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing,
         int offset) {
@@ -988,7 +1026,9 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             break;
 
         if (r == 'v') {
-            printf("%s.%s.%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
+            char version[96];
+            cf_version_string(version, sizeof(version));
+            printf("%s\n", version);
             return 0;
         } else if (r == 'h') {
             ret = -2;
@@ -1842,6 +1882,24 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
     } else if (cmd == KIS_EXTERNAL_V3_CMD_PONG) {
         cbret = 1;
         goto finish;
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_CLOSEREQ) {
+        /* Graceful close.  An opted-in source with a running capture
+         * thread finishes its own teardown and spins down; the loop enforces
+         * the deadline.  Anything else has no teardown to run, so it spins down
+         * now -- which still drains whatever is queued before it exits. */
+        if (!caph->close_requested) {
+            __atomic_store_n(&caph->close_requested, 1, __ATOMIC_RELEASE);
+
+            if (caph->close_grace_ms > 0 && caph->capture_running) {
+                caph->close_deadline_ms = cf_mono_ms() + caph->close_grace_ms;
+            } else {
+                caph->spindown = 1;
+            }
+        }
+
+        pthread_mutex_unlock(&(caph->handler_lock));
+        cf_handler_wake_loop(caph);
+        return 1;
     } else if (cmd == KIS_EXTERNAL_V3_KDS_LISTREQ) {
         if (caph->listdevices_cb == NULL) {
             if (caph->verbose) {
@@ -2118,8 +2176,14 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 translate_chan = strdup(channel);
             }
 
-            /* Cancel channel hopping when told a single channel */
-            if (caph->hopping_running) {
+            /* Cancel channel hopping when told a single channel.
+             *
+             * Not for a `key=value` string: the cell sources carry
+             * their runtime SETTINGS on this route (strategy=,
+             * clock_anchor_sec=), and a scan-profile switch must not end a
+             * band hop the operator started. No channel name of any driver
+             * contains '='. */
+            if (caph->hopping_running && strchr(channel, '=') == NULL) {
                 pthread_cancel(caph->hopthread);
                 caph->hopping_running = 0;
             }
@@ -2616,6 +2680,8 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     /* Reset spindown */
     caph->spindown = 0;
     caph->shutdown = 0;
+    __atomic_store_n(&caph->close_requested, 0, __ATOMIC_RELEASE);
+    caph->close_deadline_ms = 0;
 
     caph->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
     if (caph->in_ringbuf == NULL) {
@@ -2711,6 +2777,8 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
     /* Reset spindown */
     caph->spindown = 0;
     caph->shutdown = 0;
+    __atomic_store_n(&caph->close_requested, 0, __ATOMIC_RELEASE);
+    caph->close_deadline_ms = 0;
 
     msgstr[0] = 0;
     cpi = NULL;
@@ -2958,6 +3026,18 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 pthread_mutex_unlock(&(caph->handler_lock));
                 rv = -1;
                 break;
+            }
+
+            /* Graceful-close deadline: the capture thread was asked to
+             * finish up and has not spun down in time.  Stop waiting for it;
+             * spinning down still sends everything it queued. */
+            if (caph->close_requested && !caph->spindown &&
+                    caph->close_deadline_ms != 0 &&
+                    cf_mono_ms() >= caph->close_deadline_ms) {
+                fprintf(stderr, "ERROR: Capture source %u did not finish its close "
+                        "within %u ms; closing without the rest of its teardown\n",
+                        getpid(), caph->close_grace_ms);
+                caph->spindown = 1;
             }
 
             /* Copy spindown state outside of lock */
@@ -3889,10 +3969,10 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     int n;
 
-    char version[64];
+    /* Room for the per-binary suffix */
+    char version[96];
 
-    snprintf(version, 64, "%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
-            VERSION_TINY, VERSION_GIT_COMMIT);
+    cf_version_string(version, sizeof(version));
 
     est_len += strlen(version);
 
@@ -4119,12 +4199,12 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     mpack_error_t err;
     cf_frame_metadata *meta = NULL;
 
-    char version[64];
+    /* Room for the per-binary suffix */
+    char version[96];
 
     size_t i;
 
-    snprintf(version, 64, "%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
-            VERSION_TINY, VERSION_GIT_COMMIT);
+    cf_version_string(version, sizeof(version));
 
     est_len += strlen(version);
 
@@ -4175,6 +4255,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     /* we don't handle spectrum yet in v3 until we figure out how to define it */
 
+    /* key + uint32 for the graceful-close grace */
+    est_len += 8;
+
     est_len = est_len * 1.5;
 
     meta =
@@ -4201,6 +4284,13 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION);
     mpack_write_cstr(&writer, version);
+
+    /* Only an opted-in source advertises it: the field's absence is what keeps
+     * the server on the plain close for everything else. */
+    if (caph->close_grace_ms > 0) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CLOSEGRACE);
+        mpack_write_u32(&writer, caph->close_grace_ms);
+    }
 
     if (uuid != NULL) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID);
