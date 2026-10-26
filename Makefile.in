@@ -761,8 +761,10 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 
-	cp conf/kismet_manuf.txt.gz $(SHARE)/kismet_manuf.txt.gz
-	cp conf/kismet_adsb_icao.txt.gz $(SHARE)/kismet_adsb_icao.txt.gz
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_manuf.txt.gz $(SHARE)/kismet_manuf.txt.gz
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_adsb_icao.txt.gz $(SHARE)/kismet_adsb_icao.txt.gz
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_bluetooth_ids.txt.gz $(SHARE)/kismet_bluetooth_ids.txt.gz
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_bluetooth_manuf.txt.gz $(SHARE)/kismet_bluetooth_manuf.txt.gz
 
 
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))

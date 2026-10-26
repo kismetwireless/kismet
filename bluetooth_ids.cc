@@ -121,7 +121,7 @@ kis_bt_oid::kis_bt_oid() {
     }
 
     auto fname = 
-        Globalreg::globalreg->kismet_config->fetch_opt_dfl("btoidfile", "%S/kismet/kismet_bluetooth_ids.txt");
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("btoidfile", "%S/kismet/kismet_bluetooth_ids.txt.gz");
 
     auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(fname, "", "", 0, 1);
 
@@ -222,7 +222,7 @@ kis_bt_manuf::kis_bt_manuf() {
     }
 
     auto fname = 
-        Globalreg::globalreg->kismet_config->fetch_opt_dfl("btmanuffile", "%S/kismet/kismet_bluetooth_manuf.txt");
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("btmanuffile", "%S/kismet/kismet_bluetooth_manuf.txt.gz");
 
     auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(fname, "", "", 0, 1);
 
