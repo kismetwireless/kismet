@@ -3088,8 +3088,9 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                             written_sz = write(ipc_iter->in_fd, peek_buf, peeked_sz);
 
                             if (written_sz < 0) {
+                                kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
+
                                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                                    kis_simple_ringbuf_peek_free(ipc_iter->out_ringbuf, peek_buf);
                                     if (ipc_iter->term_callback != NULL) {
                                         ipc_iter->term_callback(caph, ipc_iter, -1);
                                     }
@@ -3208,6 +3209,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         rv = -1;
                         break;
                     }
+
+                    /* Nothing written; retry next pass instead of consuming (size_t) -1 */
+                    kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
+                    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+                    continue;
                 }
 
                 /* Flag it as consumed */
