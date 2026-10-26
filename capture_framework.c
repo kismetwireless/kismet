@@ -1349,6 +1349,8 @@ void *cf_int_capture_thread(void *arg) {
  *
  * IPC termination callback is responsible for freeing the IPC record,
  * if not tracked elsewhere.
+ *
+ * SIGCHLD coalesces, so reap until no child is ready, then return to sigwait.
  */
 void cf_process_child_signals(kis_capture_handler_t *caph) {
     while (1) {
@@ -1357,36 +1359,43 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
         cf_ipc_t *prev_ipc = NULL;
         cf_ipc_t *ipc = NULL;
 
-        if ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
-            pthread_mutex_lock(&(caph->out_ringbuf_lock));
+        caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED);
 
-            if (caph->shutdown) {
-                continue;
-            }
+        if (caught_pid < 0 && errno == EINTR)
+            continue;
 
-            ipc = caph->ipc_list;
+        if (caught_pid <= 0)
+            return;
 
-            while (ipc != NULL) {
-                if (ipc->pid == caught_pid) {
-                    if (ipc == caph->ipc_list) {
-                        caph->ipc_list = ipc->next;
-                    } else {
-                        prev_ipc->next = ipc->next;
-                    }
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-                    if (ipc->term_callback != NULL) {
-                        ipc->term_callback(caph, ipc, pid_status);
-                    }
+        if (caph->shutdown) {
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            continue;
+        }
 
-                    break;
+        ipc = caph->ipc_list;
+
+        while (ipc != NULL) {
+            if (ipc->pid == caught_pid) {
+                if (ipc == caph->ipc_list) {
+                    caph->ipc_list = ipc->next;
+                } else {
+                    prev_ipc->next = ipc->next;
                 }
 
-                prev_ipc = ipc;
-                ipc = ipc->next;
+                if (ipc->term_callback != NULL) {
+                    ipc->term_callback(caph, ipc, pid_status);
+                }
+
+                break;
             }
 
-            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            prev_ipc = ipc;
+            ipc = ipc->next;
         }
+
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
     }
 }
 
@@ -1407,10 +1416,12 @@ void *cf_int_signal_thread(void *arg) {
     setitimer(ITIMER_REAL, &itval, NULL);
 #endif
 
-    /* Unblock signals, we handle them here */
+    /* Unblock signals, we handle them here; the core set stays blocked so
+     * sigwait gets them instead of the default handlers */
     sigset_t unblock_mask;
     sigfillset(&unblock_mask);
     pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
+    pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
 
     while (!caph->spindown && !caph->shutdown) {
         r = sigwait(&cf_core_signal_mask, &sig_caught);
