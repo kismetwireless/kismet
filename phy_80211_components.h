@@ -1357,6 +1357,8 @@ public:
 
             __ImportId(last_bssid_id, p);
             __ImportId(randomized_mac_id, p);
+            __ImportId(alias_group_id, p);
+            __ImportId(alias_method_id, p);
 
             __ImportField(last_beacon_timestamp, p);
 
@@ -1479,6 +1481,10 @@ public:
 
     // Only present on devices with a locally administered address
     __ProxyDynamic(randomized_mac, uint8_t, bool, bool, randomized_mac, randomized_mac_id);
+
+    // Set when dot11_link_randomized links this address to others of the same device
+    __ProxyDynamic(alias_group, std::string, std::string, std::string, alias_group, alias_group_id);
+    __ProxyDynamic(alias_method, std::string, std::string, std::string, alias_method, alias_method_id);
 
     __Proxy(last_beacon_timestamp, uint64_t, time_t,
             time_t, last_beacon_timestamp);
@@ -1670,6 +1676,13 @@ protected:
         randomized_mac_id =
             register_dynamic_field("dot11.device.randomized_mac",
                     "locally administered MAC address, usually randomized for privacy", &randomized_mac);
+        alias_group_id =
+            register_dynamic_field("dot11.device.alias_group",
+                    "key of the first device in a chain of randomized addresses linked as one device",
+                    &alias_group);
+        alias_method_id =
+            register_dynamic_field("dot11.device.alias_method",
+                    "how this address was linked to the previous one (sequence, timing)", &alias_method);
 
         register_field("dot11.device.last_beacon_timestamp",
                 "unix timestamp of last beacon frame",
@@ -1855,6 +1868,10 @@ protected:
 
     std::shared_ptr<tracker_element_uint8> randomized_mac;
     uint16_t randomized_mac_id;
+    std::shared_ptr<tracker_element_string> alias_group;
+    uint16_t alias_group_id;
+    std::shared_ptr<tracker_element_string> alias_method;
+    uint16_t alias_method_id;
 
     std::shared_ptr<tracker_element_uint64> last_beacon_timestamp;
 

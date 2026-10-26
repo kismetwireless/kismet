@@ -874,6 +874,14 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         }
     }
 
+    link_randomized =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_link_randomized", false);
+    if (link_randomized)
+        alias_linker = std::make_unique<randomized_alias_linker>(
+                randomized_alias_linker::params{60, 30, 64, "timing", 600});
+    if (link_randomized)
+        _MSG_INFO("Linking randomized Wi-Fi client addresses which appear to be the same device.");
+
     keep_ie_tags_per_bssid =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_keep_ietags", false);
     if (keep_ie_tags_per_bssid)
@@ -4854,8 +4862,81 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
                 rdev->add_related_device("dot11_uuid_e", basedev->get_key());
             }
         }
+
+        if (link_randomized && dot11info->subtype == packet_sub_probe_req &&
+                dot11dev->has_randomized_mac())
+            handle_randomized_alias(basedev, dot11dev, in_pack, dot11info);
     }
 
+}
+
+void kis_80211_phy::handle_randomized_alias(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
+
+    // The IEs in order, with their contents, minus the SSID and channel which change
+    // between probes; rates, HT/VHT/HE capabilities, extended capabilities and vendor
+    // IEs fingerprint the hardware and driver (Vanhoef et al., AsiaCCS 2016)
+    std::string fp_buf;
+    fp_buf.reserve(256);
+
+    for (const auto& ie_tag : dot11info->ie_tags.tags()) {
+        if (ie_tag.tag_num() == 0 || ie_tag.tag_num() == 3)
+            continue;
+
+        const auto& d = ie_tag.tag_data();
+        fp_buf.push_back(static_cast<char>(ie_tag.tag_num()));
+        fp_buf.push_back(static_cast<char>(d.length()));
+        fp_buf.append(d);
+    }
+
+    // Too little to tell devices apart
+    if (fp_buf.length() < 16)
+        return;
+
+    const uint64_t fp = XXH64(fp_buf.data(), fp_buf.length(), 0);
+
+    std::vector<randomized_alias_linker::link> links;
+    alias_linker->observe(fp, basedev->get_key(), in_pack->ts.tv_sec, dot11info->sequence_number, links);
+
+    // No device lock is held here; each link locks the pair it changes
+    for (const auto& l : links) {
+        auto dev = devicetracker->fetch_device(l.key);
+        if (dev == nullptr)
+            continue;
+
+        auto d11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+        if (d11 == nullptr)
+            continue;
+
+        const auto group = l.group.as_string();
+
+        if (l.method == nullptr) {
+            kis_device_lock lg(dev, false);
+            d11->set_alias_group(group);
+            continue;
+        }
+
+        auto pdev = devicetracker->fetch_device(l.pred);
+        if (pdev == nullptr)
+            continue;
+
+        auto pd11 = pdev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+        if (pd11 == nullptr)
+            continue;
+
+        kis_device_pair_lock plk(dev, pdev);
+
+        dev->add_related_device("dot11_randomized_alias", pdev->get_key());
+        pdev->add_related_device("dot11_randomized_alias", dev->get_key());
+
+        if (!pd11->has_alias_group())
+            pd11->set_alias_group(group);
+
+        d11->set_alias_group(group);
+        d11->set_alias_method(l.method);
+    }
 }
 
 // Associate a client device and a dot11 access point

@@ -43,6 +43,7 @@
 
 #include "kaitai/kaitaistream.h"
 #include "bluetooth_parsers/btle.h"
+#include "xxhash.h"
 #include "bluetooth_parsers/btle_tracker.h"
 
 #ifndef KDLT_BLUETOOTH_LE_LL
@@ -72,6 +73,7 @@ public:
 #define BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE 0x06
 #define BTLE_ADVDATA_SERVICE_UUID128_COMPLETE   0x07
 #define BTLE_ADVDATA_DEVICE_NAME                0x09
+#define BTLE_ADVDATA_TX_POWER_LEVEL             0x0A
 #define BTLE_ADVDATA_SERVICE_DATA_UUID16        0x16
 #define BTLE_ADVDATA_MANUFACTURER_DATA          0xFF
 
@@ -177,6 +179,12 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         entrytracker->register_field("btle.common.uuid_vendor",
                 tracker_element_factory<tracker_element_string>(),
                 "UUID vendor");
+
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_link_randomized", false)) {
+        alias_linker = std::make_unique<randomized_alias_linker>(
+                randomized_alias_linker::params{15, 30, 0, "payload", 120});
+        _MSG_INFO("Linking random BTLE addresses which appear to be the same device.");
+    }
 
     ignore_random =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_ignore_random", false);
@@ -477,6 +485,59 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         tracker->set_last_time(in_pack->ts.tv_sec);
 
         device->set_tracker_type_string(mphy->devtype_tracker);
+    }
+
+    // Address carryover (Becker et al., PoPETs 2019): a device's advertising payload
+    // and its random address change at different times, so the first payload from a
+    // new address matching the last one from an address which just went quiet links
+    // them
+    if (mphy->alias_linker != nullptr && btle_info->btle_decode->is_txaddr_random()) {
+        std::string fp_buf;
+        fp_buf.push_back(static_cast<char>(btle_info->btle_decode->pdu_type()));
+
+        for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+            // Flags and transmit power are the same on many devices
+            if (ad->type() == BTLE_ADVDATA_FLAGS || ad->type() == BTLE_ADVDATA_TX_POWER_LEVEL)
+                continue;
+
+            fp_buf.push_back(static_cast<char>(ad->type()));
+            fp_buf.push_back(static_cast<char>(ad->data().length()));
+            fp_buf.append(ad->data());
+        }
+
+        // Too little payload to be unique to one device
+        if (fp_buf.length() >= 9) {
+            std::vector<randomized_alias_linker::link> links;
+            mphy->alias_linker->observe(XXH64(fp_buf.data(), fp_buf.length(), 0), device->get_key(),
+                    in_pack->ts.tv_sec, -1, links);
+
+            for (const auto& l : links) {
+                auto ldev = mphy->devicetracker->fetch_device(l.key);
+                if (ldev == nullptr)
+                    continue;
+
+                auto lbtle = mphy->fetch_btle_record(ldev);
+                if (lbtle == nullptr)
+                    continue;
+
+                lbtle->set_alias_group(l.group.as_string());
+
+                if (l.method == nullptr)
+                    continue;
+
+                auto pdev = mphy->devicetracker->fetch_device(l.pred);
+                auto pbtle = pdev == nullptr ? nullptr : mphy->fetch_btle_record(pdev);
+                if (pbtle == nullptr)
+                    continue;
+
+                ldev->add_related_device("btle_randomized_alias", pdev->get_key());
+                pdev->add_related_device("btle_randomized_alias", ldev->get_key());
+                lbtle->set_alias_method(l.method);
+
+                if (!pbtle->has_alias_group())
+                    pbtle->set_alias_group(l.group.as_string());
+            }
+        }
     }
 
     if (new_dev) {
