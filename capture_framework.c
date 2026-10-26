@@ -5014,7 +5014,8 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         for (i = 0; i < caph->channel_hop_list_sz; i++) {
             est_len += strlen(caph->channel_hop_list[i]) + 4;
         }
-    } else {
+    } else if (caph->channel != NULL) {
+        /* NULL until a channel set has succeeded, e.g. when refusing the first one */
         est_len += strlen(caph->channel);
     }
 
@@ -5072,7 +5073,7 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         mpack_write_uint(&writer, true);
 
         mpack_complete_map(&writer);
-    } else {
+    } else if (caph->channel != NULL) {
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREPORT_FIELD_CHANNEL);
         mpack_write_cstr(&writer, caph->channel);
     }
