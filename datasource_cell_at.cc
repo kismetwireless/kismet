@@ -19,6 +19,7 @@
 #include "config.h"
 #include "kis_datasource.h"
 #include "kis_databaselogfile.h"
+#include "gpstracker.h"
 #include "datasource_cell_at.h"
 
 kis_datasource_cell_at::kis_datasource_cell_at(shared_datasource_builder in_builder) :
@@ -238,6 +239,7 @@ void kis_datasource_cell_at::stop_source() {
         std::lock_guard<std::mutex> lk(runtime_mutex);
         explicit_close = true;
     }
+    unbind_cell_gps();
     kis_datasource::stop_source();
 }
 
@@ -246,7 +248,86 @@ void kis_datasource_cell_at::disable_source() {
         std::lock_guard<std::mutex> lk(runtime_mutex);
         explicit_close = true;
     }
+    unbind_cell_gps();
     kis_datasource::disable_source();
+}
+
+void kis_datasource_cell_at::bind_cell_gps() {
+    std::string opt = get_definition_opt("gps");
+    if (opt.empty() || opt == "false" || opt == "0" || opt == "no" || opt == "off") {
+        unbind_cell_gps();
+        return;
+    }
+
+    std::string name = (opt == "true" || opt == "1" || opt == "yes" || opt == "on") ?
+        get_source_name() : opt;
+
+    if (!kis_gps_cellmodem::valid_name(name)) {
+        _MSG_ERROR("Data source '{}': gps={} is not a usable GPS name (letters, digits, "
+                "'-', '_' and '.', at most 64); the modem's GNSS is not used.  Name one "
+                "with gps=<name>.", get_source_name(), name);
+        return;
+    }
+
+    auto gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
+    auto gps = gpstracker->find_gps_by_name(name);
+    if (gps == nullptr)
+        gps = gpstracker->create_gps(fmt::format("cellmodem:name={}", name));
+
+    auto cgps = std::dynamic_pointer_cast<kis_gps_cellmodem>(gps);
+    if (cgps == nullptr) {
+        _MSG_ERROR("Data source '{}': GPS '{}' {}; the modem's GNSS is not used.",
+                get_source_name(), name, gps == nullptr ? "could not be created" :
+                "is not a cellmodem GPS");
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lk(runtime_mutex);
+        if (cell_gps != nullptr && cell_gps != cgps)
+            cell_gps->detach(get_source_name());
+        cell_gps = cgps;
+    }
+    set_device_gps(cgps);
+}
+
+void kis_datasource_cell_at::unbind_cell_gps() {
+    std::shared_ptr<kis_gps_cellmodem> g;
+    {
+        std::lock_guard<std::mutex> lk(runtime_mutex);
+        g = cell_gps;
+    }
+    if (g != nullptr)
+        g->detach(get_source_name());
+}
+
+void kis_datasource_cell_at::feed_cell_gps(const std::string& json_str) {
+    // The helper's own bounds: a batch the helper would never send is dropped
+    constexpr size_t max_sentences = 64;
+
+    std::shared_ptr<kis_gps_cellmodem> g;
+    {
+        std::lock_guard<std::mutex> lk(runtime_mutex);
+        g = cell_gps;
+    }
+    if (g == nullptr)
+        return;
+
+    auto j = nlohmann::json::parse(json_str, nullptr, false);
+    if (j.is_discarded() || !j.is_object())
+        return;
+    auto si = j.find("sentences");
+    if (si == j.end() || !si->is_array() || si->size() > max_sentences)
+        return;
+
+    std::vector<std::string> sentences;
+    sentences.reserve(si->size());
+    for (const auto& e : *si) {
+        if (e.is_string() && e.get_ref<const std::string&>().length() <=
+                gps_nmea::max_sentence_len)
+            sentences.push_back(e.get<std::string>());
+    }
+    g->feed_nmea(get_source_name(), sentences);
 }
 
 void kis_datasource_cell_at::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
@@ -291,6 +372,20 @@ void kis_datasource_cell_at::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> 
                                         shared_from_this()));
                         }
                     }
+                }
+
+                // The modem's NMEA, for the cellmodem GPS; not a data row
+                if (type_s != nullptr &&
+                        std::string(type_s, type_sz) == "CellNMEA") {
+                    auto json_n = mpack_node_map_uint_optional(jsonmap,
+                            KIS_EXTERNAL_V3_KDS_SUB_JSON_FIELD_JSON);
+                    if (!mpack_node_is_missing(json_n)) {
+                        auto json_s = mpack_node_str(json_n);
+                        auto json_sz = mpack_node_data_len(json_n);
+                        if (json_s != nullptr)
+                            feed_cell_gps(std::string(json_s, json_sz));
+                    }
+                    return;
                 }
 
                 if (type_s != nullptr &&
@@ -432,6 +527,13 @@ void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned 
             user_cb(in_t, in_success, in_msg);
         if (!in_success)
             return;
+
+        {
+            std::lock_guard<std::mutex> lk(runtime_mutex);
+            if (gen != open_generation)
+                return;
+        }
+        bind_cell_gps();
 
         std::string en = get_definition_opt("enabled");
         bool enabled = !(en == "false" || en == "0" || en == "no" || en == "off");

@@ -80,7 +80,7 @@ int main(void) {
 
     /* Every option the helper actually parses. */
     const char *parsed[] = { "atport", "strategy", "debug", "clock_anchor_sec",
-                             "uuid", "usb", "bandlock", "sierracnd", NULL };
+                             "uuid", "usb", "bandlock", "sierracnd", "gps", "gpsport", NULL };
     for (int i = 0; parsed[i]; i++) {
         if (!cellat_option_is_known(parsed[i])) {
             fprintf(stderr, "  FAIL '%s' is parsed by the helper but reported "

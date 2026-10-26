@@ -27,6 +27,7 @@
 
 #include "kis_datasource.h"
 #include "datasource_cell_modemident.h"
+#include "gpscellmodem.h"
 
 class kis_datasource_cell_at;
 typedef std::shared_ptr<kis_datasource_cell_at> shared_datasource_cell_at;
@@ -92,6 +93,13 @@ protected:
     };
     std::mutex runtime_mutex;
     cellat_runtime_t runtime;
+
+    // gps=<name>: the modem's GNSS feeds this Kismet GPS (gpscellmodem.h).
+    // Guarded by runtime_mutex.
+    std::shared_ptr<kis_gps_cellmodem> cell_gps;
+    void bind_cell_gps();
+    void unbind_cell_gps();
+    void feed_cell_gps(const std::string& json_str);
     std::string last_open_strategy;
     bool opened_before = false;
     bool explicit_close = false;

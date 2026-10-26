@@ -91,6 +91,7 @@ capture_cell_at/test_*
 !capture_cell_at/test_*.c
 capture_cell_diag/kismet_cap_cell_diag
 capture_cell_diag/celldiag_probe
+capture_cell_diag/celldiag_replay_ndjson
 capture_cell_diag/diag_logstream_dump
 # Same rule as capture_cell_at/ above: "selftest binaries are build output",
 # not "these particular files are build output", so a new selftest is ignored

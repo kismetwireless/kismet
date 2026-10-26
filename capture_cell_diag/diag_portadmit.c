@@ -19,6 +19,7 @@
 */
 
 #include <ctype.h>
+#include <dirent.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -262,6 +263,8 @@ int diag_port_admit(const char *sysfs_root, const char *dev_path,
         }
         if (read_hex4(up, "idVendor", vid) && read_hex4(up, "idProduct", pid)) {
             snprintf(v->vidpid, sizeof(v->vidpid), "%s:%s", vid, pid);
+            if (strlen(up) < sizeof(v->usbdev))
+                memcpy(v->usbdev, up, strlen(up) + 1);
             break;
         }
         char *slash = strrchr(up, '/');
@@ -297,6 +300,40 @@ int diag_port_admit(const char *sysfs_root, const char *dev_path,
         return 0;
     }
     return 1;
+}
+
+int diag_portadmit_find_role(const char *sysfs_root, const char *dev_path,
+                             const char *role, char *out, size_t outsz) {
+    diag_portadmit_t self, v;
+    char dir[PATH_MAX];
+    int found = 0;
+
+    if (out == NULL || outsz == 0 || role == NULL)
+        return 0;
+    out[0] = '\0';
+    diag_port_admit(sysfs_root, dev_path, &self);
+    if (self.usbdev[0] == '\0')
+        return 0;
+    if ((size_t)snprintf(dir, sizeof(dir), "%s/class/tty", sysfs_root) >= sizeof(dir))
+        return 0;
+
+    DIR *d = opendir(dir);
+    if (d == NULL)
+        return 0;
+    struct dirent *e;
+    while (!found && (e = readdir(d)) != NULL) {
+        if (e->d_name[0] == '.')
+            continue;
+        diag_port_admit(sysfs_root, e->d_name, &v);
+        if (v.role != NULL && strcmp(v.role, role) == 0 &&
+            strcmp(v.usbdev, self.usbdev) == 0 &&
+            (size_t)snprintf(out, outsz, "/dev/%s", e->d_name) < outsz)
+            found = 1;
+    }
+    closedir(d);
+    if (!found)
+        out[0] = '\0';
+    return found;
 }
 
 void diag_portadmit_label(const diag_portadmit_t *v, char *buf, size_t bufsz) {
@@ -734,6 +771,23 @@ static void test_known_nonat_refused(void) {
           "RM520N-GL if02 and if03 (AT) are admitted");
     check(!admits("/dev/ttyUSB52"), "LM960A18 if00 (DIAG) is refused");
     check(!admits("/dev/ttyUSB53"), "LM960A18 if03 (NMEA) is refused");
+
+    /* The NMEA port beside an AT port is the same device's, never another's. */
+    {
+        char nmea[64];
+        check(diag_portadmit_find_role(g_root, "/dev/ttyUSB42", "NMEA", nmea, sizeof(nmea)) &&
+              strcmp(nmea, "/dev/ttyUSB41") == 0, "EG25-G AT if02 -> its NMEA if01");
+        check(diag_portadmit_find_role(g_root, "/dev/ttyUSB50", "NMEA", nmea, sizeof(nmea)) &&
+              strcmp(nmea, "/dev/ttyUSB49") == 0, "RM520N-GL AT if02 -> its NMEA if01");
+        check(diag_portadmit_find_role(g_root, "/dev/ttyUSB52", "NMEA", nmea, sizeof(nmea)) &&
+              strcmp(nmea, "/dev/ttyUSB53") == 0, "LM960A18 -> its NMEA if03");
+        check(diag_portadmit_find_role(g_root, "/dev/ttyUSB42", "DIAG", nmea, sizeof(nmea)) &&
+              strcmp(nmea, "/dev/ttyUSB40") == 0, "EG25-G AT -> its DIAG if00");
+        check(!diag_portadmit_find_role(g_root, "/dev/ttyUSB42", "NMEA", nmea, 8) &&
+              nmea[0] == '\0', "a too-small buffer finds nothing");
+        check(!diag_portadmit_find_role(g_root, "/dev/ttyNOPE", "NMEA", nmea, sizeof(nmea)),
+              "no sysfs device, no NMEA port");
+    }
     check(admits("/dev/ttyUSB54") && admits("/dev/ttyUSB55") && admits("/dev/ttyUSB56"),
           "LM960A18 if04, if05 and if06 (AT) are admitted");
 

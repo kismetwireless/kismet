@@ -87,6 +87,8 @@ typedef struct {
     const char *role;     /* "DIAG" / "NMEA" when refused as a modem's known
                              non-AT interface (rule 4); else NULL */
     const char *reason;   /* static, operator-facing, never parsed */
+    char usbdev[256];     /* the USB device's sysfs directory, "" when not
+                             found or too long */
 } diag_portadmit_t;
 
 /* Decide whether the tty `dev_path` (e.g. "/dev/ttyUSB0") may be probed,
@@ -97,6 +99,13 @@ typedef struct {
  * refusal. */
 int diag_port_admit(const char *sysfs_root, const char *dev_path,
                     diag_portadmit_t *out);
+
+/* The tty of the same USB device as `dev_path` that the rule-4 table names
+ * `role` ("NMEA", "DIAG"): the EG25-G's if01 beside its AT port. Writes
+ * "/dev/<name>" into out and returns 1, or returns 0 when the device has no
+ * such interface in the table or it has no tty. Opens nothing. */
+int diag_portadmit_find_role(const char *sysfs_root, const char *dev_path,
+                             const char *role, char *out, size_t outsz);
 
 /* "ch341-uart 1a86:7523" -- the verdict's evidence, for a refusal line. An
  * absent half is written as "no-driver" / "no-usb-id". A rule-4 refusal adds

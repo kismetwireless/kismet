@@ -506,6 +506,8 @@ Append options to the source definition after a colon:
 | `bandlock` | `true`, `false` | `false` | Offer the band/RAT lock channels. A lock is written to the modem's saved configuration, so it is off unless asked for. A lock left by a crashed session is undone either way. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
 | `sierracnd` | `true`, `false` | `false` | Sierra only: unlock the advanced AT commands (`AT!ENTERCND`, default password) at open. Without it, a modem that keeps `AT!GSTATUS?` / `AT!LTEINFO?` locked reports less. |
 | `usb` | `auto`, `force`, `off` | `auto` | Modems reached over libusb. See [4e](#4e-modems-with-no-host-driver-usb). |
+| `gps` | a GPS name, `true`, `false` | `false` | Quectel: use the modem's GNSS as a Kismet GPS. `true` names the GPS after the source. See [4g](#4g-the-modems-gnss-as-a-kismet-gps). |
+| `gpsport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(found from the AT port)* | The modem's NMEA port, when it is not found. |
 | `channel` | a lock channel (`LTE`, `LTE-B66`, …) | `AUTO` | Kismet's own option: lock at bring-up. Only on a lock-capable modem, with `bandlock=true`. |
 
 **An option that is not in this table is ignored, and cellat says so.**
@@ -738,6 +740,37 @@ kismetdb_to_celllog --in drive.kismet --out log.jsonl --json   # JSON lines
 ```
 
 `--no-rawat` leaves the `RawAT` exchanges out.
+
+### 4g. The modem's GNSS as a Kismet GPS
+
+`gps=<name>` turns a Quectel modem's GNSS into a Kismet GPS:
+
+```bash
+kismet -c cellat-<imei>:gps=quectel
+```
+
+At capture start cellat turns the GNSS on if it is off (`AT+QGPS=1`, and
+`AT+QGPSCFG="outport","usbnmea"` if its NMEA output was off) and opens the
+modem's NMEA port: the same USB device's NMEA interface (if01 on the EG25-G,
+RM500Q and RM520N-GL), the libusb `nmea` interface for a `usb:` port, or
+`/dev/wwanNnmea0` beside a `/dev/wwanNat0` node; `gpsport=` names it
+otherwise. The port is read by its own thread, so the GNSS never waits on an AT
+exchange, nor an AT exchange on the GNSS, and a GNSS failure is a warning while
+the cell capture goes on. At close the GNSS is put back as it was found.
+
+The sentences feed a `cellmodem` GPS of that name in Kismet, a GPS that is idle
+until its source opens and goes idle again when it closes. It can be declared
+in `kismet.conf` so it exists, with its priority, before the source opens:
+
+```
+gps=cellmodem:name=quectel,priority=-500
+```
+
+A source naming a GPS that does not exist creates it. Its default priority
+(-500) is behind a dedicated receiver (`serial`, `gpsd`, `tcp`) and ahead of
+`web` and `meta`. The source's own observations use its modem's GNSS when it
+has a fix. Give each modem its own name: a GPS takes its sentences from one
+source.
 
 ### 5. Multiple Modems
 

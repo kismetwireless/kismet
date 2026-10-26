@@ -22,6 +22,7 @@ MONITOR_OBJS = \
 	cellat_options.c.o \
 	cellat_stats.c.o \
 	cellat_optset.c.o \
+	cellat_gnss.c.o \
 	cellat_lock.c.o \
 	cellat_portscan.c.o \
 	atlog.c.o \
@@ -98,6 +99,8 @@ TEST_STATS_BIN = test_cellat_stats
 # Runtime settings via set_channel: the classification and
 # value checks, libc + the profile table only.
 TEST_OPTSET_BIN = test_cellat_optset
+# The GNSS reader's NMEA framing and the Quectel AT replies. Pure libc.
+TEST_GNSS_BIN = test_cellat_gnss
 # Band/RAT lock logic: what gets written to a modem's NV.
 TEST_LOCK_BIN = test_cellat_lock
 # CSURVC TAC=0 substitution + the "tac":<n>:0 regression guard.
@@ -214,6 +217,7 @@ SELFTEST_BINS = $(TEST_SERIAL_BIN) \
 	$(TEST_CLOCKANCHOR_BIN) \
 	$(TEST_STATS_BIN) \
 	$(TEST_OPTSET_BIN) \
+	$(TEST_GNSS_BIN) \
 	$(TEST_PROBECLOSE_BIN) \
 	$(TEST_MODEMIDENT_BIN) \
 	$(TEST_PORTADMIT_BIN) \
@@ -224,6 +228,9 @@ SELFTEST_BINS = $(TEST_SERIAL_BIN) \
 all: $(SELFTEST_BINS)
 
 $(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
+
+$(TEST_GNSS_BIN):	test_cellat_gnss.c cellat_gnss.c cellat_gnss.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_GNSS_BIN) test_cellat_gnss.c cellat_gnss.c
 
 $(TEST_LOCK_BIN):	test_cellat_lock.c cellat_lock.c cellat_lock.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_LOCK_BIN) test_cellat_lock.c cellat_lock.c
@@ -312,6 +319,7 @@ clean:
 	@-rm -f $(TEST_WWANPORT_BIN)
 	@-rm -f $(TEST_PROBECLOSE_BIN)
 	@-rm -f $(TEST_MODEMIDENT_BIN)
+	@-rm -f $(TEST_GNSS_BIN)
 	@-rm -f $(TEST_PORTADMIT_BIN)
 	@-rm -f $(TEST_IDENTVOUCH_BIN)
 	@-rm -f $(TEST_PORTSCAN_BIN)

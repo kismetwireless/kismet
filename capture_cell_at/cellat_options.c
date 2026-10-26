@@ -200,6 +200,8 @@ int cellat_option_is_known(const char *key) {
         "bandlock",
         /* Sierra: unlock the advanced AT commands (AT!ENTERCND) at open. */
         "sierracnd",
+        /* The modem's GNSS for a Kismet GPS, and its NMEA port (cellat_gnss.h). */
+        "gps", "gpsport",
         /* cellat's half of the paired-source lifecycle switch. The natural
          * operator action for "stop capturing from this modem" is enabled=false
          * on the paired celldiag-<imei> + cellat-<imei> sources, so cellat must

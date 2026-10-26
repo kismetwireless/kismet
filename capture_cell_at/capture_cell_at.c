@@ -99,6 +99,7 @@
 #include "cellat_stats.h"
 #include "cellat_optset.h"
 #include "cellat_lock.h"
+#include "cellat_gnss.h"
 /* Shared with celldiag: one classifier owns both non-USB naming conventions, so
  * the DIAG source and the AT source can never disagree about a node. */
 /* The non-USB AT-node admission decision. cellat_portscan.c is what
@@ -119,6 +120,7 @@
 #include "clockanchor.h"
 #include "../capture_cell_diag/cell_safefile.h"
 #include "../capture_cell_diag/cell_usbport.h"
+#include "../capture_cell_diag/diag_portadmit.h"
 #include <sys/wait.h>
 
 /* Maximum AT response size (128 KB should handle even AT+COPS=? floods) */
@@ -297,6 +299,19 @@ typedef struct {
     uint64_t      last_x_tx_done_ns;
     uint64_t      last_x_first_rx_ns;
     uint64_t      last_x_rx_done_ns;
+
+    /* gps=: the modem's GNSS, read by its own thread from the NMEA port
+     * (cellat_gnss.h). The thread touches only gnss_fd, the counters and
+     * caph's send ring, never the AT port. */
+    int           gnss_wanted;
+    char          gnss_port_opt[512];     /* gpsport=; "" = find it */
+    char          gnss_port[512];
+    int           gnss_fd;
+    int           gnss_we_enabled;        /* AT+QGPS=1 was ours: AT+QGPSEND at close */
+    char          gnss_outport_orig[16];  /* outport we changed from; "" = untouched */
+    pthread_t     gnss_thread;
+    int           gnss_thread_live;
+    int           gnss_stop;              /* __atomic: set by the capture thread */
 } local_cell_t;
 
 /* -----------------------------------------------------------------------
@@ -2758,7 +2773,7 @@ static void warn_one_unknown_option(const char *key, void *ctx) {
              "IGNORED. Kismet accepts unknown options silently, so this would "
              "otherwise look like it worked. Known options: atport=, "
              "strategy=, debug=, clock_anchor_sec=, bandlock=, sierracnd=, "
-             "usb=, enabled=", key);
+             "usb=, gps=, gpsport=, enabled=", key);
     cf_send_warning(caph, buf);
 }
 
@@ -3678,6 +3693,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         free(dbg);
     }
 
+    /* gps=<name> / gpsport=<path>: read the modem's GNSS (cellat_gnss.h) */
+    local->gnss_wanted = 0;
+    local->gnss_port_opt[0] = '\0';
+    if ((placeholder_len = cf_find_flag(&placeholder, "gps", definition)) > 0)
+        local->gnss_wanted = cellat_gnss_wanted(placeholder, (size_t)placeholder_len);
+    if ((placeholder_len = cf_find_flag(&placeholder, "gpsport", definition)) > 0 &&
+        (size_t)placeholder_len < sizeof(local->gnss_port_opt)) {
+        memcpy(local->gnss_port_opt, placeholder, (size_t)placeholder_len);
+        local->gnss_port_opt[placeholder_len] = '\0';
+    }
+
     /* Scan intervals come from the profile table (cellat_options.c), which
      * was resolved -- and validated -- at the top of open_callback. */
     local->serving_interval_ms = local->strategy->serving_ms;
@@ -4160,6 +4186,221 @@ static void cellat_send_modem_identity(local_cell_t *local) {
     }
 }
 
+/* -----------------------------------------------------------------------
+ * GNSS (cellat_gnss.h)
+ * ----------------------------------------------------------------------- */
+
+static void cellat_gnss_send(local_cell_t *local, cellat_nmea_t *n) {
+    const char *rec = cellat_nmea_record(n);
+    if (rec != NULL) {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        /* A full ring drops the batch: the next one is a second away, and
+         * waiting here would only make this one stale */
+        (void)cf_send_json(local->caph, NULL, 0, NULL, NULL, tv, CELLAT_GNSS_TYPE, rec);
+    }
+    cellat_nmea_clear(n);
+}
+
+static void *cellat_gnss_thread(void *arg) {
+    local_cell_t *local = (local_cell_t *)arg;
+    cellat_nmea_t *n = malloc(sizeof(*n));
+    char rbuf[1024], msg[STATUS_MAX];
+    unsigned long batch_start = 0;
+    const char *why = NULL;
+    int is_tty = isatty(local->gnss_fd);
+
+    if (n == NULL)
+        return NULL;
+    cellat_nmea_init(n);
+
+    while (!__atomic_load_n(&local->gnss_stop, __ATOMIC_ACQUIRE)) {
+        struct pollfd pfd = { .fd = local->gnss_fd, .events = POLLIN, .revents = 0 };
+        int pr = poll(&pfd, 1, 250);
+        if (pr < 0 && errno != EINTR) {
+            why = strerror(errno);
+            break;
+        }
+        if (pr > 0) {
+            if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+                why = "the port went away";
+                break;
+            }
+            ssize_t r = read(local->gnss_fd, rbuf, sizeof(rbuf));
+            if (r < 0 && errno != EAGAIN && errno != EINTR) {
+                why = strerror(errno);
+                break;
+            }
+            if (r == 0 && !is_tty) {
+                why = "end of file";
+                break;
+            }
+            size_t off = 0;
+            while (r > 0 && off < (size_t)r) {
+                size_t used = 0;
+                int before = n->count;
+                int full = cellat_nmea_feed(n, rbuf + off, (size_t)r - off, &used);
+                off += used;
+                if (before == 0 && n->count > 0)
+                    batch_start = now_ms();
+                if (full)
+                    cellat_gnss_send(local, n);
+                else if (used == 0)
+                    break;
+            }
+        }
+        if (n->count > 0 && now_ms() - batch_start >= 1000)
+            cellat_gnss_send(local, n);
+    }
+
+    if (why != NULL && !__atomic_load_n(&local->gnss_stop, __ATOMIC_ACQUIRE)) {
+        snprintf(msg, sizeof(msg), "%s: GNSS reading stopped on %s: %s; the cell "
+                 "capture continues without it", local->name ? local->name : "cellat",
+                 local->gnss_port, why);
+        cf_send_warning(local->caph, msg);
+    }
+    free(n);
+    return NULL;
+}
+
+/* The NMEA port of the modem on device_path: gpsport=, the libusb
+ * sibling, the wwan node, or the sysfs sibling the port table names. */
+static int cellat_gnss_find_port(local_cell_t *local, char *out, size_t outsz) {
+    if (local->gnss_port_opt[0]) {
+        snprintf(out, outsz, "%s", local->gnss_port_opt);
+        return 0;
+    }
+
+    if (cell_usbport_is_spec(local->device_path)) {
+        char dev[CELL_USBPORT_SPEC_MAX];
+        cell_usbport_info_t sib[16];
+        const char *c = strrchr(local->device_path, ':');
+        if (c == NULL || (size_t)(c - local->device_path) >= sizeof(dev))
+            return -1;
+        memcpy(dev, local->device_path, (size_t)(c - local->device_path));
+        dev[c - local->device_path] = '\0';
+        int ns = cell_usbport_siblings(dev, sib, 16);
+        for (int i = 0; i < ns; i++) {
+            if (strcmp(sib[i].role, "nmea") == 0) {
+                snprintf(out, outsz, "%s", sib[i].spec);
+                return 0;
+            }
+        }
+        return -1;
+    }
+
+    if (cellat_gnss_wwan_nmea(local->device_path, out, outsz) == 0)
+        return access(out, F_OK) == 0 ? 0 : -1;
+
+    char real[PATH_MAX];
+    if (realpath(local->device_path, real) == NULL)
+        return -1;
+    return diag_portadmit_find_role(DIAG_PORTADMIT_SYSFS, real, "NMEA", out, outsz) ? 0 : -1;
+}
+
+/* Turn the GNSS on if it is off, open its NMEA port and start the reader.
+ * Any failure is a warning: the cell capture runs either way. */
+static void cellat_gnss_start(local_cell_t *local, kis_capture_handler_t *caph) {
+    char resp[512], msg[STATUS_MAX];
+    const char *who = local->name ? local->name : "cellat";
+
+    if (!local->gnss_wanted)
+        return;
+
+    if (local->vendor != VENDOR_QUECTEL) {
+        snprintf(msg, sizeof(msg), "%s: gps= is supported on Quectel modems only; "
+                 "this %s modem's GNSS is not used", who, vendor_name(local->vendor));
+        cf_send_warning(caph, msg);
+        return;
+    }
+
+    int n = at_command_t(local, "AT+QGPS?", resp, sizeof(resp), 2000);
+    int state = n > 0 ? cellat_qgps_state(resp) : -1;
+    if (state < 0) {
+        snprintf(msg, sizeof(msg), "%s: gps=: the modem did not answer AT+QGPS? "
+                 "(a model without GNSS?); its GNSS is not used", who);
+        cf_send_warning(caph, msg);
+        return;
+    }
+
+    if (state == 0) {
+        char port[16];
+        n = at_command_t(local, "AT+QGPSCFG=\"outport\"", resp, sizeof(resp), 2000);
+        if (n > 0 && cellat_qgps_outport(resp, port, sizeof(port)) == 0 &&
+            strcmp(port, "none") == 0) {
+            n = at_command_t(local, "AT+QGPSCFG=\"outport\",\"usbnmea\"", resp,
+                             sizeof(resp), 2000);
+            if (n > 0 && strstr(resp, "OK") != NULL)
+                snprintf(local->gnss_outport_orig, sizeof(local->gnss_outport_orig),
+                         "%s", port);
+        }
+
+        n = at_command_t(local, "AT+QGPS=1", resp, sizeof(resp), 3000);
+        if (n > 0 && strstr(resp, "OK") != NULL) {
+            local->gnss_we_enabled = 1;
+        } else if (!(n > 0 && strstr(resp, "+CME ERROR: 504") != NULL)) {
+            snprintf(msg, sizeof(msg), "%s: gps=: the modem refused AT+QGPS=1 (%.80s); "
+                     "its GNSS is not used", who, n > 0 ? resp : "no answer");
+            cf_send_warning(caph, msg);
+            return;
+        }
+    }
+
+    if (cellat_gnss_find_port(local, local->gnss_port, sizeof(local->gnss_port)) != 0) {
+        snprintf(msg, sizeof(msg), "%s: gps=: found no NMEA port beside %s; name it "
+                 "with gpsport=<path>", who, local->device_path);
+        cf_send_warning(caph, msg);
+        return;
+    }
+
+    local->gnss_fd = serial_open(local->gnss_port, 115200);
+    if (local->gnss_fd < 0) {
+        snprintf(msg, sizeof(msg), "%s: gps=: cannot open the NMEA port %s: %s%s", who,
+                 local->gnss_port, strerror(errno),
+                 errno == EWOULDBLOCK ? " (held by another reader, such as gpsd)" : "");
+        cf_send_warning(caph, msg);
+        return;
+    }
+
+    __atomic_store_n(&local->gnss_stop, 0, __ATOMIC_RELEASE);
+    if (pthread_create(&local->gnss_thread, NULL, cellat_gnss_thread, local) != 0) {
+        serial_close(&local->gnss_fd);
+        snprintf(msg, sizeof(msg), "%s: gps=: cannot start the GNSS reader", who);
+        cf_send_warning(caph, msg);
+        return;
+    }
+    local->gnss_thread_live = 1;
+
+    snprintf(msg, sizeof(msg), "%s: reading the modem's GNSS from %s%s", who,
+             local->gnss_port, local->gnss_we_enabled ? " (GNSS turned on; off at close)" : "");
+    cf_send_message(caph, msg, MSGFLAG_INFO);
+}
+
+/* Stop the reader, then leave the GNSS as it was found. */
+static void cellat_gnss_stop(local_cell_t *local) {
+    char resp[256], cmd[64];
+
+    if (local->gnss_thread_live) {
+        __atomic_store_n(&local->gnss_stop, 1, __ATOMIC_RELEASE);
+        pthread_join(local->gnss_thread, NULL);
+        local->gnss_thread_live = 0;
+    }
+    serial_close(&local->gnss_fd);
+
+    if (local->serial_fd < 0)
+        return;
+    if (local->gnss_we_enabled) {
+        (void)at_command_t(local, "AT+QGPSEND", resp, sizeof(resp), 2000);
+        local->gnss_we_enabled = 0;
+    }
+    if (local->gnss_outport_orig[0]) {
+        snprintf(cmd, sizeof(cmd), "AT+QGPSCFG=\"outport\",\"%s\"",
+                 local->gnss_outport_orig);
+        (void)at_command_t(local, cmd, resp, sizeof(resp), 2000);
+        local->gnss_outport_orig[0] = '\0';
+    }
+}
+
 /* The session CellLog row, once per capture: the port, profile and modem. */
 static void cellat_send_session_log(local_cell_t *local) {
     struct timeval tv;
@@ -4224,6 +4465,7 @@ void capture_thread(kis_capture_handler_t *caph) {
      * kismetdb keeps it as a data row, so the container names its modem. */
     cellat_send_modem_identity(local);
     cellat_send_session_log(local);
+    cellat_gnss_start(local, caph);
 
     /* The first stats line goes out now, so the panel has a profile
      * and a port to show before the first poll interval has elapsed. */
@@ -4700,6 +4942,8 @@ void capture_thread(kis_capture_handler_t *caph) {
     clock_anchor_emit(local, "end");
 
 done:
+    cellat_gnss_stop(local);
+
     /* Never leave a modem locked. Both exits come here -- the
      * normal teardown and the `goto done` error path -- because a wedged
      * Kismet ring buffer says nothing about the serial port, and a modem left
@@ -4722,6 +4966,7 @@ done:
 int main(int argc, char *argv[]) {
     local_cell_t local = {
         .serial_fd = -1,
+        .gnss_fd = -1,
         .device_path = NULL,
         .modem_imei = NULL,
         .modem_firmware = NULL,
