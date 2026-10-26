@@ -110,6 +110,9 @@ public:
     // Complete a probe - when the last one completes we're done
     void complete_probe(bool in_success, unsigned int in_transaction, std::string in_reason);
 
+    // Why the driver that owns this definition declined it, or ""
+    std::string get_decline_reason();
+
     // Cancel all pending probes, ultimately calls the callback from
     // probe_sources when complete
     void cancel();
@@ -132,6 +135,9 @@ protected:
 
     // Prototype we found
     shared_datasource_builder source_builder;
+
+    // Guarded by probe_lock
+    std::string decline_reason;
 
     // Transaction ID
     std::atomic<unsigned int> transaction_id;
