@@ -1753,6 +1753,49 @@ if test x"$want_mm8108" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_MM8108)"
 fi
 
+want_usbserial="auto"
+AC_ARG_ENABLE([usbserial],
+    AS_HELP_STRING([--disable-usbserial], [Disable kismet_usbserial, which serves the serial ports of USB modems with no host driver (userspace via libusb); built by default when libusb is available]),
+	[case "${enableval}" in
+          no) want_usbserial=no ;;
+           *) want_usbserial=yes ;;
+	 esac],
+         [want_usbserial=auto]
+)
+
+BUILD_USBSERIAL=0
+USBSERIAL_BINS=""
+USBSERIAL_LIBS=""
+usbserial_reason="disabled"
+if test x"$want_usbserial" = x"auto"; then
+    if test x"$have_usb" != x"yes"; then
+        want_usbserial=no
+        usbserial_reason="libusb-1.0 not found"
+    else
+        want_usbserial=yes
+    fi
+fi
+
+if test x"$want_usbserial" = x"yes"; then
+    if test x"$have_usb" != "xyes"; then
+        AC_MSG_ERROR([libusb-1.0 required for kismet_usbserial])
+    fi
+
+    # openpty is in libutil on older glibc and the BSDs
+    OLIBS="$LIBS"
+    AC_SEARCH_LIBS([openpty], [util],
+        [AS_IF([test x"$ac_cv_search_openpty" != x"none required"],
+            [USBSERIAL_LIBS="$ac_cv_search_openpty"])],
+        [AC_MSG_ERROR([openpty() is required for kismet_usbserial])])
+    LIBS="$OLIBS"
+
+    BUILD_USBSERIAL=1
+    USBSERIAL_BINS="\$(TOOL_USBSERIAL)"
+fi
+AC_SUBST(BUILD_USBSERIAL)
+AC_SUBST(USBSERIAL_BINS)
+AC_SUBST(USBSERIAL_LIBS)
+
 
 want_ubertooth="yes"
 AC_ARG_ENABLE([ubertooth],
@@ -2232,6 +2275,7 @@ AC_CONFIG_FILES([
     capture_hak5_wifi_coconut/Makefile
     capture_userspace_usb_wifi/Makefile
     capture_morse_mm8108_usb_halow/Makefile
+    usbserial/Makefile
     capture_linux_bluetooth/Makefile
     capture_linux_wifi/Makefile
     capture_nrf_51822/Makefile
@@ -2538,6 +2582,12 @@ if test "$BUILD_CAPTURE_MM8108" = 1; then
 	echo "yes";
 else
 	echo "no ($mm8108_reason)";
+fi
+printf "     USB serial bridge: "
+if test "$BUILD_USBSERIAL" = 1; then
+	echo "yes";
+else
+	echo "no ($usbserial_reason)";
 fi
 printf "   Compressed firmware: "
 if test x"$want_fwcompress" != x"yes"; then
