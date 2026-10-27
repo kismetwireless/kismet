@@ -1,0 +1,68 @@
+# Kismet device rules
+#
+# Each rule names a condition on a device and what to do when a device matches it:
+#
+#   rule <name> {
+#       when <condition>
+#       tag "<text>"            tag matching devices (any number of tags)
+#       color "#rrggbb"         highlight color for matching devices
+#       view "<description>"    collect matching devices in the view rule-<name>
+#       alert                   raise a DEVICERULE alert when a device starts matching
+#       live                    check on every packet as well as on the timer
+#   }
+#
+# Conditions compare device fields to values:
+#
+#   Fields are Kismet field names, such as kismet.device.base.manuf, or a path through
+#   nested fields joined with '/' (no spaces), such as
+#   kismet.device.base.signal/kismet.common.signal.last_signal.  A path through a list
+#   or map of records matches when any record matches.  Short names: mac, name, phy,
+#   type, manuf, crypt, channel, frequency, packets, datasize, first_time, last_time,
+#   mod_time, num_alerts, signal, min_signal, max_signal, seenby.
+#
+#   Numbers compare with == != < <= > >=, and take + - * / % (put spaces around '/'
+#   for division).  Durations such as 30s, 5m, 2h and 1d are seconds; 'now' is the
+#   current time and age(field) is now - field.
+#
+#   Strings compare with == and !=, or with contains, icontains (any case),
+#   startswith, endswith and matches (a PCRE regex), against a "string".
+#
+#   MAC addresses are written aa:bb:cc:dd:ee:ff, with an optional mask as /24 or
+#   /ff:ff:ff:00:00:00; a short address such as aa:bb:cc matches the prefix.
+#
+#   'x in [a, b, c]' and 'x not in [...]' test against a list of values.
+#   exists(field) tests that a field is present, and count(field) counts entries.
+#   Combine conditions with and, or, not, and parentheses.
+#
+#   A comparison with a field the device doesn't have is false.
+#
+# Examples:
+#
+# rule close-apple {
+#     when manuf contains "Apple" and signal > -60
+#     tag "close"
+#     color "#ff8800"
+# }
+#
+# rule watchlist {
+#     when mac in [00:11:22:33:44:55, aa:bb:cc/24]
+#     tag "watchlist"
+#     view "Devices on the watch list"
+#     alert
+#     live
+# }
+#
+# rule open-ap {
+#     when phy == "IEEE802.11" and type == "Wi-Fi AP" and crypt == "Open"
+#     color "#ff0000"
+# }
+#
+# rule free-ssid {
+#     when dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid icontains "free"
+#     tag "free wifi"
+# }
+#
+# rule gone-quiet {
+#     when age(last_time) > 10m and packets > 1000
+#     tag "quiet"
+# }
