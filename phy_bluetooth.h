@@ -136,6 +136,10 @@ public:
     __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
     __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
 
+    // Piconets seen only by a baseband sniffer, which knows the LAP and in time the UAP
+    __ProxyDynamic(partial_address, std::string, std::string, std::string, partial_address,
+            partial_address_id);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -166,6 +170,10 @@ protected:
                     &battery);
         ranging_id =
             register_dynamic_field("bluetooth.device.ranging", "estimated distance", &ranging);
+        partial_address_id =
+            register_dynamic_field("bluetooth.device.partial_address",
+                    "address known from the piconet's access code, unknown parts as ??",
+                    &partial_address);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -199,6 +207,8 @@ protected:
     uint16_t battery_id;
     std::shared_ptr<btle_tracked_ranging> ranging;
     uint16_t ranging_id;
+    std::shared_ptr<tracker_element_string> partial_address;
+    uint16_t partial_address_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
@@ -230,6 +240,9 @@ public:
 
     // H4 Linux DLT parser
     static int packet_tracker_h4_linux(CHAINCALL_PARMS);
+
+    // Classic piconets from BR/EDR baseband captures (Ubertooth classic mode)
+    static int packet_classifier_bredr_bb(CHAINCALL_PARMS);
 
     // Load stored data
     virtual void load_phy_storage(shared_tracker_element in_storage, 

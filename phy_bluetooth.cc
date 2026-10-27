@@ -35,6 +35,7 @@
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
 #include "alertracker.h"
+#include "manuf.h"
 
 #include "bluetooth_types.h"
 #include "bluetooth_parsers/btle_tracker.h"
@@ -85,6 +86,7 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     packetchain->register_handler(&packet_tracker_h4_linux, this, CHAINPOS_TRACKER, -100);
     packetchain->register_handler(&packet_bluetooth_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
     packetchain->register_handler(&packet_bluetooth_hci_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
+    packetchain->register_handler(&packet_classifier_bredr_bb, this, CHAINPOS_CLASSIFIER, -99);
 
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
@@ -408,6 +410,93 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         in_pack->error = true;
         return 0;
     }
+
+    return 1;
+}
+
+int kis_bluetooth_phy::packet_classifier_bredr_bb(CHAINCALL_PARMS) {
+    // A baseband sniffer only sees the access code of a piconet, which carries the LAP of
+    // the master's address; the UAP can be worked out from packet headers over time, and
+    // the NAP is never sent.  Piconets are tracked by LAP so working out the UAP doesn't
+    // make a new device.
+    constexpr uint32_t dlt_bluetooth_bredr_bb = 255;
+    constexpr size_t bredr_hdr_len = 22;
+    constexpr uint16_t bredr_refuap_valid = 0x0080;
+
+    // The general and dedicated inquiry access codes are hosts looking for devices
+    constexpr uint32_t inquiry_lap_first = 0x9E8B00;
+    constexpr uint32_t inquiry_lap_last = 0x9E8B3F;
+
+    auto btphy = static_cast<kis_bluetooth_phy *>(auxdata);
+
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+        return 0;
+
+    auto linkchunk = in_pack->fetch<kis_datachunk>(btphy->pack_comp_linkframe);
+
+    if (linkchunk == nullptr || linkchunk->dlt != dlt_bluetooth_bredr_bb ||
+            linkchunk->length() < bredr_hdr_len)
+        return 0;
+
+    const auto raw = reinterpret_cast<const uint8_t *>(linkchunk->data());
+
+    const uint32_t lap = raw[8] | ((uint32_t) raw[9] << 8) | ((uint32_t) raw[10] << 16);
+    const uint32_t ref_lap = raw[12] | ((uint32_t) raw[13] << 8) | ((uint32_t) raw[14] << 16);
+    const uint8_t ref_uap = raw[15];
+    const uint16_t flags = raw[20] | ((uint16_t) raw[21] << 8);
+
+    if (raw[0] > 78 || (lap >= inquiry_lap_first && lap <= inquiry_lap_last))
+        return 0;
+
+    const uint8_t addr_bytes[6] = { 0, 0, 0, (uint8_t) (lap >> 16), (uint8_t) (lap >> 8), (uint8_t) lap };
+    const mac_addr addr(addr_bytes, 6);
+
+    const bool has_uap = (flags & bredr_refuap_valid) && ref_lap == lap;
+
+    in_pack->common_info.common_info_ok = true;
+    in_pack->common_info.phyid = btphy->fetch_phy_id();
+    in_pack->common_info.type = packet_basic_mgmt;
+    in_pack->common_info.source = addr;
+    in_pack->common_info.transmitter = addr;
+    in_pack->common_info.channel = fmt::format("{}", raw[0]);
+    in_pack->common_info.freq_khz = (2402 + raw[0]) * 1000;
+
+    kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(),
+            "packet_classifier_bredr_bb");
+
+    auto basedev =
+        btphy->devicetracker->update_common_device(addr, btphy, in_pack,
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                 UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                 UCD_UPDATE_SEENBY),
+                "BR/EDR");
+
+    if (basedev == nullptr)
+        return 0;
+
+    auto btdev = basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+
+    if (btdev == nullptr) {
+        btdev = Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(
+                btphy->bluetooth_device_entry_id);
+        basedev->insert(btdev);
+
+        // The zero NAP isn't a real OUI
+        basedev->set_manuf(Globalreg::globalreg->manufdb->make_manuf("Unknown"));
+        basedev->set_devicename(fmt::format("Piconet {:06X}", lap));
+
+        _MSG_INFO("Detected new Bluetooth classic piconet LAP {:06X}", lap);
+    }
+
+    const auto partial = has_uap ?
+        fmt::format("??:??:{:02X}:{:02X}:{:02X}:{:02X}", ref_uap,
+                (lap >> 16) & 0xFF, (lap >> 8) & 0xFF, lap & 0xFF) :
+        fmt::format("??:??:??:{:02X}:{:02X}:{:02X}",
+                (lap >> 16) & 0xFF, (lap >> 8) & 0xFF, lap & 0xFF);
+
+    // Keep the UAP once found, even if a later frame was sent before it was
+    if ((has_uap || !btdev->has_partial_address()) && btdev->get_partial_address() != partial)
+        btdev->set_partial_address(partial);
 
     return 1;
 }

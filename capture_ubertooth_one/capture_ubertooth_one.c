@@ -61,6 +61,8 @@
 
 #include <libusb.h>
 
+#include "ubertooth_bredr.h"
+
 #define MAX_PACKET_LEN  8192
 
 #ifndef HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT
@@ -108,7 +110,32 @@ typedef struct {
 
     unsigned int last_channel;
     time_t last_reset;
+
+    /* Classic piconet survey instead of BTLE */
+    int classic;
+    u1_bredr_t bredr;
+
+    /* The decoder belongs to the capture thread; a retune asks it to drop its history */
+    int bredr_reset_pending;
 } local_ubertooth_t;
+
+/* Basic rate symbols over the bulk endpoint, 16 USB packets per read */
+#define U1_BREDR_XFER       (PKT_LEN * 16)
+#define U1_BREDR_TIMEOUT_MS 100
+#define U1_BREDR_MAX_AC_ERR 2
+
+/* ubertooth-rx's default, 2441MHz */
+#define U1_BREDR_DEFAULT_FREQ   2441
+
+/* Start receiving in the configured mode on the current channel; call with the lock held */
+static int u1_start_rx(local_ubertooth_t *local_ubertooth) {
+    if (local_ubertooth->classic) {
+        local_ubertooth->bredr_reset_pending = 1;
+        return cmd_rx_syms(local_ubertooth->ut->devh);
+    }
+
+    return cmd_btle_sniffing(local_ubertooth->ut->devh, false);
+}
 
 unsigned int u1_chan_to_freq(unsigned int in_chan) {
     if (in_chan == 37)
@@ -193,7 +220,8 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         return -1;
     }
 
-    ret = cmd_set_modulation(local_ubertooth->ut->devh, MOD_BT_LOW_ENERGY);
+    ret = cmd_set_modulation(local_ubertooth->ut->devh,
+            local_ubertooth->classic ? MOD_BT_BASIC_RATE : MOD_BT_LOW_ENERGY);
 
     if (ret < 0) {
         snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one modulation on device %s",
@@ -210,9 +238,9 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         return -1;
     }
 
-    ret = cmd_btle_sniffing(local_ubertooth->ut->devh, false);
+    ret = u1_start_rx(local_ubertooth);
     if (ret < 0) {
-        snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one btle sniffing on device %s",
+        snprintf(errstr, STATUS_MAX, "%s could not start ubertooth-one receiving on device %s",
                 local_ubertooth->name, local_ubertooth->interface);
         pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         return -1;
@@ -242,6 +270,24 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
         return NULL;
     }
 
+    /* Classic channels are every MHz from 2402 */
+    if (local_ubertooth->classic) {
+        if ((parsechan >= NUM_BREDR_CHANNELS && parsechan < 2402) || parsechan > 2480) {
+            snprintf(errstr, STATUS_MAX, "%s expected a numeric classic channel (0-78) or "
+                    "frequency in MHz (2402-2480)", local_ubertooth->name);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+            return NULL;
+        }
+
+        ret_localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        if (ret_localchan == NULL)
+            return NULL;
+
+        *ret_localchan = parsechan < NUM_BREDR_CHANNELS ? 2402 + parsechan : parsechan;
+
+        return ret_localchan;
+    }
+
     if ((parsechan > 39 && parsechan < 2402) || parsechan > 2480 || 
             (parsechan > 39 && parsechan % 2)) {
         snprintf(errstr, STATUS_MAX, "%s expected a numeric channel (0-39) or frequency in "
@@ -263,6 +309,15 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
 
 int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
         char ***chanlist, size_t *chanlist_sz) {
+    local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
+
+    /* Piconets hop across every channel, so one is enough to find them */
+    if (local_ubertooth->classic) {
+        *chanlist = (char **) malloc(sizeof(char *) * 1);
+        (*chanlist)[0] = strdup("2441");
+        *chanlist_sz = 1;
+        return 1;
+    }
 
     /* U1 firmware seems to crash even w/ 1s channel hopping, so only report channel 37
      * as supported for now */
@@ -321,7 +376,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             continue;
         }
 
-        ret = cmd_btle_sniffing(local_ubertooth->ut->devh, false);
+        ret = u1_start_rx(local_ubertooth);
 
         if (ret < 0) {
             pthread_mutex_unlock(&local_ubertooth->u1_mutex);
@@ -480,6 +535,27 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_ubertooth->ubertooth_number = ubertooth_number;
 
+    if ((placeholder_len = cf_find_flag(&placeholder, "mode", definition)) > 0) {
+        if (strncasecmp(placeholder, "classic", placeholder_len) == 0 && placeholder_len == 7) {
+            local_ubertooth->classic = 1;
+        } else if (strncasecmp(placeholder, "btle", placeholder_len) == 0 && placeholder_len == 4) {
+            local_ubertooth->classic = 0;
+        } else {
+            snprintf(msg, STATUS_MAX, "%s unknown mode= option, expected 'btle' or 'classic'",
+                    local_ubertooth->name);
+            return -1;
+        }
+    }
+
+    if (local_ubertooth->classic) {
+        if (u1_bredr_init(&local_ubertooth->bredr, U1_BREDR_MAX_AC_ERR) < 0) {
+            snprintf(msg, STATUS_MAX, "%s could not initialize libbtbb", local_ubertooth->name);
+            return -1;
+        }
+
+        local_ubertooth->last_channel = U1_BREDR_DEFAULT_FREQ;
+    }
+
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
@@ -514,8 +590,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     ret = populate_chanlist(caph, local_ubertooth->interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
 
-    /* we decode the DLT on the host */
-    *dlt = 0;
+    /* BTLE is converted on the host; classic is sent as BR/EDR baseband */
+    *dlt = local_ubertooth->classic ? U1_BREDR_DLT : 0;
 
     (*ret_interface)->capif = strdup(local_ubertooth->interface);
 
@@ -541,7 +617,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     } else {
         localchan = (unsigned int *) malloc(sizeof(unsigned int));
-        *localchan = 2402;
+        *localchan = local_ubertooth->classic ? U1_BREDR_DEFAULT_FREQ : 2402;
     }
 
     snprintf(errstr, STATUS_MAX, "%d", *localchan);
@@ -593,6 +669,64 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     return num_devs;
 }
 
+static void bredr_emit(void *ctx, const usb_pkt_rx *rx, const uint8_t *frame, size_t frame_sz) {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) ctx;
+    struct timeval ts;
+    int r;
+
+    gettimeofday(&ts, NULL);
+
+    while (1) {
+        if ((r = cf_send_data(caph, NULL, 0, NULL, NULL, ts, U1_BREDR_DLT,
+                        frame_sz, frame_sz, (uint8_t *) frame)) < 0) {
+            cf_send_error(caph, 0, "unable to send DATA frame");
+            cf_handler_spindown(caph);
+            break;
+        } else if (r == 0) {
+            cf_handler_wait_ringbuffer(caph);
+            continue;
+        } else {
+            break;
+        }
+    }
+}
+
+static void capture_thread_classic(kis_capture_handler_t *caph) {
+    local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
+    uint8_t buf[U1_BREDR_XFER];
+    usb_pkt_rx rx;
+    int got, r, i, reset;
+
+    while (!caph->spindown) {
+        got = 0;
+
+        pthread_mutex_lock(&local_ubertooth->u1_mutex);
+        r = libusb_bulk_transfer(local_ubertooth->ut->devh, DATA_IN, buf, sizeof(buf),
+                &got, U1_BREDR_TIMEOUT_MS);
+        reset = local_ubertooth->bredr_reset_pending;
+        local_ubertooth->bredr_reset_pending = 0;
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
+
+        if (reset)
+            u1_bredr_reset(&local_ubertooth->bredr);
+
+        if (r < 0 && r != LIBUSB_ERROR_TIMEOUT) {
+            cf_send_error(caph, 0, "error receiving from Ubertooth One");
+            break;
+        }
+
+        if (got < 0 || got > (int) sizeof(buf))
+            continue;
+
+        for (i = 0; i + PKT_LEN <= got; i += PKT_LEN) {
+            memcpy(&rx, buf + i, sizeof(usb_pkt_rx));
+            u1_bredr_feed(&local_ubertooth->bredr, &rx, bredr_emit, caph);
+        }
+    }
+
+    cf_handler_spindown(caph);
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
     usb_pkt_rx rx;
@@ -600,6 +734,11 @@ void capture_thread(kis_capture_handler_t *caph) {
     struct timeval ts;
     char errstr[STATUS_MAX];
     int reset_due;
+
+    if (local_ubertooth->classic) {
+        capture_thread_classic(caph);
+        return;
+    }
 
     while (!caph->spindown) {
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
@@ -655,6 +794,8 @@ int main(int argc, char *argv[]) {
         .u1_mutex = PTHREAD_MUTEX_INITIALIZER,
         .last_channel = 2402,
         .last_reset = 0,
+        .classic = 0,
+        .bredr_reset_pending = 0,
     };
 
     /* Clobber the USB debug settings because libubertooth sets it to be verbose */
@@ -716,6 +857,9 @@ int main(int argc, char *argv[]) {
     cf_handler_loop(caph);
 
     cf_handler_free(caph);
+
+    if (local_ubertooth.classic)
+        u1_bredr_free(&local_ubertooth.bredr);
 
     return 1;
 }

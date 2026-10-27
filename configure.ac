@@ -1850,7 +1850,7 @@ AC_ARG_ENABLE([ubertooth],
 	[want_ubertooth=yes]
 )
 
-AS_IF([test "xwant_ubertooth" != "xno"], [
+AS_IF([test "x$want_ubertooth" != "xno"], [
     OCFL="$CFLAGS"
     OCPPFL="$CPPFLAGS"
     OLFL="$LDFLAGS"
