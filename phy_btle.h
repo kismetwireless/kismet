@@ -696,6 +696,10 @@ public:
    __ProxyDynamic(appearance_name, std::string, std::string, std::string, appearance_name,
            appearance_name_id);
 
+   // Only set for random addresses; see btle_random_address_type
+   __ProxyDynamic(random_address_type, std::string, std::string, std::string, random_address_type,
+           random_address_type_id);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -746,6 +750,11 @@ protected:
         appearance_name_id =
             register_dynamic_field("btle.device.appearance_name", "advertised appearance, as text",
                     &appearance_name);
+
+        random_address_type_id =
+            register_dynamic_field("btle.device.random_address_type",
+                    "kind of random address (static, resolvable, non-resolvable, reserved)",
+                    &random_address_type);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -777,6 +786,9 @@ protected:
     uint16_t appearance_id;
     std::shared_ptr<tracker_element_string> appearance_name;
     uint16_t appearance_name_id;
+
+    std::shared_ptr<tracker_element_string> random_address_type;
+    uint16_t random_address_type_id;
 
     std::shared_ptr<tracker_element_string> alias_group;
     uint16_t alias_group_id;

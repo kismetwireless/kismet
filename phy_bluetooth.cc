@@ -46,6 +46,7 @@
 #include "bluetooth_parsers/btle_ranging.h"
 #include "bluetooth_parsers/btle_beacon.h"
 #include "bluetooth_parsers/bt_assigned.h"
+#include "bluetooth_parsers/btle.h"
 
 
 
@@ -282,10 +283,17 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     basedev->set_tracker_type_string(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
                     break;
-                case 2:
+                case 2: {
                     basedev->set_tracker_type_string(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
+
+                    // LE random
+                    const auto rtype = btle_random_address_type(btaddr_mac[0]);
+                    if (!btdev->has_random_address_type() ||
+                            btdev->get_random_address_type() != rtype)
+                        btdev->set_random_address_type(rtype);
                     break;
+                }
                 default:
                     basedev->set_tracker_type_string(btphy->btdev_bt);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
@@ -1222,10 +1230,18 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
                 if (addr_type == 0xFF)
                     continue;
 
-                auto btdev = mphy->hci_device(in_pack, hci_bdaddr(ext ? r + 3 : r + 2), true,
-                        rssi, basedev);
+                const auto addr = hci_bdaddr(ext ? r + 3 : r + 2);
+                auto btdev = mphy->hci_device(in_pack, addr, true, rssi, basedev);
                 if (btdev == nullptr)
                     continue;
+
+                // Random, or a random static identity the controller resolved
+                if (addr_type == 0x01 || addr_type == 0x03) {
+                    const auto rtype = btle_random_address_type(addr[0]);
+                    if (!btdev->has_random_address_type() ||
+                            btdev->get_random_address_type() != rtype)
+                        btdev->set_random_address_type(rtype);
+                }
 
                 mphy->apply_hci_advdata(in_pack, *basedev, *btdev, advdata, dlen);
             }

@@ -29,6 +29,21 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
                 help: "Service classes from the class of device.",
             },
             {
+                field: "bluetooth.device/bluetooth.device.random_address_type",
+                title: "Random Address",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    var types = {
+                        "static": "Static (kept until the device restarts)",
+                        "resolvable": "Resolvable private (rotates; bonded devices can resolve it)",
+                        "non-resolvable": "Non-resolvable private (rotates)",
+                        "reserved": "Reserved type",
+                    };
+                    return types[opts['value']] || kismet.censorString(opts['value']);
+                },
+                help: "The kind of random address the device advertises with.  Private addresses change every few minutes, so the same device appears under several addresses.",
+            },
+            {
                 field: "bluetooth.device/bluetooth.device.lmp_version",
                 title: "Bluetooth Version",
                 filterOnEmpty: true,

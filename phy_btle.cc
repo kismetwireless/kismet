@@ -929,6 +929,12 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         apply_adv(*btle_dev->get_adv(), adv_decode, mphy->btmanuf.get(), mphy->btoid.get(),
                 in_pack->ts.tv_sec);
 
+    if (btle_info->btle_decode->is_txaddr_random()) {
+        const auto rtype = btle_random_address_type(device->get_macaddr()[0]);
+        if (!btle_dev->has_random_address_type() || btle_dev->get_random_address_type() != rtype)
+            btle_dev->set_random_address_type(rtype);
+    }
+
     for (auto ad : *btle_info->btle_decode->advertised_data()) {
         if (btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_ind() ||
                 btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_scan_ind()) {

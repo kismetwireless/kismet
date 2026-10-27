@@ -163,6 +163,10 @@ public:
             le_features_id);
     __ProxyDynamic(last_probed, uint64_t, time_t, time_t, last_probed, last_probed_id);
 
+    // Only set for LE random addresses
+    __ProxyDynamic(random_address_type, std::string, std::string, std::string,
+            random_address_type, random_address_type_id);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -231,6 +235,10 @@ protected:
             register_dynamic_field("bluetooth.device.beacon", "advertised beacon identity", &beacon);
         adv_id =
             register_dynamic_field("bluetooth.device.adv", "decoded advertising and EIR data", &adv);
+        random_address_type_id =
+            register_dynamic_field("bluetooth.device.random_address_type",
+                    "kind of LE random address (static, resolvable, non-resolvable, reserved)",
+                    &random_address_type);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -290,6 +298,8 @@ protected:
     uint16_t beacon_id;
     std::shared_ptr<bt_tracked_adv> adv;
     uint16_t adv_id;
+    std::shared_ptr<tracker_element_string> random_address_type;
+    uint16_t random_address_type_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
