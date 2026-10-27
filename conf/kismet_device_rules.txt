@@ -36,6 +36,18 @@
 #
 #   A comparison with a field the device doesn't have is false.
 #
+# Sorts order devices for the device views:
+#
+#   sort <name> {
+#       by <value> [asc|desc], <value> [asc|desc] ...
+#   }
+#
+#   A value is a field or a calculation on fields, a true/false condition (false
+#   sorts first), or 'rule', the position of the first rule in this file the device
+#   matches.  Later values break ties in earlier ones; devices missing a value sort
+#   after the rest, in either direction.  Ask a view for a sort with rule_sort, as in
+#   /devices/views/all/devices.json?rule_sort=<name>.
+#
 # Examples:
 #
 # rule close-apple {
@@ -60,6 +72,14 @@
 # rule free-ssid {
 #     when dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid icontains "free"
 #     tag "free wifi"
+# }
+#
+# sort loudest {
+#     by signal desc, packets desc
+# }
+#
+# sort by-rule {
+#     by rule, last_time desc
 # }
 #
 # rule gone-quiet {

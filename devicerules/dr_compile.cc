@@ -122,11 +122,12 @@ bc str_op(op o) {
 class compiler {
 public:
     compiler(ruleset& rs, resolver& r) :
-        rs{rs}, res{r}, cur_rule{nullptr} { }
+        rs{rs}, res{r}, cur_now{nullptr} { }
 
     void compile_all() {
         for (auto& r : rs.rules) {
-            cur_rule = r.get();
+            cur_what = "rule '" + r->name + "'";
+            cur_now = &r->uses_now;
             r->uses_now = false;
             check(r->expr, true);
 
@@ -144,17 +145,63 @@ public:
             if (r->uses_now)
                 rs.any_now = true;
         }
+
+        for (auto& s : rs.sorts) {
+            cur_what = "sort '" + s->name + "'";
+            cur_now = &s->uses_now;
+            s->uses_now = false;
+
+            for (auto& k : s->keys) {
+                if (k.expr == nullptr) {
+                    k.type = vtype::integer;
+                    continue;
+                }
+
+                check(k.expr, false);
+
+                if (is_multi(k.expr))
+                    error(k.expr.get(), "fields with several values can't be sort keys");
+                if (k.expr->kind == nkind::literal)
+                    error(k.expr.get(), "a sort key can't be a constant");
+
+                switch (k.expr->type) {
+                    case vtype::boolean:
+                    case vtype::integer:
+                    case vtype::real:
+                    case vtype::string:
+                    case vtype::mac:
+                        break;
+                    default:
+                        error(k.expr.get(), "can't sort by this");
+                }
+
+                k.type = k.expr->type;
+                k.cr.entry = rs.code.size();
+                nregs = 1;
+                gen(k.expr.get(), 0);
+                emit(bc::ret, 0, 0, 0);
+                k.cr.len = rs.code.size() - k.cr.entry;
+                k.cr.nregs = nregs;
+
+                if (nregs > rs.nregs_max)
+                    rs.nregs_max = nregs;
+            }
+
+            if (s->uses_now)
+                rs.any_now = true;
+        }
     }
 
 private:
     ruleset& rs;
     resolver& res;
-    rule_def *cur_rule;
+    std::string cur_what;
+    bool *cur_now;
     uint16_t nregs;
     ankerl::unordered_dense::map<std::string, int> slot_map;
 
     [[noreturn]] void error(const node *n, const std::string& msg) {
-        throw parse_error("rule '" + cur_rule->name + "': " + msg, n->line, n->col);
+        throw parse_error(cur_what + ": " + msg, n->line, n->col);
     }
 
     int resolve_field(const node *n, const std::string& text) {
@@ -350,7 +397,7 @@ private:
                 break;
 
             case nkind::now:
-                cur_rule->uses_now = true;
+                *cur_now = true;
                 n->type = vtype::integer;
                 break;
 

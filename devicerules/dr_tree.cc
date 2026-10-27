@@ -322,4 +322,26 @@ bool ruleset::eval_tree(eval_ctx& ctx, size_t r) const {
     return te.eval(rules[r]->expr.get()).i != 0;
 }
 
+void ruleset::eval_sort_tree(eval_ctx& ctx, size_t s, value *out) const {
+    tree_eval te{*this, ctx};
+    const auto& sd = *sorts[s];
+
+    for (size_t k = 0; k < sd.keys.size(); k++) {
+        if (sd.keys[k].expr != nullptr) {
+            out[k] = te.eval(sd.keys[k].expr.get());
+            continue;
+        }
+
+        value v{};
+        v.i = rules.size();
+        v.valid = 1;
+        for (size_t r = 0; r < rules.size(); r++)
+            if (te.eval(rules[r]->expr.get()).i != 0) {
+                v.i = r;
+                break;
+            }
+        out[k] = v;
+    }
+}
+
 }

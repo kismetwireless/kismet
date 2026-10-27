@@ -50,10 +50,16 @@ void h_load(eval_ctx *ctx, sljit_sw slot, value *dst) {
     ctx->rs->load_cached(*ctx, (uint32_t) slot, *dst);
 }
 
+sljit_sw h_first(eval_ctx *ctx) {
+    return (sljit_sw) ctx->rs->first_match(*ctx, nullptr);
+}
+
 constexpr sljit_s32 CTX = SLJIT_S0;
 constexpr sljit_s32 WANT = SLJIT_S1;
 constexpr sljit_s32 OUT = SLJIT_S2;
 constexpr sljit_s32 REGS = SLJIT_S3;
+// Key output of a sort function, its second argument
+constexpr sljit_s32 KOUT = SLJIT_S1;
 
 constexpr sljit_sw val_off(uint32_t r) {
     return (sljit_sw) r * (sljit_sw) sizeof(value);
@@ -69,6 +75,12 @@ constexpr sljit_sw valid_off(uint32_t r) {
 
 #ifdef DR_JIT_SUPPORTED
 
+enum class jit_kind : uint8_t {
+    all,
+    first,
+    sort,
+};
+
 class jit_builder {
 public:
     jit_builder(ruleset& rs) :
@@ -79,9 +91,9 @@ public:
             sljit_free_compiler(c);
     }
 
-    // The all-rules function, or with first set, the first-match function
-    void *build(bool in_first, std::string& err) {
-        first = in_first;
+    // The all-rules function, the first-match function, or the keys of one sort
+    void *build(jit_kind in_kind, size_t sort, std::string& err) {
+        kind = in_kind;
         c = sljit_create_compiler(nullptr);
         if (c == nullptr) {
             err = "could not create the jit compiler";
@@ -103,16 +115,27 @@ public:
         cache_gen = reinterpret_cast<const char *>(&ce.gen) - cbase;
         cache_v = reinterpret_cast<const char *>(&ce.v) - cbase;
 
-        if (first)
-            sljit_emit_enter(c, 0, SLJIT_ARGS2(W, P, P), 3, 4, 0);
-        else
-            sljit_emit_enter(c, 0, SLJIT_ARGS3V(P, P, P), 3, 4, 0);
+        switch (kind) {
+            case jit_kind::all:
+                sljit_emit_enter(c, 0, SLJIT_ARGS3V(P, P, P), 3, 4, 0);
+                break;
+            case jit_kind::first:
+                sljit_emit_enter(c, 0, SLJIT_ARGS2(W, P, P), 3, 4, 0);
+                break;
+            case jit_kind::sort:
+                sljit_emit_enter(c, 0, SLJIT_ARGS2V(P, P), 3, 4, 0);
+                break;
+        }
         sljit_emit_op1(c, SLJIT_MOV_P, REGS, 0, SLJIT_MEM1(CTX), off_rp);
 
-        for (size_t r = 0; r < rs.compiled.size(); r++)
-            rule(r);
+        if (kind == jit_kind::sort) {
+            sort_keys(sort);
+        } else {
+            for (size_t r = 0; r < rs.compiled.size(); r++)
+                rule(r);
+        }
 
-        if (first)
+        if (kind == jit_kind::first)
             sljit_emit_return(c, SLJIT_MOV, SLJIT_IMM, (sljit_sw) rs.compiled.size());
         else
             sljit_emit_return_void(c);
@@ -132,7 +155,7 @@ public:
 private:
     ruleset& rs;
     struct sljit_compiler *c;
-    bool first;
+    jit_kind kind;
     sljit_sw off_now, off_rp, off_cp, off_gen;
     sljit_sw cache_sz, cache_gen, cache_v;
 
@@ -234,21 +257,9 @@ private:
         store_bool_and_valid(in.a);
     }
 
-    void rule(size_t r) {
-        const auto& cr = rs.compiled[r];
-
-        // Skip rules the caller didn't ask for
-        auto all = sljit_emit_cmp(c, SLJIT_EQUAL, WANT, 0, SLJIT_IMM, 0);
-        sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_R0, 0, SLJIT_MEM1(WANT), (sljit_sw) r);
-        auto wanted = sljit_emit_cmp(c, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
-        if (!first)
-            sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_MEM1(OUT), (sljit_sw) r, SLJIT_IMM, 0);
-        auto skip = sljit_emit_jump(c, SLJIT_JUMP);
-
-        auto run = sljit_emit_label(c);
-        sljit_set_label(all, run);
-        sljit_set_label(wanted, run);
-
+    // Emit one compiled range; on_ret handles its ret and queues jumps to the end
+    template<typename F>
+    struct sljit_label *body(const compiled_rule& cr, F on_ret) {
         // Jumps are forward only; patch each when its target is reached
         std::multimap<size_t, struct sljit_jump *> pending;
         std::vector<struct sljit_jump *> to_end;
@@ -320,17 +331,7 @@ private:
                     break;
 
                 case bc::ret:
-                    sljit_emit_op1(c, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(REGS), val_off(in.a));
-                    if (first) {
-                        // No match falls through to the next rule
-                        to_end.push_back(sljit_emit_cmp(c, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
-                        sljit_emit_return(c, SLJIT_MOV, SLJIT_IMM, (sljit_sw) r);
-                        break;
-                    }
-                    sljit_emit_op2u(c, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R0, 0, SLJIT_IMM, 0);
-                    sljit_emit_op_flags(c, SLJIT_MOV, SLJIT_R0, 0, SLJIT_NOT_EQUAL);
-                    sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_MEM1(OUT), (sljit_sw) r, SLJIT_R0, 0);
-                    to_end.push_back(sljit_emit_jump(c, SLJIT_JUMP));
+                    on_ret(in, to_end);
                     break;
 
                 default:
@@ -345,7 +346,65 @@ private:
             sljit_set_label(p.second, end);
         for (auto j : to_end)
             sljit_set_label(j, end);
+
+        return end;
+    }
+
+    void rule(size_t r) {
+        // Skip rules the caller didn't ask for
+        auto all = sljit_emit_cmp(c, SLJIT_EQUAL, WANT, 0, SLJIT_IMM, 0);
+        sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_R0, 0, SLJIT_MEM1(WANT), (sljit_sw) r);
+        auto wanted = sljit_emit_cmp(c, SLJIT_NOT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0);
+        if (kind == jit_kind::all)
+            sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_MEM1(OUT), (sljit_sw) r, SLJIT_IMM, 0);
+        auto skip = sljit_emit_jump(c, SLJIT_JUMP);
+
+        auto run = sljit_emit_label(c);
+        sljit_set_label(all, run);
+        sljit_set_label(wanted, run);
+
+        auto end = body(rs.compiled[r], [&](const insn& in, std::vector<struct sljit_jump *>& to_end) {
+            sljit_emit_op1(c, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(REGS), val_off(in.a));
+            if (kind == jit_kind::first) {
+                // No match falls through to the next rule
+                to_end.push_back(sljit_emit_cmp(c, SLJIT_EQUAL, SLJIT_R0, 0, SLJIT_IMM, 0));
+                sljit_emit_return(c, SLJIT_MOV, SLJIT_IMM, (sljit_sw) r);
+                return;
+            }
+            sljit_emit_op2u(c, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R0, 0, SLJIT_IMM, 0);
+            sljit_emit_op_flags(c, SLJIT_MOV, SLJIT_R0, 0, SLJIT_NOT_EQUAL);
+            sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_MEM1(OUT), (sljit_sw) r, SLJIT_R0, 0);
+            to_end.push_back(sljit_emit_jump(c, SLJIT_JUMP));
+        });
+
         sljit_set_label(skip, end);
+    }
+
+    // Every key of a sort, each stored whole into out[k]
+    void sort_keys(size_t s) {
+        const auto& sd = rs.sort(s);
+
+        for (size_t k = 0; k < sd.keys.size(); k++) {
+            sljit_sw dst = (sljit_sw) k * (sljit_sw) sizeof(value);
+
+            if (sd.keys[k].expr == nullptr) {
+                sljit_emit_op1(c, SLJIT_MOV_P, SLJIT_R0, 0, CTX, 0);
+                sljit_emit_icall(c, SLJIT_CALL, SLJIT_ARGS1(W, P), SLJIT_IMM, SLJIT_FUNC_ADDR(h_first));
+                sljit_emit_op1(c, SLJIT_MOV, SLJIT_MEM1(KOUT), dst, SLJIT_R0, 0);
+                sljit_emit_op1(c, SLJIT_MOV, SLJIT_MEM1(KOUT), dst + 8, SLJIT_IMM, 0);
+                sljit_emit_op1(c, SLJIT_MOV_U8, SLJIT_MEM1(KOUT), dst + (sljit_sw) offsetof(value, valid),
+                        SLJIT_IMM, 1);
+                continue;
+            }
+
+            body(sd.keys[k].cr, [&](const insn& in, std::vector<struct sljit_jump *>& to_end) {
+                sljit_emit_op1(c, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(REGS), val_off(in.a));
+                sljit_emit_op1(c, SLJIT_MOV, SLJIT_R2, 0, SLJIT_MEM1(REGS), val_off(in.a) + 8);
+                sljit_emit_op1(c, SLJIT_MOV, SLJIT_MEM1(KOUT), dst, SLJIT_R0, 0);
+                sljit_emit_op1(c, SLJIT_MOV, SLJIT_MEM1(KOUT), dst + 8, SLJIT_R2, 0);
+                to_end.push_back(sljit_emit_jump(c, SLJIT_JUMP));
+            });
+        }
     }
 };
 
@@ -357,6 +416,8 @@ ruleset::~ruleset() {
         sljit_free_code(jit_code, nullptr);
     if (jit_first_code != nullptr)
         sljit_free_code(jit_first_code, nullptr);
+    for (auto p : jit_sort_code)
+        sljit_free_code(p, nullptr);
 #endif
 
 #ifdef HAVE_LIBPCRE2
@@ -377,21 +438,44 @@ bool ruleset::jit(std::string& err) {
         return true;
 
 #ifdef DR_JIT_SUPPORTED
-    auto code = jit_builder(*this).build(false, err);
-    if (code == nullptr)
+    // Every function or none, so the entry points never mix backends
+    jit_sorts.reserve(sorts.size());
+    jit_sort_code.reserve(sorts.size());
+    std::vector<void *> made;
+    made.reserve(sorts.size() + 2);
+    auto drop = [&made]() {
+        for (auto p : made)
+            sljit_free_code(p, nullptr);
         return false;
+    };
 
-    // Both functions or neither, so the two entry points never mix backends
-    auto first_code = jit_builder(*this).build(true, err);
-    if (first_code == nullptr) {
-        sljit_free_code(code, nullptr);
-        return false;
+    auto code = jit_builder(*this).build(jit_kind::all, 0, err);
+    if (code == nullptr)
+        return drop();
+    made.push_back(code);
+
+    auto first_code = jit_builder(*this).build(jit_kind::first, 0, err);
+    if (first_code == nullptr)
+        return drop();
+    made.push_back(first_code);
+
+    for (size_t s = 0; s < sorts.size(); s++) {
+        auto sc = jit_builder(*this).build(jit_kind::sort, s, err);
+        if (sc == nullptr)
+            return drop();
+        made.push_back(sc);
     }
 
     jit_code = code;
     jit_all = reinterpret_cast<jit_all_fn>(code);
     jit_first_code = first_code;
     jit_first = reinterpret_cast<jit_first_fn>(first_code);
+
+    for (size_t s = 0; s < sorts.size(); s++) {
+        jit_sort_code.push_back(made[2 + s]);
+        jit_sorts.push_back(reinterpret_cast<jit_sort_fn>(made[2 + s]));
+    }
+
     return true;
 #else
     err = "the rules jit needs a 64-bit platform sljit supports";

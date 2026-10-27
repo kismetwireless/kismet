@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 
+#include <deque>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -188,6 +189,31 @@ struct rule_def {
     bool uses_now;
 };
 
+struct compiled_rule {
+    size_t entry;
+    size_t len;
+    uint16_t nregs;
+};
+
+// One 'by' of a sort; a null expr is 'by rule', the index of the first matching rule
+struct sort_key {
+    std::unique_ptr<node> expr;
+    bool desc;
+    vtype type;
+    compiled_rule cr;
+};
+
+struct sort_def {
+    std::string name;
+    std::string source;
+    std::vector<sort_key> keys;
+    bool uses_now;
+    size_t line, col;
+};
+
+constexpr size_t max_sorts = 256;
+constexpr size_t max_sort_keys = 8;
+
 // Constant sets for 'in'
 struct value_set {
     vtype type;
@@ -252,12 +278,6 @@ struct mpred_ent {
     uint32_t k;
 };
 
-struct compiled_rule {
-    size_t entry;
-    size_t len;
-    uint16_t nregs;
-};
-
 class ruleset;
 
 // Per-thread evaluation state; one per evaluating thread
@@ -308,6 +328,8 @@ struct eval_ctx {
 using jit_all_fn = void (*)(eval_ctx *, const uint8_t *, uint8_t *);
 // Index of the first wanted rule that matches, or the rule count
 using jit_first_fn = intptr_t (*)(eval_ctx *, const uint8_t *);
+// Every key of one sort into out
+using jit_sort_fn = void (*)(eval_ctx *, value *);
 
 class ruleset {
 public:
@@ -341,6 +363,15 @@ public:
     // Stop at the first wanted rule that matches; returns its index, or size()
     size_t first_match(eval_ctx& ctx, const uint8_t *want) const;
 
+    size_t sort_count() const { return sorts.size(); }
+    const sort_def& sort(size_t i) const { return *sorts[i]; }
+
+    // Keys of sort s for the current device into out, one per 'by'.  String keys
+    // point into the env and are only good until it's reset.
+    void eval_sort(eval_ctx& ctx, size_t s, value *out) const;
+    void eval_sort_vm(eval_ctx& ctx, size_t s, value *out) const;
+    void eval_sort_tree(eval_ctx& ctx, size_t s, value *out) const;
+
     // One non-control instruction, for the VM and the JIT slow path
     void step(eval_ctx& ctx, const insn *pc) const;
 
@@ -354,6 +385,7 @@ public:
     bool run_exists(eval_ctx& ctx, uint32_t slot) const;
 
     std::vector<std::unique_ptr<rule_def>> rules;
+    std::vector<std::unique_ptr<sort_def>> sorts;
     std::vector<field_slot> fields;
     std::vector<value> consts;
     std::vector<std::string> const_strings;
@@ -377,6 +409,11 @@ protected:
     jit_first_fn jit_first;
     void *jit_code;
     void *jit_first_code;
+    std::vector<jit_sort_fn> jit_sorts;
+    std::vector<void *> jit_sort_code;
+
+    // Run compiled code to its ret and return the value it returns
+    const value& run_vm(eval_ctx& ctx, const compiled_rule& cr) const;
 
     friend class compiler;
     friend class jit_builder;
@@ -384,6 +421,39 @@ protected:
 
 // Lower-case ASCII compare helpers shared by the backends
 bool str_icontains(const char *h, size_t hl, const char *n, size_t nl);
+
+// Sort keys of many devices, captured one device at a time, then ordered.  Missing
+// keys sort last in either direction; ties keep the order rows were added.
+class sort_table {
+public:
+    sort_table(const ruleset& rs, size_t sort);
+
+    void reserve(size_t rows);
+
+    // Capture the keys of the device ctx is on; call after next_device, before the
+    // env is reset.  Strings are copied.
+    void add(eval_ctx& ctx);
+
+    size_t size() const { return rows; }
+
+    // Row numbers in sorted order
+    std::vector<uint32_t> order() const;
+
+    // -1, 0 or 1 as row a sorts before, with or after row b, ignoring the tie break
+    int compare(uint32_t a, uint32_t b) const;
+
+    const value& key(uint32_t row, size_t k) const { return keys[row * nk + k]; }
+
+private:
+    const ruleset& rs;
+    const sort_def& sd;
+    size_t si;
+    size_t nk;
+    size_t rows;
+    std::vector<value> keys;
+    // A deque never moves its strings, so keys can point at them
+    std::deque<std::string> strs;
+};
 
 }
 

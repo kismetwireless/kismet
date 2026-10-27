@@ -24,6 +24,7 @@
 
 #include "devicetracker_view.h"
 #include "devicetracker.h"
+#include "device_rules.h"
 #include "devicetracker_component.h"
 #include "util.h"
 
@@ -524,6 +525,9 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // Order path
     auto order_field = std::vector<int>{};
 
+    // Sort from the device rules, which replaces the order path
+    auto rule_sort = std::string{};
+
     // Regular expression terms, if any
     auto regex = con->json()["regex"];
 
@@ -588,6 +592,12 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     try {
         // Extract the column number -> column fieldpath data
         auto column_number_map = con->json()["colmap"];
+
+        auto rule_sort_k = con->http_variables().find("rule_sort");
+        if (rule_sort_k != con->http_variables().end())
+            rule_sort = rule_sort_k->second;
+        else
+            rule_sort = con->json().value("rule_sort", std::string{});
 
         // Generic pagination
         auto start_k = con->http_variables().find("page");
@@ -778,6 +788,20 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
     // Apply the filtered length
     filtered_sz_elem->set(next_work_vec->size());
+
+    // Rule sorts replace the vector, so they go before the window is taken from it
+    if (rule_sort.length() > 0) {
+        auto rules = Globalreg::fetch_global_as<device_rules>();
+        std::string err = "device rules aren't available";
+
+        if (rules == nullptr || !rules->sort_devices(rule_sort, next_work_vec, err)) {
+            con->set_status(400);
+            os << "Invalid rule_sort: " << err << "\n";
+            return;
+        }
+
+        order_field.clear();
+    }
 
     if (in_window_len > 0) {
         max_page_elem->set(ceil(((float) next_work_vec->size()) / in_window_len));

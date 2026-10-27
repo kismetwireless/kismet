@@ -127,6 +127,11 @@ public:
     // Replace the active rules; throws parse_error, leaving the old rules in place
     void set_rules(const std::string& text);
 
+    // Order devices by a sort from the active rules; false with the reason when there's
+    // no such sort
+    bool sort_devices(const std::string& sort, std::shared_ptr<tracker_element_vector>& devices,
+            std::string& err);
+
     // A compiled rule set and what goes with it; replaced whole, never changed
     struct active_set {
         std::unique_ptr<devicerules::ruleset> rs;
@@ -140,6 +145,7 @@ public:
 
         // Index into rs of each rule by name
         std::map<std::string, size_t> by_name;
+        std::map<std::string, size_t> sorts_by_name;
         // View per rule, null for rules without one
         std::vector<std::shared_ptr<device_tracker_view>> views;
         // Views of rules no longer in the set, or no longer with a view, by name

@@ -217,7 +217,10 @@ void ruleset::step(eval_ctx& ctx, const insn *pc) const {
 }
 
 bool ruleset::eval_vm(eval_ctx& ctx, size_t r) const {
-    const auto& cr = compiled[r];
+    return run_vm(ctx, compiled[r]).i != 0;
+}
+
+const value& ruleset::run_vm(eval_ctx& ctx, const compiled_rule& cr) const {
     const insn *base = code.data();
     const insn *pc = base + cr.entry;
     value *R = ctx.regs.data();
@@ -240,7 +243,7 @@ bool ruleset::eval_vm(eval_ctx& ctx, size_t r) const {
                 pc = base + pc->b;
                 continue;
             case bc::ret:
-                return R[pc->a].i != 0;
+                return R[pc->a];
             default:
                 exec_op(*this, ctx, R, pc);
                 break;

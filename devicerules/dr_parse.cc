@@ -467,12 +467,22 @@ public:
         cur = lex.next();
     }
 
+    bool at_end() const {
+        return cur.t == tok::end;
+    }
+
+    bool at_sort() const {
+        return is_word("sort");
+    }
+
     std::unique_ptr<rule_def> parse_rule() {
         if (cur.t == tok::end)
             return nullptr;
 
         size_t start = cur.off;
 
+        if (!is_word("rule"))
+            error("expected 'rule' or 'sort'");
         expect_word("rule");
 
         if (cur.t != tok::ident && cur.t != tok::integer)
@@ -484,7 +494,7 @@ public:
         r->live = false;
         r->uses_now = false;
 
-        r->name = rule_name();
+        r->name = rule_name("rule");
 
         expect(tok::lbrace, "'{'");
 
@@ -545,6 +555,70 @@ public:
         return r;
     }
 
+    std::unique_ptr<sort_def> parse_sort() {
+        size_t start = cur.off;
+
+        expect_word("sort");
+
+        if (cur.t != tok::ident && cur.t != tok::integer)
+            error("expected a sort name");
+
+        auto s = std::make_unique<sort_def>();
+        s->uses_now = false;
+        s->line = line0;
+        s->col = col0;
+        s->name = rule_name("sort");
+
+        expect(tok::lbrace, "'{'");
+
+        while (cur.t != tok::rbrace) {
+            if (cur.t == tok::end)
+                error("sort '" + s->name + "' is missing '}'");
+
+            if (!is_word("by"))
+                error("expected 'by'");
+            advance();
+
+            while (true) {
+                if (s->keys.size() >= max_sort_keys)
+                    error("too many sort keys");
+
+                sort_key k;
+                k.desc = false;
+                k.type = vtype::none;
+                k.cr = compiled_rule{};
+
+                if (is_word("rule"))
+                    advance();
+                else
+                    k.expr = parse_expr();
+
+                if (is_word("asc")) {
+                    advance();
+                } else if (is_word("desc")) {
+                    k.desc = true;
+                    advance();
+                }
+
+                s->keys.push_back(std::move(k));
+
+                if (cur.t != tok::comma)
+                    break;
+                advance();
+            }
+        }
+
+        size_t end = lex.offset();
+        advance();
+
+        if (s->keys.empty())
+            throw parse_error("sort '" + s->name + "' has no 'by'", s->line, s->col);
+
+        s->source = src.substr(start, end - start);
+
+        return s;
+    }
+
 private:
     const std::string& src;
     lexer lex;
@@ -590,11 +664,11 @@ private:
     }
 
     // Names are used in view ids and urls, so keep them plain
-    std::string rule_name() {
+    std::string rule_name(const std::string& kind) {
         std::string n;
 
         if (cur.t == tok::integer)
-            error("rule names must start with a letter");
+            error(kind + " names must start with a letter");
 
         n = cur.text;
         advance();
@@ -603,18 +677,18 @@ private:
         while (cur.t == tok::minus) {
             advance();
             if (cur.t != tok::ident && cur.t != tok::integer)
-                error("bad rule name");
+                error("bad " + kind + " name");
             n += "-";
             n += cur.t == tok::integer ? std::to_string(cur.i) : cur.text;
             advance();
         }
 
         if (n.size() > 64)
-            error("rule name is too long");
+            error(kind + " name is too long");
 
         for (auto c : n)
             if (!(is_ident_start(c) || (c >= '0' && c <= '9') || c == '-'))
-                error("rule names may only use letters, digits, '_' and '-'");
+                error(kind + " names may only use letters, digits, '_' and '-'");
 
         return n;
     }
@@ -928,7 +1002,8 @@ private:
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "when", "tag", "color", "view", "alert", "live", "rule" };
+            "count", "age", "when", "tag", "color", "view", "alert", "live", "rule",
+            "sort", "by", "asc", "desc" };
 
         for (auto k : kw)
             if (w == k)
@@ -943,10 +1018,22 @@ private:
 void ruleset::parse(const std::string& text) {
     parser p(text);
 
-    while (true) {
+    while (!p.at_end()) {
+        if (p.at_sort()) {
+            auto s = p.parse_sort();
+
+            for (const auto& e : sorts)
+                if (e->name == s->name)
+                    throw parse_error("duplicate sort '" + s->name + "'", s->line, s->col);
+
+            if (sorts.size() >= max_sorts)
+                throw parse_error("too many sorts", s->line, s->col);
+
+            sorts.push_back(std::move(s));
+            continue;
+        }
+
         auto r = p.parse_rule();
-        if (r == nullptr)
-            break;
 
         for (const auto& e : rules)
             if (e->name == r->name)

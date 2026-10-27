@@ -555,7 +555,55 @@ std::shared_ptr<device_rules::active_set> device_rules::compile_set(const std::s
         }
     }
 
+    for (size_t i = 0; i < as->rs->sort_count(); i++)
+        as->sorts_by_name[as->rs->sort(i).name] = i;
+
     return as;
+}
+
+bool device_rules::sort_devices(const std::string& sort, std::shared_ptr<tracker_element_vector>& devices,
+        std::string& err) {
+    auto as = get_current();
+
+    if (as == nullptr) {
+        err = "no device rules are loaded";
+        return false;
+    }
+
+    auto si = as->sorts_by_name.find(sort);
+    if (si == as->sorts_by_name.end()) {
+        err = "no such sort";
+        return false;
+    }
+
+    kismet_env env;
+    devicerules::eval_ctx ctx;
+    ctx.bind(as->rs.get(), &env);
+
+    devicerules::sort_table table(*as->rs, si->second);
+    table.reserve(devices->size());
+
+    int64_t now = Globalreg::globalreg->last_tv_sec;
+
+    for (const auto& d : *devices) {
+        auto dev = std::static_pointer_cast<kis_tracked_device_base>(d);
+        kis_device_lock dlk(dev, true);
+        env.root = dev.get();
+        ctx.next_device(now);
+        table.add(ctx);
+        env.reset();
+        env.root = nullptr;
+    }
+
+    auto order = table.order();
+
+    auto sorted = std::make_shared<tracker_element_vector>();
+    sorted->reserve(order.size());
+    for (auto r : order)
+        sorted->push_back((*devices)[r]);
+    devices = sorted;
+
+    return true;
 }
 
 void device_rules::set_rules(const std::string& text) {
@@ -870,6 +918,8 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
             tracker_element_factory<tracker_element_uint64>(), "duration of the last device rule pass, in microseconds");
     auto f_rules = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.rules",
             tracker_element_factory<tracker_element_vector>(), "device rules");
+    auto f_sorts = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.sorts",
+            tracker_element_factory<tracker_element_vector>(), "device sorts, for the rule_sort option of device views");
 
     ret->insert(f_backend);
     ret->insert(f_jiterr);
@@ -877,6 +927,7 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
     ret->insert(f_devices);
     ret->insert(f_last);
     ret->insert(f_rules);
+    ret->insert(f_sorts);
 
     f_passes->set(stat_passes.load());
     f_devices->set(stat_devices.load());
@@ -932,6 +983,25 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
         f_rules->push_back(r);
     }
 
+    for (size_t i = 0; i < as->rs->sort_count(); i++) {
+        const auto& sd = as->rs->sort(i);
+
+        auto r = std::make_shared<tracker_element_map>();
+
+        auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.name",
+                tracker_element_factory<tracker_element_string>(), "sort name");
+        auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.source",
+                tracker_element_factory<tracker_element_string>(), "sort text");
+
+        name->set(sd.name);
+        source->set(sd.source);
+
+        r->insert(name);
+        r->insert(source);
+
+        f_sorts->push_back(r);
+    }
+
     return ret;
 }
 
@@ -971,6 +1041,10 @@ void device_rules::check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection
         for (size_t i = 0; i < as->rs->size(); i++)
             names.push_back(as->rs->rule(i).name);
         j["rules"] = names;
+        auto snames = nlohmann::json::array();
+        for (size_t i = 0; i < as->rs->sort_count(); i++)
+            snames.push_back(as->rs->sort(i).name);
+        j["sorts"] = snames;
         stream << j.dump();
     } catch (const devicerules::parse_error& e) {
         json_error(stream, e);
