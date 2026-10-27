@@ -51,9 +51,9 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
             },
             {
                 field: "bluetooth.device/bluetooth.device.chip_manufacturer",
-                title: "Chip Maker ID",
+                title: "Chip Maker",
                 filterOnEmpty: true,
-                help: "Bluetooth company ID of the device's controller chip.",
+                help: "Maker of the device's controller chip, from its Bluetooth company ID.",
             },
             {
                 field: "bluetooth.device/bluetooth.device.lmp_subversion",
