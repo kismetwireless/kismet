@@ -83,6 +83,21 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 help: "BLE advertising PDU type indicating if device is connectable",
             },
             {
+                field: "btle.device/btle.device.random_address_type",
+                title: "Random Address",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    var types = {
+                        "static": "Static (kept until the device restarts)",
+                        "resolvable": "Resolvable private (rotates; bonded devices can resolve it)",
+                        "non-resolvable": "Non-resolvable private (rotates)",
+                        "reserved": "Reserved type",
+                    };
+                    return types[opts['value']] || opts['value'];
+                },
+                help: "The kind of random address the device advertises with.  Private addresses change every few minutes, so the same device appears under several addresses.",
+            },
+            {
                 field: "btle.device/btle.device.tracker",
                 groupTitle: "Location Tracker",
                 filterOnEmpty: true,

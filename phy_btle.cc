@@ -781,8 +781,13 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     // Store the PDU type from the packet
     btle_dev->set_pdu_type(btle_info->btle_decode->pdu_type());
 
-    if (btle_info->btle_decode->is_txaddr_random())
+    if (btle_info->btle_decode->is_txaddr_random()) {
         device->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
+
+        const auto rtype = btle_random_address_type(device->get_macaddr()[0]);
+        if (!btle_dev->has_random_address_type() || btle_dev->get_random_address_type() != rtype)
+            btle_dev->set_random_address_type(rtype);
+    }
 
     for (auto ad : *btle_info->btle_decode->advertised_data()) {
         if (btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_ind() ||

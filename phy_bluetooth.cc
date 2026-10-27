@@ -40,6 +40,7 @@
 #include "bluetooth_parsers/btle_tracker.h"
 #include "bluetooth_parsers/btle_battery.h"
 #include "bluetooth_parsers/btle_ranging.h"
+#include "bluetooth_parsers/btle.h"
 
 
 #define h4_direction_sent                       0x00
@@ -237,10 +238,17 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     basedev->set_tracker_type_string(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
                     break;
-                case 2:
+                case 2: {
                     basedev->set_tracker_type_string(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
+
+                    // LE random
+                    const auto rtype = btle_random_address_type(btaddr_mac[0]);
+                    if (!btdev->has_random_address_type() ||
+                            btdev->get_random_address_type() != rtype)
+                        btdev->set_random_address_type(rtype);
                     break;
+                }
                 default:
                     basedev->set_tracker_type_string(btphy->btdev_bt);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));

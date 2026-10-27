@@ -528,6 +528,10 @@ public:
    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
    __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
 
+   // Only set for random addresses; see btle_random_address_type
+   __ProxyDynamic(random_address_type, std::string, std::string, std::string, random_address_type,
+           random_address_type_id);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -563,6 +567,11 @@ protected:
             register_dynamic_field("btle.device.battery", "advertised battery level", &battery);
         ranging_id =
             register_dynamic_field("btle.device.ranging", "estimated distance", &ranging);
+
+        random_address_type_id =
+            register_dynamic_field("btle.device.random_address_type",
+                    "kind of random address (static, resolvable, non-resolvable, reserved)",
+                    &random_address_type);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -581,6 +590,9 @@ protected:
     uint16_t battery_id;
     std::shared_ptr<btle_tracked_ranging> ranging;
     uint16_t ranging_id;
+
+    std::shared_ptr<tracker_element_string> random_address_type;
+    uint16_t random_address_type_id;
 
     std::shared_ptr<tracker_element_string> alias_group;
     uint16_t alias_group_id;

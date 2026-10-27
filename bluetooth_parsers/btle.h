@@ -27,6 +27,22 @@
 #include "macaddr.h"
 #include "multi_constexpr.h"
 
+// The kind of random address, from its two most significant bits: static addresses last
+// until the device restarts, resolvable private addresses rotate and can be resolved by
+// bonded devices, non-resolvable ones rotate and can't
+inline constexpr const char *btle_random_address_type(uint8_t msb) {
+    switch (msb >> 6) {
+        case 0x03:
+            return "static";
+        case 0x01:
+            return "resolvable";
+        case 0x00:
+            return "non-resolvable";
+        default:
+            return "reserved";
+    }
+}
+
 class bluetooth_btle {
 public:
     class bluetooth_btle_advdata;
