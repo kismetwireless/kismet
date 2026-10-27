@@ -396,12 +396,13 @@ namespace {
 // read from disk at startup may use 'include'; rules from the API never can.
 class rules_loader {
 public:
-    rules_loader(devicerules::ruleset& in_rs) :
-        rs{in_rs}, total{0} { }
+    // Rules are parsed into rs, and what was read is recorded in out
+    rules_loader(devicerules::ruleset& in_rs, std::vector<device_rules::rules_chunk>& in_out) :
+        rs{in_rs}, out{in_out}, total{0} { }
 
     // A missing file is skipped when it's optional, and logged otherwise
     void load_file(const std::string& path, bool required) {
-        load_path(path, required, 0);
+        load_path(path, required, 0, out);
     }
 
     void load_dir(const std::string& path) {
@@ -449,19 +450,28 @@ public:
         }
 
         for (const auto& n : names)
-            load_path(prefix + n, true, 0);
+            load_path(prefix + n, true, 0, out);
     }
 
     // One rule or sort from a config line, without its leading keyword
     void load_line(const config_file::sourced_value& v, devicerules::parse_source::block kind) {
         charge(v.value.size());
 
+        device_rules::rules_chunk chunk;
+        chunk.text = v.value;
+        chunk.origin = v.file;
+        chunk.line_base = v.line > 0 ? v.line - 1 : 0;
+        chunk.col_base = v.col > 0 ? v.col - 1 : 0;
+        chunk.only = kind;
+
         devicerules::parse_source src;
-        src.origin = v.file;
-        src.line_base = v.line > 0 ? v.line - 1 : 0;
-        src.col_base = v.col > 0 ? v.col - 1 : 0;
+        src.origin = chunk.origin;
+        src.line_base = chunk.line_base;
+        src.col_base = chunk.col_base;
         src.only = kind;
-        rs.parse(v.value, src);
+        rs.parse(chunk.text, src);
+
+        out.push_back(std::move(chunk));
     }
 
 private:
@@ -469,6 +479,7 @@ private:
     static constexpr int max_include_depth = 8;
 
     devicerules::ruleset& rs;
+    std::vector<device_rules::rules_chunk>& out;
     size_t total;
     std::unordered_set<std::string> loaded;
 
@@ -483,7 +494,8 @@ private:
         return p.find_first_of("*?[") != std::string::npos;
     }
 
-    void load_path(const std::string& path, bool required, int depth) {
+    void load_path(const std::string& path, bool required, int depth,
+            std::vector<device_rules::rules_chunk>& into) {
         std::string text;
         std::string real;
 
@@ -535,16 +547,28 @@ private:
 
         close(fd);
 
+        device_rules::rules_chunk chunk;
+        chunk.text = std::move(text);
+        chunk.origin = path;
+        chunk.line_base = 0;
+        chunk.col_base = 0;
+        chunk.only = devicerules::parse_source::block::any;
+
+        // Every include is recorded, even one that reads nothing, so a replay lines up
         devicerules::parse_source src;
         src.origin = path;
-        src.include = [this, &path, depth](const std::string& inc, size_t line, size_t col) {
-            include(path, inc, depth, line, col);
+        src.include = [this, &path, &chunk, depth](const std::string& inc, size_t line, size_t col) {
+            chunk.includes.emplace_back();
+            include(path, inc, depth, line, col, chunk.includes.back());
         };
 
-        rs.parse(text, src);
+        rs.parse(chunk.text, src);
+
+        into.push_back(std::move(chunk));
     }
 
-    void include(const std::string& from, const std::string& inc, int depth, size_t line, size_t col) {
+    void include(const std::string& from, const std::string& inc, int depth, size_t line, size_t col,
+            std::vector<device_rules::rules_chunk>& into) {
         if (depth + 1 > max_include_depth)
             throw devicerules::parse_error("includes nest more than " + std::to_string(max_include_depth) +
                     " deep", line, col);
@@ -558,7 +582,7 @@ private:
         if (!has_glob(target)) {
             if (access(target.c_str(), F_OK) != 0)
                 throw devicerules::parse_error("can't find included file '" + target + "'", line, col);
-            load_path(target, true, depth + 1);
+            load_path(target, true, depth + 1, into);
             return;
         }
 
@@ -592,10 +616,72 @@ private:
             struct stat st;
             if (stat(n.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
                 continue;
-            load_path(n, true, depth + 1);
+            load_path(n, true, depth + 1, into);
         }
     }
 };
+
+// Parse recorded chunks again, feeding each include what it read the first time
+void replay_chunks(devicerules::ruleset& rs, const std::vector<device_rules::rules_chunk>& chunks) {
+    for (const auto& c : chunks) {
+        devicerules::parse_source src;
+        src.origin = c.origin;
+        src.line_base = c.line_base;
+        src.col_base = c.col_base;
+        src.only = c.only;
+
+        size_t next = 0;
+        if (c.only == devicerules::parse_source::block::any)
+            src.include = [&rs, &c, &next](const std::string&, size_t line, size_t col) {
+                if (next >= c.includes.size())
+                    throw devicerules::parse_error("include out of step with the rules as read", line, col);
+                replay_chunks(rs, c.includes[next++]);
+            };
+
+        rs.parse(c.text, src);
+    }
+}
+
+// Read a whole regular file of at most max bytes; missing is set when it doesn't exist
+bool read_small_file(const std::string& path, size_t max, std::string& out, std::string& err, bool& missing) {
+    missing = false;
+
+    int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+    if (fd < 0) {
+        missing = errno == ENOENT;
+        err = kis_strerror_r(errno);
+        return false;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+        close(fd);
+        err = "not a regular file";
+        return false;
+    }
+
+    char buf[16384];
+    ssize_t r;
+    out.clear();
+    while ((r = read(fd, buf, sizeof(buf))) > 0) {
+        if (out.size() + r > max) {
+            close(fd);
+            err = "larger than " + std::to_string(max) + " bytes";
+            return false;
+        }
+        out.append(buf, r);
+    }
+
+    int read_errno = errno;
+    close(fd);
+
+    if (r < 0) {
+        err = kis_strerror_r(read_errno);
+        return false;
+    }
+
+    return true;
+}
 
 // Per-thread evaluation state for live rules
 struct live_ctx {
@@ -627,6 +713,7 @@ device_rules::device_rules() :
 
     mutex.set_name("device_rules");
     alert_mutex.set_name("device_rules_alerts");
+    set_mutex.set_name("device_rules_set");
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
@@ -641,6 +728,8 @@ device_rules::device_rules() :
     pass_interval = std::max(1U, conf->fetch_opt_uint("device_rules_interval", 1));
     full_interval = conf->fetch_opt_uint("device_rules_full_interval", 10);
     alert_backlog_max = conf->fetch_opt_uint("device_rules_alert_backlog", 64);
+    api_save = conf->fetch_opt_bool("device_rules_api_save", false);
+    api_file = conf->fetch_opt_path("device_rules_api_file", "%h/.kismet/kismet_device_rules_api.txt");
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -683,12 +772,55 @@ void device_rules::trigger_deferred_startup() {
     pack_comp_device = packetchain->register_packet_component("DEVICE");
 
     // Rules are compiled here so every phy and plugin field is registered
-    try {
-        install_set(load_configured());
-    } catch (const devicerules::parse_error& e) {
-        _MSG_ERROR("Device rules not loaded: {}", describe(e));
-    } catch (const std::exception& e) {
-        _MSG_ERROR("Device rules not loaded: {}", e.what());
+    {
+        kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules startup");
+
+        try {
+            load_configured();
+            build_set("");
+        } catch (const devicerules::parse_error& e) {
+            _MSG_ERROR("Device rules from the config not loaded: {}", describe(e));
+            config_chunks.clear();
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Device rules from the config not loaded: {}", e.what());
+            config_chunks.clear();
+        }
+
+        if (api_save) {
+            std::string err;
+            bool missing;
+            if (!read_small_file(api_file, max_rules_text, api_text, err, missing)) {
+                api_text.clear();
+                if (!missing)
+                    _MSG_ERROR("Could not read saved device rules from {}: {}", api_file, err);
+            }
+        }
+
+        std::shared_ptr<active_set> as;
+
+        if (!api_text.empty()) {
+            try {
+                as = build_set(api_text);
+            } catch (const devicerules::parse_error& e) {
+                _MSG_ERROR("Saved device rules in {} not loaded: {}", api_file, describe(e));
+                api_text.clear();
+            } catch (const std::exception& e) {
+                _MSG_ERROR("Saved device rules in {} not loaded: {}", api_file, e.what());
+                api_text.clear();
+            }
+        }
+
+        try {
+            if (as == nullptr)
+                as = build_set("");
+
+            for (const auto& r : as->rs->replaced)
+                _MSG_INFO("Device rules: {}", r);
+
+            install_set(as);
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Device rules not loaded: {}", e.what());
+        }
     }
 
     timer_id =
@@ -811,10 +943,13 @@ bool device_rules::sort_devices(const std::string& sort, std::shared_ptr<tracker
     return true;
 }
 
-std::shared_ptr<device_rules::active_set> device_rules::load_configured() {
+void device_rules::load_configured() {
     auto conf = Globalreg::globalreg->kismet_config;
-    auto rs = std::make_unique<devicerules::ruleset>();
-    rules_loader loader(*rs);
+
+    // Parsed here for the errors, with their files and lines; built later by build_set
+    devicerules::ruleset rs;
+    std::vector<rules_chunk> chunks;
+    rules_loader loader(rs, chunks);
 
     // Files in config order, then directories, then rules written on config lines
     auto files = conf->fetch_opt_vec_sourced("device_rules_file");
@@ -831,17 +966,107 @@ std::shared_ptr<device_rules::active_set> device_rules::load_configured() {
     for (const auto& v : conf->fetch_opt_vec_sourced("device_sort"))
         loader.load_line(v, devicerules::parse_source::block::sort);
 
-    for (const auto& n : conf->fetch_opt_vec("device_rule_disable"))
-        if (!rs->remove_rule(n))
+    rule_disables = conf->fetch_opt_vec("device_rule_disable");
+    sort_disables = conf->fetch_opt_vec("device_sort_disable");
+
+    for (const auto& n : rule_disables)
+        if (!rs.remove_rule(n))
             _MSG_ERROR("device_rule_disable={} doesn't match any device rule", n);
-    for (const auto& n : conf->fetch_opt_vec("device_sort_disable"))
-        if (!rs->remove_sort(n))
+    for (const auto& n : sort_disables)
+        if (!rs.remove_sort(n))
             _MSG_ERROR("device_sort_disable={} doesn't match any device sort", n);
 
-    for (const auto& r : rs->replaced)
-        _MSG_INFO("Device rules: {}", r);
+    config_chunks = std::move(chunks);
+}
 
-    return finish_set(std::move(rs), "");
+std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::string& api) {
+    if (api.size() > max_rules_text)
+        throw devicerules::parse_error("rules are larger than " + std::to_string(max_rules_text) + " bytes", 0, 0);
+
+    auto rs = std::make_unique<devicerules::ruleset>();
+
+    replay_chunks(*rs, config_chunks);
+
+    for (const auto& n : rule_disables)
+        rs->remove_rule(n);
+    for (const auto& n : sort_disables)
+        rs->remove_sort(n);
+
+    // Rules from the API never get to include files
+    if (!api.empty()) {
+        devicerules::parse_source src;
+        src.origin = "api";
+        rs->parse(api, src);
+    }
+
+    return finish_set(std::move(rs), api);
+}
+
+std::shared_ptr<device_rules::active_set> device_rules::set_api_rules(const std::string& text,
+        bool& saved, std::string& save_err) {
+    kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules set_api_rules");
+
+    auto as = build_set(text);
+    install_set(as);
+    api_text = text;
+
+    saved = false;
+    if (api_save) {
+        saved = save_api(text, save_err);
+        if (!saved)
+            _MSG_ERROR("Could not save device rules to {}: {}", api_file, save_err);
+    }
+
+    return as;
+}
+
+bool device_rules::save_api(const std::string& text, std::string& err) {
+    // Write beside the file and rename over it, so a crash never leaves half a file
+    auto tmp = api_file + ".tmp";
+
+    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
+    if (fd < 0) {
+        err = kis_strerror_r(errno);
+        return false;
+    }
+
+    auto fail = [&](int e) {
+        err = kis_strerror_r(e);
+        close(fd);
+        unlink(tmp.c_str());
+        return false;
+    };
+
+    if (fchmod(fd, 0600) != 0)
+        return fail(errno);
+
+    size_t off = 0;
+    while (off < text.size()) {
+        ssize_t w = write(fd, text.data() + off, text.size() - off);
+        if (w < 0) {
+            if (errno == EINTR)
+                continue;
+            return fail(errno);
+        }
+        off += w;
+    }
+
+    if (fsync(fd) != 0)
+        return fail(errno);
+
+    if (close(fd) != 0) {
+        err = kis_strerror_r(errno);
+        unlink(tmp.c_str());
+        return false;
+    }
+
+    if (rename(tmp.c_str(), api_file.c_str()) != 0) {
+        err = kis_strerror_r(errno);
+        unlink(tmp.c_str());
+        return false;
+    }
+
+    return true;
 }
 
 std::string device_rules::describe(const devicerules::parse_error& e) {
@@ -850,10 +1075,6 @@ std::string device_rules::describe(const devicerules::parse_error& e) {
     if (e.origin.empty())
         return fmt::format("line {} column {}: {}", e.line, e.col, e.what());
     return fmt::format("{} line {} column {}: {}", e.origin, e.line, e.col, e.what());
-}
-
-void device_rules::set_rules(const std::string& text) {
-    install_set(compile_set(text));
 }
 
 void device_rules::install_set(std::shared_ptr<active_set> as) {
@@ -1168,6 +1389,10 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
             tracker_element_factory<tracker_element_vector>(), "device rules");
     auto f_sorts = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.sorts",
             tracker_element_factory<tracker_element_vector>(), "device sorts, for the rule_sort option of device views");
+    auto f_api = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.api_rules",
+            tracker_element_factory<tracker_element_string>(), "rules set with set.cmd, applied after the configured rules");
+    auto f_api_save = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.api_save",
+            tracker_element_factory<tracker_element_uint8>(), "rules set with set.cmd are saved and loaded at startup");
 
     ret->insert(f_backend);
     ret->insert(f_jiterr);
@@ -1176,6 +1401,14 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
     ret->insert(f_last);
     ret->insert(f_rules);
     ret->insert(f_sorts);
+    ret->insert(f_api);
+    ret->insert(f_api_save);
+
+    {
+        kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules rules_endpoint");
+        f_api->set(api_text);
+    }
+    f_api_save->set(api_save);
 
     f_passes->set(stat_passes.load());
     f_devices->set(stat_devices.load());
@@ -1290,11 +1523,18 @@ void device_rules::check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection
 
     try {
         auto text = rules_param(con);
-        auto as = compile_set(text);
+
+        // Checked as the API rules, after the configured rules, as set.cmd would load them
+        std::shared_ptr<active_set> as;
+        {
+            kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules check");
+            as = build_set(text);
+        }
 
         nlohmann::json j;
         j["ok"] = true;
         j["backend"] = as->jit ? "jit" : "vm";
+        j["replaced"] = as->rs->replaced;
         auto names = nlohmann::json::array();
         for (size_t i = 0; i < as->rs->size(); i++)
             names.push_back(as->rs->rule(i).name);
@@ -1317,10 +1557,15 @@ void device_rules::set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> 
     con->set_mime_type("application/json");
 
     try {
-        set_rules(rules_param(con));
-        auto as = get_current();
-        stream << nlohmann::json{{"ok", true}, {"rules", as->rs->size()},
-            {"backend", as->jit ? "jit" : "vm"}}.dump();
+        bool saved;
+        std::string save_err;
+        auto as = set_api_rules(rules_param(con), saved, save_err);
+
+        nlohmann::json j{{"ok", true}, {"rules", as->rs->size()}, {"sorts", as->rs->sort_count()},
+            {"backend", as->jit ? "jit" : "vm"}, {"replaced", as->rs->replaced}, {"saved", saved}};
+        if (!save_err.empty())
+            j["save_error"] = save_err;
+        stream << j.dump();
     } catch (const devicerules::parse_error& e) {
         json_error(stream, e);
     } catch (const std::exception& e) {

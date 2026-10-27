@@ -124,8 +124,16 @@ public:
     virtual void trigger_deferred_startup() override;
     virtual void trigger_deferred_shutdown() override;
 
-    // Replace the active rules; throws parse_error, leaving the old rules in place
-    void set_rules(const std::string& text);
+    // One parse of rule text and what each of its includes read, so the configured
+    // rules can be rebuilt without reading their files again
+    struct rules_chunk {
+        std::string text;
+        std::string origin;
+        size_t line_base;
+        size_t col_base;
+        devicerules::parse_source::block only;
+        std::vector<std::vector<rules_chunk>> includes;
+    };
 
     // Order devices by a sort from the active rules; false with the reason when there's
     // no such sort
@@ -161,8 +169,27 @@ public:
         mac_addr mac;
     };
 
+    // Replace the rules set over the API, which come after the configured rules; throws
+    // parse_error, leaving the old rules in place.  saved says whether they were written
+    // to the API rules file, with save_err when that failed.
+    std::shared_ptr<active_set> set_api_rules(const std::string& text, bool& saved, std::string& save_err);
+
 protected:
     kis_mutex mutex;
+
+    // Serializes building and installing rule sets; taken before mutex
+    kis_mutex set_mutex;
+
+    // Rules from the config, as read at startup, and the rules set over the API
+    std::vector<rules_chunk> config_chunks;
+    std::vector<std::string> rule_disables, sort_disables;
+    std::string api_text;
+    bool api_save;
+    std::string api_file;
+
+    // Configured rules, then disables, then the given API rules
+    std::shared_ptr<active_set> build_set(const std::string& api);
+    bool save_api(const std::string& text, std::string& err);
 
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<entry_tracker> entrytracker;
@@ -206,8 +233,8 @@ protected:
     std::shared_ptr<active_set> finish_set(std::unique_ptr<devicerules::ruleset> rs, const std::string& text);
     void install_set(std::shared_ptr<active_set> as);
 
-    // Rules from the files, directories and lines in the config
-    std::shared_ptr<active_set> load_configured();
+    // Read the rules files, directories and lines in the config into config_chunks
+    void load_configured();
 
     static std::string describe(const devicerules::parse_error& e);
 
