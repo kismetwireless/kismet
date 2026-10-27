@@ -112,9 +112,9 @@ static const uint8_t *eir_get_field(const uint8_t *eir, uint16_t eir_len, uint8_
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
-    /* Bumped from 2048; EIR (240 bytes) can hold more UUIDs than the old
-     * payload needed room for. */
-    char json[8192];
+    /* Room for the raw EIR as hex alongside the fields pulled out of it */
+    char json[16384];
+    char *eir_hex;
 
     char address[BDADDR_STR_LEN];
     char *name, *safe_name = NULL;
@@ -122,6 +122,7 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     char *service_data_json;
     char *manuf_company_id_hex, *manuf_data_hex;
     char txpower_json[8];
+    unsigned int i;
     char class_json[16];
     char appearance_json[8];
     const uint8_t *field;
@@ -173,7 +174,25 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     else
         snprintf(appearance_json, sizeof(appearance_json), "null");
 
-    snprintf(json, sizeof(json), "{"
+    /* All of the EIR for the server to decode, unless it's implausibly long */
+    eir_hex = (char *) malloc((size_t) (eirlen <= 2048 ? eirlen : 0) * 2 + 1);
+    if (eir_hex == NULL) {
+        free(uuids_json);
+        free(service_data_json);
+        free(manuf_company_id_hex);
+        free(manuf_data_hex);
+        if (safe_name != name)
+            free(safe_name);
+        free(name);
+        return -1;
+    }
+
+    eir_hex[0] = '\0';
+    if (eirlen <= 2048)
+        for (i = 0; i < eirlen; i++)
+            snprintf(eir_hex + i * 2, 3, "%02x", dev->eir[i]);
+
+    r = snprintf(json, sizeof(json), "{"
             "\"addr\": \"%s\","
             "\"name\": \"%s\","
             "\"type\": %u,"
@@ -184,14 +203,17 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
             "\"manuf_data\": \"%s\","
             "\"txpower\": %s,"
             "\"class\": %s,"
-            "\"appearance\": %s"
+            "\"appearance\": %s,"
+            "\"eir\": \"%s\""
             "}",
             address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1,
             uuids_json,
             service_data_json,
             manuf_company_id_hex != NULL ? manuf_company_id_hex : "",
             manuf_data_hex != NULL ? manuf_data_hex : "",
-            txpower_json, class_json, appearance_json);
+            txpower_json, class_json, appearance_json, eir_hex);
+
+    free(eir_hex);
 
     if (safe_name != name) {
         free(safe_name);
@@ -207,6 +229,10 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
         free(manuf_company_id_hex);
     if (manuf_data_hex != NULL)
         free(manuf_data_hex);
+
+    /* A truncated report isn't valid JSON */
+    if (r < 0 || (size_t) r >= sizeof(json))
+        return 0;
 
     /* Pass RSSI from management event to Kismet via signal params */
     struct cf_params_signal sig;

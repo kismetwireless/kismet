@@ -149,6 +149,9 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    btmanuf = Globalreg::fetch_global_as<kis_bt_manuf>();
+    btoid = Globalreg::fetch_global_as<kis_bt_oid>();
+
     alertracker =
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
@@ -211,6 +214,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
 
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
+    httpregistry->register_js_module("kismet_ui_btadv", "js/kismet.ui.btadv.js");
     httpregistry->register_js_module("kismet_ui_btle", "js/kismet.ui.btle.js");
 }
 
@@ -653,6 +657,78 @@ double btle_distance_exponent() {
     return e;
 }
 
+// A phone scanning a busy area requests scans from hundreds of advertisers
+constexpr size_t btle_related_max = 256;
+
+void btle_add_related(kis_tracked_device_base& dev, const std::string& relationship,
+        const device_key& key) {
+    auto related = dev.get_related_devices_map();
+    auto gi = related->find(relationship);
+
+    if (gi != related->end() &&
+            static_cast<tracker_element_device_key_map *>(gi->second.get())->size() >= btle_related_max)
+        return;
+
+    dev.add_related_device(relationship, key);
+}
+
+// Scan requests, connections and directed advertisements name a second device; record
+// the relationship both ways, when both devices are known
+void kis_btle_phy::link_peer(kis_tracked_device_base& device, const bluetooth_btle& decode,
+        time_t now) {
+    if (!decode.has_peer_address())
+        return;
+
+    const char *rel, *peer_rel;
+
+    switch (decode.pdu_type()) {
+        case 0x1:
+            rel = "btle_directed_to";
+            peer_rel = "btle_directed_by";
+            break;
+        case 0x3:
+            rel = "btle_scanned";
+            peer_rel = "btle_scanned_by";
+            break;
+        case 0x5:
+            rel = "btle_peripheral";
+            peer_rel = "btle_central";
+            break;
+        default:
+            return;
+    }
+
+    const device_key peer_key(fetch_phyname_hash(), decode.peer_address());
+
+    if (peer_key == device.get_key())
+        return;
+
+    auto peer = devicetracker->fetch_device(peer_key);
+    if (peer == nullptr)
+        return;
+
+    btle_add_related(device, rel, peer_key);
+    btle_add_related(*peer, peer_rel, device.get_key());
+
+    if (!decode.has_connect_params())
+        return;
+
+    auto pbtle = fetch_btle_record(peer);
+    if (pbtle == nullptr)
+        return;
+
+    const auto& cp = decode.connect_parameters();
+    auto conn = pbtle->get_connection();
+
+    conn->set_central(device.get_macaddr());
+    conn->set_access_address(cp.access_address);
+    conn->set_interval_us((uint32_t) cp.interval * 1250);
+    conn->set_latency(cp.latency);
+    conn->set_timeout_ms((uint32_t) cp.timeout * 10);
+    conn->set_hop(cp.hop);
+    conn->set_last_time(now);
+}
+
 int activate_tracker_follow_alert(const std::shared_ptr<alert_tracker>& alertracker, int phyid) {
     auto ref = alertracker->find_activated_alert("TRACKERFOLLOW");
 
@@ -702,7 +778,11 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     int appearance = -1;
 
+    bt_adv_decode adv_decode;
+
     for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+        adv_decode.ad(ad->type(), (const uint8_t *) ad->data().data(), ad->data().length());
+
         if (ad->type() == BTLE_ADVDATA_APPEARANCE && ad->data().length() == 2) {
             appearance = (uint8_t) ad->data()[0] | ((uint8_t) ad->data()[1] << 8);
             continue;
@@ -822,8 +902,32 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     // Store the PDU type from the packet
     btle_dev->set_pdu_type(btle_info->btle_decode->pdu_type());
 
-    if (btle_info->btle_decode->is_txaddr_random())
-        device->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
+    if (btle_info->btle_decode->has_adv_sid())
+        btle_dev->set_adv_sid(btle_info->btle_decode->adv_sid());
+
+    mphy->link_peer(*device, *btle_info->btle_decode, in_pack->ts.tv_sec);
+
+    // A company ID names the maker of a random address device, and of a public one with an
+    // unlisted OUI; once known it's kept over the random placeholder
+    std::shared_ptr<tracker_element_string> company_manuf;
+    if (adv_decode.company_id >= 0 && mphy->btmanuf != nullptr)
+        company_manuf = mphy->btmanuf->lookup_device_manuf(adv_decode.company_id);
+
+    if (btle_info->btle_decode->is_txaddr_random()) {
+        if (company_manuf != nullptr) {
+            if (device->get_manuf() != company_manuf)
+                device->set_manuf(company_manuf);
+        } else if (!btle_dev->has_adv() || btle_dev->get_adv()->get_company_name() == nullptr) {
+            device->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
+        }
+    } else if (company_manuf != nullptr &&
+            Globalreg::globalreg->manufdb->is_unknown_manuf(device->get_manuf())) {
+        device->set_manuf(company_manuf);
+    }
+
+    if (adv_decode.any())
+        apply_adv(*btle_dev->get_adv(), adv_decode, mphy->btmanuf.get(), mphy->btoid.get(),
+                in_pack->ts.tv_sec);
 
     for (auto ad : *btle_info->btle_decode->advertised_data()) {
         if (btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_ind() ||

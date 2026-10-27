@@ -140,6 +140,47 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 },
                 ],
             },
+            kismet_ui_btadv.fields("btle.device/btle.device.adv"),
+            {
+                field: "btle.device/btle.device.connection",
+                groupTitle: "Connection",
+                filterOnEmpty: true,
+                id: "btle_connection",
+                help: "The last connection a central made to this device, from its connection request.",
+                fields: [
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.central",
+                    title: "Central",
+                    draw: function(opts) {
+                        return kismet.censorMAC(opts['value']);
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.interval_us",
+                    title: "Interval",
+                    draw: function(opts) {
+                        return (opts['value'] / 1000).toFixed(2) + " ms";
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.latency",
+                    title: "Latency",
+                },
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.timeout_ms",
+                    title: "Timeout",
+                    draw: function(opts) {
+                        return opts['value'] + " ms";
+                    },
+                },
+                ],
+            },
+            {
+                field: "btle.device/btle.device.adv_sid",
+                title: "Advertising Set",
+                filterOnEmpty: true,
+                help: "Extended advertising set ID.",
+            },
             {
                 field: "btle.device/btle.device.tracker",
                 groupTitle: "Location Tracker",

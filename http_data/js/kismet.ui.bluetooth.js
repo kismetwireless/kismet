@@ -68,6 +68,7 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
                     return opts['value'].join(", ");
                 },
             },
+            kismet_ui_btadv.fields("bluetooth.device/bluetooth.device.adv"),
             {
                 field: "bluetooth.device/bluetooth.device.beacon",
                 groupTitle: "Beacon",

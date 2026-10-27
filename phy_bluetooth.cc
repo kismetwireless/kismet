@@ -33,6 +33,7 @@
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
+#include "manuf.h"
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
 #include "kis_httpd_registry.h"
@@ -78,6 +79,9 @@ static void apply_appearance(bluetooth_tracked_device& btdev, uint16_t appearanc
 
 kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
     kis_phy_handler(in_phyid) {
+
+    btmanuf = Globalreg::fetch_global_as<kis_bt_manuf>();
+    btoid = Globalreg::fetch_global_as<kis_bt_oid>();
 
     alertracker =
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
@@ -293,6 +297,23 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
 
         btle_beacon::info beacon_info;
 
+        bt_adv_decode adv_decode;
+
+        // The raw EIR or advertising data, when the capture sends it
+        auto eir_j = json["eir"];
+        if (eir_j.is_string()) {
+            const auto& eir_hex = eir_j.get_ref<const std::string&>();
+            if (eir_hex.length() % 2 == 0 && eir_hex.length() <= 4096) {
+                auto eir = hex_to_bytes(eir_hex);
+                adv_decode.block((const uint8_t *) eir.data(), eir.length());
+            }
+        }
+
+        if (devname_j.is_string()) {
+            const auto& n = devname_j.get_ref<const std::string&>();
+            adv_decode.ad(0x09, (const uint8_t *) n.data(), n.length());
+        }
+
         auto txpower_j = json["txpower"];
         if (txpower_j.is_number_integer()) {
             auto tx = txpower_j.get<int>();
@@ -312,8 +333,11 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
 
                 if (uuid_str.length() == 4) {
                     auto ub = hex_to_bytes(uuid_str);
-                    if (ub.length() == 2)
+                    if (ub.length() == 2) {
                         frames.service_uuid((uint16_t) ((uint8_t) ub[0] << 8 | (uint8_t) ub[1]));
+                        const uint8_t le[2] = {(uint8_t) ub[1], (uint8_t) ub[0]};
+                        adv_decode.ad(0x03, le, 2);
+                    }
                 }
 
                 bool exists = false;
@@ -351,6 +375,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                         ad.append(md);
 
                         frames.manuf_data((const uint8_t *) ad.data(), ad.length());
+                        adv_decode.ad(0xFF, (const uint8_t *) ad.data(), ad.length());
 
                         has_battery = btle_battery::decode_manuf_data((const uint8_t *) ad.data(),
                                 ad.length(), battery_info);
@@ -381,6 +406,8 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     continue;
 
                 auto raw = hex_to_bytes(sd_hex);
+
+                adv_decode.ad(0x16, (const uint8_t *) raw.data(), raw.length());
 
                 if (!has_battery)
                     has_battery = btle_battery::decode_service_data((const uint8_t *) raw.data(),
@@ -440,6 +467,9 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                 btle_packet_rssi(in_pack.get(), rssi))
             apply_ranging(*btdev->get_ranging(), ranging_info, rssi, btphy->distance_exponent,
                     in_pack->ts.tv_sec);
+
+        if (adv_decode.any())
+            btphy->apply_adv_decode(*basedev, *btdev, adv_decode, in_pack->ts.tv_sec);
 
     } catch (const std::exception& e) {
         in_pack->error = true;
@@ -659,6 +689,9 @@ void kis_bluetooth_phy::apply_hci_advdata(const std::shared_ptr<kis_packet>& in_
     btle_ranging::info ranging_info;
     btle_beacon::info beacon_info;
 
+    bt_adv_decode adv_decode;
+    adv_decode.block(data, len);
+
     size_t pos = 0;
     while (pos + 2 <= len) {
         const uint8_t rlen = data[pos];
@@ -794,6 +827,25 @@ void kis_bluetooth_phy::apply_hci_advdata(const std::shared_ptr<kis_packet>& in_
     if (ranging_info.src != btle_ranging::source::none && btle_packet_rssi(in_pack.get(), rssi))
         apply_ranging(*btdev.get_ranging(), ranging_info, rssi, distance_exponent,
                 in_pack->ts.tv_sec);
+
+    if (adv_decode.any())
+        apply_adv_decode(basedev, btdev, adv_decode, in_pack->ts.tv_sec);
+}
+
+// A company ID names the maker when the address doesn't; the caller holds the device list lock
+void kis_bluetooth_phy::apply_adv_decode(kis_tracked_device_base& basedev,
+        bluetooth_tracked_device& btdev, const bt_adv_decode& decode, time_t now) {
+    if (decode.company_id >= 0 && btmanuf != nullptr) {
+        auto cm = btmanuf->lookup_device_manuf(decode.company_id);
+        auto cur = basedev.get_manuf();
+
+        if (cm != nullptr && cur != cm &&
+                (cur == nullptr || Globalreg::globalreg->manufdb->is_unknown_manuf(cur) ||
+                 cur == Globalreg::globalreg->manufdb->get_random_manuf()))
+            basedev.set_manuf(cm);
+    }
+
+    apply_adv(*btdev.get_adv(), decode, btmanuf.get(), btoid.get(), now);
 }
 
 // Finds or makes the device a HCI event reports; the caller holds the device list lock

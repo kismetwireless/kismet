@@ -64,6 +64,10 @@ PARSERS = \
 	bluetooth_parsers/btle_ranging.cc.o \
 	bluetooth_parsers/btle_beacon.cc.o \
 	bluetooth_parsers/bt_assigned.cc.o \
+	bluetooth_parsers/btle_vendor.cc.o \
+	bluetooth_parsers/btle_sensor.cc.o \
+	bluetooth_parsers/btle_continuity.cc.o \
+	bluetooth_parsers/btle_adtypes.cc.o \
 	uav_parsers/opendroneid.cc.o
 
 # To prevent a deps problem, we define these targets via autoconf to reference
@@ -330,7 +334,7 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_components_v2.cc.o phy_80211_dissectors.cc.o \
 	randomized_alias.cc.o \
 	phy_sensor.cc.o phy_meter.cc.o phy_adsb.cc.o phy_ais.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_802154.cc.o phy_ant.cc.o \
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_btle_adv.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	phy_cell.cc.o phy_cell_decisions.cc.o \
 	kis_dissector_ipdata.cc.o \

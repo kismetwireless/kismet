@@ -45,6 +45,10 @@
 #include "randomized_alias.h"
 
 #include "bluetooth_parsers/btle_tracker.h"
+#include "bluetooth_ids.h"
+#include "phy_btle_adv.h"
+
+class bluetooth_btle;
 
 class btle_tracked_advertised_service : public tracker_component {
 public:
@@ -529,6 +533,75 @@ protected:
     std::shared_ptr<tracker_element_uint64> last_time;
 };
 
+// The connection a central last made to this device, from its CONNECT_IND
+class btle_tracked_connection : public tracker_component {
+public:
+    btle_tracked_connection() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_connection(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_connection(int in_id,
+            std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("btle_tracked_connection");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(central, mac_addr, mac_addr, mac_addr, central);
+    __Proxy(access_address, uint32_t, uint32_t, uint32_t, access_address);
+    __Proxy(interval_us, uint32_t, uint32_t, uint32_t, interval_us);
+    __Proxy(latency, uint16_t, uint16_t, uint16_t, latency);
+    __Proxy(timeout_ms, uint32_t, uint32_t, uint32_t, timeout_ms);
+    __Proxy(hop, uint8_t, uint8_t, uint8_t, hop);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("btle.device.connection.central", "Address of the connecting central",
+                &central);
+        register_field("btle.device.connection.access_address", "Connection access address",
+                &access_address);
+        register_field("btle.device.connection.interval_us", "Connection interval, microseconds",
+                &interval_us);
+        register_field("btle.device.connection.latency", "Peripheral latency, in events",
+                &latency);
+        register_field("btle.device.connection.timeout_ms", "Supervision timeout, milliseconds",
+                &timeout_ms);
+        register_field("btle.device.connection.hop", "Channel hop increment", &hop);
+        register_field("btle.device.connection.last_time", "Last time a connection was seen",
+                &last_time);
+    }
+
+    std::shared_ptr<tracker_element_mac_addr> central;
+    std::shared_ptr<tracker_element_uint32> access_address;
+    std::shared_ptr<tracker_element_uint32> interval_us;
+    std::shared_ptr<tracker_element_uint16> latency;
+    std::shared_ptr<tracker_element_uint32> timeout_ms;
+    std::shared_ptr<tracker_element_uint8> hop;
+    std::shared_ptr<tracker_element_uint64> last_time;
+};
+
 namespace btle_battery {
 struct info;
 }
@@ -615,6 +688,9 @@ public:
    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
    __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
    __ProxyDynamicTrackable(beacon, btle_tracked_beacon, beacon, beacon_id);
+   __ProxyDynamicTrackable(connection, btle_tracked_connection, connection, connection_id);
+   __ProxyDynamic(adv_sid, uint8_t, uint8_t, uint8_t, adv_sid, adv_sid_id);
+   __ProxyDynamicTrackable(adv, bt_tracked_adv, adv, adv_id);
 
    __ProxyDynamic(appearance, uint16_t, uint16_t, uint16_t, appearance, appearance_id);
    __ProxyDynamic(appearance_name, std::string, std::string, std::string, appearance_name,
@@ -657,6 +733,13 @@ protected:
             register_dynamic_field("btle.device.ranging", "estimated distance", &ranging);
         beacon_id =
             register_dynamic_field("btle.device.beacon", "advertised beacon identity", &beacon);
+        connection_id =
+            register_dynamic_field("btle.device.connection", "last connection to this device",
+                    &connection);
+        adv_sid_id =
+            register_dynamic_field("btle.device.adv_sid", "extended advertising set ID", &adv_sid);
+        adv_id =
+            register_dynamic_field("btle.device.adv", "decoded advertising data", &adv);
 
         appearance_id =
             register_dynamic_field("btle.device.appearance", "advertised appearance", &appearance);
@@ -683,6 +766,12 @@ protected:
     uint16_t ranging_id;
     std::shared_ptr<btle_tracked_beacon> beacon;
     uint16_t beacon_id;
+    std::shared_ptr<btle_tracked_connection> connection;
+    uint16_t connection_id;
+    std::shared_ptr<tracker_element_uint8> adv_sid;
+    uint16_t adv_sid_id;
+    std::shared_ptr<bt_tracked_adv> adv;
+    uint16_t adv_id;
 
     std::shared_ptr<tracker_element_uint16> appearance;
     uint16_t appearance_id;
@@ -718,6 +807,9 @@ public:
 
     virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 
+    // Relationships from scan requests, connections and directed advertisements
+    void link_peer(kis_tracked_device_base& device, const bluetooth_btle& decode, time_t now);
+
     std::shared_ptr<btle_tracked_device> fetch_btle_record(const std::shared_ptr<kis_tracked_device_base>& dev) {
         return dev->get_sub_as<btle_tracked_device>(btle_device_id);
     }
@@ -727,6 +819,8 @@ protected:
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<alert_tracker> alertracker;
+    std::shared_ptr<kis_bt_manuf> btmanuf;
+    std::shared_ptr<kis_bt_oid> btoid;
 
     int pack_comp_linkframe, pack_comp_decap, pack_comp_btle, pack_comp_remoteid;
 

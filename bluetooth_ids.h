@@ -116,6 +116,9 @@ public:
 
     std::shared_ptr<tracker_element_string> lookup_manuf(uint32_t in_manuf);
 
+    // The company name as a device's base manufacturer, or nullptr if unknown
+    std::shared_ptr<tracker_element_string> lookup_device_manuf(uint32_t in_manuf);
+
     struct manuf_data {
         uint32_t id;
         std::shared_ptr<tracker_element_string> manuf;
@@ -130,10 +133,11 @@ protected:
     kis_mutex mutex;
 
     std::unordered_map<uint32_t, manuf_data> manuf_map;
+    std::unordered_map<uint32_t, std::shared_ptr<tracker_element_string>> device_manuf_map;
 
     gzFile zmfile = nullptr;
 
-    int manuf_id;
+    int manuf_id, device_manuf_id;
     std::shared_ptr<tracker_element_string> unknown_manuf;
 };
 

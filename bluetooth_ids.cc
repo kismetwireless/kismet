@@ -87,8 +87,8 @@ kis_bt_oid::kis_bt_oid() {
     auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     oid_id =
-        entrytracker->register_field("kismet.device.base.btoid",
-                tracker_element_factory<tracker_element_string>(), "Bluetooth OID name");
+        entrytracker->register_field("bluetooth.uuid_name",
+                tracker_element_factory<tracker_element_string>(), "Bluetooth UUID name");
 
     unknown_oid = std::make_shared<tracker_element_string>(oid_id);
     unknown_oid->set("Unknown");
@@ -188,8 +188,12 @@ kis_bt_manuf::kis_bt_manuf() {
     auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     manuf_id =
-        entrytracker->register_field("kismet.device.base.btmanuf",
-                tracker_element_factory<tracker_element_string>(), "Bluetooth manufacturer name");
+        entrytracker->register_field("bluetooth.company_name",
+                tracker_element_factory<tracker_element_string>(), "Bluetooth company name");
+
+    device_manuf_id =
+        entrytracker->register_field("kismet.device.base.manuf",
+                tracker_element_factory<tracker_element_string>(), "manufacturer name");
 
     unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
     unknown_manuf->set("Unknown");
@@ -276,6 +280,25 @@ std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_manuf(uint32_t in_i
     // Another thread may have resolved it first; keep one shared record per ID
     kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf lookup_manuf insert");
     return manuf_map.try_emplace(in_id, manuf_data{in_id, manuf}).first->second.manuf;
+}
+
+std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_device_manuf(uint32_t in_manuf) {
+    auto name = lookup_manuf(in_manuf);
+
+    if (name == unknown_manuf)
+        return nullptr;
+
+    // One record per company, shared by every device
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf lookup_device_manuf");
+
+    auto di = device_manuf_map.find(in_manuf);
+    if (di != device_manuf_map.end())
+        return di->second;
+
+    auto m = std::make_shared<tracker_element_string>(device_manuf_id, name->get());
+    device_manuf_map.emplace(in_manuf, m);
+
+    return m;
 }
 
 bool kis_bt_manuf::is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf) {

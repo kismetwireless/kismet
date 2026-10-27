@@ -134,6 +134,7 @@ public:
     __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
     __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
     __ProxyDynamicTrackable(beacon, btle_tracked_beacon, beacon, beacon_id);
+    __ProxyDynamicTrackable(adv, bt_tracked_adv, adv, adv_id);
 
     // Only created when the device advertises them
     __ProxyDynamic(class_of_device, uint32_t, uint32_t, uint32_t, class_of_device,
@@ -213,6 +214,8 @@ protected:
             register_dynamic_field("bluetooth.device.ranging", "estimated distance", &ranging);
         beacon_id =
             register_dynamic_field("bluetooth.device.beacon", "advertised beacon identity", &beacon);
+        adv_id =
+            register_dynamic_field("bluetooth.device.adv", "decoded advertising and EIR data", &adv);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -264,6 +267,8 @@ protected:
     uint16_t ranging_id;
     std::shared_ptr<btle_tracked_beacon> beacon;
     uint16_t beacon_id;
+    std::shared_ptr<bt_tracked_adv> adv;
+    uint16_t adv_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
@@ -309,6 +314,8 @@ public:
 
 protected:
     std::shared_ptr<alert_tracker> alertracker;
+    std::shared_ptr<kis_bt_manuf> btmanuf;
+    std::shared_ptr<kis_bt_oid> btoid;
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
@@ -328,6 +335,8 @@ protected:
     void apply_hci_advdata(const std::shared_ptr<kis_packet>& in_pack,
             kis_tracked_device_base& basedev, bluetooth_tracked_device& btdev,
             const uint8_t *data, size_t len);
+    void apply_adv_decode(kis_tracked_device_base& basedev, bluetooth_tracked_device& btdev,
+            const bt_adv_decode& decode, time_t now);
 
     // Connection handle to address, to place what a host reads over a connection
     uint64_t hci_handle_key(const std::shared_ptr<kis_packet>& in_pack, uint16_t handle);
