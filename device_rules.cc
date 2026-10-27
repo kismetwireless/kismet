@@ -21,6 +21,13 @@
 #include <chrono>
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
+
+#include <dirent.h>
+#include <fcntl.h>
+#include <glob.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "alertracker.h"
 #include "configfile.h"
@@ -385,6 +392,211 @@ struct device_rules::pass_state {
 
 namespace {
 
+// Reads rules from files, directories and config lines into one ruleset.  Only rules
+// read from disk at startup may use 'include'; rules from the API never can.
+class rules_loader {
+public:
+    rules_loader(devicerules::ruleset& in_rs) :
+        rs{in_rs}, total{0} { }
+
+    // A missing file is skipped when it's optional, and logged otherwise
+    void load_file(const std::string& path, bool required) {
+        load_path(path, required, 0);
+    }
+
+    void load_dir(const std::string& path) {
+        DIR *dir;
+        struct dirent *de;
+        struct stat st;
+        std::vector<std::string> names;
+        constexpr std::string_view ext{".rules"};
+
+        if ((dir = opendir(path.c_str())) == nullptr) {
+            if (errno == ENOENT)
+                _MSG_INFO("Optional device rules directory not present: {}", path);
+            else
+                _MSG_ERROR("Could not read device rules directory '{}': {}", path, kis_strerror_r(errno));
+            return;
+        }
+
+        const auto prefix = (path.length() > 0 && path.back() == '/') ? path : path + "/";
+
+        while ((de = readdir(dir)) != nullptr) {
+            std::string_view name{de->d_name};
+
+            // Skip hidden files, which also covers editor swap files
+            if (name.length() <= ext.length() || name[0] == '.')
+                continue;
+            if (name.substr(name.length() - ext.length()) != ext)
+                continue;
+            if (stat((prefix + de->d_name).c_str(), &st) != 0 || !S_ISREG(st.st_mode))
+                continue;
+
+            names.emplace_back(name);
+        }
+
+        closedir(dir);
+
+        std::sort(names.begin(), names.end(),
+                [](const std::string& a, const std::string& b) {
+                    return natural_compare(a, b) < 0;
+                });
+
+        if (names.size() > max_dir_files) {
+            _MSG_ERROR("Device rules directory '{}' has {} files, only loading the first {}",
+                    path, names.size(), max_dir_files);
+            names.resize(max_dir_files);
+        }
+
+        for (const auto& n : names)
+            load_path(prefix + n, true, 0);
+    }
+
+    // One rule or sort from a config line, without its leading keyword
+    void load_line(const config_file::sourced_value& v, devicerules::parse_source::block kind) {
+        charge(v.value.size());
+
+        devicerules::parse_source src;
+        src.origin = v.file;
+        src.line_base = v.line > 0 ? v.line - 1 : 0;
+        src.col_base = v.col > 0 ? v.col - 1 : 0;
+        src.only = kind;
+        rs.parse(v.value, src);
+    }
+
+private:
+    static constexpr size_t max_dir_files = 256;
+    static constexpr int max_include_depth = 8;
+
+    devicerules::ruleset& rs;
+    size_t total;
+    std::unordered_set<std::string> loaded;
+
+    void charge(size_t n) {
+        total += n;
+        if (total > max_rules_text)
+            throw devicerules::parse_error("rules are larger than " + std::to_string(max_rules_text) +
+                    " bytes in all", 0, 0);
+    }
+
+    static bool has_glob(const std::string& p) {
+        return p.find_first_of("*?[") != std::string::npos;
+    }
+
+    void load_path(const std::string& path, bool required, int depth) {
+        std::string text;
+        std::string real;
+
+        int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+        if (fd < 0) {
+            if (errno == ENOENT && !required)
+                return;
+            if (errno == ENOENT && depth == 0) {
+                _MSG_ERROR("Device rules file '{}' not found, skipping it", path);
+                return;
+            }
+            throw devicerules::parse_error("can't open device rules file '" + path + "': " +
+                    kis_strerror_r(errno), 0, 0);
+        }
+
+        try {
+            // Check the file we opened, not the name, and never read devices or fifos
+            struct stat st;
+            if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode))
+                throw devicerules::parse_error("device rules file '" + path + "' isn't a regular file", 0, 0);
+
+            char *rp = realpath(path.c_str(), nullptr);
+            real = rp != nullptr ? rp : path;
+            free(rp);
+
+            if (!loaded.insert(real).second) {
+                _MSG_INFO("Device rules file '{}' is already loaded, skipping it", path);
+                close(fd);
+                return;
+            }
+
+            if ((uint64_t) st.st_size > max_rules_text)
+                throw devicerules::parse_error("device rules file '" + path + "' is too large", 0, 0);
+
+            // Read no more than the remaining budget, whatever the size claimed
+            char buf[16384];
+            ssize_t r;
+            while ((r = read(fd, buf, sizeof(buf))) > 0) {
+                charge(r);
+                text.append(buf, r);
+            }
+            if (r < 0)
+                throw devicerules::parse_error("can't read device rules file '" + path + "': " +
+                        kis_strerror_r(errno), 0, 0);
+        } catch (...) {
+            close(fd);
+            throw;
+        }
+
+        close(fd);
+
+        devicerules::parse_source src;
+        src.origin = path;
+        src.include = [this, &path, depth](const std::string& inc, size_t line, size_t col) {
+            include(path, inc, depth, line, col);
+        };
+
+        rs.parse(text, src);
+    }
+
+    void include(const std::string& from, const std::string& inc, int depth, size_t line, size_t col) {
+        if (depth + 1 > max_include_depth)
+            throw devicerules::parse_error("includes nest more than " + std::to_string(max_include_depth) +
+                    " deep", line, col);
+
+        auto target = Globalreg::globalreg->kismet_config->expand_log_path(inc);
+        if (target.empty() || target[0] != '/') {
+            auto slash = from.find_last_of('/');
+            target = (slash == std::string::npos ? std::string{"."} : from.substr(0, slash)) + "/" + target;
+        }
+
+        if (!has_glob(target)) {
+            if (access(target.c_str(), F_OK) != 0)
+                throw devicerules::parse_error("can't find included file '" + target + "'", line, col);
+            load_path(target, true, depth + 1);
+            return;
+        }
+
+        glob_t g;
+        memset(&g, 0, sizeof(g));
+        int gr = glob(target.c_str(), GLOB_NOSORT, nullptr, &g);
+        if (gr == GLOB_NOMATCH) {
+            globfree(&g);
+            return;
+        }
+        if (gr != 0) {
+            globfree(&g);
+            throw devicerules::parse_error("can't expand include '" + target + "'", line, col);
+        }
+
+        std::vector<std::string> names;
+        for (size_t i = 0; i < g.gl_pathc; i++)
+            names.emplace_back(g.gl_pathv[i]);
+        globfree(&g);
+
+        std::sort(names.begin(), names.end(),
+                [](const std::string& a, const std::string& b) {
+                    return natural_compare(a, b) < 0;
+                });
+
+        if (names.size() > max_dir_files)
+            throw devicerules::parse_error("include '" + target + "' matches more than " +
+                    std::to_string(max_dir_files) + " files", line, col);
+
+        for (const auto& n : names) {
+            struct stat st;
+            if (stat(n.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
+                continue;
+            load_path(n, true, depth + 1);
+        }
+    }
+};
+
 // Per-thread evaluation state for live rules
 struct live_ctx {
     std::shared_ptr<device_rules::active_set> set;
@@ -471,25 +683,12 @@ void device_rules::trigger_deferred_startup() {
     pack_comp_device = packetchain->register_packet_component("DEVICE");
 
     // Rules are compiled here so every phy and plugin field is registered
-    auto path = Globalreg::globalreg->kismet_config->fetch_opt_path("device_rules_file",
-            "%E/kismet_device_rules.txt");
-
-    std::ifstream f(path);
-    if (f.good()) {
-        std::stringstream ss;
-        ss << f.rdbuf();
-
-        if (ss.str().size() > max_rules_text) {
-            _MSG_ERROR("Device rules file {} is larger than {} bytes; not loading it", path, max_rules_text);
-        } else {
-            try {
-                set_rules(ss.str());
-            } catch (const devicerules::parse_error& e) {
-                _MSG_ERROR("Device rules in {}, line {} column {}: {}", path, e.line, e.col, e.what());
-            } catch (const std::exception& e) {
-                _MSG_ERROR("Could not load device rules from {}: {}", path, e.what());
-            }
-        }
+    try {
+        install_set(load_configured());
+    } catch (const devicerules::parse_error& e) {
+        _MSG_ERROR("Device rules not loaded: {}", describe(e));
+    } catch (const std::exception& e) {
+        _MSG_ERROR("Device rules not loaded: {}", e.what());
     }
 
     timer_id =
@@ -525,13 +724,19 @@ std::shared_ptr<device_rules::active_set> device_rules::compile_set(const std::s
     if (text.size() > max_rules_text)
         throw devicerules::parse_error("rules are larger than " + std::to_string(max_rules_text) + " bytes", 0, 0);
 
+    auto rs = std::make_unique<devicerules::ruleset>();
+    rs->parse(text);
+
+    return finish_set(std::move(rs), text);
+}
+
+std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_ptr<devicerules::ruleset> rs,
+        const std::string& text) {
     auto as = std::make_shared<active_set>();
-    as->rs = std::make_unique<devicerules::ruleset>();
+    as->rs = std::move(rs);
     as->text = text;
     as->jit = false;
     as->any_live = false;
-
-    as->rs->parse(text);
 
     kismet_resolver r(entrytracker);
     as->rs->compile(r);
@@ -606,10 +811,53 @@ bool device_rules::sort_devices(const std::string& sort, std::shared_ptr<tracker
     return true;
 }
 
-void device_rules::set_rules(const std::string& text) {
-    auto as = compile_set(text);
+std::shared_ptr<device_rules::active_set> device_rules::load_configured() {
+    auto conf = Globalreg::globalreg->kismet_config;
+    auto rs = std::make_unique<devicerules::ruleset>();
+    rules_loader loader(*rs);
 
-    kis_lock_guard<kis_mutex> lk(mutex, "device_rules set_rules");
+    // Files in config order, then directories, then rules written on config lines
+    auto files = conf->fetch_opt_vec_sourced("device_rules_file");
+    if (files.empty())
+        loader.load_file(conf->expand_log_path("%E/kismet_device_rules.txt"), false);
+    for (const auto& f : files)
+        loader.load_file(conf->expand_log_path(f.value), true);
+
+    for (const auto& d : conf->fetch_opt_vec_sourced("device_rules_dir"))
+        loader.load_dir(conf->expand_log_path(d.value));
+
+    for (const auto& v : conf->fetch_opt_vec_sourced("device_rule"))
+        loader.load_line(v, devicerules::parse_source::block::rule);
+    for (const auto& v : conf->fetch_opt_vec_sourced("device_sort"))
+        loader.load_line(v, devicerules::parse_source::block::sort);
+
+    for (const auto& n : conf->fetch_opt_vec("device_rule_disable"))
+        if (!rs->remove_rule(n))
+            _MSG_ERROR("device_rule_disable={} doesn't match any device rule", n);
+    for (const auto& n : conf->fetch_opt_vec("device_sort_disable"))
+        if (!rs->remove_sort(n))
+            _MSG_ERROR("device_sort_disable={} doesn't match any device sort", n);
+
+    for (const auto& r : rs->replaced)
+        _MSG_INFO("Device rules: {}", r);
+
+    return finish_set(std::move(rs), "");
+}
+
+std::string device_rules::describe(const devicerules::parse_error& e) {
+    if (e.line == 0)
+        return e.what();
+    if (e.origin.empty())
+        return fmt::format("line {} column {}: {}", e.line, e.col, e.what());
+    return fmt::format("{} line {} column {}: {}", e.origin, e.line, e.col, e.what());
+}
+
+void device_rules::set_rules(const std::string& text) {
+    install_set(compile_set(text));
+}
+
+void device_rules::install_set(std::shared_ptr<active_set> as) {
+    kis_lock_guard<kis_mutex> lk(mutex, "device_rules install_set");
 
     size_t new_views = 0;
     for (size_t i = 0; i < as->rs->size(); i++)
@@ -961,6 +1209,8 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
                 tracker_element_factory<tracker_element_uint8>(), "rule raises an alert");
         auto live = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.live",
                 tracker_element_factory<tracker_element_uint8>(), "rule is checked on every packet");
+        auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.origin",
+                tracker_element_factory<tracker_element_string>(), "file and line the rule came from");
 
         name->set(rd.name);
         source->set(rd.source);
@@ -971,6 +1221,8 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
             view->set(fmt::format("rule-{}", rd.name));
         alert->set(rd.alert);
         live->set(rd.live);
+        if (!rd.origin.empty())
+            origin->set(fmt::format("{}:{}", rd.origin, rd.line));
 
         r->insert(name);
         r->insert(source);
@@ -979,6 +1231,7 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
         r->insert(view);
         r->insert(alert);
         r->insert(live);
+        r->insert(origin);
 
         f_rules->push_back(r);
     }
@@ -992,12 +1245,17 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
                 tracker_element_factory<tracker_element_string>(), "sort name");
         auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.source",
                 tracker_element_factory<tracker_element_string>(), "sort text");
+        auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.origin",
+                tracker_element_factory<tracker_element_string>(), "file and line the sort came from");
 
         name->set(sd.name);
         source->set(sd.source);
+        if (!sd.origin.empty())
+            origin->set(fmt::format("{}:{}", sd.origin, sd.line));
 
         r->insert(name);
         r->insert(source);
+        r->insert(origin);
 
         f_sorts->push_back(r);
     }

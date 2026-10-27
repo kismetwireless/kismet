@@ -77,8 +77,8 @@ bool is_ident_char(char c) {
 
 class lexer {
 public:
-    lexer(const std::string& in) :
-        src{in}, pos{0}, line{1}, col{1} { }
+    lexer(const std::string& in, size_t first_line, size_t first_col) :
+        src{in}, pos{0}, line{first_line}, col{first_col} { }
 
     token next() {
         skip_space();
@@ -462,8 +462,8 @@ private:
 
 class parser {
 public:
-    parser(const std::string& in) :
-        src{in}, lex{in}, depth{0} {
+    parser(const std::string& in, size_t first_line, size_t first_col) :
+        src{in}, lex{in, first_line, first_col}, depth{0} {
         cur = lex.next();
     }
 
@@ -475,15 +475,39 @@ public:
         return is_word("sort");
     }
 
-    std::unique_ptr<rule_def> parse_rule() {
+    bool at_include() const {
+        return is_word("include");
+    }
+
+    void parse_include(std::string& path, size_t& line, size_t& col) {
+        expect_word("include");
+        if (cur.t != tok::string || cur.text.empty())
+            error("expected a file name after 'include'");
+        path = cur.text;
+        line = line0;
+        col = col0;
+        advance();
+    }
+
+    void expect_end(const char *what) {
+        if (cur.t != tok::end)
+            error(std::string("expected the end of the ") + what);
+    }
+
+    // keyword is false for a block written without its 'rule', as on a config line
+    std::unique_ptr<rule_def> parse_rule(bool keyword = true) {
         if (cur.t == tok::end)
             return nullptr;
 
         size_t start = cur.off;
 
-        if (!is_word("rule"))
-            error("expected 'rule' or 'sort'");
-        expect_word("rule");
+        if (keyword) {
+            if (!is_word("rule"))
+                error("expected 'rule', 'sort' or 'include'");
+            expect_word("rule");
+        } else {
+            mark();
+        }
 
         if (cur.t != tok::ident && cur.t != tok::integer)
             error("expected a rule name");
@@ -494,6 +518,7 @@ public:
         r->live = false;
         r->uses_now = false;
 
+        r->line = line0;
         r->name = rule_name("rule");
 
         expect(tok::lbrace, "'{'");
@@ -555,10 +580,13 @@ public:
         return r;
     }
 
-    std::unique_ptr<sort_def> parse_sort() {
+    std::unique_ptr<sort_def> parse_sort(bool keyword = true) {
         size_t start = cur.off;
 
-        expect_word("sort");
+        if (keyword)
+            expect_word("sort");
+        else
+            mark();
 
         if (cur.t != tok::ident && cur.t != tok::integer)
             error("expected a sort name");
@@ -638,6 +666,11 @@ private:
         if (cur.t != t)
             error(std::string("expected ") + what);
         advance();
+    }
+
+    void mark() {
+        line0 = cur.line;
+        col0 = cur.col;
     }
 
     void expect_word(const char *w) {
@@ -1003,7 +1036,7 @@ private:
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
             "count", "age", "when", "tag", "color", "view", "alert", "live", "rule",
-            "sort", "by", "asc", "desc" };
+            "sort", "by", "asc", "desc", "include" };
 
         for (auto k : kw)
             if (w == k)
@@ -1015,35 +1048,111 @@ private:
 
 }
 
-void ruleset::parse(const std::string& text) {
-    parser p(text);
+void ruleset::parse(const std::string& text, const parse_source& src) {
+    try {
+        parser p(text, src.line_base + 1, src.col_base + 1);
 
-    while (!p.at_end()) {
-        if (p.at_sort()) {
-            auto s = p.parse_sort();
+        auto add_rule = [&](std::unique_ptr<rule_def> r) {
+            r->origin = src.origin;
 
-            for (const auto& e : sorts)
-                if (e->name == s->name)
+            for (auto& e : rules) {
+                if (e->name != r->name)
+                    continue;
+                if (e->origin == r->origin)
+                    throw parse_error("duplicate rule '" + r->name + "'", r->line, 1);
+                replaced.push_back("rule '" + r->name + "' from " + e->origin + " replaced by " + r->origin);
+                e = std::move(r);
+                return;
+            }
+
+            if (rules.size() >= 4096)
+                throw parse_error("too many rules", r->line, 1);
+
+            rules.push_back(std::move(r));
+        };
+
+        auto add_sort = [&](std::unique_ptr<sort_def> s) {
+            s->origin = src.origin;
+
+            for (auto& e : sorts) {
+                if (e->name != s->name)
+                    continue;
+                if (e->origin == s->origin)
                     throw parse_error("duplicate sort '" + s->name + "'", s->line, s->col);
+                replaced.push_back("sort '" + s->name + "' from " + e->origin + " replaced by " + s->origin);
+                e = std::move(s);
+                return;
+            }
 
             if (sorts.size() >= max_sorts)
                 throw parse_error("too many sorts", s->line, s->col);
 
             sorts.push_back(std::move(s));
-            continue;
+        };
+
+        if (src.only == parse_source::block::rule) {
+            auto r = p.parse_rule(false);
+            if (r == nullptr)
+                throw parse_error("expected a rule", src.line_base + 1, 1);
+            p.expect_end("rule");
+            add_rule(std::move(r));
+            return;
         }
 
-        auto r = p.parse_rule();
+        if (src.only == parse_source::block::sort) {
+            if (p.at_end())
+                throw parse_error("expected a sort", src.line_base + 1, 1);
+            auto s = p.parse_sort(false);
+            p.expect_end("sort");
+            add_sort(std::move(s));
+            return;
+        }
 
-        for (const auto& e : rules)
-            if (e->name == r->name)
-                throw parse_error("duplicate rule '" + r->name + "'", r->expr->line, r->expr->col);
+        while (!p.at_end()) {
+            if (p.at_sort()) {
+                add_sort(p.parse_sort());
+                continue;
+            }
 
-        if (rules.size() >= 4096)
-            throw parse_error("too many rules", r->expr->line, r->expr->col);
+            if (p.at_include()) {
+                std::string path;
+                size_t line, col;
+                p.parse_include(path, line, col);
+                if (!src.include)
+                    throw parse_error("'include' is only allowed in rules files", line, col);
+                src.include(path, line, col);
+                continue;
+            }
 
-        rules.push_back(std::move(r));
+            add_rule(p.parse_rule());
+        }
+    } catch (parse_error& e) {
+        if (e.origin.empty())
+            e.origin = src.origin;
+        throw;
     }
+}
+
+bool ruleset::remove_rule(const std::string& name) {
+    if (compiled_ok)
+        throw std::runtime_error("ruleset already compiled");
+    for (auto i = rules.begin(); i != rules.end(); ++i)
+        if ((*i)->name == name) {
+            rules.erase(i);
+            return true;
+        }
+    return false;
+}
+
+bool ruleset::remove_sort(const std::string& name) {
+    if (compiled_ok)
+        throw std::runtime_error("ruleset already compiled");
+    for (auto i = sorts.begin(); i != sorts.end(); ++i)
+        if ((*i)->name == name) {
+            sorts.erase(i);
+            return true;
+        }
+    return false;
 }
 
 const char *vtype_name(vtype t) {

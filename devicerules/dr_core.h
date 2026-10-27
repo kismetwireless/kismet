@@ -28,6 +28,7 @@
 #include <stdint.h>
 
 #include <deque>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -90,6 +91,29 @@ public:
         std::runtime_error(msg), line{line}, col{col} { }
 
     size_t line, col;
+    // File the text came from, when known
+    std::string origin;
+};
+
+// Where rule text comes from, and what it may hold
+struct parse_source {
+    enum class block : uint8_t {
+        // Any number of rules, sorts and includes
+        any,
+        // One rule or sort without its leading keyword, as written on a config line
+        rule,
+        sort,
+    };
+
+    std::string origin;
+    // Added to line numbers, and to columns on the first line, for text taken from
+    // the middle of a file
+    size_t line_base = 0;
+    size_t col_base = 0;
+    block only = block::any;
+
+    // Called for each 'include "path"'; includes are refused without it
+    std::function<void(const std::string& path, size_t line, size_t col)> include;
 };
 
 // A resolved field path; slot is its index in the ruleset
@@ -178,6 +202,8 @@ struct node {
 struct rule_def {
     std::string name;
     std::string source;
+    std::string origin;
+    size_t line;
     std::unique_ptr<node> expr;
 
     std::vector<std::string> tags;
@@ -206,6 +232,7 @@ struct sort_key {
 struct sort_def {
     std::string name;
     std::string source;
+    std::string origin;
     std::vector<sort_key> keys;
     bool uses_now;
     size_t line, col;
@@ -339,7 +366,20 @@ public:
     ruleset& operator=(const ruleset&) = delete;
 
     // Parse rule blocks, appending to the set; throws parse_error
-    void parse(const std::string& text);
+    void parse(const std::string& text) {
+        parse(text, parse_source{});
+    }
+
+    // Parse more rules into the set.  A rule or sort with the name of one from another
+    // origin replaces it in place; the same name twice from one origin is an error.
+    void parse(const std::string& text, const parse_source& src);
+
+    // Drop a rule or sort by name before compiling; false when there's none
+    bool remove_rule(const std::string& name);
+    bool remove_sort(const std::string& name);
+
+    // Rules and sorts replaced by later definitions while parsing
+    std::vector<std::string> replaced;
 
     // Resolve fields, type check and generate bytecode; throws parse_error
     void compile(resolver& r);

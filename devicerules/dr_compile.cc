@@ -127,6 +127,7 @@ public:
     void compile_all() {
         for (auto& r : rs.rules) {
             cur_what = "rule '" + r->name + "'";
+            cur_origin = r->origin;
             cur_now = &r->uses_now;
             r->uses_now = false;
             check(r->expr, true);
@@ -148,6 +149,7 @@ public:
 
         for (auto& s : rs.sorts) {
             cur_what = "sort '" + s->name + "'";
+            cur_origin = s->origin;
             cur_now = &s->uses_now;
             s->uses_now = false;
 
@@ -196,12 +198,15 @@ private:
     ruleset& rs;
     resolver& res;
     std::string cur_what;
+    std::string cur_origin;
     bool *cur_now;
     uint16_t nregs;
     ankerl::unordered_dense::map<std::string, int> slot_map;
 
     [[noreturn]] void error(const node *n, const std::string& msg) {
-        throw parse_error(cur_what + ": " + msg, n->line, n->col);
+        parse_error e(cur_what + ": " + msg, n->line, n->col);
+        e.origin = cur_origin;
+        throw e;
     }
 
     int resolve_field(const node *n, const std::string& text) {

@@ -36,6 +36,11 @@
 #
 #   A comparison with a field the device doesn't have is false.
 #
+# Other rules files can be read in with:
+#
+#   include "<file>"         a file, relative to this one
+#   include "<dir>/*.rules"  every matching file, in natural order
+#
 # Sorts order devices for the device views:
 #
 #   sort <name> {
@@ -53,7 +58,6 @@
 # rule close-apple {
 #     when manuf contains "Apple" and signal > -60
 #     tag "close"
-#     color "#ff8800"
 # }
 #
 # rule watchlist {
@@ -66,7 +70,7 @@
 #
 # rule open-ap {
 #     when phy == "IEEE802.11" and type == "Wi-Fi AP" and crypt == "Open"
-#     color "#ff0000"
+#     tag "open"
 # }
 #
 # rule free-ssid {

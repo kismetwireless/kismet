@@ -203,6 +203,13 @@ protected:
     }
 
     std::shared_ptr<active_set> compile_set(const std::string& text);
+    std::shared_ptr<active_set> finish_set(std::unique_ptr<devicerules::ruleset> rs, const std::string& text);
+    void install_set(std::shared_ptr<active_set> as);
+
+    // Rules from the files, directories and lines in the config
+    std::shared_ptr<active_set> load_configured();
+
+    static std::string describe(const devicerules::parse_error& e);
 
     void timer_pass();
     int packet_hook(const std::shared_ptr<kis_packet>& in_pack);
