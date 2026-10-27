@@ -23,6 +23,9 @@
 void bluetooth_btle::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_advertised_data = std::make_shared<shared_advdata_vector>();
     m_has_advertising_address = false;
+    m_has_peer_address = false;
+    m_has_connect_params = false;
+    m_has_adv_sid = false;
 
     m_access_address = p_io->read_u4le();
     m_packet_header = p_io->read_u1();
@@ -46,6 +49,25 @@ void bluetooth_btle::parse(std::shared_ptr<kaitai::kstream> p_io) {
         case 0x5:   // CONNECT_IND: InitA, AdvA, LLData
             // The transmitter address is first; there's no advertising data
             set_address(payload, 0);
+
+            if (payload.length() >= 12) {
+                m_peer_address = kaitai::kstream::reverse(payload.substr(6, 6));
+                m_has_peer_address = true;
+            }
+
+            // LLData: access address, CRC init, window size and offset, interval,
+            // latency, timeout, channel map, hop and SCA
+            if (pdu_type() == 0x5 && payload.length() >= 34) {
+                const auto ll = reinterpret_cast<const uint8_t *>(payload.data()) + 12;
+                m_connect_params.access_address = ll[0] | ((uint32_t) ll[1] << 8) |
+                    ((uint32_t) ll[2] << 16) | ((uint32_t) ll[3] << 24);
+                m_connect_params.interval = ll[10] | ((uint16_t) ll[11] << 8);
+                m_connect_params.latency = ll[12] | ((uint16_t) ll[13] << 8);
+                m_connect_params.timeout = ll[14] | ((uint16_t) ll[15] << 8);
+                m_connect_params.hop = ll[21] & 0x1F;
+                m_has_connect_params = true;
+            }
+
             return;
 
         case 0x7:   // ADV_EXT_IND, AUX_ADV_IND, AUX_SCAN_RSP, AUX_SYNC_IND, AUX_CHAIN_IND
@@ -111,10 +133,15 @@ size_t bluetooth_btle::parse_extended_header(const std::string& payload) {
         if (offt + field_len[f] > end)
             throw std::runtime_error("btle extended header field past end of header");
 
-        if (f == 0)
+        if (f == 0) {
             set_address(payload, offt);
-        else if (f == 4)
+        } else if (f == 3) {
+            // DID in the low 12 bits, SID in the top 4
+            m_adv_sid = (uint8_t) payload[offt + 1] >> 4;
+            m_has_adv_sid = true;
+        } else if (f == 4) {
             m_has_aux_ptr = true;
+        }
 
         offt += field_len[f];
     }

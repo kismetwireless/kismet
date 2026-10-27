@@ -113,6 +113,49 @@ public:
         return m_advertised_data;
     }
 
+    // SCAN_REQ and CONNECT_IND name the advertiser being scanned or connected to, and
+    // ADV_DIRECT_IND its target
+    constexpr17 bool has_peer_address() const {
+        return m_has_peer_address;
+    }
+
+    mac_addr peer_address() const {
+        if (!m_has_peer_address)
+            return mac_addr{};
+        return mac_addr(m_peer_address.data(), 6);
+    }
+
+    constexpr17 bool is_rxaddr_random() const {
+        return (packet_header() & 0x80);
+    }
+
+    // CONNECT_IND link layer parameters, in the spec's units: interval 1.25ms, supervision
+    // timeout 10ms
+    struct connect_params {
+        uint32_t access_address = 0;
+        uint16_t interval = 0;
+        uint16_t latency = 0;
+        uint16_t timeout = 0;
+        uint8_t hop = 0;
+    };
+
+    constexpr17 bool has_connect_params() const {
+        return m_has_connect_params;
+    }
+
+    const connect_params& connect_parameters() const {
+        return m_connect_params;
+    }
+
+    // Advertising set ID from the extended header's ADI
+    constexpr17 bool has_adv_sid() const {
+        return m_has_adv_sid;
+    }
+
+    constexpr17 uint8_t adv_sid() const {
+        return m_adv_sid;
+    }
+
 protected:
     void set_address(const std::string& payload, size_t offt);
 
@@ -126,6 +169,15 @@ protected:
     bool m_has_advertising_address = false;
     bool m_extended = false;
     bool m_has_aux_ptr = false;
+
+    std::string m_peer_address;
+    bool m_has_peer_address = false;
+
+    connect_params m_connect_params;
+    bool m_has_connect_params = false;
+
+    uint8_t m_adv_sid = 0;
+    bool m_has_adv_sid = false;
 
     std::shared_ptr<shared_advdata_vector> m_advertised_data;
 

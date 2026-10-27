@@ -83,6 +83,105 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 help: "BLE advertising PDU type indicating if device is connectable",
             },
             {
+                field: "btle.device/btle.device.appearance_name",
+                title: "Appearance",
+                filterOnEmpty: true,
+                help: "What the device advertises itself as (the Bluetooth appearance value).",
+            },
+            {
+                field: "btle.device/btle.device.beacon",
+                groupTitle: "Beacon",
+                filterOnEmpty: true,
+                id: "btle_beacon",
+                help: "Identity advertised by a proximity beacon (iBeacon, AltBeacon, or Eddystone).",
+                fields: [
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.type",
+                    title: "Format",
+                    draw: function(opts) {
+                        var types = {
+                            "ibeacon": "iBeacon",
+                            "altbeacon": "AltBeacon",
+                            "eddystone_uid": "Eddystone UID",
+                            "eddystone_url": "Eddystone URL",
+                        };
+                        return types[opts['value']] || kismet.censorString(opts['value']);
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.uuid",
+                    title: "UUID",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.major",
+                    title: "Major",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.minor",
+                    title: "Minor",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.namespace",
+                    title: "Namespace",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.instance",
+                    title: "Instance",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.url",
+                    title: "URL",
+                    filterOnEmpty: true,
+                },
+                ],
+            },
+            kismet_ui_btadv.fields("btle.device/btle.device.adv"),
+            {
+                field: "btle.device/btle.device.connection",
+                groupTitle: "Connection",
+                filterOnEmpty: true,
+                id: "btle_connection",
+                help: "The last connection a central made to this device, from its connection request.",
+                fields: [
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.central",
+                    title: "Central",
+                    draw: function(opts) {
+                        return kismet.censorMAC(opts['value']);
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.interval_us",
+                    title: "Interval",
+                    draw: function(opts) {
+                        return (opts['value'] / 1000).toFixed(2) + " ms";
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.latency",
+                    title: "Latency",
+                },
+                {
+                    field: "btle.device/btle.device.connection/btle.device.connection.timeout_ms",
+                    title: "Timeout",
+                    draw: function(opts) {
+                        return opts['value'] + " ms";
+                    },
+                },
+                ],
+            },
+            {
+                field: "btle.device/btle.device.adv_sid",
+                title: "Advertising Set",
+                filterOnEmpty: true,
+                help: "Extended advertising set ID.",
+            },
+            {
                 field: "btle.device/btle.device.tracker",
                 groupTitle: "Location Tracker",
                 filterOnEmpty: true,

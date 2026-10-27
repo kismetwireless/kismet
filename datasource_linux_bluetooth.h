@@ -34,6 +34,17 @@ public:
     virtual ~kis_datasource_linux_bluetooth() { };
 
     protected:
+    // The helper's active probing status, intercepted rather than treated as a device
+    virtual void handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,
+            mpack_node_t& root, mpack_tree_t *tree) override;
+    void apply_probe_status(const std::string& json_str);
+
+    std::shared_ptr<tracker_element_string> probe_mode;
+    std::shared_ptr<tracker_element_uint32> probe_interval;
+    std::shared_ptr<tracker_element_uint64> probe_count;
+    std::shared_ptr<tracker_element_uint32> probe_queued;
+    std::shared_ptr<tracker_element_uint64> probe_last;
+
 #ifdef HAVE_PROTOBUF_CPP
     // legacy protobuf code
     virtual bool dispatch_rx_packet(const std::string_view& command,
@@ -106,8 +117,9 @@ public:
         // We don't do passive packets over http
         set_passive_capable(false);
 
-        // Can't tune a BT
-        set_tune_capable(false);
+        // No channels, but active probing is configured at runtime through set_channel,
+        // which needs a tunable source
+        set_tune_capable(true);
 
         set_hop_capable(false);
     }

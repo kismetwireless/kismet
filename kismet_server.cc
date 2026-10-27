@@ -146,6 +146,7 @@
 
 #include "ipctracker_v2.h"
 #include "manuf.h"
+#include "bluetooth_ids.h"
 #include "entrytracker.h"
 #include "json_adapter.h"
 
@@ -828,6 +829,10 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->manufdb = new kis_manuf();
     if (globalregistry->fatal_condition)
         SpindownKismet();
+
+    // Bluetooth company and UUID names
+    kis_bt_manuf::create_bt_manuf();
+    kis_bt_oid::create_bt_oid();
 
     // Base serializers
     entrytracker->register_serializer("json", std::make_shared<json_adapter::serializer>());

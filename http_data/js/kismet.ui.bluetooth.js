@@ -1,5 +1,143 @@
 "use strict";
 
+kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
+    filter: function(data) {
+        return (data['kismet.device.base.phyname'] === "Bluetooth");
+    },
+    draw: function(data, target) {
+        target.devicedata(data, {
+            "id": "bluetoothDeviceData",
+            "fields": [
+            {
+                field: "bluetooth.device/bluetooth.device.major_class",
+                title: "Class",
+                filterOnEmpty: true,
+                help: "BR/EDR class of device: what the device says it is.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.minor_class",
+                title: "Subclass",
+                filterOnEmpty: true,
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.service_classes",
+                title: "Services",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return opts['value'].join(", ");
+                },
+                help: "Service classes from the class of device.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.lmp_version",
+                title: "Bluetooth Version",
+                filterOnEmpty: true,
+                help: "The Bluetooth version the device's controller reported when a host connected to it.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.chip_manufacturer",
+                title: "Chip Maker ID",
+                filterOnEmpty: true,
+                help: "Bluetooth company ID of the device's controller chip.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.lmp_subversion",
+                title: "Chip Firmware",
+                filterOnZero: true,
+                help: "The controller's firmware subversion, chosen by the chip maker.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.lmp_features",
+                title: "LMP Features",
+                filterOnEmpty: true,
+                help: "Classic feature mask read from the device by active probing.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.le_features",
+                title: "LE Features",
+                filterOnEmpty: true,
+                help: "LE feature mask read from the device by active probing.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.last_probed",
+                title: "Last Probed",
+                filterOnZero: true,
+                help: "Last time a source's opt-in active probing connected to this device.",
+                draw: function(opts) {
+                    return kismet_ui.RenderTrimmedTime(opts);
+                },
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.appearance_name",
+                title: "Appearance",
+                filterOnEmpty: true,
+                help: "What a BLE device advertises itself as (the Bluetooth appearance value).",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.txpower",
+                title: "TX Power",
+                filterOnZero: true,
+                draw: function(opts) {
+                    return opts['value'] + " dBm";
+                },
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.service_uuid_strs",
+                title: "Service UUIDs",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return opts['value'].join(", ");
+                },
+            },
+            kismet_ui_btadv.fields("bluetooth.device/bluetooth.device.adv"),
+            {
+                field: "bluetooth.device/bluetooth.device.beacon",
+                groupTitle: "Beacon",
+                filterOnEmpty: true,
+                id: "bluetooth_beacon",
+                help: "Identity advertised by a proximity beacon (iBeacon, AltBeacon, or Eddystone).",
+                fields: [
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.type",
+                    title: "Format",
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.uuid",
+                    title: "UUID",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.major",
+                    title: "Major",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.minor",
+                    title: "Minor",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.namespace",
+                    title: "Namespace",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.instance",
+                    title: "Instance",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.url",
+                    title: "URL",
+                    filterOnEmpty: true,
+                },
+                ],
+            },
+            ],
+        });
+    },
+});
+
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'Bluetooth' ||
         row['original_data']['kismet.device.base.phyname'] === 'BTLE') {
