@@ -440,6 +440,11 @@ void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base>
 void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
     KIS_CHECK_NO_DEVICE_LOCKS("device_tracker_view add_device_direct");
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
+
+    // A device timed out after the caller looked it up would never leave the view
+    if (device->get_removed())
+        return;
+
     kis_view_lock vlk(view_mutex, false);
     set_present(device, true);
 }
