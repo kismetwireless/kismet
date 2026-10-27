@@ -29,6 +29,24 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
                 help: "Service classes from the class of device.",
             },
             {
+                field: "bluetooth.device/bluetooth.device.lmp_version",
+                title: "Bluetooth Version",
+                filterOnEmpty: true,
+                help: "The Bluetooth version the device's controller reported when a host connected to it.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.chip_manufacturer",
+                title: "Chip Maker ID",
+                filterOnEmpty: true,
+                help: "Bluetooth company ID of the device's controller chip.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.lmp_subversion",
+                title: "Chip Firmware",
+                filterOnZero: true,
+                help: "The controller's firmware subversion, chosen by the chip maker.",
+            },
+            {
                 field: "bluetooth.device/bluetooth.device.appearance_name",
                 title: "Appearance",
                 filterOnEmpty: true,

@@ -26,6 +26,7 @@
 #include <list>
 #include <map>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 #include <string>
 #include <sys/socket.h>
@@ -43,9 +44,6 @@
 #include "devicetracker_component.h"
 #include "phy_btle.h"
 
-#ifndef KDLT_BT_H4_LINUX
-#define KDLT_BT_H4_LINUX        99
-#endif
 
 class bluetooth_tracked_device;
 
@@ -150,6 +148,14 @@ public:
     __ProxyDynamic(appearance_name, std::string, std::string, std::string, appearance_name,
             appearance_name_id);
 
+    // Only seen when a host reads them over a connection, in a HCI capture
+    __ProxyDynamic(lmp_version, std::string, std::string, std::string, lmp_version,
+            lmp_version_id);
+    __ProxyDynamic(chip_manufacturer, std::string, std::string, std::string, chip_manufacturer,
+            chip_manufacturer_id);
+    __ProxyDynamic(lmp_subversion, uint16_t, uint16_t, uint16_t, lmp_subversion,
+            lmp_subversion_id);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -172,6 +178,15 @@ protected:
         appearance_name_id =
             register_dynamic_field("bluetooth.device.appearance_name",
                     "advertised appearance, as text", &appearance_name);
+        lmp_version_id =
+            register_dynamic_field("bluetooth.device.lmp_version",
+                    "Bluetooth core version of the device's controller", &lmp_version);
+        chip_manufacturer_id =
+            register_dynamic_field("bluetooth.device.chip_manufacturer",
+                    "company ID of the controller's maker", &chip_manufacturer);
+        lmp_subversion_id =
+            register_dynamic_field("bluetooth.device.lmp_subversion",
+                    "controller firmware subversion, specific to its maker", &lmp_subversion);
 
         register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("bluetooth.device.solicitation_uuid_vec",
@@ -218,6 +233,12 @@ protected:
     uint16_t appearance_id;
     std::shared_ptr<tracker_element_string> appearance_name;
     uint16_t appearance_name_id;
+    std::shared_ptr<tracker_element_string> lmp_version;
+    uint16_t lmp_version_id;
+    std::shared_ptr<tracker_element_string> chip_manufacturer;
+    uint16_t chip_manufacturer_id;
+    std::shared_ptr<tracker_element_uint16> lmp_subversion;
+    uint16_t lmp_subversion_id;
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
 	std::shared_ptr<tracker_element_vector> solicitation_uuid_vec;
@@ -272,8 +293,11 @@ public:
     // Tracker entry
 	static int packet_tracker_bluetooth(CHAINCALL_PARMS);
 
-    // H4 Linux DLT parser
-    static int packet_tracker_h4_linux(CHAINCALL_PARMS);
+    // HCI events from pcap captures of a host (H4, H4 with direction, Linux monitor)
+    static int packet_classifier_hci(CHAINCALL_PARMS);
+
+    // Keeps each adapter's HCI events on one packet thread, in order
+    static int packet_assign_hci(CHAINCALL_PARMS);
 
     // Load stored data
     virtual void load_phy_storage(shared_tracker_element in_storage, 
@@ -296,7 +320,23 @@ protected:
 
 	// Packet components
 	int pack_comp_btdevice, pack_comp_meta, pack_comp_json,
-        pack_comp_linkframe, pack_comp_remoteid;
+        pack_comp_linkframe, pack_comp_remoteid, pack_comp_datasrc;
+
+    std::shared_ptr<bluetooth_tracked_device> hci_device(const std::shared_ptr<kis_packet>& in_pack,
+            const mac_addr& addr, bool le, int rssi,
+            std::shared_ptr<kis_tracked_device_base>& basedev);
+    void apply_hci_advdata(const std::shared_ptr<kis_packet>& in_pack,
+            kis_tracked_device_base& basedev, bluetooth_tracked_device& btdev,
+            const uint8_t *data, size_t len);
+
+    // Connection handle to address, to place what a host reads over a connection
+    uint64_t hci_handle_key(const std::shared_ptr<kis_packet>& in_pack, uint16_t handle);
+    void hci_handle_set(uint64_t key, const mac_addr& addr);
+    bool hci_handle_get(uint64_t key, mac_addr& addr);
+    void hci_handle_clear(uint64_t key);
+
+    kis_mutex hci_handle_mutex;
+    std::unordered_map<uint64_t, mac_addr> hci_handles;
 
     std::shared_ptr<tracker_element_string> btdev_bredr;
     std::shared_ptr<tracker_element_string> btdev_btle;
