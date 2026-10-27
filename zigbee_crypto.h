@@ -24,7 +24,6 @@
 // what recognizing a frame secured with a known key needs: decryption and MIC verification.
 
 #include <cstring>
-#include <string>
 #include <vector>
 
 #include <stdint.h>
@@ -116,41 +115,58 @@ inline void hmac_mmo_octet(const uint8_t key[16], uint8_t octet, uint8_t out[16]
     mmo_hash(outer_in, sizeof(outer_in), out);
 }
 
-// The APS keys of a known key by key identifier: 0 the link key itself (the data key), 2 its
-// key-transport key, 3 its key-load key; hashed once
-struct known_aps_keys {
-    uint8_t by_id[4][16];
+// A key's ciphers, its AES schedule expanded once: as the network key, and as a link key by APS
+// key identifier (0 the link key itself, the data key; 2 its key-transport key, 3 its key-load
+// key; 1, the network key, is tried with the link key as well)
+struct key_ciphers {
+    explicit key_ciphers(const uint8_t key[16]) :
+        nwk{key}, aps{aes_block{key}, aes_block{key}, aes_block{derived(key, 0x00)},
+            aes_block{derived(key, 0x02)}} { }
+
+    aes_block nwk;
+    aes_block aps[4];
+
+private:
+    struct derived_key {
+        uint8_t k[16];
+        operator const uint8_t *() const { return k; }
+    };
+
+    static derived_key derived(const uint8_t key[16], uint8_t octet) {
+        derived_key d;
+        hmac_mmo_octet(key, octet, d.k);
+        return d;
+    }
 };
 
-inline const known_aps_keys& aps_keys(size_t i) {
-    static const std::vector<known_aps_keys> table = [] {
-        std::vector<known_aps_keys> t(n_known_keys);
-
-        for (size_t k = 0; k < n_known_keys; k++) {
-            memcpy(t[k].by_id[0], known_keys[k].key, 16);
-            memcpy(t[k].by_id[1], known_keys[k].key, 16);
-            hmac_mmo_octet(known_keys[k].key, 0x00, t[k].by_id[2]);
-            hmac_mmo_octet(known_keys[k].key, 0x02, t[k].by_id[3]);
-        }
-
+// The ciphers of the known keys, in known_keys order, built once; the AES state is only read
+// after that, so they are shared by every packet thread
+inline std::vector<key_ciphers>& known_ciphers() {
+    static std::vector<key_ciphers> table = [] {
+        std::vector<key_ciphers> t;
+        t.reserve(n_known_keys);
+        for (size_t k = 0; k < n_known_keys; k++)
+            t.emplace_back(known_keys[k].key);
         return t;
     }();
 
-    return table[i];
+    return table;
 }
 
+// Longest CCM* payload checked; an 802.15.4 frame is at most 127 octets
+constexpr size_t max_ccm_len = 256;
+
 // CCM* decryption with a 4-octet MIC (security level 5) and L = 2: c, the ciphertext followed by
-// the encrypted MIC, under the 13-octet nonce, with a authenticated.  True, with the plaintext,
-// only when the MIC verifies.
-inline bool ccm_star_decrypt(const uint8_t key[16], const uint8_t nonce[13],
-        const uint8_t *a, size_t la, const uint8_t *c, size_t lc, std::string& plain) {
+// the encrypted MIC, under the 13-octet nonce, with a authenticated.  True, with the plaintext in
+// plain (lc - 4 octets, plain holding max_ccm_len), only when the MIC verifies.
+inline bool ccm_star_decrypt(aes_block& aes, const uint8_t nonce[13], const uint8_t *a, size_t la,
+        const uint8_t *c, size_t lc, uint8_t *plain, size_t& plain_len) {
     constexpr size_t mic_len = 4;
 
-    if (lc < mic_len || la > 0xfeff)
+    if (lc < mic_len || lc > max_ccm_len || la > 0xfeff)
         return false;
 
     const size_t lm = lc - mic_len;
-    aes_block aes(key);
 
     auto counter_block = [&](uint8_t blk[16], unsigned int i) {
         blk[0] = 0x01;
@@ -160,13 +176,11 @@ inline bool ccm_star_decrypt(const uint8_t key[16], const uint8_t nonce[13],
         aes.encrypt(blk);
     };
 
-    plain.assign(lm, '\0');
-
     for (size_t i = 0; i < lm; i += 16) {
         uint8_t s[16];
         counter_block(s, (unsigned int) (i / 16 + 1));
         for (size_t j = 0; j < 16 && i + j < lm; j++)
-            plain[i + j] = (char) (c[i + j] ^ s[j]);
+            plain[i + j] = c[i + j] ^ s[j];
     }
 
     // The MIC: CBC-MAC over B0, the length-prefixed authenticated data and the plaintext, each
@@ -178,33 +192,44 @@ inline bool ccm_star_decrypt(const uint8_t key[16], const uint8_t nonce[13],
     x[15] = (uint8_t) lm;
     aes.encrypt(x);
 
-    std::vector<uint8_t> auth;
+    size_t pos = 0;
+
+    auto absorb = [&](const uint8_t *d, size_t n) {
+        for (size_t i = 0; i < n; i++) {
+            x[pos++] ^= d[i];
+            if (pos == 16) {
+                aes.encrypt(x);
+                pos = 0;
+            }
+        }
+    };
+
+    auto pad = [&]() {
+        if (pos != 0) {
+            aes.encrypt(x);
+            pos = 0;
+        }
+    };
+
     if (la) {
-        auth.push_back((uint8_t) (la >> 8));
-        auth.push_back((uint8_t) la);
-        auth.insert(auth.end(), a, a + la);
-        auth.resize((auth.size() + 15) / 16 * 16, 0x00);
+        const uint8_t la_be[2] = {(uint8_t) (la >> 8), (uint8_t) la};
+        absorb(la_be, 2);
+        absorb(a, la);
+        pad();
     }
 
-    auth.insert(auth.end(), plain.begin(), plain.end());
-    auth.resize((auth.size() + 15) / 16 * 16, 0x00);
-
-    for (size_t i = 0; i < auth.size(); i += 16) {
-        for (unsigned int j = 0; j < 16; j++)
-            x[j] ^= auth[i + j];
-        aes.encrypt(x);
-    }
+    absorb(plain, lm);
+    pad();
 
     uint8_t s0[16];
     counter_block(s0, 0);
 
     for (size_t j = 0; j < mic_len; j++) {
-        if ((uint8_t) (x[j] ^ s0[j]) != c[lm + j]) {
-            plain.clear();
+        if ((uint8_t) (x[j] ^ s0[j]) != c[lm + j])
             return false;
-        }
     }
 
+    plain_len = lm;
     return true;
 }
 

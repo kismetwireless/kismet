@@ -266,7 +266,7 @@ static void read_transport_key(const uint8_t *c, size_t n, kis_802154_packinfo *
  * NWK or MAC header (srcs, each as sent or null).
  */
 static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
-        const std::vector<zigbee_user_key>& user_keys, kis_802154_packinfo *pi) {
+        std::vector<zigbee_user_key>& user_keys, kis_802154_packinfo *pi) {
     if (n < 2)
         return;
 
@@ -314,17 +314,26 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
     const bool ext_nonce = (sc >> 5) & 0x01;
     const size_t aux_end = o + 5 + (ext_nonce ? 8 : 0) + (key_id == 1 ? 1 : 0);
 
-    if (aux_end + 4 > n)
+    if (aux_end + 4 > n || aux_end > zigbee_crypto::max_ccm_len)
         return;
-
-    // The security level is not sent; the nonce and the authenticated header have level 5
-    std::vector<uint8_t> a(q, q + aux_end);
-    a[o] = (uint8_t) ((sc & 0xf8) | 0x05);
 
     const uint8_t *const aux_src[3] = {q + o + 5, nullptr, nullptr};
     const uint8_t *const *cand = ext_nonce ? aux_src : srcs;
 
+    // Without a source address there is no nonce, so the frame can't be checked
+    if (cand[0] == nullptr && cand[1] == nullptr && cand[2] == nullptr)
+        return;
+
+    // The security level is not sent; the nonce and the authenticated header have level 5
+    uint8_t a[zigbee_crypto::max_ccm_len];
+    memcpy(a, q, aux_end);
+    a[o] = (uint8_t) ((sc & 0xf8) | 0x05);
+
     pi->key_checked = true;
+
+    auto& known = zigbee_crypto::known_ciphers();
+    uint8_t plain[zigbee_crypto::max_ccm_len];
+    size_t plain_len;
 
     for (unsigned int i = 0; i < 3; i++) {
         if (cand[i] == nullptr)
@@ -334,26 +343,22 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
         zigbee_crypto::make_nonce(cand[i], q + o + 1, a[o], nonce);
 
         for (size_t k = 0; k < zigbee_crypto::n_known_keys; k++) {
-            std::string plain;
-
-            if (!zigbee_crypto::ccm_star_decrypt(zigbee_crypto::aps_keys(k).by_id[key_id], nonce,
-                        a.data(), a.size(), q + aux_end, n - aux_end, plain))
+            if (!zigbee_crypto::ccm_star_decrypt(known[k].aps[key_id], nonce, a, aux_end,
+                        q + aux_end, n - aux_end, plain, plain_len))
                 continue;
 
             pi->weak_keys |= kis_802154_packinfo::weak_key_aps;
             pi->key_matched = true;
             pi->aps_key_name = zigbee_crypto::known_keys[k].name;
             if (ftype == 1)
-                read_transport_key(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), pi);
+                read_transport_key(plain, plain_len, pi);
             return;
         }
 
         // then the user's own keys, as link keys
-        for (const auto& u : user_keys) {
-            std::string plain;
-
-            if (!zigbee_crypto::ccm_star_decrypt(u.aps[key_id], nonce, a.data(), a.size(),
-                        q + aux_end, n - aux_end, plain))
+        for (auto& u : user_keys) {
+            if (!zigbee_crypto::ccm_star_decrypt(u.ciphers.aps[key_id], nonce, a, aux_end,
+                        q + aux_end, n - aux_end, plain, plain_len))
                 continue;
 
             pi->key_matched = true;
@@ -374,7 +379,7 @@ static void read_aps(const uint8_t *q, size_t n, const uint8_t *const srcs[3],
  * nothing.
  */
 static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_t *mac_src,
-        const uint8_t *p, size_t n, const std::vector<zigbee_user_key>& user_keys,
+        const uint8_t *p, size_t n, std::vector<zigbee_user_key>& user_keys,
         kis_802154_packinfo *pi) {
     if (frame_type == BEACON_802154) {
         if (n < 4)
@@ -528,7 +533,12 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
         return true;
 
     const size_t aux_end = o + 14;
-    std::vector<uint8_t> a(p, p + aux_end);
+
+    if (aux_end > zigbee_crypto::max_ccm_len)
+        return true;
+
+    uint8_t a[zigbee_crypto::max_ccm_len];
+    memcpy(a, p, aux_end);
     a[o] = (uint8_t) ((sc & 0xf8) | 0x05);
 
     uint8_t nonce[13];
@@ -536,11 +546,14 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
 
     pi->key_checked = true;
 
-    for (size_t k = 0; k < zigbee_crypto::n_known_keys; k++) {
-        std::string plain;
+    auto& known = zigbee_crypto::known_ciphers();
+    uint8_t plain[zigbee_crypto::max_ccm_len];
+    size_t plain_len;
+    const uint8_t *const srcs[3] = {nwk_src_ieee, p + o + 5, mac_src};
 
-        if (!zigbee_crypto::ccm_star_decrypt(zigbee_crypto::known_keys[k].key, nonce, a.data(),
-                    a.size(), p + aux_end, n - aux_end, plain))
+    for (size_t k = 0; k < zigbee_crypto::n_known_keys; k++) {
+        if (!zigbee_crypto::ccm_star_decrypt(known[k].nwk, nonce, a, aux_end, p + aux_end,
+                    n - aux_end, plain, plain_len))
             continue;
 
         pi->weak_keys |= kis_802154_packinfo::weak_key_nwk;
@@ -548,28 +561,22 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
         pi->nwk_key_name = zigbee_crypto::known_keys[k].name;
         pi->nwk_key = key_string(zigbee_crypto::known_keys[k].key);
 
-        const uint8_t *const srcs[3] = {nwk_src_ieee, p + o + 5, mac_src};
-
         if (ftype == 0)
-            read_aps(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), srcs, user_keys, pi);
+            read_aps(plain, plain_len, srcs, user_keys, pi);
         return true;
     }
 
     // then the user's own keys, as the network key
-    for (const auto& u : user_keys) {
-        std::string plain;
-
-        if (!zigbee_crypto::ccm_star_decrypt(u.key, nonce, a.data(), a.size(), p + aux_end,
-                    n - aux_end, plain))
+    for (auto& u : user_keys) {
+        if (!zigbee_crypto::ccm_star_decrypt(u.ciphers.nwk, nonce, a, aux_end, p + aux_end,
+                    n - aux_end, plain, plain_len))
             continue;
 
         pi->key_matched = true;
         pi->user_key_name = u.name;
 
-        const uint8_t *const srcs[3] = {nwk_src_ieee, p + o + 5, mac_src};
-
         if (ftype == 0)
-            read_aps(reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), srcs, user_keys, pi);
+            read_aps(plain, plain_len, srcs, user_keys, pi);
         break;
     }
 
@@ -627,32 +634,45 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
             if (c != ':' && c != ' ' && c != '-')
                 hex += c;
 
-        zigbee_user_key u;
-        u.name = std::string{name};
-
+        uint8_t key[16];
         bool ok = hex.length() == 32;
         for (unsigned int i = 0; ok && i < 16; i++) {
             if (!isxdigit((unsigned char) hex[2 * i]) || !isxdigit((unsigned char) hex[2 * i + 1]))
                 ok = false;
             else
-                u.key[i] = (uint8_t) std::stoul(hex.substr(2 * i, 2), nullptr, 16);
+                key[i] = (uint8_t) std::stoul(hex.substr(2 * i, 2), nullptr, 16);
         }
+
+        kis_aes::secure_zero(hex.data(), hex.size());
 
         if (!ok) {
             _MSG_ERROR("Invalid zigbee_key for '{}', the key must be 16 octets in hex", name);
             continue;
         }
 
-        memcpy(u.aps[0], u.key, 16);
-        memcpy(u.aps[1], u.key, 16);
-        zigbee_crypto::hmac_mmo_octet(u.key, 0x00, u.aps[2]);
-        zigbee_crypto::hmac_mmo_octet(u.key, 0x02, u.aps[3]);
-
-        user_keys.push_back(std::move(u));
+        user_keys.push_back(zigbee_user_key{std::string{name}, zigbee_crypto::key_ciphers{key}});
+        kis_aes::secure_zero(key, sizeof(key));
     }
 
     if (!user_keys.empty())
         _MSG_INFO("Loaded {} Zigbee key(s) from zigbee_key", user_keys.size());
+
+    show_keys = Globalreg::globalreg->kismet_config->fetch_opt_bool("zigbee_show_keys", false);
+
+    // Held-back alerts also go out without new frames, as the rate limit allows
+    weak_key_timer =
+        Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(SERVER_TIMESLICES_SEC,
+                nullptr, 1, [this](int) -> int {
+                    if (alert_weakkey_ref < 0 || !weak_key_backlogged.load())
+                        return 1;
+
+                    kis_lock_guard<kis_mutex> wlk(weak_key_mutex, "802154_weak_key timer");
+                    drain_weak_key_backlog();
+                    weak_key_backlogged.store(!weak_key_backlog.empty());
+                    return 1;
+                });
+    weak_key_backlog_max =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("zigbee_alert_backlog", 64);
 
     kis_802154_device_entry_id =
         entrytracker->register_field("802154.device",
@@ -675,8 +695,21 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
 }
 
 kis_802154_phy::~kis_802154_phy() {
+    Globalreg::fetch_mandatory_global_as<time_tracker>()->remove_timer(weak_key_timer);
     packetchain->remove_handler(&dissector802154, CHAINPOS_LLCDISSECT);
     packetchain->remove_handler(&commonclassifier802154, CHAINPOS_CLASSIFIER);
+}
+
+void kis_802154_phy::drain_weak_key_backlog() {
+    while (!weak_key_backlog.empty()) {
+        const auto& a = weak_key_backlog.front();
+
+        if (alertracker->raise_alert(alert_weakkey_ref, nullptr, mac_addr{}, a.source, a.dest,
+                    mac_addr{}, a.channel, a.text) != 1)
+            break;
+
+        weak_key_backlog.pop_front();
+    }
 }
 
 int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
@@ -1222,9 +1255,11 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
             // Secured frames checked against the publicly known keys, and how many of them matched
             if (pi->key_checked)
-                source_kis_802154->inc_key_frames(1);
+                source_kis_802154->set_key_frames(source_kis_802154->has_key_frames() ?
+                        source_kis_802154->get_key_frames() + 1 : 1);
             if (pi->key_matched)
-                source_kis_802154->inc_key_frames_matched(1);
+                source_kis_802154->set_key_frames_matched(source_kis_802154->has_key_frames_matched() ?
+                        source_kis_802154->get_key_frames_matched() + 1 : 1);
             if (!pi->user_key_name.empty())
                 source_kis_802154->set_user_key(pi->user_key_name);
 
@@ -1232,7 +1267,8 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             // a PAN shows each kind
             if (pi->weak_keys) {
                 using pk = kis_802154_packinfo;
-                const uint8_t all = source_kis_802154->get_weak_keys() | pi->weak_keys;
+                const uint8_t all = pi->weak_keys |
+                    (source_kis_802154->has_weak_keys() ? source_kis_802154->get_weak_keys() : 0);
 
                 if (!pi->aps_key_name.empty())
                     source_kis_802154->set_known_link_key(pi->aps_key_name);
@@ -1253,12 +1289,17 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                 source_kis_802154->set_weak_keys(all);
                 source_kis_802154->set_weak_key(desc);
 
+                // Key values only with zigbee_show_keys; otherwise the key's type or name
+                const std::string exposed_value = mphy->show_keys ? " " + pi->exposed_key : "";
+
                 if (!pi->exposed_key.empty())
-                    source_kis_802154->set_exposed_key(pi->exposed_key_type + " key " + pi->exposed_key);
+                    source_kis_802154->set_exposed_key(mphy->show_keys ?
+                            pi->exposed_key_type + " key " + pi->exposed_key :
+                            pi->exposed_key_type + " key (value hidden; set zigbee_show_keys=true to record it)");
 
                 const std::string exposed = pi->exposed_key.empty() ? "" :
-                    fmt::format("; its Transport Key command gives the {} key {}",
-                            pi->exposed_key_type, pi->exposed_key);
+                    fmt::format("; its Transport Key command gives the {} key{}",
+                            pi->exposed_key_type, exposed_value);
 
                 for (const uint8_t bit : {pk::weak_key_clear_transport, pk::weak_key_aps, pk::weak_key_nwk}) {
                     if (!(pi->weak_keys & bit))
@@ -1274,19 +1315,20 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
                     if (bit == pk::weak_key_clear_transport)
                         weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} sent "
-                                    "a Transport Key command without APS security: the {} key {} "
+                                    "a Transport Key command without APS security: the {} key{} "
                                     "is in the clear to anyone who received it",
                                     source.mac_to_string(), src_pan, pi->exposed_key_type,
-                                    pi->exposed_key));
+                                    exposed_value));
                     else if (bit == pk::weak_key_aps)
                         weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} "
                                     "secures APS frames with the publicly known link key {}{}",
                                     source.mac_to_string(), src_pan, pi->aps_key_name, exposed));
                     else
                         weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} "
-                                    "secures NWK frames with the publicly known network key {} "
-                                    "({}); anyone can decrypt the network's traffic",
-                                    source.mac_to_string(), src_pan, pi->nwk_key_name, pi->nwk_key));
+                                    "secures NWK frames with the publicly known network key {}{}; "
+                                    "anyone can decrypt the network's traffic",
+                                    source.mac_to_string(), src_pan, pi->nwk_key_name,
+                                    mphy->show_keys ? " (" + pi->nwk_key + ")" : ""));
                 }
             }
         }
@@ -1337,13 +1379,18 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
         // The key check's outcome: a publicly known or exposed key seen in use, or secured frames
         // checked that no known key matched, or nothing checked yet
-        const uint8_t weak = source_kis_802154->get_weak_keys();
-        const uint64_t checked = source_kis_802154->get_key_frames();
-        const uint64_t matched = source_kis_802154->get_key_frames_matched();
+        const uint8_t weak =
+            source_kis_802154->has_weak_keys() ? source_kis_802154->get_weak_keys() : 0;
+        const uint64_t checked =
+            source_kis_802154->has_key_frames() ? source_kis_802154->get_key_frames() : 0;
+        const uint64_t matched =
+            source_kis_802154->has_key_frames_matched() ? source_kis_802154->get_key_frames_matched() : 0;
+        const bool user_key = source_kis_802154->has_user_key();
 
         if (weak) {
-            if (source_kis_802154->get_key_state() != kis_802154_tracked_device::key_known) {
-                source_kis_802154->set_key_state(kis_802154_tracked_device::key_known);
+            if (!source_kis_802154->has_key_state() ||
+                    source_kis_802154->get_key_state() != zigbee_key_state::known) {
+                source_kis_802154->set_key_state(zigbee_key_state::known);
                 source_kis_802154->set_key_first_time(Globalreg::globalreg->last_tv_sec);
             }
 
@@ -1351,13 +1398,13 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                     "Known key in use: " + source_kis_802154->get_weak_key() :
                     fmt::format("Known key in use: {} ({} of {} secured frames matched a publicly "
                         "known key)", source_kis_802154->get_weak_key(), matched, checked));
-        } else if (!source_kis_802154->get_user_key().empty()) {
-            source_kis_802154->set_key_state(kis_802154_tracked_device::key_user);
+        } else if (user_key) {
+            source_kis_802154->set_key_state(zigbee_key_state::user);
             source_kis_802154->set_key_status(fmt::format("Your key in use: {} ({} of {} secured "
                         "frames matched; no publicly known key)", source_kis_802154->get_user_key(),
                         matched, checked));
         } else if (checked > 0) {
-            source_kis_802154->set_key_state(kis_802154_tracked_device::key_not_known);
+            source_kis_802154->set_key_state(zigbee_key_state::not_known);
             const auto n_user = mphy->user_keys.size();
 
             source_kis_802154->set_key_status(fmt::format("No known key: {} secured frames checked "
@@ -1380,7 +1427,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             source_dev->set_crypt_string("Zigbee: key sent in the clear");
         else if (weak & kis_802154_packinfo::weak_key_aps)
             source_dev->set_crypt_string("Zigbee APS: publicly known link key (" + source_kis_802154->get_known_link_key() + ")");
-        else if (!source_kis_802154->get_user_key().empty())
+        else if (user_key)
             source_dev->set_crypt_string("Zigbee: your key (" + source_kis_802154->get_user_key() + ")");
         else if ((source_dev->get_basic_crypt_set() & KIS_DEVICE_BASICCRYPT_L3) && checked > 0)
             source_dev->set_crypt_string("Zigbee NWK");
@@ -1395,25 +1442,25 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     // Alerts held back by the rate limit first, in order, as far as it lets them through (they
     // are no longer this frame's, so no packet goes with them); then this frame's, which wait in
     // turn when they cannot go now
-    if (!weak_key_alerts.empty() || mphy->weak_key_backlogged.load()) {
+    if (mphy->alert_weakkey_ref >= 0 &&
+            (!weak_key_alerts.empty() || mphy->weak_key_backlogged.load())) {
         kis_lock_guard<kis_mutex> wlk(mphy->weak_key_mutex, "802154_weak_key");
         auto& backlog = mphy->weak_key_backlog;
 
-        while (!backlog.empty()) {
-            const auto& a = backlog.front();
-
-            if (mphy->alertracker->raise_alert(mphy->alert_weakkey_ref, nullptr, mac_addr{},
-                        a.source, a.dest, mac_addr{}, a.channel, a.text) != 1)
-                break;
-
-            backlog.pop_front();
-        }
+        mphy->drain_weak_key_backlog();
 
         for (const auto& text : weak_key_alerts) {
-            if (!backlog.empty() ||
+            if (backlog.empty() &&
                     mphy->alertracker->raise_alert(mphy->alert_weakkey_ref, in_pack.get(), mac_addr{},
-                        source, dest, mac_addr{}, in_pack->common_info.channel, text) != 1)
-                backlog.push_back({source, dest, in_pack->common_info.channel, text});
+                        source, dest, mac_addr{}, in_pack->common_info.channel, text) == 1)
+                continue;
+
+            // Held back; the backlog is capped (zigbee_alert_backlog), dropping the oldest
+            if (mphy->weak_key_backlog_max == 0)
+                continue;
+            while (backlog.size() >= mphy->weak_key_backlog_max)
+                backlog.pop_front();
+            backlog.push_back({source, dest, in_pack->common_info.channel, text});
         }
 
         mphy->weak_key_backlogged.store(!backlog.empty());

@@ -166,7 +166,10 @@ kismet_ui.AddDeviceDetail("802154", "802.15.4", 0, {
                 filter: function(opts) {
                     return kismet.ObjectByString(opts['data'], "802154.device/802154.device.exposed_key") !== "";
                 },
-                help: "The key a Transport Key command from this device carried, readable because it was sent in the clear or under a publicly known link key.",
+                draw: function(opts) {
+                    return kismet.censorString(opts['value']);
+                },
+                help: "The key a Transport Key command from this device carried, readable because it was sent in the clear or under a publicly known link key.  The key value is only recorded when zigbee_show_keys=true.",
             },
             ],
         });
