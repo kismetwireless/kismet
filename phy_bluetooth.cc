@@ -36,10 +36,11 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 
-#include "bluetooth_types.h"
 #include "bluetooth_parsers/btle_tracker.h"
 #include "bluetooth_parsers/btle_battery.h"
 #include "bluetooth_parsers/btle_ranging.h"
+#include "bluetooth_parsers/btle_beacon.h"
+#include "bluetooth_parsers/bt_assigned.h"
 
 
 #define h4_direction_sent                       0x00
@@ -60,6 +61,34 @@
 #define h4_ext_data_devicename                  0x09
 #define h4_ext_data_deviceid                    0x10
 #define h4_ext_data_txpower                     0x0a
+
+// The class of device rarely changes, so the names are only redone when it does
+static void apply_class_of_device(bluetooth_tracked_device& btdev, uint32_t cod) {
+    if (!bt_assigned::cod_valid(cod))
+        return;
+
+    if (btdev.has_class_of_device() && btdev.get_class_of_device() == cod)
+        return;
+
+    const auto major = bt_assigned::cod_major(cod);
+
+    btdev.set_class_of_device(cod);
+    btdev.set_major_class(bt_assigned::cod_major_name(major));
+    btdev.set_minor_class(bt_assigned::cod_minor_name(major, bt_assigned::cod_minor(cod)));
+
+    auto services = btdev.get_service_classes();
+    services->clear();
+    for (auto& n : bt_assigned::cod_service_names(cod))
+        services->push_back(std::move(n));
+}
+
+static void apply_appearance(bluetooth_tracked_device& btdev, uint16_t appearance) {
+    if (btdev.has_appearance() && btdev.get_appearance() == appearance)
+        return;
+
+    btdev.set_appearance(appearance);
+    btdev.set_appearance_name(bt_assigned::appearance_name(appearance));
+}
 
 kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
     kis_phy_handler(in_phyid) {
@@ -254,6 +283,14 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
             btdev->set_connectable(connectable_j.get<unsigned int>());
         }
 
+        auto class_j = json["class"];
+        if (class_j.is_number_unsigned())
+            apply_class_of_device(*btdev, class_j.get<uint32_t>() & 0xFFFFFF);
+
+        auto appearance_j = json["appearance"];
+        if (appearance_j.is_number_unsigned() && appearance_j.get<uint32_t>() <= 0xFFFF)
+            apply_appearance(*btdev, appearance_j.get<uint16_t>());
+
         // Service UUIDs and Manufacturer Specific Data, parsed by
         // capture_linux_bluetooth.c's eir_get_uuids_json()/eir_get_manuf().
         // UUIDs accumulate across reports, like phy_btle.cc's
@@ -265,6 +302,8 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         bool has_battery = false;
 
         btle_ranging::info ranging_info;
+
+        btle_beacon::info beacon_info;
 
         auto txpower_j = json["txpower"];
         if (txpower_j.is_number_integer()) {
@@ -332,6 +371,9 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                         if (btle_ranging::decode_manuf_data((const uint8_t *) ad.data(),
                                     ad.length(), ri) && ri.src > ranging_info.src)
                             ranging_info = ri;
+
+                        btle_beacon::decode_manuf_data((const uint8_t *) ad.data(), ad.length(),
+                                beacon_info);
                     }
                 }
             }
@@ -362,6 +404,10 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     ranging_info = ri;
 
                 frames.service_data((const uint8_t *) raw.data(), raw.length());
+
+                if (beacon_info.type == btle_beacon::beacon_type::none)
+                    btle_beacon::decode_service_data((const uint8_t *) raw.data(), raw.length(),
+                            beacon_info);
 
                 // UUID, app code, counter, and at least one message
                 if (raw.length() < 4 + odid::message_len)
@@ -397,6 +443,9 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
 
         if (has_battery)
             apply_battery_info(*btdev->get_battery(), battery_info, in_pack->ts.tv_sec);
+
+        if (beacon_info.type != btle_beacon::beacon_type::none)
+            apply_beacon(*btdev->get_beacon(), beacon_info, in_pack->ts.tv_sec);
 
         int rssi;
         if (ranging_info.src != btle_ranging::source::none &&

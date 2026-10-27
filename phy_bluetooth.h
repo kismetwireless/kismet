@@ -135,13 +135,43 @@ public:
     __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
     __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
     __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
+    __ProxyDynamicTrackable(beacon, btle_tracked_beacon, beacon, beacon_id);
+
+    // Only created when the device advertises them
+    __ProxyDynamic(class_of_device, uint32_t, uint32_t, uint32_t, class_of_device,
+            class_of_device_id);
+    __ProxyDynamic(major_class, std::string, std::string, std::string, device_major_class,
+            major_class_id);
+    __ProxyDynamic(minor_class, std::string, std::string, std::string, device_minor_class,
+            minor_class_id);
+    __ProxyDynamicTrackable(service_classes, tracker_element_vector_string, service_classes,
+            service_classes_id);
+    __ProxyDynamic(appearance, uint16_t, uint16_t, uint16_t, appearance, appearance_id);
+    __ProxyDynamic(appearance_name, std::string, std::string, std::string, appearance_name,
+            appearance_name_id);
 
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
 
-        register_field("bluetooth.device.major_class", "bt major class", &device_major_class);
-        register_field("bluetooth.device.minor_class", "bt device minor class", &device_minor_class);
+        class_of_device_id =
+            register_dynamic_field("bluetooth.device.class", "BR/EDR class of device",
+                    &class_of_device);
+        major_class_id =
+            register_dynamic_field("bluetooth.device.major_class", "bt major class",
+                    &device_major_class);
+        minor_class_id =
+            register_dynamic_field("bluetooth.device.minor_class", "bt device minor class",
+                    &device_minor_class);
+        service_classes_id =
+            register_dynamic_field("bluetooth.device.service_classes",
+                    "BR/EDR service classes from the class of device", &service_classes);
+        appearance_id =
+            register_dynamic_field("bluetooth.device.appearance", "advertised appearance",
+                    &appearance);
+        appearance_name_id =
+            register_dynamic_field("bluetooth.device.appearance_name",
+                    "advertised appearance, as text", &appearance_name);
 
         register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("bluetooth.device.solicitation_uuid_vec",
@@ -166,6 +196,8 @@ protected:
                     &battery);
         ranging_id =
             register_dynamic_field("bluetooth.device.ranging", "estimated distance", &ranging);
+        beacon_id =
+            register_dynamic_field("bluetooth.device.beacon", "advertised beacon identity", &beacon);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -174,8 +206,18 @@ protected:
 
     std::shared_ptr<tracker_element_uint8> bt_device_type;
 
+    std::shared_ptr<tracker_element_uint32> class_of_device;
+    uint16_t class_of_device_id;
     std::shared_ptr<tracker_element_string> device_major_class;
+    uint16_t major_class_id;
     std::shared_ptr<tracker_element_string> device_minor_class;
+    uint16_t minor_class_id;
+    std::shared_ptr<tracker_element_vector_string> service_classes;
+    uint16_t service_classes_id;
+    std::shared_ptr<tracker_element_uint16> appearance;
+    uint16_t appearance_id;
+    std::shared_ptr<tracker_element_string> appearance_name;
+    uint16_t appearance_name_id;
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
 	std::shared_ptr<tracker_element_vector> solicitation_uuid_vec;
@@ -199,6 +241,8 @@ protected:
     uint16_t battery_id;
     std::shared_ptr<btle_tracked_ranging> ranging;
     uint16_t ranging_id;
+    std::shared_ptr<btle_tracked_beacon> beacon;
+    uint16_t beacon_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {

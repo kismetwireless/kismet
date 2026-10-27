@@ -1,5 +1,103 @@
 "use strict";
 
+kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
+    filter: function(data) {
+        return (data['kismet.device.base.phyname'] === "Bluetooth");
+    },
+    draw: function(data, target) {
+        target.devicedata(data, {
+            "id": "bluetoothDeviceData",
+            "fields": [
+            {
+                field: "bluetooth.device/bluetooth.device.major_class",
+                title: "Class",
+                filterOnEmpty: true,
+                help: "BR/EDR class of device: what the device says it is.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.minor_class",
+                title: "Subclass",
+                filterOnEmpty: true,
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.service_classes",
+                title: "Services",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return opts['value'].join(", ");
+                },
+                help: "Service classes from the class of device.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.appearance_name",
+                title: "Appearance",
+                filterOnEmpty: true,
+                help: "What a BLE device advertises itself as (the Bluetooth appearance value).",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.txpower",
+                title: "TX Power",
+                filterOnZero: true,
+                draw: function(opts) {
+                    return opts['value'] + " dBm";
+                },
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.service_uuid_strs",
+                title: "Service UUIDs",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return opts['value'].join(", ");
+                },
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.beacon",
+                groupTitle: "Beacon",
+                filterOnEmpty: true,
+                id: "bluetooth_beacon",
+                help: "Identity advertised by a proximity beacon (iBeacon, AltBeacon, or Eddystone).",
+                fields: [
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.type",
+                    title: "Format",
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.uuid",
+                    title: "UUID",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.major",
+                    title: "Major",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.minor",
+                    title: "Minor",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.namespace",
+                    title: "Namespace",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.instance",
+                    title: "Instance",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "bluetooth.device/bluetooth.device.beacon/btle.device.beacon.url",
+                    title: "URL",
+                    filterOnEmpty: true,
+                },
+                ],
+            },
+            ],
+        });
+    },
+});
+
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'Bluetooth' ||
         row['original_data']['kismet.device.base.phyname'] === 'BTLE') {

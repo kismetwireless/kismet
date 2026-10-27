@@ -448,7 +448,92 @@ protected:
     std::shared_ptr<tracker_element_uint64> last_time;
 };
 
+// The identity a proximity beacon advertises; see bluetooth_parsers/btle_beacon.h
+class btle_tracked_beacon : public tracker_component {
+public:
+    btle_tracked_beacon() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_beacon(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_beacon(int in_id,
+            std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("btle_tracked_beacon");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(beacon_type, std::string, std::string, std::string, beacon_type);
+    __ProxyDynamic(uuid, std::string, std::string, std::string, uuid, uuid_id);
+    __ProxyDynamic(major, uint16_t, uint16_t, uint16_t, major, major_id);
+    __ProxyDynamic(minor, uint16_t, uint16_t, uint16_t, minor, minor_id);
+    __ProxyDynamic(eddystone_namespace, std::string, std::string, std::string,
+            eddystone_namespace, eddystone_namespace_id);
+    __ProxyDynamic(eddystone_instance, std::string, std::string, std::string,
+            eddystone_instance, eddystone_instance_id);
+    __ProxyDynamic(url, std::string, std::string, std::string, url, url_id);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("btle.device.beacon.type",
+                "Beacon format (ibeacon, altbeacon, eddystone_uid, eddystone_url)", &beacon_type);
+        uuid_id = register_dynamic_field("btle.device.beacon.uuid",
+                "iBeacon proximity UUID or AltBeacon ID", &uuid);
+        major_id = register_dynamic_field("btle.device.beacon.major", "iBeacon or AltBeacon major",
+                &major);
+        minor_id = register_dynamic_field("btle.device.beacon.minor", "iBeacon or AltBeacon minor",
+                &minor);
+        eddystone_namespace_id = register_dynamic_field("btle.device.beacon.namespace",
+                "Eddystone UID namespace", &eddystone_namespace);
+        eddystone_instance_id = register_dynamic_field("btle.device.beacon.instance",
+                "Eddystone UID instance", &eddystone_instance);
+        url_id = register_dynamic_field("btle.device.beacon.url", "Eddystone URL", &url);
+        register_field("btle.device.beacon.last_time", "Last time the beacon was seen",
+                &last_time);
+    }
+
+    std::shared_ptr<tracker_element_string> beacon_type;
+    std::shared_ptr<tracker_element_string> uuid;
+    uint16_t uuid_id;
+    std::shared_ptr<tracker_element_uint16> major;
+    uint16_t major_id;
+    std::shared_ptr<tracker_element_uint16> minor;
+    uint16_t minor_id;
+    std::shared_ptr<tracker_element_string> eddystone_namespace;
+    uint16_t eddystone_namespace_id;
+    std::shared_ptr<tracker_element_string> eddystone_instance;
+    uint16_t eddystone_instance_id;
+    std::shared_ptr<tracker_element_string> url;
+    uint16_t url_id;
+    std::shared_ptr<tracker_element_uint64> last_time;
+};
+
 namespace btle_battery {
+struct info;
+}
+
+namespace btle_beacon {
 struct info;
 }
 
@@ -457,6 +542,8 @@ struct info;
 }
 
 void apply_battery_info(btle_tracked_battery& battery, const btle_battery::info& info, time_t now);
+
+void apply_beacon(btle_tracked_beacon& beacon, const btle_beacon::info& info, time_t now);
 
 // Takes the power level from the best source seen recently and smooths the signal;
 // rssi is the signal of this packet in dBm
@@ -527,6 +614,11 @@ public:
    __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
    __ProxyDynamicTrackable(ranging, btle_tracked_ranging, ranging, ranging_id);
+   __ProxyDynamicTrackable(beacon, btle_tracked_beacon, beacon, beacon_id);
+
+   __ProxyDynamic(appearance, uint16_t, uint16_t, uint16_t, appearance, appearance_id);
+   __ProxyDynamic(appearance_name, std::string, std::string, std::string, appearance_name,
+           appearance_name_id);
 
 protected:
     virtual void register_fields() override {
@@ -563,6 +655,14 @@ protected:
             register_dynamic_field("btle.device.battery", "advertised battery level", &battery);
         ranging_id =
             register_dynamic_field("btle.device.ranging", "estimated distance", &ranging);
+        beacon_id =
+            register_dynamic_field("btle.device.beacon", "advertised beacon identity", &beacon);
+
+        appearance_id =
+            register_dynamic_field("btle.device.appearance", "advertised appearance", &appearance);
+        appearance_name_id =
+            register_dynamic_field("btle.device.appearance_name", "advertised appearance, as text",
+                    &appearance_name);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -581,6 +681,13 @@ protected:
     uint16_t battery_id;
     std::shared_ptr<btle_tracked_ranging> ranging;
     uint16_t ranging_id;
+    std::shared_ptr<btle_tracked_beacon> beacon;
+    uint16_t beacon_id;
+
+    std::shared_ptr<tracker_element_uint16> appearance;
+    uint16_t appearance_id;
+    std::shared_ptr<tracker_element_string> appearance_name;
+    uint16_t appearance_name_id;
 
     std::shared_ptr<tracker_element_string> alias_group;
     uint16_t alias_group_id;

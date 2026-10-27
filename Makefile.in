@@ -62,6 +62,8 @@ PARSERS = \
 	bluetooth_parsers/btle_tracker.cc.o \
 	bluetooth_parsers/btle_battery.cc.o \
 	bluetooth_parsers/btle_ranging.cc.o \
+	bluetooth_parsers/btle_beacon.cc.o \
+	bluetooth_parsers/bt_assigned.cc.o \
 	uav_parsers/opendroneid.cc.o
 
 # To prevent a deps problem, we define these targets via autoconf to reference

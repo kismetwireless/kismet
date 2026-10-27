@@ -83,6 +83,64 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 help: "BLE advertising PDU type indicating if device is connectable",
             },
             {
+                field: "btle.device/btle.device.appearance_name",
+                title: "Appearance",
+                filterOnEmpty: true,
+                help: "What the device advertises itself as (the Bluetooth appearance value).",
+            },
+            {
+                field: "btle.device/btle.device.beacon",
+                groupTitle: "Beacon",
+                filterOnEmpty: true,
+                id: "btle_beacon",
+                help: "Identity advertised by a proximity beacon (iBeacon, AltBeacon, or Eddystone).",
+                fields: [
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.type",
+                    title: "Format",
+                    draw: function(opts) {
+                        var types = {
+                            "ibeacon": "iBeacon",
+                            "altbeacon": "AltBeacon",
+                            "eddystone_uid": "Eddystone UID",
+                            "eddystone_url": "Eddystone URL",
+                        };
+                        return types[opts['value']] || kismet.censorString(opts['value']);
+                    },
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.uuid",
+                    title: "UUID",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.major",
+                    title: "Major",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.minor",
+                    title: "Minor",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.namespace",
+                    title: "Namespace",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.instance",
+                    title: "Instance",
+                    filterOnEmpty: true,
+                },
+                {
+                    field: "btle.device/btle.device.beacon/btle.device.beacon.url",
+                    title: "URL",
+                    filterOnEmpty: true,
+                },
+                ],
+            },
+            {
                 field: "btle.device/btle.device.tracker",
                 groupTitle: "Location Tracker",
                 filterOnEmpty: true,

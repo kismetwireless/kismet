@@ -51,6 +51,8 @@
 #include "xxhash.h"
 #include "bluetooth_parsers/btle_tracker.h"
 #include "bluetooth_parsers/btle_battery.h"
+#include "bluetooth_parsers/btle_beacon.h"
+#include "bluetooth_parsers/bt_assigned.h"
 #include "bluetooth_parsers/btle_ranging.h"
 
 #ifndef KDLT_BLUETOOTH_LE_LL
@@ -81,6 +83,7 @@ public:
 #define BTLE_ADVDATA_SERVICE_UUID128_COMPLETE   0x07
 #define BTLE_ADVDATA_DEVICE_NAME                0x09
 #define BTLE_ADVDATA_TX_POWER_LEVEL             0x0A
+#define BTLE_ADVDATA_APPEARANCE                 0x19
 #define BTLE_ADVDATA_SERVICE_DATA_UUID16        0x16
 #define BTLE_ADVDATA_MANUFACTURER_DATA          0xFF
 
@@ -565,6 +568,29 @@ void apply_battery_info(btle_tracked_battery& battery, const btle_battery::info&
     }
 }
 
+void apply_beacon(btle_tracked_beacon& beacon, const btle_beacon::info& info, time_t now) {
+    beacon.set_beacon_type(btle_beacon::type_str(info.type));
+    beacon.set_last_time(now);
+
+    switch (info.type) {
+        case btle_beacon::beacon_type::ibeacon:
+        case btle_beacon::beacon_type::altbeacon:
+            beacon.set_uuid(info.uuid);
+            beacon.set_major(info.major);
+            beacon.set_minor(info.minor);
+            break;
+        case btle_beacon::beacon_type::eddystone_uid:
+            beacon.set_eddystone_namespace(info.eddystone_namespace);
+            beacon.set_eddystone_instance(info.eddystone_instance);
+            break;
+        case btle_beacon::beacon_type::eddystone_url:
+            beacon.set_url(info.url);
+            break;
+        default:
+            break;
+    }
+}
+
 // A worse power source only replaces a better one the device stopped sending
 constexpr time_t ranging_source_hold = 300;
 // Signal smoothing, restarted after a gap
@@ -672,7 +698,16 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     btle_ranging::info ranging_info;
 
+    btle_beacon::info beacon_info;
+
+    int appearance = -1;
+
     for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+        if (ad->type() == BTLE_ADVDATA_APPEARANCE && ad->data().length() == 2) {
+            appearance = (uint8_t) ad->data()[0] | ((uint8_t) ad->data()[1] << 8);
+            continue;
+        }
+
         if (ad->type() == BTLE_ADVDATA_TX_POWER_LEVEL && ad->data().length() == 1) {
             if (ranging_info.src == btle_ranging::source::none)
                 ranging_info = btle_ranging::from_tx_power((int8_t) ad->data()[0]);
@@ -691,6 +726,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
             btle_ranging::info ri;
             if (btle_ranging::decode_manuf_data(mdp, md.length(), ri) && ri.src > ranging_info.src)
                 ranging_info = ri;
+
+            if (beacon_info.type == btle_beacon::beacon_type::none)
+                btle_beacon::decode_manuf_data(mdp, md.length(), beacon_info);
 
             continue;
         }
@@ -718,6 +756,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                     ri.src > ranging_info.src)
                 ranging_info = ri;
         }
+
+        if (beacon_info.type == btle_beacon::beacon_type::none)
+            btle_beacon::decode_service_data((const uint8_t *) sd.data(), sd.length(), beacon_info);
 
         if (remoteid == nullptr) {
             auto rid = mphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
@@ -865,6 +906,14 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     if (has_battery)
         apply_battery_info(*btle_dev->get_battery(), battery_info, in_pack->ts.tv_sec);
+
+    if (beacon_info.type != btle_beacon::beacon_type::none)
+        apply_beacon(*btle_dev->get_beacon(), beacon_info, in_pack->ts.tv_sec);
+
+    if (appearance >= 0 && (!btle_dev->has_appearance() || btle_dev->get_appearance() != appearance)) {
+        btle_dev->set_appearance(appearance);
+        btle_dev->set_appearance_name(bt_assigned::appearance_name(appearance));
+    }
 
     int rssi;
     if (ranging_info.src != btle_ranging::source::none && btle_packet_rssi(in_pack.get(), rssi))

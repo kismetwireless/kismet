@@ -107,6 +107,8 @@ static void eir_get_manuf(const uint8_t *eir, uint16_t eir_len,
         char **out_company_id_hex, char **out_data_hex);
 static char *eir_get_service_data_json(const uint8_t *eir, uint16_t eir_len);
 static int eir_get_txpower(const uint8_t *eir, uint16_t eir_len, int8_t *out_txpower);
+static const uint8_t *eir_get_field(const uint8_t *eir, uint16_t eir_len, uint8_t type,
+        uint8_t data_len);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
@@ -120,6 +122,9 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     char *service_data_json;
     char *manuf_company_id_hex, *manuf_data_hex;
     char txpower_json[8];
+    char class_json[16];
+    char appearance_json[8];
+    const uint8_t *field;
     int8_t txpower;
     uint16_t eirlen;
 
@@ -153,6 +158,21 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
     else
         snprintf(txpower_json, sizeof(txpower_json), "null");
 
+    /* Class of device (BR/EDR, the kernel adds it from the inquiry result) and
+     * appearance, both little endian */
+    if ((field = eir_get_field(dev->eir, eirlen, 0x0D, 3)) != NULL)
+        snprintf(class_json, sizeof(class_json), "%u",
+                (unsigned int) field[0] | ((unsigned int) field[1] << 8) |
+                ((unsigned int) field[2] << 16));
+    else
+        snprintf(class_json, sizeof(class_json), "null");
+
+    if ((field = eir_get_field(dev->eir, eirlen, 0x19, 2)) != NULL)
+        snprintf(appearance_json, sizeof(appearance_json), "%u",
+                (unsigned int) field[0] | ((unsigned int) field[1] << 8));
+    else
+        snprintf(appearance_json, sizeof(appearance_json), "null");
+
     snprintf(json, sizeof(json), "{"
             "\"addr\": \"%s\","
             "\"name\": \"%s\","
@@ -162,14 +182,16 @@ int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev)
             "\"service_data\": %s,"
             "\"manuf_company_id\": \"%s\","
             "\"manuf_data\": \"%s\","
-            "\"txpower\": %s"
+            "\"txpower\": %s,"
+            "\"class\": %s,"
+            "\"appearance\": %s"
             "}",
             address, safe_name, dev->addr.type, (dev->flags & 0x04) ? 0 : 1,
             uuids_json,
             service_data_json,
             manuf_company_id_hex != NULL ? manuf_company_id_hex : "",
             manuf_data_hex != NULL ? manuf_data_hex : "",
-            txpower_json);
+            txpower_json, class_json, appearance_json);
 
     if (safe_name != name) {
         free(safe_name);
@@ -605,6 +627,26 @@ static int eir_get_txpower(const uint8_t *eir, uint16_t eir_len, int8_t *out_txp
     }
 
     return 0;
+}
+
+/* The data of the first EIR record of a type, when it has exactly data_len bytes */
+static const uint8_t *eir_get_field(const uint8_t *eir, uint16_t eir_len, uint8_t type,
+        uint8_t data_len) {
+    uint16_t parsed = 0;
+
+    while (parsed + 2 <= eir_len) {
+        uint8_t field_len = eir[parsed];
+
+        if (field_len == 0 || parsed + 1 + field_len > eir_len)
+            break;
+
+        if (eir[parsed + 1] == type)
+            return field_len == data_len + 1 ? &eir[parsed + 2] : NULL;
+
+        parsed += field_len + 1;
+    }
+
+    return NULL;
 }
 
 /* 16-bit UUID service data records (such as Remote ID) as a JSON array of hex
