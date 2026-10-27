@@ -19,7 +19,10 @@
 #include "../config.h"
 
 #include <string.h>
+/* ubertooth_control.h defines the byte order macros on macOS */
+#ifndef __APPLE__
 #include <endian.h>
+#endif
 
 #ifdef HAVE_UBERTOOTH_UBERTOOTH_H
 #include <ubertooth/ubertooth.h>
