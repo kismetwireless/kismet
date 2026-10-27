@@ -49,12 +49,16 @@
 #include <sys/ioctl.h>
 #include <dirent.h>
 #include <time.h>
+#include <pthread.h>
+#include <sys/socket.h>
 
 #include "mgmtlib/bluetooth.h"
 #include "mgmtlib/hci.h"
+#include "mgmtlib/hci_lib.h"
 #include "mgmtlib/mgmt.h"
 
 #include "linux_bt_rfkill.h"
+#include "bt_probe.h"
 
 #include "../simple_ringbuf_c.h"
 #include "../capture_framework.h"
@@ -81,6 +85,33 @@ typedef struct {
     /* Controller is discovering, and when we last tried to set it up */
     int discovering;
     time_t last_setup;
+
+    /* Active probing, see bt_probe.h.  The settings change from the command thread
+     * under probe_mutex; everything else belongs to the capture thread */
+    pthread_mutex_t probe_mutex;
+    bt_probe_mode_t probe_mode;
+    unsigned int probe_interval;
+    int probe_status_dirty;
+
+    bt_probe_state_t *probe;
+    int hci_fd;
+
+    /* The probe in flight; the have_ flags are 1 read, -1 refused, 0 waiting */
+    int probe_active;
+    bt_probe_target_t probe_target;
+    time_t probe_start;
+    int probe_le_ext;
+    int probe_tried_ext;
+    int probe_connected;
+    uint16_t probe_handle;
+    int probe_have_version, probe_have_features;
+    uint8_t probe_version;
+    uint16_t probe_manuf, probe_subversion;
+    uint8_t probe_features[8];
+
+    unsigned long probes_done;
+    time_t probe_last_end;
+    time_t probe_last_status;
 
     kis_capture_handler_t *caph;
 } local_bluetooth_t;
@@ -109,6 +140,7 @@ static char *eir_get_service_data_json(const uint8_t *eir, uint16_t eir_len);
 static int eir_get_txpower(const uint8_t *eir, uint16_t eir_len, int8_t *out_txpower);
 static const uint8_t *eir_get_field(const uint8_t *eir, uint16_t eir_len, uint8_t type,
         uint8_t data_len);
+static void probe_device_found(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 int cf_send_btjson(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
@@ -737,6 +769,605 @@ void evt_device_found(local_bluetooth_t *localbt, uint16_t len, const void *para
     }
 
     cf_send_btjson(localbt, dev);
+
+    probe_device_found(localbt, dev);
+}
+
+/* Active probing.  Names are left to the kernel: answering its confirm-name
+ * request with "not known" makes it resolve the name after the inquiry, and the
+ * result comes back as another device found event.  Version and features need
+ * a connection, made over a raw HCI socket one device at a time. */
+
+#define PROBE_CONNECT_TIMEOUT 10
+#define PROBE_TIMEOUT 20
+#define PROBE_GAP 2
+#define PROBE_STATUS_INTERVAL 30
+
+#define HCI_OP(ogf, ocf) ((uint16_t) (((ogf) << 10) | (ocf)))
+#define OP_CREATE_CONN          HCI_OP(0x01, 0x0005)
+#define OP_DISCONNECT           HCI_OP(0x01, 0x0006)
+#define OP_CREATE_CONN_CANCEL   HCI_OP(0x01, 0x0008)
+#define OP_READ_REMOTE_FEATURES HCI_OP(0x01, 0x001B)
+#define OP_READ_REMOTE_VERSION  HCI_OP(0x01, 0x001D)
+#define OP_LE_CREATE_CONN       HCI_OP(0x08, 0x000D)
+#define OP_LE_CREATE_CONN_CANCEL HCI_OP(0x08, 0x000E)
+#define OP_LE_READ_REMOTE_FEATURES HCI_OP(0x08, 0x0016)
+#define OP_LE_EXT_CREATE_CONN   HCI_OP(0x08, 0x0043)
+
+static void probe_get_settings(local_bluetooth_t *localbt, bt_probe_mode_t *mode,
+        unsigned int *interval) {
+    pthread_mutex_lock(&localbt->probe_mutex);
+    *mode = localbt->probe_mode;
+    *interval = localbt->probe_interval;
+    pthread_mutex_unlock(&localbt->probe_mutex);
+}
+
+static int probe_hci_cmd(local_bluetooth_t *localbt, uint16_t opcode, const uint8_t *param,
+        uint8_t plen) {
+    uint8_t buf[4 + 255];
+
+    if (localbt->hci_fd < 0)
+        return -1;
+
+    buf[0] = HCI_COMMAND_PKT;
+    buf[1] = opcode & 0xFF;
+    buf[2] = (opcode >> 8) & 0xFF;
+    buf[3] = plen;
+    if (plen > 0)
+        memcpy(buf + 4, param, plen);
+
+    if (write(localbt->hci_fd, buf, 4 + (size_t) plen) != 4 + (ssize_t) plen)
+        return -1;
+
+    return 0;
+}
+
+static void probe_hci_close(local_bluetooth_t *localbt) {
+    if (localbt->hci_fd >= 0)
+        close(localbt->hci_fd);
+    localbt->hci_fd = -1;
+}
+
+static int probe_hci_open(local_bluetooth_t *localbt) {
+    struct sockaddr_hci addr;
+    struct hci_filter flt;
+    char errstr[STATUS_MAX];
+    int fd;
+
+    if ((fd = socket(AF_BLUETOOTH, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, BTPROTO_HCI)) < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not open an HCI socket for probing: %s",
+                localbt->bt_interface, strerror(errno));
+        cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+    memset(&flt, 0, sizeof(flt));
+    hci_filter_set_ptype(HCI_EVENT_PKT, &flt);
+    hci_filter_set_event(EVT_CONN_COMPLETE, &flt);
+    hci_filter_set_event(EVT_DISCONN_COMPLETE, &flt);
+    hci_filter_set_event(EVT_READ_REMOTE_FEATURES_COMPLETE, &flt);
+    hci_filter_set_event(EVT_READ_REMOTE_VERSION_COMPLETE, &flt);
+    hci_filter_set_event(EVT_CMD_STATUS, &flt);
+    hci_filter_set_event(EVT_LE_META_EVENT, &flt);
+
+    if (setsockopt(fd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not filter the HCI probing socket: %s",
+                localbt->bt_interface, strerror(errno));
+        cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
+        close(fd);
+        return -1;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.hci_family = AF_BLUETOOTH;
+    addr.hci_dev = localbt->devid;
+    addr.hci_channel = HCI_CHANNEL_RAW;
+
+    if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not bind the HCI probing socket: %s",
+                localbt->bt_interface, strerror(errno));
+        cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
+        close(fd);
+        return -1;
+    }
+
+    localbt->hci_fd = fd;
+
+    return 0;
+}
+
+static void probe_send_json(local_bluetooth_t *localbt, const char *type, const char *json) {
+    struct timeval tv;
+    int r;
+
+    gettimeofday(&tv, 0);
+
+    while (1) {
+        if ((r = cf_send_json(localbt->caph, NULL, 0, NULL, NULL, tv, type, json)) < 0) {
+            cf_send_error(localbt->caph, 0, "unable to send JSON frame");
+            cf_handler_spindown(localbt->caph);
+            break;
+        } else if (r == 0) {
+            cf_handler_wait_ringbuffer(localbt->caph);
+        } else {
+            break;
+        }
+    }
+}
+
+static void probe_send_status(local_bluetooth_t *localbt) {
+    bt_probe_mode_t mode;
+    unsigned int interval;
+    char json[256];
+
+    probe_get_settings(localbt, &mode, &interval);
+
+    snprintf(json, sizeof(json), "{"
+            "\"probe\": \"%s\","
+            "\"probe_interval\": %u,"
+            "\"probes\": %lu,"
+            "\"queued\": %u,"
+            "\"last_probe\": %lu"
+            "}",
+            bt_probe_mode_str(mode), interval, localbt->probes_done,
+            localbt->probe != NULL ? localbt->probe->q_len : 0,
+            (unsigned long) localbt->probe_last_end);
+
+    probe_send_json(localbt, "linuxbtprobe", json);
+
+    localbt->probe_last_status = time(0);
+}
+
+static void probe_send_result(local_bluetooth_t *localbt) {
+    char json[512];
+    char address[BDADDR_STR_LEN];
+    char version[96] = "";
+    char features[64] = "";
+
+    if (localbt->probe_have_version != 1 && localbt->probe_have_features != 1)
+        return;
+
+    bdaddr_to_string(localbt->probe_target.addr, address);
+
+    if (localbt->probe_have_version == 1)
+        snprintf(version, sizeof(version),
+                "\"lmp_version\": %u, \"lmp_manufacturer\": %u, \"lmp_subversion\": %u,",
+                localbt->probe_version, localbt->probe_manuf, localbt->probe_subversion);
+
+    if (localbt->probe_have_features == 1)
+        snprintf(features, sizeof(features),
+                "\"%s\": \"%02x%02x%02x%02x%02x%02x%02x%02x\",",
+                localbt->probe_target.type == BDADDR_BREDR ? "lmp_features" : "le_features",
+                localbt->probe_features[0], localbt->probe_features[1],
+                localbt->probe_features[2], localbt->probe_features[3],
+                localbt->probe_features[4], localbt->probe_features[5],
+                localbt->probe_features[6], localbt->probe_features[7]);
+
+    snprintf(json, sizeof(json), "{"
+            "\"addr\": \"%s\","
+            "\"type\": %u,"
+            "%s%s"
+            "\"probed\": 1"
+            "}",
+            address, localbt->probe_target.type, version, features);
+
+    probe_send_json(localbt, "linuxbthci", json);
+}
+
+static void probe_finish(local_bluetooth_t *localbt) {
+    uint8_t p[3];
+
+    if (!localbt->probe_active)
+        return;
+
+    if (localbt->probe_connected) {
+        p[0] = localbt->probe_handle & 0xFF;
+        p[1] = (localbt->probe_handle >> 8) & 0x0F;
+        p[2] = 0x13;
+        probe_hci_cmd(localbt, OP_DISCONNECT, p, 3);
+    }
+
+    probe_send_result(localbt);
+
+    localbt->probe_active = 0;
+    localbt->probe_connected = 0;
+    localbt->probe_last_end = time(0);
+    localbt->probes_done++;
+}
+
+/* Give up on the probe in flight: cancel the connection attempt or drop the link */
+static void probe_abort(local_bluetooth_t *localbt) {
+    if (!localbt->probe_active)
+        return;
+
+    if (!localbt->probe_connected) {
+        if (localbt->probe_target.type == BDADDR_BREDR)
+            probe_hci_cmd(localbt, OP_CREATE_CONN_CANCEL, localbt->probe_target.addr, 6);
+        else
+            probe_hci_cmd(localbt, OP_LE_CREATE_CONN_CANCEL, NULL, 0);
+    }
+
+    probe_finish(localbt);
+}
+
+static int probe_le_connect(local_bluetooth_t *localbt) {
+    uint8_t p[26];
+    uint8_t peer_type = localbt->probe_target.type == BDADDR_LE_RANDOM ? 1 : 0;
+
+    if (!localbt->probe_le_ext) {
+        /* scan interval and window 60 ms, connection interval 30-50 ms, timeout 5 s */
+        p[0] = 0x60; p[1] = 0x00;
+        p[2] = 0x60; p[3] = 0x00;
+        p[4] = 0x00;
+        p[5] = peer_type;
+        memcpy(p + 6, localbt->probe_target.addr, 6);
+        p[12] = 0x00;
+        p[13] = 0x18; p[14] = 0x00;
+        p[15] = 0x28; p[16] = 0x00;
+        p[17] = 0x00; p[18] = 0x00;
+        p[19] = 0xF4; p[20] = 0x01;
+        p[21] = 0x00; p[22] = 0x00;
+        p[23] = 0x00; p[24] = 0x00;
+        return probe_hci_cmd(localbt, OP_LE_CREATE_CONN, p, 25);
+    }
+
+    /* Controllers driven with the extended commands refuse the legacy one */
+    p[0] = 0x00;
+    p[1] = 0x00;
+    p[2] = peer_type;
+    memcpy(p + 3, localbt->probe_target.addr, 6);
+    p[9] = 0x01;
+    p[10] = 0x60; p[11] = 0x00;
+    p[12] = 0x60; p[13] = 0x00;
+    p[14] = 0x18; p[15] = 0x00;
+    p[16] = 0x28; p[17] = 0x00;
+    p[18] = 0x00; p[19] = 0x00;
+    p[20] = 0xF4; p[21] = 0x01;
+    p[22] = 0x00; p[23] = 0x00;
+    p[24] = 0x00; p[25] = 0x00;
+    return probe_hci_cmd(localbt, OP_LE_EXT_CREATE_CONN, p, 26);
+}
+
+static void probe_start(local_bluetooth_t *localbt, const bt_probe_target_t *t) {
+    uint8_t p[13];
+    int r;
+
+    localbt->probe_target = *t;
+    localbt->probe_active = 1;
+    localbt->probe_start = time(0);
+    localbt->probe_connected = 0;
+    localbt->probe_tried_ext = localbt->probe_le_ext;
+    localbt->probe_have_version = 0;
+    localbt->probe_have_features = 0;
+
+    if (t->type == BDADDR_BREDR) {
+        memcpy(p, t->addr, 6);
+        /* DM1/DH1/DM3/DH3/DM5/DH5, page scan mode R2, allow role switch */
+        p[6] = 0x18; p[7] = 0xCC;
+        p[8] = 0x02;
+        p[9] = 0x00;
+        p[10] = 0x00; p[11] = 0x00;
+        p[12] = 0x01;
+        r = probe_hci_cmd(localbt, OP_CREATE_CONN, p, 13);
+    } else {
+        r = probe_le_connect(localbt);
+    }
+
+    if (r < 0)
+        probe_finish(localbt);
+}
+
+static void probe_connected(local_bluetooth_t *localbt, uint16_t handle) {
+    uint8_t p[2];
+
+    localbt->probe_connected = 1;
+    localbt->probe_handle = handle & 0x0FFF;
+
+    p[0] = localbt->probe_handle & 0xFF;
+    p[1] = (localbt->probe_handle >> 8) & 0x0F;
+
+    probe_hci_cmd(localbt, OP_READ_REMOTE_VERSION, p, 2);
+
+    if (localbt->probe_target.type == BDADDR_BREDR)
+        probe_hci_cmd(localbt, OP_READ_REMOTE_FEATURES, p, 2);
+    else
+        probe_hci_cmd(localbt, OP_LE_READ_REMOTE_FEATURES, p, 2);
+}
+
+/* Both reads answered, either way */
+static void probe_check_done(local_bluetooth_t *localbt) {
+    if (localbt->probe_have_version != 0 && localbt->probe_have_features != 0)
+        probe_finish(localbt);
+}
+
+static uint16_t ev_le16(const uint8_t *p) {
+    return (uint16_t) (p[0] | (p[1] << 8));
+}
+
+/* One HCI event: its code and parameters */
+static void probe_handle_event(local_bluetooth_t *localbt, uint8_t code, const uint8_t *ev,
+        size_t len) {
+    uint16_t handle, opcode;
+
+    if (!localbt->probe_active)
+        return;
+
+    switch (code) {
+        case EVT_CMD_STATUS:
+            /* status, credits, opcode */
+            if (len < 4 || ev[0] == 0)
+                return;
+            opcode = ev_le16(ev + 2);
+            if (opcode == OP_LE_CREATE_CONN && !localbt->probe_tried_ext &&
+                    (ev[0] == 0x01 || ev[0] == 0x0C)) {
+                localbt->probe_le_ext = 1;
+                localbt->probe_tried_ext = 1;
+                if (probe_le_connect(localbt) < 0)
+                    probe_finish(localbt);
+                return;
+            }
+            if (opcode == OP_CREATE_CONN || opcode == OP_LE_CREATE_CONN ||
+                    opcode == OP_LE_EXT_CREATE_CONN)
+                probe_finish(localbt);
+            return;
+
+        case EVT_CONN_COMPLETE:
+            /* status, handle, address, link type, encryption */
+            if (len < 11 || localbt->probe_target.type != BDADDR_BREDR ||
+                    localbt->probe_connected ||
+                    memcmp(ev + 3, localbt->probe_target.addr, 6) != 0)
+                return;
+            if (ev[0] != 0) {
+                probe_finish(localbt);
+                return;
+            }
+            probe_connected(localbt, ev_le16(ev + 1));
+            return;
+
+        case EVT_LE_META_EVENT:
+            if (len < 1)
+                return;
+            /* connection complete and enhanced connection complete share the head:
+             * subevent, status, handle, role, peer type, peer address */
+            if ((ev[0] == 0x01 && len >= 19) || (ev[0] == 0x0A && len >= 31)) {
+                if (localbt->probe_target.type == BDADDR_BREDR || localbt->probe_connected ||
+                        memcmp(ev + 6, localbt->probe_target.addr, 6) != 0)
+                    return;
+                if (ev[1] != 0) {
+                    probe_finish(localbt);
+                    return;
+                }
+                probe_connected(localbt, ev_le16(ev + 2));
+                return;
+            }
+            /* LE read remote features complete: subevent, status, handle, features */
+            if (ev[0] == 0x04 && len >= 12) {
+                handle = ev_le16(ev + 2) & 0x0FFF;
+                if (!localbt->probe_connected || handle != localbt->probe_handle)
+                    return;
+                if (ev[1] == 0) {
+                    memcpy(localbt->probe_features, ev + 4, 8);
+                    localbt->probe_have_features = 1;
+                } else {
+                    localbt->probe_have_features = -1;
+                }
+                probe_check_done(localbt);
+            }
+            return;
+
+        case EVT_READ_REMOTE_VERSION_COMPLETE:
+            /* status, handle, version, manufacturer, subversion */
+            if (len < 8)
+                return;
+            handle = ev_le16(ev + 1) & 0x0FFF;
+            if (!localbt->probe_connected || handle != localbt->probe_handle)
+                return;
+            if (ev[0] == 0) {
+                localbt->probe_version = ev[3];
+                localbt->probe_manuf = ev_le16(ev + 4);
+                localbt->probe_subversion = ev_le16(ev + 6);
+                localbt->probe_have_version = 1;
+            } else {
+                localbt->probe_have_version = -1;
+            }
+            probe_check_done(localbt);
+            return;
+
+        case EVT_READ_REMOTE_FEATURES_COMPLETE:
+            /* status, handle, features */
+            if (len < 11)
+                return;
+            handle = ev_le16(ev + 1) & 0x0FFF;
+            if (!localbt->probe_connected || handle != localbt->probe_handle)
+                return;
+            if (ev[0] == 0) {
+                memcpy(localbt->probe_features, ev + 3, 8);
+                localbt->probe_have_features = 1;
+            } else {
+                localbt->probe_have_features = -1;
+            }
+            probe_check_done(localbt);
+            return;
+
+        case EVT_DISCONN_COMPLETE:
+            /* status, handle, reason */
+            if (len < 3)
+                return;
+            handle = ev_le16(ev + 1) & 0x0FFF;
+            if (localbt->probe_connected && handle == localbt->probe_handle) {
+                localbt->probe_connected = 0;
+                probe_finish(localbt);
+            }
+            return;
+    }
+}
+
+/* Each read of the raw socket is one packet: type, event code, length, parameters */
+static void probe_read_hci(local_bluetooth_t *localbt) {
+    uint8_t buf[260];
+    ssize_t r;
+
+    while (localbt->hci_fd >= 0) {
+        r = read(localbt->hci_fd, buf, sizeof(buf));
+
+        if (r < 0) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                char errstr[STATUS_MAX];
+                snprintf(errstr, STATUS_MAX, "%s HCI probing socket failed: %s",
+                        localbt->bt_interface, strerror(errno));
+                cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
+                localbt->probe_connected = 0;
+                probe_finish(localbt);
+                probe_hci_close(localbt);
+            }
+            return;
+        }
+
+        if (r == 0)
+            return;
+
+        if (r < 3 || buf[0] != HCI_EVENT_PKT || (size_t) buf[2] > (size_t) r - 3)
+            continue;
+
+        probe_handle_event(localbt, buf[1], buf + 3, buf[2]);
+    }
+}
+
+/* Called from the capture loop on every pass */
+static void probe_service(local_bluetooth_t *localbt) {
+    bt_probe_mode_t mode;
+    unsigned int interval;
+    bt_probe_target_t t;
+    time_t now = time(0);
+    int dirty;
+
+    pthread_mutex_lock(&localbt->probe_mutex);
+    mode = localbt->probe_mode;
+    interval = localbt->probe_interval;
+    dirty = localbt->probe_status_dirty;
+    localbt->probe_status_dirty = 0;
+    pthread_mutex_unlock(&localbt->probe_mutex);
+    (void) interval;
+
+    if (mode != BT_PROBE_INFO) {
+        probe_abort(localbt);
+        if (localbt->probe != NULL)
+            bt_probe_flush(localbt->probe);
+        probe_hci_close(localbt);
+    } else if (localbt->hci_fd < 0 &&
+            (dirty || now - localbt->probe_last_status >= PROBE_STATUS_INTERVAL)) {
+        /* a failed open is retried at the status interval, not on every pass */
+        probe_hci_open(localbt);
+    }
+
+    if (localbt->probe_active) {
+        if (now - localbt->probe_start >= PROBE_TIMEOUT ||
+                (!localbt->probe_connected && now - localbt->probe_start >= PROBE_CONNECT_TIMEOUT))
+            probe_abort(localbt);
+    } else if (mode == BT_PROBE_INFO && localbt->hci_fd >= 0 && localbt->probe != NULL &&
+            now - localbt->probe_last_end >= PROBE_GAP && bt_probe_next(localbt->probe, &t)) {
+        probe_start(localbt, &t);
+    }
+
+    if (dirty || now - localbt->probe_last_status >= PROBE_STATUS_INTERVAL)
+        probe_send_status(localbt);
+}
+
+static void probe_device_found(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
+    bt_probe_mode_t mode;
+    unsigned int interval;
+    uint32_t flags = le32toh(dev->flags);
+    struct mgmt_cp_confirm_name cp;
+    char *name;
+
+    probe_get_settings(localbt, &mode, &interval);
+
+    if (mode == BT_PROBE_OFF || localbt->probe == NULL)
+        return;
+
+    /* The kernel waits for an answer before resolving the name of a classic device */
+    if (flags & MGMT_DEV_FOUND_CONFIRM_NAME) {
+        name = eir_get_name(dev->eir, le16toh(dev->eir_len));
+
+        memset(&cp, 0, sizeof(cp));
+        cp.addr = dev->addr;
+        cp.name_known = name != NULL ||
+            !bt_probe_offer_name(localbt->probe, dev->addr.bdaddr.b, time(0), interval);
+
+        free(name);
+
+        mgmt_write_request(localbt->mgmt_fd, MGMT_OP_CONFIRM_NAME, localbt->devid,
+                sizeof(cp), &cp);
+    }
+
+    if (mode == BT_PROBE_INFO && !(flags & MGMT_DEV_FOUND_NOT_CONNECTABLE) &&
+            dev->addr.type <= BDADDR_LE_RANDOM)
+        bt_probe_offer(localbt->probe, dev->addr.bdaddr.b, dev->addr.type, time(0), interval);
+}
+
+static void *probe_chantranslate(kis_capture_handler_t *caph, const char *chanstr) {
+    bt_probe_setting_t *s = (bt_probe_setting_t *) malloc(sizeof(bt_probe_setting_t));
+    (void) caph;
+
+    if (s != NULL)
+        bt_probe_parse_setting(chanstr, s);
+
+    return s;
+}
+
+/* Runtime probing settings arrive as set_channel strings.  As with the cell
+ * sources, every outcome returns 0: a positive return records the setting as the
+ * source's channel and replays it after a reopen, and a negative one tears the
+ * source down.  The status report shows what was applied. */
+static int probe_chancontrol(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
+        char *msg) {
+    local_bluetooth_t *localbt = (local_bluetooth_t *) caph->userdata;
+    bt_probe_setting_t *s = (bt_probe_setting_t *) privchan;
+    (void) seqno;
+
+    if (s == NULL) {
+        snprintf(msg, STATUS_MAX, "linuxbluetooth: out of memory parsing the setting");
+        return 0;
+    }
+
+    switch (s->result) {
+        case BT_PROBE_SET_OK:
+            break;
+        case BT_PROBE_SET_UNKNOWN_KEY:
+            snprintf(msg, STATUS_MAX, "%s: unknown setting; use probe=off|name|info or "
+                    "probe_interval=<seconds>", localbt->bt_interface);
+            cf_send_message(caph, msg, MSGFLAG_ERROR);
+            return 0;
+        case BT_PROBE_SET_BAD_VALUE:
+            snprintf(msg, STATUS_MAX, "%s: bad value; probe takes off, name or info, and "
+                    "probe_interval %u to %u seconds", localbt->bt_interface,
+                    BT_PROBE_INTERVAL_MIN, BT_PROBE_INTERVAL_MAX);
+            cf_send_message(caph, msg, MSGFLAG_ERROR);
+            return 0;
+        default:
+            snprintf(msg, STATUS_MAX, "%s has no channels; its settings are "
+                    "probe=off|name|info and probe_interval=<seconds>", localbt->bt_interface);
+            cf_send_message(caph, msg, MSGFLAG_ERROR);
+            return 0;
+    }
+
+    pthread_mutex_lock(&localbt->probe_mutex);
+    if (s->has_mode)
+        localbt->probe_mode = s->mode;
+    if (s->has_interval)
+        localbt->probe_interval = s->interval;
+    localbt->probe_status_dirty = 1;
+    pthread_mutex_unlock(&localbt->probe_mutex);
+
+    if (s->has_mode)
+        snprintf(msg, STATUS_MAX, "%s active probing: %s", localbt->bt_interface,
+                bt_probe_mode_str(s->mode));
+    else
+        snprintf(msg, STATUS_MAX, "%s probes each device at most every %u seconds",
+                localbt->bt_interface, s->interval);
+    cf_send_message(caph, msg, MSGFLAG_INFO);
+
+    return 0;
 }
 
 void handle_mgmt_response(local_bluetooth_t *localbt) {
@@ -1151,6 +1782,48 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     localbt->discovering = 0;
     localbt->last_setup = time(0);
+
+    /* Probing is off unless the source line asks for it */
+    {
+        bt_probe_mode_t mode = BT_PROBE_OFF;
+        unsigned int interval = BT_PROBE_INTERVAL_DEFAULT;
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "probe", definition)) > 0 &&
+                !bt_probe_parse_mode(placeholder, placeholder_len, &mode)) {
+            snprintf(msg, STATUS_MAX, "Invalid probe= option, expected off, name or info");
+            return -1;
+        }
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "probe_interval", definition)) > 0 &&
+                !bt_probe_parse_interval(placeholder, placeholder_len, &interval)) {
+            snprintf(msg, STATUS_MAX, "Invalid probe_interval= option, expected %u to %u "
+                    "seconds", BT_PROBE_INTERVAL_MIN, BT_PROBE_INTERVAL_MAX);
+            return -1;
+        }
+
+        if (localbt->probe == NULL &&
+                (localbt->probe = (bt_probe_state_t *) malloc(sizeof(bt_probe_state_t))) == NULL) {
+            snprintf(msg, STATUS_MAX, "Could not allocate probing state");
+            return -1;
+        }
+
+        bt_probe_state_init(localbt->probe);
+
+        pthread_mutex_lock(&localbt->probe_mutex);
+        localbt->probe_mode = mode;
+        localbt->probe_interval = interval;
+        localbt->probe_status_dirty = 1;
+        pthread_mutex_unlock(&localbt->probe_mutex);
+
+        localbt->probe_active = 0;
+        localbt->probe_connected = 0;
+        localbt->probe_le_ext = 0;
+        localbt->probe_last_end = 0;
+        localbt->probe_last_status = 0;
+        localbt->probes_done = 0;
+        probe_hci_close(localbt);
+    }
+
     cmd_get_controller_info(localbt);
 
     return 1;
@@ -1167,6 +1840,12 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     while (1) {
         if (caph->spindown) {
+            /* Drop the link or cancel the attempt, but report nothing while shutting down */
+            localbt->probe_have_version = 0;
+            localbt->probe_have_features = 0;
+            probe_abort(localbt);
+            probe_hci_close(localbt);
+
             close(localbt->mgmt_fd);
             localbt->mgmt_fd = -1;
 
@@ -1183,7 +1862,11 @@ void capture_thread(kis_capture_handler_t *caph) {
         /* Always set read buffer */
         FD_SET(localbt->mgmt_fd, &rset);
 
-        if (select(localbt->mgmt_fd + 1, &rset, NULL, NULL, &tm) < 0) {
+        if (localbt->hci_fd >= 0)
+            FD_SET(localbt->hci_fd, &rset);
+
+        if (select((localbt->hci_fd > localbt->mgmt_fd ? localbt->hci_fd : localbt->mgmt_fd) + 1,
+                    &rset, NULL, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
                 snprintf(errstr, STATUS_MAX, "%s select failed: %s",
                         localbt->bt_interface, strerror(errno));
@@ -1201,6 +1884,11 @@ void capture_thread(kis_capture_handler_t *caph) {
             localbt->last_setup = time(0);
             cmd_get_controller_info(localbt);
         }
+
+        if (localbt->hci_fd >= 0 && FD_ISSET(localbt->hci_fd, &rset))
+            probe_read_hci(localbt);
+
+        probe_service(localbt);
 
         if (FD_ISSET(localbt->mgmt_fd, &rset)) {
             while (kis_simple_ringbuf_available(localbt->read_rbuf)) {
@@ -1243,6 +1931,11 @@ int main(int argc, char *argv[]) {
         .scan_type = SCAN_TYPE_DUAL,
         .discovering = 0,
         .last_setup = 0,
+        .probe_mutex = PTHREAD_MUTEX_INITIALIZER,
+        .probe_mode = BT_PROBE_OFF,
+        .probe_interval = BT_PROBE_INTERVAL_DEFAULT,
+        .probe = NULL,
+        .hci_fd = -1,
         .caph = NULL,
     };
 
@@ -1270,6 +1963,10 @@ int main(int argc, char *argv[]) {
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
+
+    /* Runtime probing settings arrive as channel changes */
+    cf_handler_set_chantranslate_cb(caph, probe_chantranslate);
+    cf_handler_set_chancontrol_cb(caph, probe_chancontrol);
 
     int r = cf_handler_parse_opts(caph, argc, argv);
     if (r == 0) {

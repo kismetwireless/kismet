@@ -77,6 +77,30 @@ static void apply_appearance(bluetooth_tracked_device& btdev, uint16_t appearanc
     btdev.set_appearance_name(bt_assigned::appearance_name(appearance));
 }
 
+constexpr const char *lmp_version_name(uint8_t v) {
+    constexpr const char *names[] = {
+        "1.0b", "1.1", "1.2", "2.0", "2.1", "3.0", "4.0", "4.1", "4.2", "5.0", "5.1",
+        "5.2", "5.3", "5.4", "6.0", "6.1",
+    };
+    return v < std::size(names) ? names[v] : nullptr;
+}
+
+static void apply_remote_version(bluetooth_tracked_device& btdev, kis_bt_manuf *btmanuf,
+        uint8_t version, uint16_t manuf, uint16_t subversion) {
+    const auto vname = lmp_version_name(version);
+    btdev.set_lmp_version(vname != nullptr ? vname : fmt::format("unknown ({})", version));
+
+    std::shared_ptr<tracker_element_string> mname;
+    if (btmanuf != nullptr)
+        mname = btmanuf->lookup_manuf(manuf);
+
+    if (mname != nullptr && !btmanuf->is_unknown_manuf(mname))
+        btdev.set_chip_manufacturer(fmt::format("{} ({:04x})", mname->get(), manuf));
+    else
+        btdev.set_chip_manufacturer(fmt::format("{:04x}", manuf));
+    btdev.set_lmp_subversion(subversion);
+}
+
 kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
     kis_phy_handler(in_phyid) {
 
@@ -282,6 +306,33 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         auto appearance_j = json["appearance"];
         if (appearance_j.is_number_unsigned() && appearance_j.get<uint32_t>() <= 0xFFFF)
             apply_appearance(*btdev, appearance_j.get<uint16_t>());
+
+        // What the source's opt-in active probing read over a connection
+        auto lmpv_j = json["lmp_version"];
+        auto lmpm_j = json["lmp_manufacturer"];
+        auto lmps_j = json["lmp_subversion"];
+        if (lmpv_j.is_number_unsigned() && lmpv_j.get<uint32_t>() <= 0xFF &&
+                lmpm_j.is_number_unsigned() && lmpm_j.get<uint32_t>() <= 0xFFFF &&
+                lmps_j.is_number_unsigned() && lmps_j.get<uint32_t>() <= 0xFFFF)
+            apply_remote_version(*btdev, btphy->btmanuf.get(), lmpv_j.get<uint8_t>(),
+                    lmpm_j.get<uint16_t>(), lmps_j.get<uint16_t>());
+
+        for (const char *k : {"lmp_features", "le_features"}) {
+            auto f_j = json[k];
+            if (!f_j.is_string())
+                continue;
+            const auto& f = f_j.get_ref<const std::string&>();
+            if (f.length() != 16 ||
+                    f.find_first_not_of("0123456789abcdef") != std::string::npos)
+                continue;
+            if (k[0] == 'l' && k[1] == 'm')
+                btdev->set_lmp_features(f);
+            else
+                btdev->set_le_features(f);
+        }
+
+        if (json["probed"].is_number_unsigned())
+            btdev->set_last_probed(in_pack->ts.tv_sec);
 
         // Service UUIDs and Manufacturer Specific Data, parsed by
         // capture_linux_bluetooth.c's eir_get_uuids_json()/eir_get_manuf().
@@ -659,14 +710,6 @@ mac_addr hci_bdaddr(const uint8_t *p) {
 
 constexpr uint16_t hci_le16(const uint8_t *p) {
     return (uint16_t) p[0] | ((uint16_t) p[1] << 8);
-}
-
-constexpr const char *lmp_version_name(uint8_t v) {
-    constexpr const char *names[] = {
-        "1.0b", "1.1", "1.2", "2.0", "2.1", "3.0", "4.0", "4.1", "4.2", "5.0", "5.1",
-        "5.2", "5.3", "5.4", "6.0", "6.1",
-    };
-    return v < std::size(names) ? names[v] : nullptr;
 }
 
 std::string bytes_hex(const uint8_t *p, size_t len) {
@@ -1124,10 +1167,8 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
             if (btdev == nullptr)
                 return 0;
 
-            const auto vname = lmp_version_name(p[3]);
-            btdev->set_lmp_version(vname != nullptr ? vname : fmt::format("unknown ({})", p[3]));
-            btdev->set_chip_manufacturer(fmt::format("{:04x}", hci_le16(p + 4)));
-            btdev->set_lmp_subversion(hci_le16(p + 6));
+            apply_remote_version(*btdev, mphy->btmanuf.get(), p[3], hci_le16(p + 4),
+                    hci_le16(p + 6));
             break;
         }
 

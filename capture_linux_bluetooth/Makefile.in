@@ -2,6 +2,7 @@ include ../Makefile.inc
 
 MONITOR_OBJS = \
 	linux_bt_rfkill.c.o \
+	bt_probe.c.o \
 	capture_linux_bluetooth.c.o
 MONITOR_BIN = kismet_cap_linux_bluetooth
 

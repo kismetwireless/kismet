@@ -156,6 +156,12 @@ public:
             chip_manufacturer_id);
     __ProxyDynamic(lmp_subversion, uint16_t, uint16_t, uint16_t, lmp_subversion,
             lmp_subversion_id);
+    // Only from the Linux HCI source's opt-in active probing
+    __ProxyDynamic(lmp_features, std::string, std::string, std::string, lmp_features,
+            lmp_features_id);
+    __ProxyDynamic(le_features, std::string, std::string, std::string, le_features,
+            le_features_id);
+    __ProxyDynamic(last_probed, uint64_t, time_t, time_t, last_probed, last_probed_id);
 
 protected:
     virtual void register_fields() override {
@@ -184,10 +190,19 @@ protected:
                     "Bluetooth core version of the device's controller", &lmp_version);
         chip_manufacturer_id =
             register_dynamic_field("bluetooth.device.chip_manufacturer",
-                    "company ID of the controller's maker", &chip_manufacturer);
+                    "maker of the controller and its company ID", &chip_manufacturer);
         lmp_subversion_id =
             register_dynamic_field("bluetooth.device.lmp_subversion",
                     "controller firmware subversion, specific to its maker", &lmp_subversion);
+        lmp_features_id =
+            register_dynamic_field("bluetooth.device.lmp_features",
+                    "classic LMP feature mask read from the device, hex", &lmp_features);
+        le_features_id =
+            register_dynamic_field("bluetooth.device.le_features",
+                    "LE feature mask read from the device, hex", &le_features);
+        last_probed_id =
+            register_dynamic_field("bluetooth.device.last_probed",
+                    "last time active probing connected to the device", &last_probed);
 
         register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("bluetooth.device.solicitation_uuid_vec",
@@ -242,6 +257,12 @@ protected:
     uint16_t chip_manufacturer_id;
     std::shared_ptr<tracker_element_uint16> lmp_subversion;
     uint16_t lmp_subversion_id;
+    std::shared_ptr<tracker_element_string> lmp_features;
+    uint16_t lmp_features_id;
+    std::shared_ptr<tracker_element_string> le_features;
+    uint16_t le_features_id;
+    std::shared_ptr<tracker_element_uint64> last_probed;
+    uint16_t last_probed_id;
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
 	std::shared_ptr<tracker_element_vector> solicitation_uuid_vec;

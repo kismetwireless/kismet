@@ -1482,6 +1482,80 @@ const cellat_profile_control = (source, g) => {
     return wrap;
 }
 
+/* Opt-in active probing on a Linux HCI source.  Probing transmits: names asks
+ * classic devices for their names, info also connects to each device to read
+ * its controller version and features.  Applied live through set_channel like
+ * the cell settings; the rows show what the helper reports it is doing. */
+const BTPROBE_MODES = [
+    ['off', 'Off (passive)'],
+    ['name', 'Resolve names'],
+    ['info', 'Names, version and features (connects to devices)'],
+];
+
+const btprobe_render_rows = (source, sdiv, set_row) => {
+    if (source['kismet.datasource.type_driver']['kismet.datasource.driver.type'] !== 'linuxbluetooth' ||
+            !source['kismet.datasource.running']) {
+        $('tr#btprobe', sdiv).remove();
+        $('tr#btprobe_stats', sdiv).remove();
+        return;
+    }
+
+    const uuid = source['kismet.datasource.uuid'];
+    const cur = source['kismet.datasource.linuxbt.probe'] || '';
+    const interval = source['kismet.datasource.linuxbt.probe_interval'] || 0;
+
+    const wrap = $('<div>');
+    const sel = $('<select>');
+    BTPROBE_MODES.forEach(([v, label]) => {
+        const o = $('<option>', { value: v }).text(label);
+        if (v === cur)
+            o.attr('selected', 'selected');
+        sel.append(o);
+    });
+    cell_hold_row(sel, () => sel.val() === cur);
+    wrap.append(sel);
+    wrap.append($('<button>').text('Apply')
+        .on('click', () => {
+            const want = sel.val();
+            if (!want || want === cur)
+                return;
+            cell_release_row(sel);
+            cellat_send_setting(uuid, 'probe=' + want);
+        }));
+
+    const inp = $('<input>', { type: 'number', min: 60, max: 86400, step: 1, style: 'width: 6em; margin-left: 8px;',
+                               placeholder: interval ? String(interval) : 'sec' });
+    cell_hold_row(inp, () => (inp.val() || '').trim() === '');
+    wrap.append(inp).append($('<button>').text('Set interval')
+        .on('click', () => {
+            const v = (inp.val() || '').trim();
+            if (!/^\d+$/.test(v) || +v < 60 || +v > 86400)
+                return;
+            cell_release_row(inp);
+            cellat_send_setting(uuid, 'probe_interval=' + v);
+        }));
+    wrap.append($('<div>', { style: 'font-size: 0.85em; color: var(--ds-muted-color);' })
+        .text('Probing transmits to nearby devices.  Each device is probed at most once ' +
+              'per interval (60 to 86400 seconds).  Applied without restarting the source; ' +
+              'a refusal is reported on the message bus.'));
+    set_row(sdiv, 'btprobe', '<b>Active Probing</b>', wrap);
+
+    if (cur === '') {
+        set_row(sdiv, 'btprobe_stats', '<b>Probing Status</b>', $('<i>').text('not reported yet'));
+        return;
+    }
+
+    let st = `${cur}, every ${interval} s per device`;
+    if (cur === 'info') {
+        st += `; ${source['kismet.datasource.linuxbt.probes'] || 0} probed, ` +
+            `${source['kismet.datasource.linuxbt.probe_queue'] || 0} waiting`;
+        const last = source['kismet.datasource.linuxbt.probe_last'] || 0;
+        if (last > 0)
+            st += `; last ${new Date(last * 1000).toLocaleTimeString()}`;
+    }
+    set_row(sdiv, 'btprobe_stats', '<b>Probing Status</b>', $('<span>').text(st));
+}
+
 /* The ClockAnchor cadence (cellat), applied live (no restart) through
  * the same runtime-setting path as the profile. */
 const cellat_anchor_control = (source) => {
@@ -3468,6 +3542,7 @@ function update_datasource2(data) {
         /* The whole-modem switch, on every cell source. */
         if (is_cell_driver(source['kismet.datasource.type_driver']['kismet.datasource.driver.type']))
             cell_modem_group_row(source, sdiv, set_row);
+        btprobe_render_rows(source, sdiv, set_row);
 
         var rts = "";
         if (source['kismet.datasource.remote']) {
@@ -3490,7 +3565,9 @@ function update_datasource2(data) {
         set_row(sdiv, 'pausing', '<b>Active</b>', pausediv);
 
         if (source['kismet.datasource.running']) {
-            if (source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable']) {
+            /* Linux HCI sources are tunable only for their probing settings */
+            if (source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable'] &&
+                    source['kismet.datasource.type_driver']['kismet.datasource.driver.type'] !== 'linuxbluetooth') {
                 set_row(sdiv, 'chanopts', '<b>Channel Options</b>', quickopts);
                 set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
             } else {

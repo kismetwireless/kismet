@@ -47,6 +47,27 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
                 help: "The controller's firmware subversion, chosen by the chip maker.",
             },
             {
+                field: "bluetooth.device/bluetooth.device.lmp_features",
+                title: "LMP Features",
+                filterOnEmpty: true,
+                help: "Classic feature mask read from the device by active probing.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.le_features",
+                title: "LE Features",
+                filterOnEmpty: true,
+                help: "LE feature mask read from the device by active probing.",
+            },
+            {
+                field: "bluetooth.device/bluetooth.device.last_probed",
+                title: "Last Probed",
+                filterOnZero: true,
+                help: "Last time a source's opt-in active probing connected to this device.",
+                draw: function(opts) {
+                    return kismet_ui.RenderTrimmedTime(opts);
+                },
+            },
+            {
                 field: "bluetooth.device/bluetooth.device.appearance_name",
                 title: "Appearance",
                 filterOnEmpty: true,
