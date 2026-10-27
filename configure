@@ -15422,7 +15422,7 @@ esac
 fi
 
 
-if test "xwant_ubertooth" != "xno"
+if test "x$want_ubertooth" != "xno"
 then :
 
     OCFL="$CFLAGS"

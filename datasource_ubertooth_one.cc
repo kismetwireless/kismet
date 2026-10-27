@@ -57,6 +57,9 @@ kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx
     const uint16_t btle_rf_crc_valid = (1 << 11);
     */
 
+    if (datachunk->dlt == KDLT_BLUETOOTH_BREDR_BB)
+        return handle_rx_bredr(packet, datachunk, content, content_sz);
+
     if (content_sz != sizeof(usb_pkt_rx)) {
         packet->error = 1;
         // error, but preserve the packet for logging
@@ -115,8 +118,7 @@ kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx
     conv_header->flags_le =
         kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
 
-    // We always override the ubertooth DLT since we don't get it from the ds
-    datachunk->dlt = get_source_override_linktype();
+    datachunk->dlt = KDLT_BTLE_RADIO;
 
     packet->set_data((const char *) conv_buf, conv_buf_len);
     datachunk->set_data(packet->data);
@@ -137,3 +139,30 @@ kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx
     return rx_content::frame;
 }
 
+kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx_bredr(kis_packet *packet,
+        kis_datachunk *datachunk, const uint8_t *content, size_t content_sz) {
+    // LINKTYPE_BLUETOOTH_BREDR_BB: channel, signal, noise, ... little endian flags at 20
+    constexpr size_t bredr_hdr_len = 22;
+    constexpr uint16_t bredr_sigpower_valid = 0x0002;
+
+    packet->set_data(std::string_view((const char *) content, content_sz));
+    datachunk->set_data(packet->data);
+
+    if (content_sz < bredr_hdr_len || content[0] > 78) {
+        packet->error = 1;
+        return rx_content::frame;
+    }
+
+    const auto flags = (uint16_t) content[20] | ((uint16_t) content[21] << 8);
+
+    if (flags & bredr_sigpower_valid) {
+        packet->signal_info.data_ok = true;
+        packet->signal_info.signal_type = kis_l1_signal_type_dbm;
+        packet->signal_info.signal_dbm = (int8_t) content[1];
+    }
+
+    packet->signal_info.freq_khz = (2402 + content[0]) * 1000;
+    packet->signal_info.channel = fmt::format("{}", content[0]);
+
+    return rx_content::frame;
+}

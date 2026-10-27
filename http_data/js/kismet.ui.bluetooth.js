@@ -29,6 +29,15 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
                 help: "Service classes from the class of device.",
             },
             {
+                field: "bluetooth.device/bluetooth.device.partial_address",
+                title: "Partial Address",
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return kismet.censorString(opts['value']);
+                },
+                help: "A classic device seen only by a baseband sniffer, such as an Ubertooth in classic mode.  The lower address bytes come from the piconet's access code; parts not yet known show as ??.",
+            },
+            {
                 field: "bluetooth.device/bluetooth.device.random_address_type",
                 title: "Random Address",
                 filterOnEmpty: true,

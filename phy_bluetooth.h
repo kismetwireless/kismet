@@ -167,6 +167,10 @@ public:
     __ProxyDynamic(random_address_type, std::string, std::string, std::string,
             random_address_type, random_address_type_id);
 
+    // Piconets seen only by a baseband sniffer, which knows the LAP and in time the UAP
+    __ProxyDynamic(partial_address, std::string, std::string, std::string, partial_address,
+            partial_address_id);
+
 protected:
     virtual void register_fields() override {
         register_field("bluetooth.device.type", "bt device type", &bt_device_type);
@@ -239,6 +243,10 @@ protected:
             register_dynamic_field("bluetooth.device.random_address_type",
                     "kind of LE random address (static, resolvable, non-resolvable, reserved)",
                     &random_address_type);
+        partial_address_id =
+            register_dynamic_field("bluetooth.device.partial_address",
+                    "address known from the piconet's access code, unknown parts as ??",
+                    &partial_address);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -300,6 +308,8 @@ protected:
     uint16_t adv_id;
     std::shared_ptr<tracker_element_string> random_address_type;
     uint16_t random_address_type_id;
+    std::shared_ptr<tracker_element_string> partial_address;
+    uint16_t partial_address_id;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {
@@ -334,6 +344,9 @@ public:
 
     // Keeps each adapter's HCI events on one packet thread, in order
     static int packet_assign_hci(CHAINCALL_PARMS);
+
+    // Classic piconets from BR/EDR baseband captures (Ubertooth classic mode)
+    static int packet_classifier_bredr_bb(CHAINCALL_PARMS);
 
     // Load stored data
     virtual void load_phy_storage(shared_tracker_element in_storage, 

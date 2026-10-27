@@ -37,6 +37,10 @@ typedef std::shared_ptr<kis_datasource_ubertooth_one> shared_datasource_ubertoot
 #define KDLT_BTLE_RADIO             256
 #endif
 
+#ifndef KDLT_BLUETOOTH_BREDR_BB
+#define KDLT_BLUETOOTH_BREDR_BB     255
+#endif
+
 class kis_datasource_ubertooth_one : public kis_datasource {
 public:
     kis_datasource_ubertooth_one(shared_datasource_builder in_builder) :
@@ -45,11 +49,9 @@ public:
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_ubertooth_one");
 
-        // We synthesize BTLE_LL_RADIO headers
+        // We synthesize BTLE_LL_RADIO headers from the raw u1 packets; classic mode
+        // sends BR/EDR baseband frames tagged with their own DLT
         set_int_source_dlt(KDLT_BTLE_RADIO);
-
-        // always override linktype because the u1 packets don't come in w/ one
-        set_int_source_override_linktype(KDLT_BTLE_RADIO);
 
         pack_comp_decap =
             packetchain->register_packet_component("DECAP");
@@ -60,6 +62,9 @@ public:
 protected:
     virtual rx_content handle_rx_data_content(kis_packet *packet, kis_datachunk *datachunk,
             const uint8_t *content, size_t content_sz) override;
+
+    rx_content handle_rx_bredr(kis_packet *packet, kis_datachunk *datachunk,
+            const uint8_t *content, size_t content_sz);
 
     int pack_comp_decap;
 };
@@ -101,7 +106,7 @@ public:
         // Set up our basic parameters for the linux wifi driver
 
         set_source_type("ubertooth");
-        set_source_description("Ubertooth One Bluetooth Sniffer");
+        set_source_description("Ubertooth One Bluetooth Sniffer (BTLE, or classic piconets with mode=classic)");
 
         set_probe_capable(true);
         set_list_capable(true);
