@@ -39,12 +39,16 @@
 #include "gpstracker.h"
 #include "uuid.h"
 
+#include "alertracker.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 
 #include "tap_802_15_4.h"
+#include "zigbee_crypto.h"
 
+#include <atomic>
 #include <deque>
+#include <set>
 #include <unordered_map>
 
 #ifndef KDLT_IEEE802_15_4_TAP
@@ -74,6 +78,15 @@ public:
         nwk_secured = false;
         has_gpd_srcid = false;
         gpd_srcid = 0;
+        weak_keys = 0;
+        aps_key_name.clear();
+        nwk_key_name.clear();
+        nwk_key.clear();
+        exposed_key.clear();
+        exposed_key_type.clear();
+        key_checked = false;
+        key_matched = false;
+        user_key_name.clear();
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -102,6 +115,43 @@ public:
     // MAC source address
     bool has_gpd_srcid = false;
     uint32_t gpd_srcid = 0;
+    // Keys anyone can know that the frame shows in use: a Transport Key command sent without APS
+    // security, APS security under a known link key (or the keys hashed from it), NWK security
+    // under a known network key; the known key's name (and the network key)
+    static constexpr uint8_t weak_key_clear_transport = 0x01;
+    static constexpr uint8_t weak_key_aps = 0x02;
+    static constexpr uint8_t weak_key_nwk = 0x04;
+    uint8_t weak_keys = 0;
+    std::string aps_key_name;
+    std::string nwk_key_name;
+    std::string nwk_key;
+
+    // The key a Transport Key command carried, readable because of one of these, and its type
+    std::string exposed_key;
+    std::string exposed_key_type;
+
+    // A secured NWK or APS frame was checked against the publicly known keys, and one of them
+    // matched (its MIC verified)
+    bool key_checked = false;
+    bool key_matched = false;
+
+    // The name of the user's key (zigbee_key=) that matched, when one did
+    std::string user_key_name;
+};
+
+// A key the user gave (zigbee_key=name,key): tried after the publicly known keys, as the network
+// key and as a link key (by key identifier: the key itself, its key-transport and key-load keys)
+struct zigbee_user_key {
+    std::string name;
+    zigbee_crypto::key_ciphers ciphers;
+};
+
+// The key check's outcome for a device
+enum class zigbee_key_state : uint8_t {
+    none = 0,           // no secured frame checked, no key seen
+    not_known = 1,      // secured frames checked, no known key matched
+    known = 2,          // a publicly known or exposed key seen in use
+    user = 3,           // one of the user's keys (zigbee_key=) in use
 };
 
 /* Largely a placeholder for future possible data; right now we can't decode
@@ -148,6 +198,21 @@ public:
     __Proxy(stack_profile, uint8_t, uint8_t, uint8_t, stack_profile);
     __Proxy(network_rank, uint8_t, uint8_t, uint8_t, network_rank);
     __Proxy(gpd_srcid, uint32_t, uint32_t, uint32_t, gpd_srcid);
+    // Only created once the key check has something to say
+    __ProxyDynamic(weak_keys, uint8_t, uint8_t, uint8_t, weak_keys, weak_keys_id);
+    __ProxyDynamic(weak_key, std::string, std::string, std::string, weak_key, weak_key_id);
+    __ProxyDynamic(exposed_key, std::string, std::string, std::string, exposed_key, exposed_key_id);
+    __ProxyDynamic(known_link_key, std::string, std::string, std::string, known_link_key,
+            known_link_key_id);
+    __ProxyDynamic(known_network_key, std::string, std::string, std::string, known_network_key,
+            known_network_key_id);
+    __ProxyDynamic(key_state, uint8_t, zigbee_key_state, zigbee_key_state, key_state, key_state_id);
+    __ProxyDynamic(key_status, std::string, std::string, std::string, key_status, key_status_id);
+    __ProxyDynamic(key_first_time, uint64_t, uint64_t, uint64_t, key_first_time, key_first_time_id);
+    __ProxyDynamic(key_frames, uint64_t, uint64_t, uint64_t, key_frames, key_frames_id);
+    __ProxyDynamic(key_frames_matched, uint64_t, uint64_t, uint64_t, key_frames_matched,
+            key_frames_matched_id);
+    __ProxyDynamic(user_key, std::string, std::string, std::string, user_key, user_key_id);
 
 protected:
 
@@ -162,6 +227,28 @@ protected:
         register_field("802154.device.stack_profile", "Zigbee stack profile (1 Zigbee, 2 Zigbee PRO)", &stack_profile);
         register_field("802154.device.network_rank", "Certainty of network_type (internal)", &network_rank);
         register_field("802154.device.gpd_srcid", "Zigbee Green Power source ID (0 if not seen)", &gpd_srcid);
+        weak_keys_id =
+            register_dynamic_field("802154.device.weak_keys", "Publicly known keys seen in use (bitmask, internal)", &weak_keys);
+        weak_key_id =
+            register_dynamic_field("802154.device.weak_key", "Publicly known keys seen in use", &weak_key);
+        exposed_key_id =
+            register_dynamic_field("802154.device.exposed_key", "A key its Transport Key command exposed", &exposed_key);
+        known_link_key_id =
+            register_dynamic_field("802154.device.known_link_key", "The publicly known link key its APS security uses", &known_link_key);
+        known_network_key_id =
+            register_dynamic_field("802154.device.known_network_key", "The publicly known network key its NWK security uses", &known_network_key);
+        key_state_id =
+            register_dynamic_field("802154.device.key_state", "Key check: 0 nothing checked, 1 no known key, 2 a known or exposed key in use, 3 a key of the user's (zigbee_key) in use", &key_state);
+        user_key_id =
+            register_dynamic_field("802154.device.user_key", "The name of the user's key (zigbee_key) its frames matched", &user_key);
+        key_status_id =
+            register_dynamic_field("802154.device.key_status", "Key check, in words", &key_status);
+        key_first_time_id =
+            register_dynamic_field("802154.device.key_first_time", "When a known or exposed key was first seen in use", &key_first_time);
+        key_frames_id =
+            register_dynamic_field("802154.device.key_frames", "Secured NWK and APS frames checked against the publicly known keys", &key_frames);
+        key_frames_matched_id =
+            register_dynamic_field("802154.device.key_frames_matched", "Secured frames a publicly known key matched", &key_frames_matched);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -184,6 +271,28 @@ protected:
     std::shared_ptr<tracker_element_uint8> stack_profile;
     std::shared_ptr<tracker_element_uint8> network_rank;
     std::shared_ptr<tracker_element_uint32> gpd_srcid;
+    std::shared_ptr<tracker_element_uint8> weak_keys;
+    uint16_t weak_keys_id;
+    std::shared_ptr<tracker_element_string> weak_key;
+    uint16_t weak_key_id;
+    std::shared_ptr<tracker_element_string> exposed_key;
+    uint16_t exposed_key_id;
+    std::shared_ptr<tracker_element_string> known_link_key;
+    uint16_t known_link_key_id;
+    std::shared_ptr<tracker_element_string> known_network_key;
+    uint16_t known_network_key_id;
+    std::shared_ptr<tracker_element_uint8> key_state;
+    uint16_t key_state_id;
+    std::shared_ptr<tracker_element_string> key_status;
+    uint16_t key_status_id;
+    std::shared_ptr<tracker_element_uint64> key_first_time;
+    uint16_t key_first_time_id;
+    std::shared_ptr<tracker_element_uint64> key_frames;
+    uint16_t key_frames_id;
+    std::shared_ptr<tracker_element_uint64> key_frames_matched;
+    uint16_t key_frames_matched_id;
+    std::shared_ptr<tracker_element_string> user_key;
+    uint16_t user_key_id;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -210,6 +319,7 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<alert_tracker> alertracker;
 
     int kis_802154_device_entry_id;
     int dev_comp_common;
@@ -227,6 +337,34 @@ protected:
     std::deque<uint32_t> ieee_by_short_order;
 
     void learn_ieee(uint32_t pan_short, const mac_addr& ieee);
+
+    // The ZIGBEEWEAKKEY alert, raised once per PAN and kind of weak key (PAN << 8 | weak_key_* bit).
+    // Alerts the rate limit holds back wait in a queue that later frames raise, as a Transport Key
+    // command may be the only frame that shows its key.
+    struct weak_key_alert {
+        mac_addr source, dest;
+        std::string channel, text;
+    };
+
+    int alert_weakkey_ref;
+    kis_mutex weak_key_mutex;
+    std::set<uint32_t> weak_key_alerted;
+    std::deque<weak_key_alert> weak_key_backlog;
+    std::atomic<bool> weak_key_backlogged{false};
+    int weak_key_timer;
+
+    // Raise held-back alerts, oldest first, as far as the rate limit allows; weak_key_mutex held
+    void drain_weak_key_backlog();
+
+    // Most alerts held back at once; when full the oldest is dropped
+    unsigned int weak_key_backlog_max;
+
+    // Whether key values appear in device records, alerts and messages (zigbee_show_keys);
+    // otherwise only the key's name or type
+    bool show_keys;
+
+    // The user's keys, from zigbee_key= in kismet_zigbee.conf; read once at startup
+    std::vector<zigbee_user_key> user_keys;
 };
 
 #endif
