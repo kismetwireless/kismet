@@ -81,6 +81,7 @@ public:
 #define BTLE_ADVDATA_SERVICE_UUID32_COMPLETE    0x05
 #define BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE 0x06
 #define BTLE_ADVDATA_SERVICE_UUID128_COMPLETE   0x07
+#define BTLE_ADVDATA_SHORT_NAME                 0x08
 #define BTLE_ADVDATA_DEVICE_NAME                0x09
 #define BTLE_ADVDATA_TX_POWER_LEVEL             0x0A
 #define BTLE_ADVDATA_APPEARANCE                 0x19
@@ -959,6 +960,12 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
         } else if (ad->type() == BTLE_ADVDATA_DEVICE_NAME && ad->length() >= 2) {
             device->set_devicename(munge_to_printable(ad->data()));
+
+        } else if (ad->type() == BTLE_ADVDATA_SHORT_NAME && ad->length() >= 2) {
+            // A shortened name is a prefix of the complete name; keep a complete name it matches
+            auto name = munge_to_printable(ad->data());
+            if (device->get_devicename().compare(0, name.length(), name) != 0)
+                device->set_devicename(name);
 
         } else if ((ad->type() == BTLE_ADVDATA_SERVICE_UUID16_INCOMPLETE ||
                     ad->type() == BTLE_ADVDATA_SERVICE_UUID16_COMPLETE) && ad->length() >= 3) {
