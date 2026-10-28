@@ -42,6 +42,7 @@ namespace {
 
 constexpr size_t max_rules_text = 256 * 1024;
 constexpr size_t max_views = 256;
+constexpr const char *api_origin = "api";
 
 using namespace devicerules;
 
@@ -815,7 +816,7 @@ void device_rules::trigger_deferred_startup() {
                 as = build_set("");
 
             for (const auto& r : as->rs->replaced)
-                _MSG_INFO("Device rules: {}", r);
+                _MSG_INFO("Device rules: {}", r.text);
 
             install_set(as);
         } catch (const std::exception& e) {
@@ -995,7 +996,7 @@ std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::str
     // Rules from the API never get to include files
     if (!api.empty()) {
         devicerules::parse_source src;
-        src.origin = "api";
+        src.origin = api_origin;
         rs->parse(api, src);
     }
 
@@ -1497,6 +1498,15 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
 }
 
 namespace {
+    // Only what the API text replaced; the configured rules' own replacements are logged at startup
+    std::vector<std::string> api_replaced(const devicerules::ruleset& rs) {
+        std::vector<std::string> r;
+        for (const auto& x : rs.replaced)
+            if (x.by == api_origin)
+                r.push_back(x.text);
+        return r;
+    }
+
     void json_error(std::ostream& stream, const devicerules::parse_error& e) {
         nlohmann::json j;
         j["ok"] = false;
@@ -1534,7 +1544,7 @@ void device_rules::check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection
         nlohmann::json j;
         j["ok"] = true;
         j["backend"] = as->jit ? "jit" : "vm";
-        j["replaced"] = as->rs->replaced;
+        j["replaced"] = api_replaced(*as->rs);
         auto names = nlohmann::json::array();
         for (size_t i = 0; i < as->rs->size(); i++)
             names.push_back(as->rs->rule(i).name);
@@ -1562,7 +1572,7 @@ void device_rules::set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> 
         auto as = set_api_rules(rules_param(con), saved, save_err);
 
         nlohmann::json j{{"ok", true}, {"rules", as->rs->size()}, {"sorts", as->rs->sort_count()},
-            {"backend", as->jit ? "jit" : "vm"}, {"replaced", as->rs->replaced}, {"saved", saved}};
+            {"backend", as->jit ? "jit" : "vm"}, {"replaced", api_replaced(*as->rs)}, {"saved", saved}};
         if (!save_err.empty())
             j["save_error"] = save_err;
         stream << j.dump();

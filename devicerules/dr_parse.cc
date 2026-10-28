@@ -1060,7 +1060,7 @@ void ruleset::parse(const std::string& text, const parse_source& src) {
                     continue;
                 if (e->origin == r->origin)
                     throw parse_error("duplicate rule '" + r->name + "'", r->line, 1);
-                replaced.push_back("rule '" + r->name + "' from " + e->origin + " replaced by " + r->origin);
+                replaced.push_back({r->origin, "rule '" + r->name + "' from " + e->origin + " replaced by " + r->origin});
                 e = std::move(r);
                 return;
             }
@@ -1079,7 +1079,7 @@ void ruleset::parse(const std::string& text, const parse_source& src) {
                     continue;
                 if (e->origin == s->origin)
                     throw parse_error("duplicate sort '" + s->name + "'", s->line, s->col);
-                replaced.push_back("sort '" + s->name + "' from " + e->origin + " replaced by " + s->origin);
+                replaced.push_back({s->origin, "sort '" + s->name + "' from " + e->origin + " replaced by " + s->origin});
                 e = std::move(s);
                 return;
             }

@@ -378,8 +378,13 @@ public:
     bool remove_rule(const std::string& name);
     bool remove_sort(const std::string& name);
 
-    // Rules and sorts replaced by later definitions while parsing
-    std::vector<std::string> replaced;
+    // Rules and sorts replaced by later definitions while parsing, and the origin
+    // that replaced each
+    struct replacement {
+        std::string by;
+        std::string text;
+    };
+    std::vector<replacement> replaced;
 
     // Resolve fields, type check and generate bytecode; throws parse_error
     void compile(resolver& r);
