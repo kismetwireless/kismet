@@ -25,7 +25,9 @@
 #include "alertracker.h"
 #include "packetchain.h"
 #include "timetracker.h"
+#include <cerrno>
 #include <cmath>
+#include <cstdlib>
 #include <future>
 
 // We never instantiate from a generic tracker component or from a stored
@@ -3763,6 +3765,92 @@ unsigned int kis_datasource::send_list_interfaces_v2(unsigned int in_transaction
 #endif
 
 
+double kis_datasource::channel_frequency_khz(const std::string& in_channel) {
+    const char *start = in_channel.c_str();
+    char *end = nullptr;
+
+    errno = 0;
+    double v = strtod(start, &end);
+
+    if (end == start || errno != 0 || !std::isfinite(v) || v <= 0)
+        return 0;
+
+    std::string unit(end);
+
+    if (unit.empty() || iequals(unit, "khz"))
+        return v;
+    if (iequals(unit, "mhz"))
+        return v * 1000;
+    if (iequals(unit, "ghz"))
+        return v * 1000 * 1000;
+    if (iequals(unit, "hz"))
+        return v / 1000;
+
+    return 0;
+}
+
+void kis_datasource::update_channel_spans() {
+    // Called with data_mutex held, from pre_serialize
+    std::vector<std::string> seen;
+
+    auto check = [&](const std::string& chan) {
+        if (chan.empty() || std::find(seen.begin(), seen.end(), chan) != seen.end())
+            return;
+
+        double low = 0, high = 0;
+
+        if (!channel_span(chan, low, high) || !std::isfinite(low) || !std::isfinite(high) ||
+                low <= 0 || high < low)
+            return;
+
+        seen.push_back(chan);
+
+        if (channel_spans == nullptr) {
+            channel_spans =
+                Globalreg::globalreg->entrytracker->get_shared_instance_as<tracker_element_string_map>(channel_spans_id);
+            insert(channel_spans);
+        }
+
+        auto existing = channel_spans->find(chan);
+
+        if (existing != channel_spans->end()) {
+            auto v = std::static_pointer_cast<tracker_element_vector_double>(existing->second);
+            if (v->size() == 2 && (*v)[0] == low && (*v)[1] == high)
+                return;
+            channel_spans->erase(existing);
+        }
+
+        auto v = std::make_shared<tracker_element_vector_double>(channel_span_entry_id);
+        v->push_back(low);
+        v->push_back(high);
+        channel_spans->insert(chan, v);
+    };
+
+    check(source_channel->get());
+
+    for (const auto& c : *source_hop_vec)
+        check(c);
+
+    for (const auto& c : *source_channels_vec)
+        check(c);
+
+    if (channel_spans == nullptr)
+        return;
+
+    // Forget channels the source no longer has
+    for (auto i = channel_spans->begin(); i != channel_spans->end(); ) {
+        if (std::find(seen.begin(), seen.end(), i->first) == seen.end())
+            i = channel_spans->erase(i);
+        else
+            ++i;
+    }
+
+    if (channel_spans->size() == 0) {
+        erase(channel_spans);
+        channel_spans = nullptr;
+    }
+}
+
 void kis_datasource::register_fields() {
     tracker_component::register_fields();
 
@@ -3847,6 +3935,15 @@ void kis_datasource::register_fields() {
         register_dynamic_field("kismet.datasource.packets_datasize_rrd",
                 "received data RRD (in bytes)",
                 &packet_size_rrd);
+
+    channel_spans_id =
+        register_dynamic_field("kismet.datasource.channel_spans",
+                "frequencies each channel covers, as [low, high] kHz",
+                &channel_spans);
+    channel_span_entry_id =
+        register_field("kismet.datasource.channel_span",
+                tracker_element_factory<tracker_element_vector_double>(),
+                "frequencies a channel covers, as [low, high] kHz");
 
     register_field("kismet.datasource.retry",
             "Source will try to re-open after failure", &source_retry);
