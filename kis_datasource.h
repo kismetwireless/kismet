@@ -239,6 +239,19 @@ public:
         return "";
     }
 
+    // The frequencies a channel covers, in kHz, for a source type which knows them, such
+    // as an SDR taking in a wide channel.  Called with the source locked; it must not lock
+    // the source or block.
+    virtual bool channel_span(const std::string& in_channel __attribute__((unused)),
+            double& low_khz __attribute__((unused)),
+            double& high_khz __attribute__((unused))) {
+        return false;
+    }
+
+    // A channel named as a frequency, such as 433.92MHz, 1090MHz or 915000kHz, in kHz;
+    // 0 if it isn't one
+    static double channel_frequency_khz(const std::string& in_channel);
+
     // Async command API
     // All commands to change non-local state are asynchronous.  Failure, success,
     // and state change will not be known until the command completes.
@@ -520,6 +533,7 @@ public:
 
     virtual void pre_serialize() override {
         kis_lock_guard<kis_mutex> lk(data_mutex, kismet::retain_lock, "datasource preserialize");
+        update_channel_spans();
     }
 
     virtual void post_serialize() override {
@@ -914,6 +928,12 @@ protected:
 
     int packet_size_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_size_rrd;
+
+    // Channel to the [low, high] kHz it covers, only for sources whose type reports spans
+    void update_channel_spans();
+    int channel_spans_id;
+    int channel_span_entry_id;
+    std::shared_ptr<tracker_element_string_map> channel_spans;
 
 
     // Local ID number is an increasing number assigned to each

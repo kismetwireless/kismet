@@ -31,6 +31,18 @@ public:
     kis_datasource_rtl433(shared_datasource_builder in_builder);
     virtual ~kis_datasource_rtl433();
 
+    // rtl_433 is run at 1024k samples per second around the channel
+    virtual bool channel_span(const std::string& in_channel, double& low_khz,
+            double& high_khz) override {
+        constexpr double half_khz = 1024.0 / 2;
+        auto f = channel_frequency_khz(in_channel);
+        if (f <= 0)
+            return false;
+        low_khz = f - half_khz;
+        high_khz = f + half_khz;
+        return true;
+    }
+
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;

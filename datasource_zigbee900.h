@@ -28,6 +28,9 @@
 
 #include "config.h"
 
+#include <cmath>
+#include <cstdio>
+
 #include "kis_datasource.h"
 
 class kis_datasource_zigbee900;
@@ -44,6 +47,20 @@ public:
     }
 
     virtual ~kis_datasource_zigbee900() { }
+
+    // 802.15.4 sub-GHz channels 1-10 at 906 + 2 * (n - 1) MHz, taken in at 2.4 Msps
+    virtual bool channel_span(const std::string& in_channel, double& low_khz,
+            double& high_khz) override {
+        constexpr double half_khz = 2400.0 / 2;
+        unsigned int n;
+        char extra;
+        if (sscanf(in_channel.c_str(), "%u%c", &n, &extra) != 1 || n < 1 || n > 10)
+            return false;
+        auto f = 906000.0 + 2000.0 * (n - 1);
+        low_khz = f - half_khz;
+        high_khz = f + half_khz;
+        return true;
+    }
 
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,

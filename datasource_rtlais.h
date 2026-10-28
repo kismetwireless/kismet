@@ -32,6 +32,18 @@ public:
     kis_datasource_rtlais(shared_datasource_builder in_builder);
     virtual ~kis_datasource_rtlais();
 
+    // Both AIS channels are taken in at once, 288 ksps around 162MHz
+    virtual bool channel_span(const std::string& in_channel, double& low_khz,
+            double& high_khz) override {
+        constexpr double center_khz = 162000;
+        constexpr double half_khz = 288.0 / 2;
+        if (channel_frequency_khz(in_channel) <= 0)
+            return false;
+        low_khz = center_khz - half_khz;
+        high_khz = center_khz + half_khz;
+        return true;
+    }
+
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;

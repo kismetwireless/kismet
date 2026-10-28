@@ -32,6 +32,23 @@ public:
     kis_datasource_rtlaisadsb(shared_datasource_builder in_builder);
     virtual ~kis_datasource_rtlaisadsb();
 
+    // Alternates between AIS, 288 ksps around 162MHz, and ADS-B, 2 Msps around 1090MHz
+    virtual bool channel_span(const std::string& in_channel, double& low_khz,
+            double& high_khz) override {
+        constexpr double ais_khz = 162000;
+        constexpr double ais_half_khz = 288.0 / 2;
+        constexpr double adsb_khz = 1090000;
+        constexpr double adsb_half_khz = 2000.0 / 2;
+        auto f = channel_frequency_khz(in_channel);
+        if (f <= 0)
+            return false;
+        auto center = f < 500000 ? ais_khz : adsb_khz;
+        auto half = f < 500000 ? ais_half_khz : adsb_half_khz;
+        low_khz = center - half;
+        high_khz = center + half;
+        return true;
+    }
+
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;
