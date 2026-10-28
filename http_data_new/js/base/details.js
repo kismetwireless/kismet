@@ -371,7 +371,7 @@ export function register(kismet) {
             { title: 'Device key', field: `${base}.key`,
                 format: (v) => el('span', {}, el('span', { class: 'mono' }, v), copyButton(v)) },
             { title: 'Device JSON', field: `${base}.key`,
-                format: (v) => el('a', { href: api.url(`devices/by-key/${encodeURIComponent(v)}/device.prettyjson`).href,
+                format: (v) => el('a', { href: api.linkUrl(`devices/by-key/${encodeURIComponent(v)}/device.prettyjson`).href,
                     target: '_blank', rel: 'noopener' }, 'Open the raw device record') },
         ],
     });

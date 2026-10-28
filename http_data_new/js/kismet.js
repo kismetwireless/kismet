@@ -22,6 +22,7 @@ import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields, 
 import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes, mapSources, dashboardCards } from './registry/ui.js';
 import { deviceViews, deviceDetails, deviceDetailFields, channelNames, sourceChannels } from './registry/devices.js';
 import * as modules from './core/modules.js';
+import * as servers from './core/servers.js';
 import { detailFields, muted } from './widgets/detailfields.js';
 import { historyGraph } from './widgets/historygraph.js';
 import { listTable } from './widgets/listtable.js';
@@ -34,6 +35,7 @@ import * as devicetable from './widgets/devicetable.js';
 import * as messages from './widgets/messages.js';
 import * as ribbon from './widgets/ribbon.js';
 import * as settingsdialog from './widgets/settingsdialog.js';
+import * as serversdialog from './widgets/serversdialog.js';
 import { sparkline } from './widgets/sparkline.js';
 import * as cellgraphs from './widgets/cellgraphs.js';
 import * as map from './widgets/map.js';
@@ -54,6 +56,7 @@ export const kismet = {
     dom,
     icons,
     modules,
+    servers,
 
     // Building blocks for modules that draw their own UI
     widgets: {
@@ -62,6 +65,7 @@ export const kismet = {
         messages,
         ribbon,
         settingsdialog,
+        serversdialog,
         sparkline,
         cellgraphs,
         historyGraph,

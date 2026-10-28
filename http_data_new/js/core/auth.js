@@ -2,11 +2,21 @@
 //
 // Logging in once with the username and password makes the server set a
 // session cookie (KISMET), which every later request and the websocket use.
+// On another server (js/core/servers.js) the login instead makes an API key
+// for this app there, which is kept in place of a cookie.
 // The password itself is never stored by the UI.
 
 import * as api from './api.js';
+import * as servers from './servers.js';
 import { el } from './dom.js';
 import { dialog } from '../widgets/dialog.js';
+import { openServers } from '../widgets/serversdialog.js';
+
+// Another way out of a login, in the app or when on another server
+function switchButton() {
+    return servers.installed() || api.remote ?
+        el('button', { type: 'button', onclick: () => openServers() }, 'Switch server') : null;
+}
 
 function basicAuth(user, password) {
     const bytes = new TextEncoder().encode(`${user}:${password}`);
@@ -14,10 +24,28 @@ function basicAuth(user, password) {
 }
 
 async function tryLogin(user, password) {
-    const r = await api.probe('session/check_login', {
-        headers: { Authorization: basicAuth(user, password) },
+    const auth = basicAuth(user, password);
+    const r = await api.probe('session/check_login', { headers: { Authorization: auth } });
+    if (!r.ok || !api.remote)
+        return r.ok;
+
+    // A key for this app on that server; the name says where it's from, so it
+    // can be found and revoked there
+    const name = `Kismet app, ${new Date().toISOString().slice(0, 10)}, ${crypto.randomUUID().slice(0, 8)}`;
+    const body = new URLSearchParams({ json: JSON.stringify({ name, role: 'admin', duration: 0 }) });
+    const k = await api.probe('auth/apikey/generate.cmd', {
+        method: 'POST', ...api.formBody(body),
+        headers: { ...api.formBody(body).headers, Authorization: auth },
     });
-    return r.ok;
+    if (!k.ok)
+        throw new Error(`Logged in, but the server would not make a key for this app: ${(await k.text()).trim()}`);
+    const token = (await k.text()).trim();
+    if (!/^[0-9a-fA-F]{32}$/.test(token))
+        throw new Error('Logged in, but the server sent back an unexpected key');
+    servers.setToken(api.remote.id, token, name);
+    // Reload so every request and websocket starts with the key
+    location.reload();
+    return new Promise(() => {});
 }
 
 // Resolves once we have a working session, asking the user to log in (or to
@@ -56,11 +84,13 @@ export function askLogin(message = '') {
         const error = el('p', { class: 'form-error' }, message);
 
         const form = el('form', { class: 'form' },
-            el('p', {}, 'Log in to this Kismet server.  The login is in ~/.kismet/kismet_httpd.conf on the server.'),
+            el('p', {}, api.remote ?
+                `Log in to ${api.remote.name} (${api.root.host}).  This app keeps a key for that server, not the password.` :
+                'Log in to this Kismet server.  The login is in ~/.kismet/kismet_httpd.conf on the server.'),
             el('label', {}, 'Username', user),
             el('label', {}, 'Password', password),
             error,
-            el('div', { class: 'form-buttons' }, el('button', { type: 'submit', class: 'primary' }, 'Log in')));
+            el('div', { class: 'form-buttons' }, switchButton(), el('button', { type: 'submit', class: 'primary' }, 'Log in')));
 
         const d = dialog({ title: 'Login', body: form, closable: false });
 

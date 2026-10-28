@@ -356,7 +356,7 @@ function registerDetails(kismet) {
         e.preventDefault();
         ui.openDevice(key);
     } }, text);
-    const download = (path, text) => el('a', { href: api.url(path).href, download: '' }, icons.icon('download'), ` ${text}`);
+    const download = (path, text) => el('a', { href: api.linkUrl(path).href, download: '' }, icons.icon('download'), ` ${text}`);
     const copyable = (v) => el('span', {}, el('span', { class: 'mono' }, v),
         el('button', { class: 'copy-button', type: 'button', title: 'Copy', onclick: () => navigator.clipboard?.writeText(v) },
             icons.icon('copy')));

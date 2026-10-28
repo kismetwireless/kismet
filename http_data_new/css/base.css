@@ -16,6 +16,8 @@ body {
     color: var(--text);
     font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
+    /* Room for the notch and home bar when installed as an app */
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 button, input, select { font: inherit; color: inherit; }
@@ -91,6 +93,7 @@ input:focus, select:focus, button:focus-visible {
     align-items: stretch;
     gap: 0.75rem;
     padding: 0.4rem 0.75rem;
+    padding-top: max(0.4rem, env(safe-area-inset-top));
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     flex: none;
@@ -1225,3 +1228,52 @@ tr.highlighted .bar-graph { fill: currentColor; }
     .sk { animation: none; background: var(--surface-2); }
     .sk-layer { transition: none; }
 }
+
+/* Servers (the installed app) */
+.sk-switch { align-self: flex-start; flex: none; }
+.servers-dialog { width: min(36rem, calc(100vw - 2rem)); }
+.servers { display: flex; flex-direction: column; gap: 1rem; }
+.server-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.server-item {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+.server-item.current { border-color: var(--accent); }
+.server-info { min-width: 0; overflow-wrap: anywhere; }
+.server-info > * { display: block; }
+.server-info > .badge { display: inline-block; }
+.server-actions { display: flex; gap: 0.4rem; }
+.server-ok { color: var(--ok); }
+.server-add h3 { margin: 0; font-size: 1rem; }
+.servers code { overflow-wrap: anywhere; }
+.update-notice {
+    position: fixed; z-index: 50;
+    left: 50%; transform: translateX(-50%);
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 0.6rem;
+    max-width: calc(100vw - 2rem);
+    padding: 0.5rem 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+}
+
+/* Install as an app */
+
+a.button {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 0.3em 0.8em;
+    text-decoration: none;
+}
+.install-fingerprint { overflow-wrap: anywhere; user-select: all; }
+.install-steps { margin: 0.4em 0; }
+.install-steps summary { cursor: pointer; font-weight: 600; }
+.install-steps ol { margin: 0.4em 0 0.6em; padding-left: 1.4em; }
+.install-steps li { margin: 0.2em 0; }

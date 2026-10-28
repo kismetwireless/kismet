@@ -19,6 +19,13 @@ export function register(kismet) {
         onClick: () => kismet.widgets.gps.openGps(),
     });
 
+    // Switching servers is for the installed app, or to get back from another server
+    if (kismet.servers.installed() || kismet.servers.current() || kismet.servers.list().length)
+        ui.menuItems.add({
+            id: 'servers', title: 'Servers', icon: 'server', priority: 10, section: 'settings',
+            onClick: () => kismet.widgets.serversdialog.openServers(),
+        });
+
     ui.menuItems.add({
         id: 'settings', title: 'Settings', icon: 'gear', priority: 0, section: 'settings',
         onClick: () => kismet.widgets.settingsdialog.openSettings(),
