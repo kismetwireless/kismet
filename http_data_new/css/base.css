@@ -1225,3 +1225,19 @@ tr.highlighted .bar-graph { fill: currentColor; }
     .sk { animation: none; background: var(--surface-2); }
     .sk-layer { transition: none; }
 }
+
+.rule-tags { display: inline-flex; flex-wrap: wrap; gap: 0.25em; }
+.rule-tag {
+    padding: 0 0.45em;
+    border: 1px solid var(--border);
+    border-radius: 0.7em;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+.rule-tag.colored {
+    border-color: var(--tag);
+    background: color-mix(in srgb, var(--tag) calc(var(--highlight-mix) + 15%), var(--surface));
+}
+.ruletag-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
+.ruletag-row { display: flex; align-items: center; gap: 0.4rem; }
+.ruletag-row .ruletag-name { flex: 1; min-width: 6em; }

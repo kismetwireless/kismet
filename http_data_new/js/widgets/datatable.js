@@ -416,7 +416,7 @@ export function createDataTable(container, {
             try {
                 if (h.match(row)) {
                     tr.classList.add('highlighted');
-                    tr.style.setProperty('--highlight', s.color);
+                    tr.style.setProperty('--highlight', h.color ? h.color(row) : s.color);
                     break;
                 }
             } catch (err) {
