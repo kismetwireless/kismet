@@ -391,6 +391,8 @@ exports.AddDeviceIcon = (matcher) => {
  *  ie, ['some.field.def'].  Multiple fields and complex fields could be represented
  *  as ['some.field.def', 'some.second.field', ['some.complex/field.path', 'field.foo']]
  * selector: function(data) returning true for color or false for ignore
+ * colorfn: optional function(data) returning the color for a matched row, or null for
+ *  none, for highlights that color each row differently; it replaces selector and color
  */
 exports.AddDeviceRowHighlight = function(options) {
 
@@ -421,12 +423,7 @@ exports.AddDeviceRowHighlight = function(options) {
     DeviceRowHighlights.push(options);
 
     DeviceRowHighlights.sort(function(a, b) {
-        if (a.priority < b.priority)
-            return -1;
-        if (b.priority > a.priority)
-            return 1;
-
-        return 0;
+        return a.priority - b.priority;
     });
 }
 
@@ -954,6 +951,8 @@ kismet_ui_settings.AddSettingsPane({
                 .append(
                     $('<td>')
                     .append(
+                        'colorfn' in rh ?
+                        $('<i>').html('per device') :
                         $('<input>', {
                             type: "text",
                             value: rh['color'],
@@ -981,13 +980,20 @@ kismet_ui_settings.AddSettingsPane({
     },
     save: function(elem) {
         $('tr', elem).each(function() {
-            kismet.putStorage('kismet.rowhighlight.color' + $(this).attr('hlname'), $('.k-dt-colorwidget', $(this)).val());
+            if ($(this).attr('hlname') === undefined)
+                return;
+
+            var color = $('.k-dt-colorwidget', $(this)).val();
+
+            if (color !== undefined)
+                kismet.putStorage('kismet.rowhighlight.color' + $(this).attr('hlname'), color);
 
             kismet.putStorage('kismet.rowhighlight.enable' + $(this).attr('hlname'), $('.k-dt-enable', $(this)).is(':checked'));
 
             for (var ri in DeviceRowHighlights) {
                 if (DeviceRowHighlights[ri]['name'] === $(this).attr('hlname')) {
-                    DeviceRowHighlights[ri]['color'] = $('.k-dt-colorwidget', $(this)).val();
+                    if (color !== undefined)
+                        DeviceRowHighlights[ri]['color'] = color;
                     DeviceRowHighlights[ri]['enable'] = $('.k-dt-enable', $(this)).is(':checked');
                 }
             }
@@ -1517,7 +1523,7 @@ function LoadDeviceTablePrefs() {
     devicetable_prefs = kismet.getStorage('kismet.ui.devicetable.prefs', {
         "columns": ["commonname", "type", "crypt", "last_time", "packet_rrd",
             "signal", "channel", "manuf", "wifi_clients", "wifi_bss_uptime",
-            "wifi_qbss_usage"],
+            "wifi_qbss_usage", "rule_tags"],
         "colsettings": {},
         "sort": {
             "column": "last_time",
@@ -1631,7 +1637,11 @@ exports.InitializeDeviceTable = function(element) {
                     continue;
 
                 try {
-                    if (ri['selector'](row.getData()['original_data'])) {
+                    if ('colorfn' in ri) {
+                        var c = ri['colorfn'](row.getData()['original_data']);
+                        if (c != null)
+                            color = c;
+                    } else if (ri['selector'](row.getData()['original_data'])) {
                         color = ri['color'];
                     }
                 } catch (e) {
