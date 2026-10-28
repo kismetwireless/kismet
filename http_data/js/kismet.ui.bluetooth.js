@@ -162,7 +162,17 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
     },
 });
 
+kismet_ui.AddHiddenDeviceColumn({'field': 'btle.device/btle.device.tracker/btle.device.tracker.type'});
+
 kismet_ui.AddDeviceIcon((row) => {
+    if (row['original_data']['kismet.device.base.phyname'] === 'BTLE') {
+        // Item finder tags (Find My, Find My Device, SmartTag, Tile, ...)
+        var tracker = row['original_data']['btle.device.tracker.type'];
+
+        if (typeof(tracker) === 'string' && tracker.length > 0)
+            return '<i class="fa fa-magnifying-glass-location"></i>';
+    }
+
     if (row['original_data']['kismet.device.base.phyname'] === 'Bluetooth' ||
         row['original_data']['kismet.device.base.phyname'] === 'BTLE') {
         // Inline so the icon follows the row text colour, including highlighted rows; sized
