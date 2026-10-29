@@ -128,7 +128,7 @@ ldb [x + 0]
 and #0xF0
 
 ; normal data packets have a 24 byte header, qos have a 26 byte
-; header, and anything else we don't care about
+; header, and anything else we do not care about
 
 jeq #0x80, qos
 jeq #0x00, basic
@@ -241,7 +241,7 @@ ldb [x + 0]
 and #0xF0
 
 ; normal data packets have a 24 byte header, qos have a 26 byte
-; header, and anything else we don't care about
+; header, and anything else we do not care about
 
 jeq #0x80, qos
 jeq #0x00, basic

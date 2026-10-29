@@ -23,6 +23,8 @@
  * The named struct can also be explicitly tagged for layer reuse, as well
  * as both having struct attributes appended.
  */
+/* The system's linux/stddef.h may define it first */
+#undef __struct_group
 #define __struct_group(TAG, NAME, ATTRS, MEMBERS...) \
 	union { \
 		struct { MEMBERS } ATTRS; \

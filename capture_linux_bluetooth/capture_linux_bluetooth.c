@@ -1385,7 +1385,6 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
 
     /* Nested records */
     struct mgmt_ev_cmd_complete *crec;
-    struct mgmt_ev_cmd_status *cstat;
 
     /* caph */
     char errstr[STATUS_MAX];
