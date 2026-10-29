@@ -122,7 +122,6 @@ kis_tracked_signal_data::kis_tracked_signal_data(const kis_tracked_signal_data *
         __ImportField(carrierset, p);
 
         __ImportId(signal_min_rrd_id, p);
-        __ImportId(range_min_rrd_id, p);
         __ImportId(range_max_rrd_id, p);
 
         reserve_fields(nullptr);
@@ -206,7 +205,6 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
 }
 
 void kis_tracked_signal_data::add_range_sample(double signal, time_t rrd_ts) {
-    get_range_min_rrd()->add_sample(signal, rrd_ts);
     get_range_max_rrd()->add_sample(signal, rrd_ts);
 }
 
@@ -338,9 +336,6 @@ void kis_tracked_signal_data::register_fields() {
         register_dynamic_field<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>("kismet.common.signal.signal_rrd",
                 "past minute of signal data");
 
-    range_min_rrd_id =
-        register_dynamic_field<kis_tracked_rrd<kis_tracked_rrd_min_signal_aggregator>>("kismet.common.signal.min_signal_rrd",
-                "weakest signal per second, minute, and hour");
     range_max_rrd_id =
         register_dynamic_field<kis_tracked_rrd<kis_tracked_rrd_max_signal_aggregator>>("kismet.common.signal.max_signal_rrd",
                 "strongest signal per second, minute, and hour");

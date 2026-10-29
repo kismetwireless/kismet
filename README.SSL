@@ -18,11 +18,29 @@ xx. Enabling SSL
 
     httpd_ssl=true
 
-    and providing a PEM-formatted SSL certificate and key via:
+    Kismet then serves HTTPS on httpd_ssl_port (2502 by default), alongside
+    plain HTTP on httpd_port.
+
+    To use your own certificate, provide a PEM-formatted certificate and key:
 
     httpd_ssl_cert=/path/to/cert
     and
     httpd_ssl_key=/path/to/key
+
+    Otherwise Kismet makes its own certificate authority in
+    httpd_ssl_dir (~/.kismet/ssl/ by default) and a certificate for this
+    host's name, name.local, and private IPv4 addresses.  More names and
+    addresses can be added with httpd_ssl_names=name,address,...
+
+    Install the CA (kismet_ca.pem, or download it from the "Install as an
+    app" settings in the web UI) on the phones and browsers that will use
+    Kismet, and check its SHA-256 fingerprint against the one Kismet logs
+    at startup.  The CA is limited to local names (.local, .lan, .home.arpa,
+    .internal, localhost, this host's name, and configured names) and
+    private addresses, so it can't be used to impersonate other sites.
+
+    To start over with a new CA, stop Kismet and remove the files in
+    httpd_ssl_dir.
 
 xx. Getting a certificate
 

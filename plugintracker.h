@@ -167,6 +167,7 @@ public:
     __Proxy(plugin_path, std::string, std::string, std::string, plugin_path);
 
     __Proxy(plugin_js, std::string, std::string, std::string, plugin_js);
+    __Proxy(plugin_ui2, std::string, std::string, std::string, plugin_ui2);
     __Proxy(plugin_http_external, std::string, std::string, std::string, plugin_http_external);
 
     void set_plugin_dlfile(void *in_dlfile) {
@@ -194,6 +195,7 @@ protected:
         register_field("kismet.plugin.dirname", "plugin directory name", &plugin_dirname);
         register_field("kismet.plugin.path", "path to plugin content", &plugin_path);
         register_field("kismet.plugin.jsmodule", "Plugin javascript module", &plugin_js);
+        register_field("kismet.plugin.ui2module", "Plugin module for the new web UI", &plugin_ui2);
 
     }
 
@@ -209,6 +211,7 @@ protected:
     std::shared_ptr<tracker_element_string> plugin_path;
 
     std::shared_ptr<tracker_element_string> plugin_js;
+    std::shared_ptr<tracker_element_string> plugin_ui2;
 
     void *dlfile;
 
