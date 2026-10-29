@@ -714,6 +714,7 @@ device_rules::device_rules() :
 
     mutex.set_name("device_rules");
     alert_mutex.set_name("device_rules_alerts");
+    view_apply_mutex.set_name("device_rules_view_apply");
     set_mutex.set_name("device_rules_set");
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
@@ -1171,17 +1172,24 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
     if (state != nullptr && state->gen == as.gen && out == prev)
         return;
 
-    for (size_t r = 0; r < n; r++) {
-        if (out[r] == prev[r])
-            continue;
+    // After a reload a matching device joins its rule's view even when the rule
+    // matched before, since the rule may only now have a view
+    const bool reloaded = state == nullptr || state->gen != as.gen;
 
+    for (size_t r = 0; r < n; r++) {
         const auto& rd = as.rs->rule(r);
 
+        if (out[r] == prev[r]) {
+            if (reloaded && out[r] && as.views[r] != nullptr)
+                changes.push_back(pending_change{dev, as.views[r], rd.name, "", mac_addr{}});
+            continue;
+        }
+
         if (as.views[r] != nullptr)
-            changes.push_back(pending_change{dev, as.views[r], out[r] != 0, "", mac_addr{}});
+            changes.push_back(pending_change{dev, as.views[r], rd.name, "", mac_addr{}});
 
         if (out[r] && rd.alert)
-            changes.push_back(pending_change{dev, nullptr, false,
+            changes.push_back(pending_change{dev, nullptr, "",
                     fmt::format("Device {} ({}) matched device rule '{}'", dev->get_macaddr(),
                             dev->get_commonname(), rd.name),
                     dev->get_macaddr()});
@@ -1192,7 +1200,7 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
         for (const auto& m : *state->get_matched()) {
             auto vi = as.retired.find(m);
             if (vi != as.retired.end())
-                changes.push_back(pending_change{dev, vi->second, false, "", mac_addr{}});
+                changes.push_back(pending_change{dev, vi->second, m, "", mac_addr{}});
         }
     }
 
@@ -1241,7 +1249,11 @@ void device_rules::apply_changes(std::vector<pending_change>& changes) {
 
     for (auto& c : changes) {
         if (c.view != nullptr) {
-            if (c.add)
+            // The latest change for a device reads the newest state, whatever order
+            // the threads queued them in
+            kis_lock_guard<kis_mutex> lk(view_apply_mutex, "device_rules apply_changes");
+
+            if (wants_view(c.device, c.view, c.rule))
                 c.view->add_device_direct(c.device);
             else
                 c.view->remove_device_direct(c.device);
@@ -1252,6 +1264,26 @@ void device_rules::apply_changes(std::vector<pending_change>& changes) {
     }
 
     changes.clear();
+}
+
+bool device_rules::wants_view(const std::shared_ptr<kis_tracked_device_base>& dev,
+        const std::shared_ptr<device_tracker_view>& view, const std::string& rule) {
+    auto as = get_current();
+    if (as == nullptr)
+        return false;
+
+    auto ri = as->by_name.find(rule);
+    if (ri == as->by_name.end() || as->views[ri->second] != view)
+        return false;
+
+    kis_device_lock dlk(dev, true);
+
+    auto state = dev->get_sub_as<device_rule_state>(rule_state_id);
+    if (state == nullptr)
+        return false;
+
+    const auto matched = state->get_matched();
+    return std::find(matched->begin(), matched->end(), rule) != matched->end();
 }
 
 void device_rules::raise_or_hold(const mac_addr& mac, const std::string& text) {
