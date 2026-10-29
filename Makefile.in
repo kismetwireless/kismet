@@ -960,6 +960,10 @@ icao:
 	@$(PYTHON) tools/create_icao_db.py conf/kismet_adsb_icao.txt.gz_new
 	@mv conf/kismet_adsb_icao.txt.gz_new conf/kismet_adsb_icao.txt.gz
 
+btdb:
+	@echo "Generating kismet_bluetooth_manuf.txt.gz and kismet_bluetooth_ids.txt.gz"
+	@$(PYTHON) tools/create_bt_db.py
+
 boostbits:
 	@echo "Scanning boost deps in ASIO"
 	@mv boost boost-old
@@ -967,31 +971,13 @@ boostbits:
 	@bcp --boost=../boost/ beast asio boost-raw
 	@mv boost-raw/boost boost
 
+# Release YYYY-MM-Rn from master, or another release from its kismet-YYYY-MM branch;
+# see tools/release.sh
 release-%:
-	@echo $*
-	@make manuf
-	@make icao
-	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
-	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
-	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
-	@./tools/mkversion.sh "$(BUILD_DATE)" "$*"
-	@git add -f version.c
-	@git commit version.h version.c -m "Bump versioning for release $*"
-	@git tag kismet-$*
-	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
-	@echo git push origin kismet-`echo $* | cut -d- -f1,2` --tags
-	@echo git checkout master
+	@MAKE="$(MAKE)" BUILD_DATE="$(BUILD_DATE)" ./tools/release.sh release "$*"
 
 subrelease-%:
-	@echo $*
-	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
-	@git pull origin kismet-`echo $* | cut -d- -f1,2`
-	@./tools/mkversion.sh "$(BUILD_DATE)" "$*"
-	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
-	@git tag kismet-$*
-	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
-	@echo git push origin kismet-`echo $* | cut -d- -f1,2` --tags
-	@echo git checkout master
+	@MAKE="$(MAKE)" BUILD_DATE="$(BUILD_DATE)" ./tools/release.sh subrelease "$*"
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"

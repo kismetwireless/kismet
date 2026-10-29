@@ -1,6 +1,11 @@
 #!/bin/sh
 
-rev=$(git rev-parse --short HEAD 2>/dev/null || echo "non-git-release")
+# mkversion.sh [BUILD_TIME [YYYY-MM-TINY [GIT_REV]]]
+if test $# -ge 3; then
+    rev=$3
+else
+    rev=$(git rev-parse --short HEAD 2>/dev/null || echo "non-git-release")
+fi
 
 if test $# -ge 1; then
     BUILD_TIME=$1
