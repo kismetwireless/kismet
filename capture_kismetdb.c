@@ -314,7 +314,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
 void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
         unsigned int dlt, uint32_t original_len, uint32_t len, const u_char *data,
-        double lat, double lon, double alt, double speed, double heading) {
+        uint64_t freq_khz, double lat, double lon, double alt, double speed, double heading) {
 
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
@@ -322,8 +322,13 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
     unsigned long delay_usec = 0;
 
     struct cf_params_gps subgps;
+    struct cf_params_signal subsig;
 
     memset(&subgps, 0, sizeof(struct cf_params_gps));
+    memset(&subsig, 0, sizeof(struct cf_params_signal));
+
+    /* The logged frequency, so packets without their own radio header keep it */
+    subsig.freq_khz = freq_khz;
 
     /* If we're doing 'realtime' playback, delay accordingly based on the
      * previous packet.
@@ -376,7 +381,7 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
      * data out in the main select() loop */
     while (1) {
         if ((ret = cf_send_data(caph, NULL, 0,
-                        NULL, &subgps,
+                        freq_khz != 0 ? &subsig : NULL, &subgps,
                         ts, dlt,
                         original_len, len, (uint8_t *) data)) < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
@@ -507,7 +512,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     int packet_bytes;
     const char *col_type, *col_json;
     const void *packet_data;
-    uint64_t packet_frequency;
+    double packet_frequency;
     int dlt;
 
     /* Last data timestamp */
@@ -623,7 +628,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec))) {
             colno = 2;
 
-            packet_frequency = sqlite3_column_int64(packet_stmt, colno++);
+            packet_frequency = sqlite3_column_double(packet_stmt, colno++);
 
             lat = sqlite3_column_double(packet_stmt, colno++);
             lon = sqlite3_column_double(packet_stmt, colno++);
@@ -661,6 +666,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             if (packet_len > 0 && packet_len <= KISMETDB_MAX_RECORD)
                 kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
                         packet_fulllen, packet_len, (const u_char *) packet_data,
+                        /* a damaged or crafted log can hold any value here */
+                        packet_frequency > 0 && packet_frequency < 1e9 ?
+                            (uint64_t) packet_frequency : 0,
                         lat, lon, alt, speed, heading);
 
             packet_r = sqlite3_step(packet_stmt);
