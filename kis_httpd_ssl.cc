@@ -75,6 +75,7 @@ struct x509_free { void operator()(X509 *p) const { X509_free(p); } };
 struct bio_free { void operator()(BIO *p) const { BIO_free_all(p); } };
 struct bn_free { void operator()(BIGNUM *p) const { BN_free(p); } };
 struct ext_free { void operator()(X509_EXTENSION *p) const { X509_EXTENSION_free(p); } };
+struct name_free { void operator()(X509_NAME *p) const { X509_NAME_free(p); } };
 
 using pkey_ptr = std::unique_ptr<EVP_PKEY, pkey_free>;
 using x509_ptr = std::unique_ptr<X509, x509_free>;
@@ -242,9 +243,15 @@ x509_ptr new_cert(EVP_PKEY *key, const std::string& cn, long days) {
     X509_gmtime_adj(X509_getm_notAfter(cert.get()), days * 24 * 3600);
     X509_set_pubkey(cert.get(), key);
 
-    auto name = X509_get_subject_name(cert.get());
-    X509_NAME_add_entry_by_txt(name, "O", MBSTRING_UTF8, reinterpret_cast<const unsigned char *>("Kismet"), -1, -1, 0);
-    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8, reinterpret_cast<const unsigned char *>(cn.c_str()), -1, -1, 0);
+    // OpenSSL 4 returns the certificate's own name as const, so build one and set it
+    std::unique_ptr<X509_NAME, name_free> name(X509_NAME_new());
+    if (!name ||
+            !X509_NAME_add_entry_by_txt(name.get(), "O", MBSTRING_UTF8,
+                reinterpret_cast<const unsigned char *>("Kismet"), -1, -1, 0) ||
+            !X509_NAME_add_entry_by_txt(name.get(), "CN", MBSTRING_UTF8,
+                reinterpret_cast<const unsigned char *>(cn.c_str()), -1, -1, 0) ||
+            !X509_set_subject_name(cert.get(), name.get()))
+        throw std::runtime_error(ssl_error("could not set the certificate name"));
 
     return cert;
 }
