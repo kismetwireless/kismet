@@ -1006,13 +1006,22 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-paths { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
 .map-paths label { display: flex; align-items: center; gap: 0.4em; white-space: nowrap; }
 .map-paths select { flex: 1; min-width: 0; }
-.map-range-pick { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
-.map-range-pick label { white-space: nowrap; }
+.map-range-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; font-size: 0.9rem; }
+.map-range-pick label { flex-basis: 100%; white-space: nowrap; }
 .map-range-pick select { flex: 1; min-width: 0; }
 .map-range-pick .link-button[hidden] { display: none; }
 .map-range-info { font-size: 0.8rem; }
 .map-range-info:empty { display: none; }
 .map-pane path.map-range { stroke: var(--accent); stroke-opacity: 0.7; fill: var(--accent); fill-opacity: 0.16; stroke-linejoin: round; }
+.map-pane path.map-range.map-range-band0 { stroke: var(--ok); fill: var(--ok); fill-opacity: 0.14; }
+.map-pane path.map-range.map-range-band1 { stroke: var(--warn); fill: var(--warn); fill-opacity: 0.12; }
+.map-pane path.map-range.map-range-band2 { stroke: var(--accent); fill: var(--accent); fill-opacity: 0.1; }
+.map-range-key { display: flex; flex-wrap: wrap; gap: 0.3em 0.9em; margin-top: 0.3em; }
+.map-range-key > span { display: inline-flex; align-items: center; gap: 0.3em; }
+.map-range-swatch { width: 0.8em; height: 0.8em; border-radius: 2px; border: 1px solid; }
+.map-range-swatch.map-range-band0 { background: color-mix(in srgb, var(--ok) 35%, transparent); border-color: var(--ok); }
+.map-range-swatch.map-range-band1 { background: color-mix(in srgb, var(--warn) 35%, transparent); border-color: var(--warn); }
+.map-range-swatch.map-range-band2 { background: color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); }
 .map-pane path.map-range-ring { stroke: var(--text); stroke-opacity: 0.3; stroke-dasharray: 3 4; }
 .leaflet-marker-icon.map-range-label { width: auto !important; height: auto !important; }
 .map-range-label span {
