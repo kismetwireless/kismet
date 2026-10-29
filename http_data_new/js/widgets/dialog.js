@@ -73,13 +73,24 @@ export function dialog({ title, body, modal = true, closable = true, className =
             node.close();
     }
 
+    // Panels stay below the top bar (menu and name), dialogs below the phone's
+    // status bar; main.js keeps --topbar-bottom up to date
+    function minTop() {
+        const bar = document.querySelector('.topbar');
+        if (!bar)
+            return 0;
+        if (modal)
+            return Math.max(0, parseFloat(getComputedStyle(bar).paddingTop) - 6);
+        return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-bottom')) || 0;
+    }
+
     // Pin the panel at a position, instead of docked to the side of the window
     function place({ left, top, width, height }) {
         const w = Math.min(width ?? node.offsetWidth, window.innerWidth - 16);
         const h = Math.min(height ?? node.offsetHeight, window.innerHeight - 16);
         // Keep the title bar on screen, so the panel can always be dragged back
         left = Math.max(60 - w, Math.min(left, window.innerWidth - 60));
-        top = Math.max(0, Math.min(top, window.innerHeight - 40));
+        top = Math.max(minTop(), Math.min(top, window.innerHeight - 40));
         // Shorten it rather than let its bottom (and the end of its scrolling) go off screen
         const fit = Math.max(Math.min(h, 192), window.innerHeight - top - 8);
         Object.assign(node.style, { left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto',
@@ -92,7 +103,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
     function placeModal({ left, top }) {
         const w = node.offsetWidth;
         left = Math.max(60 - w, Math.min(left, window.innerWidth - 60));
-        top = Math.max(0, Math.min(top, window.innerHeight - 40));
+        top = Math.max(minTop(), Math.min(top, window.innerHeight - 40));
         Object.assign(node.style, { left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto', margin: '0',
             maxHeight: `${Math.max(192, window.innerHeight - top - 8)}px` });
         node.classList.add('placed');
