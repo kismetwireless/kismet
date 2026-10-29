@@ -929,7 +929,6 @@ public:
     }
 };
 
-using kis_tracked_rrd_min_signal_aggregator = kis_tracked_rrd_signal_range_aggregator<false>;
 using kis_tracked_rrd_max_signal_aggregator = kis_tracked_rrd_signal_range_aggregator<true>;
 
 // Generic RRD, extreme selector.  If both values are > 0, selects the highest.
