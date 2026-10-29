@@ -82,7 +82,7 @@ kis_datasource_ubertooth_one::rx_content kis_datasource_ubertooth_one::handle_rx
 
 
     auto conv_buf_len = sizeof(btle_rf) + payload_len;
-    char conv_buf[conv_buf_len];
+    char conv_buf[sizeof(btle_rf) + DMA_SIZE];
 
     btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
     memset(conv_buf, 0, conv_buf_len);

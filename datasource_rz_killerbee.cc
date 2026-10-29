@@ -46,7 +46,7 @@ kis_datasource_rzkillerbee::rx_content kis_datasource_rzkillerbee::handle_rx_dat
 
 	    // We can make a valid payload from this much
         const size_t conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
-        char conv_buf[conv_buf_len];
+        char conv_buf[sizeof(_802_15_4_tap) + 255];
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
 

@@ -418,6 +418,10 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
                 // FIXME Dunno how to restore spectrum
                 ppi_common->chan_flags |= PPI_80211_CHFLAG_OFDM;
                 break;
+            case carrier_80211ah:
+                // Sub-GHz; PPI has no band flag for it
+                ppi_common->chan_flags |= PPI_80211_CHFLAG_OFDM;
+                break;
             case carrier_unknown:
                 break;
         }

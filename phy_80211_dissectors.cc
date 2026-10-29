@@ -2966,7 +2966,8 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
 
     // printf("debug - decryptwep size len %u offt %u\n", in_chunk->length, in_packinfo->header_offset);
     // Bail on size check
-    if (in_chunk->length() < in_packinfo->header_offset ||
+    if (in_packinfo->header_offset < sizeof(frame_control) ||
+        in_chunk->length() < in_packinfo->header_offset ||
         in_chunk->length() - in_packinfo->header_offset <= 8)
         return NULL;
 
@@ -3000,8 +3001,10 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
     }
 
 
-    // Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
-    char manglebuf[in_chunk->length() - 8];
+    // Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone; the 802.11
+    // header is carried over unencrypted
+    std::string manglebuf(in_chunk->length() - 8, 0);
+    memcpy(&manglebuf[0], in_chunk->data(), in_packinfo->header_offset);
 
     // Decrypt the data payload and check the CRC
     kba = kbb = 0;
@@ -3057,12 +3060,12 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
     }
 
     // Remove the privacy flag in the mangled data
-    auto fc = reinterpret_cast<frame_control *>(manglebuf);
+    auto fc = reinterpret_cast<frame_control *>(&manglebuf[0]);
     fc->wep = 0;
 
     manglechunk = std::make_shared<kis_datachunk>();
     manglechunk->dlt = KDLT_IEEE802_11;
-    manglechunk->copy_raw_data(manglebuf, in_chunk->length() - 8);
+    manglechunk->copy_raw_data(manglebuf);
 
 
     return manglechunk;
