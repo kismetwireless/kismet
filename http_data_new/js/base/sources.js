@@ -69,7 +69,8 @@ export function register(kismet) {
             { title: 'Interface', value: (s) => s[`${ds}.interface`] + (s[`${ds}.capture_interface`] &&
                 s[`${ds}.capture_interface`] !== s[`${ds}.interface`] ? ` (capturing on ${s[`${ds}.capture_interface`]})` : '') },
             { title: 'Capture driver', field: `${drv}.type`,
-                format: (v, s) => [v, s[`${ds}.type_driver`]?.[`${ds}.driver.description`]].filter(Boolean).join(': ') },
+                format: (v, s) => el('span', {}, v, el('span', { class: 'ds-driver-desc muted' },
+                    s[`${ds}.type_driver`]?.[`${ds}.driver.description`] ?? '')) },
             { title: 'Hardware', field: `${ds}.hardware`, hideEmpty: true },
             { title: 'Address', field: `${ds}.remote_ip`, hideEmpty: true,
                 help: 'Where a remote capture is connecting from.' },

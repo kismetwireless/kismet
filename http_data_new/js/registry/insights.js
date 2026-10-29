@@ -19,6 +19,8 @@ import { createRegistry } from './registry.js';
 //                                    linkKinds id
 //     g.flag(node, text)             mark a node as unusual (drawn with a ring)
 //     g.role(node, role)             'ap', 'client', 'probe', 'bridge', or 'other'
+//     g.same(a, b)                   two device nodes are one device (an access point's
+//                                    addresses for each network and band)
 //     g.drop(node)                   take a node and its links out again
 //   after(g)       called once after every record, for links that need them all
 export const insightRelations = createRegistry('insightRelations', {
@@ -31,6 +33,8 @@ export const insightRelations = createRegistry('insightRelations', {
 //   color: a theme variable ('--accent'), length: the spring length in px,
 //   live: true to show packets moving along it, names: true when the thing at
 //   its far end names the device (so the device needs no label of its own)
+//   groupTitle: what several devices at one end are called ('clients'), for
+//   the Flow and Access points views
 export const linkKinds = createRegistry('linkKinds', {
     required: ['title'],
     defaults: { style: 'solid', color: '--muted', length: 60, live: false },

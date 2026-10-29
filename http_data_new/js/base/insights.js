@@ -3,7 +3,8 @@
 // modules add relations and findings (js/registry/insights.js); this file
 // reads the devices, runs them, and adds the findings that hold for any phy.
 
-import { constellation } from '../widgets/insights/constellation.js';
+import { flow } from '../widgets/insights/flow.js';
+import { apCards } from '../widgets/insights/apcards.js';
 import { rhythm as rhythmView } from '../widgets/insights/rhythm.js';
 import * as model from '../widgets/insights/model.js';
 
@@ -94,7 +95,7 @@ export function register(kismet) {
     ui.panes.add({
         id: 'insights', title: 'Insights', area: 'main', priority: 50,
         create(body, area) {
-            let view = settings.get('insights.view', 'graph');
+            let view = settings.get('insights.tab', 'flow');
             let wanted = view;
             let win = settings.get('insights.window', 900);
             let graph = null;
@@ -106,15 +107,16 @@ export function register(kismet) {
             let rhythmKeys = '';
 
             const pick = (key) => ui.openDevice(key);
-            const graphView = constellation({ linkKinds: ui.linkKinds, onPick: (n) => pick(n.key) });
+            const flowView = flow({ linkKinds: ui.linkKinds, onPick: pick });
+            const cardsView = apCards({ linkKinds: ui.linkKinds, onPick: pick });
             const rh = rhythmView({ onPick: pick });
             const unusual = el('div', { class: 'in-unusual' });
             const status = el('span', { class: 'muted in-status' });
 
             const tabs = el('div', { class: 'graph-tabs in-tabs', role: 'tablist' });
             const tabButtons = {};
-            const views = { graph: graphView.node, rhythm: rh.node, unusual };
-            const titles = { graph: 'Constellation', rhythm: 'Rhythm', unusual: 'Unusual' };
+            const views = { flow: flowView.node, aps: cardsView.node, rhythm: rh.node, unusual };
+            const titles = { flow: 'Flow', aps: 'Access points', rhythm: 'Rhythm', unusual: 'Unusual' };
             for (const id of Object.keys(views)) {
                 tabButtons[id] = el('button', { type: 'button', onclick: () => setView(id) }, titles[id]);
                 tabs.append(tabButtons[id]);
@@ -124,19 +126,10 @@ export function register(kismet) {
                 settings.set('insights.window', win);
                 read();
             } }, ...windows.map(([s, t]) => el('option', { value: s, selected: s === win }, `Last ${t}`)));
-            let lone = settings.get('insights.lone', false);
-            const loneBox = el('input', { type: 'checkbox', checked: lone, onchange: () => {
-                lone = loneBox.checked;
-                settings.set('insights.lone', lone);
-                if (graph)
-                    graphView.update(graph, found, { lone });
-            } });
-            const loneLabel = el('label', { class: 'in-lone', title: 'Devices with no relation to any other in this window' }, loneBox, 'Unrelated devices');
-            const bar = el('div', { class: 'in-bar' }, tabs, winSel, loneLabel, status);
+            const bar = el('div', { class: 'in-bar' }, tabs, winSel, status);
             const stage = el('div', { class: 'in-stage' }, ...Object.values(views));
             body.classList.add('insights');
             body.append(bar, stage);
-            const onLone = () => { loneLabel.hidden = view !== 'graph'; };
 
             // Fills the window with the tab's area, like the map
             let expanded = false;
@@ -192,18 +185,14 @@ export function register(kismet) {
             }
 
             function setView(id) {
-                view = views[id] ? id : 'graph';
-                settings.set('insights.view', view);
+                view = views[id] ? id : 'flow';
+                settings.set('insights.tab', view);
                 for (const [k, v] of Object.entries(views))
                     v.hidden = k !== view;
                 for (const [k, b] of Object.entries(tabButtons)) {
                     b.classList.toggle('active', k === view);
                     b.setAttribute('aria-pressed', String(k === view));
                 }
-                if (view === 'graph' && showing)
-                    graphView.show();
-                else
-                    graphView.hide();
                 if (view === 'rhythm')
                     updateRhythm(true);
                 for (const [id, h] of extra) {
@@ -212,7 +201,6 @@ export function register(kismet) {
                     else
                         h.hide?.();
                 }
-                onLone();
             }
 
             async function updateRhythm(force = false) {
@@ -246,20 +234,33 @@ export function register(kismet) {
 
             function renderUnusual() {
                 const sev = { high: 'High', medium: 'Worth a look', info: 'Good to know' };
+                const rank = { high: 0, medium: 1, info: 2 };
                 if (!found.length) {
                     unusual.replaceChildren(el('p', { class: 'muted' }, 'Nothing unusual among the devices heard in this window.'));
                     return;
                 }
                 const label = (k) => graph?.nodes.get(k)?.label ?? k;
-                unusual.replaceChildren(...found.map((f) => el('article', { class: ['in-card', `sev-${f.severity}`] },
-                    el('header', {}, el('span', { class: 'in-sev' }, sev[f.severity] ?? f.severity), el('h3', {}, f.title)),
-                    el('p', {}, f.text),
-                    el('div', { class: 'in-devs' },
-                        ...(f.devices ?? []).slice(0, 12).map((k) => el('button', { type: 'button', class: 'link-button', onclick: () => pick(k) }, label(k))),
-                        el('button', { type: 'button', class: 'in-show', onclick: () => {
-                            setView('graph');
-                            graphView.focus([...(f.devices ?? []), ...(f.things ?? [])]);
-                        } }, 'Show in Constellation')))));
+                const rows = [...found].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3) ||
+                    (b.devices?.length ?? 0) - (a.devices?.length ?? 0));
+                unusual.replaceChildren(el('table', { class: 'in-utable' },
+                    el('thead', {}, el('tr', {}, el('th', {}, 'Severity'), el('th', {}, 'Finding'), el('th', { class: 'in-u-text' }, 'Details'),
+                        el('th', {}, 'Devices'))),
+                    el('tbody', {}, ...rows.map((f) => {
+                        const devs = f.devices ?? [];
+                        return el('tr', { class: `sev-${f.severity}` },
+                            el('td', { class: 'in-u-sev' }, sev[f.severity] ?? f.severity),
+                            el('td', { class: 'in-u-title' }, f.title, el('span', { class: 'in-u-inline muted' }, f.text)),
+                            el('td', { class: 'in-u-text' }, f.text),
+                            el('td', { class: 'in-u-devs' },
+                                ...devs.slice(0, 8).map((k) => {
+                                    // access points go by their network's name; the address tells them apart
+                                    const n = graph?.nodes.get(k);
+                                    const tail = n?.mac && n.label !== n.mac ? n.mac.slice(-5) : null;
+                                    return el('button', { type: 'button', class: 'link-button', title: n?.mac ?? null, onclick: () => pick(k) },
+                                        label(k), tail ? el('span', { class: 'muted' }, ` ${tail}`) : null);
+                                }),
+                                devs.length > 8 ? el('span', { class: 'muted' }, `and ${format.count(devs.length - 8)} more`) : null));
+                    }))));
             }
 
             async function read() {
@@ -281,7 +282,8 @@ export function register(kismet) {
                     graph = model.buildGraph(records, relations, graph);
                     const now = clock.isKnown() ? clock.now() : Date.now() / 1000;
                     found = model.findAll({ records, graph, now, alerts }, finders);
-                    graphView.update(graph, found, { lone });
+                    flowView.update(graph, found);
+                    cardsView.update(graph, found);
                     renderUnusual();
                     if (view === 'rhythm')
                         updateRhythm();
@@ -289,9 +291,7 @@ export function register(kismet) {
                     const high = found.filter((f) => f.severity === 'high').length;
                     tabButtons.unusual.textContent = found.length ? `Unusual (${found.length})` : 'Unusual';
                     tabButtons.unusual.classList.toggle('alerting', high > 0);
-                    const unrelated = [...graph.nodes.values()].filter((n) => n.degree === 0 && !n.flags.length).length;
                     status.textContent = `${format.count(records.length)} devices, ${format.count(graph.links.length)} links` +
-                        (unrelated && !lone ? `, ${format.count(unrelated)} unrelated not shown` : '') +
                         (list.length >= maxDevices ? ` (the ${maxDevices} heard most recently)` : '');
                 } catch (err) {
                     status.textContent = `Could not read the devices: ${err.message}`;
@@ -312,7 +312,6 @@ export function register(kismet) {
                 hide() {
                     showing = false;
                     clearTimeout(timer);
-                    graphView.hide();
                     if (expanded)
                         area.setExpanded(false);
                 },
@@ -322,7 +321,7 @@ export function register(kismet) {
                     offViews?.();
                     stopExpand?.();
                     document.removeEventListener('keydown', onKey);
-                    graphView.destroy();
+                    flowView.destroy();
                     rh.destroy();
                     for (const h of extra.values())
                         h.destroy?.();

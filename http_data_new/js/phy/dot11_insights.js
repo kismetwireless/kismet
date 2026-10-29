@@ -35,11 +35,11 @@ export function registerInsights(kismet) {
     const { ui, format } = kismet;
     const { insightRelations, linkKinds, insightFindings } = ui;
 
-    linkKinds.add({ id: 'dot11-assoc', title: 'Wi-Fi client of', color: '--ok', length: 46, live: true });
-    linkKinds.add({ id: 'dot11-wired', title: 'Wired host behind', color: '--muted', style: 'dotted', length: 70, live: true });
+    linkKinds.add({ id: 'dot11-assoc', title: 'Wi-Fi client of', groupTitle: 'clients', color: '--ok', length: 46, live: true });
+    linkKinds.add({ id: 'dot11-wired', title: 'Wired host behind', groupTitle: 'wired hosts', color: '--muted', style: 'dotted', length: 70, live: true });
     linkKinds.add({ id: 'dot11-advert', title: 'Advertises', color: '--accent', length: 34, names: true });
-    linkKinds.add({ id: 'dot11-probe', title: 'Looks for', color: '--muted', style: 'dashed', length: 90 });
-    linkKinds.add({ id: 'dot11-respond', title: 'Answers for', color: '--error', style: 'dashed', length: 70 });
+    linkKinds.add({ id: 'dot11-probe', title: 'Looks for', groupTitle: 'looking for networks', color: '--muted', style: 'dashed', length: 90 });
+    linkKinds.add({ id: 'dot11-respond', title: 'Answers for', groupTitle: 'answering for networks', color: '--error', style: 'dashed', length: 70 });
 
     insightRelations.add({
         id: 'dot11', fields,
@@ -94,6 +94,29 @@ export function registerInsights(kismet) {
             }
         },
         after(g) {
+            // An access point sends each network and band from its own address.
+            // Makers vary the first byte's locally administered bits, a nibble
+            // of the fourth byte, or the last byte by a few; one maker's
+            // addresses alike otherwise are one box
+            const boxes = new Map();
+            for (const n of g.nodes.values()) {
+                if (n.role !== 'ap' || !n.mac)
+                    continue;
+                const b = n.mac.split(':').map((x) => parseInt(x, 16));
+                if (b.length !== 6 || b.some(Number.isNaN))
+                    continue;
+                const key = [n.rec?.[`${base}.manuf`] ?? '', b[1], b[2], b[4]].join(':');
+                if (!boxes.has(key))
+                    boxes.set(key, []);
+                boxes.get(key).push({ n, b });
+            }
+            const alike = (x, y) => (x[3] === y[3] && x[4] === y[4] && Math.abs(x[5] - y[5]) <= 3) ||
+                (x[4] === y[4] && x[5] === y[5] && (x[3] & 0x0f) === (y[3] & 0x0f));
+            for (const list of boxes.values())
+                for (let i = 0; i < list.length; i++)
+                    for (let j = i + 1; j < list.length; j++)
+                        if (alike(list[i].b, list[j].b))
+                            g.same(list[i].n, list[j].n);
             for (const t of [...g.nodes.values()]) {
                 if (t.thingKind !== 'ssid')
                     continue;

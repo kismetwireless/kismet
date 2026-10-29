@@ -8,7 +8,7 @@ import * as rrd from '../../core/rrd.js';
 const base = 'kismet.device.base';
 
 export const baseFields = [
-    `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.name`, `${base}.phyname`,
+    `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.name`, `${base}.username`, `${base}.phyname`,
     `${base}.type`, `${base}.manuf`, `${base}.first_time`, `${base}.last_time`, `${base}.channel`,
     `${base}.crypt`, `${base}.packets.total`, `${base}.packets.tx_total`, `${base}.packets.rx_total`,
     `${base}.signal/kismet.common.signal.last_signal`, `${base}.packets.rrd`,
@@ -27,21 +27,19 @@ export function fieldsFor(...registries) {
     return [...out].map((f) => (f.startsWith('[') ? JSON.parse(f) : f));
 }
 
-// Build the graph.  `prev` is the last graph: nodes keep their place, and the
-// packet counts give how much each device sent since.
+// Build the graph.  `prev` is the last graph: the packet counts give how
+// much each device sent since.
 export function buildGraph(records, relations, prev = null) {
     const nodes = new Map();
     const links = [];
     const linkIds = new Map();
     const byMac = new Map();
-
-    const carry = (n) => {
-        const old = prev?.nodes.get(n.id);
-        if (old) {
-            for (const k of ['x', 'y', 'vx', 'vy', 'fixed'])
-                n[k] = old[k];
-        }
-        return n;
+    const sameAs = new Map();
+    const root = (n) => {
+        let r = n;
+        while (sameAs.get(r) && sameAs.get(r) !== r)
+            r = sameAs.get(r);
+        return r;
     };
 
     for (const rec of records) {
@@ -51,13 +49,13 @@ export function buildGraph(records, relations, prev = null) {
         const old = prev?.nodes.get(key);
         const tx = rec[`${base}.packets.tx_total`] ?? 0;
         const rx = rec[`${base}.packets.rx_total`] ?? 0;
-        const n = carry({
+        const n = {
             id: key, kind: 'device', key, rec, label: label(rec), role: 'other',
             mac: rec[`${base}.macaddr`], flags: [], degree: 0,
             tx, rx,
             sentSince: old?.rec ? Math.max(0, tx - (old.tx ?? tx)) : 0,
             gotSince: old?.rec ? Math.max(0, rx - (old.rx ?? rx)) : 0,
-        });
+        };
         nodes.set(key, n);
         if (n.mac)
             byMac.set(n.mac.toUpperCase(), n);
@@ -70,7 +68,7 @@ export function buildGraph(records, relations, prev = null) {
             const tid = `thing:${id}`;
             let n = nodes.get(tid);
             if (!n) {
-                n = carry({ id: tid, kind: 'thing', thingKind: kind, label: text, title, role: kind, flags: [], degree: 0 });
+                n = { id: tid, kind: 'thing', thingKind: kind, label: text, title, role: kind, flags: [], degree: 0 };
                 nodes.set(tid, n);
             }
             return n;
@@ -98,6 +96,13 @@ export function buildGraph(records, relations, prev = null) {
         role(node, role) {
             if (node)
                 node.role = role;
+        },
+        same(a, b) {
+            if (!a || !b || a === b)
+                return;
+            const ra = root(a), rb = root(b);
+            if (ra !== rb)
+                sameAs.set(rb, ra);
         },
         drop(node) {
             if (!node || !nodes.delete(node.id))
@@ -131,7 +136,19 @@ export function buildGraph(records, relations, prev = null) {
             console.error(`insight relation ${r.id} failed:`, err);
         }
     }
-    return { nodes, links, byMac };
+    // Several addresses that are one device (g.same), as units: each device
+    // node gets .unit, shared by the others in it
+    const units = new Map();
+    for (const n of nodes.values()) {
+        if (n.kind !== 'device')
+            continue;
+        const r = root(n);
+        if (!units.has(r))
+            units.set(r, { id: r.id, members: [] });
+        units.get(r).members.push(n);
+        n.unit = units.get(r);
+    }
+    return { nodes, links, byMac, units: [...units.values()] };
 }
 
 export function findAll(model, finders) {
