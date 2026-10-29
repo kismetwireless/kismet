@@ -54,6 +54,9 @@ struct token {
 constexpr size_t max_ident_len = 1024;
 constexpr size_t max_string_len = 4096;
 constexpr int max_depth = 64;
+// Operators per expression; chains of and/or/+ nest without parentheses, and
+// checking, compiling and freeing the tree all recurse through them
+constexpr size_t max_expr_ops = 256;
 
 bool is_hex(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
@@ -463,7 +466,7 @@ private:
 class parser {
 public:
     parser(const std::string& in, size_t first_line, size_t first_col) :
-        src{in}, lex{in, first_line, first_col}, depth{0} {
+        src{in}, lex{in, first_line, first_col}, depth{0}, ops{0} {
         cur = lex.next();
     }
 
@@ -536,6 +539,7 @@ public:
                 if (r->expr != nullptr)
                     error("rule has more than one 'when'");
                 advance();
+                ops = 0;
                 r->expr = parse_expr();
             } else if (w == "tag") {
                 advance();
@@ -618,8 +622,10 @@ public:
 
                 if (is_word("rule"))
                     advance();
-                else
+                else {
+                    ops = 0;
                     k.expr = parse_expr();
+                }
 
                 if (is_word("asc")) {
                     advance();
@@ -652,6 +658,7 @@ private:
     lexer lex;
     token cur;
     int depth;
+    size_t ops;
     size_t line0, col0;
 
     [[noreturn]] void error(const std::string& msg) {
@@ -727,6 +734,9 @@ private:
     }
 
     std::unique_ptr<node> mk(nkind k) {
+        if (k != nkind::literal && k != nkind::field && k != nkind::now && ++ops > max_expr_ops)
+            error("expression is too long");
+
         auto n = std::make_unique<node>();
         n->kind = k;
         n->o = op::add;
