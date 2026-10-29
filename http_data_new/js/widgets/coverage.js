@@ -6,7 +6,9 @@
 //   History    the last minute as a waterfall, newest at the top, scrolling
 //              smoothly as time passes
 //   Sources    a lane per data source: ticks for the channels it hops
-//              through, and a marker that moves to the channel it's on
+//              through, and a marker that moves to the channel it's on;
+//              a wide channel (an SDR's 2442/80, Wi-Fi's VHT80) is a bar
+//              across the frequencies it takes in
 //   Heat map   every frequency as a row and time across, over the last
 //              minute, hour, or day, colored by how busy it was
 //
@@ -109,7 +111,7 @@ const sourceFields = [
     'kismet.datasource.uuid', 'kismet.datasource.name', 'kismet.datasource.running',
     'kismet.datasource.type_driver/kismet.datasource.driver.type',
     'kismet.datasource.channel', 'kismet.datasource.hop_channels', 'kismet.datasource.hopping',
-    'kismet.datasource.hop_rate',
+    'kismet.datasource.hop_rate', 'kismet.datasource.channel_spans',
 ];
 
 // A source's channel as a frequency: a phy that knows the source's channels,
@@ -139,6 +141,37 @@ export function sourceFrequency(source, channel) {
         return n * 1000;
     if (unit === 'khz' || (!unit && n >= 100000))
         return n;
+    return null;
+}
+
+// The frequencies a source's channel takes in, { low, high } in kHz, for a
+// wide channel: the server's ranges (SDRs, from 2026-10), a phy's (wide
+// Wi-Fi channels), or a channel named as a center and width in MHz
+// ('2442/80').  Null for a channel that's one frequency.
+export function sourceSpan(source, channel) {
+    if (channel === undefined || channel === null || channel === '')
+        return null;
+    const known = source['kismet.datasource.channel_spans']?.[channel];
+    if (Array.isArray(known) && known.length === 2 && known[1] > known[0])
+        return { low: known[0], high: known[1] };
+    for (const s of sourceChannels.list()) {
+        try {
+            if (s.span && s.match(source)) {
+                const sp = s.span(channel);
+                if (sp)
+                    return sp;
+            }
+        } catch (err) {
+            console.error(`source channels ${s.id} failed:`, err);
+        }
+    }
+    const m = /^([\d.]+)\/([\d.]+)$/.exec(String(channel).trim());
+    if (m) {
+        const center = parseFloat(m[1]) * 1000;
+        const width = parseFloat(m[2]) * 1000;
+        if (center > 0 && width > 0 && width < center)
+            return { low: center - width / 2, high: center + width / 2 };
+    }
     return null;
 }
 
@@ -261,6 +294,7 @@ export function openCoverage({ view: startView = null } = {}) {
     const shown = new Map();    // kHz -> bar height (packets/s)
     const markers = new Map();  // source uuid -> where its marker is drawn (canvas x)
     let hover = null;
+    let hoverLane = null;       // source uuid under the pointer in the sources strip
 
     const stopTheme = onChange(() => draw());
     const resize = new ResizeObserver(() => draw());
@@ -338,13 +372,47 @@ export function openCoverage({ view: startView = null } = {}) {
         sourceTimer = setTimeout(loadSources, sourceSeconds * 1000);
     }
 
-    // Each source's channels in this band, as frequencies
+    // Each source's channels, as frequencies, with the range of the wide
+    // ones.  A wide channel sits at its center, unless it names a
+    // frequency inside its range.
     function sourceLanes() {
         return sources.map((src) => {
-            const hop = (src['kismet.datasource.hop_channels'] ?? []).map((c) => sourceFrequency(src, c)).filter(Boolean);
-            const current = sourceFrequency(src, src['kismet.datasource.channel']);
-            return { src, hop, current };
+            const where = (c) => {
+                const sp = sourceSpan(src, c);
+                let f = sourceFrequency(src, c);
+                if (sp && !(f >= sp.low && f <= sp.high))
+                    f = (sp.low + sp.high) / 2;
+                return f ? { f, span: sp } : null;
+            };
+            const hops = (src['kismet.datasource.hop_channels'] ?? []).map(where).filter(Boolean);
+            const cur = where(src['kismet.datasource.channel']);
+            const hopSpans = hops.map((h) => h.span).filter(Boolean);
+            const currentSpan = cur?.span ?? null;
+            return {
+                src, hop: hops.map((h) => h.f), current: cur?.f ?? null, hopSpans, currentSpan,
+                // Everything the lane reaches, for the band tabs and the layout
+                reach: [...hops.map((h) => h.f), cur?.f, ...[...hopSpans, currentSpan].filter(Boolean).flatMap((sp) => [sp.low, sp.high])].filter(Boolean),
+            };
         });
+    }
+
+    // The canvas extent of a frequency range, a piece per segment it shows in
+    function spanPieces(sp, segments) {
+        const out = [];
+        for (const sg of segments) {
+            const lo = Math.max(sp.low, sg.lo);
+            const hi = Math.min(sp.high, sg.hi);
+            if (lo >= hi || bandOf((lo + hi) / 2) !== sg.band)
+                continue;
+            const at = (f) => sg.x0 + ((f - sg.lo) / (sg.hi - sg.lo)) * sg.w;
+            out.push([at(lo), at(hi)]);
+        }
+        return out;
+    }
+
+    // The sources taking in a frequency now, by channel
+    function listeningAt(f, lanes = sourceLanes()) {
+        return lanes.filter((l) => (l.currentSpan ? f >= l.currentSpan.low && f <= l.currentSpan.high : l.current === f));
     }
 
     // Tabs for the bands that have traffic or a source listening in them
@@ -352,7 +420,7 @@ export function openCoverage({ view: startView = null } = {}) {
     function buildTabs() {
         const seen = new Set([...freqs.keys()].map((f) => bandOf(f).id));
         for (const lane of sourceLanes())
-            for (const f of [...lane.hop, lane.current].filter(Boolean))
+            for (const f of lane.reach)
                 seen.add(bandOf(f).id);
         const found = bands.filter((b) => seen.has(b.id));
         const list = found.length > 1 ? [{ id: 'all', title: 'All' }, ...found] : found;
@@ -397,9 +465,8 @@ export function openCoverage({ view: startView = null } = {}) {
         for (const f of freqs.keys())
             note(f);
         for (const lane of sourceLanes())
-            for (const f of [...lane.hop, lane.current])
-                if (f)
-                    note(f);
+            for (const f of lane.reach)
+                note(f);
 
         const used = shownBands.filter((b) => byBand.has(b));
         const gap = used.length > 1 ? 28 * ratio : 0;
@@ -532,6 +599,19 @@ export function openCoverage({ view: startView = null } = {}) {
             idle = setTimeout(draw, 500);
             return;
         }
+
+        // What each source with a wide channel takes in now, behind the bars;
+        // the one under the pointer in the sources strip stands out
+        for (const lane of lanes) {
+            if (!lane.currentSpan)
+                continue;
+            const on = hoverLane === lane.src['kismet.datasource.uuid'];
+            ctx.globalAlpha = on ? 0.2 : 0.07;
+            ctx.fillStyle = accent;
+            for (const [x0, x1] of spanPieces(lane.currentSpan, segments))
+                ctx.fillRect(x0, actTop, Math.max(ratio, x1 - x0), actBottom - actTop);
+        }
+        ctx.globalAlpha = 1;
 
         // Activity bars, eased toward the latest second
         let animating = false;
@@ -715,6 +795,7 @@ export function openCoverage({ view: startView = null } = {}) {
         }
 
         const data = rows.map((r) => (r.f ? heatColumns(r.f) : null));
+        const heatLanes = sourceLanes();
         const peak = Math.max(0, ...data.filter(Boolean).flat());
         const logPeak = Math.log1p(peak) || 1;
 
@@ -761,11 +842,16 @@ export function openCoverage({ view: startView = null } = {}) {
                 ctx.fillRect(left + c * colW, y, Math.ceil(colW), Math.max(1, rowH - ratio));
             }
             ctx.globalAlpha = 1;
+            // A mark by the rows a source is taking in now
+            if (listeningAt(r.f, heatLanes).length) {
+                ctx.fillStyle = accent;
+                ctx.fillRect(left - 5 * ratio, y, 3 * ratio, Math.max(1, rowH - ratio));
+            }
             // Row labels, when there's room for them
             if (rowH >= font * 0.9 || i % Math.ceil((font * 0.9) / rowH) === 0) {
                 ctx.fillStyle = r.f === heatHover?.f ? accent : text;
                 ctx.textAlign = 'right';
-                ctx.fillText(label(r.f), left - 8 * ratio, y + rowH / 2);
+                ctx.fillText(label(r.f), left - 9 * ratio, y + rowH / 2);
             }
         });
 
@@ -839,6 +925,7 @@ export function openCoverage({ view: startView = null } = {}) {
             if (cell.col === sp.columns - 1)
                 lines.push(el('div', { class: 'muted' }, 'Still being counted'));
         }
+        lines.push(...listening(cell.f));
         tip.replaceChildren(...lines);
         tip.hidden = false;
         const sr = stage.getBoundingClientRect();
@@ -919,6 +1006,23 @@ export function openCoverage({ view: startView = null } = {}) {
                 ctx.stroke();
             }
 
+            // Wide channels as bars across what they take in: the ones hopped
+            // through faintly, the current one in the accent color
+            const uuid = lane.src['kismet.datasource.uuid'];
+            const on = hoverLane === uuid;
+            ctx.fillStyle = muted;
+            ctx.globalAlpha = 0.3;
+            for (const sp of lane.hopSpans)
+                for (const [x0, x1] of spanPieces(sp, segments))
+                    ctx.fillRect(x0, cy - 4 * ratio, Math.max(ratio, x1 - x0), 8 * ratio);
+            if (lane.currentSpan) {
+                ctx.fillStyle = accent;
+                ctx.globalAlpha = on ? 0.7 : 0.45;
+                for (const [x0, x1] of spanPieces(lane.currentSpan, segments))
+                    ctx.fillRect(x0, cy - 6 * ratio, Math.max(ratio, x1 - x0), 12 * ratio);
+            }
+            ctx.globalAlpha = 1;
+
             ctx.fillStyle = muted;
             for (const f of lane.hop) {
                 const fx = x(f);
@@ -928,7 +1032,6 @@ export function openCoverage({ view: startView = null } = {}) {
 
             // The marker glides in screen space, so a hop between bands
             // slides across the break instead of jumping
-            const uuid = lane.src['kismet.datasource.uuid'];
             const targetX = lane.current ? x(lane.current) : null;
             if (targetX !== null) {
                 const from = markers.get(uuid) ?? targetX;
@@ -947,12 +1050,42 @@ export function openCoverage({ view: startView = null } = {}) {
                 const hopping = lane.src['kismet.datasource.hopping'];
                 const why = lane.current ? 'listening in another band' :
                     (hopping ? 'hopping' : (lane.src['kismet.datasource.channel'] ? `on ${lane.src['kismet.datasource.channel']}` : 'no channel'));
-                ctx.fillText(why, left + 8 * ratio, cy - 8 * ratio);
+                ctx.fillText(why, left + 8 * ratio, cy - 11 * ratio);
             }
         });
 
         return animating;
     }
+
+    // The sources taking in a frequency now, for the tooltips
+    function listening(f) {
+        const on = listeningAt(f);
+        if (!on.length)
+            return [];
+        return [el('div', { class: 'muted' }, `Listening: ${on.map((l) =>
+            `${l.src['kismet.datasource.name'] ?? '?'} (${l.src['kismet.datasource.channel']})`).join(', ')}`)];
+    }
+
+    // Hovering over a source lane picks out what it takes in
+    srcCanvas.addEventListener('pointermove', (e) => {
+        const ratio = window.devicePixelRatio || 1;
+        const r = srcCanvas.getBoundingClientRect();
+        const py = (e.clientY - r.top) * ratio;
+        const font = 11 * ratio;
+        const i = Math.round((py - font * 3) / (26 * ratio));
+        const lanes = sourceLanes();
+        const id = i >= 0 && i < lanes.length ? lanes[i].src['kismet.datasource.uuid'] : null;
+        if (id !== hoverLane) {
+            hoverLane = id;
+            draw();
+        }
+    });
+    srcCanvas.addEventListener('pointerleave', () => {
+        if (hoverLane !== null) {
+            hoverLane = null;
+            draw();
+        }
+    });
 
     // Hovering over a frequency shows what's on it
     stage.addEventListener('pointermove', (e) => {
@@ -985,7 +1118,8 @@ export function openCoverage({ view: startView = null } = {}) {
             el('b', {}, [server, ...named, format.frequency(best)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ')),
             el('div', {}, `${num(nowValue(best, 'devices'))} devices now, up to ${num(busiest)} in the last minute`),
             el('div', {}, `${num(nowValue(best, 'packets'))} packets/s now`),
-            rec.signal ? el('div', {}, `Last signal ${format.signal(rec.signal)}`) : null);
+            rec.signal ? el('div', {}, `Last signal ${format.signal(rec.signal)}`) : null,
+            ...listening(best));
         tip.hidden = false;
         const tx = Math.min(Math.max(0, e.clientX - r.left + 14), r.width - tip.offsetWidth - 4);
         tip.style.left = `${tx}px`;

@@ -57,6 +57,38 @@ export function channelFrequency(channel) {
     return n > 0 ? mhz * 1000 : null;
 }
 
+// The frequencies (kHz) a wide Wi-Fi channel takes in: '36HT40+', '100VHT80',
+// '36VHT160'; null for a 20 MHz one
+const vht80 = [42, 58, 106, 122, 138, 155, 171];
+const vht160 = [50, 114, 163];
+export function channelSpan(channel) {
+    const m = /^(\d+)(HT40[+-]|VHT80|VHT160)$/.exec(String(channel));
+    if (!m)
+        return null;
+    const n = Number(m[1]);
+    const mhz = channelFrequency(m[1]) / 1000;
+    if (!mhz)
+        return null;
+    let lo;
+    let hi;
+    if (m[2] === 'HT40+') {
+        lo = mhz - 10;
+        hi = mhz + 30;
+    } else if (m[2] === 'HT40-') {
+        lo = mhz - 30;
+        hi = mhz + 10;
+    } else {
+        const wide = m[2] === 'VHT80';
+        const c = (wide ? vht80 : vht160).find((cc) => Math.abs(n - cc) <= (wide ? 6 : 14));
+        if (c === undefined)
+            return null;
+        const half = wide ? 40 : 80;
+        lo = 5000 + c * 5 - half;
+        hi = 5000 + c * 5 + half;
+    }
+    return { low: lo * 1000, high: hi * 1000 };
+}
+
 // A complete WPA handshake: EAPOL messages 1+2 or 2+3 from any client
 function hasHandshake(list) {
     for (const packets of Object.values(list ?? {})) {
@@ -107,6 +139,7 @@ export function register(kismet) {
         id: 'dot11',
         match: (src) => /wifi|wlan|coconut|shuriken|halow|bladerf/i.test(src['kismet.datasource.driver.type'] ?? ''),
         frequency: channelFrequency,
+        span: channelSpan,
     });
 
     ui.rowHighlights.add({

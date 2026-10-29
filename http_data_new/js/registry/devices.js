@@ -55,6 +55,7 @@ export const channelNames = createRegistry('channelNames', {
 //   id, priority,
 //   match(source) -> bool    whether this applies; source is the datasource record
 //   frequency(channel) -> kHz, or null if it can't tell
+//   span(channel) -> { low, high } kHz, optional: what a wide channel takes in
 // Channels that are plain frequencies ("2412", "433.92MHz") work without one.
 export const sourceChannels = createRegistry('sourceChannels', {
     required: ['match', 'frequency'],
