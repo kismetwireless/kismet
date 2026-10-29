@@ -2396,6 +2396,18 @@ static int ring_send_json(kis_capture_handler_t *caph, local_diag_t *local,
  * from it would silently miss rows. */
 static void announce_ring_drops(kis_capture_handler_t *caph, local_diag_t *local);
 
+/* Send a periodic status line prefixed with the source's label, as the
+ * other per-source lines are. With several celldiag sources in one server,
+ * an unlabelled "celldiag stats:" or census line can't be told apart. The
+ * line keeps its own "celldiag stats:" / "celldiag inventory:" text, so a
+ * grep for it still matches. */
+static void send_labelled(kis_capture_handler_t *caph, const local_diag_t *local,
+                          const char *text, unsigned int flags) {
+    char m[STATUS_MAX];
+    snprintf(m, sizeof(m), "%s %s", local->name ? local->name : "celldiag", text);
+    cf_send_message(caph, m, flags);
+}
+
 static void report_ring_drop(kis_capture_handler_t *caph, local_diag_t *local,
                              const char *what) {
     char m[ERRBUF_MAX];
@@ -5192,7 +5204,7 @@ static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
          *                    mapping layer, counted rather than fatal. */
         int flagged = (got_u && unrec_n > 0) || (got_s && silent_n > 0) ||
                       (got_e && enrich_n > 0);
-        cf_send_message(caph, st, flagged ? MSGFLAG_ERROR : MSGFLAG_INFO);
+        send_labelled(caph, local, st, flagged ? MSGFLAG_ERROR : MSGFLAG_INFO);
     }
     /* Cache the census counters for the structured stats
      * object. The message-bus line above is for a human tailing the
@@ -5441,7 +5453,7 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                 char sbuf[STATUS_MAX];
                 diag_stats_format(&local->stats, snow, local->stats_interval,
                                   sbuf, sizeof(sbuf));
-                cf_send_message(caph, sbuf, MSGFLAG_INFO);
+                send_labelled(caph, local, sbuf, MSGFLAG_INFO);
                 send_disabled_stats(caph);
                 diag_stats_mark_status(&local->stats, snow);
             }
@@ -5739,7 +5751,7 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
             char sbuf[STATUS_MAX];
             diag_stats_format(&local->stats, snow, local->stats_interval,
                               sbuf, sizeof(sbuf));
-            cf_send_message(caph, sbuf, MSGFLAG_INFO);
+            send_labelled(caph, local, sbuf, MSGFLAG_INFO);
             /* Structured companion: the machine-parseable counters the
              * kis_datasource_cell_diag consumer sets into its tracker fields.
              * Routed as its own mpack type ("diag_stats", not "CellModem"), so
@@ -5844,7 +5856,7 @@ done:
         diag_stats_format(&local->stats, fnow,
                           local->stats_interval > 0 ? local->stats_interval : 30,
                           sbuf, sizeof(sbuf));
-        cf_send_message(caph, sbuf, MSGFLAG_INFO);
+        send_labelled(caph, local, sbuf, MSGFLAG_INFO);
 
         /* The structured companion is needed here as well as the human line
          * above. It matters most for the census: its last (and on a short
