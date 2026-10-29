@@ -17,6 +17,7 @@
 */
 
 #include "kis_net_beast_httpd.h"
+#include "kis_httpd_ssl.h"
 
 #include <algorithm>
 #include <iostream>
@@ -24,6 +25,7 @@
 #include <random>
 #include <sstream>
 
+#include <ftw.h>
 #include <stdio.h>
 
 #include "globalregistry.h"
@@ -86,7 +88,8 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     deferred_startup{},
     running{false},
     endpoint{endpoint},
-    acceptor{Globalreg::globalreg->io} {
+    acceptor{Globalreg::globalreg->io},
+    ssl_acceptor{Globalreg::globalreg->io} {
 
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
@@ -94,6 +97,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     // Reported by fetch_port() and fetch_using_ssl(), for the server announcement and the console
     port = endpoint.port();
     use_ssl = false;
+    https_proxy_ = false;
 }
 
 void kis_net_beast_httpd::trigger_deferred_startup() {
@@ -104,6 +108,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_mime_type("css", "text/css");
     register_mime_type("js", "application/javascript");
     register_mime_type("json", "application/json");
+    register_mime_type("webmanifest", "application/manifest+json");
     register_mime_type("prettyjson", "application/json");
     register_mime_type("ekjson", "application/json");
     register_mime_type("itjson", "application/json");
@@ -219,6 +224,24 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
     allowed_cors_referrer_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
+
+    https_proxy_ = Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_https_proxy", false);
+    public_url_ = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_public_url", "");
+    if (public_url_.length()) {
+        bool valid = public_url_.length() < 1024 &&
+            (public_url_.rfind("https://", 0) == 0 || public_url_.rfind("http://", 0) == 0) &&
+            std::all_of(public_url_.begin(), public_url_.end(),
+                    [](unsigned char c) { return c > 0x20 && c < 0x7F && c != '"' && c != '<' && c != '>' && c != '\\'; });
+        if (!valid) {
+            _MSG_ERROR("Ignoring httpd_public_url '{}', expected an http:// or https:// address", public_url_);
+            public_url_ = "";
+        } else if (public_url_.back() != '/') {
+            public_url_ += "/";
+        }
+    }
+    if (https_proxy_ && public_url_.rfind("https://", 0) != 0)
+        _MSG_ERROR("httpd_https_proxy is set, but httpd_public_url is not an https:// address; set it to the "
+                "address the proxy serves Kismet at");
 
     redirect_unknown_target_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_redirect_unknown", "");
@@ -407,6 +430,96 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 ws->text();
                 ws->handle_request(con);
                 }));
+
+    configure_ssl();
+
+    // How to reach the HTTPS listener, and the CA to trust it with when Kismet made the
+    // certificate; both are public, and needed before a client can log in over HTTPS
+    register_unauth_route("/ssl/status", {"GET"}, {"json"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("application/json");
+                std::ostream os(&con->response_stream());
+
+                nlohmann::json j;
+                j["enabled"] = ssl_enabled();
+                j["port"] = ssl_enabled() ? fetch_ssl_port() : 0;
+                j["generated"] = ssl_ca_pem.length() > 0;
+                j["ca_sha256"] = ssl_ca_fingerprint;
+                j["https_proxy"] = https_proxy_;
+                j["public_url"] = public_url_;
+                os << j.dump();
+                }));
+
+    register_unauth_route("/ssl/kismet_ca", {"GET"}, {"crt"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                std::ostream os(&con->response_stream());
+
+                if (ssl_ca_pem.length() == 0) {
+                    con->set_status(404);
+                    con->set_mime_type("text/plain");
+                    os << "Kismet did not make the HTTPS certificate\n";
+                    return;
+                }
+
+                con->set_mime_type("application/x-x509-ca-cert");
+                con->set_target_file("kismet_ca.crt");
+                os << ssl_ca_pem;
+                }));
+}
+
+void kis_net_beast_httpd::configure_ssl() {
+    auto config = Globalreg::globalreg->kismet_config;
+
+    if (!config->fetch_opt_bool("httpd_ssl", false))
+        return;
+
+    auto ssl_port = config->fetch_opt_as<unsigned short>("httpd_ssl_port", 2502);
+    auto cert = config->fetch_opt_path("httpd_ssl_cert", "");
+    auto key = config->fetch_opt_path("httpd_ssl_key", "");
+
+    try {
+        if (ssl_port == 0 || ssl_port == port)
+            throw std::runtime_error("httpd_ssl_port needs to be a port other than httpd_port");
+
+        if (cert.empty() != key.empty())
+            throw std::runtime_error("httpd_ssl_cert and httpd_ssl_key need to be set together");
+
+        if (cert.empty()) {
+            std::vector<std::string> names;
+            for (const auto& n : config->fetch_opt_vec("httpd_ssl_names"))
+                for (const auto& t : str_tokenize(n, ","))
+                    if (t.length())
+                        names.push_back(t);
+
+            auto g = kis_httpd_ssl::ensure(config->fetch_opt_path("httpd_ssl_dir", "%h/.kismet/ssl/"), names);
+            cert = g.chain_file;
+            key = g.key_file;
+            ssl_ca_pem = g.ca_pem;
+            ssl_ca_fingerprint = g.ca_fingerprint;
+
+            _MSG_INFO("HTTPS: the Kismet CA fingerprint is SHA-256 {}; check it matches when installing "
+                    "the CA on a device", ssl_ca_fingerprint);
+        }
+
+        auto ctx = std::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::tls_server);
+        ctx->set_options(boost::asio::ssl::context::default_workarounds |
+                boost::asio::ssl::context::no_sslv2 |
+                boost::asio::ssl::context::no_sslv3 |
+                boost::asio::ssl::context::no_tlsv1 |
+                boost::asio::ssl::context::no_tlsv1_1 |
+                boost::asio::ssl::context::single_dh_use);
+        SSL_CTX_set_min_proto_version(ctx->native_handle(), TLS1_2_VERSION);
+        ctx->use_certificate_chain_file(cert);
+        ctx->use_private_key_file(key, boost::asio::ssl::context::pem);
+
+        ssl_endpoint = boost::asio::ip::tcp::endpoint(endpoint.address(), ssl_port);
+        ssl_ctx = ctx;
+    } catch (const std::exception& e) {
+        _MSG_FATAL("Could not set up the HTTPS server: {}", e.what());
+        Globalreg::globalreg->fatal_condition = 1;
+    }
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -454,9 +567,30 @@ int kis_net_beast_httpd::start_httpd() {
 
     _MSG_INFO("HTTP server listening on {}:{}", endpoint.address(), endpoint.port());
 
+    if (ssl_ctx != nullptr) {
+        ssl_acceptor.open(ssl_endpoint.protocol(), ec);
+        if (!ec)
+            ssl_acceptor.set_option(boost::asio::socket_base::reuse_address(true), ec);
+        if (!ec)
+            ssl_acceptor.bind(ssl_endpoint, ec);
+        if (!ec)
+            ssl_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
+        if (ec) {
+            _MSG_FATAL("Could not initialize HTTPS server on {}:{} - {}", ssl_endpoint.address(),
+                    ssl_endpoint.port(), ec.message());
+            Globalreg::globalreg->fatal_condition = 1;
+            return -1;
+        }
+
+        _MSG_INFO("HTTPS server listening on {}:{}", ssl_endpoint.address(), ssl_endpoint.port());
+    }
+
     running = true;
 
     start_accept();
+
+    if (ssl_ctx != nullptr)
+        start_ssl_accept();
 
     return 1;
 }
@@ -471,6 +605,15 @@ int kis_net_beast_httpd::stop_httpd() {
         try {
             acceptor.cancel();
             acceptor.close();
+        } catch (const std::exception& e) {
+            ;
+        }
+    }
+
+    if (ssl_acceptor.is_open()) {
+        try {
+            ssl_acceptor.cancel();
+            ssl_acceptor.close();
         } catch (const std::exception& e) {
             ;
         }
@@ -528,6 +671,63 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
 
     // Accept another connection
     return start_accept();
+}
+
+void kis_net_beast_httpd::start_ssl_accept() {
+    if (!running)
+        return;
+
+    ssl_acceptor.async_accept(boost::asio::make_strand(Globalreg::globalreg->io),
+            boost::beast::bind_front_handler(&kis_net_beast_httpd::handle_ssl_connection, shared_from_this()));
+}
+
+void kis_net_beast_httpd::handle_ssl_connection(const boost::system::error_code& ec,
+        boost::asio::ip::tcp::socket socket) {
+
+    if (!running)
+        return;
+
+    if (!ec) {
+        auto tls = std::make_shared<kis_net_beast_httpd_connection::tls_stream_t>(
+                boost::beast::tcp_stream(std::move(socket)), *ssl_ctx);
+
+        std::thread conthread([this, tls, ctx = ssl_ctx]() mutable {
+                thread_set_process_name("BEAST-TLS");
+
+                boost::system::error_code hs_ec;
+                tls->handshake(boost::asio::ssl::stream_base::server, hs_ec);
+
+                // Plain HTTP to the HTTPS port, or a client that doesn't trust the certificate
+                if (hs_ec) {
+                    try {
+                        boost::beast::get_lowest_layer(*tls).socket().close();
+                    } catch (...) {
+                        ;
+                    }
+                    return;
+                }
+
+                while (boost::beast::get_lowest_layer(*tls).socket().is_open()) {
+                    boost::beast::get_lowest_layer(*tls).expires_after(std::chrono::seconds(30));
+
+                    auto conn =
+                        std::make_shared<kis_net_beast_httpd_connection>(*tls, shared_from_this());
+
+                    if (conn->start() == false)
+                        break;
+                }
+
+                try {
+                    boost::beast::get_lowest_layer(*tls).socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+                } catch (...) {
+                    ;
+                }
+            });
+
+        conthread.detach();
+    }
+
+    return start_ssl_accept();
 }
 
 std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool query) {
@@ -1015,6 +1215,35 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoin
     return nullptr;
 }
 
+namespace {
+    struct content_stamp_acc {
+        int64_t newest;
+        uint64_t count;
+        uint64_t bytes;
+    };
+
+    thread_local content_stamp_acc stamp_acc;
+
+    int content_stamp_walk(const char *, const struct stat *sb, int type, struct FTW *) {
+        if (type == FTW_F) {
+            stamp_acc.newest = std::max<int64_t>(stamp_acc.newest, sb->st_mtime);
+            stamp_acc.count++;
+            stamp_acc.bytes += static_cast<uint64_t>(sb->st_size);
+        }
+        return 0;
+    }
+}
+
+std::string kis_net_beast_httpd::static_content_stamp() {
+    stamp_acc = {0, 0, 0};
+
+    // Physical walk; symlinked directories aren't followed
+    for (const auto& sd : static_dir_vec)
+        nftw(sd.path.c_str(), content_stamp_walk, 16, FTW_PHYS);
+
+    return fmt::format("{}:{}:{}", stamp_acc.newest, stamp_acc.count, stamp_acc.bytes);
+}
+
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
 }
@@ -1115,7 +1344,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
             ec = {};
 
-            boost::beast::http::write(con->stream(), res, ec);
+            con->write_message(res, ec);
 
             return true;
         }
@@ -1129,7 +1358,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
         ec = {};
 
-        boost::beast::http::write(con->stream(), res, ec);
+        con->write_message(res, ec);
 
         return true;
     }
@@ -1164,6 +1393,17 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
         std::shared_ptr<kis_net_beast_httpd> httpd) :
     httpd{httpd},
     stream_{socket},
+    tls_{nullptr},
+    login_valid_{false},
+    first_response_write{false} {
+        Globalreg::n_tracked_http_connections.fetch_add(1, std::memory_order_relaxed);
+    }
+
+kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(tls_stream_t& socket,
+        std::shared_ptr<kis_net_beast_httpd> httpd) :
+    httpd{httpd},
+    stream_{socket.next_layer()},
+    tls_{&socket},
     login_valid_{false},
     first_response_write{false} {
         Globalreg::n_tracked_http_connections.fetch_add(1, std::memory_order_relaxed);
@@ -1220,7 +1460,7 @@ bool kis_net_beast_httpd_connection::start() {
     parser_->body_limit(100000);
 
     try {
-        boost::beast::http::read(stream_, buffer, *parser_);
+        io([&](auto& s) { boost::beast::http::read(s, buffer, *parser_); });
     } catch (const boost::system::system_error& e) {
         // Silently catch and fail on any error from the transport layer, because we don't
         // care; we can't deal with a broken client spamming us
@@ -1274,7 +1514,7 @@ bool kis_net_beast_httpd_connection::start() {
             boost::beast::http::fields> sr{response};
 
         boost::system::error_code error;
-        boost::beast::http::write_header(stream_, sr, error);
+        io([&](auto& s) { boost::beast::http::write_header(s, sr, error); });
 
         if (error)
             return do_close();
@@ -1284,7 +1524,7 @@ bool kis_net_beast_httpd_connection::start() {
         response.body().size = 0;
         response.body().more = false;
 
-        boost::beast::http::write(stream_, sr, error);
+        io([&](auto& s) { boost::beast::http::write(s, sr, error); });
 
         if (error || client_req_close)
             return do_close();
@@ -1301,11 +1541,18 @@ bool kis_net_beast_httpd_connection::start() {
         auto auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
         if (auth_cookie_k != cookies_.end())
             auth_token_ = auth_cookie_k->second;
-    } else {
-        auto uri_cookie_k = http_variables_.find(httpd->AUTH_COOKIE);
-        if (uri_cookie_k != http_variables_.end())
-            auth_token_ = uri_cookie_k->second;
     }
+
+    // Websockets can't set headers, so a client on another origin passes its token in the
+    // URI; it wins over a cookie, which may be another server's on the same host
+    auto uri_cookie_k = http_variables_.find(httpd->AUTH_COOKIE);
+    if (uri_cookie_k != http_variables_.end())
+        auth_token_ = uri_cookie_k->second;
+
+    // An API token given as a bearer token, by clients that can't rely on the cookie
+    auto bearer_h = request_.find(boost::beast::http::field::authorization);
+    if (bearer_h != request_.end() && bearer_h->value().starts_with("Bearer "))
+        auth_token_ = static_cast<std::string>(bearer_h->value().substr(7));
 
     auto auth_t = httpd->check_auth_token(auth_token_);
     if (auth_t != nullptr) {
@@ -1379,9 +1626,11 @@ bool kis_net_beast_httpd_connection::start() {
                             httpd->escape_html(static_cast<std::string>(uri_))));
             res.prepare_payload();
 
+            append_cors_headers(res);
+
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            io([&](auto& s) { boost::beast::http::write(s, res, error); });
 
             return do_close();
         }
@@ -1397,9 +1646,11 @@ bool kis_net_beast_httpd_connection::start() {
                     "token.</p></body></html>\n");
             res.prepare_payload();
 
+            append_cors_headers(res);
+
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            io([&](auto& s) { boost::beast::http::write(s, res, error); });
 
             return do_close();
         }
@@ -1424,9 +1675,11 @@ bool kis_net_beast_httpd_connection::start() {
             res.body() = std::string("<html><head><title>405 Incorrect method</title></head><body><h1>405 Incorrect method</h1><br><p>This method is not valid for this resource.</p></body></html>\n");
             res.prepare_payload();
 
+            append_cors_headers(res);
+
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            io([&](auto& s) { boost::beast::http::write(s, res, error); });
 
             if (error || client_req_close)
                 return do_close();
@@ -1455,9 +1708,11 @@ bool kis_net_beast_httpd_connection::start() {
             res.body() = std::string("<html><head><title>401 Permission denied</title></head><body><h1>401 Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
             res.prepare_payload();
 
+            append_cors_headers(res);
+
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            io([&](auto& s) { boost::beast::http::write(s, res, error); });
 
             if (error || client_req_close)
                 return do_close();
@@ -1487,9 +1742,11 @@ bool kis_net_beast_httpd_connection::start() {
                             httpd->escape_html(static_cast<std::string>(uri_))));
             res.prepare_payload();
 
+            append_cors_headers(res);
+
             boost::system::error_code error;
 
-            boost::beast::http::write(stream_, res, error);
+            io([&](auto& s) { boost::beast::http::write(s, res, error); });
 
             if (error || client_req_close)
                 return do_close();
@@ -1580,7 +1837,7 @@ bool kis_net_beast_httpd_connection::start() {
         if (sz) {
             // Write the headers once we have body content
             if (!first_response_write) {
-                boost::beast::http::write_header(stream_, sr, error);
+                io([&](auto& s) { boost::beast::http::write_header(s, sr, error); });
 
                 if (error) {
                     // _MSG_ERROR("(DEBUG) {} {} - Error writing headers - {}", verb_, uri_, error.message());
@@ -1598,7 +1855,7 @@ bool kis_net_beast_httpd_connection::start() {
             response.body().size = chunk_sz;
             response.body().more = true;
 
-            boost::beast::http::write(stream_, sr, error);
+            io([&](auto& s) { boost::beast::http::write(s, sr, error); });
 
             response_stream_.consume(chunk_sz);
 
@@ -1628,7 +1885,7 @@ bool kis_net_beast_httpd_connection::start() {
     response.body().size = 0;
     response.body().more = false;
 
-    boost::beast::http::write(stream_, sr, error);
+    io([&](auto& s) { boost::beast::http::write(s, sr, error); });
 
     if (error) {
         // _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
@@ -2138,7 +2395,9 @@ void kis_net_web_websocket_endpoint::close_impl() {
     running = false;
 
     try {
-        ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+        with_ws([](auto& ws) {
+                boost::beast::get_lowest_layer(ws).socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+            });
     } catch (...) { }
 
     try {
@@ -2152,14 +2411,16 @@ void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_webs
 
     buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
 
-    ws_.async_read(*buffer_.get(),
-            boost::asio::bind_executor(
-                strand_,
-                std::bind(
-                    &kis_net_web_websocket_endpoint::handle_read,
-                    shared_from_this(),
-                    std::placeholders::_1,
-                    std::placeholders::_2)));
+    with_ws([&](auto& ws) {
+            ws.async_read(*buffer_.get(),
+                boost::asio::bind_executor(
+                    strand_,
+                    std::bind(
+                        &kis_net_web_websocket_endpoint::handle_read,
+                        shared_from_this(),
+                        std::placeholders::_1,
+                        std::placeholders::_2)));
+        });
 }
 
 void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, std::size_t) {
@@ -2174,26 +2435,28 @@ void kis_net_web_websocket_endpoint::handle_read(boost::beast::error_code ec, st
     }
 
     try {
-        handler_cb(shared_from_this(), buffer_, ws_.got_text());
+        handler_cb(shared_from_this(), buffer_, with_ws([](auto& ws) { return ws.got_text(); }));
 
 
         buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
 
-        ws_.async_read(*buffer_.get(),
-                boost::asio::bind_executor(
-                    strand_,
-                    std::bind(
-                        &kis_net_web_websocket_endpoint::handle_read,
-                        shared_from_this(),
-                        std::placeholders::_1,
-                        std::placeholders::_2)));
+        with_ws([&](auto& ws) {
+                ws.async_read(*buffer_.get(),
+                    boost::asio::bind_executor(
+                        strand_,
+                        std::bind(
+                            &kis_net_web_websocket_endpoint::handle_read,
+                            shared_from_this(),
+                            std::placeholders::_1,
+                            std::placeholders::_2)));
+            });
     } catch (const std::exception& e) {
         return close_impl();
     }
 }
 
 void kis_net_web_websocket_endpoint::on_write(const std::string& msg) {
-    if (!running || !ws_.is_open())
+    if (!running || !with_ws([](auto& ws) { return ws.is_open(); }))
         return;
 
     ws_write_queue_.push(msg);
@@ -2210,31 +2473,33 @@ void kis_net_web_websocket_endpoint::on_write(const std::string& msg) {
 }
 
 void kis_net_web_websocket_endpoint::handle_write() {
-    if (!running || !ws_.is_open() || ws_write_queue_.empty()) {
+    if (!running || !with_ws([](auto& ws) { return ws.is_open(); }) || ws_write_queue_.empty()) {
         return;
     }
 
-    ws_.async_write(boost::asio::buffer(ws_write_queue_.front()),
-            boost::asio::bind_executor(
-                strand_,
-                std::bind(
-                    [self = shared_from_this()](const boost::system::error_code& ec, std::size_t) {
-                        if (ec) {
-                            if (ec != boost::beast::websocket::error::closed) {
-                                _MSG_ERROR("Websocket error: {}", ec.message());
-                            }
+    with_ws([&](auto& ws) {
+            ws.async_write(boost::asio::buffer(ws_write_queue_.front()),
+                    boost::asio::bind_executor(
+                        strand_,
+                        std::bind(
+                            [self = shared_from_this()](const boost::system::error_code& ec, std::size_t) {
+                                if (ec) {
+                                    if (ec != boost::beast::websocket::error::closed) {
+                                        _MSG_ERROR("Websocket error: {}", ec.message());
+                                    }
 
-                            return self->close_impl();
-                        }
+                                    return self->close_impl();
+                                }
 
-                        self->ws_write_queue_.pop();
+                                self->ws_write_queue_.pop();
 
-                        if (!self->ws_write_queue_.empty()) {
-                            return self->handle_write();
-                        }
-                    },
-                    std::placeholders::_1,
-                    std::placeholders::_2)));
+                                if (!self->ws_write_queue_.empty()) {
+                                    return self->handle_write();
+                                }
+                            },
+                            std::placeholders::_1,
+                            std::placeholders::_2)));
+        });
 }
 
 
@@ -2243,10 +2508,11 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
     thread_set_process_name("BEAST-WS");
 
     // Set the default timeouts
-    ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
-                boost::beast::role_type::server));
-
-    ws_.accept(con->request());
+    with_ws([&](auto& ws) {
+            ws.set_option(boost::beast::websocket::stream_base::timeout::suggested(
+                        boost::beast::role_type::server));
+            ws.accept(con->request());
+        });
 
     running = true;
 

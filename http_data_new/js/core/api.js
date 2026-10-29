@@ -6,10 +6,14 @@
 //
 // Paths are relative to the Kismet server root, set by the
 // <meta name="kismet-root"> tag in index.html, so the UI works behind a
-// reverse proxy or from a sub-directory.
+// reverse proxy or from a sub-directory.  The installed app can use another
+// server instead (js/core/servers.js), with its API key as a bearer token.
 
-const rootMeta = document.querySelector('meta[name="kismet-root"]');
-export const root = new URL(rootMeta?.content || './', document.baseURI);
+import * as servers from './servers.js';
+
+const server = servers.current();
+export const root = server ? new URL(server.url) : servers.home;
+export const remote = server;
 
 export class ApiError extends Error {
     constructor(status, message) {
@@ -30,21 +34,40 @@ export function url(path) {
     return new URL(path.replace(/^\/+/, ''), root);
 }
 
+// A URL the browser opens by itself (a link, a download, a websocket), which
+// can't carry the bearer token, so on another server it goes in the URL
+export function linkUrl(path) {
+    const u = url(path);
+    if (server?.token)
+        u.searchParams.set('KISMET', server.token);
+    return u;
+}
+
 // Websocket URL for a path, e.g. wsUrl('eventbus/events.ws')
 export function wsUrl(path) {
-    const u = url(path);
+    const u = linkUrl(path);
     u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
     return u;
+}
+
+// Request options for the server in use: the home server's session cookie,
+// or another server's API key, unless the caller logs in with its own header
+function withAuth(options) {
+    if (!server)
+        return { credentials: 'same-origin', ...options };
+    const headers = new Headers(options.headers ?? {});
+    if (server.token && !headers.has('Authorization'))
+        headers.set('Authorization', `Bearer ${server.token}`);
+    return { ...options, credentials: 'omit', headers };
 }
 
 async function request(path, options = {}) {
     let response;
     try {
-        response = await fetch(url(path), {
-            credentials: 'same-origin',
+        response = await fetch(url(path), withAuth({
             ...options,
             signal: options.signal ?? AbortSignal.timeout(options.timeout ?? 15000),
-        });
+        }));
     } catch (err) {
         if (err.name === 'AbortError')
             throw err;
@@ -121,11 +144,10 @@ export function formBody(params) {
 // Fetch without parsing, for status checks: returns the Response, never throws on HTTP errors
 export async function probe(path, options = {}) {
     try {
-        return await fetch(url(path), {
-            credentials: 'same-origin',
+        return await fetch(url(path), withAuth({
             ...options,
             signal: AbortSignal.timeout(options.timeout ?? 10000),
-        });
+        }));
     } catch (err) {
         throw new ApiError(0, `Kismet server unreachable (${err.message})`);
     }

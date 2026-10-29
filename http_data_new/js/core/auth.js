@@ -2,11 +2,24 @@
 //
 // Logging in once with the username and password makes the server set a
 // session cookie (KISMET), which every later request and the websocket use.
-// The password itself is never stored by the UI.
+// On another server (js/core/servers.js) the login instead makes an API key
+// for this app there, which is kept in place of a cookie.
+// The password is only stored when "Remember this login" is ticked: then it is
+// kept in this browser's storage, readable by anyone with this browser profile,
+// and used to log in again when the session ends.
 
 import * as api from './api.js';
+import * as servers from './servers.js';
+import * as settings from './settings.js';
 import { el } from './dom.js';
 import { dialog } from '../widgets/dialog.js';
+import { openServers } from '../widgets/serversdialog.js';
+
+// Another way out of a login, in the app or when on another server
+function switchButton() {
+    return servers.installed() || api.remote ?
+        el('button', { type: 'button', onclick: () => openServers() }, 'Switch server') : null;
+}
 
 function basicAuth(user, password) {
     const bytes = new TextEncoder().encode(`${user}:${password}`);
@@ -14,10 +27,63 @@ function basicAuth(user, password) {
 }
 
 async function tryLogin(user, password) {
-    const r = await api.probe('session/check_login', {
-        headers: { Authorization: basicAuth(user, password) },
+    const auth = basicAuth(user, password);
+    const r = await api.probe('session/check_login', { headers: { Authorization: auth } });
+    if (!r.ok || !api.remote)
+        return r.ok;
+
+    // A key for this app on that server; the name says where it's from, so it
+    // can be found and revoked there
+    const name = `Kismet app, ${new Date().toISOString().slice(0, 10)}, ${crypto.randomUUID().slice(0, 8)}`;
+    const body = new URLSearchParams({ json: JSON.stringify({ name, role: 'admin', duration: 0 }) });
+    const k = await api.probe('auth/apikey/generate.cmd', {
+        method: 'POST', ...api.formBody(body),
+        headers: { ...api.formBody(body).headers, Authorization: auth },
     });
-    return r.ok;
+    if (!k.ok)
+        throw new Error(`Logged in, but the server would not make a key for this app: ${(await k.text()).trim()}`);
+    const token = (await k.text()).trim();
+    if (!/^[0-9a-fA-F]{32}$/.test(token))
+        throw new Error('Logged in, but the server sent back an unexpected key');
+    servers.setToken(api.remote.id, token, name);
+    // Reload so every request and websocket starts with the key
+    location.reload();
+    return new Promise(() => {});
+}
+
+// Logins remembered in this browser, by server address
+function savedLogin() {
+    const l = settings.get('logins', {})[api.root.href];
+    return typeof l?.user === 'string' && typeof l?.password === 'string' ? l : null;
+}
+
+function saveLogin(login) {
+    const all = { ...settings.get('logins', {}) };
+    if (login)
+        all[api.root.href] = login;
+    else
+        delete all[api.root.href];
+    settings.set('logins', all);
+}
+
+// Who the forgotten login was for, to fill in the login dialog
+let lastUser = '';
+
+// Log in again with the remembered login.  A refused login is forgotten, so a
+// changed password asks once instead of failing every time.
+async function trySaved() {
+    const l = savedLogin();
+    if (!l)
+        return false;
+    try {
+        if (await tryLogin(l.user, l.password))
+            return true;
+        lastUser = l.user;
+        saveLogin(null);
+    } catch {
+        // Server unreachable or no key; keep it for next time
+    }
+    return false;
 }
 
 // Resolves once we have a working session, asking the user to log in (or to
@@ -29,7 +95,7 @@ export async function ensureSession() {
     if (setup.status === 500)
         return askNewPassword();
 
-    if ((await api.probe('session/check_session')).ok)
+    if ((await api.probe('session/check_session')).ok || await trySaved())
         return;
 
     return askLogin();
@@ -45,45 +111,77 @@ export function onLogin(fn) {
     return () => loginListeners.delete(fn);
 }
 
+function loggedIn() {
+    pending = null;
+    for (const fn of loginListeners)
+        fn();
+}
+
+// When the session ends, log in again with the remembered login before asking
+function relogin() {
+    if (pending)
+        return pending;
+    const hadSaved = savedLogin() !== null;
+    pending = trySaved().then((ok) => {
+        if (ok)
+            return loggedIn();
+        pending = null;
+        return askLogin(hadSaved && !savedLogin() ? 'The remembered login no longer works; please log in again.' :
+            'Your session has ended; please log in again.');
+    });
+    return pending;
+}
+
 // Show the login dialog (once, however many requests got a 401)
 export function askLogin(message = '') {
     if (pending)
         return pending;
 
     pending = new Promise((resolve) => {
-        const user = el('input', { name: 'username', autocomplete: 'username', required: true });
+        const user = el('input', { name: 'username', autocomplete: 'username', required: true, value: savedLogin()?.user ?? lastUser });
         const password = el('input', { name: 'password', type: 'password', autocomplete: 'current-password', required: true });
+        const remember = el('input', { type: 'checkbox', name: 'remember', checked: savedLogin() !== null });
         const error = el('p', { class: 'form-error' }, message);
 
         const form = el('form', { class: 'form' },
-            el('p', {}, 'Log in to this Kismet server.  The login is in ~/.kismet/kismet_httpd.conf on the server.'),
+            el('p', {}, api.remote ?
+                `Log in to ${api.remote.name} (${api.root.host}).  This app keeps a key for that server, and the password ` +
+                'only if you ask it to remember the login.' :
+                'Log in to this Kismet server.  The login is in ~/.kismet/kismet_httpd.conf on the server.'),
             el('label', {}, 'Username', user),
             el('label', {}, 'Password', password),
+            el('label', { class: 'form-check' }, remember, 'Remember this login'),
+            el('p', { class: 'form-note' }, 'Kept in this browser and used to log in again when the session ends.  ' +
+                'Anyone using this browser can read it; don\'t tick this on a shared device.'),
             error,
-            el('div', { class: 'form-buttons' }, el('button', { type: 'submit', class: 'primary' }, 'Log in')));
+            el('div', { class: 'form-buttons' }, switchButton(), el('button', { type: 'submit', class: 'primary' }, 'Log in')));
 
         const d = dialog({ title: 'Login', body: form, closable: false });
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             error.textContent = '';
+            // Before tryLogin, which reloads the page on another server
+            const login = { user: user.value, password: password.value };
+            const before = savedLogin();
             try {
-                if (await tryLogin(user.value, password.value)) {
+                saveLogin(remember.checked ? login : null);
+                if (await tryLogin(login.user, login.password)) {
                     d.close();
-                    pending = null;
                     resolve();
-                    for (const fn of loginListeners)
-                        fn();
+                    loggedIn();
                 } else {
+                    saveLogin(before);
                     error.textContent = 'Wrong username or password';
                     password.select();
                 }
             } catch (err) {
+                saveLogin(before);
                 error.textContent = err.message;
             }
         });
 
-        user.focus();
+        (user.value ? password : user).focus();
     });
 
     return pending;
@@ -130,4 +228,4 @@ function askNewPassword() {
     });
 }
 
-api.onAuthRequired(() => askLogin('Your session has ended; please log in again.'));
+api.onAuthRequired(() => relogin());

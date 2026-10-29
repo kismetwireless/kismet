@@ -26,7 +26,8 @@
 // gaps.  "Edit layout" lets the user drag cards by their title, resize them
 // from the corner, hide them, and add them back; other cards move out of the
 // way.  The layout is kept per browser.  Narrower screens stack the cards in
-// the same order, in two columns or one, at their natural height.
+// the same order, in two columns or one, at their natural height, and are
+// arranged with arrow buttons instead.
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
@@ -211,7 +212,11 @@ export function createOverview(container, area = null) {
         const main = el('div', { class: 'ov-card-main' }, body);
         const hideButton = el('button', { class: 'icon-button ov-hide', title: 'Hide this card',
             onclick: () => hideCard(entry.id) }, icon('close'));
-        const title = el('h3', { class: 'ov-card-title' }, el('span', {}, entry.title), hideButton);
+        const moveButtons = [
+            el('button', { class: 'icon-button ov-move', title: 'Move up', onclick: () => moveCard(entry.id, -1) }, icon('up')),
+            el('button', { class: 'icon-button ov-move', title: 'Move down', onclick: () => moveCard(entry.id, 1) }, icon('down')),
+        ];
+        const title = el('h3', { class: 'ov-card-title' }, el('span', {}, entry.title), ...moveButtons, hideButton);
         const resizer = el('span', { class: 'ov-resize', title: 'Drag to resize', 'aria-hidden': 'true' });
         const node = el('section', { class: 'ov-card', dataset: { card: entry.id } }, title, main, resizer);
         let handle = null;
@@ -354,6 +359,25 @@ export function createOverview(container, area = null) {
         buildEditBar();
     }
 
+    // Stacked layouts move a card past its neighbour in the page order by
+    // trading grid spots with it; if the sizes don't fit each other's spots,
+    // they trade sizes too
+    function moveCard(id, dir) {
+        const order = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
+        const n = order.findIndex((i) => i.id === id);
+        const it = order[n];
+        const other = order[n + dir];
+        if (n < 0 || !other)
+            return;
+        [it.x, it.y, other.x, other.y] = [other.x, other.y, it.x, it.y];
+        if (items.some((a) => items.some((c) => overlaps(a, c))))
+            [it.w, it.h, other.w, other.h] = [other.w, other.h, it.w, it.h];
+        compact(items);
+        apply();
+        save();
+        cards.get(id)?.node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
     function showCard(id) {
         hidden.delete(id);
         const entry = cards.get(id)?.entry;
@@ -378,7 +402,8 @@ export function createOverview(container, area = null) {
         [...hidden].filter((id) => cards.has(id)).map((id) => el('option', { value: id }, cards.get(id).entry.title)));
         add.disabled = !hidden.size;
         editBar.replaceChildren(
-            el('span', { class: 'muted' }, 'Drag a card by its title to move it, or by its corner to resize it.'),
+            el('span', { class: 'muted' }, wide ? 'Drag a card by its title to move it, or by its corner to resize it.' :
+                'Move cards with the arrows, or hide them with ×.'),
             add,
             el('button', { onclick: resetLayout }, 'Reset layout'),
             el('button', { class: 'primary', onclick: () => setEditing(false) }, 'Done'));
@@ -392,7 +417,7 @@ export function createOverview(container, area = null) {
     }
 
     function setEditing(on) {
-        editing = on && wide;
+        editing = on;
         root.classList.toggle('editing', editing);
         editBar.hidden = !editing;
         editButton.classList.toggle('active', editing);
@@ -420,7 +445,7 @@ export function createOverview(container, area = null) {
     // follows the pointer; the placeholder shows where it will land, and the
     // other cards move out of the way as it goes.
     function startDrag(e, id, mode) {
-        if (!editing || e.button !== 0 || e.target.closest('button, select, input, a'))
+        if (!editing || !wide || e.button !== 0 || e.target.closest('button, select, input, a'))
             return;
         const it = items.find((i) => i.id === id);
         const c = cards.get(id);
@@ -506,10 +531,8 @@ export function createOverview(container, area = null) {
         root.classList.toggle('two-up', !nowWide && w >= 640);
         if (nowWide !== wide) {
             wide = nowWide;
-            if (!wide)
-                setEditing(false);
+            buildEditBar();
         }
-        editButton.hidden = !wide;
     });
     resize.observe(root);
 

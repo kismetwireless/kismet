@@ -29,7 +29,9 @@
 #include <unordered_map>
 
 #include "boost/asio.hpp"
+#include "boost/asio/ssl.hpp"
 #include "boost/beast.hpp"
+#include "boost/beast/ssl.hpp"
 #include "boost/optional.hpp"
 
 #include "jwt-cpp/jwt.h"
@@ -83,6 +85,10 @@ public:
     bool httpd_running() { return running; }
     unsigned int fetch_port() { return port; }
     bool fetch_using_ssl() { return use_ssl; }
+
+    // The optional HTTPS listener, alongside the plain one
+    bool ssl_enabled() const { return ssl_ctx != nullptr; }
+    unsigned int fetch_ssl_port() const { return ssl_endpoint.port(); }
 
     static std::string decode_uri(boost::beast::string_view in, bool query);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
@@ -151,6 +157,10 @@ public:
     // called concurrently or while the webserver is serving content.
     void register_static_dir(const std::string& prefix, const std::string& path);
 
+    // The newest modification time, count, and size of the files in the static
+    // directories, so the web UI can tell when they change without a new build
+    std::string static_content_stamp();
+
 
     // Find an endpoint in the route table
     std::shared_ptr<kis_net_beast_route> find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
@@ -209,6 +219,21 @@ protected:
     void start_accept();
     void handle_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);
 
+    std::shared_ptr<boost::asio::ssl::context> ssl_ctx;
+    boost::asio::ip::tcp::endpoint ssl_endpoint;
+    boost::asio::ip::tcp::acceptor ssl_acceptor;
+    // Set when Kismet made the certificate, for clients to install its CA
+    std::string ssl_ca_pem;
+    std::string ssl_ca_fingerprint;
+
+    // Behind an HTTPS proxy, and the address clients reach Kismet at, for the install page
+    bool https_proxy_;
+    std::string public_url_;
+
+    void configure_ssl();
+    void start_ssl_accept();
+    void handle_ssl_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);
+
     bool use_ssl;
     bool serve_files;
 
@@ -242,7 +267,11 @@ class kis_net_beast_httpd_connection : public std::enable_shared_from_this<kis_n
 public:
     friend class kis_net_beast_httpd;
 
+    using tls_stream_t = boost::asio::ssl::stream<boost::beast::tcp_stream>;
+
     kis_net_beast_httpd_connection(boost::beast::tcp_stream& stream,
+            std::shared_ptr<kis_net_beast_httpd> httpd);
+    kis_net_beast_httpd_connection(tls_stream_t& stream,
             std::shared_ptr<kis_net_beast_httpd> httpd);
     virtual ~kis_net_beast_httpd_connection();
 
@@ -258,11 +287,28 @@ public:
         return stream_.socket().remote_endpoint().address().to_string();
     }
 
-    // Raw stream
+    // Raw tcp stream, under any TLS layer; write responses with write_message
     boost::beast::tcp_stream& stream() { return stream_; }
+
+    // TLS stream, or null on a plain connection
+    tls_stream_t *tls() { return tls_; }
 
     // Relinquish raw stream entirely
     boost::beast::tcp_stream release_stream() { return std::move(stream_); }
+    tls_stream_t release_tls_stream() { return std::move(*tls_); }
+
+    // Run f on the stream the connection talks over, TLS or plain
+    template<class F>
+    auto io(F&& f) {
+        if (tls_ != nullptr)
+            return f(*tls_);
+        return f(stream_);
+    }
+
+    template<class Message>
+    void write_message(Message& m, boost::system::error_code& ec) {
+        io([&](auto& s) { boost::beast::http::write(s, m, ec); });
+    }
 
     // Stream suitable for std::ostream
     future_chainbuf& response_stream() { return response_stream_; }
@@ -306,6 +352,7 @@ protected:
     std::function<void ()> closure_cb;
 
     boost::beast::tcp_stream& stream_;
+    tls_stream_t *tls_;
     boost::beast::flat_buffer buffer;
 
     boost::optional<boost::beast::http::request_parser<boost::beast::http::string_body>> parser_;
@@ -333,6 +380,29 @@ protected:
     std::atomic<bool> first_response_write;
 
     bool do_close();
+
+    // CORS headers, also on errors, so a client on another origin can read a 401
+    template<class Response>
+    void append_cors_headers(Response& r) {
+        if (httpd->allow_cors()) {
+            if (httpd->allowed_cors_referrer().length()) {
+                r.set(boost::beast::http::field::access_control_allow_origin, httpd->allowed_cors_referrer());
+            } else {
+                auto origin = request_.find(boost::beast::http::field::origin);
+
+                if (origin != request_.end())
+                    r.set(boost::beast::http::field::access_control_allow_origin, origin->value());
+                else
+                    r.set(boost::beast::http::field::access_control_allow_origin, "*");
+            }
+
+            r.set(boost::beast::http::field::access_control_allow_credentials, "true");
+            r.set(boost::beast::http::field::vary, "Origin");
+            r.set(boost::beast::http::field::access_control_max_age, "86400");
+            r.set(boost::beast::http::field::access_control_allow_methods, "POST, GET, OPTIONS, UPGRADE");
+            r.set(boost::beast::http::field::access_control_allow_headers, "Content-Type, Authorization");
+        }
+    }
 
     template<class Response>
     void append_common_headers(Response& r, boost::beast::string_view uri) {
@@ -366,25 +436,7 @@ protected:
         r.set(boost::beast::http::field::pragma, "no-cache");
         r.set(boost::beast::http::field::expires, "Sat, 01 Jan 2000 00:00:00 GMT");
 
-        // Append the CORS headers
-        if (httpd->allow_cors()) {
-            if (httpd->allowed_cors_referrer().length()) {
-                r.set(boost::beast::http::field::access_control_allow_origin, httpd->allowed_cors_referrer());
-            } else {
-                auto origin = request_.find(boost::beast::http::field::origin);
-
-                if (origin != request_.end())
-                    r.set(boost::beast::http::field::access_control_allow_origin, origin->value());
-                else
-                    r.set(boost::beast::http::field::access_control_allow_origin, "*");
-            }
-
-            r.set(boost::beast::http::field::access_control_allow_credentials, "true");
-            r.set(boost::beast::http::field::vary, "Origin");
-            r.set(boost::beast::http::field::access_control_max_age, "86400");
-            r.set(boost::beast::http::field::access_control_allow_methods, "POST, GET, OPTIONS, UPGRADE");
-            r.set(boost::beast::http::field::access_control_allow_headers, "Content-Type, Authorization");
-        }
+        append_cors_headers(r);
     }
 
 public:
@@ -545,15 +597,33 @@ class kis_net_web_websocket_endpoint : public kis_net_web_endpoint,
             bool text;
         } ws_data;
 
+        using ws_plain_t = boost::beast::websocket::stream<boost::beast::tcp_stream>;
+        using ws_tls_t = boost::beast::websocket::stream<kis_net_beast_httpd_connection::tls_stream_t>;
+
+        // One of these is set, by the kind of connection the websocket came from
+        std::unique_ptr<ws_plain_t> ws_plain_;
+        std::unique_ptr<ws_tls_t> ws_tls_;
+
+        template<class F>
+        auto with_ws(F&& f) {
+            if (ws_tls_ != nullptr)
+                return f(*ws_tls_);
+            return f(*ws_plain_);
+        }
+
 public:
     using handler_func_t = std::function<void (std::shared_ptr<kis_net_web_websocket_endpoint> ws,
             std::shared_ptr<boost::asio::streambuf> buf, bool text)>;
 
     kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
         kis_net_web_endpoint{},
-        ws_{con->release_stream()},
 		strand_{Globalreg::globalreg->io},
-        handler_cb{handler_func} { }
+        handler_cb{handler_func} {
+            if (con->tls() != nullptr)
+                ws_tls_ = std::make_unique<ws_tls_t>(con->release_tls_stream());
+            else
+                ws_plain_ = std::make_unique<ws_plain_t>(con->release_stream());
+        }
 
     virtual ~kis_net_web_websocket_endpoint() { }
 
@@ -574,15 +644,17 @@ public:
     virtual void close();
 
     virtual std::string remote_address() {
-        return ws_.next_layer().socket().remote_endpoint().address().to_string();
+        return with_ws([](auto& ws) {
+                return boost::beast::get_lowest_layer(ws).socket().remote_endpoint().address().to_string();
+            });
     }
 
 	virtual void binary() {
-		ws_.binary(true);
+		with_ws([](auto& ws) { ws.binary(true); });
 	}
 
 	virtual void text() {
-		ws_.text(true);
+		with_ws([](auto& ws) { ws.text(true); });
 	}
 
 	boost::asio::io_context::strand &strand() { return strand_; };
@@ -596,7 +668,6 @@ protected:
     void on_write(const std::string& msg);
     void handle_write();
 
-    boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
     // boost::beast::flat_buffer buffer_;
     std::shared_ptr<boost::asio::streambuf> buffer_;

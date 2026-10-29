@@ -25,6 +25,8 @@ import { deviceViews, deviceDetails, deviceDetailFields, channelNames, sourceCha
 import { insightRelations, linkKinds, insightFindings, insightViews } from './registry/insights.js';
 import { sourceSections, sourceFields, sourceTypes, channelPickers, applies as sourceApplies, driverOf } from './registry/sources.js';
 import * as modules from './core/modules.js';
+import * as servers from './core/servers.js';
+import * as pwa from './core/pwa.js';
 import { detailFields, muted } from './widgets/detailfields.js';
 import { historyGraph } from './widgets/historygraph.js';
 import { listTable } from './widgets/listtable.js';
@@ -37,6 +39,7 @@ import * as devicetable from './widgets/devicetable.js';
 import * as messages from './widgets/messages.js';
 import * as ribbon from './widgets/ribbon.js';
 import * as settingsdialog from './widgets/settingsdialog.js';
+import * as serversdialog from './widgets/serversdialog.js';
 import { sparkline } from './widgets/sparkline.js';
 import * as cellgraphs from './widgets/cellgraphs.js';
 import * as map from './widgets/map.js';
@@ -59,6 +62,8 @@ export const kismet = {
     icons,
     modules,
     datasources,
+    servers,
+    pwa,
 
     // Building blocks for modules that draw their own UI
     widgets: {
@@ -67,6 +72,7 @@ export const kismet = {
         messages,
         ribbon,
         settingsdialog,
+        serversdialog,
         sparkline,
         cellgraphs,
         historyGraph,

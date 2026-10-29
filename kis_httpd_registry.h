@@ -56,6 +56,10 @@ public:
     // Register a javascript module
     virtual bool register_js_module(std::string in_module, std::string in_path);
 
+    // Register a module for the new web UI; it shares the module name of the
+    // old UI's module when there is one
+    virtual bool register_ui2_module(std::string in_module, std::string in_path);
+
 protected:
     kis_mutex reg_lock;
 
@@ -64,6 +68,10 @@ protected:
     bool allow_userplugins;
 
     std::map<std::string, std::string> js_module_path_map;
+    std::map<std::string, std::string> ui2_module_path_map;
+
+    // Stamp of the served web files, taken on the first request after startup
+    std::string content_stamp;
 };
 
 #endif
