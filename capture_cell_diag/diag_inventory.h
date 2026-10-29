@@ -10,7 +10,7 @@
  *                counters (count = decoded + dropped, emitted, enrich_failed),
  *                and the three findings: unrecognized (seen, never decoded),
  *                silent (an emit-contract code that decoded and emitted
- *                nothing), enrich_failed.
+ *                nothing, beyond the records it gated), enrich_failed.
  *   rendering -- the bounded wire form, byte for byte: JSON key order, the
  *                `ts` float as Python's repr(round(now, 3)) (the form
  *                json.dumps writes, so the line parses the same anywhere), the
@@ -94,6 +94,14 @@ void diag_inventory_record(diag_inventory_t *inv, uint16_t code, int version,
 
 size_t   diag_inventory_distinct(const diag_inventory_t *inv);
 uint64_t diag_inventory_overflow(const diag_inventory_t *inv);
+
+/* Tally one record its leg parsed and deliberately set aside for a benign,
+ * known reason -- a GNSS record whose receiver has no fix yet. Counted as
+ * decoded, emits nothing, and is NOT a silence: a code whose non-emitting
+ * records were all gated is not reported silent. Any other non-emitting decode
+ * of the same key still is. Same admission and caps as diag_inventory_record. */
+void diag_inventory_record_gated(diag_inventory_t *inv, uint16_t code,
+                                 int version);
 
 /* Arm the undecoded_native state (see the top of this file). Off by default. */
 void diag_inventory_set_native_coverage(diag_inventory_t *inv, int on);

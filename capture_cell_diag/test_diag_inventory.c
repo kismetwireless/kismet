@@ -281,6 +281,40 @@ static void test_undecoded_native_is_bounded(void) {
     diag_inventory_free(inv);
 }
 
+/* A GNSS code whose receiver has no fix: every record parses, none emits, and
+ * all are gated -- not a silence, so nothing escalates. One ungated
+ * non-emitting decode of the same key makes it silent again.
+ *   for _ in range(5): record_gated(0x1476, 21)  -> not silent
+ *   record(0x1476, 21, decoded, emitted=0)       -> silent, actionable */
+static void test_gated_is_not_silent(void) {
+    diag_inventory_t *inv = diag_inventory_new(0, 0);
+    for (int i = 0; i < 5; i++)
+        diag_inventory_record_gated(inv, 0x1476, 21);
+    char buf[DIAG_INVENTORY_LINE_MAX];
+    diag_inventory_wire(inv, 1.0, buf, sizeof(buf));
+    CHECK(strstr(buf, "\"unrecognized_total\":0,\"silent_total\":0,"
+                      "\"silent_actionable_total\":0,") != NULL,
+          "all-gated 0x1476 must not be silent or unrecognized: %.300s", buf);
+    CHECK(strstr(buf, "\"table\":\"0x1476/v21,5,5,0,0,0,") != NULL,
+          "gated records count as decoded: %.400s", buf);
+
+    diag_inventory_record(inv, 0x1476, 21, 1, 0, 0);
+    diag_inventory_wire(inv, 2.0, buf, sizeof(buf));
+    CHECK(strstr(buf, "\"silent_total\":1,\"silent_actionable_total\":1,") != NULL,
+          "an ungated non-emitting decode is still a silence: %.300s", buf);
+
+    /* Gated beside an emitted fix: not silent either way. */
+    diag_inventory_t *mixed = diag_inventory_new(0, 0);
+    diag_inventory_record_gated(mixed, 0x1476, 21);
+    diag_inventory_record(mixed, 0x1476, 21, 1, 1, 0);
+    diag_inventory_wire(mixed, 3.0, buf, sizeof(buf));
+    CHECK(strstr(buf, "\"silent_total\":0,") != NULL, "%.300s", buf);
+
+    diag_inventory_record_gated(NULL, 0x1476, 21);  /* NULL-safe */
+    diag_inventory_free(mixed);
+    diag_inventory_free(inv);
+}
+
 /* The known-layout table: sorted (the lookup is a binary search), and it
  * answers for codes the native legs need and codes they do not. */
 static void test_known_table(void) {
@@ -356,6 +390,7 @@ int main(int argc, char **argv) {
     test_undecoded_native();
     test_undecoded_native_is_bounded();
     test_known_table();
+    test_gated_is_not_silent();
 
     if (failures) {
         fprintf(stderr, "test_diag_inventory: %d failure(s)\n", failures);

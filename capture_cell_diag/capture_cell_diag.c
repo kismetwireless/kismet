@@ -2568,6 +2568,23 @@ static void native_census_tally(native_tap_ctx_t *ctx, const diag_log_record_t *
         native_census_emit(ctx->caph, local, now);
 }
 
+/* Count one record its leg parsed and set aside for a benign reason (a GNSS
+ * record from a receiver with no fix): decoded, not emitted, and not a
+ * silence (diag_inventory_record_gated). Same cadence check as
+ * native_census_tally. */
+static void native_census_gated(native_tap_ctx_t *ctx, const diag_log_record_t *rec) {
+    local_diag_t *local = ctx->local;
+    if (local->native_inv == NULL)
+        return;
+    int ver = (rec->payload != NULL && rec->payload_len > 0) ? rec->payload[0] : -1;
+    diag_inventory_record_gated(local->native_inv, rec->log_code, ver);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    double now = (double)tv.tv_sec + (double)tv.tv_usec / 1e6;
+    if (diag_inventory_cadence_due(&local->native_inv_cadence, now))
+        native_census_emit(ctx->caph, local, now);
+}
+
 /* Frame one eligible record and send it -- GsmtapLive.offer, natively. No
  * framer for the code counts as declined (and as no_framer, reported beside
  * it); a send failure is counted, noticed once, and never waited on. */
@@ -2708,7 +2725,20 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
         }
         /* An unparseable record is DROPPED in the census, not decoded. The
          * gate verdicts (no position, placeholder, no time)
-         * are a parsed record that yields no fix, and stay decoded. */
+         * are a parsed record that yields no fix, and stay decoded.
+         *
+         * The two benign ones -- the engine is on and has no fix yet -- are
+         * GATED: a receiver without sky view is not a decoder that went
+         * silent, and counting them silent escalated every census line of
+         * such a source to ERROR. The other verdicts (no time, stale,
+         * altitude, jump) can each hide a decode problem, so they still
+         * count toward a silence. */
+        if (g == 0 &&
+            (fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_NO_POSITION ||
+             fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_PLACEHOLDER)) {
+            native_census_gated(ctx, rec);
+            return;
+        }
         native_census_tally(ctx, rec,
             (g >= 0 && !fix.valid &&
              fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_UNPARSEABLE) ? 0 : 1,
