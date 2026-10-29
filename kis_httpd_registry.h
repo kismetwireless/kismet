@@ -69,6 +69,9 @@ protected:
 
     std::map<std::string, std::string> js_module_path_map;
     std::map<std::string, std::string> ui2_module_path_map;
+
+    // Stamp of the served web files, taken on the first request after startup
+    std::string content_stamp;
 };
 
 #endif

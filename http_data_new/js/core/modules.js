@@ -22,6 +22,7 @@
 
 import * as api from './api.js';
 import * as pwa from './pwa.js';
+import * as eventbus from './eventbus.js';
 
 const builtin = {
     kismet_ui_dot11: './phy/dot11.js',
@@ -56,6 +57,9 @@ async function loadOne(name, src, kismet) {
 
 // The server's build token, once the module list has loaded (null from older servers)
 export let build = null;
+let pluginHrefs = [];
+let lastCheck = 0;
+let offered = null;
 
 export async function loadServerModules(kismet) {
     let info = null;
@@ -84,8 +88,49 @@ export async function loadServerModules(kismet) {
     }
 
     // Bring the kept copies up to date first, so the modules load from them
+    pluginHrefs = plugins.map(([, href]) => href);
+    lastCheck = Date.now();
     if (info)
-        await pwa.syncServer({ root: api.root.href, build, home: !api.remote, modules: plugins.map(([, href]) => href) });
+        await pwa.syncServer({ root: api.root.href, build, home: !api.remote, modules: pluginHrefs });
+    watchForUpdates();
 
     await Promise.all([...builtins, ...plugins].map(([name, href]) => loadOne(name, href, kismet)));
+}
+
+// An installed app is resumed rather than reloaded, so look for a new server
+// build again when it comes back into view, or the server comes back
+async function recheck() {
+    if (build === null || Date.now() - lastCheck < 5000)
+        return;
+    lastCheck = Date.now();
+    let info;
+    try {
+        info = await api.get('dynamic.json');
+    } catch {
+        return;
+    }
+    if (typeof info?.build !== 'string' || info.build === build || info.build === offered)
+        return;
+    const result = await pwa.syncServer({ root: api.root.href, build: info.build, home: !api.remote, modules: pluginHrefs });
+    // The modules running now are the old ones, whatever the worker kept
+    if (!result.stale) {
+        offered = info.build;
+        pwa.showUpdated();
+    }
+}
+
+let watching = false;
+
+function watchForUpdates() {
+    if (watching)
+        return;
+    watching = true;
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible')
+            recheck();
+    });
+    eventbus.onState((up) => {
+        if (up)
+            recheck();
+    });
 }

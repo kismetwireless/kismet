@@ -55,9 +55,14 @@ kis_httpd_registry::kis_httpd_registry() :
                     nlohmann::json::object_t root;
                     nlohmann::json::array_t vec;
 
-                    // The build token changes with the server build and its set of UI
-                    // modules, so the web UI knows when its cached copies are stale
+                    // The build token changes with the server build, its web files, and
+                    // its set of UI modules, so the web UI knows when its cached copies
+                    // are stale.  Web files updated in place show up after a restart.
+                    if (content_stamp.empty())
+                        content_stamp = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>()->static_content_stamp();
+
                     auto build = fnv_offset;
+                    build = fnv1a(build, content_stamp);
                     build = fnv1a(build, VERSION_MAJOR);
                     build = fnv1a(build, VERSION_MINOR);
                     build = fnv1a(build, VERSION_TINY);

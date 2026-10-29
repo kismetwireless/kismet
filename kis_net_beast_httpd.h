@@ -157,6 +157,10 @@ public:
     // called concurrently or while the webserver is serving content.
     void register_static_dir(const std::string& prefix, const std::string& path);
 
+    // The newest modification time, count, and size of the files in the static
+    // directories, so the web UI can tell when they change without a new build
+    std::string static_content_stamp();
+
 
     // Find an endpoint in the route table
     std::shared_ptr<kis_net_beast_route> find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
@@ -221,6 +225,10 @@ protected:
     // Set when Kismet made the certificate, for clients to install its CA
     std::string ssl_ca_pem;
     std::string ssl_ca_fingerprint;
+
+    // Behind an HTTPS proxy, and the address clients reach Kismet at, for the install page
+    bool https_proxy_;
+    std::string public_url_;
 
     void configure_ssl();
     void start_ssl_accept();

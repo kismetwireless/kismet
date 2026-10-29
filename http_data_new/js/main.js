@@ -82,7 +82,29 @@ async function reachServer(outline) {
     }
 }
 
+// Full-window panes and docked panels keep the menu and name above them.  On a
+// narrow window the stats ribbon wraps to a row of its own, which a full-window
+// pane covers; otherwise they start below the whole top bar.
+function trackTopbar() {
+    const bar = document.querySelector('.topbar');
+    const ribbon = document.getElementById('ribbon');
+    const head = [document.getElementById('menu'), bar?.querySelector('.brand')].filter(Boolean);
+    if (!bar || !ribbon)
+        return;
+    const set = () => {
+        const all = Math.ceil(bar.getBoundingClientRect().bottom);
+        const r = ribbon.getBoundingClientRect();
+        // Wrapped when the ribbon starts below the middle of the menu and name
+        const middle = Math.max(...head.map((e) => { const b = e.getBoundingClientRect(); return (b.top + b.bottom) / 2; }));
+        document.documentElement.style.setProperty('--topbar-bottom', `${all}px`);
+        document.documentElement.style.setProperty('--pane-top', `${r.height > 0 && r.top > middle ? Math.floor(r.top) : all}px`);
+    };
+    new ResizeObserver(set).observe(bar, { box: 'border-box' });
+    set();
+}
+
 async function start() {
+    trackTopbar();
     // Color schemes first, so even the login screen is in the chosen colors
     baseSchemes.register(kismet);
     pwa.start(kismet.theme);

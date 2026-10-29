@@ -95,6 +95,9 @@ export async function remove(id) {
     settings.set('servers.list', list().filter((x) => x.id !== id));
     if (settings.get('servers.current', null) === id)
         settings.set('servers.current', null);
+    const logins = { ...settings.get('logins', {}) };
+    delete logins[new URL(s.url).href];
+    settings.set('logins', logins);
     if (s.token && s.tokenName) {
         try {
             const body = new URLSearchParams({ json: JSON.stringify({ name: s.tokenName }) });

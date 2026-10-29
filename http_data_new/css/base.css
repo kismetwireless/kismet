@@ -8,6 +8,13 @@ html, body {
     height: 100%;
     margin: 0;
 }
+html { overscroll-behavior: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* With the translucent status bar, iOS 26 sizes an installed app short by the
+   status bar (WebKit bug 301108); asking for the extra height gets the whole
+   screen.  Elsewhere the top inset is 0 and this is just 100%. */
+@media (display-mode: standalone) {
+    html { height: max(100%, min(100lvh, calc(100% + env(safe-area-inset-top)))); }
+}
 
 body {
     display: flex;
@@ -21,6 +28,10 @@ body {
 }
 
 button, input, select { font: inherit; color: inherit; }
+/* Safari zooms in on any field under 16px when it's tapped, and stays zoomed */
+@media (pointer: coarse) {
+    input, select, textarea { font-size: max(16px, 1em); }
+}
 
 [hidden] { display: none !important; }
 
@@ -86,6 +97,14 @@ input:focus, select:focus, button:focus-visible {
 .badge.alert { background: var(--warn); color: #000; }
 .badge.ok { background: var(--ok); color: #fff; }
 
+/* Full-window panes keep the menu and name above them, and stay clear of the
+   notch and home indicator; main.js keeps --topbar-bottom and --pane-top up to date */
+:root {
+    --topbar-bottom: calc(3.8rem + env(safe-area-inset-top));
+    --pane-top: var(--topbar-bottom);
+    --pane-inset: var(--pane-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
 /* Top bar: menu, name, stats ribbon */
 
 .topbar {
@@ -97,6 +116,11 @@ input:focus, select:focus, button:focus-visible {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     flex: none;
+}
+/* iOS 26.1 shades the status bar with a gradient that runs well below it, with
+   or without the translucent bar; keep the bar's buttons clear of it */
+@media (display-mode: standalone) {
+    .topbar { padding-top: max(0.4rem, calc(env(safe-area-inset-top) * 1.6)); }
 }
 
 .menu { position: relative; display: flex; align-items: center; }
@@ -159,6 +183,7 @@ input:focus, select:focus, button:focus-visible {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    flex: none;
     min-width: 5.5rem;
     padding: 0.2rem 0.7rem;
     background: var(--surface-2);
@@ -451,7 +476,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .tab-tools:empty { display: none; }
 .tab-tool[aria-pressed="true"] { color: var(--accent); }
 /* A tab can fill the window with its area (the map's expand button) */
-.main-area.expanded, .bottom.expanded { position: fixed; inset: 0; z-index: 9; height: auto; }
+.main-area.expanded, .bottom.expanded { position: fixed; inset: var(--pane-inset); z-index: 9; height: auto; }
 .tab-bodies { flex: 1; min-height: 0; position: relative; }
 .tab-body { position: absolute; inset: 0; overflow: auto; }
 
@@ -515,7 +540,8 @@ tr.highlighted .bar-graph { fill: currentColor; }
 /* Non-modal panels dock on the right, full height */
 .dialog.panel {
     position: fixed;
-    inset: 4.2rem 0.75rem 0.75rem auto;
+    inset: calc(var(--topbar-bottom) + 0.4rem) calc(0.75rem + env(safe-area-inset-right))
+        calc(0.75rem + env(safe-area-inset-bottom)) auto;
     margin: 0;
     width: min(38rem, calc(100vw - 1.5rem));
     max-height: none;
@@ -540,6 +566,8 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .form { display: flex; flex-direction: column; gap: 0.7rem; }
 .form p { margin: 0; color: var(--muted); }
 .form label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 500; }
+.form label.form-check { flex-direction: row; align-items: center; gap: 0.5rem; }
+.form p.form-note { font-size: 0.85em; margin-top: -0.4rem; }
 .form-buttons { display: flex; justify-content: flex-end; }
 .form-error { color: var(--error); min-height: 1.2em; margin: 0; }
 
@@ -697,6 +725,17 @@ tr.highlighted .bar-graph { fill: currentColor; }
     .search-box input { width: 9rem; }
     .settings { flex-direction: column; }
     .settings-nav { flex-direction: row; flex-wrap: wrap; }
+
+    /* Settings fill the screen, and the section scrolls under the section list */
+    .dialog.modal.settings-dialog { width: calc(100vw - 1rem); min-width: 0; max-width: none; max-height: calc(100dvh - 1rem); }
+    .settings-dialog .dialog-body { padding: 0.75rem; max-height: none; }
+    .settings {
+        gap: 0.6rem;
+        min-height: 0;
+        height: calc(100dvh - 1rem - 4.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
+    .settings-nav { flex: none; }
+    .settings-content { min-height: 0; overscroll-behavior: contain; padding-bottom: 1rem; }
 }
 
 /* Searchable tables in the device panel (js/widgets/listtable.js) */
@@ -837,7 +876,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 /* Map tab */
 
 .map-pane { flex: 1; min-height: 0; display: flex; background: var(--bg); }
-.map-pane.expanded { position: fixed; inset: 0; z-index: 9; }
+.map-pane.expanded { position: fixed; inset: var(--pane-inset); z-index: 9; }
 .map-view { position: relative; flex: 1; min-width: 0; isolation: isolate; }
 .map-canvas { position: absolute; inset: 0; }
 .map-pane .leaflet-container { background: var(--bg); font: inherit; color: var(--text); }
@@ -1040,6 +1079,12 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .overview.editing .ov-card-title { cursor: grab; color: var(--text); }
 .overview.editing .ov-card-body { pointer-events: none; }
 .overview.editing .ov-hide { display: inline-flex; flex: none; }
+.ov-move { display: none; }
+/* Stacked (phones): arrows move cards instead of dragging; no resizing */
+.overview.editing.stacked .ov-move { display: inline-flex; flex: none; }
+.overview.editing.stacked .ov-resize { display: none; }
+.overview.editing.stacked .ov-card-title { cursor: default; touch-action: auto; }
+.ov-card-title .ov-move:first-of-type { margin-left: auto; }
 .overview.editing .ov-resize {
     display: block; position: absolute; right: 2px; bottom: 2px; width: 16px; height: 16px; cursor: nwse-resize;
     background: linear-gradient(135deg, transparent 50%, var(--accent) 50%, var(--accent) 60%, transparent 60%,
@@ -1272,6 +1317,19 @@ a.button {
     padding: 0.3em 0.8em;
     text-decoration: none;
 }
+.install-box { margin-bottom: 1rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.install-box p { margin: 0 0 0.5rem; }
+.install-box p:last-child { margin-bottom: 0; }
+.install-button { font-size: 1.05em; padding: 0.5em 1.2em; }
+.install-ios { margin: 0; padding-left: 1.4em; }
+.install-ios li { margin: 0.35em 0; }
+.install-glyph {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.7em; height: 1.7em; vertical-align: middle;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface); color: var(--accent);
+}
+.install-glyph .icon { width: 1.1em; height: 1.1em; }
 .install-fingerprint { overflow-wrap: anywhere; user-select: all; }
 .install-steps { margin: 0.4em 0; }
 .install-steps summary { cursor: pointer; font-weight: 600; }

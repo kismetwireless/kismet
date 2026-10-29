@@ -8,6 +8,49 @@ import { el } from './dom.js';
 
 let registration = null;
 
+// The browser's install prompt (Chrome, Edge, Samsung Internet), held until
+// the user asks to install; Safari and Firefox don't have one
+let installPrompt = null;
+const installListeners = new Set();
+
+function installChanged() {
+    for (const fn of installListeners)
+        fn();
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    installChanged();
+});
+
+window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    installChanged();
+});
+
+export function canInstall() {
+    return installPrompt !== null;
+}
+
+// Show the browser's install prompt; resolves 'accepted' or 'dismissed'
+export async function install() {
+    const p = installPrompt;
+    if (!p)
+        return 'dismissed';
+    installPrompt = null;
+    await p.prompt();
+    const { outcome } = await p.userChoice;
+    installChanged();
+    return outcome;
+}
+
+// Call fn() when installing becomes possible or the app is installed
+export function onInstallChange(fn) {
+    installListeners.add(fn);
+    return () => installListeners.delete(fn);
+}
+
 export function start(theme) {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
@@ -53,12 +96,25 @@ export async function syncServer({ root, build, home, modules }) {
     return result;
 }
 
-function showUpdated() {
+// Offer to reload for a new version of the UI
+export function showUpdated() {
     if (document.querySelector('.update-notice'))
         return;
+    // An open modal dialog makes the rest of the page inert and covers it, so
+    // the notice moves into the front modal while one is open
+    const place = () => {
+        const modals = document.querySelectorAll('dialog.modal[open]');
+        const host = modals.length ? modals[modals.length - 1] : document.body;
+        if (notice.parentNode !== host)
+            host.append(notice);
+    };
+    const watch = new MutationObserver(place);
+
     const notice = el('div', { class: 'update-notice', role: 'status' },
         el('span', {}, 'Kismet was updated on the server.'),
         el('button', { type: 'button', class: 'primary', onclick: () => location.reload() }, 'Reload'),
-        el('button', { type: 'button', onclick: () => notice.remove() }, 'Later'));
-    document.body.append(notice);
+        el('button', { type: 'button', onclick: () => { watch.disconnect(); notice.remove(); } }, 'Later'));
+
+    place();
+    watch.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
 }

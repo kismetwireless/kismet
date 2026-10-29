@@ -23,6 +23,7 @@ import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes, mapSources,
 import { deviceViews, deviceDetails, deviceDetailFields, channelNames, sourceChannels } from './registry/devices.js';
 import * as modules from './core/modules.js';
 import * as servers from './core/servers.js';
+import * as pwa from './core/pwa.js';
 import { detailFields, muted } from './widgets/detailfields.js';
 import { historyGraph } from './widgets/historygraph.js';
 import { listTable } from './widgets/listtable.js';
@@ -57,6 +58,7 @@ export const kismet = {
     icons,
     modules,
     servers,
+    pwa,
 
     // Building blocks for modules that draw their own UI
     widgets: {

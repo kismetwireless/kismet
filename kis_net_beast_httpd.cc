@@ -25,6 +25,7 @@
 #include <random>
 #include <sstream>
 
+#include <ftw.h>
 #include <stdio.h>
 
 #include "globalregistry.h"
@@ -96,6 +97,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     // Reported by fetch_port() and fetch_using_ssl(), for the server announcement and the console
     port = endpoint.port();
     use_ssl = false;
+    https_proxy_ = false;
 }
 
 void kis_net_beast_httpd::trigger_deferred_startup() {
@@ -222,6 +224,24 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
     allowed_cors_referrer_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
+
+    https_proxy_ = Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_https_proxy", false);
+    public_url_ = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_public_url", "");
+    if (public_url_.length()) {
+        bool valid = public_url_.length() < 1024 &&
+            (public_url_.rfind("https://", 0) == 0 || public_url_.rfind("http://", 0) == 0) &&
+            std::all_of(public_url_.begin(), public_url_.end(),
+                    [](unsigned char c) { return c > 0x20 && c < 0x7F && c != '"' && c != '<' && c != '>' && c != '\\'; });
+        if (!valid) {
+            _MSG_ERROR("Ignoring httpd_public_url '{}', expected an http:// or https:// address", public_url_);
+            public_url_ = "";
+        } else if (public_url_.back() != '/') {
+            public_url_ += "/";
+        }
+    }
+    if (https_proxy_ && public_url_.rfind("https://", 0) != 0)
+        _MSG_ERROR("httpd_https_proxy is set, but httpd_public_url is not an https:// address; set it to the "
+                "address the proxy serves Kismet at");
 
     redirect_unknown_target_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_redirect_unknown", "");
@@ -426,6 +446,8 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 j["port"] = ssl_enabled() ? fetch_ssl_port() : 0;
                 j["generated"] = ssl_ca_pem.length() > 0;
                 j["ca_sha256"] = ssl_ca_fingerprint;
+                j["https_proxy"] = https_proxy_;
+                j["public_url"] = public_url_;
                 os << j.dump();
                 }));
 
@@ -1191,6 +1213,35 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoin
     }
 
     return nullptr;
+}
+
+namespace {
+    struct content_stamp_acc {
+        int64_t newest;
+        uint64_t count;
+        uint64_t bytes;
+    };
+
+    thread_local content_stamp_acc stamp_acc;
+
+    int content_stamp_walk(const char *, const struct stat *sb, int type, struct FTW *) {
+        if (type == FTW_F) {
+            stamp_acc.newest = std::max<int64_t>(stamp_acc.newest, sb->st_mtime);
+            stamp_acc.count++;
+            stamp_acc.bytes += static_cast<uint64_t>(sb->st_size);
+        }
+        return 0;
+    }
+}
+
+std::string kis_net_beast_httpd::static_content_stamp() {
+    stamp_acc = {0, 0, 0};
+
+    // Physical walk; symlinked directories aren't followed
+    for (const auto& sd : static_dir_vec)
+        nftw(sd.path.c_str(), content_stamp_walk, 16, FTW_PHYS);
+
+    return fmt::format("{}:{}:{}", stamp_acc.newest, stamp_acc.count, stamp_acc.bytes);
 }
 
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
