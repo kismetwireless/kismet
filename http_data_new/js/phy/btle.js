@@ -1,5 +1,7 @@
 // Bluetooth LE advertisements captured by BTLE radios (nRF, TI, CatSniffer...).
 
+import { registerTrackers } from './btle_trackers.js';
+
 const base = 'kismet.device.base';
 const b = 'btle.device';
 
@@ -40,6 +42,8 @@ export function register(kismet) {
             return String(mhz < 2426 ? (mhz - 2404) / 2 : (mhz - 2428) / 2 + 11);
         return null;
     };
+
+    registerTrackers(kismet);
 
     ui.channelNames.add({ id: 'BTLE', title: 'BLE', priority: 10, name: bleChannel, frequency: bleFrequency });
     ui.sourceChannels.add({

@@ -1,5 +1,9 @@
 // Wi-Fi (IEEE 802.11) support: icons, highlights, columns, views, details.
 
+import { registerChannelPicker } from './dot11_channels.js';
+import { registerInsights } from './dot11_insights.js';
+import { registerAirspace } from './dot11_airspace.js';
+
 const phy = 'IEEE802.11';
 const base = 'kismet.device.base';
 const beacon = 'dot11.device/dot11.device.last_beaconed_ssid_record';
@@ -106,6 +110,11 @@ export function register(kismet) {
     const { ui, icons, format, dom, api } = kismet;
     const { el } = dom;
     const isWifi = (row) => row[`${base}.phyname`] === phy;
+
+    // Drivers that capture other radios, whose channels never look like Wi-Fi ones
+    registerInsights(kismet);
+    registerAirspace(kismet);
+    registerChannelPicker(kismet, (s) => !/^(cell|rtl|bt|hci|ubertooth|nrf|ticc|nxp|zwave|meshtastic|adsb|ais)/.test(ui.driverOf(s)));
 
     ui.deviceIcons.add({
         id: 'dot11', priority: 0,

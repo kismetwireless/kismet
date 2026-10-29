@@ -163,3 +163,22 @@ export function dialog({ title, body, modal = true, closable = true, className =
         setTitle: (t) => titleEl.replaceChildren(t),
     };
 }
+
+// Ask before doing something that interrupts capture.  Resolves true for OK.
+//   if (await confirm({ title: 'Restart?', text: 'Capture stops...', ok: 'Restart' })) ...
+export function confirm({ title, text, ok = 'OK', cancel = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+        let answer = false;
+        const paragraphs = String(text ?? '').split('\n\n').map((t) => el('p', {}, t));
+        const d = dialog({
+            title,
+            body: el('div', { class: 'form confirm' }, paragraphs,
+                el('div', { class: 'form-buttons' },
+                    el('button', { type: 'button', onclick: () => d.close() }, cancel),
+                    el('button', { type: 'button', class: danger ? 'primary danger' : 'primary',
+                        onclick: () => { answer = true; d.close(); } }, ok))),
+            onClose: () => resolve(answer),
+        });
+        d.node.querySelector('.form-buttons .primary')?.focus();
+    });
+}

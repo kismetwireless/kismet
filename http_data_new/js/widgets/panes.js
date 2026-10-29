@@ -4,12 +4,14 @@
 // A pane's create(body, area) can return tools: nodes shown at the right of
 // the tab bar while its tab is showing.  area.setExpanded(true) makes the
 // whole area fill the window, until the user switches to another tab;
-// area.activate(id) switches to another of the area's tabs.
+// area.activate(id) switches to another of the area's tabs.  Tabs that don't
+// fit across the bar go in a "More" menu; the active tab always stays on the bar.
 //
 // showPane(id) switches to a tab from anywhere on the page (a ribbon stat,
 // say): id is a pane id, or the id given to kismet.ui.addTable.
 
 import { el } from '../core/dom.js';
+import { icon } from '../core/icons.js';
 import * as settings from '../core/settings.js';
 import { panes } from '../registry/ui.js';
 
@@ -27,7 +29,14 @@ export function showPane(id) {
 export function createPaneArea(container, area) {
     const tabs = el('div', { class: 'tabs', role: 'tablist' });
     const tools = el('div', { class: 'tab-tools' });
-    const bar = el('div', { class: 'tab-bar' }, tabs, tools);
+    const moreList = el('div', { class: 'menu-list tab-more-list', role: 'menu', hidden: true });
+    const moreButton = el('button', { class: 'tab tab-more-button', 'aria-haspopup': 'menu', title: 'More tabs',
+        onclick: (e) => {
+            e.stopPropagation();
+            moreList.hidden ? openMore() : closeMore();
+        } }, 'More', icon('down'));
+    const more = el('div', { class: 'tab-more', hidden: true }, moreButton, moreList);
+    const bar = el('div', { class: 'tab-bar' }, tabs, more, tools);
     const bodies = el('div', { class: 'tab-bodies' });
     container.append(bar, bodies);
 
@@ -49,6 +58,64 @@ export function createPaneArea(container, area) {
 
     const built = new Map();    // pane id -> { tab, body, handle }
     let active = null;
+    let overflow = [];          // pane ids whose tabs are in the More menu
+
+    // Puts every tab on the bar, then moves the ones that don't fit (other
+    // than the active one) into the More menu, last first
+    function layout() {
+        const all = [...built.keys()];
+        for (const id of all)
+            built.get(id).tab.hidden = false;
+        more.hidden = true;
+        overflow = [];
+        if (tabs.scrollWidth <= tabs.clientWidth)
+            return;
+        more.hidden = false;
+        const gap = parseFloat(getComputedStyle(tabs).columnGap) || 0;
+        const style = getComputedStyle(tabs);
+        let room = tabs.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const width = new Map(all.map((id) => [id, built.get(id).tab.offsetWidth + gap]));
+        if (active && built.has(active))
+            room -= width.get(active);
+        for (const id of all) {
+            if (id === active)
+                continue;
+            if (overflow.length === 0 && width.get(id) <= room)
+                room -= width.get(id);
+            else
+                overflow.push(id);
+        }
+        for (const id of overflow)
+            built.get(id).tab.hidden = true;
+        more.hidden = overflow.length === 0;
+    }
+
+    function openMore() {
+        moreList.replaceChildren(...overflow.map((id) =>
+            el('button', { class: 'menu-item', role: 'menuitem', onclick: () => {
+                closeMore();
+                activate(id);
+            } }, built.get(id).tab.textContent)));
+        moreList.hidden = false;
+        moreList.querySelector('button')?.focus();
+    }
+
+    function closeMore() {
+        moreList.hidden = true;
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!moreList.hidden && !more.contains(e.target))
+            closeMore();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !moreList.hidden) {
+            e.preventDefault();
+            closeMore();
+            moreButton.focus();
+        }
+    });
+    new ResizeObserver(() => layout()).observe(bar);
 
     function activate(id) {
         if (active === id || !built.has(id))
@@ -68,6 +135,7 @@ export function createPaneArea(container, area) {
         now.handle?.show?.();
         active = id;
         settings.set(`panes.${area}.active`, id);
+        layout();
     }
 
     function build() {
@@ -107,6 +175,7 @@ export function createPaneArea(container, area) {
         const wanted = settings.get(`panes.${area}.active`, null);
         activate(built.has(wanted) ? wanted : list[0]?.id);
         container.hidden = list.length === 0;
+        layout();
     }
 
     panes.watch(build);

@@ -17,10 +17,13 @@ import * as rrd from './core/rrd.js';
 import * as clock from './core/clock.js';
 import * as dom from './core/dom.js';
 import * as icons from './core/icons.js';
+import * as datasources from './core/sources.js';
 import { createRegistry } from './registry/registry.js';
 import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields, fieldName } from './registry/columns.js';
 import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes, mapSources, dashboardCards } from './registry/ui.js';
 import { deviceViews, deviceDetails, deviceDetailFields, channelNames, sourceChannels } from './registry/devices.js';
+import { insightRelations, linkKinds, insightFindings, insightViews } from './registry/insights.js';
+import { sourceSections, sourceFields, sourceTypes, channelPickers, applies as sourceApplies, driverOf } from './registry/sources.js';
 import * as modules from './core/modules.js';
 import { detailFields, muted } from './widgets/detailfields.js';
 import { historyGraph } from './widgets/historygraph.js';
@@ -42,6 +45,7 @@ import * as overview from './widgets/overview.js';
 import * as gps from './widgets/gps.js';
 import * as loading from './widgets/loading.js';
 import * as panesWidget from './widgets/panes.js';
+import * as datasourcesWindow from './widgets/datasources.js';
 
 export const kismet = {
     api,
@@ -54,6 +58,7 @@ export const kismet = {
     dom,
     icons,
     modules,
+    datasources,
 
     // Building blocks for modules that draw their own UI
     widgets: {
@@ -74,6 +79,7 @@ export const kismet = {
         gps,
         loading,
         panes: panesWidget,
+        datasources: datasourcesWindow,
     },
 
     ui: {
@@ -93,6 +99,16 @@ export const kismet = {
         colorSchemes,
         mapSources,
         dashboardCards,
+        sourceSections,
+        sourceFields,
+        sourceTypes,
+        channelPickers,
+        sourceApplies,
+        driverOf,
+        insightRelations,
+        linkKinds,
+        insightFindings,
+        insightViews,
 
         alwaysFields,
         fieldName,
