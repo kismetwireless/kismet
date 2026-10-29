@@ -126,6 +126,7 @@
 #include "gpstracker.h"
 
 #include "devicetracker.h"
+#include "device_rules.h"
 
 #include "phy_80211.h"
 #include "phy_802154.h"
@@ -956,6 +957,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
+
+    device_rules::create_device_rules();
 
     // Add the datasources
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_pcapfile_builder()));

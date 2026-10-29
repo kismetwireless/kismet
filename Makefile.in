@@ -7,6 +7,8 @@ CONFIGFILES = \
 	kismet_memory.conf \
 	kismet_meshtastic.conf \
 	kismet_zigbee.conf \
+	kismet_device_rules.conf \
+	kismet_device_rules.txt \
 	kismet_meshcore.conf \
 	kismet_logging.conf \
 	kismet_filter.conf \
@@ -322,6 +324,8 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	trackedlocation.cc.o devicetracker_component.cc.o \
 	devicetracker_view.cc.o devicetracker_view_workers.cc.o \
 	devicetracker_view_workers_v2.cc.o \
+	device_rules.cc.o devicerules/dr_parse.cc.o devicerules/dr_compile.cc.o \
+	devicerules/dr_tree.cc.o devicerules/dr_vm.cc.o devicerules/dr_jit.cc.o devicerules/dr_sort.cc.o devicerules/dr_sljit.c.o \
 	json_adapter_v2.cc.o devicetracker_component_v2.cc.o trackedlocation_v2.cc.o \
 	channeltracker_v3.cc.o \
 	kis_server_announce.cc.o \

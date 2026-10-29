@@ -1798,6 +1798,22 @@ public:
         return v->second;
     }
 
+    // Child lookup without a reference count, for read-only walks under the owner's lock;
+    // lazily built children are kept alive in hold
+    tracker_element *peek_sub(int id, shared_tracker_element& hold) {
+        if (present_set & 0x04) {
+            hold = get_lazy_sub(id);
+            return hold.get();
+        }
+
+        auto v = map.find(id);
+
+        if (v == map.end())
+            return nullptr;
+
+        return v->second.get();
+    }
+
     template<typename T>
     std::shared_ptr<T> get_sub_as(int id) {
         if (present_set & 0x04)

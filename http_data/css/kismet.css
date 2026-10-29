@@ -306,3 +306,22 @@ div.resizable {
         color: contrast-color(var(--k-row-highlight));
     }
 }
+
+.k-rule-tag {
+    display: inline-block;
+    padding: 0 0.4em;
+    border: 1px solid currentColor;
+    border-radius: 0.6em;
+    white-space: nowrap;
+}
+
+.k-rule-tag-color {
+    background-color: var(--k-rule-tag);
+    color: #000;
+}
+
+@supports (color: oklch(from red l c h)) {
+    .k-rule-tag-color {
+        color: oklch(from var(--k-rule-tag) clamp(0, (0.57 - l) * 1000, 1) 0 0);
+    }
+}

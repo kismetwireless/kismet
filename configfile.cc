@@ -118,6 +118,17 @@ int config_file::parse_config(const char *in_fname,
 
         lineno++;
 
+        // Drop the rest of an overlong line rather than reading it as more lines
+        size_t cl = strlen(confline);
+        if (cl > 0 && confline[cl - 1] != '\n' && !feof(configf)) {
+            int ch;
+            while ((ch = fgetc(configf)) != EOF && ch != '\n')
+                ;
+            _MSG_ERROR("Config file '{}' line {} is longer than {} characters; ignoring it",
+                    in_fname, lineno, sizeof(confline) - 2);
+            continue;
+        }
+
         // It's easier to parse this using C++ functions
         std::string parsestr = str_strip(confline);
         std::string directive, value;
@@ -129,6 +140,7 @@ int config_file::parse_config(const char *in_fname,
             continue;
 
         unsigned int eq;
+        int value_col = 0;
 
         if ((eq = parsestr.find("=")) > parsestr.length() || eq == 0) {
             directive = parsestr;
@@ -142,6 +154,12 @@ int config_file::parse_config(const char *in_fname,
                 directive = str_strip(parsestr.substr(0, eq));
                 value = str_strip(parsestr.substr(eq+1, parsestr.length()));
             }
+
+            // Column of the value in the line, for errors that point inside it
+            size_t vpos = strspn(confline, " \t") + eq + 1;
+            if (vpos < cl)
+                vpos += strspn(confline + vpos, " \t");
+            value_col = (int) vpos + 1;
 
             if (value == "") {
                 sstream << "Illegal config option in '" << in_fname << "' line " <<
@@ -174,7 +192,7 @@ int config_file::parse_config(const char *in_fname,
             } else if (directive == "opt_override_dir") {
                 queue_override_dir(expand_log_path(value, "", "", 0, 1));
             } else {
-                config_entity e(value, in_fname, append);
+                config_entity e(value, in_fname, append, lineno, value_col);
                 target_map[str_lower(directive)].push_back(e);
                 target_map_dirty[str_lower(directive)] = 1;
             }
@@ -392,6 +410,21 @@ std::vector<std::string> config_file::fetch_opt_vec(std::string in_key) {
     }
 
     return eretvec;
+}
+
+std::vector<config_file::sourced_value> config_file::fetch_opt_vec_sourced(const std::string& in_key) {
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file fetch_opt_vec_sourced");
+
+    std::vector<sourced_value> ret;
+
+    auto cmitr = config_map.find(str_lower(in_key));
+    if (cmitr == config_map.end())
+        return ret;
+
+    for (const auto& e : cmitr->second)
+        ret.push_back({e.value, e.sourcefile, e.line, e.col});
+
+    return ret;
 }
 
 int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
