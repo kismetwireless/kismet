@@ -168,6 +168,23 @@ export function register(kismet) {
     });
 
     ui.ribbonStats.add({
+        id: 'legacy', title: 'Legacy UI', priority: 200,
+        description: 'Open the previous Kismet web UI',
+        create(body) {
+            const link = el('a', { class: 'stat-line stat-link', href: api.url('legacy/').href },
+                icons.icon('share'), el('span', { class: 'stat-value' }, 'Open'));
+            body.append(link);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            stat.title = 'Open the legacy web UI';
+            stat.addEventListener('click', (e) => {
+                if (!link.contains(e.target))
+                    link.click();
+            });
+        },
+    });
+
+    ui.ribbonStats.add({
         id: 'time', title: 'Server time', priority: 100,
         create(body) {
             const v = valueStat('clock');

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Development server for the new Kismet UI.
 //
-// Serves the files in http_data_new/ and passes every other request (REST
+// Serves the files in http_data/ and passes every other request (REST
 // calls and websockets) through to an existing Kismet server, so the UI can be
 // tested against a remote Kismet without changing its config: to the browser,
 // everything comes from one origin, so the login cookie and websockets work.
 //
-//   node tools/devserver.mjs --target http://172.16.42.1:2501 [--port 2600] [--listen 127.0.0.1]
+//   node tools/webui_devserver.mjs --target http://172.16.42.1:2501 [--port 2600] [--listen 127.0.0.1]
 
 import http from 'node:http';
 import net from 'node:net';
@@ -18,14 +18,14 @@ const args = { target: 'http://localhost:2501', port: 2600, listen: '127.0.0.1' 
 for (let i = 2; i < process.argv.length; i += 2) {
     const key = process.argv[i].replace(/^--/, '');
     if (!(key in args) || process.argv[i + 1] === undefined) {
-        console.error('usage: devserver.mjs [--target http://host:2501] [--port 2600] [--listen 127.0.0.1]');
+        console.error('usage: webui_devserver.mjs [--target http://host:2501] [--port 2600] [--listen 127.0.0.1]');
         process.exit(1);
     }
     args[key] = process.argv[i + 1];
 }
 
 const target = new URL(args.target);
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'http_data');
 
 const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
@@ -56,8 +56,6 @@ function localFile(urlPath) {
     const file = path.resolve(root, '.' + rel);
     if (file !== root && !file.startsWith(root + path.sep))
         return null;
-    if (file.startsWith(path.join(root, 'tools') + path.sep))
-        return null;
 
     try {
         return fs.statSync(file).isFile() ? file : null;
@@ -72,7 +70,7 @@ function newestFile(dir = root) {
     let newest = 0;
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
         const p = path.join(dir, e.name);
-        if (e.isDirectory() && p !== path.join(root, 'tools'))
+        if (e.isDirectory())
             newest = Math.max(newest, newestFile(p));
         else if (e.isFile())
             newest = Math.max(newest, fs.statSync(p).mtimeMs);

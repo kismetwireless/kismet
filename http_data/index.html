@@ -1,333 +1,38 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<title>Kismet</title>
-
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="js/jquery-3.7.1.min.js"></script>
-<script src="js/js.storage.min.js"></script>
-<script src="js/chart.umd.js"></script>
-
-<script src="js/kismet.ui.theme.js"></script>
-
-<script src="js/jquery-ui.min.js"></script>
-<script src="js/jquery.ui.touch-punch.min.js"></script>
-<script src="js/jquery.ajax.binary.js"></script>
-<script src="js/jquery.jspanel-compiled.min.js"></script>
-<script src="js/simple-expand.min.js"></script>
-<script src="js/jqueryui-editable.min.js"></script>
-
-<script src="js/jquery.sparkline.min.js"></script>
-
-<script src="js/raphael.min.js"></script>
-
-<script src="js/jquery.layout-latest.js"></script>
-
-<script src="js/pushmenu.js"></script>
-
-<script src="js/tooltipster.bundle.min.js"></script>
-
-<script src="js/clipboard.min.js"></script>
-
-<script src="js/kismet.utils.js"></script>
-
-<!-- Core UI elements that get loaded first -->
-
-<script src="js/kismet.ui.sidebar.js"></script>
-<script src="js/kismet.ui.tabpane.js"></script>
-<script src="js/kismet.ui.settings.js"></script>
-
-<script src="js/kismet.ui.js"></script>
-
-<script src="js/kismet.ui.base.js"></script>
-<script src="js/kismet.ui.gadgets.js"></script>
-
-<script src="js/jquery.kismet.devicedata.js"></script>
-<script src="js/jquery.kismet.messagebus.js"></script>
-<script src="js/jquery.kismet.channeldisplay.js"></script>
-<script src="js/kismet.ui.alerts.js"></script>
-
-<script src="js/kismet.ui.iconbar.js"></script>
-<script src="js/jquery.kismet.battery.js"></script>
-<script src="js/jquery.kismet.alert.js"></script>
-<script src="js/jquery.kismet.gps.js"></script>
-<script src="js/jquery.kismet.packetrate.js"></script>
-<script src="js/kismet.units.js"></script>
-
-<script src="js/tabulator.min.js"></script>
-<script src="js/jquery.ui.position.min.js"></script>
-<script src="js/jquery.debounce.min.js"></script>
-
-<link rel="stylesheet" type="text/css" href="css/fontawesome.min.css">
-<link rel="stylesheet" type="text/css" href="css/regular.min.css">
-<link rel="stylesheet" type="text/css" href="css/solid.min.css">
-<link rel="stylesheet" type="text/css" href="css/v4-shims.min.css">
-
-<link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
-<link rel="stylesheet" type="text/css" href="css/morris.css" />
-
-<link rel="stylesheet" type="text/css" href="css/layout-default-1.4.0.css" />
-
-<link rel="stylesheet" type="text/css" href="css/pushmenu.css" />
-
-<link rel="stylesheet" type="text/css" href="css/tooltipster.bundle.min.css" />
-
-<link rel="stylesheet" type="text/css" href="css/jqueryui-editable.css" />
-
-<link rel="stylesheet" type="text/css" href="css/jquery.kismet.messagebus.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery.kismet.channeldisplay.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery.kismet.alert.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery.kismet.battery.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery.kismet.auth.css" />
-<link rel="stylesheet" type="text/css" href="css/jquery.kismet.gps.css" />
-
-<link rel="stylesheet" type="text/css" href="css/reset.css" />
-<link rel="stylesheet" type="text/css" href="css/text.css" />
-<link rel="stylesheet" type="text/css" href="css/layout.css" />
-
-
-<style type="text/css">
-/* Fix the hover-highlight of the device table */
-td.highlight {
-    background-color: #dddddd !important;
-}
-
-/* Accordion scroll */
-div.autosize {
-    min-height: 10px;
-    overflow: scroll;
-}
-
-</style>
-
-<script src="dynamic.js"></script>
-
-<script>
-var KISMET_PROXY_PREFIX = "";
-
-const queryString = window.location.search;
-const urlParams = new URLSearchParams(queryString);
-
-window['censor_macs'] = urlParams.get('censor_macs')
-window['censor_location'] = urlParams.get('censor_location')
-window['censor_more'] = urlParams.get('censor_more')
-
-if (urlParams.get('censor')) {
-    window['censor_macs'] = 1
-    window['censor_location'] = 1
-}
-
-if (urlParams.get('censor_heavy')) {
-    window['censor_macs'] = 1
-    window['censor_location'] = 1
-	window['censor_more'] = 1
-}
-
-
-
-var orig_title = "";
-
-// Visibility detection from https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API
-// Set the name of the hidden property and the change event for visibility
-var hidden, visibilityChange; 
-if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
-      hidden = "hidden";
-      visibilityChange = "visibilitychange";
-} else if (typeof document.msHidden !== "undefined") {
-      hidden = "msHidden";
-      visibilityChange = "msvisibilitychange";
-} else if (typeof document.webkitHidden !== "undefined") {
-      hidden = "webkitHidden";
-      visibilityChange = "webkitvisibilitychange";
-}
-
-function handleVisibilityChange() {
-    if (document[hidden]) {
-        kismet_ui.window_visible = false;
-        orig_title = document.title;
-        document.title = orig_title + " (Paused)"
-    } else {
-        kismet_ui.window_visible = true;
-        document.title = orig_title;
-    }
-}
-
-// Warn if the browser doesn't support addEventListener or the Page Visibility API
-if (typeof document.addEventListener === "undefined" || hidden === undefined) {
-    ; // Do nothing
-} else {
-      // Handle page visibility change   
-      document.addEventListener(visibilityChange, handleVisibilityChange, false);
-}
-
-function load_main_ui() {
-    load_dynamics().then((res) => {
-
-    $('#pm_menu').pushmenu({ button : "#pm_open" });
-
-    // Derive the proxy prefix, if any, from the headers.  We can't get this from our
-    // own current request, we have to do a HEAD req and nest everything inside that.
-    var jqxhr = $.ajax({
-        type: "HEAD",
-        url: Document.URL
-    })
-    .always(function() {
-        const pfx = jqxhr.getResponseHeader('X-Proxy-Dir');
-
-        if (pfx != null) {
-            KISMET_PROXY_PREFIX = pfx;
-        }
-
-        kismet_ui_base.OpenEventbusWs();
-    
-        kismet_ui_iconbar.AddIconbarItem({
-            id: 'gps',
-            priority: 110,
-            createCallback: function(div) {
-                div.gps();
-            }
-        })
-    
-        kismet_ui_iconbar.AddIconbarItem({
-            id: 'alert',
-            priority: 125,
-            createCallback: function(div) {
-                div.alert();
-            },
-        });
-
-        kismet_ui_iconbar.AddIconbarItem({
-            id: 'themepicker',
-            priority: 145,
-            createCallback: function(div) {
-                div.thememode();
-            }
-        });
-    
-        kismet_ui_iconbar.AddIconbarItem({
-            id: 'battery',
-            priority: 150,
-            createCallback: function(div) {
-                div.battery();
-            }
-        });
-    
-        kismet_ui_iconbar.AddIconbarItem({
-            id: 'packets',
-            priority: 0,
-            createCallback: function(div) {
-                div.addClass('hidden-mobile');
-                div.packetrate();
-            }
-        });
-    
-        kismet_ui_iconbar.makeIconbar($('#iconbar'));
-    
-        kismet_ui.HealthCheck();
- 
-        // Finalize the tabs
-        kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
-        kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
-
-        var shrink = $('<p>', {
-            'id': 'shrink_shrink',
-            'class': 'shrinker pseudolink',
-        }).html("Minimize")
-        .on("click", () => {
-            shrinker();
-        });
-        kismet_ui_tabpane.AddElement(shrink, 'south');
-    
-        // Finalize the sidebar
-        kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
-   
-        // Try to scrape the server name
-        kismet_ui_base.FetchServerName(function(name) {
-            if (name.length > 0) {
-                $('#topbar_title').html("Kismet - " + name);
-                top.document.title = "Kismet - " + name;
-            }
-        
-        });
-    
-    }); // always head fetch
-
-    });
-}
-
-// jquery onload complete
-$(function() {
-    // Set panel z-index above everything
-    jsPanel.ziBase = 5000;
-
-    // Set a global timeout
-    $.ajaxSetup({
-        timeout:5000,
-        xhrFields: {
-            withCredentials: true
-        }
-    });
-}); // onload
-
-// Page show complete
-$(window).on('pageshow', function() { 
-    kismet_ui_base.FirstLoginCheck(function() {
-        load_main_ui();
-    });
-
-    shrink_main_ux = kismet.getStorage('kismet.base.ux.shrunk', false);
-    if (shrink_main_ux) {
-        south = $(".ui-layout-south");
-        south.addClass("ui-layout-south-collapsed");
-    } else {
-        $('#shrink_restore').hide();
-    }
-});
-
-function shrinker() {
-    shrink_main_ux = kismet.getStorage('kismet.base.ux.shrunk', false);
-
-    kismet.putStorage('kismet.base.ux.shrunk', !shrink_main_ux);
-
-    if (shrink_main_ux) {
-        $('#shrink_shrink').show();
-    } else {
-        $('#shrink_shrink').hide();
-    }
-
-    location.reload();
-}
-
-</script>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#1d2228">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kismet">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <!-- Where the Kismet server's API is, relative to this page -->
+    <meta name="kismet-root" content="./">
+    <title>Kismet</title>
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/base.css">
+    <script type="module" src="js/main.js"></script>
 </head>
 <body>
-    <div id="pm_menu" class="pm_hide pm_initial kismet_sidebar">
-        <div class="k-sb-header">
-            <h1>Kismet</h1>
-            <hr>
+    <header class="topbar">
+        <div id="menu" class="menu"></div>
+        <div class="brand">
+            <span id="connection" class="connection" title="Connecting"></span>
+            <span class="brand-name">Kismet</span>
+            <span id="server-name" class="server-name"></span>
         </div>
-        <div class="k-sb-main">
-        </div>
-    </div>
+        <div id="ribbon" class="ribbon"></div>
+    </header>
 
-    <div id="panelcontainer" class="panelcontainer">
-        <div class="topbar">
-            <i id="pm_open" class="fa fa-bars k-sb-hamburger"></i>
-            <div class="hidden-mobile" id="topbar_title">Kismet</div>
-            <div class="topright_holder" id="iconbar"></div>
-        </div>
-
-        <div id="centerpane-tabs" class="tabs-min ui-layout-center"></div>
-        <div id="southpane-tabs" class="tabs-min ui-layout-south"></div>
-
-        <div class="creditbar">
-            <p id="shrink_restore" onClick="shrinker();" class="pseudolink main-expander">Maximize</p> 
-            <p class="vertical-center">Powered by many OSS components, see the <a href="credit.html" target="_new">credits page</a>
-        </div>
-    </div>
+    <main class="dashboard">
+        <section id="main" class="main-area" aria-label="Devices, SSIDs, and alerts"></section>
+        <div id="split" class="split" role="separator" aria-orientation="horizontal" title="Drag to resize"></div>
+        <section id="bottom" class="bottom" aria-label="Messages"></section>
+    </main>
 </body>
 </html>

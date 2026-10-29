@@ -201,6 +201,7 @@ input:focus, select:focus, button:focus-visible {
 .stat-value { font-variant-numeric: tabular-nums; font-weight: 600; }
 .stat-graph .sparkline { display: block; width: 6rem; height: 1.6rem; }
 .stat.clickable { cursor: pointer; }
+.stat-link { color: inherit; text-decoration: none; }
 .stat.clickable:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .stat-graph .gps-bars { display: block; width: 3.5rem; height: 1.4rem; }
 .stat .badge { margin-left: 0; }
