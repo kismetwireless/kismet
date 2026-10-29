@@ -120,6 +120,15 @@ void diag_portadmit_label(const diag_portadmit_t *v, char *buf, size_t bufsz);
 void diag_portadmit_note(char *buf, size_t bufsz, const char *dev_path,
                          const diag_portadmit_t *v);
 
+/* The kernel's name for the tty that `dev_path` names -- "ttyUSB2" -- through
+ * any symlink. An operator's /dev/serial/by-id/usb-...-if02-port0 is a link,
+ * and its own basename is no /sys/class/tty entry. Writes the resolved node's
+ * basename and returns 1. When the path does not resolve (a dangling link, a
+ * missing node), writes the given path's basename and returns 0, so an error
+ * still names what was passed. -1 on a NULL or empty argument, or a name that
+ * does not fit `out`. Opens nothing. */
+int diag_tty_node_name(const char *dev_path, char *out, size_t outsz);
+
 /* Log a refusal ONCE per path per process to `f` (NULL: log nothing), as
  *
  *   <who>: skip /dev/ttyUSB0: ch341-uart 1a86:7523, not a suspected cell modem
