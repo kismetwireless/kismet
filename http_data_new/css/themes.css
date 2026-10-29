@@ -1,0 +1,92 @@
+/*
+ * Colors for every theme.  The rest of the CSS uses only these variables.
+ *
+ * Two attributes on <html> pick the theme:
+ *   data-theme    light | dark       (set by js/core/theme.js; before it runs,
+ *                                     the system's light/dark preference is used)
+ *   data-palette  kismet | ocean | forest | amber | grape
+ *
+ * A palette sets the accent hue and saturation; light and dark set everything
+ * else around it.  To add a palette, add a [data-palette] block below and an
+ * entry in js/core/theme.js.
+ */
+
+:root {
+    --accent-h: 210;
+    --accent-s: 75%;
+}
+
+[data-palette="kismet"] { --accent-h: 210; --accent-s: 75%; }
+[data-palette="ocean"]  { --accent-h: 188; --accent-s: 80%; }
+[data-palette="forest"] { --accent-h: 140; --accent-s: 50%; }
+[data-palette="amber"]  { --accent-h: 36;  --accent-s: 90%; }
+[data-palette="grape"]  { --accent-h: 275; --accent-s: 60%; }
+
+/* Light */
+:root {
+    color-scheme: light;
+    --bg: hsl(var(--accent-h) 20% 97%);
+    --surface: #ffffff;
+    --surface-2: hsl(var(--accent-h) 20% 94%);
+    --border: hsl(var(--accent-h) 15% 85%);
+    --text: hsl(var(--accent-h) 20% 15%);
+    --muted: hsl(var(--accent-h) 10% 45%);
+    --accent: hsl(var(--accent-h) var(--accent-s) 42%);
+    --accent-text: #ffffff;
+    --accent-soft: hsl(var(--accent-h) var(--accent-s) 92%);
+    --row-alt: hsl(var(--accent-h) 20% 98%);
+    --row-hover: hsl(var(--accent-h) var(--accent-s) 95%);
+    --ok: #2f9e44;
+    --warn: #c77c02;
+    --error: #d6336c;
+    --shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+    --highlight-mix: 35%;
+}
+
+/* Dark: used when chosen, or before the UI starts if the system prefers dark */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: hsl(var(--accent-h) 15% 9%);
+        --surface: hsl(var(--accent-h) 14% 13%);
+        --surface-2: hsl(var(--accent-h) 14% 17%);
+        --border: hsl(var(--accent-h) 12% 24%);
+        --text: hsl(var(--accent-h) 15% 88%);
+        --muted: hsl(var(--accent-h) 10% 60%);
+        --accent: hsl(var(--accent-h) var(--accent-s) 62%);
+        --accent-text: hsl(var(--accent-h) 30% 10%);
+        --accent-soft: hsl(var(--accent-h) 40% 22%);
+        --row-alt: hsl(var(--accent-h) 14% 14.5%);
+        --row-hover: hsl(var(--accent-h) 30% 20%);
+        --ok: #51cf66;
+        --warn: #fcc419;
+        --error: #ff6b8b;
+        --shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+        --highlight-mix: 30%;
+    }
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: hsl(var(--accent-h) 15% 9%);
+    --surface: hsl(var(--accent-h) 14% 13%);
+    --surface-2: hsl(var(--accent-h) 14% 17%);
+    --border: hsl(var(--accent-h) 12% 24%);
+    --text: hsl(var(--accent-h) 15% 88%);
+    --muted: hsl(var(--accent-h) 10% 60%);
+    --accent: hsl(var(--accent-h) var(--accent-s) 62%);
+    --accent-text: hsl(var(--accent-h) 30% 10%);
+    --accent-soft: hsl(var(--accent-h) 40% 22%);
+    --row-alt: hsl(var(--accent-h) 14% 14.5%);
+    --row-hover: hsl(var(--accent-h) 30% 20%);
+    --ok: #51cf66;
+    --warn: #fcc419;
+    --error: #ff6b8b;
+    --shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+    --highlight-mix: 30%;
+}
+
+/* Palette swatches in the settings dialog */
+.swatch[data-palette] {
+    background: hsl(var(--accent-h) var(--accent-s) 50%);
+}

@@ -254,6 +254,16 @@ int plugin_tracker::scan_directory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_js(s);
         }
 
+        if ((s = cf.fetch_opt("ui2")) != "") {
+            if (s.find(",") == std::string::npos) {
+                _MSG_ERROR("Found an invalid 'ui2=' in plugin manifest '{}', ui2= should define module,path",
+                        manifest);
+                continue;
+            }
+
+            preg->set_plugin_ui2(s);
+        }
+
         // Make sure we haven't already loaded another copy of the plugin
         // based on the so or the pluginname
         for (auto x : plugin_preload) {
@@ -418,6 +428,19 @@ int plugin_tracker::activate_plugins() {
                 _MSG("Plugin '" + x->get_plugin_path() + "' could not "
                         "register JS plugin module", MSGFLAG_ERROR);
                 continue;
+            }
+        }
+
+        // A module for the new web UI, loaded by it in place of the old one
+        if (x->get_plugin_ui2() != "") {
+            auto ui2 = x->get_plugin_ui2();
+            auto cpos = ui2.find(",");
+
+            if (cpos == std::string::npos || cpos == 0 || cpos + 1 >= ui2.length() || ui2[cpos + 1] == '/') {
+                _MSG_ERROR("Plugin '{}' invalid ui2 module, expected module,relative path",
+                        x->get_plugin_path());
+            } else if (!httpdregistry->register_ui2_module(ui2.substr(0, cpos), ui2.substr(cpos + 1))) {
+                _MSG_ERROR("Plugin '{}' could not register its ui2 module", x->get_plugin_path());
             }
         }
 

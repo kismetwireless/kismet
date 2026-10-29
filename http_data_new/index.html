@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#1d2228">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kismet">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <!-- Where the Kismet server's API is, relative to this page -->
+    <meta name="kismet-root" content="./">
+    <title>Kismet</title>
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/base.css">
+    <script type="module" src="js/main.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div id="menu" class="menu"></div>
+        <div class="brand">
+            <span id="connection" class="connection" title="Connecting"></span>
+            <span class="brand-name">Kismet</span>
+            <span id="server-name" class="server-name"></span>
+        </div>
+        <div id="ribbon" class="ribbon"></div>
+    </header>
+
+    <main class="dashboard">
+        <section id="main" class="main-area" aria-label="Devices, SSIDs, and alerts"></section>
+        <div id="split" class="split" role="separator" aria-orientation="horizontal" title="Drag to resize"></div>
+        <section id="bottom" class="bottom" aria-label="Messages"></section>
+    </main>
+</body>
+</html>
