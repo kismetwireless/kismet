@@ -72,6 +72,16 @@ public:
     std::string fetch_opt_nl(std::string in_key);
     std::vector<std::string> fetch_opt_vec(std::string in_key);
 
+    // A value with the file and line it came from
+    struct sourced_value {
+        std::string value;
+        std::string file;
+        int line;
+        int col;
+    };
+
+    std::vector<sourced_value> fetch_opt_vec_sourced(const std::string& in_key);
+
 	// Fetch a true/false t/f value with a default (ie value returned if not
 	// equal to true, or missing.)
 	int fetch_opt_bool(std::string in_key, int dvalue);
@@ -149,15 +159,19 @@ protected:
             append = false;
         }
 
-        config_entity(std::string v, std::string sf, bool ap) {
+        config_entity(std::string v, std::string sf, bool ap, int ln = 0, int cl = 0) {
             value = v;
             sourcefile = sf;
             append = ap;
+            line = ln;
+            col = cl;
         }
 
         std::string value;
         std::string sourcefile;
         bool append;
+        int line = 0;
+        int col = 0;
     };
 
 	void calculate_file_checksum();

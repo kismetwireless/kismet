@@ -4093,6 +4093,201 @@ function thermal_refresh() {
     thermal_panel.thermalupdate_tid = setTimeout(thermal_refresh, 5000);
 }
 
+/* Device rule tags: the server tags devices by its device rules, and the UI picks
+ * the colors.  The first tag in the list that a device has colors its row. */
+var rule_tag_defaults = [
+    { tag: 'watchlist', color: '#ff9a9a' },
+    { tag: 'open', color: '#ffd08a' },
+    { tag: 'free wifi', color: '#fff59a' },
+    { tag: 'close', color: '#b9f0b0' },
+    { tag: 'quiet', color: '#d6d6d6' },
+];
+
+var rule_tag_color_re = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,% ]+\))$/;
+
+function LoadRuleTagColors() {
+    var stored = kismet.getStorage('kismet.devicerules.tagcolors', null);
+
+    if (!Array.isArray(stored))
+        return rule_tag_defaults.slice();
+
+    return stored.filter((e) => {
+        return e != null && typeof(e['tag']) === 'string' && e['tag'] !== '' &&
+            typeof(e['color']) === 'string' && rule_tag_color_re.test(e['color']);
+    });
+}
+
+var rule_tag_colors = LoadRuleTagColors();
+
+/* Device data is sanitized when it's loaded, so tags are compared sanitized */
+function RuleTagColor(tag) {
+    for (const e of rule_tag_colors) {
+        if (kismet.sanitizeHTML(e['tag']) === tag)
+            return e['color'];
+    }
+
+    return null;
+}
+
+function RenderRuleTags(tags) {
+    if (!Array.isArray(tags) || tags.length == 0)
+        return '';
+
+    return tags.map((t) => {
+        var c = RuleTagColor(t);
+        if (c == null)
+            return `<span class="k-rule-tag">${t}</span>`;
+        return `<span class="k-rule-tag k-rule-tag-color" style="--k-rule-tag: ${c}">${t}</span>`;
+    }).join(' ');
+}
+
+kismet_ui.AddDeviceColumn("rule_tags", {
+    'title': 'Rule Tags',
+    'description': 'Tags from the server device rules',
+    'field': ['kismet.device.base.rules/kismet.device.rules.tags', 'kismet.device.rules.tags'],
+    'sortable': false,
+    'render': (data, row, cell, onrender, aux) => {
+        return RenderRuleTags(data);
+    },
+});
+
+kismet_ui.AddDeviceRowHighlight({
+    name: "Rule Tags",
+    description: "Device has a server device rule tag with a color, set in Device Rule Tags",
+    priority: 1000,
+    defaultenable: true,
+    fields: [
+        ['kismet.device.base.rules/kismet.device.rules.tags', 'kismet.device.rules.tags'],
+    ],
+    colorfn: function(data) {
+        var tags = data['kismet.device.rules.tags'];
+
+        if (!Array.isArray(tags))
+            return null;
+
+        for (const e of rule_tag_colors) {
+            if (tags.includes(kismet.sanitizeHTML(e['tag'])))
+                return e['color'];
+        }
+
+        return null;
+    }
+});
+
+kismet_ui.AddDeviceDetail("devicerules", "Device Rules", 50, {
+    filter: function(data) {
+        try {
+            return data['kismet.device.base.rules']['kismet.device.rules.matched'].length > 0;
+        } catch (e) {
+            return false;
+        }
+    },
+    draw: function(data, target, options, storage) {
+        target.devicedata(data, {
+            id: "deviceRulesData",
+            fields: [
+            {
+                field: "kismet.device.base.rules/kismet.device.rules.matched",
+                title: "Matched Rules",
+                help: "Server device rules this device matches",
+                draw: function(opts) {
+                    return opts['value'].join(', ');
+                },
+            },
+            {
+                field: "kismet.device.base.rules/kismet.device.rules.tags",
+                title: "Tags",
+                help: "Tags from the matching rules; colors are set in the Device Rule Tags settings",
+                filter: function(opts) {
+                    return opts['value'].length > 0;
+                },
+                draw: function(opts) {
+                    return RenderRuleTags(opts['value']);
+                },
+            },
+            ]
+        });
+    },
+});
+
+kismet_ui_settings.AddSettingsPane({
+    id: 'device_rule_tags',
+    listTitle: "Device Rule Tags",
+    create: (elem) => {
+        elem.append(
+            $('<form>', { id: 'form' })
+            .append(
+                $('<fieldset>', { id: 'fs_ruletags' })
+                .append($('<legend>').html('Device Rule Tag Colors'))
+                .append($('<p>').html('Server device rules tag devices; pick a row color for each tag.  ' +
+                    'A device with several tags takes the color of the first one in this list.  ' +
+                    'The colors are stored in this browser.'))
+                .append($('<table>', { id: 'ruletag_table', width: '100%' })
+                    .append($('<tr>')
+                        .append($('<th>').html('Tag'))
+                        .append($('<th>').html('Color'))
+                        .append($('<th>'))
+                    )
+                )
+                .append($('<button>', { id: 'ruletag_add', type: 'button' }).html('Add tag'))
+                .append($('<button>', { id: 'ruletag_reset', type: 'button' }).html('Reset to defaults'))
+            )
+        );
+
+        var add_row = (tag, color) => {
+            var row = $('<tr>', { class: 'k-ruletag-row' })
+                .append($('<td>').append($('<input>', { type: 'text', class: 'k-ruletag-tag' }).val(tag)))
+                .append($('<td>').append($('<input>', { type: 'text', class: 'k-ruletag-color' }).val(color)))
+                .append($('<td>').append($('<button>', { type: 'button', class: 'k-ruletag-del' }).html('Remove')));
+
+            $('#ruletag_table', elem).append(row);
+
+            $('.k-ruletag-color', row).spectrum({
+                showInitial: true,
+                preferredFormat: "hex",
+            });
+
+            $('.k-ruletag-del', row).on('click', () => {
+                row.remove();
+                kismet_ui_settings.SettingsModified();
+            });
+        };
+
+        for (const e of rule_tag_colors)
+            add_row(e['tag'], e['color']);
+
+        $('#ruletag_add', elem).on('click', () => {
+            add_row('', '#cccccc');
+            kismet_ui_settings.SettingsModified();
+        });
+
+        $('#ruletag_reset', elem).on('click', () => {
+            $('.k-ruletag-row', elem).remove();
+            for (const e of rule_tag_defaults)
+                add_row(e['tag'], e['color']);
+            kismet_ui_settings.SettingsModified();
+        });
+
+        $('#form', elem).on('change', () => {
+            kismet_ui_settings.SettingsModified();
+        });
+    },
+    save: (elem) => {
+        var map = [];
+
+        $('.k-ruletag-row', elem).each(function() {
+            var tag = $('.k-ruletag-tag', $(this)).val().trim();
+            var color = $('.k-ruletag-color', $(this)).val();
+
+            if (tag !== '' && rule_tag_color_re.test(color))
+                map.push({ tag: tag, color: color });
+        });
+
+        kismet.putStorage('kismet.devicerules.tagcolors', map);
+        rule_tag_colors = LoadRuleTagColors();
+    },
+});
+
 // We're done loading
 exports.load_complete = 1;
 
