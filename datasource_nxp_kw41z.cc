@@ -72,7 +72,7 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + nxp_payload_len;
-        char conv_buf[conv_buf_len];
+        char conv_buf[sizeof(_802_15_4_tap) + 255];
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
         memset(conv_header, 0, conv_buf_len);
@@ -126,9 +126,8 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(btle_rf) + nxp_payload_len;
-        char conv_buf[conv_buf_len];
-        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
-        memset(conv_buf, 0, conv_buf_len);
+        std::vector<char> conv_buf(conv_buf_len);
+        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &content[12], nxp_payload_len);
@@ -163,7 +162,7 @@ kis_datasource_nxpkw41z::rx_content kis_datasource_nxpkw41z::handle_rx_data_cont
 
         datachunk->dlt = KDLT_BTLE_RADIO;
 
-        packet->set_data((const char *) conv_buf, conv_buf_len);
+        packet->set_data(conv_buf.data(), conv_buf_len);
         datachunk->set_data(packet->data);
 
 

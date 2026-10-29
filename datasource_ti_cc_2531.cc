@@ -61,7 +61,7 @@ kis_datasource_ticc2531::rx_content kis_datasource_ticc2531::handle_rx_data_cont
 
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + cc_payload_len;
-        char conv_buf[conv_buf_len];
+        char conv_buf[sizeof(_802_15_4_tap) + 104];
 
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
         memset(conv_header, 0, conv_buf_len);

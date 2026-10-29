@@ -91,7 +91,7 @@ kis_datasource_nrf51822::rx_content kis_datasource_nrf51822::handle_rx_data_cont
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(btle_rf) + pkt_ctr; // cc_payload_len;
 
-        char conv_buf[conv_buf_len];
+        char conv_buf[sizeof(btle_rf) + sizeof(pkt)];
         memset(conv_buf, 0, conv_buf_len);
 
         btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);

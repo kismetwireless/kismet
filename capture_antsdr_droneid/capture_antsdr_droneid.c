@@ -378,8 +378,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         uint32_t rssi;
     } __attribute__ ((packed));
 
-    const ssize_t tcp_buf_max = 4096;
-    char tcp_buf[tcp_buf_max];
+    char tcp_buf[4096];
 
     /* two escaped strings and 12 %f doubles, which can each be ~320 chars */
     char json[8192];
@@ -416,7 +415,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         ant_frame = (struct antsdr_frame *) tcp_buf;
 
-        if (le16toh(ant_frame->length) + sizeof(struct antsdr_frame) > tcp_buf_max) {
+        if (le16toh(ant_frame->length) + sizeof(struct antsdr_frame) > sizeof(tcp_buf)) {
             snprintf(errstr, STATUS_MAX, "%s tcp connection error: impossibly large droneid report",
                     localdrone->name);
             cf_send_message(caph, errstr, MSGFLAG_ERROR);

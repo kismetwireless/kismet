@@ -127,9 +127,8 @@ kis_datasource_sniffle_ble::rx_content kis_datasource_sniffle_ble::handle_rx_dat
     size_t decap_len = 4 + body_len + 3;
     size_t conv_buf_len = sizeof(btle_rf) + decap_len;
 
-    char conv_buf[conv_buf_len];
-    memset(conv_buf, 0, conv_buf_len);
-    btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf);
+    std::vector<char> conv_buf(conv_buf_len);
+    btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
 
     conv_header->monitor_channel = monitor_channel;
     conv_header->signal = rssi;
@@ -144,10 +143,10 @@ kis_datasource_sniffle_ble::rx_content kis_datasource_sniffle_ble::handle_rx_dat
 
     memcpy(conv_header->payload, adv_aa_le, 4);
     memcpy(conv_header->payload + 4, hdr->body, body_len);
-    // trailing 3 bytes already zeroed by the memset above (dummy CRC)
+    // trailing 3 bytes already zeroed (dummy CRC)
 
     datachunk->dlt = KDLT_BTLE_RADIO;
-    packet->set_data(conv_buf, conv_buf_len);
+    packet->set_data(conv_buf.data(), conv_buf_len);
     datachunk->set_data(packet->data);
 
     packet->signal_info.data_ok = true;
