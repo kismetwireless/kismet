@@ -1006,6 +1006,20 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-paths { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
 .map-paths label { display: flex; align-items: center; gap: 0.4em; white-space: nowrap; }
 .map-paths select { flex: 1; min-width: 0; }
+.map-range-pick { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
+.map-range-pick label { white-space: nowrap; }
+.map-range-pick select { flex: 1; min-width: 0; }
+.map-range-pick .link-button[hidden] { display: none; }
+.map-range-info { font-size: 0.8rem; }
+.map-range-info:empty { display: none; }
+.map-pane path.map-range { stroke: var(--accent); stroke-opacity: 0.7; fill: var(--accent); fill-opacity: 0.16; stroke-linejoin: round; }
+.map-pane path.map-range-ring { stroke: var(--text); stroke-opacity: 0.3; stroke-dasharray: 3 4; }
+.leaflet-marker-icon.map-range-label { width: auto !important; height: auto !important; }
+.map-range-label span {
+    display: inline-block; transform: translate(-50%, -50%); padding: 0 0.3em; border-radius: 3px;
+    font-size: 0.7rem; color: var(--text); background: color-mix(in srgb, var(--surface) 75%, transparent);
+    white-space: nowrap; pointer-events: none;
+}
 .map-paths-note {
     font-size: 0.85rem; padding: 0.35em 0.6em; border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--border));

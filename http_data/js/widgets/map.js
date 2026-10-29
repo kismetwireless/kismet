@@ -8,6 +8,7 @@
 // Each refresh also adds to the paths the browser keeps (tracks.js), and the
 // map keeps collecting them, more slowly, while it is hidden.  A device's
 // path joins those with the server's location history, when it keeps one.
+// The same positions build the receiver range outline (maprange.js).
 //
 // The map background comes from a public tile server, so nothing is loaded
 // from it until the user agrees (see askTiles).  Without tiles the devices
@@ -21,15 +22,18 @@ import * as eventbus from '../core/eventbus.js';
 import * as format from '../core/format.js';
 import * as clock from '../core/clock.js';
 import * as tracks from './tracks.js';
+import { createRangeStore, destination, ringStep } from './maprange.js';
 import { icon } from '../core/icons.js';
 import { mapSources } from '../registry/ui.js';
 import { openDevice } from './detailpanel.js';
+import { confirm } from './dialog.js';
 
 const base = 'kismet.device.base';
 const refreshMs = 2000;
 const collectMs = 15000;            // while the map is hidden
 const maxListed = 1000;
 const maxMarkers = 5000;
+const rangeLimit = 500000;          // m; further positions are taken as bad decodes
 
 export const defaultTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const defaultAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
@@ -69,6 +73,19 @@ function showPaths() {
 
 function pathMode() {
     return showPaths() ? pathScope() : 'off';
+}
+
+function rangeChoice() {
+    return String(settings.get('map.range', 'auto') ?? 'auto');
+}
+
+// Kinds whose devices say where they are can show how far away they're heard
+function ranged(src) {
+    return src.range !== false && !['heard', 'average'].includes(src.position);
+}
+
+function km(m) {
+    return `${(m / 1000).toLocaleString(undefined, { maximumFractionDigits: m < 10000 ? 1 : 0 })} km`;
 }
 
 function collecting() {
@@ -198,6 +215,19 @@ export function createMap(container, area = null) {
         ontoggle: () => settings.set('map.pathsNoteOpen', pathNote.open) },
         el('summary', {}, icon('alert'), 'Paths only go back to when this page was loaded'),
         pathNoteText);
+    const rangeSelect = el('select', { 'aria-label': 'Which kind of device shows the receiver range',
+        onchange: () => settings.set('map.range', rangeSelect.value) });
+    const rangeClear = el('button', { class: 'link-button', title: 'Forget the range collected for this kind of device',
+        onclick: async () => {
+            const src = rangeSource();
+            if (src && await confirm({ title: 'Clear the receiver range?', ok: 'Clear', danger: true,
+                text: `The range this browser collected for ${src.title.toLowerCase()} on this server is forgotten, ` +
+                    'and starts again from the next positions heard.' })) {
+                range.clear(src.id);
+                drawRange();
+            }
+        } }, 'Clear');
+    const rangeInfo = el('div', { class: 'map-range-info muted' });
     const inViewOnly = el('input', { type: 'checkbox', checked: settings.get('map.listInView', false),
         onchange: () => { settings.set('map.listInView', inViewOnly.checked); render(); } });
     const layerList = el('div', { class: 'map-layers' });
@@ -210,6 +240,8 @@ export function createMap(container, area = null) {
         el('label', { class: 'map-age' }, 'Heard in the last ', ageSelect),
         el('div', { class: 'map-paths' }, el('label', {}, pathBox, 'Show paths for'), pathSelect),
         pathNote,
+        el('div', { class: 'map-range-pick' }, el('label', {}, 'Receiver range'), rangeSelect, rangeClear),
+        rangeInfo,
         el('label', { class: 'map-inview' }, inViewOnly, 'List only devices in view'),
         summary,
         list);
@@ -224,6 +256,10 @@ export function createMap(container, area = null) {
     let tileUrl = null;
     let markerLayer = null;
     let linkLayer = null;
+    let rangeLayer = null;
+    let rangeShape = null;
+    let rangeRings = [];
+    let rangeRingKey = '';
     let selfMarker = null;
     let trail = null;
     let visible = false;
@@ -239,6 +275,11 @@ export function createMap(container, area = null) {
     // Whether the server keeps location history: unknown until a device
     // with a reported position turns up
     let serverHistory = null;
+
+    // The receiver range, kept by this browser for each server
+    const range = createRangeStore(`${api.root.host}${api.root.pathname}`);
+    // device key -> the last position added to the range
+    const rangeSeen = new Map();
 
     // key -> { src, dev, pos, how, heardOnly, tracked, marker, glyph, link, heardDot, path, row }
     const entries = new Map();
@@ -294,6 +335,8 @@ export function createMap(container, area = null) {
         setExpanded(false);
     }
     document.addEventListener('keydown', onKey);
+    const flushRange = () => range.flush();
+    window.addEventListener('pagehide', flushRange);
 
     // The question about the public map server, shown over the map
     function askTiles(force = false) {
@@ -361,6 +404,7 @@ export function createMap(container, area = null) {
         map = L.map(mapEl, { worldCopyJump: true, zoomSnap: 0.5 });
         map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
         L.control.scale({ position: 'bottomleft' }).addTo(map);
+        rangeLayer = L.layerGroup().addTo(map);
         linkLayer = L.layerGroup().addTo(map);
         markerLayer = L.layerGroup().addTo(map);
 
@@ -403,6 +447,7 @@ export function createMap(container, area = null) {
         } else {
             selfMarker.setLatLng(ll);
         }
+        drawRange();
     }
 
     function start() {
@@ -528,6 +573,8 @@ export function createMap(container, area = null) {
         dev.rep = rep;
         if (rep && dev.key && src.paths !== false)
             tracks.record(dev.key, rep[0], rep[1], repTime || dev.last_time || clock.now());
+        if (rep && heard && dev.key && ranged(src))
+            addRange(src, dev, rep, heard);
 
         switch (typeof src.position === 'function' ? 'reported' : src.position) {
         case 'heard':
@@ -539,6 +586,110 @@ export function createMap(container, area = null) {
         default:
             return rep ? { pos: rep, how: 'reported' } : null;
         }
+    }
+
+    // Each new position, paired with where Kismet was when it last heard the
+    // device; the server doesn't time either one, so a position counts once,
+    // when it changes
+    function addRange(src, dev, rep, heard) {
+        const at = `${rep[0]},${rep[1]}`;
+        if (rangeSeen.get(dev.key) === at)
+            return;
+        if (rangeSeen.size > 50000)
+            rangeSeen.clear();
+        rangeSeen.set(dev.key, at);
+        range.record(src.id, dev.key, heard, rep, src.rangeLimit ?? rangeLimit);
+    }
+
+    // The kind picked for the range, or with 'auto', the one with the most positions
+    function rangeSource() {
+        const choice = rangeChoice();
+        const sources = mapSources.list().filter(ranged);
+        if (choice === 'off')
+            return null;
+        if (choice !== 'auto')
+            return sources.find((s) => s.id === choice) ?? null;
+        let best = null;
+        for (const s of sources) {
+            if (enabled(s) && range.has(s.id) && (!best || range.get(s.id).samples > range.get(best.id).samples))
+                best = s;
+        }
+        return best;
+    }
+
+    let rangeIds = '';
+
+    function rangeOptions() {
+        const sources = mapSources.list().filter(ranged);
+        const ids = sources.map((s) => s.id).join(' ');
+        if (ids !== rangeIds) {
+            rangeIds = ids;
+            rangeSelect.replaceChildren(
+                el('option', { value: 'off' }, 'Off'),
+                el('option', { value: 'auto', title: 'The kind of device with the most positions' }, 'Automatic'),
+                ...sources.map((s) => el('option', { value: s.id }, s.title)));
+        }
+        rangeSelect.value = [...rangeSelect.options].some((o) => o.value === rangeChoice()) ? rangeChoice() : 'auto';
+    }
+
+    // The outline around where Kismet is, and rings to read it by
+    function drawRange() {
+        if (!map)
+            return;
+        rangeOptions();
+        const src = rangeSource();
+        const rec = src && range.get(src.id);
+        const outline = src && range.outline(src.id);
+        const self = selfMarker?.getLatLng();
+        const center = self ? [self.lng, self.lat] : rec?.center;
+        rangeClear.hidden = !rec;
+        if (!outline || !center) {
+            rangeShape?.remove();
+            rangeShape = null;
+            for (const r of rangeRings)
+                r.remove();
+            rangeRings = [];
+            rangeRingKey = '';
+            rangeInfo.textContent = rangeChoice() === 'off' ? '' : rec?.samples ?
+                `${rec.samples.toLocaleString()} positions so far; the outline is drawn once there are more directions.` :
+                'No positions yet from devices that say where they are, heard with a GPS or a fixed source location.';
+            return;
+        }
+        const pts = outline.dist.map((d, i) => (d > 0 ? destination(center, (i + 0.5) * outline.step, d) : [center[1], center[0]]));
+        if (!rangeShape)
+            rangeShape = L.polygon(pts, { className: 'map-range', weight: 1.5, interactive: false }).addTo(rangeLayer);
+        else
+            rangeShape.setLatLngs(pts);
+
+        let far = 0, farBin = 0;
+        rec.bins.forEach((d, i) => {
+            if (d > far) {
+                far = d;
+                farBin = i;
+            }
+        });
+        const step = ringStep(far);
+        const ringKey = `${center[0]},${center[1]},${step},${Math.floor(far / step)}`;
+        if (ringKey !== rangeRingKey) {
+            rangeRingKey = ringKey;
+            for (const r of rangeRings)
+                r.remove();
+            rangeRings = [];
+            const ll = [center[1], center[0]];
+            for (let r = step; r <= far; r += step) {
+                rangeRings.push(L.circle(ll, { radius: r, className: 'map-range-ring', weight: 1, fill: false, interactive: false })
+                    .addTo(rangeLayer));
+                rangeRings.push(L.marker(destination(center, 0, r), { interactive: false, keyboard: false,
+                    icon: L.divIcon({ className: 'map-range-label', html: el('span', {}, km(r)), iconSize: null }) })
+                    .addTo(rangeLayer));
+            }
+        }
+        rangeInfo.textContent = `${src.title}: furthest ${km(far)}, to the ${compass(range.bearing(farBin))}; ` +
+            `${rec.samples.toLocaleString()} positions.`;
+    }
+
+    function compass(deg) {
+        return ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round(deg / 45) % 8];
     }
 
     // Merge a refresh into the map: move, add, and remove markers in place
@@ -585,6 +736,7 @@ export function createMap(container, area = null) {
             fitAll();
         }
         layers(sources);
+        drawRange();
         render();
     }
 
@@ -913,6 +1065,8 @@ export function createMap(container, area = null) {
         }),
         settings.watch('map.pathsAge', () => tracks.prune(clock.now() - pathAge())),
         mapSources.watch(() => refresh()),
+        settings.watch('map.range', () => drawRange()),
+        () => { window.removeEventListener('pagehide', flushRange); range.flush(); },
         () => document.removeEventListener('keydown', onKey),
         () => stopExpand?.(),
     ];
