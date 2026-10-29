@@ -50,7 +50,9 @@ export const deviceIcons = createRegistry('deviceIcons', {
 // Row highlight: colors rows that match.  Users turn highlights on and off and
 // pick the colors in settings.
 //   id, name, description, priority, fields, match(row) -> bool,
-//   defaultColor (CSS color), defaultEnabled
+//   defaultColor (CSS color), defaultEnabled,
+//   color(row) -> CSS color: optional, for highlights that color each row
+//     themselves (set elsewhere) instead of in one color the user picks
 export function createHighlightRegistry(name) {
     return createRegistry(name, {
         required: ['name', 'match'],

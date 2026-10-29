@@ -27,8 +27,9 @@ import * as baseMap from './base/map.js';
 import * as baseOverview from './base/overview.js';
 import * as baseSources from './base/sources.js';
 import * as baseInsights from './base/insights.js';
+import * as baseRuleTags from './base/ruletags.js';
 
-const builtins = [baseColumns, baseRibbon, baseDetails, baseMenu, baseSettings, baseInstall, baseTables, baseMap, baseOverview, baseSources, baseInsights];
+const builtins = [baseColumns, baseRibbon, baseDetails, baseMenu, baseSettings, baseInstall, baseTables, baseMap, baseOverview, baseSources, baseInsights, baseRuleTags];
 
 function showConnection(up) {
     const status = document.getElementById('connection');

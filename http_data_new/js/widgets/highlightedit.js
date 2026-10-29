@@ -23,7 +23,7 @@ export function chooseHighlights(highlights, current, onApply) {
     const items = list.map((h) => {
         const s = highlightSetting(h, current);
         const box = el('input', { type: 'checkbox', checked: s.enabled });
-        const color = el('input', { type: 'color', value: s.color, title: 'Highlight color' });
+        const color = el('input', { type: 'color', value: s.color, title: 'Highlight color', hidden: !!h.color });
         const swatch = el('span', { class: 'highlight-sample' }, h.name);
         const paint = () => swatch.style.setProperty('--highlight', color.value);
         color.addEventListener('input', paint);
@@ -33,6 +33,7 @@ export function chooseHighlights(highlights, current, onApply) {
         return el('div', { class: 'highlight-item' },
             el('label', {}, box, swatch),
             color,
+            h.color ? el('span', { class: 'muted' }, ' (colors set elsewhere)') : null,
             h.description ? el('div', { class: 'muted' }, h.description) : null);
     });
 
