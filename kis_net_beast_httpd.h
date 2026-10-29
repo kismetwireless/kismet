@@ -177,6 +177,11 @@ public:
 
     void strip_uri_prefix(boost::beast::string_view& uri_view);
 
+    // The legacy web UI is served from legacy/ and asks for the API, its plugins,
+    // and dynamic.js relative to its page; send anything there that isn't one of
+    // its own files to the root
+    void map_legacy_uri(std::string& uri);
+
     const bool& redirect_unknown() const {
         return redirect_unknown_;
     }
@@ -211,6 +216,9 @@ protected:
         std::string path;
     };
     std::vector<static_content_dir> static_dir_vec;
+
+    // Directory of the legacy web UI's files, or empty
+    std::string legacy_ui_dir;
 
 
     boost::asio::ip::tcp::endpoint endpoint;

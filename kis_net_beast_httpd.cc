@@ -264,6 +264,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         _MSG_INFO("Serving static file content from {}", http_data_dir);
 
         register_static_dir("/", http_data_dir);
+        legacy_ui_dir = http_data_dir + "/legacy";
     }
 
     allowed_prefix =
@@ -1411,6 +1412,29 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     return serve_file(con, uri);
 }
 
+void kis_net_beast_httpd::map_legacy_uri(std::string& uri) {
+    constexpr auto legacy_prefix = "/legacy/";
+    constexpr size_t legacy_prefix_len = 8;
+
+    if (legacy_ui_dir.empty() || uri.compare(0, legacy_prefix_len, legacy_prefix) != 0)
+        return;
+
+    auto rel = uri.substr(legacy_prefix_len - 1);
+
+    // serve_file resolves and checks the path of anything that stays a file request
+    if (rel.find("..") == std::string::npos) {
+        auto fpath = legacy_ui_dir + rel;
+        if (fpath.back() == '/')
+            fpath += "index.html";
+
+        struct stat st;
+        if (stat(fpath.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+            return;
+    }
+
+    uri = rel;
+}
+
 void kis_net_beast_httpd::strip_uri_prefix(boost::beast::string_view& uri_view) {
     if (allowed_prefix.length() == 0)
         return;
@@ -1531,6 +1555,8 @@ bool kis_net_beast_httpd_connection::start() {
     // Fix any double-slashes which will break the parser/splitter
     std::regex re("/+/");
     trimmed_uri = std::regex_replace(trimmed_uri, re, "/");
+
+    httpd->map_legacy_uri(trimmed_uri);
 
     uri_ = boost::beast::string_view(trimmed_uri);
 
