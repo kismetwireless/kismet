@@ -160,10 +160,13 @@ public:
         std::map<std::string, std::shared_ptr<device_tracker_view>> retired;
     };
 
+    // A view change is applied from the device's rule state at the time, not from
+    // when it was queued, so changes from different threads can't land out of order
     struct pending_change {
         std::shared_ptr<kis_tracked_device_base> device;
         std::shared_ptr<device_tracker_view> view;
-        bool add;
+        // Rule the view belongs to
+        std::string rule;
         // Alert text, when this change raises one
         std::string alert;
         mac_addr mac;
@@ -215,6 +218,9 @@ protected:
 
     std::atomic<uint64_t> stat_passes, stat_devices, stat_last_us;
 
+    // Serializes checking a device's rule state and updating its view membership
+    kis_mutex view_apply_mutex;
+
     // Alerts held back by the rate limit, raised as it allows
     kis_mutex alert_mutex;
     std::deque<std::pair<mac_addr, std::string>> alert_backlog;
@@ -247,6 +253,10 @@ protected:
             std::vector<pending_change>& changes);
 
     void apply_changes(std::vector<pending_change>& changes);
+
+    // Whether an unlocked device belongs in the view of a rule right now
+    bool wants_view(const std::shared_ptr<kis_tracked_device_base>& dev,
+            const std::shared_ptr<device_tracker_view>& view, const std::string& rule);
 
     std::shared_ptr<tracker_element> rules_endpoint();
     void check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
