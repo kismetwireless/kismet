@@ -787,6 +787,11 @@ static char g_scan_slow[512];
  * after a sibling's probe. Set per identify_modem() by the flag below. */
 static char g_scan_openstuck[256];
 static int g_probe_open_timed_out;
+/* Set by identify_modem() on the --list path: the modem's make names no vendor
+ * this source knows, and it refused every cell survey command the open would
+ * try. Such a modem can never open as a cellat source, so --list leaves it
+ * out rather than offer it. */
+static int g_probe_no_survey;
 
 static long scan_elapsed_ms(const struct timespec *t0) {
     struct timespec t1;
@@ -814,6 +819,56 @@ static void probe_release(int fd, const char *path) {
     g_probe_close_how = diag_probe_close(fd, path);
 }
 
+/* The vendor an AT+CGMI reply names; VENDOR_UNKNOWN for none. */
+static enum modem_vendor vendor_from_cgmi(const char *resp) {
+    if (strstr(resp, "Quectel") != NULL)
+        return VENDOR_QUECTEL;
+    if (strstr(resp, "Telit") != NULL)
+        return VENDOR_TELIT;
+    if (strstr(resp, "Sierra") != NULL)
+        return VENDOR_SIERRA;
+    /* SIMCom answers in upper case. A SIM8202G-M2 replies
+     *     Manufacturer: SIMCOM INCORPORATED
+     * so the vendor's own product spelling, "SIMCom", matches nothing.
+     * Matched case-insensitively rather than by adding a second literal, because
+     * the family also ships "SIMCOM_Ltd" and "Simcom" spellings across
+     * firmware generations and a literal list would go stale silently. */
+    if (strcasestr(resp, "SIMCOM") != NULL ||
+        strcasestr(resp, "SIMTECH") != NULL)
+        return VENDOR_SIMCOM;
+    /* Orbic RC400L reports "Manufacturer" or "Reliance" or "Sino" via CGMI
+     * (cheap ODM firmware quirk — varies by unit) */
+    if (strstr(resp, "Reliance") != NULL || strstr(resp, "Sino") != NULL ||
+        strstr(resp, "Orbic") != NULL)
+        return VENDOR_ORBIC;
+    return VENDOR_UNKNOWN;
+}
+
+/* The survey commands open_callback tries on a modem of unknown vendor, in
+ * its order. Keep the two in step: --list leaves a modem out only when the
+ * open would refuse it. */
+static const char *const kUnknownVendorSurveyCmds[] = {
+    "AT+QENG=\"servingcell\"", "AT#RFSTS", "AT!GSTATUS?", "AT+CPSI?",
+    "AT^SCELLINFO", "AT$QCRSRP?",
+};
+
+/* 1 when the modem on `fd` explicitly REFUSED (ERROR / +CME ERROR) every
+ * survey command an unknown-vendor open tries; 0 when any one was accepted,
+ * or went unanswered, since silence proves nothing. A short timeout per
+ * command keeps --list inside Kismet's list deadline: a modem that answered
+ * AT, +CGMR and +CGSN at once answers ERROR at once too. */
+static int survey_all_refused(int fd) {
+    char resp[1024];
+    for (size_t i = 0; i < sizeof(kUnknownVendorSurveyCmds) /
+                           sizeof(kUnknownVendorSurveyCmds[0]); i++) {
+        int n = at_command(fd, kUnknownVendorSurveyCmds[i], resp, sizeof(resp),
+                           1500);
+        if (n <= 0 || strstr(resp, "ERROR") == NULL)
+            return 0;
+    }
+    return 1;
+}
+
 /*
  * Probe a serial port: send AT, then read firmware and IMEI.
  * Returns 1 on success (populates fw_buf, imei_buf), 0 on failure.
@@ -826,6 +881,7 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
 
     g_probe_close_how = DIAG_PROBECLOSE_PLAIN;
     g_probe_open_timed_out = 0;
+    g_probe_no_survey = 0;
     int fd = serial_open(path, 115200);
     if (fd < 0) {
         /* Busy is worth a rescan; an open that timed out is not -- it
@@ -909,12 +965,20 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
         snprintf(id->firmware, sizeof(id->firmware), "%s", fw_buf);
         n = at_info_command(fd, "AT+CGMI", resp, sizeof(resp), follow_ms,
                             MODEMIDENT_INFO_IDLE_MS);
-        if (n > 0)
+        enum modem_vendor vendor = VENDOR_UNKNOWN;
+        if (n > 0) {
             modemident_value(resp, id->make, sizeof(id->make));
+            vendor = vendor_from_cgmi(resp);
+        }
         n = at_info_command(fd, "AT+CGMM", resp, sizeof(resp), follow_ms,
                             MODEMIDENT_INFO_IDLE_MS);
         if (n > 0)
             modemident_value(resp, id->model, sizeof(id->model));
+
+        /* Only a modem no vendor branch claims: a known vendor's branch has
+         * its own command set, and probing every modem would slow --list. */
+        if (vendor == VENDOR_UNKNOWN && imei_buf[0])
+            g_probe_no_survey = survey_all_refused(fd);
     }
 
     probe_release(fd, path);
@@ -944,30 +1008,7 @@ static enum modem_vendor detect_vendor(int fd, char *make_out, size_t make_sz,
         if (n > 0)
             modemident_value(resp, make_out, make_sz);
     }
-    if (n > 0) {
-        if (strstr(resp, "Quectel") != NULL)
-            return VENDOR_QUECTEL;
-        if (strstr(resp, "Telit") != NULL)
-            return VENDOR_TELIT;
-        if (strstr(resp, "Sierra") != NULL)
-            return VENDOR_SIERRA;
-        /* SIMCom answers in upper case. A SIM8202G-M2 replies
-         *     Manufacturer: SIMCOM INCORPORATED
-         * so the vendor's own product spelling, "SIMCom", matches nothing.
-         * Matched case-insensitively rather than by adding a second literal, because
-         * the family also ships "SIMCOM_Ltd" and "Simcom" spellings across
-         * firmware generations and a literal list would go stale silently. */
-        if (strcasestr(resp, "SIMCOM") != NULL ||
-            strcasestr(resp, "SIMTECH") != NULL)
-            return VENDOR_SIMCOM;
-        /* Orbic RC400L reports "Manufacturer" or "Reliance" or "Sino" via CGMI
-         * (cheap ODM firmware quirk — varies by unit) */
-        if (strstr(resp, "Reliance") != NULL || strstr(resp, "Sino") != NULL ||
-            strstr(resp, "Orbic") != NULL)
-            return VENDOR_ORBIC;
-    }
-
-    return VENDOR_UNKNOWN;
+    return n > 0 ? vendor_from_cgmi(resp) : VENDOR_UNKNOWN;
 }
 
 static const char *vendor_name(enum modem_vendor v) {
@@ -2635,6 +2676,20 @@ static int list_modem_cb(const char *port, const char *fw,
     /* Skip modems that don't report an IMEI — they can't be addressed */
     if (!imei[0])
         return 0;
+
+    /* A modem the open would refuse is not offered as a source: offering it
+     * leaves a source that fails every open and is re-opened forever. */
+    if (g_probe_no_survey) {
+        char label[512];
+        if (id != NULL)
+            modemident_label(id, NULL, label, sizeof(label));
+        else
+            snprintf(label, sizeof(label), "%s IMEI:%s", fw, imei);
+        fprintf(stderr, "cellat: skip %s: %s refused every cell survey command "
+                "(%s), so a cellat source could not open it\n", port, label,
+                vendor_probed_cmds(VENDOR_UNKNOWN));
+        return 0;
+    }
 
     c->interfaces[c->n_found] = (cf_params_list_interface_t *)
         malloc(sizeof(cf_params_list_interface_t));
