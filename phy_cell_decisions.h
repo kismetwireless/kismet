@@ -234,7 +234,13 @@ std::string channel_string(const std::string& rat, int explicit_band,
 
 /* The human-readable device name. Mirrors json_to_cell's three cases:
  * full identity -> "{rat} {key}";  partial with a band -> "{rat} PCI {pci} B{n}";
- * partial without -> "{rat} PCI {pci} EARFCN {earfcn}". */
+ * partial without -> "{rat} PCI {pci} {arfcn_label(rat)} {earfcn}", e.g.
+ * "NR PCI 596 NR-ARFCN 521310". */
+/* What the RAT calls its channel number: "EARFCN" (LTE), "NR-ARFCN" (NR),
+ * "UARFCN" (WCDMA), else "ARFCN". The observation carries every one of them in
+ * its `earfcn` key; a name or log line must not call an NR-ARFCN an EARFCN. */
+const char *arfcn_label(const std::string& rat);
+
 std::string device_name(const cell_key_t& key, const std::string& rat,
         int64_t pci, uint32_t earfcn, int band_num);
 
