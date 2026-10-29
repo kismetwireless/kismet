@@ -117,7 +117,7 @@ kis_tracked_location_triplet&
         clear_time_sec();
 
     if (in.has_time_usec())
-        set_time_usec(in.get_only_time_sec());
+        set_time_usec(in.get_only_time_usec());
     else
         clear_time_usec();
 
@@ -243,7 +243,7 @@ kis_tracked_location_full& kis_tracked_location_full::operator= (const kis_track
         clear_time_sec();
 
     if (in.has_time_usec())
-        set_time_usec(in.get_only_time_sec());
+        set_time_usec(in.get_only_time_usec());
     else
         clear_time_usec();
 
@@ -332,13 +332,13 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
 }
 
 void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt,
-        unsigned int fix, double in_speed, double in_heading) {
+        unsigned int fix, double in_speed, double in_heading, const struct timeval *tv) {
 
     if (fix < 2) {
         return;
     }
 
-    add_loc(in_lat, in_lon, in_alt, fix, in_speed, in_heading);
+    add_loc(in_lat, in_lon, in_alt, fix, in_speed, in_heading, tv);
 
     if (avg_loc == nullptr) {
         // We probably have a last location; set the ID anyhow to make sure; if we don't,
@@ -387,7 +387,7 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
 }
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
-        unsigned int fix, double in_speed, double in_heading) {
+        unsigned int fix, double in_speed, double in_heading, const struct timeval *tv) {
 
     if (fix < 2) {
         return;
@@ -420,6 +420,13 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     last_loc->set_fix(fix);
     last_loc->set_speed(in_speed);
     last_loc->set_heading(in_heading);
+    if (tv != nullptr && tv->tv_sec != 0) {
+        last_loc->set_time_sec(tv->tv_sec);
+        last_loc->set_time_usec(tv->tv_usec);
+    } else {
+        last_loc->set_time_sec(Globalreg::globalreg->last_tv_sec);
+        last_loc->clear_time_usec();
+    }
 
 	if (in_lat != 0 && in_lon != 0) {
 		double min_lat = min_loc->get_lat();

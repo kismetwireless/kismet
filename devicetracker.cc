@@ -1255,7 +1255,8 @@ void device_tracker::update_location_set(const std::shared_ptr<kis_tracked_locat
     if (loc->get_last_location_time() != Globalreg::globalreg->last_tv_sec) {
         loc->set_last_location_time(Globalreg::globalreg->last_tv_sec);
 
-        loc->add_loc_with_avg(gps.lat, gps.lon, gps.alt, gps.fix, gps.speed, gps.heading);
+        loc->add_loc_with_avg(gps.lat, gps.lon, gps.alt, gps.fix, gps.speed, gps.heading,
+                gps.tv.tv_sec != 0 ? &gps.tv : &in_pack->ts);
 
         // Throttle history cloud to one update per second to prevent floods of
         // data from swamping the cloud
@@ -1281,7 +1282,8 @@ void device_tracker::update_location_set(const std::shared_ptr<kis_tracked_locat
             get_cloud()->add_sample(histloc);
         }
     } else {
-        loc->add_loc(gps.lat, gps.lon, gps.alt, gps.fix, gps.speed, gps.heading);
+        loc->add_loc(gps.lat, gps.lon, gps.alt, gps.fix, gps.speed, gps.heading,
+                gps.tv.tv_sec != 0 ? &gps.tv : &in_pack->ts);
     }
 }
 

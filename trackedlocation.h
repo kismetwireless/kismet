@@ -98,10 +98,15 @@ public:
 
     void reset() {
         geopoint->reset();
-        clear_alt();
-        clear_fix();
-        clear_time_sec();
-        clear_time_usec();
+
+        // Pooled records can carry fields other code inserted, such as a GPS's quality
+        // report; drop everything but the geopoint so none of it reaches the next user
+        for (auto i = begin(); i != end(); ) {
+            if (i->second == geopoint)
+                ++i;
+            else
+                i = erase(i);
+        }
     }
 
 protected:
@@ -178,11 +183,13 @@ public:
         return r;
     }
 
+    // tv is when the position was, for the last location; without it, the time of the
+    // last packet
     void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix,
-            double in_speed, double in_heading);
+            double in_speed, double in_heading, const struct timeval *tv = nullptr);
 
     void add_loc_with_avg(double in_lat, double in_lon, double in_alt, unsigned int fix,
-            double in_speed, double in_heading);
+            double in_speed, double in_heading, const struct timeval *tv = nullptr);
 
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
 
