@@ -52,6 +52,7 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
+#include "range_tracker.h"
 #include "pcapng_stream_futurebuf.h"
 #include "util.h"
 #include "zstr.hpp"
@@ -1287,6 +1288,31 @@ void device_tracker::update_location_set(const std::shared_ptr<kis_tracked_locat
     }
 }
 
+void device_tracker::update_reported_location(const std::shared_ptr<kis_tracked_device_base>& device,
+        const std::string& kind, const std::shared_ptr<kis_packet>& in_pack) {
+    auto rt = range.load(std::memory_order_acquire);
+
+    if (rt != nullptr) {
+        // Where the device said it was before this packet, to check the new position by
+        double plat = 0, plon = 0;
+        time_t ptime = 0;
+        if (device->has_reported_location()) {
+            auto loc = device->get_reported_location();
+            if (loc->has_last_loc()) {
+                auto last = loc->get_last_loc();
+                plat = last->get_lat();
+                plon = last->get_lon();
+                ptime = last->has_time_sec() ? last->get_only_time_sec() : 0;
+            }
+        }
+
+        rt->add(kind, in_pack, in_pack->gps_info, in_pack->reported_gps, plat, plon, ptime);
+    }
+
+    update_location_set(device->get_reported_location(), in_pack->reported_gps, in_pack,
+            [&device]() { return device->get_reported_location_cloud(); });
+}
+
 std::shared_ptr<kis_tracked_device_base>
     device_tracker::update_common_device(const mac_addr& in_mac, kis_phy_handler *in_phy,
             const std::shared_ptr<kis_packet>& in_pack,
@@ -1591,8 +1617,7 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
     // The device's own position is good however weakly it was heard, so the
     // signal threshold doesn't apply
     if ((in_flags & UCD_UPDATE_REPORTED_LOCATION) && in_pack->reported_gps.gps_info_ok) {
-        update_location_set(device->get_reported_location(), in_pack->reported_gps, in_pack,
-                [&device]() { return device->get_reported_location_cloud(); });
+        update_reported_location(device, device->get_phyname(), in_pack);
     }
 
 	// Update seenby records for time, frequency, packets

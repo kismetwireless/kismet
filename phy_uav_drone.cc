@@ -697,8 +697,7 @@ void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>
                 in_pack->reported_gps.set_reported(l.lat, l.lon, l.alt_geo_valid ? l.alt_geo : 0,
                         l.speed_valid ? l.speed_h * 3.6 : 0, l.direction_valid ? l.direction : 0,
                         l.alt_geo_valid ? 3 : 2, in_pack->ts);
-                devicetracker->update_location_set(basedev->get_reported_location(), in_pack->reported_gps,
-                        in_pack, [&basedev]() { return basedev->get_reported_location_cloud(); });
+                devicetracker->update_reported_location(basedev, "UAV", in_pack);
 
                 auto tvec = uavdev->get_uav_telem_history();
                 tvec->push_back(telem);

@@ -64,6 +64,7 @@
 
 class kis_phy_handler;
 class kis_packet;
+class range_tracker;
 
 class device_tracker : public lifetime_global, public kis_database, 
     public deferred_startup, public std::enable_shared_from_this<device_tracker> {
@@ -198,6 +199,15 @@ public:
             const kis_gps_packinfo& gps, const std::shared_ptr<kis_packet>& in_pack,
             const std::function<std::shared_ptr<kis_location_rrd> ()>& get_cloud);
 
+    // Add the position a device reports in a packet to the device, and to the receiver
+    // range for that kind of device; the caller holds the device lock
+    void update_reported_location(const std::shared_ptr<kis_tracked_device_base>& device,
+            const std::string& kind, const std::shared_ptr<kis_packet>& in_pack);
+
+    void set_range_tracker(range_tracker *rt) {
+        range.store(rt, std::memory_order_release);
+    }
+
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             const mac_addr& in_mac, kis_phy_handler *phy,
             const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
@@ -263,6 +273,8 @@ public:
     }
 
 protected:
+    std::atomic<range_tracker *> range{nullptr};
+
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<event_bus> eventbus;
