@@ -127,6 +127,7 @@
 
 #include "devicetracker.h"
 #include "device_rules.h"
+#include "range_tracker.h"
 
 #include "phy_80211.h"
 #include "phy_802154.h"
@@ -959,6 +960,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     device_rules::create_device_rules();
+    range_tracker::create_range_tracker();
 
     // Add the datasources
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_pcapfile_builder()));
