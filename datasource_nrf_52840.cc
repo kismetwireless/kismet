@@ -87,6 +87,8 @@ kis_datasource_nrf52840::rx_content kis_datasource_nrf52840::handle_rx_data_cont
     // Build the TAP header and payload
     alignas(_802_15_4_tap) char conv_buf[sizeof(_802_15_4_tap) + max_payload];
     _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf);
+    // The payload follows the header in conv_buf; payload[] itself is zero-length
+    uint8_t *payload = reinterpret_cast<uint8_t *>(conv_buf + sizeof(_802_15_4_tap));
     size_t nrf_payload_len = hex.size() / 2;
 
     for (size_t i = 0; i < nrf_payload_len; i++) {
@@ -96,7 +98,7 @@ kis_datasource_nrf52840::rx_content kis_datasource_nrf52840::handle_rx_data_cont
         if (hi < 0 || lo < 0)
             return corrupt();
 
-        conv_header->payload[i] = (uint8_t) ((hi << 4) | lo);
+        payload[i] = (uint8_t) ((hi << 4) | lo);
     }
 
     uint8_t channel = content[2];

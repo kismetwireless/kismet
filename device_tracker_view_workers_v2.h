@@ -58,7 +58,10 @@ public:
     virtual bool match_device(kis_tracked_device_base_v2 *d) {
         if (Mftor{}(d)) {
             matched_.push_back(d);
+            return true;
         }
+
+        return false;
     }
 };
 
