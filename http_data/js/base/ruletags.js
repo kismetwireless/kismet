@@ -7,10 +7,18 @@ const tagsField = [`${rules}/kismet.device.rules.tags`, 'rule_tags'];
 
 const defaults = [
     { tag: 'watchlist', color: '#ff6b6b' },
+    { tag: 'handshake', color: '#ff0000' },
+    { tag: 'pmkid', color: '#ff5555' },
+    { tag: 'ais emergency', color: '#ff6666' },
+    { tag: 'zigbee key', color: '#ff6666' },
+    { tag: 'government', color: '#ffb3b3' },
+    { tag: 'bodycam', color: '#0089ff' },
     { tag: 'open', color: '#ffa94d' },
     { tag: 'free wifi', color: '#ffd43b' },
     { tag: 'close', color: '#69db7c' },
+    { tag: 'uav', color: '#f49e42' },
     { tag: 'quiet', color: '#adb5bd' },
+    { tag: 'active', color: '#cee1ff' },
 ];
 
 const colorRe = /^#[0-9a-fA-F]{6}$/;

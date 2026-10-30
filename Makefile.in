@@ -9,6 +9,7 @@ CONFIGFILES = \
 	kismet_zigbee.conf \
 	kismet_device_rules.conf \
 	kismet_device_rules.txt \
+	kismet_device_rules_highlights.txt \
 	kismet_meshcore.conf \
 	kismet_logging.conf \
 	kismet_filter.conf \

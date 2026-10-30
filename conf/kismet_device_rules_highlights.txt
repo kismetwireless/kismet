@@ -1,0 +1,89 @@
+# Kismet device rules for notable devices
+#
+# These rules tag devices the web UI highlights by default, by phy, and collect them
+# in device views.  They're read before kismet_device_rules.txt, so a rule there with
+# the same name replaces one here; leave a rule out with device_rule_disable=<name> in
+# kismet_site.conf.  The row colors for the tags are set in the web UI, under
+# Settings > Rule tags.
+#
+# The rules language is described in kismet_device_rules.txt.
+
+# Wi-Fi
+
+# A complete enough WPA handshake to recover the key from: messages 1 and 2, or 2
+# and 3.  The messages may be from different clients of the network.
+rule wpa-handshake {
+    when dot11.device/dot11.device.wpa_handshake_list/dot11.eapol.message_num == 2 and
+        dot11.device/dot11.device.wpa_handshake_list/dot11.eapol.message_num in [1, 3]
+    tag "handshake"
+    color "#ff0000"
+    view "WPA Handshakes"
+}
+
+rule pmkid {
+    when exists(dot11.device/dot11.device.pmkid_packet)
+    tag "pmkid"
+    color "#ff5555"
+    view "RSN PMKID"
+}
+
+# 802.15.4 / Zigbee
+
+# Traffic encrypted with a known or exposed key, such as the Zigbee default keys
+rule zigbee-known-key {
+    when phy == "802.15.4" and 802154.device/802154.device.key_state == 2
+    tag "zigbee key"
+    color "#ff6666"
+    view "Zigbee Known Keys"
+}
+
+# ADS-B
+
+# Aircraft owned by government agencies, police, and the military
+rule adsb-government {
+    when phy == "ADSB" and
+        ((adsb.device/adsb.device.icao_record/adsb.icao.owner matches
+            "(?i)(department|police|agency|dep|gov|federal|royal|force|state|army|navy|patrol|sqdn|city of|sheriff)" and
+          not adsb.device/adsb.device.icao_record/adsb.icao.owner matches "(?i)(express|air freight)") or
+         adsb.device/adsb.device.icao matches
+            "(?i)^(acf181|a980fa|a7fb8f|ae4bd7|a47604|a03bc8|a0b8d6|a0d9f2|a12d51|a15f1d|a169d7|a16c6d|a193c1|a32524|a328db|a32c92|a33049|a33dc3|a3c1be|a3c92c|a3e6e3|a3e6e4|a410bc|a4182a|a44360|a4724d|a483df|a4bc36|a4bfed|a51a10|a51dc7|a54b56|a54f0d|a552c4|a5ed09|a5f9f7|a64217|a645ce|a64985|a64d3c|a654aa|aac551|abaf9c|ac742b|ac7b99)$")
+    tag "government"
+    color "#ffb3b3"
+    view "ADS-B Government Aircraft"
+}
+
+# AIS
+
+# Search and rescue transponders, man overboard devices, and emergency beacons
+rule ais-emergency {
+    when phy == "AIS" and ais.device/ais.device.class in ["AIS-SART", "AIS-MOB", "AIS-EPIRB"]
+    tag "ais emergency"
+    color "#ff6666"
+    view "AIS Emergency"
+}
+
+# Any phy
+
+# Drones Kismet recognizes, on any phy
+rule uav {
+    when exists(uav.device)
+    tag "uav"
+    color "#f49e42"
+    view "UAV / Drones"
+}
+
+# Body cameras, by their Wi-Fi or Bluetooth address or name
+rule bodycam {
+    when mac in [00:25:df, 12:20:13] or name startswith "Axon-X"
+    tag "bodycam"
+    color "#0089ff"
+    view "Bodycams"
+}
+
+# Devices heard in the last 10 seconds; off by default
+#
+# rule active {
+#     when age(last_time) < 10s
+#     tag "active"
+#     color "#cee1ff"
+# }

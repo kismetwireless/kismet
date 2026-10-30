@@ -985,8 +985,10 @@ void device_rules::load_configured() {
 
     // Files in config order, then directories, then rules written on config lines
     auto files = conf->fetch_opt_vec_sourced("device_rules_file");
-    if (files.empty())
+    if (files.empty()) {
+        loader.load_file(conf->expand_log_path("%E/kismet_device_rules_highlights.txt"), false);
         loader.load_file(conf->expand_log_path("%E/kismet_device_rules.txt"), false);
+    }
     for (const auto& f : files)
         loader.load_file(conf->expand_log_path(f.value), true);
 
