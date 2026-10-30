@@ -550,11 +550,11 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
             _MSG_INFO("Detected new cell {} {}", rat, cell_key);
         } else {
             if (band_num > 0)
-                _MSG_INFO("Detected new cell (partial) {} PCI {} B{} EARFCN {}",
-                          rat, pci, band_num, earfcn);
+                _MSG_INFO("Detected new cell (partial) {} PCI {} B{} {} {}",
+                          rat, pci, band_num, cell_decisions::arfcn_label(rat), earfcn);
             else
-                _MSG_INFO("Detected new cell (partial) {} PCI {} EARFCN {}",
-                          rat, pci, earfcn);
+                _MSG_INFO("Detected new cell (partial) {} PCI {} {} {}",
+                          rat, pci, cell_decisions::arfcn_label(rat), earfcn);
         }
     }
 

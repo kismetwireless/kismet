@@ -427,6 +427,16 @@ std::string channel_string(const std::string& rat, int explicit_band,
     return std::string();
 }
 
+const char *arfcn_label(const std::string& rat) {
+    if (rat == "LTE")
+        return "EARFCN";
+    if (rat == "NR")
+        return "NR-ARFCN";
+    if (rat == "WCDMA")
+        return "UARFCN";
+    return "ARFCN";
+}
+
 std::string device_name(const cell_key_t& key, const std::string& rat,
         int64_t pci, uint32_t earfcn, int band_num) {
     if (key.full_identity)
@@ -437,7 +447,7 @@ std::string device_name(const cell_key_t& key, const std::string& rat,
     if (band_num > 0)
         return fmt::format("{} PCI {} B{}", rat, pci, band_num);
 
-    return fmt::format("{} PCI {} EARFCN {}", rat, pci, earfcn);
+    return fmt::format("{} PCI {} {} {}", rat, pci, arfcn_label(rat), earfcn);
 }
 
 /* ------------------------------------------------------------------------
