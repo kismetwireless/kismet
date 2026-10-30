@@ -22,20 +22,40 @@
 // type: 'mirror' draws two bar series back to back, the first above the
 // axis and the second below it, such as packets sent and received:
 // draw([{ label, color, values }, { label, color, values }], labels).
+//
+// pointLabel: (i) => text turns on a readout: pointing at the graph marks
+// that value and shows its label (a time) with the value of each line.
+// fmt formats the values in it.
+//
+// annotate({ marks, bands }) adds to the next draw():
+//   marks [{ pos, color, label }]       events, as lines across the graph.  pos
+//       counts values from the left edge: 0 is the start of the first value,
+//       values.length the end of the last
+//   bands [{ from, to, color, label }]  shading behind values from to to-1,
+//       for times something was wrong
+// The readout lists the marks and bands at the value pointed at.
 
 import { el } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
 
 export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = null, title = '', minBar = false,
-    joinGaps = false, fill = false } = {}) {
-    const canvas = el('canvas', { class: 'history-graph-canvas' });
+    joinGaps = false, fill = false, pointLabel = null, fmt = null } = {}) {
+    const canvas = el('canvas', { class: ['history-graph-canvas', pointLabel && 'pointable'] });
     const legend = el('div', { class: 'graph-legend', hidden: true });
+    const tip = el('div', { class: 'graph-tip', hidden: true });
     const node = el('figure', { class: 'history-graph', style: { height } },
-        title ? el('figcaption', {}, title) : null, canvas, legend);
+        title ? el('figcaption', {}, title) : null, canvas, legend, tip);
     let values = [];
     let labels = [];
     let lines = null;
     let legendKey = '';
+    let marks = [];
+    let bands = [];
+    let hover = null;
+    let hoverX = 0;
+    let layout = null;
+    const show = fmt ?? ((v) => !Number.isFinite(v) ? '-' :
+        `${Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : +v.toFixed(1)}${unit ? ' ' + unit : ''}`);
 
     // Canvas needs a resolved color, not var() or color-mix()
     const probe = el('span', { hidden: true });
@@ -84,6 +104,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, w, h);
+        layout = null;
         if (!count)
             return;
 
@@ -112,13 +133,15 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             bottom = Math.min(bottom, min);
         if (top === bottom) {
             top += 1;
-            bottom -= type === 'bar' ? 0 : 1;
+            // A flat line sits in the middle, unless it's at the lowest it can be
+            if (type !== 'bar' && bottom > (min ?? -Infinity))
+                bottom -= 1;
         }
 
         // A mirror's lower half counts down from the axis; label it as a count
         const axisText = (v) => `${Math.round(type === 'mirror' ? Math.abs(v) : v)}${unit ? ' ' + unit : ''}`;
         const left = Math.max(ctx.measureText(axisText(top)).width, ctx.measureText(axisText(bottom)).width) + 8 * ratio;
-        const bottomPad = font + 6 * ratio;
+        const bottomPad = labels.length ? font + 6 * ratio : 2 * ratio;
         const plotW = w - left - 4 * ratio;
         const plotH = h - bottomPad - font / 2;
         const y = (v) => font / 2 + plotH - ((v - bottom) / (top - bottom)) * plotH;
@@ -139,6 +162,19 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         }
 
         const step = plotW / count;
+        const px = (i) => left + i * step + step / 2;
+        layout = { left, step, count, ratio };
+
+        for (const b of bands) {
+            const from = Math.max(0, b.from);
+            const to = Math.min(count, b.to);
+            if (to <= from)
+                continue;
+            ctx.fillStyle = resolve(b.color) || text;
+            ctx.globalAlpha = 0.16;
+            ctx.fillRect(left + from * step, font / 2, (to - from) * step, plotH);
+            ctx.globalAlpha = 1;
+        }
         ctx.fillStyle = color;
         ctx.strokeStyle = color;
 
@@ -167,7 +203,6 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
                 ctx.fillRect(left + i * step + step * 0.1, barTop, Math.max(ratio, step * 0.8), y(bottom) - barTop);
             });
         } else {
-            const px = (i) => left + i * step + step / 2;
             // The line's pieces: one between readings with joinGaps, else one per
             // run of neighbouring readings
             const segments = (vals) => {
@@ -229,6 +264,56 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             }
         }
 
+        const plotTop = font / 2;
+        const plotBottom = font / 2 + plotH;
+        for (const m of marks) {
+            if (!(m.pos >= 0 && m.pos <= count))
+                continue;
+            const x = Math.round(left + m.pos * step) + 0.5;
+            const c = resolve(m.color) || text;
+            ctx.strokeStyle = c;
+            ctx.fillStyle = c;
+            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = ratio;
+            ctx.setLineDash([3 * ratio, 3 * ratio]);
+            ctx.beginPath();
+            ctx.moveTo(x, plotTop);
+            ctx.lineTo(x, plotBottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.moveTo(x - 4 * ratio, plotTop);
+            ctx.lineTo(x + 4 * ratio, plotTop);
+            ctx.lineTo(x, plotTop + 6 * ratio);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        if (hover !== null && hover < count) {
+            const x = Math.round(px(hover)) + 0.5;
+            ctx.strokeStyle = text;
+            ctx.lineWidth = ratio;
+            ctx.beginPath();
+            ctx.moveTo(x, plotTop);
+            ctx.lineTo(x, plotBottom);
+            ctx.stroke();
+            if (type === 'line') {
+                for (const l of lines ?? [{ color: 'var(--accent)', values }]) {
+                    const v = l.values[hover];
+                    if (!Number.isFinite(v))
+                        continue;
+                    ctx.fillStyle = resolve(l.color) || color;
+                    ctx.beginPath();
+                    ctx.arc(x, y(v), 3 * ratio, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        if (hover !== null && hover < count)
+            showTip(hover, hoverX);
+
         // Labels under the graph: either [left, right] or one per value
         ctx.fillStyle = text;
         ctx.textBaseline = 'bottom';
@@ -252,6 +337,50 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         }
     }
 
+    function showTip(i, x) {
+        const rows = (lines ?? [{ label: unit || 'Value', color: 'var(--accent)', values }]).map((l) =>
+            el('div', { class: 'graph-tip-row' }, el('span', { class: 'graph-swatch', style: { background: l.color } }),
+                el('span', {}, l.label), el('b', {}, show(l.values[i]))));
+        const here = [...bands.filter((b) => i >= b.from && i < b.to), ...marks.filter((m) => m.pos >= i && m.pos < i + 1)].map((m) =>
+            el('div', { class: 'graph-tip-mark' }, el('span', { class: 'graph-swatch', style: { background: m.color } }), m.label));
+        tip.replaceChildren(el('div', { class: 'graph-tip-head' }, pointLabel(i)), ...rows, ...here);
+        tip.hidden = false;
+        const room = node.clientWidth;
+        const tw = tip.offsetWidth;
+        tip.style.left = `${x + 12 + tw <= room ? x + 12 : Math.max(0, x - 12 - tw)}px`;
+        tip.style.top = `${canvas.offsetTop}px`;
+    }
+
+    function point(e) {
+        if (!pointLabel || !layout)
+            return;
+        const x = e.clientX - canvas.getBoundingClientRect().left;
+        const i = Math.floor((x * layout.ratio - layout.left) / layout.step);
+        if (i < 0 || i >= layout.count) {
+            leave();
+            return;
+        }
+        hoverX = x;
+        if (i !== hover) {
+            hover = i;
+            draw();
+        } else {
+            showTip(i, x);
+        }
+    }
+
+    function leave() {
+        tip.hidden = true;
+        if (hover !== null) {
+            hover = null;
+            draw();
+        }
+    }
+
+    canvas.addEventListener('pointermove', point);
+    canvas.addEventListener('pointerdown', point);
+    canvas.addEventListener('pointerleave', leave);
+
     const stop = onChange(() => draw());
     const resize = new ResizeObserver(() => draw());
     resize.observe(canvas);
@@ -259,6 +388,10 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
     return {
         node,
         draw,
+        annotate({ marks: m = [], bands: b = [] } = {}) {
+            marks = m;
+            bands = b;
+        },
         destroy() {
             stop();
             resize.disconnect();
