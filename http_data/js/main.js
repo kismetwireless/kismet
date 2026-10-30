@@ -28,8 +28,9 @@ import * as baseOverview from './base/overview.js';
 import * as baseSources from './base/sources.js';
 import * as baseInsights from './base/insights.js';
 import * as baseRuleTags from './base/ruletags.js';
+import * as baseCensor from './base/censor.js';
 
-const builtins = [baseColumns, baseRibbon, baseDetails, baseMenu, baseSettings, baseInstall, baseTables, baseMap, baseOverview, baseSources, baseInsights, baseRuleTags];
+const builtins = [baseColumns, baseRibbon, baseDetails, baseMenu, baseSettings, baseInstall, baseTables, baseMap, baseOverview, baseSources, baseInsights, baseRuleTags, baseCensor];
 
 function showConnection(up) {
     const status = document.getElementById('connection');
@@ -107,6 +108,9 @@ function trackTopbar() {
 }
 
 async function start() {
+    kismet.censor.watch();
+    if (kismet.censor.active)
+        document.querySelector('.brand')?.append(el('span', { class: 'badge censor-badge', title: 'Censor mode is on; see Settings' }, 'Censored'));
     trackTopbar();
     // Color schemes first, so even the login screen is in the chosen colors
     baseSchemes.register(kismet);

@@ -10,6 +10,7 @@
 // server instead (js/core/servers.js), with its API key as a bearer token.
 
 import * as servers from './servers.js';
+import * as censor from './censor.js';
 
 const server = servers.current();
 export const root = server ? new URL(server.url) : servers.home;
@@ -107,7 +108,7 @@ async function errorText(response) {
 
 // GET a JSON endpoint
 export async function get(path, options = {}) {
-    return (await request(path, options)).json();
+    return censor.learn(await (await request(path, options)).json());
 }
 
 // POST to a JSON endpoint.  `json` is the Kismet command body (fields, regex,
@@ -120,7 +121,7 @@ export async function post(path, json = null, vars = {}, options = {}) {
         if (value !== undefined && value !== null)
             body.set(key, String(value));
 
-    return (await request(path, { ...options, method: 'POST', ...formBody(body) })).json();
+    return censor.learn(await (await request(path, { ...options, method: 'POST', ...formBody(body) })).json());
 }
 
 // Send a command (the server's .cmd endpoints, which answer in plain text).

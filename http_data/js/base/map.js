@@ -8,7 +8,14 @@ export function register(kismet) {
 
     ui.panes.add({
         id: 'map', title: 'Map', area: 'main', priority: 40,
-        create: (body, area) => map.createMap(body, area),
+        create(body, area) {
+            // A map shows where its devices are, so censoring locations hides it
+            if (kismet.censor.hidesMaps()) {
+                body.append(el('p', { class: 'muted map-censored' }, 'The map is hidden while censor mode hides locations.'));
+                return null;
+            }
+            return map.createMap(body, area);
+        },
     });
 
     ui.settingsPanes.add({

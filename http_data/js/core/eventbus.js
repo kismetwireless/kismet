@@ -13,6 +13,7 @@
 // If the connection drops it reconnects and re-subscribes on its own.
 
 import * as api from './api.js';
+import * as censor from './censor.js';
 
 const topics = new Map();         // topic -> { subscribers: Set, sentFields }
 const stateListeners = new Set();
@@ -136,6 +137,7 @@ function dispatch(text) {
     }
     if (msg === null || typeof msg !== 'object')
         return;
+    censor.learn(msg);
 
     // Messages are { TOPIC: event }, with only the requested fields in the
     // event when the subscription asked for some

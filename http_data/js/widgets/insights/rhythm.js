@@ -9,6 +9,7 @@
 import { el, replace } from '../../core/dom.js';
 import * as theme from '../../core/theme.js';
 import * as charts from '../charts.js';
+import * as censor from '../../core/censor.js';
 
 const rowH = 15;
 const labelW = 210;
@@ -78,7 +79,7 @@ export function rhythm({ onPick = null } = {}) {
             ctx.fillStyle = g !== undefined ? c('--text') : text;
             ctx.font = `${g !== undefined ? '600 ' : ''}11px system-ui, sans-serif`;
             ctx.textAlign = 'left';
-            let name = row.label;
+            let name = censor.text(row.label);
             while (ctx.measureText(name).width > labelW - 12 && name.length > 4)
                 name = `${name.slice(0, -2)}…`;
             ctx.fillText(name, 4, y + rowH - 4);

@@ -162,6 +162,10 @@ input:focus, select:focus, button:focus-visible {
 }
 .brand-name { font-weight: 700; font-size: 1.1em; color: var(--accent); }
 .server-name { color: var(--muted); }
+.censor-badge { margin-left: 0.5rem; }
+/* Censor mode (js/core/censor.js): a field being edited holds the real value */
+.censored .df-edit input, .censored .df-edit textarea { -webkit-text-security: disc; }
+.map-censored { padding: 2rem; text-align: center; }
 
 .connection {
     width: 0.6em;

@@ -18,6 +18,7 @@ import * as clock from './core/clock.js';
 import * as dom from './core/dom.js';
 import * as icons from './core/icons.js';
 import * as datasources from './core/sources.js';
+import * as censor from './core/censor.js';
 import { createRegistry } from './registry/registry.js';
 import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields, fieldName } from './registry/columns.js';
 import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes, mapSources, dashboardCards } from './registry/ui.js';
@@ -62,6 +63,7 @@ export const kismet = {
     icons,
     modules,
     datasources,
+    censor,
     servers,
     pwa,
 
