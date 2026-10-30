@@ -65,8 +65,14 @@ export function createDeviceTable(container) {
             return;
         lastViews = signature;
 
+        // All devices at the top, then the groups, each in alphabetical order
+        const ordered = [...groups].sort(([a], [b]) => (b === '') - (a === ''));
+        for (const [, list] of ordered)
+            list.sort((a, b) => (b.id === 'all') - (a.id === 'all') ||
+                a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+
         const options = [];
-        for (const [group, list] of groups) {
+        for (const [group, list] of ordered) {
             const opts = list.map((o) => el('option', { value: o.id }, o.title));
             options.push(group ? el('optgroup', { label: group }, opts) : opts);
         }
