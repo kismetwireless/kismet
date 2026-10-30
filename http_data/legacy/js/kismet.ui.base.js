@@ -1326,6 +1326,16 @@ kismet_ui_sidebar.AddSidebarItem({
     },
 });
 
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'new_ui_sidebar',
+    listTitle: '<i class="fa fa-arrow-left"></i> Return to New UI',
+    priority: -200000,
+    clickCallback: function() {
+        // The legacy UI is served from legacy/ under the new UI
+        location.href = new URL('../', location.href).href;
+    },
+});
+
 /*
 kismet_ui_sidebar.AddSidebarItem({
     id: 'pcap_sidebar',
