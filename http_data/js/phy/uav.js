@@ -13,10 +13,10 @@ const uaTypes = ['Undeclared', 'Aeroplane', 'Helicopter or multirotor', 'Gyropla
     'Free fall or parachute', 'Rocket', 'Tethered powered aircraft', 'Ground obstacle', 'Other'];
 const statuses = ['Undeclared', 'Ground', 'Airborne', 'Emergency', 'Remote ID system failure'];
 const heightTypes = ['Above takeoff', 'Above ground'];
-const horizAccuracy = ['Unknown', '< 18.52 km', '< 7.408 km', '< 3.704 km', '< 1852 m', '< 926 m',
-    '< 555.6 m', '< 185.2 m', '< 92.6 m', '< 30 m', '< 10 m', '< 3 m', '< 1 m'];
-const vertAccuracy = ['Unknown', '< 150 m', '< 45 m', '< 25 m', '< 10 m', '< 3 m', '< 1 m'];
-const speedAccuracy = ['Unknown', '< 10 m/s', '< 3 m/s', '< 1 m/s', '< 0.3 m/s'];
+// Accuracy bounds, in meters and m/s
+const horizAccuracy = [null, 18520, 7408, 3704, 1852, 926, 555.6, 185.2, 92.6, 30, 10, 3, 1];
+const vertAccuracy = [null, 150, 45, 25, 10, 3, 1];
+const speedAccuracy = [null, 10, 3, 1, 0.3];
 const operatorLocationTypes = ['Takeoff', 'Live GNSS', 'Fixed'];
 const classificationTypes = ['Undeclared', 'European Union'];
 const euCategories = ['Undeclared', 'Open', 'Specific', 'Certified'];
@@ -27,7 +27,9 @@ const authTypes = ['None', 'UAS ID signature', 'Operator ID signature', 'Message
 
 // A value from one of the tables above, or the raw number if it's not in the table
 const named = (table) => (v) => table[v] ?? `Unknown (${v})`;
-const meters = (v) => `${Number(v).toFixed(1)} m`;
+// An accuracy from one of the tables above, as "< bound"
+const within = (table, show) => (v) => (table[v] === undefined ? `Unknown (${v})` : table[v] === null ? 'Unknown' :
+    `< ${show(table[v])}`);
 
 // Locations read 0,0 until the drone reports one
 function locationText(v) {
@@ -39,6 +41,7 @@ function locationText(v) {
 export function register(kismet) {
     const { ui, icons, api, format } = kismet;
     const height = (v) => format.height(v, 1);
+    const distance = (v) => format.distance(v, 1);
 
     icons.define('drone', '<circle cx="5.5" cy="5.5" r="2.5"/><circle cx="18.5" cy="5.5" r="2.5"/>' +
         '<circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>' +
@@ -164,10 +167,10 @@ export function register(kismet) {
                                 help: 'Altitude from air pressure, measured against standard pressure.' },
                             { title: 'Height', field: `${rid}.height`, format: height },
                             { title: 'Height reference', field: `${rid}.height_type`, format: named(heightTypes) },
-                            { title: 'Horizontal accuracy', field: `${rid}.horiz_accuracy`, format: named(horizAccuracy) },
-                            { title: 'Vertical accuracy', field: `${rid}.vert_accuracy`, format: named(vertAccuracy) },
-                            { title: 'Pressure altitude accuracy', field: `${rid}.baro_accuracy`, format: named(vertAccuracy) },
-                            { title: 'Speed accuracy', field: `${rid}.speed_accuracy`, format: named(speedAccuracy) },
+                            { title: 'Horizontal accuracy', field: `${rid}.horiz_accuracy`, format: within(horizAccuracy, distance) },
+                            { title: 'Vertical accuracy', field: `${rid}.vert_accuracy`, format: within(vertAccuracy, distance) },
+                            { title: 'Pressure altitude accuracy', field: `${rid}.baro_accuracy`, format: within(vertAccuracy, distance) },
+                            { title: 'Speed accuracy', field: `${rid}.speed_accuracy`, format: within(speedAccuracy, (v) => format.speed(v * 3.6)) },
                             {
                                 title: 'Timestamp', field: `${rid}.location_timestamp`,
                                 help: 'When the location was measured, in minutes and seconds past the hour (UTC).',
@@ -203,7 +206,7 @@ export function register(kismet) {
                                 show: (_v, dev) => api.field(dev, `${rid}.classification_type`) === 1 },
                             { title: 'Aircraft in area', field: `${rid}.area_count`,
                                 help: 'How many aircraft the operator has in the operating area.' },
-                            { title: 'Area radius', field: `${rid}.area_radius`, format: meters },
+                            { title: 'Area radius', field: `${rid}.area_radius`, format: distance },
                             { title: 'Area ceiling', field: `${rid}.area_ceiling`, format: height },
                             { title: 'Area floor', field: `${rid}.area_floor`, format: height },
                             { title: 'System timestamp', field: `${rid}.system_timestamp`, hideZero: true, format: format.time },

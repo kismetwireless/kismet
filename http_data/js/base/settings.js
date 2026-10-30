@@ -77,10 +77,11 @@ export function register(kismet) {
                 el('h4', {}, 'Speed'),
                 choice('units-speed', kismet.format.speedUnits, kismet.format.speedUnits.find((u) =>
                     u.id === settings.get('units.speed'))?.id ?? 'kmh', (id) => settings.set('units.speed', id)),
-                el('h4', {}, 'Height and altitude'),
-                choice('units-height', kismet.format.heightUnits, kismet.format.heightUnits.find((u) =>
-                    u.id === settings.get('units.height'))?.id ?? 'm', (id) => settings.set('units.height', id)),
-                el('p', { class: 'muted' }, 'Distances, ranges and accuracies stay in meters and kilometers.'));
+                el('h4', {}, 'Distance and height'),
+                choice('units-length', kismet.format.lengthUnits, kismet.format.lengthUnits.find((u) =>
+                    u.id === settings.get('units.length'))?.id ?? 'metric', (id) => settings.set('units.length', id)),
+                el('p', { class: 'muted' }, 'Distances change to kilometers or miles as they get longer; ' +
+                    'altitudes stay in meters or feet.'));
         },
     });
 

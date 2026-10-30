@@ -105,10 +105,10 @@ export function register(kismet) {
                     const d = dev[ais] ?? {};
                     const length = (d[`${ais}.dim_bow`] ?? 0) + (d[`${ais}.dim_stern`] ?? 0);
                     const beam = (d[`${ais}.dim_port`] ?? 0) + (d[`${ais}.dim_starboard`] ?? 0);
-                    return length > 0 ? `${length} m × ${beam} m` : null;
+                    return length > 0 ? `${format.distance(length)} × ${format.distance(beam)}` : null;
                 },
             },
-            { title: 'Draught', field: `${ais}/${ais}.draught`, hideZero: true, format: (v) => `${v.toFixed(1)} m`,
+            { title: 'Draught', field: `${ais}/${ais}.draught`, hideZero: true, format: (v) => format.distance(v, 1),
                 help: 'How deep the ship sits in the water.' },
             { title: 'Destination', field: `${ais}/${ais}.destination`, hideEmpty: true },
             { title: 'ETA (UTC)', field: `${ais}/${ais}.eta`, hideEmpty: true },
