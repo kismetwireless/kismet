@@ -206,6 +206,7 @@ struct rule_def {
     size_t line;
     std::unique_ptr<node> expr;
 
+    std::string description;
     std::vector<std::string> tags;
     std::string color;
     bool view;

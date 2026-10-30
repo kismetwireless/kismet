@@ -21,13 +21,7 @@ export function register(kismet) {
         color: () => 'hsl(50 85% 48%)',
     });
 
-    ui.rowHighlights.add({
-        id: '802154_all', name: '802.15.4/Zigbee device', priority: 100,
-        description: 'Every 802.15.4 device',
-        defaultColor: '#b2f2bb',
-        fields: [`${base}.phyname`],
-        match: is802154,
-    });
+    ui.phyColors.add({ id: '802.15.4', title: '802.15.4/Zigbee', color: '#b2f2bb' });
 
     ui.deviceColumns.add({
         id: '802154_network', title: '802.15.4 network', priority: 110, group: '802.15.4', width: '8em',

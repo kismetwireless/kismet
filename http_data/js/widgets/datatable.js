@@ -14,6 +14,7 @@
 //       endpoint: 'phy/phy80211/ssids/views/ssids.json',
 //       columns,                       // a registry of columns (see js/registry/columns.js)
 //       highlights,                    // optional registry of row highlights
+//       editHighlights: () => ...,     // optional; the Highlights button opens this instead
 //       icons,                         // optional registry of row icons (adds an icon column)
 //       rowKey: (row) => row['dot11.ssidgroup.hash'],
 //       onRowClick: (row) => openSsid(row),
@@ -73,6 +74,7 @@ export function createDataTable(container, {
     endpoint,
     columns,
     highlights = null,
+    editHighlights = null,
     icons = null,
     rowKey = () => null,
     onRowClick = null,
@@ -105,11 +107,19 @@ export function createDataTable(container, {
         snapshot: null,
     };
 
+    // An empty box (deleted, or cleared with its clear button, which only
+    // sends 'search') turns searching off at once; typing waits for a pause
+    function applySearch() {
+        const term = searchInput.value.trim();
+        if (term === state.search)
+            return;
+        state.search = term;
+        restart(true);
+    }
+    const typedSearch = debounce(300, applySearch);
     const searchInput = el('input', { type: 'search', class: 'search', placeholder: 'Search',
-        oninput: debounce(300, () => {
-            state.search = searchInput.value.trim();
-            restart(true);
-        }) });
+        oninput: () => (searchInput.value.trim() === '' ? applySearch() : typedSearch()),
+        onsearch: applySearch });
 
     const countInfo = el('span', { class: 'count-info' });
     const editButton = el('button', { class: 'icon-button', title: 'Edit columns', onclick: () => setEditing(true) }, icon('edit'));
@@ -125,10 +135,11 @@ export function createDataTable(container, {
             state.layout.columns = ids;
             layoutChanged();
         }) }, icon('columns'), ' Choose columns'),
-        highlights ? el('button', { onclick: () => chooseHighlights(highlights, state.layout.highlights, (h) => {
-            state.layout.highlights = h;
-            layoutChanged();
-        }) }, icon('highlight'), ' Highlights') : null,
+        highlights ? el('button', { onclick: () => (editHighlights ? editHighlights() :
+            chooseHighlights(highlights, state.layout.highlights, (h) => {
+                state.layout.highlights = h;
+                layoutChanged();
+            })) }, icon('highlight'), ' Highlights') : null,
         el('button', { title: 'Default columns, widths, and highlights', onclick: () => {
             state.layout = { columns: defaultColumns(columns), widths: {}, highlights: {} };
             layoutChanged();

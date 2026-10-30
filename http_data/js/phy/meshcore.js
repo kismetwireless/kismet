@@ -35,13 +35,7 @@ export function register(kismet) {
         color: () => 'var(--accent)',
     });
 
-    ui.rowHighlights.add({
-        id: 'meshcore_all', name: 'MeshCore node', priority: 100,
-        description: 'MeshCore LoRa mesh nodes',
-        defaultColor: '#d2e4f7', defaultEnabled: true,
-        fields: [`${base}.phyname`],
-        match: isMeshcore,
-    });
+    ui.phyColors.add({ id: 'MeshCore', title: 'MeshCore', color: '#d2e4f7', enabled: true });
 
     const count = (v) => v.toLocaleString();
 

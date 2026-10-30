@@ -19,13 +19,7 @@ export function register(kismet) {
         color: () => 'hsl(260 70% 65%)',
     });
 
-    ui.rowHighlights.add({
-        id: 'bluetooth_all', name: 'Bluetooth device', priority: 100,
-        description: 'Every Bluetooth device',
-        defaultColor: '#a5d8ff',
-        fields: [`${base}.phyname`],
-        match: isBluetooth,
-    });
+    ui.phyColors.add({ id: 'Bluetooth', title: 'Bluetooth', color: '#a5d8ff' });
 
     ui.rowHighlights.add({
         id: 'bluetooth_bredr', name: 'Bluetooth BR/EDR device', priority: 101,

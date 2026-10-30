@@ -1702,6 +1702,18 @@ std::shared_ptr<tracker_element> clone_sortable_tracker_element(const std::share
             return clone_scalar_value<tracker_element_uuid>(e);
         case tracker_type::tracker_atomic_uint64:
             return clone_scalar_value<tracker_element_atomic_uint64>(e);
+        case tracker_type::tracker_vector_string: {
+            // A list of strings (such as tags) sorts as its values joined
+            auto r = std::make_shared<tracker_element_string>();
+            std::string joined;
+            for (const auto& s : *static_cast<const tracker_element_vector_string *>(e.get())) {
+                if (!joined.empty())
+                    joined += ", ";
+                joined += s;
+            }
+            r->set(joined);
+            return r;
+        }
         default:
             // Never compared by value; the type alone decides.  (tracker_element_ipv4_addr
             // is never instantiated, so there are no ipv4 fields to sort on.)

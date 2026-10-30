@@ -299,6 +299,15 @@ bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<k
                 // Try a raw string match against a binary field
                 matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);
                 break;
+            case tracker_type::tracker_vector_string:
+                // Any one of a list of strings, such as tags
+                for (const auto& s : *std::static_pointer_cast<tracker_element_vector_string>(field)) {
+                    if (icasesearch(s, query)) {
+                        matched = true;
+                        break;
+                    }
+                }
+                break;
             case tracker_type::tracker_mac_addr:
                 if (mac_query_term_len != 0) {
                     // If we were able to interpret the query term as a partial

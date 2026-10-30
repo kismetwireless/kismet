@@ -542,7 +542,7 @@ public:
                 error("rule '" + r->name + "' is missing '}'");
 
             if (cur.t != tok::ident)
-                error("expected when, tag, color, view, alert or live");
+                error("expected when, description, tag, color, view, alert or live");
 
             auto w = cur.text;
 
@@ -552,6 +552,16 @@ public:
                 advance();
                 ops = 0;
                 r->expr = parse_expr();
+            } else if (w == "description") {
+                advance();
+                if (!r->description.empty())
+                    error("rule has more than one 'description'");
+                if (cur.t != tok::string || cur.text.empty())
+                    error("expected a description string");
+                if (cur.text.size() > 1024)
+                    error("description is longer than 1024 characters");
+                r->description = cur.text;
+                advance();
             } else if (w == "tag") {
                 advance();
                 if (cur.t != tok::string || cur.text.empty())

@@ -3,8 +3,8 @@
 # These rules tag devices the web UI highlights by default, by phy, and collect them
 # in device views.  They're read before kismet_device_rules.txt, so a rule there with
 # the same name replaces one here; leave a rule out with device_rule_disable=<name> in
-# kismet_site.conf.  The row colors for the tags are set in the web UI, under
-# Settings > Rule tags.
+# kismet_site.conf.  A rule's color is its tag's default row color in the web UI,
+# which can be changed under Settings > Appearance > Device Highlights.
 #
 # The rules language is described in kismet_device_rules.txt.
 
@@ -13,6 +13,7 @@
 # A complete enough WPA handshake to recover the key from: messages 1 and 2, or 2
 # and 3.  The messages may be from different clients of the network.
 rule wpa-handshake {
+    description "Captured WPA handshakes"
     when dot11.device/dot11.device.wpa_handshake_list/dot11.eapol.message_num == 2 and
         dot11.device/dot11.device.wpa_handshake_list/dot11.eapol.message_num in [1, 3]
     tag "handshake"
@@ -21,6 +22,7 @@ rule wpa-handshake {
 }
 
 rule pmkid {
+    description "Captured RSN PMKIDs"
     when exists(dot11.device/dot11.device.pmkid_packet)
     tag "pmkid"
     color "#ff5555"
@@ -31,6 +33,7 @@ rule pmkid {
 
 # Traffic encrypted with a known or exposed key, such as the Zigbee default keys
 rule zigbee-known-key {
+    description "Zigbee traffic with a known or exposed key"
     when phy == "802.15.4" and 802154.device/802154.device.key_state == 2
     tag "zigbee key"
     color "#ff6666"
@@ -41,6 +44,7 @@ rule zigbee-known-key {
 
 # Aircraft owned by government agencies, police, and the military
 rule adsb-government {
+    description "Government, police, and military aircraft"
     when phy == "ADSB" and
         ((adsb.device/adsb.device.icao_record/adsb.icao.owner matches
             "(?i)(department|police|agency|dep|gov|federal|royal|force|state|army|navy|patrol|sqdn|city of|sheriff)" and
@@ -56,6 +60,7 @@ rule adsb-government {
 
 # Search and rescue transponders, man overboard devices, and emergency beacons
 rule ais-emergency {
+    description "Search and rescue and emergency beacons"
     when phy == "AIS" and ais.device/ais.device.class in ["AIS-SART", "AIS-MOB", "AIS-EPIRB"]
     tag "ais emergency"
     color "#ff6666"
@@ -66,6 +71,7 @@ rule ais-emergency {
 
 # Drones Kismet recognizes, on any phy
 rule uav {
+    description "Drones"
     when exists(uav.device)
     tag "uav"
     color "#f49e42"
@@ -74,6 +80,7 @@ rule uav {
 
 # Body cameras, by their Wi-Fi or Bluetooth address or name
 rule bodycam {
+    description "Body cameras"
     when mac in [00:25:df, 12:20:13] or name startswith "Axon-X"
     tag "bodycam"
     color "#0089ff"
@@ -83,6 +90,7 @@ rule bodycam {
 # Devices heard in the last 10 seconds; off by default
 #
 # rule active {
+#     description "Heard in the last 10 seconds"
 #     when age(last_time) < 10s
 #     tag "active"
 #     color "#cee1ff"

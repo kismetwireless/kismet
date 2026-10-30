@@ -167,13 +167,7 @@ export function register(kismet) {
         match: (row) => !!row.pmkid,
     });
 
-    ui.rowHighlights.add({
-        id: 'dot11_all', name: 'Wi-Fi device', priority: 100,
-        description: 'Every Wi-Fi device',
-        defaultColor: '#8ce99a',
-        fields: [`${base}.phyname`],
-        match: isWifi,
-    });
+    ui.phyColors.add({ id: phy, title: 'Wi-Fi', color: '#8ce99a' });
 
     ui.deviceColumns.add({
         id: 'wifi_ssid', title: 'SSID', priority: 5, group: 'Wi-Fi',

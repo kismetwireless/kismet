@@ -4,9 +4,11 @@
 #
 #   rule <name> {
 #       when <condition>
+#       description "<text>"    what the rule finds, shown with its tags in the web UI
 #       tag "<text>"            tag matching devices (any number of tags)
 #       color "#rrggbb"         highlight color for matching devices
-#       view "<description>"    collect matching devices in the view rule-<name>
+#       view "<description>"    collect matching devices in the view rule-<name>; the view
+#                               takes the rule's description when it has none of its own
 #       alert                   raise a DEVICERULE alert when a device starts matching
 #       live                    check on every packet as well as on the timer
 #   }
@@ -56,11 +58,13 @@
 # Examples:
 #
 # rule close-apple {
+#     description "Apple devices close by"
 #     when manuf contains "Apple" and signal > -60
 #     tag "close"
 # }
 #
 # rule watchlist {
+#     description "Devices on the watch list"
 #     when mac in [00:11:22:33:44:55, aa:bb:cc/24]
 #     tag "watchlist"
 #     view "Devices on the watch list"
@@ -69,11 +73,13 @@
 # }
 #
 # rule open-ap {
+#     description "Open Wi-Fi access points"
 #     when phy == "IEEE802.11" and type == "Wi-Fi AP" and crypt == "Open"
 #     tag "open"
 # }
 #
 # rule free-ssid {
+#     description "Networks advertising free Wi-Fi"
 #     when dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid icontains "free"
 #     tag "free wifi"
 # }
@@ -87,6 +93,7 @@
 # }
 #
 # rule gone-quiet {
+#     description "Busy devices that have gone quiet"
 #     when age(last_time) > 10m and packets > 1000
 #     tag "quiet"
 # }

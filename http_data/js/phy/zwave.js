@@ -5,7 +5,6 @@ const z = 'zwave.device';
 
 export function register(kismet) {
     const { ui } = kismet;
-    const isZwave = (row) => row[`${base}.phyname`] === 'Z-Wave';
     const hex = (v) => v.toString(16);
 
     ui.mapSources.add({
@@ -14,13 +13,7 @@ export function register(kismet) {
         color: () => 'hsl(30 80% 55%)',
     });
 
-    ui.rowHighlights.add({
-        id: 'zwave_all', name: 'Z-Wave device', priority: 100,
-        description: 'Z-Wave nodes',
-        defaultColor: '#ffe6b3', defaultEnabled: true,
-        fields: [`${base}.phyname`],
-        match: isZwave,
-    });
+    ui.phyColors.add({ id: 'Z-Wave', title: 'Z-Wave', color: '#ffe6b3', enabled: true });
 
     ui.deviceDetails.add({
         id: 'zwave', title: 'Z-Wave', priority: 5,
