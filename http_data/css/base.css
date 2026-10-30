@@ -572,6 +572,20 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .dialog .dialog-header button { cursor: pointer; }
 .dialog.moving .dialog-header { cursor: grabbing; }
 .dialog.moving { opacity: 0.92; }
+/* A panel nearly the size of the window fills it, like a full-window pane */
+.dialog.panel.full {
+    inset: var(--pane-inset);
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    border-width: 1px 0 0;
+    border-radius: 0;
+    box-shadow: none;
+    resize: none;
+}
+.dialog.panel.full .dialog-header { cursor: default; touch-action: auto; }
 
 .form { display: flex; flex-direction: column; gap: 0.7rem; }
 .form p { margin: 0; color: var(--muted); }
