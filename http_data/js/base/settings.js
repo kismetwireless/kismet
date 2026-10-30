@@ -1,4 +1,4 @@
-// The standard settings sections: appearance and the ribbon.  Device list
+// The standard settings sections: appearance, units and the ribbon.  Device list
 // columns and row highlights are edited on the list itself.
 
 export function register(kismet) {
@@ -67,6 +67,20 @@ export function register(kismet) {
                 accentTitle,
                 accents);
             update();
+        },
+    });
+
+    ui.settingsPanes.add({
+        id: 'units', title: 'Units', priority: 20,
+        create(body) {
+            body.append(
+                el('h4', {}, 'Speed'),
+                choice('units-speed', kismet.format.speedUnits, kismet.format.speedUnits.find((u) =>
+                    u.id === settings.get('units.speed'))?.id ?? 'kmh', (id) => settings.set('units.speed', id)),
+                el('h4', {}, 'Height and altitude'),
+                choice('units-height', kismet.format.heightUnits, kismet.format.heightUnits.find((u) =>
+                    u.id === settings.get('units.height'))?.id ?? 'm', (id) => settings.set('units.height', id)),
+                el('p', { class: 'muted' }, 'Distances, ranges and accuracies stay in meters and kilometers.'));
         },
     });
 

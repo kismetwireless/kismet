@@ -89,10 +89,10 @@ function compass(deg) {
 }
 
 const temperature = (c) => `${Number(c).toFixed(1)} °C (${(c * 9 / 5 + 32).toFixed(1)} °F)`;
-const speed = (kph) => `${Number(kph).toFixed(1)} km/h (${(kph / 1.609344).toFixed(1)} mph)`;
 
 export function register(kismet) {
-    const { ui, icons, dom } = kismet;
+    const { ui, icons, dom, format } = kismet;
+    const speed = (kph) => format.speed(kph);
     const isSensor = (row) => row[`${base}.phyname`] === 'RFSENSOR';
     const reading = (opts) => readingWithHistory(kismet, opts);
 

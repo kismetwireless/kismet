@@ -848,8 +848,8 @@ export function createMap(container, area = null) {
                 (pic.server ? 'recorded by Kismet.' : 'collected by this browser.'),
             ...(bands.length ? [el('span', { class: 'map-range-key' }, ...bands.map((o) =>
                 el('span', {}, el('span', { class: `map-range-swatch map-range-band${o.band}` }),
-                    !o.min ? `below ${o.max.toLocaleString()} m` : !o.max ? `above ${o.min.toLocaleString()} m` :
-                        `${o.min.toLocaleString()}–${o.max.toLocaleString()} m`)))] : []));
+                    !o.min ? `below ${format.height(o.max)}` : !o.max ? `above ${format.height(o.min)}` :
+                        `${format.height(o.min)}–${format.height(o.max)}`)))] : []));
     }
 
     // The area devices were heard over, without Kismet's location to measure from

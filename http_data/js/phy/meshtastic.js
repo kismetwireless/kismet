@@ -40,7 +40,7 @@ export function register(kismet) {
         id: 'meshtastic', title: 'Meshtastic nodes', priority: 30, icon: 'mesh', view: 'phy-Meshtastic', maxAge: 3600,
         fields: [[`${n}/${n}.longname`, 'longname'], [`${n}/${n}.shortname`, 'shortname']],
         label: (d) => String(d.longname ?? '').trim() || String(d.shortname ?? '').trim() || d.name,
-        detail: (d) => (d.rep_alt ? `${Math.round(d.rep_alt)} m` : ''),
+        detail: (d) => (d.rep_alt ? format.height(d.rep_alt) : ''),
         color: () => 'var(--accent)',
     });
 

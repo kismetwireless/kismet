@@ -700,7 +700,7 @@ function registerDetails(kismet) {
             { title: 'Location', field: `${path}/${loc}.avg_loc/${loc}.geopoint`, format: point },
             { title: 'Altitude', field: `${path}/${loc}.avg_loc/${loc}.alt`,
                 show: (_v, rec) => api.field(rec, `${path}/${loc}.avg_loc/${loc}.fix`, 0) >= 3,
-                format: (v) => `${v.toFixed(1)} m` },
+                format: (v) => format.height(v, 1) },
         ],
     });
 
