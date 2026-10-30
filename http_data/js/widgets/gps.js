@@ -223,8 +223,8 @@ function gpsSection(gps, state) {
     const summary = el('div', { class: 'gps-summary' },
         row('Fix', `${fixName(gps)}${gps[`${g}.connected`] === 0 ? ' (not connected)' : ''}`),
         fix >= 2 && Array.isArray(point) ? row('Position', `${point[1].toFixed(6)}, ${point[0].toFixed(6)}`) : null,
-        fix >= 3 ? row('Altitude', `${(L('alt') ?? 0).toFixed(1)} m`) : null,
-        fix >= 2 ? row('Speed', `${(L('speed') ?? 0).toFixed(1)} km/h, heading ${Math.round(L('heading') ?? 0)}°`) : null,
+        fix >= 3 ? row('Altitude', format.height(L('alt') ?? 0, 1)) : null,
+        fix >= 2 ? row('Speed', `${format.speed(L('speed') ?? 0)}, heading ${Math.round(L('heading') ?? 0)}°`) : null,
         row('Error', [meters('precision_h') && `${meters('precision_h')} horizontal`, meters('precision_v') && `${meters('precision_v')} vertical`]
             .filter(Boolean).join(', ') + (gps[`${g}.precision_source`] ? ` (${gps[`${g}.precision_source`]})` : '')),
         row('Satellites', gps[`${g}.satellites_visible`] === undefined ? null :

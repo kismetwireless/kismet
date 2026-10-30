@@ -38,6 +38,7 @@ function locationText(v) {
 
 export function register(kismet) {
     const { ui, icons, api, format } = kismet;
+    const height = (v) => format.height(v, 1);
 
     icons.define('drone', '<circle cx="5.5" cy="5.5" r="2.5"/><circle cx="18.5" cy="5.5" r="2.5"/>' +
         '<circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>' +
@@ -66,7 +67,7 @@ export function register(kismet) {
             [`${uav}/uav.serialnumber`, 'uav_serial']],
         label: (d) => String(d.uav_serial ?? '').trim() || d.name,
         detail: (d) => [String(d.uav_manuf ?? '').trim(), String(d.uav_model ?? '').trim(),
-            d.rep_alt ? `${Math.round(d.rep_alt)} m` : null].filter(Boolean).join(' '),
+            d.rep_alt ? format.height(d.rep_alt) : null].filter(Boolean).join(' '),
         color: () => 'var(--warn)',
     });
 
@@ -119,8 +120,8 @@ export function register(kismet) {
                         show: (v) => locationText(v) !== null, format: locationText, help: 'The last location the drone reported.' },
                     { title: 'Altitude', field: `${uav}/uav.last_telemetry/uav.telemetry.location/kismet.common.location.alt`,
                         show: (_v, dev) => api.field(dev, `${uav}/uav.last_telemetry/uav.telemetry.location/kismet.common.location.fix`, 0) >= 3,
-                        format: meters, help: 'The last altitude the drone reported.' },
-                    { title: 'Height', field: `${uav}/uav.last_telemetry/uav.telemetry.height`, format: meters,
+                        format: height, help: 'The last altitude the drone reported.' },
+                    { title: 'Height', field: `${uav}/uav.last_telemetry/uav.telemetry.height`, format: height,
                         help: 'Height above the ground, as the drone reports it.' },
                 ],
             },
@@ -154,14 +155,14 @@ export function register(kismet) {
                             { title: 'Status', field: `${rid}.status`, format: named(statuses) },
                             { title: 'Direction', field: `${rid}.direction`, format: (v) => `${v}°`,
                                 help: 'Direction of travel, clockwise from true north.' },
-                            { title: 'Ground speed', field: `${rid}.speed_horizontal`, format: (v) => `${(v * 3.6).toFixed(1)} km/h` },
-                            { title: 'Vertical speed', field: `${rid}.speed_vertical`, format: (v) => `${Number(v).toFixed(1)} m/s`,
+                            { title: 'Ground speed', field: `${rid}.speed_horizontal`, format: (v) => format.speed(v * 3.6) },
+                            { title: 'Vertical speed', field: `${rid}.speed_vertical`, format: (v) => format.verticalSpeed(v),
                                 help: 'Climbing when positive, descending when negative.' },
-                            { title: 'Geodetic altitude', field: `${rid}.altitude_geo`, format: meters,
+                            { title: 'Geodetic altitude', field: `${rid}.altitude_geo`, format: height,
                                 help: 'Altitude above the WGS-84 ellipsoid (the GPS reference shape of the Earth).' },
-                            { title: 'Pressure altitude', field: `${rid}.altitude_baro`, format: meters,
+                            { title: 'Pressure altitude', field: `${rid}.altitude_baro`, format: height,
                                 help: 'Altitude from air pressure, measured against standard pressure.' },
-                            { title: 'Height', field: `${rid}.height`, format: meters },
+                            { title: 'Height', field: `${rid}.height`, format: height },
                             { title: 'Height reference', field: `${rid}.height_type`, format: named(heightTypes) },
                             { title: 'Horizontal accuracy', field: `${rid}.horiz_accuracy`, format: named(horizAccuracy) },
                             { title: 'Vertical accuracy', field: `${rid}.vert_accuracy`, format: named(vertAccuracy) },
@@ -194,7 +195,7 @@ export function register(kismet) {
                             { title: 'Description type', field: `${rid}.self_id_type`, format: named(selfIdTypes) },
                             { title: 'Operator location', field: `${rid}.operator_location_type`, format: named(operatorLocationTypes),
                                 help: 'Where the operator location (shown as the app location above) comes from.  A takeoff location is also shown as the home location.' },
-                            { title: 'Operator altitude', field: `${rid}.operator_altitude`, format: meters },
+                            { title: 'Operator altitude', field: `${rid}.operator_altitude`, format: height },
                             { title: 'Classification', field: `${rid}.classification_type`, format: named(classificationTypes) },
                             { title: 'EU category', field: `${rid}.eu_category`, format: named(euCategories),
                                 show: (_v, dev) => api.field(dev, `${rid}.classification_type`) === 1 },
@@ -203,8 +204,8 @@ export function register(kismet) {
                             { title: 'Aircraft in area', field: `${rid}.area_count`,
                                 help: 'How many aircraft the operator has in the operating area.' },
                             { title: 'Area radius', field: `${rid}.area_radius`, format: meters },
-                            { title: 'Area ceiling', field: `${rid}.area_ceiling`, format: meters },
-                            { title: 'Area floor', field: `${rid}.area_floor`, format: meters },
+                            { title: 'Area ceiling', field: `${rid}.area_ceiling`, format: height },
+                            { title: 'Area floor', field: `${rid}.area_floor`, format: height },
                             { title: 'System timestamp', field: `${rid}.system_timestamp`, hideZero: true, format: format.time },
                         ],
                     },

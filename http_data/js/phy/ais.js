@@ -5,7 +5,7 @@ const ais = 'ais.device';
 const emergency = ['AIS-SART', 'AIS-MOB', 'AIS-EPIRB'];
 
 export function register(kismet) {
-    const { ui, icons, dom, api } = kismet;
+    const { ui, icons, dom, api, format } = kismet;
     const { el } = dom;
     const isAis = (row) => row[`${base}.phyname`] === 'AIS';
 
@@ -113,7 +113,7 @@ export function register(kismet) {
             { title: 'Destination', field: `${ais}/${ais}.destination`, hideEmpty: true },
             { title: 'ETA (UTC)', field: `${ais}/${ais}.eta`, hideEmpty: true },
             { title: 'Transponder vendor', field: `${ais}/${ais}.vendor`, hideEmpty: true },
-            { title: 'Speed', field: `${ais}/${ais}.sog`, show: (_v, dev) => moves(dev), format: (v) => `${v.toFixed(1)} knots`,
+            { title: 'Speed', field: `${ais}/${ais}.sog`, show: (_v, dev) => moves(dev), format: (v) => format.speed(v * 1.852),
                 help: 'Speed over ground.' },
             { title: 'Course', field: `${ais}/${ais}.cog`, show: (_v, dev) => moves(dev), format: (v) => `${v.toFixed(1)}°`,
                 help: 'Course over ground: the direction the ship is actually moving.' },
@@ -128,7 +128,7 @@ export function register(kismet) {
             },
             { title: 'Rate of turn', field: `${ais}/${ais}.rot`, hideZero: true, format: (v) => `${v.toFixed(1)}°/min` },
             { title: 'Altitude', field: `${ais}/${ais}.altitude`, show: (_v, dev) => isClass(dev, ['SAR Aircraft']),
-                format: (v) => `${v} m` },
+                format: (v) => format.height(v) },
             { title: 'Station UTC time', field: `${ais}/${ais}.utc_time`, hideEmpty: true },
             {
                 title: 'Reported location', field: `${base}.reported_location/kismet.common.location.last/kismet.common.location.geopoint`,

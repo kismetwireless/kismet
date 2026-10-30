@@ -31,7 +31,7 @@ function isGovernment(owner, icao) {
 }
 
 export function register(kismet) {
-    const { ui, icons, dom, api } = kismet;
+    const { ui, icons, dom, api, format } = kismet;
     const { el } = dom;
     const isAdsb = (row) => row[`${base}.phyname`] === 'ADSB';
 
@@ -54,14 +54,14 @@ export function register(kismet) {
         id: 'adsb', title: 'Aircraft', priority: 0, icon: 'plane', view: 'phy-ADSB', maxAge: 600, legacy: true,
         fields: [[`${adsb}/${adsb}.callsign`, 'callsign']],
         label: (d) => String(d.callsign ?? '').trim() || d.name,
-        detail: (d) => [d.rep_alt ? `${Math.round(d.rep_alt).toLocaleString()} m` : null,
-            d.rep_speed ? `${Math.round(d.rep_speed)} km/h` : null].filter(Boolean).join(', '),
+        detail: (d) => [d.rep_alt ? format.height(d.rep_alt) : null,
+            d.rep_speed ? format.speed(d.rep_speed, 0) : null].filter(Boolean).join(', '),
         color: (d) => altColor(d.rep_alt),
         heading: (d) => d.rep_heading || 0,
         legend: () => el('div', { class: 'map-legend' }, el('span', {}, 'Altitude'),
             el('span', { class: 'map-legend-bar', style: { background:
                 `linear-gradient(to right, ${[0, 3000, 6000, 9000, 12000].map(altColor).join(', ')})` } }),
-            el('span', { class: 'map-legend-scale' }, el('span', {}, '0 m'), el('span', {}, '12,000 m'))),
+            el('span', { class: 'map-legend-scale' }, el('span', {}, format.height(0)), el('span', {}, format.height(12000)))),
     });
 
     ui.rowHighlights.add({
@@ -99,8 +99,8 @@ export function register(kismet) {
                 group: 'Position',
                 show: (dev) => api.field(dev, `${pos}.fix`, 0) >= 2,
                 fields: [
-                    { title: 'Altitude', field: `${pos}.alt`, hideZero: true, format: (v) => `${Math.round(v)} m` },
-                    { title: 'Speed', field: `${pos}.speed`, hideZero: true, format: (v) => `${v.toFixed(0)} km/h` },
+                    { title: 'Altitude', field: `${pos}.alt`, hideZero: true, format: (v) => format.height(v) },
+                    { title: 'Speed', field: `${pos}.speed`, hideZero: true, format: (v) => format.speed(v, 0) },
                     {
                         title: 'Heading', field: `${pos}.heading`, hideZero: true,
                         format: (v) => {
