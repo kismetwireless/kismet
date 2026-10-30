@@ -97,10 +97,6 @@ function rangeWindow() {
     return rangeWindows.some((r) => r.id === w) ? w : 'all';
 }
 
-function km(m) {
-    return `${(m / 1000).toLocaleString(undefined, { maximumFractionDigits: m < 10000 ? 1 : 0 })} km`;
-}
-
 function collecting() {
     return settings.get('map.pathsCollect', true) !== false;
 }
@@ -828,8 +824,8 @@ export function createMap(container, area = null) {
         });
 
         const far = Math.max(...pic.outlines.map((o) => Math.max(...o.outline.dist)));
-        const step = ringStep(far);
-        const ringKey = `${center[0]},${center[1]},${step},${Math.floor(far / step)}`;
+        const step = ringStep(far, format.isImperial());
+        const ringKey = `${center[0]},${center[1]},${step},${Math.floor(far / step)},${format.isImperial()}`;
         if (ringKey !== rangeRingKey) {
             clearRings();
             rangeRingKey = ringKey;
@@ -838,13 +834,13 @@ export function createMap(container, area = null) {
                 rangeRings.push(L.circle(ll, { radius: r, className: 'map-range-ring', weight: 1, fill: false, interactive: false })
                     .addTo(rangeLayer));
                 rangeRings.push(L.marker(destination(center, 0, r), { interactive: false, keyboard: false,
-                    icon: L.divIcon({ className: 'map-range-label', html: el('span', {}, km(r)), iconSize: null }) })
+                    icon: L.divIcon({ className: 'map-range-label', html: el('span', {}, format.distance(r)), iconSize: null }) })
                     .addTo(rangeLayer));
             }
         }
         const bands = pic.outlines.filter((o) => o.band !== undefined);
         rangeInfo.replaceChildren(
-            `${src.title}: furthest ${km(pic.far)}, to the ${compass(pic.farBearing)}; ${pic.samples.toLocaleString()} positions, ` +
+            `${src.title}: furthest ${format.distance(pic.far)}, to the ${compass(pic.farBearing)}; ${pic.samples.toLocaleString()} positions, ` +
                 (pic.server ? 'recorded by Kismet.' : 'collected by this browser.'),
             ...(bands.length ? [el('span', { class: 'map-range-key' }, ...bands.map((o) =>
                 el('span', {}, el('span', { class: `map-range-swatch map-range-band${o.band}` }),
@@ -875,7 +871,7 @@ export function createMap(container, area = null) {
             for (let j = i + 1; j < pic.hull.length; j++)
                 across = Math.max(across, map.distance([pic.hull[i][1], pic.hull[i][0]], [pic.hull[j][1], pic.hull[j][0]]));
         }
-        rangeInfo.textContent = `${src.title}: heard over an area about ${km(across)} across; ` +
+        rangeInfo.textContent = `${src.title}: heard over an area about ${format.distance(across)} across; ` +
             `${pic.samples.toLocaleString()} positions, ${pic.server ? 'recorded by Kismet' : 'collected by this browser'}.  ` +
             'Kismet\'s location isn\'t known, so this is where they were, not how far the receiver reaches.';
     }
@@ -1234,6 +1230,7 @@ export function createMap(container, area = null) {
         settings.watch('map.tileUrl', () => { sessionChoice = null; applyTiles(); askTiles(); }),
         settings.watch('map.tileAttribution', () => { tileLayer?.remove(); tileLayer = null; applyTiles(); }),
         settings.watch('map.darkTiles', applyTheme),
+        settings.watch('units.length', () => drawRange()),
         theme.onChange(applyTheme),
         settings.watch('map.paths', () => {
             pathSelect.value = pathScope();

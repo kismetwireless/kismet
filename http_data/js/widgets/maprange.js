@@ -253,8 +253,10 @@ export function outlineOf(distances) {
     return { step: 360 / n, dist: out };
 }
 
-// Ring spacing giving about four rings out to a distance, in meters
-export function ringStep(max) {
-    const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500].map((k) => k * 1000);
-    return steps.find((s) => max / s <= 5) ?? 1000000;
+// Ring spacing giving about four rings out to a distance, in meters; round
+// kilometers (or meters), or round miles when imperial
+export function ringStep(max, imperial = false) {
+    const steps = imperial ? [0.25, 0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500].map((k) => k * 1609.344) :
+        [0.25, 0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500].map((k) => k * 1000);
+    return steps.find((s) => max / s <= 5) ?? steps[steps.length - 1] * 2;
 }

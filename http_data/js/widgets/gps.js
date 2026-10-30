@@ -218,7 +218,7 @@ function gpsSection(gps, state) {
     const point = L('geopoint');
     const sats = satellites(gps);
     const num = (f, digits = 1) => (gps[`${g}.${f}`] === undefined ? null : Number(gps[`${g}.${f}`]).toFixed(digits));
-    const meters = (f) => (gps[`${g}.${f}`] === undefined ? null : `${num(f)} m`);
+    const meters = (f) => (gps[`${g}.${f}`] === undefined ? null : format.distance(gps[`${g}.${f}`], 1));
 
     const summary = el('div', { class: 'gps-summary' },
         row('Fix', `${fixName(gps)}${gps[`${g}.connected`] === 0 ? ' (not connected)' : ''}`),
