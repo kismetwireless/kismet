@@ -977,6 +977,7 @@ protected:
     // bringup, etc
     virtual void handle_source_error();
 
+    void publish_source_opened();
 
     // Arbitrary data stored about the source, entered by the user
     std::shared_ptr<tracker_element_string> source_info_antenna_type;

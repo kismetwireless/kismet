@@ -1811,6 +1811,13 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
     handle_configsource_report_v3_callback(report_seqno, code, lock, msg);
 }
 
+// Every successful open, from startup, the API, or a retry after an error
+void kis_datasource::publish_source_opened() {
+    auto evt = eventbus->get_eventbus_event(event_datasource_opened());
+    evt->get_event_content()->insert(event_datasource_opened(), source_uuid);
+    eventbus->publish(evt);
+}
+
 void kis_datasource::handle_opensource_report_v3_callback(uint32_t in_seqno, uint16_t code,
         kis_unique_lock<kis_mutex>& lock, const std::string& msg) {
 
@@ -2161,8 +2168,10 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     set_source_paused(0);
     set_int_source_error(code == 0);
     // A successful open clears a stale reason such as "Source disabled"
-    if (code != 0)
+    if (code != 0) {
         set_int_source_error_reason("");
+        publish_source_opened();
+    }
 
     handle_opensource_report_v3_callback(report_seqno, code, lock, msg);
 }
@@ -3143,8 +3152,10 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     set_int_source_running(report.success().success());
 
     set_int_source_error(!report.success().success());
-    if (report.success().success())
+    if (report.success().success()) {
         set_int_source_error_reason("");
+        publish_source_opened();
+    }
 
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
@@ -4055,10 +4066,6 @@ void kis_datasource::handle_source_error() {
                         [this](int, bool success, std::string) {
                             if (!success)
                                 return;
-
-                            auto evt = eventbus->get_eventbus_event(event_datasource_opened());
-                            evt->get_event_content()->insert(event_datasource_opened(), source_uuid);
-                            eventbus->publish(evt);
 
                             auto alrt = fmt::format("Source {} ({}) successfully re-opened",
                                     get_source_name(), get_source_uuid());
