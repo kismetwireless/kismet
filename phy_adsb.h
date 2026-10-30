@@ -116,6 +116,8 @@ protected:
     // Aggregated location turned into a packet location later
     double lat, lon, alt, heading, speed;
     bool update_location;
+    // When lat and lon were last decoded
+    struct timeval pos_tv{};
 
     friend class kis_adsb_phy;
 };
@@ -194,8 +196,9 @@ protected:
     uint8_t adsb_msg_get_me_type(const std::string& u8_buf) const;
     uint8_t adsb_msg_get_me_subtype(const std::string& u8_buf) const;
 
-    int adsb_msg_get_ac13_altitude(const std::string& u8_buf) const;
-    int adsb_msg_get_ac12_altitude(const std::string& u8_buf) const;
+    // Altitude in feet; false when the message doesn't carry one
+    bool adsb_msg_get_ac13_altitude(const std::string& u8_buf, int& alt) const;
+    bool adsb_msg_get_ac12_altitude(const std::string& u8_buf, int& alt) const;
 
     std::string adsb_msg_get_flight(const std::string& u8_buf) const;
 
@@ -213,10 +216,10 @@ protected:
 
     void adsb_msg_get_airborne_position(const std::string& u8_buf, adsb_location_t &ret) const;
 
-    double adsb_msg_get_airborne_velocity(const std::string& u8_buf) const;
-    double adsb_msg_get_airborne_heading(const std::string& u8_buf) const;
-    bool adsb_msg_get_airborne_heading_valid(const std::string& u8_buf) const;
-    double adsb_msg_get_sub3_heading(const std::string& u8_buf) const;
+    // Ground speed (knots) and track from velocity subtypes 1 and 2
+    bool adsb_msg_get_ground_velocity(const std::string& u8_buf, double& speed, double& heading) const;
+    // Heading from velocity subtypes 3 and 4
+    bool adsb_msg_get_sub3_heading(const std::string& u8_buf, double& heading) const;
 
 };
 

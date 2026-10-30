@@ -614,7 +614,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     std::string callsign;
     bool use_callsign = false;
 
-    unsigned long altitude = 0;
+    int altitude = 0;
     bool use_altitude = false;
 
     adsb_location location;
@@ -634,33 +634,20 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
             callsign = adsb_msg_get_flight(adsb_bin);
             use_callsign = true;
         } else if (msgme >= 9 && msgme <= 18) {
-            altitude = adsb_msg_get_ac12_altitude(adsb_bin);
-            use_altitude = true;
+            use_altitude = adsb_msg_get_ac12_altitude(adsb_bin, altitude);
 
             adsb_msg_get_airborne_position(adsb_bin, location);
             use_location = true;
-        } else if (msgme == 19 && (msgsubme >= 1 && msgsubme <= 4)) {
-            altitude = adsb_msg_get_ac12_altitude(adsb_bin);
-            use_altitude = true;
-
+        } else if (msgme == 19) {
+            // Velocity messages carry no altitude
             if (msgsubme == 1 || msgsubme == 2) {
-                speed = adsb_msg_get_airborne_velocity(adsb_bin);
-                use_speed = true;
-
-                if (adsb_msg_get_airborne_heading_valid(adsb_bin)) {
-                    heading = adsb_msg_get_airborne_heading(adsb_bin);
-                    use_heading = true;
-                }
+                use_speed = use_heading = adsb_msg_get_ground_velocity(adsb_bin, speed, heading);
             } else if (msgsubme == 3 || msgsubme == 4) {
-                if (adsb_msg_get_airborne_heading_valid(adsb_bin)) {
-                    heading = adsb_msg_get_airborne_heading(adsb_bin);
-                    use_heading = true;
-                }
+                use_heading = adsb_msg_get_sub3_heading(adsb_bin, heading);
             }
         }
     } else if (msgtype == 0 || msgtype == 4 || msgtype == 16 || msgtype == 20) {
-        altitude = adsb_msg_get_ac13_altitude(adsb_bin);
-        use_altitude = true;
+        use_altitude = adsb_msg_get_ac13_altitude(adsb_bin, altitude);
     }
 
     auto mac = icao_to_mac(icao);
@@ -745,7 +732,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     }
 
     if (use_speed) {
-        adsbdev->speed = (double) speed * 1.60934;
+        adsbdev->speed = speed * 1.852;
         adsbdev->update_location = true;
     }
 
@@ -823,8 +810,10 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
 
+        // The position is as of its last decode; altitude and velocity messages in between
+        // don't make it any newer
         packet->reported_gps.set_reported(adsbdev->lat, adsbdev->lon, adsbdev->alt,
-                adsbdev->speed, adsbdev->heading, 0, packet->ts);
+                adsbdev->speed, adsbdev->heading, 0, adsbdev->pos_tv);
 
         devicetracker->update_common_device(mac, this, packet, (UCD_UPDATE_REPORTED_LOCATION), "ADSB Transmitter");
     }
@@ -949,10 +938,8 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
 
-        struct timeval now;
-        gettimeofday(&now, NULL);
         packet->reported_gps.set_reported(adsbdev->lat, adsbdev->lon, adsbdev->alt,
-                adsbdev->speed, adsbdev->heading, 0, now);
+                adsbdev->speed, adsbdev->heading, 0, adsbdev->pos_tv);
 
         devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_REPORTED_LOCATION), "ADSB Transmitter");
@@ -1029,7 +1016,7 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(const std::shared_ptr<
 
         auto speed_j = json["speed"];
         if (speed_j.is_number()) {
-            adsbdev->speed = speed_j.get<double>() * 1.60934;
+            adsbdev->speed = speed_j.get<double>() * 1.852;
             adsbdev->update_location = true;
         }
 
@@ -1269,6 +1256,7 @@ void kis_adsb_phy::decode_cpr(const std::shared_ptr<adsb_tracked_adsb>& adsb,
     if (adsb->lon > 180)
         adsb->lon -= 360;
 
+    adsb->pos_tv = packet->ts;
     adsb->update_location = true;
 }
 
@@ -1421,39 +1409,37 @@ uint8_t kis_adsb_phy::adsb_msg_get_me_subtype(const std::string& u8_buf) const {
     return buf[4] & 7;
 }
 
-int kis_adsb_phy::adsb_msg_get_ac13_altitude(const std::string& u8_buf) const {
+bool kis_adsb_phy::adsb_msg_get_ac13_altitude(const std::string& u8_buf, int& alt) const {
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
     int m_bit = buf[3] & (1 << 6);
     int q_bit = buf[3] & (1 << 4);
 
-    if (!m_bit) {
-        if (q_bit) {
-            int n = (buf[2] & 31) << 6;
-            n |= (buf[3] & 0x80) >> 2;
-            n |= (buf[3] & 0x20) >> 1;
-            n |= (buf[3] & 0x15);
+    // Metric and Gillham coded altitudes aren't decoded
+    if (m_bit || !q_bit)
+        return false;
 
-            return n * 25 - 1000;
-        }
-    }
+    int n = (buf[2] & 31) << 6;
+    n |= (buf[3] & 0x80) >> 2;
+    n |= (buf[3] & 0x20) >> 1;
+    n |= (buf[3] & 0x0F);
 
-    return 0;
+    alt = n * 25 - 1000;
+    return true;
 }
 
-int kis_adsb_phy::adsb_msg_get_ac12_altitude(const std::string& u8_buf) const {
+bool kis_adsb_phy::adsb_msg_get_ac12_altitude(const std::string& u8_buf, int& alt) const {
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
     int q_bit = buf[5] & 1;
-    int n = 0;
 
-    if (q_bit) {
-        // Extract the 11bit integer after removing bit 0
-        n = (buf[5] >> 1) << 4;
-        n |= (buf[6] & 0xF0) >> 4;
+    if (!q_bit)
+        return false;
 
-        return n * 25 - 1000;
-    }
+    // Extract the 11bit integer after removing bit 0
+    int n = (buf[5] >> 1) << 4;
+    n |= (buf[6] & 0xF0) >> 4;
 
-    return 0;
+    alt = n * 25 - 1000;
+    return true;
 }
 
 std::string kis_adsb_phy::adsb_msg_get_flight(const std::string& u8_buf) const {
@@ -1496,29 +1482,10 @@ void kis_adsb_phy::adsb_msg_get_airborne_position(const std::string& u8_buf, kis
 
 }
 
-double kis_adsb_phy::adsb_msg_get_airborne_velocity(const std::string& u8_buf) const {
-    // Get airborne velocity from message 17
-    // Synthesized from the EW/NS velocities
-    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-
-    // int ew_dir = (buf[5] & 4) >> 2;
-    int ew_velocity = ((buf[5] & 3) << 8) | buf[6];
-    // int ns_dir = (buf[7] & 0x80) >> 7;
-    int ns_velocity = ((buf[7] & 0x7f) << 3) | ((buf[8] & 0xe0) >> 5);
-
-    double velocity = sqrt(ns_velocity * ns_velocity + ew_velocity * ew_velocity);
-
-    return velocity;
-}
-
-bool kis_adsb_phy::adsb_msg_get_airborne_heading_valid(const std::string& u8_buf) const {
-    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-    return buf[5] & (1 << 2);
-}
-
-double kis_adsb_phy::adsb_msg_get_airborne_heading(const std::string& u8_buf) const {
-    // Airborne heading from message 17 
-    // Synthesized from EW/NS headings
+bool kis_adsb_phy::adsb_msg_get_ground_velocity(const std::string& u8_buf, double& speed,
+        double& heading) const {
+    // East-west and north-south velocity from msg17 type 19 subtypes 1 and 2, in knots;
+    // 0 is no velocity, otherwise the velocity is one less, and 4 times that for subtype 2
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
 
     int ew_dir = (buf[5] & 4) >> 2;
@@ -1526,38 +1493,33 @@ double kis_adsb_phy::adsb_msg_get_airborne_heading(const std::string& u8_buf) co
     int ns_dir = (buf[7] & 0x80) >> 7;
     int ns_velocity = ((buf[7] & 0x7f) << 3) | ((buf[8] & 0xe0) >> 5);
 
-    if (ew_dir)
-        ew_velocity *= -1;
-    
-    if (ns_dir)
-        ns_velocity *= -1;
-    
-    double heading = atan2(ew_velocity, ns_velocity);
+    if (ew_velocity == 0 || ns_velocity == 0)
+        return false;
 
-    heading = heading * 360 / (M_PI * 2);
-    
+    const int scale = adsb_msg_get_me_subtype(u8_buf) == 2 ? 4 : 1;
+    double ew = (ew_velocity - 1) * scale * (ew_dir ? -1 : 1);
+    double ns = (ns_velocity - 1) * scale * (ns_dir ? -1 : 1);
+
+    speed = sqrt(ew * ew + ns * ns);
+
+    heading = atan2(ew, ns) * 360 / (M_PI * 2);
     if (heading < 0)
         heading += 360;
-    
-    return heading;
+
+    return true;
 }
 
-double kis_adsb_phy::adsb_msg_get_sub3_heading(const std::string& u8_buf) const {
-    // Direct heading from msg17 sub3 and sub4
+bool kis_adsb_phy::adsb_msg_get_sub3_heading(const std::string& u8_buf, double& heading) const {
+    // Magnetic heading from msg17 type 19 subtypes 3 and 4, when its status bit is set
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-       
+
     if (!(buf[5] & (1 << 2)))
-        return -1;
+        return false;
 
-    int iheading = (buf[5] & 3) << 5;
-    iheading |= buf[6] >> 3;
-    double heading = iheading * (double) (360.0 / 128);
+    int iheading = ((buf[5] & 3) << 8) | buf[6];
+    heading = iheading * (360.0 / 1024);
 
-    if (heading < 0)
-        heading += 360;
-
-    return heading;
-
+    return true;
 }
 
 uint32_t kis_adsb_phy::modes_checksum(const std::string& u8_buf) {
