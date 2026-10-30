@@ -107,11 +107,11 @@ public:
                 return lex_mac(t, groups);
         }
 
+        if (name_at(pos))
+            return lex_ident(t);
+
         if (c >= '0' && c <= '9')
             return lex_number(t);
-
-        if (is_ident_start(c))
-            return lex_ident(t);
 
         advance();
 
@@ -436,13 +436,24 @@ private:
         return t;
     }
 
+    // A name starts with a letter, or with digits and a '.' before a letter, as
+    // in 802154.device
+    bool name_at(size_t p) const {
+        if (p < src.size() && is_ident_start(src[p]))
+            return true;
+        size_t start = p;
+        while (p < src.size() && src[p] >= '0' && src[p] <= '9')
+            p++;
+        return p > start && p + 1 < src.size() && src[p] == '.' && is_ident_start(src[p + 1]);
+    }
+
     // Identifiers and field paths; a '/' with no space around it joins path elements
     token& lex_ident(token& t) {
         while (true) {
             while (is_ident_char(peek()))
                 advance();
 
-            if (peek() == '/' && is_ident_start(peek(1))) {
+            if (peek() == '/' && name_at(pos + 1)) {
                 advance();
                 continue;
             }
